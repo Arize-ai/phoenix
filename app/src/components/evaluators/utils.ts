@@ -14,9 +14,9 @@ import {
   CategoricalChoiceToolTypeSchema,
 } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
+import { type AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
-  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
@@ -26,7 +26,7 @@ const createPromptVersionInput = ({
   playgroundStore,
   instanceId,
   description,
-  outputConfig,
+  outputConfigs,
   includeExplanation,
 }: {
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
@@ -37,9 +37,9 @@ const createPromptVersionInput = ({
    */
   description?: string;
   /**
-   * The choice config of the evaluator.
+   * The output configs of the evaluator. Only categorical configs generate tools.
    */
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs: AnnotationConfig[];
   /**
    * Whether to include an explanation for the evaluation score.
    */
@@ -55,6 +55,43 @@ const createPromptVersionInput = ({
 }) => {
   const { promptInput, templateFormat, promptVersionId } =
     getInstancePromptParamsFromStore(instanceId, playgroundStore);
+
+  // Build one tool per categorical output config
+  const categoricalConfigs = outputConfigs.filter(
+    (c): c is ClassificationEvaluatorAnnotationConfig => "values" in c
+  );
+  const tools = categoricalConfigs.map((config) => ({
+    definition: fromOpenAIToolDefinition({
+      toolDefinition: CategoricalChoiceToolTypeSchema.parse({
+        type: "function",
+        function: {
+          name: config.name,
+          description,
+          parameters: {
+            type: "object",
+            properties: {
+              label: {
+                type: "string",
+                enum: config.values.map((value) => value.label),
+                description: config.name,
+              },
+              ...(includeExplanation
+                ? {
+                    explanation: {
+                      type: "string",
+                      description: `Explanation for choosing the label "${config.name}"`,
+                    },
+                  }
+                : {}),
+            },
+            required: ["label", ...(includeExplanation ? ["explanation"] : [])],
+          },
+        },
+      } satisfies CategoricalChoiceToolType),
+      targetProvider: promptInput.modelProvider,
+    }),
+  }));
+
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
@@ -66,43 +103,7 @@ const createPromptVersionInput = ({
         targetProvider: promptInput.modelProvider,
       }),
     },
-    tools: [
-      // replace whatever tools exist in the prompt with a categorical choice tool
-      {
-        definition: fromOpenAIToolDefinition({
-          toolDefinition: CategoricalChoiceToolTypeSchema.parse({
-            type: "function",
-            function: {
-              name: outputConfig.name,
-              description,
-              parameters: {
-                type: "object",
-                properties: {
-                  label: {
-                    type: "string",
-                    enum: outputConfig.values.map((value) => value.label),
-                    description: outputConfig.name,
-                  },
-                  ...(includeExplanation
-                    ? {
-                        explanation: {
-                          type: "string",
-                          description: `Explanation for choosing the label "${outputConfig.name}"`,
-                        },
-                      }
-                    : {}),
-                },
-                required: [
-                  "label",
-                  ...(includeExplanation ? ["explanation"] : []),
-                ],
-              },
-            },
-          } satisfies CategoricalChoiceToolType),
-          targetProvider: promptInput.modelProvider,
-        }),
-      },
-    ],
+    tools,
     responseFormat: undefined,
   };
 
@@ -117,7 +118,7 @@ export const updateLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfig,
+  outputConfigs,
   datasetId,
   datasetEvaluatorId,
   inputMapping,
@@ -129,7 +130,10 @@ export const updateLLMEvaluatorPayload = ({
   instanceId: number;
   name: string;
   description: string;
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  /**
+   * The output configs for the evaluator. Used for prompt tool definitions and GraphQL payload.
+   */
+  outputConfigs: AnnotationConfig[];
   inputMapping?: EvaluatorInputMapping;
   includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
@@ -142,7 +146,7 @@ export const updateLLMEvaluatorPayload = ({
       instanceId,
       name,
       description,
-      outputConfig,
+      outputConfigs,
       includeExplanation,
     });
 
@@ -153,7 +157,7 @@ export const updateLLMEvaluatorPayload = ({
     datasetId,
     inputMapping: inputMapping,
     promptVersion,
-    outputConfig: outputConfig,
+    outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -165,7 +169,7 @@ export const createLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfig,
+  outputConfigs,
   datasetId,
   inputMapping,
   includeExplanation,
@@ -187,9 +191,9 @@ export const createLLMEvaluatorPayload = ({
    */
   description: string;
   /**
-   * The choice config of the evaluator.
+   * The output configs for the evaluator. Used for prompt tool definitions and GraphQL payload.
    */
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs: AnnotationConfig[];
   /**
    * The input mapping of the evaluator.
    */
@@ -212,7 +216,7 @@ export const createLLMEvaluatorPayload = ({
       instanceId,
       name,
       description,
-      outputConfig,
+      outputConfigs,
       includeExplanation,
     });
 
@@ -222,7 +226,7 @@ export const createLLMEvaluatorPayload = ({
     datasetId,
     inputMapping: inputMapping,
     promptVersion,
-    outputConfig: outputConfig,
+    outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -295,42 +299,36 @@ export const inferIncludeExplanationFromPrompt = (
 };
 
 /**
- * The type of output config override used in dataset evaluator mutations.
- */
-export type OutputConfigOverride =
-  | {
-      categorical: {
-        optimizationDirection: EvaluatorOptimizationDirection;
-      };
-    }
-  | {
-      continuous: {
-        optimizationDirection: EvaluatorOptimizationDirection;
-      };
-    };
-
-/**
- * Build the output config override from the store's output config.
+ * Convert an annotation config to the GraphQL AnnotationConfigInput format.
  *
- * This determines whether the config is categorical (has "values" property)
- * or continuous and constructs the appropriate override structure.
+ * This function transforms frontend annotation configs into the format
+ * expected by the GraphQL mutations.
  */
-export const buildOutputConfigOverride = (
-  outputConfig:
-    | ClassificationEvaluatorAnnotationConfig
-    | ContinuousEvaluatorAnnotationConfig
-    | null
-    | undefined
-): OutputConfigOverride | undefined => {
-  if (!outputConfig) {
-    return undefined;
-  }
-
-  if ("values" in outputConfig) {
+const toAnnotationConfigInput = (
+  config: AnnotationConfig
+): {
+  categorical?: {
+    name: string;
+    optimizationDirection: EvaluatorOptimizationDirection;
+    values: { label: string; score: number | null }[];
+  };
+  continuous?: {
+    name: string;
+    optimizationDirection: EvaluatorOptimizationDirection;
+    lowerBound?: number | null;
+    upperBound?: number | null;
+  };
+} => {
+  if ("values" in config) {
     // Categorical config
     return {
       categorical: {
-        optimizationDirection: outputConfig.optimizationDirection,
+        name: config.name,
+        optimizationDirection: config.optimizationDirection,
+        values: config.values.map((v) => ({
+          label: v.label,
+          score: v.score ?? null,
+        })),
       },
     };
   }
@@ -338,7 +336,79 @@ export const buildOutputConfigOverride = (
   // Continuous config
   return {
     continuous: {
-      optimizationDirection: outputConfig.optimizationDirection,
+      name: config.name,
+      optimizationDirection: config.optimizationDirection,
+      lowerBound: config.lowerBound ?? null,
+      upperBound: config.upperBound ?? null,
     },
   };
+};
+
+/**
+ * Convert an array of annotation configs to the GraphQL outputConfigs format.
+ *
+ * @param configs - Array of annotation configs from the store
+ * @returns Array of AnnotationConfigInput objects for GraphQL
+ */
+export const buildOutputConfigsInput = (
+  configs: AnnotationConfig[]
+): ReturnType<typeof toAnnotationConfigInput>[] => {
+  return configs.map(toAnnotationConfigInput);
+};
+
+/**
+ * Validates that all output config names are unique.
+ *
+ * @param configs - Array of annotation configs to validate
+ * @returns An object with `isValid` boolean and `duplicateNames` set of duplicate names
+ */
+const validateOutputConfigNames = (
+  configs: AnnotationConfig[]
+): { isValid: boolean; duplicateNames: Set<string>; emptyNames: number[] } => {
+  const names = configs.map((config) => config.name);
+  const seen = new Set<string>();
+  const duplicateNames = new Set<string>();
+  const emptyNames: number[] = [];
+
+  names.forEach((name, index) => {
+    if (!name || name.trim() === "") {
+      emptyNames.push(index);
+    } else if (seen.has(name)) {
+      duplicateNames.add(name);
+    }
+    seen.add(name);
+  });
+
+  return {
+    isValid: duplicateNames.size === 0 && emptyNames.length === 0,
+    duplicateNames,
+    emptyNames,
+  };
+};
+
+/**
+ * Returns an array of validation error messages for output configs.
+ *
+ * @param configs - Array of annotation configs to validate
+ * @returns Array of error messages, or empty array if valid
+ */
+export const getOutputConfigValidationErrors = (
+  configs: AnnotationConfig[]
+): string[] => {
+  const errors: string[] = [];
+  const { duplicateNames, emptyNames } = validateOutputConfigNames(configs);
+
+  if (emptyNames.length > 0) {
+    errors.push(
+      `Output config name${emptyNames.length > 1 ? "s" : ""} cannot be empty`
+    );
+  }
+
+  if (duplicateNames.size > 0) {
+    errors.push(
+      `Duplicate output config names: ${Array.from(duplicateNames).join(", ")}`
+    );
+  }
+
+  return errors;
 };

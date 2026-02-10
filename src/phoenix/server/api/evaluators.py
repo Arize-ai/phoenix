@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, TypeAlias, TypeVar
@@ -121,8 +122,8 @@ class BaseEvaluator(ABC):
 
     @property
     @abstractmethod
-    def output_config(self) -> EvaluatorOutputConfig:
-        """Returns the output configuration for this evaluator."""
+    def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
+        """Returns the output configurations for this evaluator."""
         ...
 
     @abstractmethod
@@ -132,17 +133,25 @@ class BaseEvaluator(ABC):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: EvaluatorOutputConfig,
+        output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
-    ) -> EvaluationResult:
+    ) -> list[EvaluationResult]:
         """
-        Evaluate the given context and return an evaluation result.
+        Evaluate the given context and return evaluation results.
+
+        Produces one EvaluationResult per output config. For LLM evaluators, this
+        is done with a single LLM call that returns multiple tool calls matched to
+        configs by name. For built-in evaluators, each config is evaluated independently.
+
+        Annotation naming: when there are multiple output configs (K>1), each result
+        is named ``name.config_name``. When there is a single output config (K=1),
+        the result is named ``name``.
 
         Args:
             context: The evaluation context containing input data.
             input_mapping: Mapping configuration for inputs.
-            name: Name for this evaluation.
-            output_config: Configuration for the evaluation output.
+            name: The evaluator name used for annotation naming.
+            output_configs: Configurations for the evaluation outputs.
             tracer: Optional OpenTelemetry tracer for recording spans.
                    If provided, the caller is responsible for managing the tracer
                    and retrieving any recorded spans after evaluation.
@@ -161,7 +170,7 @@ class LLMEvaluator(BaseEvaluator):
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
         llm_client: PlaygroundStreamingClient[Any],
-        output_config: CategoricalAnnotationConfig,
+        output_configs: Sequence[EvaluatorOutputConfig],
         prompt_name: str,
     ):
         self._name = name
@@ -172,7 +181,7 @@ class LLMEvaluator(BaseEvaluator):
         self._invocation_parameters = invocation_parameters
         self._model_provider = model_provider
         self._llm_client = llm_client
-        self._output_config = output_config
+        self._output_configs = output_configs
         self._prompt_name = prompt_name
 
     @property
@@ -184,8 +193,8 @@ class LLMEvaluator(BaseEvaluator):
         return self._description
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return self._output_config
+    def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
+        return self._output_configs
 
     @property
     def input_schema(self) -> dict[str, Any]:
@@ -229,17 +238,25 @@ class LLMEvaluator(BaseEvaluator):
         context: dict[str, Any],
         input_mapping: EvaluatorInputMappingInput,
         name: str,
-        output_config: EvaluatorOutputConfig,
+        output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
-    ) -> EvaluationResult:
+    ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
 
         # LLMEvaluator only supports categorical output configs
-        if not isinstance(output_config, CategoricalAnnotationConfig):
-            raise ValueError(
-                f"LLMEvaluator only supports CategoricalAnnotationConfig, "
-                f"got {type(output_config).__name__}"
-            )
+        categorical_configs: list[CategoricalAnnotationConfig] = []
+        for config in output_configs:
+            if not isinstance(config, CategoricalAnnotationConfig):
+                raise ValueError(
+                    f"LLMEvaluator only supports CategoricalAnnotationConfig, "
+                    f"got {type(config).__name__}"
+                )
+            categorical_configs.append(config)
+
+        multi_output = len(categorical_configs) > 1
+        configs_by_name: dict[str, CategoricalAnnotationConfig] = {
+            config.name or "": config for config in categorical_configs
+        }
 
         tracer_ = tracer or NoOpTracer()
 
@@ -405,11 +422,14 @@ class LLMEvaluator(BaseEvaluator):
                                     call_id: {"name": call["name"], "arguments": call["arguments"]}
                                     for call_id, call in tool_call_by_id.items()
                                 },
-                                "output_config": {
-                                    "values": [
-                                        {"label": v.label, "score": v.score}
-                                        for v in output_config.values
-                                    ]
+                                "output_configs": {
+                                    config_name: {
+                                        "values": [
+                                            {"label": v.label, "score": v.score}
+                                            for v in config.values
+                                        ]
+                                    }
+                                    for config_name, config in configs_by_name.items()
                                 },
                             }
                         ),
@@ -418,25 +438,53 @@ class LLMEvaluator(BaseEvaluator):
                     if not tool_call_by_id:
                         raise ValueError("No tool calls received from LLM")
 
-                    tool_call = next(iter(tool_call_by_id.values()))
-                    args = json.loads(tool_call["arguments"])
-                    label = args.get("label")
-                    if label is None:
-                        raise ValueError("LLM response missing required 'label' field")
-
-                    scores_by_label = {
-                        config_value.label: config_value.score
-                        for config_value in output_config.values
-                    }
-                    score = scores_by_label.get(label)
-                    explanation = args.get("explanation")
+                    # Match each tool call to its output config by name.
+                    # Tool calls whose name doesn't match any config are skipped.
+                    # Configs with no matching tool call are skipped.
+                    results: list[EvaluationResult] = []
+                    for tool_call in tool_call_by_id.values():
+                        matched_config = configs_by_name.get(tool_call["name"])
+                        if matched_config is None:
+                            continue
+                        args = json.loads(tool_call["arguments"])
+                        label = args.get("label")
+                        if label is None:
+                            continue
+                        scores_by_label = {
+                            config_value.label: config_value.score
+                            for config_value in matched_config.values
+                        }
+                        score = scores_by_label.get(label)
+                        explanation = args.get("explanation")
+                        annotation_name = f"{name}.{matched_config.name}" if multi_output else name
+                        end_time = datetime.now(timezone.utc)
+                        results.append(
+                            EvaluationResult(
+                                name=annotation_name,
+                                annotator_kind="LLM",
+                                label=label,
+                                score=score,
+                                explanation=explanation,
+                                metadata={},
+                                error=None,
+                                trace_id=trace_id,
+                                start_time=start_time,
+                                end_time=end_time,
+                            )
+                        )
 
                     chain_span.set_attributes(
                         oi.get_output_attributes(
                             {
-                                "label": label,
-                                "score": score,
-                                "explanation": explanation,
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                    }
+                                    for r in results
+                                ]
                             }
                         )
                     )
@@ -445,46 +493,42 @@ class LLMEvaluator(BaseEvaluator):
                 evaluator_span.set_attributes(
                     oi.get_output_attributes(
                         {
-                            "label": label,
-                            "score": score,
-                            "explanation": explanation,
+                            "results": [
+                                {
+                                    "name": r["name"],
+                                    "label": r["label"],
+                                    "score": r["score"],
+                                    "explanation": r["explanation"],
+                                }
+                                for r in results
+                            ]
                         }
                     )
                 )
                 evaluator_span.set_status(Status(StatusCode.OK))
 
-                end_time = datetime.now(timezone.utc)
-                result = EvaluationResult(
-                    name=name,
-                    annotator_kind="LLM",
-                    label=label,
-                    score=score,
-                    explanation=explanation,
-                    metadata={},
-                    error=None,
-                    trace_id=trace_id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
             except Exception as e:
                 evaluator_span.record_exception(e)
                 evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
 
                 end_time = datetime.now(timezone.utc)
-                result = EvaluationResult(
-                    name=name,
-                    annotator_kind="LLM",
-                    label=None,
-                    score=None,
-                    explanation=None,
-                    metadata={},
-                    error=str(e),
-                    trace_id=trace_id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
+                # On error, return a single error result for the evaluator
+                results = [
+                    EvaluationResult(
+                        name=name,
+                        annotator_kind="LLM",
+                        label=None,
+                        score=None,
+                        explanation=None,
+                        metadata={},
+                        error=str(e),
+                        trace_id=trace_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+                ]
 
-        return result
+        return results
 
 
 class BuiltInEvaluator(BaseEvaluator):
@@ -516,12 +560,35 @@ class BuiltInEvaluator(BaseEvaluator):
 
     @property
     @abstractmethod
-    def output_config(self) -> EvaluatorOutputConfig:
-        """Returns the base output config for this evaluator (before any overrides are applied)."""
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        """Returns the output configurations for this evaluator."""
         ...
 
-    @abstractmethod
     async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+        name: str,
+        output_configs: Sequence[EvaluatorOutputConfig],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        multi_output = len(output_configs) > 1
+        results: list[EvaluationResult] = []
+        for config in output_configs:
+            annotation_name = f"{name}.{config.name}" if multi_output else name
+            result = await self._evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name=annotation_name,
+                output_config=config,
+                tracer=tracer,
+            )
+            results.append(result)
+        return results
+
+    @abstractmethod
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -736,7 +803,11 @@ async def _get_llm_evaluators(
             invocation_parameters=prompt_version.invocation_parameters,
             model_provider=prompt_version.model_provider,
             llm_client=llm_client,
-            output_config=llm_evaluator_orm.output_config,
+            output_configs=[
+                cfg
+                for cfg in llm_evaluator_orm.output_configs
+                if isinstance(cfg, (CategoricalAnnotationConfig, ContinuousAnnotationConfig))
+            ],
             prompt_name=prompt.name.root,
         )
 
@@ -1089,7 +1160,7 @@ def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
     llm_client: "PlaygroundStreamingClient[Any]",
-    output_config: CategoricalAnnotationConfig,
+    output_configs: Sequence[EvaluatorOutputConfig],
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """
@@ -1110,7 +1181,7 @@ def create_llm_evaluator_from_inline(
         invocation_parameters=prompt_version_orm.invocation_parameters,
         model_provider=prompt_version_orm.model_provider,
         llm_client=llm_client,
-        output_config=output_config,
+        output_configs=output_configs,
         prompt_name="preview-prompt",
     )
 
@@ -1150,18 +1221,20 @@ class ContainsEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name="contains",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            values=[
-                CategoricalAnnotationValue(label="true", score=1.0),
-                CategoricalAnnotationValue(label="false", score=0.0),
-            ],
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name="contains",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
 
-    async def evaluate(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1352,18 +1425,20 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name="exact_match",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            values=[
-                CategoricalAnnotationValue(label="true", score=1.0),
-                CategoricalAnnotationValue(label="false", score=0.0),
-            ],
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name="exact_match",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
 
-    async def evaluate(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1546,18 +1621,20 @@ class RegexEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> CategoricalAnnotationConfig:
-        return CategoricalAnnotationConfig(
-            type="CATEGORICAL",
-            name="regex",
-            optimization_direction=OptimizationDirection.MAXIMIZE,
-            values=[
-                CategoricalAnnotationValue(label="true", score=1.0),
-                CategoricalAnnotationValue(label="false", score=0.0),
-            ],
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            CategoricalAnnotationConfig(
+                type="CATEGORICAL",
+                name="regex",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="true", score=1.0),
+                    CategoricalAnnotationValue(label="false", score=0.0),
+                ],
+            )
+        ]
 
-    async def evaluate(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1767,15 +1844,17 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> ContinuousAnnotationConfig:
-        return ContinuousAnnotationConfig(
-            type="CONTINUOUS",
-            name="levenshtein_distance",
-            optimization_direction=OptimizationDirection.MINIMIZE,
-            lower_bound=0.0,
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            ContinuousAnnotationConfig(
+                type="CONTINUOUS",
+                name="levenshtein_distance",
+                optimization_direction=OptimizationDirection.MINIMIZE,
+                lower_bound=0.0,
+            )
+        ]
 
-    async def evaluate(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1975,15 +2054,17 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         }
 
     @property
-    def output_config(self) -> ContinuousAnnotationConfig:
-        return ContinuousAnnotationConfig(
-            type="CONTINUOUS",
-            name="json_distance",
-            optimization_direction=OptimizationDirection.MINIMIZE,
-            lower_bound=0.0,
-        )
+    def output_configs(self) -> list[EvaluatorOutputConfig]:
+        return [
+            ContinuousAnnotationConfig(
+                type="CONTINUOUS",
+                name="json_distance",
+                optimization_direction=OptimizationDirection.MINIMIZE,
+                lower_bound=0.0,
+            )
+        ]
 
-    async def evaluate(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],

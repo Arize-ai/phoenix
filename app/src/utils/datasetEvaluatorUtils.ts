@@ -13,37 +13,29 @@ export type DatasetEvaluatorOutputConfig = {
   }[];
   readonly lowerBound?: number | null;
   readonly upperBound?: number | null;
-} | null;
-
-/**
- * The minimal shape of a dataset evaluator needed for conversion.
- */
-export type DatasetEvaluatorForConfig = {
-  readonly name: string;
-  readonly outputConfig?: DatasetEvaluatorOutputConfig;
 };
 
 /**
- * Converts a single dataset evaluator to an AnnotationConfig.
- * Handles CategoricalAnnotationConfig, ContinuousAnnotationConfig, and falls back to FREEFORM.
+ * The minimal shape of a dataset evaluator needed for conversion.
+ * Uses the outputConfigs array for multi-output evaluator support.
  */
-export function datasetEvaluatorToAnnotationConfig(
-  evaluator: DatasetEvaluatorForConfig
+export type DatasetEvaluatorForConfig = {
+  readonly name: string;
+  /** Array of output configurations for multi-output evaluators */
+  readonly outputConfigs?: readonly DatasetEvaluatorOutputConfig[] | null;
+};
+
+/**
+ * Converts a single output config to an AnnotationConfig.
+ */
+function outputConfigToAnnotationConfig(
+  outputConfig: DatasetEvaluatorOutputConfig,
+  fallbackName: string
 ): AnnotationConfig {
-  const outputConfig = evaluator.outputConfig;
-
-  if (!outputConfig) {
-    // TODO: all evaluators should have an output config eventually
-    return {
-      name: evaluator.name,
-      annotationType: "FREEFORM",
-    };
-  }
-
   // Handle CategoricalAnnotationConfig from the union
   if ("values" in outputConfig && outputConfig.values) {
     return {
-      name: outputConfig.name ?? evaluator.name,
+      name: outputConfig.name ?? fallbackName,
       optimizationDirection: outputConfig.optimizationDirection as
         | "MAXIMIZE"
         | "MINIMIZE"
@@ -57,7 +49,7 @@ export function datasetEvaluatorToAnnotationConfig(
   // Handle ContinuousAnnotationConfig from the union
   if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
     return {
-      name: outputConfig.name ?? evaluator.name,
+      name: outputConfig.name ?? fallbackName,
       optimizationDirection: outputConfig.optimizationDirection as
         | "MAXIMIZE"
         | "MINIMIZE"
@@ -71,16 +63,39 @@ export function datasetEvaluatorToAnnotationConfig(
 
   // Fallback for freeform or unknown types
   return {
-    name: evaluator.name,
+    name: outputConfig.name ?? fallbackName,
     annotationType: "FREEFORM",
   };
 }
 
 /**
+ * Converts a single dataset evaluator to an array of AnnotationConfigs.
+ * Handles the outputConfigs array for multi-output evaluator support.
+ */
+export function datasetEvaluatorToAnnotationConfigs(
+  evaluator: DatasetEvaluatorForConfig
+): AnnotationConfig[] {
+  if (evaluator.outputConfigs && evaluator.outputConfigs.length > 0) {
+    return evaluator.outputConfigs.map((config) =>
+      outputConfigToAnnotationConfig(config, evaluator.name)
+    );
+  }
+
+  // No configs at all, return FREEFORM
+  return [
+    {
+      name: evaluator.name,
+      annotationType: "FREEFORM",
+    },
+  ];
+}
+
+/**
  * Converts an array of dataset evaluators to an array of AnnotationConfigs.
+ * Each evaluator can produce multiple configs (for multi-output evaluators).
  */
 export function datasetEvaluatorsToAnnotationConfigs(
   evaluators: readonly DatasetEvaluatorForConfig[]
 ): AnnotationConfig[] {
-  return evaluators.map(datasetEvaluatorToAnnotationConfig);
+  return evaluators.flatMap(datasetEvaluatorToAnnotationConfigs);
 }

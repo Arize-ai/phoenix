@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eaa4e8443daa5ed8493789b4e17c21a8>>
+ * @generated SignedSource<<fd916429ecab60d387f48fb484d38655>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -111,35 +111,27 @@ v9 = {
   "storageKey": null
 },
 v10 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v6/*: any*/)
-  ],
-  "type": "AnnotationConfigBase",
-  "abstractKey": "__isAnnotationConfigBase"
-},
-v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v13 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v14 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "CategoricalAnnotationValue",
@@ -147,34 +139,12 @@ v14 = {
   "name": "values",
   "plural": true,
   "selections": [
-    (v12/*: any*/),
-    (v13/*: any*/)
+    (v11/*: any*/),
+    (v12/*: any*/)
   ],
   "storageKey": null
 },
-v15 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v11/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "lowerBound",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "upperBound",
-      "storageKey": null
-    }
-  ],
-  "type": "ContinuousAnnotationConfig",
-  "abstractKey": null
-},
-v16 = {
+v14 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*: any*/)
@@ -182,11 +152,57 @@ v16 = {
   "type": "Node",
   "abstractKey": "__isNode"
 },
-v17 = [
+v15 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "outputConfigs",
+  "plural": true,
+  "selections": [
+    (v8/*: any*/),
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v6/*: any*/),
+        (v10/*: any*/),
+        (v13/*: any*/)
+      ],
+      "type": "CategoricalAnnotationConfig",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v6/*: any*/),
+        (v10/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "lowerBound",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "upperBound",
+          "storageKey": null
+        }
+      ],
+      "type": "ContinuousAnnotationConfig",
+      "abstractKey": null
+    },
+    (v14/*: any*/)
+  ],
+  "storageKey": null
+},
+v16 = [
   (v4/*: any*/),
   (v6/*: any*/)
 ],
-v18 = [
+v17 = [
   {
     "alias": null,
     "args": null,
@@ -195,14 +211,14 @@ v18 = [
     "storageKey": null
   }
 ],
-v19 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v20 = [
+v19 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -227,42 +243,42 @@ v20 = [
     "variableName": "timeRange"
   }
 ],
-v21 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanKind",
   "storageKey": null
 },
-v22 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startTime",
   "storageKey": null
 },
-v23 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "endTime",
   "storageKey": null
 },
-v24 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latencyMs",
   "storageKey": null
 },
-v25 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v26 = [
+v25 = [
   {
     "alias": "value",
     "args": null,
@@ -271,41 +287,41 @@ v26 = [
     "storageKey": null
   }
 ],
-v27 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v26/*: any*/),
+  "selections": (v25/*: any*/),
   "storageKey": null
 },
-v28 = {
+v27 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v26/*: any*/),
+  "selections": (v25/*: any*/),
   "storageKey": null
 },
-v29 = {
+v28 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanId",
   "storageKey": null
 },
-v30 = {
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "traceId",
   "storageKey": null
 },
-v31 = {
+v30 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -315,8 +331,8 @@ v31 = {
   "selections": [
     (v4/*: any*/),
     (v6/*: any*/),
+    (v11/*: any*/),
     (v12/*: any*/),
-    (v13/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -360,7 +376,7 @@ v31 = {
   ],
   "storageKey": null
 },
-v32 = {
+v31 = {
   "alias": null,
   "args": null,
   "concreteType": "AnnotationSummary",
@@ -383,7 +399,7 @@ v32 = {
           "name": "fraction",
           "storageKey": null
         },
-        (v12/*: any*/)
+        (v11/*: any*/)
       ],
       "storageKey": null
     },
@@ -398,7 +414,7 @@ v32 = {
   ],
   "storageKey": null
 },
-v33 = {
+v32 = {
   "alias": null,
   "args": null,
   "concreteType": "Project",
@@ -451,13 +467,13 @@ v33 = {
                   "selections": [
                     (v4/*: any*/),
                     (v6/*: any*/),
-                    (v11/*: any*/),
-                    (v14/*: any*/)
+                    (v10/*: any*/),
+                    (v13/*: any*/)
                   ],
                   "type": "CategoricalAnnotationConfig",
                   "abstractKey": null
                 },
-                (v16/*: any*/)
+                (v14/*: any*/)
               ],
               "storageKey": null
             }
@@ -470,7 +486,7 @@ v33 = {
   ],
   "storageKey": null
 },
-v34 = {
+v33 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -648,30 +664,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": null,
-                            "kind": "LinkedField",
-                            "name": "outputConfig",
-                            "plural": false,
-                            "selections": [
-                              (v8/*: any*/),
-                              (v10/*: any*/),
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v11/*: any*/),
-                                  (v14/*: any*/)
-                                ],
-                                "type": "CategoricalAnnotationConfig",
-                                "abstractKey": null
-                              },
-                              (v15/*: any*/),
-                              (v16/*: any*/)
-                            ],
-                            "storageKey": null
-                          }
+                          (v15/*: any*/)
                         ],
                         "type": "BuiltInEvaluator",
                         "abstractKey": null
@@ -686,7 +679,7 @@ return {
                             "kind": "LinkedField",
                             "name": "prompt",
                             "plural": false,
-                            "selections": (v17/*: any*/),
+                            "selections": (v16/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -704,7 +697,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "tools",
                                 "plural": true,
-                                "selections": (v18/*: any*/),
+                                "selections": (v17/*: any*/),
                                 "storageKey": null
                               },
                               (v4/*: any*/),
@@ -736,7 +729,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "customProvider",
                                 "plural": false,
-                                "selections": (v17/*: any*/),
+                                "selections": (v16/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -746,7 +739,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "responseFormat",
                                 "plural": false,
-                                "selections": (v18/*: any*/),
+                                "selections": (v17/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -821,7 +814,7 @@ return {
                                                     "name": "toolCall",
                                                     "plural": false,
                                                     "selections": [
-                                                      (v19/*: any*/),
+                                                      (v18/*: any*/),
                                                       {
                                                         "alias": null,
                                                         "args": null,
@@ -859,7 +852,7 @@ return {
                                                     "name": "toolResult",
                                                     "plural": false,
                                                     "selections": [
-                                                      (v19/*: any*/),
+                                                      (v18/*: any*/),
                                                       {
                                                         "alias": null,
                                                         "args": null,
@@ -964,7 +957,7 @@ return {
                       },
                       {
                         "alias": "rootSpans",
-                        "args": (v20/*: any*/),
+                        "args": (v19/*: any*/),
                         "concreteType": "SpanConnection",
                         "kind": "LinkedField",
                         "name": "spans",
@@ -987,7 +980,7 @@ return {
                                 "plural": false,
                                 "selections": [
                                   (v4/*: any*/),
-                                  (v21/*: any*/),
+                                  (v20/*: any*/),
                                   (v6/*: any*/),
                                   {
                                     "alias": null,
@@ -1003,9 +996,9 @@ return {
                                     "name": "statusCode",
                                     "storageKey": null
                                   },
+                                  (v21/*: any*/),
                                   (v22/*: any*/),
                                   (v23/*: any*/),
-                                  (v24/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -1013,10 +1006,10 @@ return {
                                     "name": "cumulativeTokenCountTotal",
                                     "storageKey": null
                                   },
-                                  (v25/*: any*/),
+                                  (v24/*: any*/),
+                                  (v26/*: any*/),
                                   (v27/*: any*/),
                                   (v28/*: any*/),
-                                  (v29/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -1026,7 +1019,7 @@ return {
                                     "plural": false,
                                     "selections": [
                                       (v4/*: any*/),
-                                      (v30/*: any*/),
+                                      (v29/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -1066,10 +1059,10 @@ return {
                                     ],
                                     "storageKey": null
                                   },
+                                  (v30/*: any*/),
                                   (v31/*: any*/),
                                   (v32/*: any*/),
                                   (v33/*: any*/),
-                                  (v34/*: any*/),
                                   {
                                     "alias": null,
                                     "args": [
@@ -1101,7 +1094,7 @@ return {
                                             "plural": false,
                                             "selections": [
                                               (v4/*: any*/),
-                                              (v21/*: any*/),
+                                              (v20/*: any*/),
                                               (v6/*: any*/),
                                               {
                                                 "alias": "statusCode",
@@ -1110,10 +1103,10 @@ return {
                                                 "name": "propagatedStatusCode",
                                                 "storageKey": null
                                               },
+                                              (v21/*: any*/),
                                               (v22/*: any*/),
                                               (v23/*: any*/),
                                               (v24/*: any*/),
-                                              (v25/*: any*/),
                                               {
                                                 "alias": "cumulativeTokenCountTotal",
                                                 "args": null,
@@ -1121,9 +1114,9 @@ return {
                                                 "name": "tokenCountTotal",
                                                 "storageKey": null
                                               },
+                                              (v26/*: any*/),
                                               (v27/*: any*/),
                                               (v28/*: any*/),
-                                              (v29/*: any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
@@ -1133,14 +1126,14 @@ return {
                                                 "plural": false,
                                                 "selections": [
                                                   (v4/*: any*/),
-                                                  (v30/*: any*/)
+                                                  (v29/*: any*/)
                                                 ],
                                                 "storageKey": null
                                               },
-                                              (v31/*: any*/),
-                                              (v33/*: any*/),
+                                              (v30/*: any*/),
                                               (v32/*: any*/),
-                                              (v34/*: any*/)
+                                              (v31/*: any*/),
+                                              (v33/*: any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -1206,7 +1199,7 @@ return {
                       },
                       {
                         "alias": "rootSpans",
-                        "args": (v20/*: any*/),
+                        "args": (v19/*: any*/),
                         "filters": [
                           "sort",
                           "rootSpansOnly",
@@ -1246,31 +1239,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": null,
-                    "kind": "LinkedField",
-                    "name": "outputConfig",
-                    "plural": false,
-                    "selections": [
-                      (v8/*: any*/),
-                      (v10/*: any*/),
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v11/*: any*/),
-                          (v14/*: any*/),
-                          (v6/*: any*/)
-                        ],
-                        "type": "CategoricalAnnotationConfig",
-                        "abstractKey": null
-                      },
-                      (v15/*: any*/),
-                      (v16/*: any*/)
-                    ],
-                    "storageKey": null
-                  }
+                  (v15/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -1284,12 +1253,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b349a81405d253b50352bdeea382e3fb",
+    "cacheID": "6ab518181b4814056597142329232b49",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n  $timeRange: TimeRange\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        evaluator {\n          __typename\n          kind\n          description\n          id\n        }\n        project {\n          id\n          ...DatasetEvaluatorTraces_project\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n        ...LLMDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfig {\n    __typename\n    ... on AnnotationConfigBase {\n      __isAnnotationConfigBase: __typename\n      name\n    }\n    ... on CategoricalAnnotationConfig {\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    ... on BuiltInEvaluator {\n      outputConfig {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorTraces_project on Project {\n  id\n  ...TracesTable_spans\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfig {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n\nfragment TracesTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              ...TraceHeaderRootSpanAnnotationsFragment\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n  $timeRange: TimeRange\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        evaluator {\n          __typename\n          kind\n          description\n          id\n        }\n        project {\n          id\n          ...DatasetEvaluatorTraces_project\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n        ...LLMDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    ... on BuiltInEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorTraces_project on Project {\n  id\n  ...TracesTable_spans\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n\nfragment TracesTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              ...TraceHeaderRootSpanAnnotationsFragment\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();

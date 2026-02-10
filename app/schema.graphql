@@ -143,11 +143,6 @@ input AnnotationConfigInput @oneOf {
   freeform: FreeformAnnotationConfigInput
 }
 
-input AnnotationConfigOverrideInput @oneOf {
-  categorical: CategoricalAnnotationConfigOverrideInput
-  continuous: ContinuousAnnotationConfigOverrideInput
-}
-
 input AnnotationFilter {
   include: AnnotationFilterCondition
   exclude: AnnotationFilterCondition
@@ -320,7 +315,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   user: User
-  outputConfig: BuiltInEvaluatorOutputConfig!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
@@ -352,11 +347,6 @@ input CategoricalAnnotationConfigInput {
   description: String = null
   optimizationDirection: OptimizationDirection!
   values: [CategoricalAnnotationConfigValueInput!]!
-}
-
-input CategoricalAnnotationConfigOverrideInput {
-  optimizationDirection: OptimizationDirection = null
-  values: [CategoricalAnnotationConfigValueInput!] = null
 }
 
 input CategoricalAnnotationConfigValueInput {
@@ -599,12 +589,6 @@ input ContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
-input ContinuousAnnotationConfigOverrideInput {
-  optimizationDirection: OptimizationDirection = null
-  lowerBound: Float = null
-  upperBound: Float = null
-}
-
 type CostBreakdown {
   """
   Total number of tokens, including tokens for which no cost was computed.
@@ -646,7 +630,7 @@ input CreateDatasetBuiltinEvaluatorInput {
   evaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
-  outputConfigOverride: AnnotationConfigOverrideInput = null
+  outputConfigs: [AnnotationConfigInput!] = null
   description: String = null
 }
 
@@ -662,7 +646,7 @@ input CreateDatasetLLMEvaluatorInput {
   description: String
   promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
+  outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
 }
 
@@ -910,7 +894,7 @@ type DatasetEvaluator implements Node {
   dataset: Dataset!
   evaluator: Evaluator!
   description: String
-  outputConfig: BuiltInEvaluatorOutputConfig
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   inputMapping: EvaluatorInputMapping!
   user: User
   project: Project!
@@ -2268,7 +2252,7 @@ enum InferencesRole {
 
 input InlineLLMEvaluatorInput {
   promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
+  outputConfigs: [AnnotationConfigInput!]!
   description: String = null
 }
 
@@ -2354,7 +2338,7 @@ type LLMEvaluator implements Evaluator & Node {
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
-  outputConfig: CategoricalAnnotationConfig!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User
@@ -2652,8 +2636,7 @@ input PlaygroundEvaluatorInput {
   name: Identifier!
   description: String = null
   inputMapping: EvaluatorInputMappingInput! = {}
-  outputConfig: CategoricalAnnotationConfigOverrideInput = null
-  outputConfigOverride: AnnotationConfigOverrideInput = null
+  outputConfigs: [AnnotationConfigInput!] = null
 }
 
 type PlaygroundModel implements ModelInterface {
@@ -4021,7 +4004,7 @@ input UpdateDatasetBuiltinEvaluatorInput {
   datasetEvaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null
-  outputConfigOverride: AnnotationConfigOverrideInput
+  outputConfigs: [AnnotationConfigInput!]
   description: String
 }
 
@@ -4032,7 +4015,7 @@ input UpdateDatasetLLMEvaluatorInput {
   description: String = null
   promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
-  outputConfig: CategoricalAnnotationConfigInput!
+  outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
 }
 

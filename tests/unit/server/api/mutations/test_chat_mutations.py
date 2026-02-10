@@ -1148,7 +1148,7 @@ class TestChatCompletionMutationMixin:
                     llm_evaluator_span = span
                 elif span.span_kind == "CHAIN" and span.name == "Input Mapping":
                     llm_input_mapping_span = span
-                elif span.span_kind == "PROMPT":
+                elif span.span_kind == "PROMPT" and span.name.startswith("Prompt:"):
                     llm_prompt_span = span
                 elif span.span_kind == "LLM":
                     llm_llm_span = span
@@ -1179,7 +1179,14 @@ class TestChatCompletionMutationMixin:
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             assert raw_output_value is not None
             output_value = json.loads(raw_output_value)
-            assert set(output_value.keys()) == {"score", "label", "explanation"}
+            assert set(output_value.keys()) == {"results"}
+            assert len(output_value["results"]) == 1
+            assert set(output_value["results"][0].keys()) == {
+                "name",
+                "label",
+                "score",
+                "explanation",
+            }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
             assert not llm_evaluator_span.events
@@ -1297,7 +1304,7 @@ class TestChatCompletionMutationMixin:
             assert isinstance(tool_call.pop("id"), str)
             function = tool_call.pop("function")
             assert isinstance(function, dict)
-            assert function.pop("name") == "evaluate_correctness"
+            assert function.pop("name") == "correctness"
             raw_arguments = function.pop("arguments")
             assert isinstance(raw_arguments, str)
             arguments = json.loads(raw_arguments)
@@ -1315,7 +1322,7 @@ class TestChatCompletionMutationMixin:
                 attributes.pop(
                     f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}"
                 )
-                == "evaluate_correctness"
+                == "correctness"
             )
             arguments = attributes.pop(
                 f"{LLM_OUTPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS}"
@@ -1385,22 +1392,29 @@ class TestChatCompletionMutationMixin:
             attributes = dict(flatten(llm_parse_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
-            assert set(input_value.keys()) == {"tool_calls", "output_config"}
+            assert set(input_value.keys()) == {"tool_calls", "output_configs"}
             tool_calls = input_value["tool_calls"]
             assert len(tool_calls) == 1
             tool_call = next(iter(tool_calls.values()))
-            assert tool_call["name"] == "evaluate_correctness"
-            assert input_value["output_config"] == {
-                "values": [
-                    {"label": "correct", "score": 1.0},
-                    {"label": "incorrect", "score": 0.0},
-                ]
+            assert tool_call["name"] == "correctness"
+            assert input_value["output_configs"] == {
+                "correctness": {
+                    "values": [
+                        {"label": "correct", "score": 1.0},
+                        {"label": "incorrect", "score": 0.0},
+                    ]
+                }
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
-                "label": "incorrect",
-                "score": 0.0,
-                "explanation": None,
+                "results": [
+                    {
+                        "name": "correctness",
+                        "label": "incorrect",
+                        "score": 0.0,
+                        "explanation": None,
+                    }
+                ]
             }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
@@ -1891,6 +1905,154 @@ class TestChatCompletionMutationMixin:
             annotation = annotations[0]
             assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
+
+    async def test_multi_output_evaluator_produces_result_per_config(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        custom_vcr: CustomVCR,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Test that evaluators with multiple output_configs produce one result per config.
+
+        Uses two builtin evaluators (contains and exact_match), each with a single
+        output config. Verifies both evaluators produce results, confirming the
+        multi-output loop iterates over all configs for each evaluator.
+        """
+        async with db() as session:
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            assert contains_id is not None
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            assert exact_match_id is not None
+
+            dataset = models.Dataset(name="test-multi-output-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            contains_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=contains_id,
+                name=Identifier("contains-check"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="contains-multi-project", description=""),
+            )
+            exact_match_dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=exact_match_id,
+                name=Identifier("exact-match-check"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="exact-match-multi-project", description=""),
+            )
+            session.add_all([contains_dataset_evaluator, exact_match_dataset_evaluator])
+            await session.flush()
+
+            contains_gid = str(
+                GlobalID(
+                    type_name=DatasetEvaluator.__name__,
+                    node_id=str(contains_dataset_evaluator.id),
+                )
+            )
+            exact_match_gid = str(
+                GlobalID(
+                    type_name=DatasetEvaluator.__name__,
+                    node_id=str(exact_match_dataset_evaluator.id),
+                )
+            )
+        query = """
+          mutation ChatCompletion($input: ChatCompletionInput!) {
+            chatCompletion(input: $input) {
+              repetitions {
+                repetitionNumber
+                content
+                errorMessage
+                evaluations {
+                  evaluatorName
+                  annotation {
+                    name
+                    label
+                    score
+                    annotatorKind
+                  }
+                  error
+                }
+                span {
+                  id
+                }
+              }
+            }
+          }
+        """
+        variables = {
+            "input": {
+                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "Say hello",
+                    }
+                ],
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.0},
+                ],
+                "repetitions": 1,
+                "evaluators": [
+                    {
+                        "id": contains_gid,
+                        "name": "contains-check",
+                        "inputMapping": {
+                            "literalMapping": {"words": "hello"},
+                            "pathMapping": {"text": "$.output"},
+                        },
+                    },
+                    {
+                        "id": exact_match_gid,
+                        "name": "exact-match-check",
+                        "inputMapping": {
+                            "literalMapping": {
+                                "expected": "hello",
+                                "actual": "hello",
+                            },
+                        },
+                    },
+                ],
+            }
+        }
+        with custom_vcr.use_cassette():
+            result = await gql_client.execute(query, variables, "ChatCompletion")
+
+        assert not result.errors
+        assert (data := result.data)
+        assert (field := data["chatCompletion"])
+        assert (repetitions := field["repetitions"])
+        assert len(repetitions) == 1
+
+        repetition = repetitions[0]
+        assert not repetition["errorMessage"]
+
+        # Verify we get evaluations from both evaluators
+        # Each evaluator has 1 output config, so 2 evaluators = 2 evaluations
+        assert (evaluations := repetition["evaluations"])
+        assert len(evaluations) == 2
+
+        eval_names = {e["annotation"]["name"] for e in evaluations if e["annotation"]}
+        assert "contains-check" in eval_names
+        assert "exact-match-check" in eval_names
+
+        # Verify span annotations were persisted
+        async with db() as session:
+            span_annotations_result = await session.execute(select(models.SpanAnnotation))
+            annotations = span_annotations_result.scalars().all()
+            assert len(annotations) == 2
+            annotation_names = {a.name for a in annotations}
+            assert "contains-check" in annotation_names
+            assert "exact-match-check" in annotation_names
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:

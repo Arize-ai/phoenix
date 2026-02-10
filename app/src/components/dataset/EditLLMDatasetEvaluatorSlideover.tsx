@@ -15,6 +15,7 @@ import { Dialog } from "@phoenix/components/dialog";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
+  getOutputConfigValidationErrors,
   inferIncludeExplanationFromPrompt,
   updateLLMEvaluatorPayload,
 } from "@phoenix/components/evaluators/utils";
@@ -159,11 +160,9 @@ const EditEvaluatorDialog = ({
             literalMapping
             pathMapping
           }
-          outputConfig {
-            ... on AnnotationConfigBase {
-              name
-            }
+          outputConfigs {
             ... on CategoricalAnnotationConfig {
+              name
               optimizationDirection
               values {
                 label
@@ -171,6 +170,7 @@ const EditEvaluatorDialog = ({
               }
             }
             ... on ContinuousAnnotationConfig {
+              name
               optimizationDirection
               lowerBound
               upperBound
@@ -181,11 +181,9 @@ const EditEvaluatorDialog = ({
             kind
             name
             ... on LLMEvaluator {
-              outputConfig {
-                ... on AnnotationConfigBase {
-                  name
-                }
+              outputConfigs {
                 ... on CategoricalAnnotationConfig {
+                  name
                   optimizationDirection
                   values {
                     label
@@ -244,9 +242,17 @@ const EditEvaluatorDialog = ({
     const includeExplanation = inferIncludeExplanationFromPrompt(
       datasetEvaluator.evaluator.promptVersion?.tools
     );
-    const outputConfig = (datasetEvaluator.outputConfig ??
-      datasetEvaluator.evaluator
-        .outputConfig) as Mutable<ClassificationEvaluatorAnnotationConfig>;
+    // Load all output configs from the evaluator data, falling back to evaluator's defaults
+    const loadedOutputConfigs = (
+      datasetEvaluator.outputConfigs?.length
+        ? datasetEvaluator.outputConfigs
+        : datasetEvaluator.evaluator.outputConfigs
+    ) as Mutable<ClassificationEvaluatorAnnotationConfig>[] | undefined;
+    // Ensure we have at least the default config
+    const outputConfigs =
+      loadedOutputConfigs && loadedOutputConfigs.length > 0
+        ? loadedOutputConfigs
+        : DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs;
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
       evaluator: {
@@ -270,7 +276,7 @@ const EditEvaluatorDialog = ({
       datasetEvaluator: {
         id: datasetEvaluatorId,
       },
-      outputConfig,
+      outputConfigs,
       dataset: {
         readonly: true,
         id: datasetId,
@@ -284,20 +290,27 @@ const EditEvaluatorDialog = ({
       const {
         evaluator: { name, description, inputMapping, includeExplanation },
         dataset,
-        outputConfig,
+        outputConfigs,
       } = store.getState();
       invariant(dataset, "dataset is required");
-      invariant(outputConfig, "outputConfig is required");
       invariant(
-        "values" in outputConfig,
-        "outputConfig must have values, aka is a categorical annotation config"
+        outputConfigs && outputConfigs.length > 0,
+        "At least one output config is required"
       );
+
+      // Validate output configs before submit
+      const validationErrors = getOutputConfigValidationErrors(outputConfigs);
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join("\n"));
+        return;
+      }
+
       const input = updateLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
         name,
         description,
-        outputConfig,
+        outputConfigs,
         datasetId: dataset.id,
         datasetEvaluatorId,
         inputMapping,

@@ -35,14 +35,15 @@ const useEvaluatorLLMChoiceForm = () => {
   // pull in zustand
   const store = useEvaluatorStoreInstance();
   const { outputConfig, includeExplanation } = useEvaluatorStore(
-    useShallow((state) => ({
-      // only allow categorical annotation configs
-      outputConfig:
-        state.outputConfig && "values" in state.outputConfig
-          ? state.outputConfig
-          : undefined,
-      includeExplanation: state.evaluator.includeExplanation,
-    }))
+    useShallow((state) => {
+      const firstConfig = state.outputConfigs[0];
+      return {
+        // only allow categorical annotation configs
+        outputConfig:
+          firstConfig && "values" in firstConfig ? firstConfig : undefined,
+        includeExplanation: state.evaluator.includeExplanation,
+      };
+    })
   );
   invariant(
     outputConfig,
@@ -66,14 +67,15 @@ const useEvaluatorLLMChoiceForm = () => {
           return;
         }
         const {
-          setOutputConfigOptimizationDirection,
-          setOutputConfigValues,
+          setOutputConfigOptimizationDirectionAtIndex,
+          setOutputConfigValuesAtIndex,
           setIncludeExplanation,
         } = store.getState();
-        setOutputConfigOptimizationDirection(
+        setOutputConfigOptimizationDirectionAtIndex(
+          0,
           outputConfig.optimizationDirection
         );
-        setOutputConfigValues(outputConfig.values);
+        setOutputConfigValuesAtIndex(0, outputConfig.values);
         setIncludeExplanation(includeExplanation);
       },
     });
@@ -89,7 +91,7 @@ export const EvaluatorCategoricalChoiceConfig = () => {
     name: "outputConfig.values",
   });
   const outputConfigName = useEvaluatorStore(
-    (state) => state.outputConfig?.name
+    (state) => state.outputConfigs[0]?.name
   );
   return (
     <div

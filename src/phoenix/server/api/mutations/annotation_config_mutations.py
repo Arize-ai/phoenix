@@ -15,9 +15,6 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfigOverride as CategoricalAnnotationConfigOverrideModel,
-)
-from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
@@ -29,7 +26,6 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
     CategoricalAnnotationConfigInput,
-    CategoricalAnnotationConfigOverrideInput,
     ContinuousAnnotationConfigInput,
     FreeformAnnotationConfigInput,
 )
@@ -122,23 +118,6 @@ def _to_pydantic_categorical_annotation_config(
                 CategoricalAnnotationValue(label=value.label, score=value.score)
                 for value in input.values
             ],
-        )
-    except ValueError as error:
-        raise BadRequest(str(error))
-
-
-def _to_pydantic_categorical_annotation_config_override(
-    input: "CategoricalAnnotationConfigOverrideInput",
-) -> CategoricalAnnotationConfigOverrideModel:
-    try:
-        return CategoricalAnnotationConfigOverrideModel(
-            optimization_direction=input.optimization_direction,
-            values=[
-                CategoricalAnnotationValue(label=value.label, score=value.score)
-                for value in input.values
-            ]
-            if input.values is not None
-            else None,
         )
     except ValueError as error:
         raise BadRequest(str(error))

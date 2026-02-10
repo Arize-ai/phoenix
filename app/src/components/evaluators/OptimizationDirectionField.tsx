@@ -49,13 +49,13 @@ export const OptimizationDirectionField = ({
   isReadOnly,
   isDisabled,
 }: OptimizationDirectionFieldProps) => {
-  const { optimizationDirection, setOutputConfigOptimizationDirection } =
+  const { optimizationDirection, setOutputConfigOptimizationDirectionAtIndex } =
     useEvaluatorStore(
       useShallow((state) => ({
         optimizationDirection:
-          state.outputConfig?.optimizationDirection ?? "NONE",
-        setOutputConfigOptimizationDirection:
-          state.setOutputConfigOptimizationDirection,
+          state.outputConfigs[0]?.optimizationDirection ?? "NONE",
+        setOutputConfigOptimizationDirectionAtIndex:
+          state.setOutputConfigOptimizationDirectionAtIndex,
       }))
     );
 
@@ -72,7 +72,8 @@ export const OptimizationDirectionField = ({
     <Select
       value={optimizationDirection}
       onChange={(e) =>
-        setOutputConfigOptimizationDirection(
+        setOutputConfigOptimizationDirectionAtIndex(
+          0,
           e as EvaluatorOptimizationDirection
         )
       }

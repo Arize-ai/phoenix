@@ -1434,9 +1434,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             throttled_stream = self.rate_limiter._alimit(client.messages.stream)
             async with await throttled_stream(**anthropic_params) as stream:
                 async for event in stream:
-                    if isinstance(event, anthropic_types.RawMessageStartEvent):
+                    if event.type == "message_start":
                         usage = event.message.usage
-
                         token_counts: dict[str, Any] = {}
                         if prompt_tokens := (
                             (usage.input_tokens or 0)
@@ -1452,9 +1451,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                     cache_creation_tokens
                                 )
                         self._attributes.update(token_counts)
-                    elif isinstance(event, anthropic_streaming.TextEvent):
+                    elif event.type == "text":
                         yield TextChunk(content=event.text)
-                    elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                    elif event.type == "message_stop":
                         usage = event.message.usage
                         output_token_counts: dict[str, Any] = {}
                         if usage.output_tokens:
@@ -1466,7 +1465,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 )
                         self._attributes.update(output_token_counts)
                     elif (
-                        isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                        event.type == "content_block_stop"
                         and event.content_block.type == "tool_use"
                     ):
                         tool_call_chunk = ToolCallChunk(
@@ -1477,27 +1476,25 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                             ),
                         )
                         yield tool_call_chunk
-                    elif isinstance(
-                        event,
-                        (
-                            anthropic_types.RawContentBlockStartEvent,
-                            anthropic_types.RawContentBlockDeltaEvent,
-                            anthropic_types.RawMessageDeltaEvent,
-                            anthropic_streaming.ContentBlockStopEvent,
-                            anthropic_streaming.InputJsonEvent,
-                        ),
-                    ):
-                        # event types emitted by the stream that don't contain useful information
+                    elif event.type == "content_block_start":
                         pass
-                    elif isinstance(event, anthropic_streaming.InputJsonEvent):
-                        raise NotImplementedError
-                    elif isinstance(event, anthropic_streaming._types.CitationEvent):
-                        raise NotImplementedError
-                    elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                    elif event.type == "content_block_delta":
                         pass
-                    elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                    elif event.type == "message_delta":
                         pass
-                    else:
+                    elif event.type == "content_block_stop":
+                        # non-tool_use case; tool_use already yielded above
+                        pass
+                    elif event.type == "input_json":
+                        # Incremental tool-call JSON; uses the complete block at content_block_stop
+                        pass
+                    elif event.type == "citation":
+                        pass
+                    elif event.type == "thinking":
+                        pass
+                    elif event.type == "signature":
+                        pass
+                    elif TYPE_CHECKING:
                         assert_never(event)
 
     def _build_anthropic_messages(

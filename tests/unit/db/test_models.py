@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     OptimizationDirection,
@@ -832,16 +833,18 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-1-{token_hex(4)}"),
                 description="First evaluator",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="goodness",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="goodness description",
-                    values=[
-                        CategoricalAnnotationValue(label="good", score=1.0),
-                        CategoricalAnnotationValue(label="bad", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="goodness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="goodness description",
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    )
+                ],
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -849,16 +852,18 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-2-{token_hex(4)}"),
                 description="Second evaluator",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="correctness",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="correctness description",
-                    values=[
-                        CategoricalAnnotationValue(label="correct", score=1.0),
-                        CategoricalAnnotationValue(label="incorrect", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -872,7 +877,7 @@ class TestEvaluatorPolymorphism:
                         evaluator_id=eval_1.id,
                         name=eval_1.name,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                        output_config_override=None,
+                        output_configs=[],
                         project=models.Project(
                             name=f"{dataset.name}/{eval_1.name}",
                             description="Project for evaluator 1",
@@ -883,7 +888,7 @@ class TestEvaluatorPolymorphism:
                         evaluator_id=eval_2.id,
                         name=eval_2.name,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                        output_config_override=None,
+                        output_configs=[],
                         project=models.Project(
                             name=f"{dataset.name}/{eval_2.name}",
                             description="Project for evaluator 2",
@@ -1013,16 +1018,18 @@ class TestEvaluatorPolymorphism:
                 name=Identifier(root=f"eval-3-{token_hex(4)}"),
                 description="Third evaluator",
                 kind="LLM",
-                output_config=CategoricalAnnotationConfig(
-                    type="CATEGORICAL",
-                    name="hallucination",
-                    optimization_direction=OptimizationDirection.MAXIMIZE,
-                    description="thirdness description",
-                    values=[
-                        CategoricalAnnotationValue(label="hallucinated", score=1.0),
-                        CategoricalAnnotationValue(label="not_hallucinated", score=0.0),
-                    ],
-                ),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="hallucination",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="thirdness description",
+                        values=[
+                            CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                            CategoricalAnnotationValue(label="not_hallucinated", score=0.0),
+                        ],
+                    )
+                ],
                 prompt_id=prompt.id,
                 prompt_version_tag_id=prompt_tag.id,
             )
@@ -1037,7 +1044,7 @@ class TestEvaluatorPolymorphism:
                 evaluator_id=new_eval_id,
                 name=new_eval_name,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_config_override=None,
+                output_configs=[],
                 project=models.Project(
                     name=f"{new_eval_name}-project",
                     description="Project for new evaluator",
@@ -1250,3 +1257,525 @@ class TestPromptVersion:
         version2 = models.PromptVersion(**version2_attrs)
         assert not version1.has_identical_content(version2)
         assert not version2.has_identical_content(version1)
+
+
+class TestAnnotationConfigTypeDecorators:
+    """Test serialization/deserialization of annotation config TypeDecorators.
+
+    Validates _AnnotationConfigList works correctly for multi-output evaluator support.
+    """
+
+    async def test_annotation_config_list_serialization(self, db: DbSessionFactory) -> None:
+        """Test _AnnotationConfigList serializes and deserializes correctly."""
+        async with db() as session:
+            # Create prompt dependencies for evaluator
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Test: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            # Create evaluator with multiple output configs
+            multi_output_configs: list[AnnotationConfigType] = [
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="quality",
+                    description="Quality assessment",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="high", score=1.0),
+                        CategoricalAnnotationValue(label="low", score=0.0),
+                    ],
+                ),
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="relevance",
+                    description="Relevance assessment",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="relevant", score=1.0),
+                        CategoricalAnnotationValue(label="irrelevant", score=0.0),
+                    ],
+                ),
+            ]
+
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"multi-output-eval-{token_hex(4)}"),
+                description="Multi-output evaluator",
+                kind="LLM",
+                output_configs=multi_output_configs,
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+            evaluator_id = evaluator.id
+
+        # Verify deserialization returns correct types
+        async with db() as session:
+            loaded_eval = await session.get(models.LLMEvaluator, evaluator_id)
+            assert loaded_eval is not None
+            assert len(loaded_eval.output_configs) == 2
+
+            # Verify first config
+            config_1 = loaded_eval.output_configs[0]
+            assert isinstance(config_1, CategoricalAnnotationConfig)
+            assert config_1.name == "quality"
+            assert config_1.description == "Quality assessment"
+            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
+            assert str(config_1.optimization_direction) == OptimizationDirection.MAXIMIZE.value
+            assert len(config_1.values) == 2
+            assert config_1.values[0].label == "high"
+            assert config_1.values[0].score == 1.0
+
+            # Verify second config
+            config_2 = loaded_eval.output_configs[1]
+            assert isinstance(config_2, CategoricalAnnotationConfig)
+            assert config_2.name == "relevance"
+            assert config_2.description == "Relevance assessment"
+
+    async def test_continuous_annotation_config_list_round_trip(self, db: DbSessionFactory) -> None:
+        """Test ContinuousAnnotationConfig round-trip through _AnnotationConfigList.
+
+        Verifies all fields (name, description, optimization_direction,
+        lower_bound, upper_bound) survive serialization and deserialization.
+        """
+        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfig
+
+        async with db() as session:
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Test: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            continuous_configs: list[AnnotationConfigType] = [
+                ContinuousAnnotationConfig(
+                    type="CONTINUOUS",
+                    name="similarity_score",
+                    description="Measures semantic similarity",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    lower_bound=0.0,
+                    upper_bound=1.0,
+                ),
+                ContinuousAnnotationConfig(
+                    type="CONTINUOUS",
+                    name="latency",
+                    description="Response latency in seconds",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    lower_bound=0.0,
+                    upper_bound=None,
+                ),
+            ]
+
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"continuous-eval-{token_hex(4)}"),
+                description="Continuous config evaluator",
+                kind="LLM",
+                output_configs=continuous_configs,
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+            evaluator_id = evaluator.id
+
+        async with db() as session:
+            loaded_eval = await session.get(models.LLMEvaluator, evaluator_id)
+            assert loaded_eval is not None
+            assert len(loaded_eval.output_configs) == 2
+
+            # Verify first continuous config
+            config_1 = loaded_eval.output_configs[0]
+            assert isinstance(config_1, ContinuousAnnotationConfig)
+            assert config_1.name == "similarity_score"
+            assert config_1.description == "Measures semantic similarity"
+            assert str(config_1.optimization_direction) == OptimizationDirection.MAXIMIZE.value
+            assert config_1.lower_bound == 0.0
+            assert config_1.upper_bound == 1.0
+
+            # Verify second continuous config
+            config_2 = loaded_eval.output_configs[1]
+            assert isinstance(config_2, ContinuousAnnotationConfig)
+            assert config_2.name == "latency"
+            assert config_2.description == "Response latency in seconds"
+            assert str(config_2.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config_2.lower_bound == 0.0
+            assert config_2.upper_bound is None
+
+    async def test_dataset_evaluator_output_configs_serialization(
+        self, db: DbSessionFactory
+    ) -> None:
+        """Test DatasetEvaluators.output_configs serializes and deserializes correctly."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create prompt dependencies for evaluator
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Evaluate: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            # Create evaluator
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                description="Test evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+
+            # Create dataset evaluator with output configs
+            configs: list[AnnotationConfigType] = [
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="quality",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="excellent", score=2.0),
+                        CategoricalAnnotationValue(label="poor", score=-1.0),
+                    ],
+                ),
+            ]
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=evaluator.id,
+                name=evaluator.name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=configs,
+                project=models.Project(
+                    name=f"{dataset.name}/{evaluator.name}",
+                    description="Test project",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+
+        # Verify deserialization returns correct types
+        async with db() as session:
+            loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert loaded is not None
+            assert loaded.output_configs is not None
+            assert len(loaded.output_configs) == 1
+
+            config = loaded.output_configs[0]
+            assert isinstance(config, CategoricalAnnotationConfig)
+            assert config.name == "quality"
+            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
+            assert str(config.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config.values is not None
+            assert len(config.values) == 2
+            assert config.values[0].label == "excellent"
+            assert config.values[0].score == 2.0
+
+    async def test_dataset_evaluator_empty_output_configs(self, db: DbSessionFactory) -> None:
+        """Test DatasetEvaluators.output_configs handles empty list correctly."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create prompt dependencies for evaluator
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Test: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            # Create evaluator
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                description="Test evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+
+            # Create dataset evaluator with empty output configs
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=evaluator.id,
+                name=evaluator.name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                project=models.Project(
+                    name=f"{dataset.name}/{evaluator.name}",
+                    description="Test project",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+
+        # Verify empty list is preserved
+        async with db() as session:
+            loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert loaded is not None
+            assert loaded.output_configs == []
+
+
+class TestBuiltinEvaluatorMultiOutput:
+    """Test BuiltinEvaluator with multi-output configs."""
+
+    async def test_builtin_evaluator_with_list_configs(self, db: DbSessionFactory) -> None:
+        """Test BuiltinEvaluator correctly stores and retrieves list of output configs."""
+        async with db() as session:
+            # Create a builtin evaluator with multiple output configs
+            multi_output_configs: list[AnnotationConfigType] = [
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="hallucination",
+                    description="Detects hallucinations",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                        CategoricalAnnotationValue(label="factual", score=0.0),
+                    ],
+                ),
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="confidence",
+                    description="Confidence level",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="high", score=1.0),
+                        CategoricalAnnotationValue(label="medium", score=0.5),
+                        CategoricalAnnotationValue(label="low", score=0.0),
+                    ],
+                ),
+            ]
+
+            builtin_eval = models.BuiltinEvaluator(
+                name=Identifier(root=f"builtin-multi-{token_hex(4)}"),
+                description="Multi-output builtin evaluator",
+                kind="BUILTIN",
+                key=f"MULTI_OUTPUT_{token_hex(4)}",
+                input_schema={"type": "object", "properties": {"input": {"type": "string"}}},
+                output_configs=multi_output_configs,
+            )
+            session.add(builtin_eval)
+            await session.flush()
+            builtin_id = builtin_eval.id
+
+        # Verify retrieval
+        async with db() as session:
+            loaded = await session.get(models.BuiltinEvaluator, builtin_id)
+            assert loaded is not None
+            assert len(loaded.output_configs) == 2
+
+            # Verify first config
+            config_1 = loaded.output_configs[0]
+            assert isinstance(config_1, CategoricalAnnotationConfig)
+            assert config_1.name == "hallucination"
+            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
+            assert str(config_1.optimization_direction) == OptimizationDirection.MINIMIZE.value
+
+            # Verify second config
+            config_2 = loaded.output_configs[1]
+            assert isinstance(config_2, CategoricalAnnotationConfig)
+            assert config_2.name == "confidence"
+            assert len(config_2.values) == 3
+
+    async def test_builtin_evaluator_with_dataset_output_configs(
+        self, db: DbSessionFactory
+    ) -> None:
+        """Test BuiltinEvaluator can be associated with dataset and have output configs."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create builtin evaluator
+            builtin_eval = models.BuiltinEvaluator(
+                name=Identifier(root=f"builtin-{token_hex(4)}"),
+                description="Builtin evaluator",
+                kind="BUILTIN",
+                key=f"BUILTIN_{token_hex(4)}",
+                input_schema={"type": "object", "properties": {"input": {"type": "string"}}},
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+            )
+            session.add(builtin_eval)
+            await session.flush()
+
+            # Associate with dataset using custom output configs
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=builtin_eval.id,
+                name=builtin_eval.name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    CategoricalAnnotationConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+                project=models.Project(
+                    name=f"{dataset.name}/{builtin_eval.name}",
+                    description="Test project",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+
+        # Verify retrieval
+        async with db() as session:
+            loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert loaded is not None
+            assert loaded.output_configs is not None
+            assert len(loaded.output_configs) == 1
+
+            config = loaded.output_configs[0]
+            assert isinstance(config, CategoricalAnnotationConfig)
+            assert config.name == "quality"
+            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
+            assert str(config.optimization_direction) == OptimizationDirection.MINIMIZE.value

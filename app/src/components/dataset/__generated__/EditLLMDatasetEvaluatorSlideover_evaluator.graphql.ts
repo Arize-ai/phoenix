@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8835b19a7d7c8abae335262ea0f81812>>
+ * @generated SignedSource<<62d45eee73782c0a550ebd0656e85289>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,14 +17,14 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly description: string | null;
     readonly kind: EvaluatorKind;
     readonly name: string;
-    readonly outputConfig?: {
+    readonly outputConfigs?: ReadonlyArray<{
       readonly name?: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly values: ReadonlyArray<{
+      readonly optimizationDirection?: OptimizationDirection;
+      readonly values?: ReadonlyArray<{
         readonly label: string;
         readonly score: number | null;
       }>;
-    };
+    }>;
     readonly prompt?: {
       readonly id: string;
       readonly name: string;
@@ -42,7 +42,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly pathMapping: any;
   };
   readonly name: string;
-  readonly outputConfig: {
+  readonly outputConfigs: ReadonlyArray<{
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
@@ -51,7 +51,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
       readonly label: string;
       readonly score: number | null;
     }>;
-  } | null;
+  }>;
   readonly " $fragmentType": "EditLLMDatasetEvaluatorSlideover_evaluator";
 };
 export type EditLLMDatasetEvaluatorSlideover_evaluator$key = {
@@ -75,50 +75,51 @@ v1 = {
   "storageKey": null
 },
 v2 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v1/*: any*/)
-  ],
-  "type": "AnnotationConfigBase",
-  "abstractKey": "__isAnnotationConfigBase"
-},
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v4 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "CategoricalAnnotationValue",
-  "kind": "LinkedField",
-  "name": "values",
-  "plural": true,
+v3 = {
+  "kind": "InlineFragment",
   "selections": [
+    (v1/*: any*/),
+    (v2/*: any*/),
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "label",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "score",
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
-  "storageKey": null
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
 },
-v5 = [
+v4 = [
   (v0/*: any*/),
   (v1/*: any*/)
 ],
-v6 = [
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -127,24 +128,24 @@ v6 = [
     "storageKey": null
   }
 ],
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": (v6/*: any*/),
+  "selections": (v5/*: any*/),
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -189,23 +190,15 @@ return {
       "args": null,
       "concreteType": null,
       "kind": "LinkedField",
-      "name": "outputConfig",
-      "plural": false,
+      "name": "outputConfigs",
+      "plural": true,
       "selections": [
-        (v2/*: any*/),
+        (v3/*: any*/),
         {
           "kind": "InlineFragment",
           "selections": [
-            (v3/*: any*/),
-            (v4/*: any*/)
-          ],
-          "type": "CategoricalAnnotationConfig",
-          "abstractKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            (v3/*: any*/),
+            (v1/*: any*/),
+            (v2/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -256,14 +249,12 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "CategoricalAnnotationConfig",
+              "concreteType": null,
               "kind": "LinkedField",
-              "name": "outputConfig",
-              "plural": false,
+              "name": "outputConfigs",
+              "plural": true,
               "selections": [
-                (v2/*: any*/),
-                (v3/*: any*/),
-                (v4/*: any*/)
+                (v3/*: any*/)
               ],
               "storageKey": null
             },
@@ -274,7 +265,7 @@ return {
               "kind": "LinkedField",
               "name": "prompt",
               "plural": false,
-              "selections": (v5/*: any*/),
+              "selections": (v4/*: any*/),
               "storageKey": null
             },
             {
@@ -285,7 +276,7 @@ return {
               "name": "promptVersion",
               "plural": false,
               "selections": [
-                (v7/*: any*/),
+                (v6/*: any*/),
                 {
                   "kind": "InlineDataFragmentSpread",
                   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
@@ -319,7 +310,7 @@ return {
                       "kind": "LinkedField",
                       "name": "customProvider",
                       "plural": false,
-                      "selections": (v5/*: any*/),
+                      "selections": (v4/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -329,7 +320,7 @@ return {
                       "kind": "LinkedField",
                       "name": "responseFormat",
                       "plural": false,
-                      "selections": (v6/*: any*/),
+                      "selections": (v5/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -340,7 +331,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v8/*: any*/),
+                        (v7/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -367,7 +358,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v8/*: any*/),
+                                    (v7/*: any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -404,7 +395,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v9/*: any*/),
+                                            (v8/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -442,7 +433,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v9/*: any*/),
+                                            (v8/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -484,7 +475,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v7/*: any*/)
+                    (v6/*: any*/)
                   ],
                   "args": null,
                   "argumentDefinitions": []
@@ -505,6 +496,6 @@ return {
 };
 })();
 
-(node as any).hash = "fecc4c65947c688f3e8bbf5bc1f5a262";
+(node as any).hash = "602779cb9520b4ae273caa80f763db3e";
 
 export default node;

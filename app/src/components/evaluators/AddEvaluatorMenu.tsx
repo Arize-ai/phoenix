@@ -300,16 +300,18 @@ const LLMEvaluatorTemplateSubmenu = ({
               onAction({
                 name: evaluator.name,
                 description: evaluator.description ?? "",
-                outputConfig: {
-                  name: evaluator.name,
-                  optimizationDirection: evaluator.optimizationDirection,
-                  values: Object.entries(validatedChoices).map(
-                    ([label, score]) => ({
-                      label,
-                      score,
-                    })
-                  ),
-                },
+                outputConfigs: [
+                  {
+                    name: evaluator.name,
+                    optimizationDirection: evaluator.optimizationDirection,
+                    values: Object.entries(validatedChoices).map(
+                      ([label, score]) => ({
+                        label,
+                        score,
+                      })
+                    ),
+                  },
+                ],
                 promptMessages: evaluator.messages,
               });
             } else {
