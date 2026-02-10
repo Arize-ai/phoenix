@@ -151,8 +151,7 @@ class TestGenerativeModelStore:
         store = GenerativeModelStore(db=db)
         await store.start()
 
-        # Trigger first fetch cycle
-        fetch_trigger.set()
+        # Wait for the daemon's automatic first fetch cycle
         await wait_for_condition(lambda: store._last_fetch_time is not None)
 
         # Verify initial fetch loaded both models
