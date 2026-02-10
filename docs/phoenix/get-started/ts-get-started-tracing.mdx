@@ -1,0 +1,402 @@
+---
+title: "Send Traces From Your App"
+---
+This guide walks through a complete workflow for understanding and improving an agent application using Phoenix. The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
+
+A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows. 
+
+In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
+
+We’ll use the Mastra framework in TypeScript, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page](https://arize.com/docs/phoenix/integrations). 
+
+## **Before We Start**
+
+To follow along, you’ll need an [OpenAI API key](https://platform.openai.com/api-keys).
+
+We’ll be using OpenAI as our LLM provider throughout our agent and eventually for our evals. 
+
+---
+<Info>
+  **Follow along with code**: This guide has a companion codebase with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/tutorials/quickstarts/ts_quickstart).
+</Info>
+---
+## **Step 1: Set Up Phoenix Cloud**
+
+Before we can send traces anywhere, we need Phoenix running.
+
+In this step, we’ll create a Phoenix Cloud account and configure it for our application. If you’d rather run Phoenix locally, you can follow the [local setup guide](https://arize.com/docs/phoenix/self-hosting) instead.
+
+### **Create a Phoenix Cloud Account**
+
+1. Make a free [Phoenix Cloud](https://app.arize.com/auth/phoenix/login?redirect_uri=%2Foauth2%2Fauthorize%3Fclient_id%3Dphoenix-cloud%26redirect_uri%3Dhttps%253A%252F%252Fapp.phoenix.arize.com%252Fcallback%26response_type%3Dcode%26scope%3Dopenid%2Bprofile%2Bemail%26state%3DeyJub25jZSI6IjBFLVNDUktieEtjPSIsIm5leHQiOiIifQ%253D%253D) account.
+2. From the dashboard, click **Create a Space** in the upper-right corner.
+3. Enter a name for your new space.
+4. Once the space is created, launch your Phoenix instance directly from the dashboard.
+5. Create and save an API key. We’ll use this in the next step.
+6. Note your **Hostname** — this is the endpoint we’ll configure in code shortly.
+
+<Frame caption="How to Create a Phoenix Cloud account & a space">
+  <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" />
+</Frame>
+
+<Frame caption="How to Make an API Key">
+  <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/api_key_hostname.mp4" />
+</Frame>
+
+## **Step 2: Configure your Environment**
+
+Now that Phoenix is running, we need to connect our application to it so we can start sending traces.
+
+We'll start with an empty Mastra directory. Run this command in your terminal where you want your agent project to live. 
+
+```
+npm create mastra@latest -- --no-example
+```
+
+In this step, we’ll also install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
+
+### **Install Required Dependencies**
+
+```
+npm install @mastra/arize @ai-sdk/openai @arizeai/phoenix-evals @arizeai/phoenix-client
+```
+
+### **Set Your `.env` File** 
+
+```
+OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
+
+PHOENIX_ENDPOINT= <ENTER YOUR PHOENIX ENDPOINT>
+PHOENIX_API_KEY= <ENTER YOUR PHOENIX API KEY>
+PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
+```
+
+### **Connect Your Project in Phoenix** 
+
+Next, we’ll register the observability layer of our application to connect to Phoenix. We can modify our `index.ts` like this: 
+
+```typescript
+import { Mastra } from "@mastra/core/mastra";
+import { Observability } from "@mastra/observability";
+import { ArizeExporter } from "@mastra/arize";
+
+export const mastra = new Mastra({
+  agents: {},
+  observability: new Observability({
+    configs: {
+      arize: {
+        serviceName:
+          process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
+        exporters: [
+          new ArizeExporter({
+            endpoint: process.env.PHOENIX_ENDPOINT!,
+            apiKey: process.env.PHOENIX_API_KEY,
+            projectName: process.env.PHOENIX_PROJECT_NAME,
+          }),
+        ],
+      },
+    },
+  }),
+});
+```
+
+At this point, your application is configured to send traces to Phoenix! We'll fill out the agent section in this next step. 
+
+## **Step 3: Create your Tools**
+
+Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
+
+Typically we would start with creating our agents but let's start with building our tools so that we can connect them into our agent while defining them. In this tutorial we will use Mastra, but you can build agents in any of these [different frameworks](https://arize.com/docs/phoenix/integrations) for integration with Phoenix.
+
+Our application will be made up of: 
+
+- One orchestrator agent: Financial Analysis Orchestrator (coordinates the workflow)
+- Two sub-agents: Financial Research Analyst & Financial Report Writer 
+- Two tools: Financial Search Tool & Run Financial Analysis Tool 
+
+Let's start defining our tools. They will be in the `src/mastra/tools` directory. 
+
+### Financial Search Tool
+
+Our first tool, the financial search tool, will be used by the research analyst. It will take in the tickers and a focus area from the user request and queries an LLM to gather financial data to then return a research summary. 
+
+```typescript
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
+import { openai } from "@ai-sdk/openai";
+
+export const financialSearchTool = createTool({
+  id: "financial-search",
+  description:
+    "Search for up-to-date financial data, trends, news, stock prices, financial ratios (P/E, P/B, debt-to-equity, ROE, etc.), revenue, earnings, and recent developments for companies. Returns comprehensive financial research data.",
+  inputSchema: z.object({
+    tickers: z
+      .string()
+      .describe(
+        "Stock ticker symbol(s) to research (e.g., 'TSLA', 'AAPL', 'AAPL, MSFT' for multiple)",
+      ),
+    focus: z
+      .string()
+      .describe(
+        "The specific focus area for the research (e.g., 'financial analysis and market outlook', 'valuation metrics and growth prospects')",
+      ),
+  }),
+  outputSchema: z.object({
+    research: z.string().describe("Comprehensive financial research summary"),
+  }),
+  execute: async ({ tickers, focus }) => {
+    const model = openai("gpt-4o-mini");
+
+    const prompt = `Provide comprehensive financial data for ${tickers} focusing on ${focus}.
+
+Include: current stock price, key financial ratios (P/E, P/B, ROE, etc.), revenue/earnings, recent news (last 6 months), and market trends.`;
+
+    try {
+      const result = await model.doGenerate({
+        prompt: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+        temperature: 0.7,
+      });
+
+      const text =
+        result.content.find((part) => part.type === "text")?.text || "";
+      return { research: text };
+    } catch (error) {
+      return {
+        research: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    }
+  },
+});
+```
+
+### Financial Analysis Tool
+
+Our second tool, the financial analysis tool, will be used by the orchestrator agent. It will take in the tickers and focus to chain the research analyst, which gathers data, and the writer agent, which generates the final report, and returns the completed report. 
+
+```typescript
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
+
+export const financialAnalysisTool = createTool({
+  id: "financial-analysis",
+  description:
+    "Runs a complete financial analysis workflow: first conducts research on the given tickers, then compiles the research into a polished financial report. This tool automatically chains the research and writing steps.",
+  inputSchema: z.object({
+    tickers: z
+      .string()
+      .describe(
+        "Stock ticker symbol(s) to research (e.g., 'TSLA', 'AAPL, MSFT')",
+      ),
+    focus: z
+      .string()
+      .describe(
+        "The specific focus area for the research (e.g., 'financial analysis and market outlook')",
+      ),
+  }),
+  outputSchema: z.object({
+    report: z.string().describe("A polished financial analysis report"),
+  }),
+  execute: async ({ tickers, focus }, context) => {
+    const mastra = context?.mastra;
+    if (!mastra) {
+      throw new Error("Mastra instance not available in tool context");
+    }
+
+    const researcher = mastra.getAgent("financialResearcherAgent");
+    if (!researcher) {
+      throw new Error("Financial researcher agent not found");
+    }
+
+    const research = await researcher.generate([
+      { role: "user", content: `Research ${tickers} focusing on ${focus}` },
+    ]);
+
+    const writer = mastra.getAgent("financialWriterAgent");
+    if (!writer) {
+      throw new Error("Financial writer agent not found");
+    }
+
+    const report = await writer.generate([
+      {
+        role: "user",
+        content: `Write a financial report for ${tickers} (focus: ${focus}).
+
+Research: ${research.text}`,
+      },
+    ]);
+
+    return { report: report.text };
+  },
+});
+```
+
+## **Step 4: Create your Agent**
+
+In this step, we’ll create a simple Financial Analysis and Research chatbot. In this tutorial we will use Mastra, but you can build agents in any of these [different frameworks](https://arize.com/docs/phoenix/integrations) for integration with Phoenix.
+
+We’ll now define the agents that make up our application. Within the `agent` directory of our project (in `src/mastra`), let's make 3 files to create each of our agents: `financial-orchestrator-agent.ts` , `financial-researcher-agent.ts`, `financial-writer-agent.ts`.
+
+### Financial Orchestrator Agent
+
+First, let's define our orchestrator agent. The purpose behind this agent is to coordinate the workflow. We'll build it to extract the important information from user inputs (to extract tickers and focus) then call the Run Financial Analysis Tool to chain the Research and Writer agents.
+
+In `financial-orchestrator-agent.ts`: 
+
+```typescript
+import { Agent } from "@mastra/core/agent";
+import { financialAnalysisTool } from "../tools/financial-analysis-tool";
+
+export const financialOrchestratorAgent = new Agent({
+  id: "financial-orchestrator-agent",
+  name: "Financial Analysis Orchestrator",
+  instructions: `You are a Financial Analysis Orchestrator that coordinates a multi-agent system to provide comprehensive financial reports.
+
+When a user provides a financial analysis request (with tickers and focus area):
+1. Extract the tickers and focus from their request
+2. Immediately use the financialAnalysis tool with those parameters
+3. The tool automatically chains two agents:
+   - First: Financial Research Analyst agent gathers comprehensive financial data
+   - Second: Financial Report Writer agent compiles the research into a polished report
+4. Present the final report to the user
+
+The workflow is automatic - you just need to extract tickers and focus, then call the tool.
+
+Input can be in various formats:
+- "Research TSLA with focus on financial analysis and market outlook"
+- JSON-like: {"tickers": "TSLA", "focus": "financial analysis and market outlook"}
+- Natural language: "Analyze AAPL and MSFT focusing on comparative financial analysis"
+
+Always use the financialAnalysis tool when you detect a financial analysis request.`,
+  model: "openai/gpt-4o",
+  tools: { financialAnalysisTool },
+});
+```
+
+### Financial Researcher Agent
+
+Next, we can define our financial researcher agent. Its goal is to gather the financial data using the financial search tool. We can create some guidelines about what data it is supposed to focus on such as current/recent stock prices, revenue, etc. From all of this, it will produce a research summary to then give to the writer agent. 
+
+In `financial-researcher-agent.ts`: 
+
+```typescript
+import { Agent } from "@mastra/core/agent";
+import { financialSearchTool } from "../tools/financial-search-tool";
+
+export const financialResearcherAgent = new Agent({
+  id: "financial-researcher-agent",
+  name: "Financial Research Analyst",
+  instructions: `You are a Senior Financial Research Analyst.
+
+Your role is to gather up-to-date financial data, trends, and news for the target companies or markets.
+
+When conducting research:
+- Use the financialSearch tool to gather comprehensive financial data
+- Focus on current/recent stock prices, financial ratios (P/E, P/B, debt-to-equity, ROE, etc.), revenue, earnings, and recent developments
+- Include news and trends from the last 6 months
+- For multiple tickers, gather data for each one individually
+- Provide detailed financial research summary with web search findings
+
+Your output should be a comprehensive research summary that can be used by a financial report writer to create a polished report.`,
+  model: "openai/gpt-4o",
+  tools: { financialSearchTool },
+});
+```
+
+### Financial Writer Agent
+
+Lastly, we can define our finanical writer agent. This agent will compile all the Research Analyst’s findings into a well written report that addresses all focus areas, includes specific metrics, and any other guidelines we want to define.
+
+In `financial-writer-agent.ts`:
+
+```typescript
+import { Agent } from "@mastra/core/agent";
+
+export const financialWriterAgent = new Agent({
+  id: "financial-writer-agent",
+  name: "Financial Report Writer",
+  instructions: `You are an experienced financial content writer.
+
+Your role is to compile and summarize financial research into clear, actionable insights.
+
+When writing the report:
+- Use the research provided to you to create a polished financial analysis report
+- Address ALL focus areas mentioned in the original request
+- Include specific financial data and metrics (not generic statements)
+- Provide at least 3-4 sentences of dedicated analysis per ticker
+- Make the report actionable and insightful
+
+When multiple tickers are provided:
+- Ensure each ticker gets dedicated analysis (not just mentioned in passing)
+- Include a comparative analysis section comparing the companies
+- Compare key metrics side-by-side (P/E ratios, revenue growth, etc.)
+
+Your output should be a polished financial analysis report that is clear, comprehensive, and actionable.`,
+  model: "openai/gpt-4o",
+});
+```
+
+##  **Step 5: Run Your Agent**
+
+You've now defined all the different parts of your multi-agent system. Before we run our chatbot for the first time, we need to connect these agents back to our Mastra object. Navigate to `index.ts` and add in our agents. 
+
+`index.ts` will now look like: 
+
+```typescript
+import { Mastra } from "@mastra/core/mastra";
+import { Observability } from "@mastra/observability";
+import { ArizeExporter } from "@mastra/arize";
+import { financialOrchestratorAgent } from "./agents/financial-orchestrator-agent";
+import { financialResearcherAgent } from "./agents/financial-researcher-agent";
+import { financialWriterAgent } from "./agents/financial-writer-agent";
+
+export const mastra = new Mastra({
+  agents: {
+    financialOrchestratorAgent,
+    financialResearcherAgent,
+    financialWriterAgent,
+  },
+  observability: new Observability({
+    configs: {
+      arize: {
+        serviceName:
+          process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
+        exporters: [
+          new ArizeExporter({
+            endpoint: process.env.PHOENIX_ENDPOINT!,
+            apiKey: process.env.PHOENIX_API_KEY,
+            projectName: process.env.PHOENIX_PROJECT_NAME,
+          }),
+        ],
+      },
+    },
+  }),
+});
+```
+
+To test our agent, run `npm run dev` in your terminal to spin up the Mastra dev server. Now go into the local hosted link next to "Playground" and once in 'Financial Analysis Orchestrator,' ask the chatbot any question. For example:  "Analyze TSLA with a focus on financial analysis and market outlook." 
+
+Once the run completes, head back to Phoenix and navigate to the **Traces** view. You should see a new trace corresponding to this run. Click into it to explore how the agents and tasks are executed.
+
+<Frame caption="Invoke the Chatbot & See Full Trace in Phoenix ">
+<video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-trace.mp4" />
+</Frame>
+
+At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
+
+More importantly, you can now see how your application actually ran:
+
+- Which agents were invoked and in what order
+- How tasks flowed from one step to the next
+- Where time was spent across the workflow
+
+This is something you couldn’t see before tracing. Instead of guessing how an agent run behaved or digging through logs, you now have a single, end-to-end view of each execution.
+
+**Congratulations!** You’ve sent your first trace to Phoenix.
+
+## **Learn More About Traces**
+
+You’ve now sent a trace to Phoenix and seen how an agent run appears from start to finish.
+
+The next step you can take is to run evaluations on your application to measure where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/ts-get-started-evaluations) to add even more value beyond tracing.
+
+If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial](https://arize.com/docs/phoenix/tracing/tutorial) walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your application.

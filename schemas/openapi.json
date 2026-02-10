@@ -8837,13 +8837,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Start Time",
-            "description": "Start time of the span"
+            "description": "Start time of the span (must be timezone-aware)"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
             "title": "End Time",
-            "description": "End time of the span"
+            "description": "End time of the span (must be timezone-aware)"
           },
           "status_code": {
             "type": "string",
@@ -9168,7 +9168,7 @@
             "type": "string",
             "format": "date-time",
             "title": "Timestamp",
-            "description": "When the event occurred"
+            "description": "When the event occurred (must be timezone-aware)"
           },
           "attributes": {
             "additionalProperties": true,

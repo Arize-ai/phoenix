@@ -646,6 +646,7 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-opus-4-6-v1",
         "anthropic.claude-opus-4-5-20251101-v1:0",
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
@@ -1598,7 +1599,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
         async with await throttled_stream(**anthropic_params) as stream:
             async for event in stream:
-                if isinstance(event, anthropic_types.RawMessageStartEvent):
+                if event.type == "message_start":
                     usage = event.message.usage
 
                     token_counts: dict[str, Any] = {}
@@ -1614,9 +1615,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                                 cache_creation_tokens
                             )
                     self._attributes.update(token_counts)
-                elif isinstance(event, anthropic_streaming.TextEvent):
+                elif event.type == "text":
                     yield TextChunk(content=event.text)
-                elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                elif event.type == "message_stop":
                     usage = event.message.usage
                     output_token_counts: dict[str, Any] = {}
                     if usage.output_tokens:
@@ -1627,10 +1628,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                                 cache_read_tokens
                             )
                     self._attributes.update(output_token_counts)
-                elif (
-                    isinstance(event, anthropic_streaming.ContentBlockStopEvent)
-                    and event.content_block.type == "tool_use"
-                ):
+                elif event.type == "content_block_stop" and event.content_block.type == "tool_use":
                     tool_call_chunk = ToolCallChunk(
                         id=event.content_block.id,
                         function=FunctionCallChunk(
@@ -1639,27 +1637,25 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                         ),
                     )
                     yield tool_call_chunk
-                elif isinstance(
-                    event,
-                    (
-                        anthropic_types.RawContentBlockStartEvent,
-                        anthropic_types.RawContentBlockDeltaEvent,
-                        anthropic_types.RawMessageDeltaEvent,
-                        anthropic_streaming.ContentBlockStopEvent,
-                        anthropic_streaming.InputJsonEvent,
-                    ),
-                ):
-                    # event types emitted by the stream that don't contain useful information
+                elif event.type == "content_block_start":
                     pass
-                elif isinstance(event, anthropic_streaming.InputJsonEvent):
-                    raise NotImplementedError
-                elif isinstance(event, anthropic_streaming._types.CitationEvent):
-                    raise NotImplementedError
-                elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                elif event.type == "content_block_delta":
                     pass
-                elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                elif event.type == "message_delta":
                     pass
-                else:
+                elif event.type == "content_block_stop":
+                    # non-tool_use case; tool_use already yielded above
+                    pass
+                elif event.type == "input_json":
+                    # Incremental tool-call JSON; we use the complete block at content_block_stop
+                    pass
+                elif event.type == "citation":
+                    pass
+                elif event.type == "thinking":
+                    pass
+                elif event.type == "signature":
+                    pass
+                elif TYPE_CHECKING:
                     assert_never(event)
 
     def _build_anthropic_messages(
@@ -1711,6 +1707,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
+        "claude-opus-4-6",
         "claude-opus-4-5",
         "claude-opus-4-5-20251101",
         "claude-sonnet-4-5",
