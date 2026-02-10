@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, AuthenticationError
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -15,7 +15,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Tracer
+from opentelemetry.trace import StatusCode, Tracer
 
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
@@ -294,6 +294,102 @@ class TestOpenAIBaseStreamingClient:
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
         assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+
+        assert not attributes
+
+    async def test_authentication_error_records_error_status_on_span(
+        self,
+        openai_client_factory: Any,
+        custom_vcr: CustomVCR,
+        tracer: Tracer,
+        in_memory_span_exporter: InMemorySpanExporter,
+    ) -> None:
+        client = OpenAIBaseStreamingClient(
+            client_factory=openai_client_factory,
+            model_name="gpt-4o-mini",
+            provider="openai",
+        )
+
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(
+                ChatCompletionMessageRole.USER,
+                "Say hello",
+            )
+        ]
+
+        invocation_parameters = {"temperature": 0.1}
+
+        with custom_vcr.use_cassette():
+            with pytest.raises(AuthenticationError) as exc_info:
+                async for _ in client.chat_completion_create(
+                    messages=messages,
+                    tools=[],
+                    tracer=tracer,
+                    **invocation_parameters,
+                ):
+                    pass
+
+        assert exc_info.value.status_code == 401
+
+        spans = in_memory_span_exporter.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        assert span.name == "ChatCompletion"
+        assert span.status.status_code is StatusCode.ERROR
+        status_description = span.status.description
+        assert status_description is not None
+        assert isinstance(status_description, str)
+        assert status_description.startswith("Error code: 401")
+        assert "invalid_api_key" in status_description
+
+        events = span.events
+        assert len(events) == 1
+        event = events[0]
+        assert event.name == "exception"
+        assert event.attributes is not None
+        event_attrs = dict(event.attributes)
+        assert event_attrs.pop("exception.type") == "openai.AuthenticationError"
+        exception_message = event_attrs.pop("exception.message")
+        assert isinstance(exception_message, str)
+        assert exception_message.startswith("Error code: 401")
+        assert event_attrs.pop("exception.escaped") == "False"
+        exception_stacktrace = event_attrs.pop("exception.stacktrace")
+        assert isinstance(exception_stacktrace, str)
+        assert "AuthenticationError" in exception_stacktrace
+        assert not event_attrs
+
+        assert span.attributes is not None
+        attributes = dict(span.attributes)
+
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
+
+        invocation_params = attributes.pop(LLM_INVOCATION_PARAMETERS)
+        assert isinstance(invocation_params, str)
+        assert json.loads(invocation_params) == {"temperature": 0.1}
+
+        assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "user"
+        assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}") == "Say hello"
+
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
+
+        url_full = attributes.pop("url.full")
+        assert url_full == "https://api.openai.com/v1/chat/completions"
+
+        url_path = attributes.pop("url.path")
+        assert url_path == "chat/completions"
+
+        input_value = attributes.pop(INPUT_VALUE)
+        assert isinstance(input_value, str)
+        input_data = json.loads(input_value)
+        assert input_data == {
+            "messages": [{"role": "USER", "content": "Say hello"}],
+            "tools": [],
+            "invocation_parameters": {"temperature": 0.1},
+        }
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
         assert not attributes
 
