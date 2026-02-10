@@ -7,9 +7,10 @@ Docs:
 - https://platform.openai.com/docs/api-reference/responses-streaming
 """
 
-from enum import StrEnum
+from enum import Enum
 
-class OpenAIResponsesStreamEventType(StrEnum):
+
+class OpenAIResponsesStreamEventType(Enum):
     """Responses API server-sent streaming event types."""
 
     # Completion streaming
