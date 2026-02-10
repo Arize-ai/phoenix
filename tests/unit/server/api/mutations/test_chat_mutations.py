@@ -1181,7 +1181,12 @@ class TestChatCompletionMutationMixin:
             output_value = json.loads(raw_output_value)
             assert set(output_value.keys()) == {"results"}
             assert len(output_value["results"]) == 1
-            assert set(output_value["results"][0].keys()) == {"name", "label", "score"}
+            assert set(output_value["results"][0].keys()) == {
+                "name",
+                "label",
+                "score",
+                "explanation",
+            }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
             assert not llm_evaluator_span.events

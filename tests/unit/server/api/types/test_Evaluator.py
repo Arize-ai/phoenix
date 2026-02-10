@@ -391,7 +391,7 @@ class TestBuiltInEvaluatorOutputConfig:
         db: DbSessionFactory,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Test that Contains evaluator returns an EmbeddedCategoricalAnnotationConfig."""
+        """Test that Contains evaluator returns an CategoricalAnnotationConfig."""
         from sqlalchemy import select
 
         # Look up the evaluator ID from the database by key
@@ -408,7 +408,7 @@ class TestBuiltInEvaluatorOutputConfig:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 optimizationDirection
                                 values { label score }
@@ -425,7 +425,7 @@ class TestBuiltInEvaluatorOutputConfig:
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list) and len(output_configs) >= 1
         output_config = output_configs[0]
-        assert output_config["__typename"] == "EmbeddedCategoricalAnnotationConfig"
+        assert output_config["__typename"] == "CategoricalAnnotationConfig"
         assert output_config["name"] == "contains"
         assert output_config["optimizationDirection"] == "MAXIMIZE"
         assert len(output_config["values"]) == 2
@@ -438,7 +438,7 @@ class TestBuiltInEvaluatorOutputConfig:
         db: DbSessionFactory,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Test that LevenshteinDistance evaluator returns an EmbeddedContinuousAnnotationConfig."""
+        """Test that LevenshteinDistance evaluator returns an ContinuousAnnotationConfig."""
         from sqlalchemy import select
 
         # Look up the evaluator ID from the database by key
@@ -457,7 +457,7 @@ class TestBuiltInEvaluatorOutputConfig:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedContinuousAnnotationConfig {
+                            ... on ContinuousAnnotationConfig {
                                 name
                                 optimizationDirection
                                 lowerBound
@@ -475,7 +475,7 @@ class TestBuiltInEvaluatorOutputConfig:
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list) and len(output_configs) >= 1
         output_config = output_configs[0]
-        assert output_config["__typename"] == "EmbeddedContinuousAnnotationConfig"
+        assert output_config["__typename"] == "ContinuousAnnotationConfig"
         assert output_config["name"] == "levenshtein_distance"
         assert output_config["optimizationDirection"] == "MINIMIZE"
         assert output_config["lowerBound"] == 0.0
@@ -603,7 +603,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 optimizationDirection
                                 values { label score }
@@ -637,7 +637,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                         description
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 description
                                 optimizationDirection
@@ -662,7 +662,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list) and len(output_configs) >= 1
         output_config = output_configs[0]
-        assert output_config["__typename"] == "EmbeddedCategoricalAnnotationConfig"
+        assert output_config["__typename"] == "CategoricalAnnotationConfig"
         assert output_config["name"] == "contains"
         assert output_config["optimizationDirection"] == "MINIMIZE"
         labels = {v["label"] for v in output_config["values"]}
@@ -679,7 +679,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedContinuousAnnotationConfig {
+                            ... on ContinuousAnnotationConfig {
                                 name
                                 optimizationDirection
                                 lowerBound
@@ -713,7 +713,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedContinuousAnnotationConfig {
+                            ... on ContinuousAnnotationConfig {
                                 name
                                 optimizationDirection
                                 lowerBound
@@ -735,7 +735,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list) and len(output_configs) >= 1
         output_config = output_configs[0]
-        assert output_config["__typename"] == "EmbeddedContinuousAnnotationConfig"
+        assert output_config["__typename"] == "ContinuousAnnotationConfig"
         assert output_config["name"] == "levenshtein_distance"
         assert output_config["optimizationDirection"] == "MINIMIZE"
         assert output_config["lowerBound"] == 0.1
@@ -801,12 +801,12 @@ class TestBuiltInEvaluatorMultiOutput:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 optimizationDirection
                                 values { label score }
                             }
-                            ... on EmbeddedContinuousAnnotationConfig {
+                            ... on ContinuousAnnotationConfig {
                                 name
                                 optimizationDirection
                                 lowerBound
@@ -824,7 +824,7 @@ class TestBuiltInEvaluatorMultiOutput:
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list)
         assert len(output_configs) >= 1
-        assert output_configs[0]["__typename"] == "EmbeddedCategoricalAnnotationConfig"
+        assert output_configs[0]["__typename"] == "CategoricalAnnotationConfig"
 
         # Test LevenshteinDistance evaluator returns list with continuous config
         resp = await gql_client.execute(
@@ -834,11 +834,11 @@ class TestBuiltInEvaluatorMultiOutput:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 optimizationDirection
                             }
-                            ... on EmbeddedContinuousAnnotationConfig {
+                            ... on ContinuousAnnotationConfig {
                                 name
                                 optimizationDirection
                                 lowerBound
@@ -856,7 +856,7 @@ class TestBuiltInEvaluatorMultiOutput:
         output_configs = node["outputConfigs"]
         assert isinstance(output_configs, list)
         assert len(output_configs) >= 1
-        assert output_configs[0]["__typename"] == "EmbeddedContinuousAnnotationConfig"
+        assert output_configs[0]["__typename"] == "ContinuousAnnotationConfig"
 
     async def test_builtin_override_merges_by_name(
         self,
@@ -957,7 +957,7 @@ class TestBuiltInEvaluatorMultiOutput:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 optimizationDirection
                                 values { label score }
@@ -977,7 +977,7 @@ class TestBuiltInEvaluatorMultiOutput:
         assert isinstance(output_configs, list)
         assert len(output_configs) >= 1
         config = output_configs[0]
-        assert config["__typename"] == "EmbeddedCategoricalAnnotationConfig"
+        assert config["__typename"] == "CategoricalAnnotationConfig"
         # The override should have changed optimization direction to MINIMIZE
         assert config["optimizationDirection"] == "MINIMIZE"
         # The override should have changed the values
@@ -992,7 +992,7 @@ class TestBuiltInEvaluatorMultiOutput:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedContinuousAnnotationConfig {
+                            ... on ContinuousAnnotationConfig {
                                 name
                                 optimizationDirection
                                 lowerBound
@@ -1011,7 +1011,7 @@ class TestBuiltInEvaluatorMultiOutput:
         assert isinstance(output_configs, list)
         assert len(output_configs) >= 1
         config = output_configs[0]
-        assert config["__typename"] == "EmbeddedContinuousAnnotationConfig"
+        assert config["__typename"] == "ContinuousAnnotationConfig"
         # The override should have changed optimization direction to MAXIMIZE
         assert config["optimizationDirection"] == "MAXIMIZE"
         # The override should have changed the bounds
@@ -1068,7 +1068,7 @@ class TestBuiltInEvaluatorMultiOutput:
                         name
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 optimizationDirection
                                 values { label score }
@@ -1148,7 +1148,7 @@ class TestLLMEvaluatorOutputConfigs:
                         description
                         outputConfigs {
                             __typename
-                            ... on EmbeddedCategoricalAnnotationConfig {
+                            ... on CategoricalAnnotationConfig {
                                 name
                                 description
                                 optimizationDirection
@@ -1172,7 +1172,7 @@ class TestLLMEvaluatorOutputConfigs:
 
         # Verify first config
         first = output_configs[0]
-        assert first["__typename"] == "EmbeddedCategoricalAnnotationConfig"
+        assert first["__typename"] == "CategoricalAnnotationConfig"
         assert first["name"] == "quality"
         assert first["description"] == "Quality assessment"
         assert first["optimizationDirection"] == "MAXIMIZE"
@@ -1185,7 +1185,7 @@ class TestLLMEvaluatorOutputConfigs:
 
         # Verify second config
         second = output_configs[1]
-        assert second["__typename"] == "EmbeddedCategoricalAnnotationConfig"
+        assert second["__typename"] == "CategoricalAnnotationConfig"
         assert second["name"] == "relevance"
         assert second["description"] == "Relevance assessment"
         assert second["optimizationDirection"] == "MINIMIZE"

@@ -1456,7 +1456,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                         self._attributes.update(token_counts)
                     elif isinstance(event, anthropic_streaming.TextEvent):
                         yield TextChunk(content=event.text)
-                    elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                    elif isinstance(
+                        event,
+                        (
+                            anthropic_streaming.MessageStopEvent,
+                            anthropic_streaming.ParsedMessageStopEvent,
+                        ),
+                    ):
                         usage = event.message.usage
                         output_token_counts: dict[str, Any] = {}
                         if usage.output_tokens:
@@ -1468,7 +1474,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 )
                         self._attributes.update(output_token_counts)
                     elif (
-                        isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                        isinstance(
+                            event,
+                            (
+                                anthropic_streaming.ContentBlockStopEvent,
+                                anthropic_streaming.ParsedContentBlockStopEvent,
+                            ),
+                        )
                         and event.content_block.type == "tool_use"
                     ):
                         tool_call_chunk = ToolCallChunk(
@@ -1485,7 +1497,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                             anthropic_types.RawContentBlockStartEvent,
                             anthropic_types.RawContentBlockDeltaEvent,
                             anthropic_types.RawMessageDeltaEvent,
-                            anthropic_streaming.ContentBlockStopEvent,
+                            anthropic_types.RawContentBlockStopEvent,
                             anthropic_streaming.InputJsonEvent,
                         ),
                     ):
