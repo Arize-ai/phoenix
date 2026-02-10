@@ -71,6 +71,39 @@ SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
 
+def _tools_chat_completions_to_responses_api(
+    tools: list[JSONScalarType],
+) -> list[dict[str, Any]]:
+    """
+    Convert tools from Chat Completions format (name/description/parameters under
+    a nested 'function' key) to Responses API format (flat type, name, description,
+    parameters at top level). Leaves non-function tools and already-flat tools
+    unchanged. Skips non-dict items.
+    """
+    result: list[dict[str, Any]] = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        if "function" in tool:
+            fn = tool["function"]
+            if not isinstance(fn, dict):
+                result.append(tool)
+                continue
+            flat: dict[str, Any] = {
+                "type": tool.get("type", "function"),
+                "name": fn.get("name", ""),
+                "parameters": fn.get("parameters") if fn.get("parameters") is not None else {},
+            }
+            if "description" in fn:
+                flat["description"] = fn["description"]
+            if "strict" in fn:
+                flat["strict"] = fn["strict"]
+            result.append(flat)
+        else:
+            result.append(tool)
+    return result
+
+
 @dataclass
 class PlaygroundClientCredential:
     """
@@ -516,9 +549,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 
         CompletionUsage structure:
         - prompt_tokens: int
-        - prompt_tokens_details: PromptTokensDetails (has cached_tokens, audio_tokens - both optional)
+        - prompt_tokens_details: PromptTokensDetails
+          (has cached_tokens, audio_tokens - both optional)
         - completion_tokens: int
-        - completion_tokens_details: CompletionTokensDetails (has reasoning_tokens, audio_tokens, etc. - all optional)
+        - completion_tokens_details: CompletionTokensDetails
+          (has reasoning_tokens, audio_tokens, etc. - all optional)
         - total_tokens: int
         """
 
@@ -543,8 +578,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         # Check fallback first (CompletionUsage format) before normalizing from Responses API format
         prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
         if prompt_tokens_details is None and input_tokens_details is not None:
-            # InputTokensDetails has cached_tokens (required)
-            # Map to PromptTokensDetails which has cached_tokens (optional) and audio_tokens (optional)
+            # InputTokensDetails has cached_tokens (required).
+            # Map to PromptTokensDetails: cached_tokens (optional), audio_tokens (optional).
             cached_tokens = getattr(input_tokens_details, "cached_tokens", None)
             if cached_tokens is not None:
                 # Create a simple object matching PromptTokensDetails structure
@@ -558,8 +593,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 
         completion_tokens_details = getattr(usage, "completion_tokens_details", None)
         if completion_tokens_details is None and output_tokens_details is not None:
-            # OutputTokensDetails has reasoning_tokens (required)
-            # Map to CompletionTokensDetails which has reasoning_tokens (optional) and audio_tokens (optional)
+            # OutputTokensDetails has reasoning_tokens (required).
+            # Map to CompletionTokensDetails: reasoning_tokens (optional), audio_tokens (optional).
             reasoning_tokens = getattr(output_tokens_details, "reasoning_tokens", None)
             if reasoning_tokens is not None:
                 # Create a simple object matching CompletionTokensDetails structure
@@ -635,12 +670,15 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 
         # Use responses.create instead of chat.completions.create for unified endpoint
         # The unified endpoint uses 'input' parameter instead of 'messages'
+        # Convert tools from Chat Completions format (nested function) to Responses API
+        # flat format (type, name, description, parameters at top level)
+        responses_tools = _tools_chat_completions_to_responses_api(tools) if tools else NOT_GIVEN
         throttled_create = self.rate_limiter._alimit(self.client.responses.create)
         async for event in await throttled_create(
             input=input_text,
             model=self.model_name,
             stream=True,
-            tools=tools or NOT_GIVEN,
+            tools=responses_tools,
             **invocation_parameters,
         ):
             # Parse events using event.type for event-driven streaming
@@ -740,7 +778,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                         error_type = getattr(error, "type", None)
                         error_code = getattr(error, "code", None)
                         if error_type or error_code:
-                            error_message = f"{error_message} (type: {error_type or 'unknown'}, code: {error_code or 'unknown'})"
+                            error_message = (
+                                f"{error_message} (type: {error_type or 'unknown'}, "
+                                f"code: {error_code or 'unknown'})"
+                            )
                 raise RuntimeError(error_message)
 
             # Handle incomplete events - raise exception to signal incomplete response
@@ -1670,7 +1711,7 @@ class AzureOpenAIGPT51_52StreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     AzureOpenAIStreamingClient,
 ):
-    """Azure OpenAI client for GPT 5.1 and 5.2 models using the unified responses.create endpoint."""
+    """Azure OpenAI client for GPT 5.1 and 5.2 using unified responses.create endpoint."""
 
     @override
     async def chat_completion_create(
