@@ -510,6 +510,13 @@
             "icon": "python",
             "pages": [
               {
+                "group": "Agent Spec",
+                "pages": [
+                  "docs/phoenix/integrations/python/agentspec",
+                  "docs/phoenix/integrations/python/agentspec/agentspec-tracing"
+                ]
+              },
+              {
                 "group": "Agno",
                 "pages": [
                   "docs/phoenix/integrations/python/agno",
