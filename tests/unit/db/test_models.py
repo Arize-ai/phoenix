@@ -1549,6 +1549,7 @@ class TestAnnotationConfigTypeDecorators:
         async with db() as session:
             loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert loaded is not None
+            assert loaded.output_configs is not None
             assert len(loaded.output_configs) == 1
 
             config = loaded.output_configs[0]
@@ -1770,6 +1771,7 @@ class TestBuiltinEvaluatorMultiOutput:
         async with db() as session:
             loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert loaded is not None
+            assert loaded.output_configs is not None
             assert len(loaded.output_configs) == 1
 
             config = loaded.output_configs[0]
