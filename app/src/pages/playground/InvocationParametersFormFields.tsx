@@ -23,7 +23,11 @@ import { Mutable } from "@phoenix/typeUtils";
 import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
-import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
+import {
+  areInvocationParamsEqual,
+  isClaude4Model,
+  toCamelCase,
+} from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   ModelSupportedParamsFetcherQuery$data["modelInvocationParameters"]
@@ -312,11 +316,7 @@ export const InvocationParametersFormFields = ({
 
   // Claude 4.x: only one of temperature or top_p may be set; setting one clears the other
   const isClaude4 =
-    model.provider === "ANTHROPIC" &&
-    model.modelName != null &&
-    (model.modelName.startsWith("claude-opus-4") ||
-      model.modelName.startsWith("claude-sonnet-4") ||
-      model.modelName.startsWith("claude-haiku-4"));
+    model.provider === "ANTHROPIC" && isClaude4Model(model.modelName);
 
   // Handle changes to the form state, either deleting or upserting an invocation parameter
   const onChange = useCallback(

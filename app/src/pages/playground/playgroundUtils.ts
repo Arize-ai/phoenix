@@ -1432,7 +1432,7 @@ const anthropicForcedToolUseSchema = z
  * Returns true if the model is a Claude 4.x variant (opus/sonnet/haiku-4).
  * Claude 4.x does not allow both temperature and top_p to be set.
  */
-const isClaude4Model = (model: string | null): boolean => {
+export const isClaude4Model = (model: string | null): boolean => {
   if (!model) return false;
   return (
     model.startsWith("claude-opus-4") ||
