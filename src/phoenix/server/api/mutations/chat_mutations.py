@@ -425,6 +425,7 @@ class ChatCompletionMutationMixin:
                         "input": revision.input,
                         "reference": revision.output,
                         "output": experiment_run.output.get("task_output", experiment_run.output),
+                        "metadata": revision.metadata_,
                     }
 
                     for evaluator, evaluator_input, project_id in zip(

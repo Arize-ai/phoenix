@@ -63,6 +63,14 @@ const FIELD_CONFIG: {
     tooltip:
       "This value comes from the selected dataset example's output field. It can be used as a reference point for comparison, but is not always present or required.",
   },
+  {
+    field: "metadata",
+    label: "metadata",
+    description:
+      "From the dataset example. Optional metadata (e.g. user_id, category) for path mapping.",
+    tooltip:
+      "This value comes from the selected dataset example's metadata field. When running evaluators over a dataset, you can map evaluator inputs to metadata paths (e.g. metadata.user_id).",
+  },
 ];
 
 const editorContainerCSS = css`

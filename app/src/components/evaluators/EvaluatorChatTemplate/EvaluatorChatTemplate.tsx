@@ -10,17 +10,13 @@ export const EvaluatorChatTemplate = () => {
   const instanceId = instances[0].id;
   const example = useEvaluatorStore((state) => state.evaluatorMappingSource);
   const availablePaths = useMemo(() => {
-    // @ts-expect-error - This will error when metadata is available in the evaluator mapping source
-    // when it is, add it to the example object on line 23 and then delete this
-    const _remove_me = example.metadata;
     return extractPathsFromDatasetExamples(
       [
         {
           input: example.input,
           taskOutput: example.output,
           reference: example.reference,
-          // TODO: add metadata when available in the evaluator mapping source
-          metadata: {},
+          metadata: example.metadata,
         },
       ],
       null

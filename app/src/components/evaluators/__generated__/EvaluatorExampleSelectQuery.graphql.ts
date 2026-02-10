@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1b7b3d06b483b301f7ec0aa295271515>>
+ * @generated SignedSource<<7245cc4ed401d7237eeceacd2f950031>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type EvaluatorExampleSelectQuery$data = {
           readonly id: string;
           readonly revision: {
             readonly input: any;
+            readonly metadata: any;
             readonly output: any;
           };
         };
@@ -115,6 +116,13 @@ v3 = {
                       "kind": "ScalarField",
                       "name": "output",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "metadata",
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -198,16 +206,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "097a70cf09af695f7b922d76d989bc15",
+    "cacheID": "3c905c950d2f38eb31fcb630918434a5",
     "id": null,
     "metadata": {},
     "name": "EvaluatorExampleSelectQuery",
     "operationKind": "query",
-    "text": "query EvaluatorExampleSelectQuery(\n  $datasetId: ID!\n  $hasDataset: Boolean!\n) {\n  dataset: node(id: $datasetId) @include(if: $hasDataset) {\n    __typename\n    ... on Dataset {\n      examples(first: 20) {\n        edges {\n          example: node {\n            id\n            revision {\n              input\n              output\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorExampleSelectQuery(\n  $datasetId: ID!\n  $hasDataset: Boolean!\n) {\n  dataset: node(id: $datasetId) @include(if: $hasDataset) {\n    __typename\n    ... on Dataset {\n      examples(first: 20) {\n        edges {\n          example: node {\n            id\n            revision {\n              input\n              output\n              metadata\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1e3ca7726357e09a968bee9c2441ef58";
+(node as any).hash = "501a96e6e645c4b99028293d64bc7316";
 
 export default node;
