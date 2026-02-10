@@ -2,7 +2,7 @@ interactions:
 - request:
     body: '{"messages":[{"content":"You are an evaluator. Assess whether the output
       correctly answers the input question.","role":"system"},{"content":"Input: What
-      is 2 + 2?\n\nOutput: 4\n\nIs this output correct?","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"temperature":0.0,"tool_choice":"required","tools":[{"function":{"name":"correctness_evaluator","description":"Evaluates
+      is 2 + 2?\n\nOutput: 4\n\nIs this output correct?","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"temperature":0.0,"tool_choice":"required","tools":[{"function":{"name":"correctness","description":"Evaluates
       the correctness of the output","parameters":{"type":"object","properties":{"label":{"type":"string","enum":["correct","incorrect"],"description":"correctness"},"explanation":{"type":"string","description":"Brief
       explanation for the label"}},"required":["label","explanation"]}},"type":"function"}]}'
     headers: {}
@@ -10,7 +10,7 @@ interactions:
     uri: https://api.openai.com/v1/chat/completions
   response:
     body:
-      string: 'data: {"id":"chatcmpl-CyiuD2P4T82YTrmHFAqGnHtonI99q","object":"chat.completion.chunk","created":1768588333,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_tzE69nmyBDC4IcCBdusBeAbo","type":"function","function":{"name":"correctness_evaluator","arguments":""}}],"refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"6FBf8cMd7m"}
+      string: 'data: {"id":"chatcmpl-CyiuD2P4T82YTrmHFAqGnHtonI99q","object":"chat.completion.chunk","created":1768588333,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_tzE69nmyBDC4IcCBdusBeAbo","type":"function","function":{"name":"correctness","arguments":""}}],"refusal":null},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"6FBf8cMd7m"}
 
 
         data: {"id":"chatcmpl-CyiuD2P4T82YTrmHFAqGnHtonI99q","object":"chat.completion.chunk","created":1768588333,"model":"gpt-4o-mini-2024-07-18","service_tier":"default","system_fingerprint":"fp_29330a9688","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\""}}]},"logprobs":null,"finish_reason":null}],"usage":null,"obfuscation":"KVA5IBtuXQfClM"}

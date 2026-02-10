@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7480283a137149f901a63a1c68beca8f>>
+ * @generated SignedSource<<0c5946e2f85a716d7793fa3881ed7b61>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -78,29 +78,37 @@ export type PlaygroundEvaluatorInput = {
   id: string;
   inputMapping?: EvaluatorInputMappingInput;
   name: string;
-  outputConfig?: CategoricalAnnotationConfigOverrideInput | null;
-  outputConfigOverride?: AnnotationConfigOverrideInput | null;
+  outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;
   pathMapping?: any;
 };
-export type CategoricalAnnotationConfigOverrideInput = {
-  optimizationDirection?: OptimizationDirection | null;
-  values?: ReadonlyArray<CategoricalAnnotationConfigValueInput> | null;
+export type AnnotationConfigInput = {
+  categorical?: CategoricalAnnotationConfigInput | null;
+  continuous?: ContinuousAnnotationConfigInput | null;
+  freeform?: FreeformAnnotationConfigInput | null;
+};
+export type CategoricalAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
+  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
 };
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
   score?: number | null;
 };
-export type AnnotationConfigOverrideInput = {
-  categorical?: CategoricalAnnotationConfigOverrideInput | null;
-  continuous?: ContinuousAnnotationConfigOverrideInput | null;
-};
-export type ContinuousAnnotationConfigOverrideInput = {
+export type ContinuousAnnotationConfigInput = {
+  description?: string | null;
   lowerBound?: number | null;
-  optimizationDirection?: OptimizationDirection | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
   upperBound?: number | null;
+};
+export type FreeformAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
 };
 export type PlaygroundDatasetExamplesTableMutation$variables = {
   input: ChatCompletionOverDatasetInput;

@@ -43,8 +43,7 @@ type OutputConfig = {
   upperBound?: number | null;
 };
 
-function OutputConfigSection({ config }: { config: OutputConfig | null }) {
-  if (!config) return null;
+function OutputConfigCard({ config }: { config: OutputConfig }) {
   const isCategorical = config.values != null;
   const direction = config.optimizationDirection
     ? config.optimizationDirection.charAt(0).toUpperCase() +
@@ -52,7 +51,7 @@ function OutputConfigSection({ config }: { config: OutputConfig | null }) {
     : null;
 
   return (
-    <Section title="Evaluator Annotation">
+    <div css={boxCSS}>
       <Flex direction="column" gap="size-100">
         <Text size="S">
           <Text weight="heavy">Name:</Text> {config.name}
@@ -87,7 +86,29 @@ function OutputConfigSection({ config }: { config: OutputConfig | null }) {
           </>
         )}
       </Flex>
-    </Section>
+    </div>
+  );
+}
+
+function OutputConfigsSection({
+  configs,
+}: {
+  configs: readonly OutputConfig[];
+}) {
+  if (configs.length === 0) return null;
+
+  const title =
+    configs.length === 1
+      ? "Evaluator Annotation"
+      : `Evaluator Annotations (${configs.length})`;
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <Heading level={2}>{title}</Heading>
+      {configs.map((config, idx) => (
+        <OutputConfigCard key={config.name || idx} config={config} />
+      ))}
+    </Flex>
   );
 }
 
@@ -111,11 +132,9 @@ export function BuiltInDatasetEvaluatorDetails({
           literalMapping
           pathMapping
         }
-        outputConfig {
-          ... on AnnotationConfigBase {
-            name
-          }
+        outputConfigs {
           ... on CategoricalAnnotationConfig {
+            name
             optimizationDirection
             values {
               label
@@ -123,6 +142,7 @@ export function BuiltInDatasetEvaluatorDetails({
             }
           }
           ... on ContinuousAnnotationConfig {
+            name
             optimizationDirection
             lowerBound
             upperBound
@@ -132,11 +152,9 @@ export function BuiltInDatasetEvaluatorDetails({
           kind
           name
           ... on BuiltInEvaluator {
-            outputConfig {
-              ... on AnnotationConfigBase {
-                name
-              }
+            outputConfigs {
               ... on CategoricalAnnotationConfig {
+                name
                 optimizationDirection
                 values {
                   label
@@ -144,6 +162,7 @@ export function BuiltInDatasetEvaluatorDetails({
                 }
               }
               ... on ContinuousAnnotationConfig {
+                name
                 optimizationDirection
                 lowerBound
                 upperBound
@@ -162,8 +181,12 @@ export function BuiltInDatasetEvaluatorDetails({
   }
 
   // Prefer overridden values from datasetEvaluator, fall back to evaluator defaults
-  const outputConfig = (datasetEvaluator.outputConfig ??
-    evaluator.outputConfig) as OutputConfig | null;
+  // Merge the configs: if datasetEvaluator has configs, use those; otherwise use evaluator defaults
+  const outputConfigs = (
+    datasetEvaluator.outputConfigs && datasetEvaluator.outputConfigs.length > 0
+      ? datasetEvaluator.outputConfigs
+      : (evaluator.outputConfigs ?? [])
+  ) as readonly OutputConfig[];
   const inputMapping = datasetEvaluator.inputMapping;
   const name = evaluator.name.toLowerCase();
 
@@ -204,7 +227,7 @@ export function BuiltInDatasetEvaluatorDetails({
           <Section title="Input Mapping">
             <DetailsComponent inputMapping={inputMapping} />
           </Section>
-          <OutputConfigSection config={outputConfig} />
+          <OutputConfigsSection configs={outputConfigs} />
           <CodeBlockComponent />
         </Flex>
       </View>

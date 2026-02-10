@@ -32,8 +32,9 @@ export const ReadOnlyContinuousConfig = ({
 }: ReadOnlyContinuousConfigProps) => {
   const outputConfig = useEvaluatorStore(
     useShallow((state) => {
-      if (state.outputConfig && !("values" in state.outputConfig)) {
-        return state.outputConfig as ContinuousEvaluatorAnnotationConfig;
+      const firstConfig = state.outputConfigs[0];
+      if (firstConfig && !("values" in firstConfig)) {
+        return firstConfig as ContinuousEvaluatorAnnotationConfig;
       }
       return null;
     })
