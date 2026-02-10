@@ -1,5 +1,51 @@
 # Changelog
 
+## [12.35.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.34.0...arize-phoenix-v12.35.0) (2026-02-09)
+
+
+### Features
+
+* add Claude Opus 4.6 model to playground ([#11280](https://github.com/Arize-ai/phoenix/issues/11280)) ([3554b76](https://github.com/Arize-ai/phoenix/commit/3554b766e935df810982c9a1c6cf32f256410800))
+
+
+### Bug Fixes
+
+* add timezone validation to log_spans_dataframe ([#11283](https://github.com/Arize-ai/phoenix/issues/11283)) ([45a07bb](https://github.com/Arize-ai/phoenix/commit/45a07bb37c81dfd993d36172adc20ecbf01f9937))
+* anthropic streaming handling for new stop events ([#11286](https://github.com/Arize-ai/phoenix/issues/11286)) ([7ac1081](https://github.com/Arize-ai/phoenix/commit/7ac10812c4f97c89216b4e3b896030857cc0e50b))
+* arize 8.0.0 inference schema ([#11268](https://github.com/Arize-ai/phoenix/issues/11268)) ([c42ce16](https://github.com/Arize-ai/phoenix/commit/c42ce16dc9ade7dcb48b993eebad5a8b40011b64))
+* **cost:** update built-in model token prices ([#11297](https://github.com/Arize-ai/phoenix/issues/11297)) ([cd61bd9](https://github.com/Arize-ai/phoenix/commit/cd61bd9e32284ad79b499d90d06c4f469cf1a87b))
+* **deps:** update arize-phoenix-client to 1.28.1 ([#11309](https://github.com/Arize-ai/phoenix/issues/11309)) ([b70f1c5](https://github.com/Arize-ai/phoenix/commit/b70f1c54b4cd798e6ddd1480fdfe4ddd0d580560))
+* Improve UX for adding trace to dataset ([#11290](https://github.com/Arize-ai/phoenix/issues/11290)) ([b9cc6ad](https://github.com/Arize-ai/phoenix/commit/b9cc6ad1a1a616fe020c5b176c92ef6a270bef5c))
+* Lazy-import IPython to prevent sys.setrecursionlimit side effect ([#11282](https://github.com/Arize-ai/phoenix/issues/11282)) ([c240b97](https://github.com/Arize-ai/phoenix/commit/c240b97eb523fbe6b521626af88694bba1d4bc05))
+* render plain string message content without extra quotes in Trace Details ([#11294](https://github.com/Arize-ai/phoenix/issues/11294)) ([511775f](https://github.com/Arize-ai/phoenix/commit/511775facbfa022a8e41b5b090facf3262924b6b))
+
+
+### Documentation
+
+* add in correct ts quickstart links ([#11293](https://github.com/Arize-ai/phoenix/issues/11293)) ([ff02c45](https://github.com/Arize-ai/phoenix/commit/ff02c4553924ece282fad45191fef04557e32261))
+* add in general ts quickstarts ([#10963](https://github.com/Arize-ai/phoenix/issues/10963)) ([bd3cd53](https://github.com/Arize-ai/phoenix/commit/bd3cd532bc9892251f45f1fda1514f5d5c9d9de3))
+
+## [12.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.1...arize-phoenix-v12.34.0) (2026-02-06)
+
+
+### Features
+
+* **evals:** add missing tool_selection evaluator to both libraries ([#11167](https://github.com/Arize-ai/phoenix/issues/11167)) ([d6d1953](https://github.com/Arize-ai/phoenix/commit/d6d19530e319e215695e418c99e706d2c270dc4a))
+
+
+### Bug Fixes
+
+* add enum for new prompt span kind ([#11212](https://github.com/Arize-ai/phoenix/issues/11212)) ([b93abc5](https://github.com/Arize-ai/phoenix/commit/b93abc5d696cb9a74da09058ce12246775762317))
+* **cost:** update built-in model token prices ([#11198](https://github.com/Arize-ai/phoenix/issues/11198)) ([860f703](https://github.com/Arize-ai/phoenix/commit/860f70320f422a4b086cd893fca51bb80ac2cb74))
+* normalize message_content.text to string before rendering in MessageContentListItem ([#11258](https://github.com/Arize-ai/phoenix/issues/11258)) ([d0908aa](https://github.com/Arize-ai/phoenix/commit/d0908aa35d020648b0ab7756d90d17eae967a740))
+
+
+### Documentation
+
+* **evals:** update built-in metric pages ([#11168](https://github.com/Arize-ai/phoenix/issues/11168)) ([27b5557](https://github.com/Arize-ai/phoenix/commit/27b555796a7ed884a438e38fbeb1916c1c5c889f))
+* python & ts narrative tutorial for evals  ([#11185](https://github.com/Arize-ai/phoenix/issues/11185)) ([f449846](https://github.com/Arize-ai/phoenix/commit/f449846225fc8f70b06346a7b435788234068f77))
+* update developer guide with new uv install and upgrade instructions ([#11256](https://github.com/Arize-ai/phoenix/issues/11256)) ([c6d43ea](https://github.com/Arize-ai/phoenix/commit/c6d43ea0bb4766be4d25bb1f6187907ab0822988))
+
 ## [12.33.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.33.0...arize-phoenix-v12.33.1) (2026-01-30)
 
 

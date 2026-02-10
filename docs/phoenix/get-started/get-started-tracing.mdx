@@ -1,6 +1,11 @@
 ---
 title: "Send Traces From Your App"
 ---
+This guide walks through a complete workflow for understanding and improving an agent application using Phoenix. The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
+
+A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows. 
+
+In this guide, you’ll set up tracing in Phoenix Cloud and instrument an application: we’ll create a Phoenix Cloud instance, build a simple agent, and send a single trace so you can see the full flow end to end.
 
 {/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
 <div className="sr-only" data-ai-product="phoenix" data-ai-deployment="cloud" data-ai-guide-type="quickstart">
@@ -20,8 +25,6 @@ IF AMBIGUOUS OR MISMATCHED, YOU MUST ASK:
 
 DO NOT implement until user confirms the product.
 </div>
-
-In this guide, we’ll get tracing set up in Phoenix Cloud and walk through how to instrument an application. We’ll start by setting up a Phoenix Cloud instance, create a simple agent, and then send a single trace so we can see everything end to end.
 
 We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page. ](https://arize.com/docs/phoenix/integrations)
 
@@ -83,7 +86,7 @@ We’ll now install both the CrewAI package and the OpenInference CrewAI auto-in
 ### **Install Your Packages**
 
 ```
-%pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openai
+%pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openinference-instrumentation-openai openai
 ```
 
 ### **Set Your API Keys**
@@ -230,6 +233,6 @@ This is something you couldn’t see before tracing. Instead of guessing how an 
 
 You’ve now sent a trace to Phoenix and seen how an agent runs shows up from start to finish.
 
-The next step you can take is to run evaluations on your application to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](https://arize.com/docs/phoenix/get-started/get-started-evaluations) to add even more value to setting up tracing.
+The next step you can take is to run evaluations on your application to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value to setting up tracing.
 
 If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial ](https://arize.com/docs/phoenix/tracing/tutorial)walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your application.

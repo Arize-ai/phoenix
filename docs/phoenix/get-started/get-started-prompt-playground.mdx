@@ -1,6 +1,9 @@
 ---
 title: "Iterate on Your Prompts"
 ---
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you’ll start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants while measuring how those changes affect application quality. Prompt Hub is used to save and reuse prompts across runs.
+
+Up to this point, we’ve traced our agent runs and evaluated their outputs. Now we’ll focus on prompts by grouping failures into a dataset and iterating on prompt variants in the Prompt Playground.
 
 {/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
 <div className="sr-only" data-ai-product="phoenix" data-ai-guide-type="prompts">
@@ -20,10 +23,6 @@ IF AMBIGUOUS OR MISMATCHED, ASK:
 
 DO NOT proceed until confirmed.
 </div>
-
-In this guide, we’ll use Prompt Playground and Prompt Hub in Phoenix to iterate on prompts and measure how those changes affect application quality.
-
-Up to this point, we’ve traced our agent runs and evaluated their outputs. Now we’ll focus on prompts by grouping failures into a dataset and iterating on prompt variants in the Prompt Playground.
 
 ## **Before We Start**
 
@@ -174,7 +173,7 @@ Now you can see what we just ran in prompt playground side by side.
 
 Now that you’ve iterated on a prompt, you can start incorporating prompt iteration directly into your development workflow.
 
-To learn more about testing different changes to your system at once and seeing the results, the [Experiments guide](https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments) tells you how to take this iteration to the next level.
+To learn more about testing different changes to your system at once and seeing the results, the [Experiments guide](/docs/phoenix/get-started/get-started-datasets-and-experiments) tells you how to take this iteration to the next level.
 
 You can use the Prompt Playground to test prompt changes across different datasets, compare prompt variants, and see how small changes affect outputs at scale. Saving prompts to the Prompt Hub helps keep track of versions and reuse prompts across experiments.
 

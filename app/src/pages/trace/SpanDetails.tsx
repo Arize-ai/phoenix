@@ -1417,7 +1417,9 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];
-  const normalizedContent = formatContentAsString(messageContent);
+  const normalizedContent = formatContentAsString(messageContent, {
+    unquotePlainString: true,
+  });
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
   const toolCalls = message[MessageAttributePostfixes.tool_calls]
@@ -1756,7 +1758,9 @@ function MessageContentListItem({
 }) {
   const { message_content } = messageContentAttribute;
   const text = message_content?.text;
-  const normalizedText = text ? formatContentAsString(text) : undefined;
+  const normalizedText = text
+    ? formatContentAsString(text, { unquotePlainString: true })
+    : undefined;
   const image = message_content?.image;
   const imageUrl = image?.image?.url;
 
