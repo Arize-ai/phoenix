@@ -27,7 +27,6 @@ export type DatasetEvaluatorForConfig = {
 
 /**
  * Converts a single output config to an AnnotationConfig.
- * @internal
  */
 function outputConfigToAnnotationConfig(
   outputConfig: DatasetEvaluatorOutputConfig,

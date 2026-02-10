@@ -318,7 +318,7 @@ type BuiltInEvaluator implements Evaluator & Node {
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
 
-union BuiltInEvaluatorOutputConfig = EmbeddedCategoricalAnnotationConfig | EmbeddedContinuousAnnotationConfig
+union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
 
 enum CanonicalParameterName {
   TEMPERATURE
@@ -1467,23 +1467,6 @@ type DriftTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
 
-type EmbeddedCategoricalAnnotationConfig {
-  name: String!
-  description: String
-  annotationType: AnnotationType!
-  optimizationDirection: OptimizationDirection!
-  values: [CategoricalAnnotationValue!]!
-}
-
-type EmbeddedContinuousAnnotationConfig {
-  name: String!
-  description: String
-  annotationType: AnnotationType!
-  optimizationDirection: OptimizationDirection!
-  lowerBound: Float
-  upperBound: Float
-}
-
 type EmbeddingDimension implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2355,7 +2338,7 @@ type LLMEvaluator implements Evaluator & Node {
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
-  outputConfigs: [EmbeddedCategoricalAnnotationConfig!]!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   user: User

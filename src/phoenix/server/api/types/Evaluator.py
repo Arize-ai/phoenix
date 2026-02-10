@@ -1,3 +1,4 @@
+import zlib
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Optional, Union
@@ -12,10 +13,6 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    AnnotationType,
-    OptimizationDirection,
-)
-from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
@@ -24,7 +21,9 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
+    CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    ContinuousAnnotationConfig,
 )
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -58,31 +57,8 @@ class EvaluatorInputMapping:
     """JSONPath expressions to extract values from the evaluation context."""
 
 
-@strawberry.type
-class EmbeddedCategoricalAnnotationConfig:
-    """Lightweight categorical annotation config for inline embedding (no Node interface)."""
-
-    name: str
-    description: Optional[str]
-    annotation_type: AnnotationType
-    optimization_direction: OptimizationDirection
-    values: list[CategoricalAnnotationValue]
-
-
-@strawberry.type
-class EmbeddedContinuousAnnotationConfig:
-    """Lightweight continuous annotation config for inline embedding (no Node interface)."""
-
-    name: str
-    description: Optional[str]
-    annotation_type: AnnotationType
-    optimization_direction: OptimizationDirection
-    lower_bound: Optional[float]
-    upper_bound: Optional[float]
-
-
 BuiltInEvaluatorOutputConfig: TypeAlias = Annotated[
-    Union[EmbeddedCategoricalAnnotationConfig, EmbeddedContinuousAnnotationConfig],
+    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig],
     strawberry.union("BuiltInEvaluatorOutputConfig"),
 ]
 
@@ -317,7 +293,7 @@ class LLMEvaluator(Evaluator, Node):
     async def output_configs(
         self,
         info: Info[Context, None],
-    ) -> list[EmbeddedCategoricalAnnotationConfig]:
+    ) -> list[BuiltInEvaluatorOutputConfig]:
         if self.db_record:
             configs = self.db_record.output_configs
         else:
@@ -325,12 +301,16 @@ class LLMEvaluator(Evaluator, Node):
                 (self.id, models.LLMEvaluator.output_configs),
             )
         return [
-            _to_gql_embedded_categorical_config(
+            _to_gql_output_config(
                 config=config,
                 annotation_name=config.name or "",
+                id_prefix="Evaluator",
+                evaluator_id=self.id,
             )
             for config in configs
-            if isinstance(config, CategoricalAnnotationConfigModel)
+            if isinstance(
+                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+            )
         ]
 
     @strawberry.field
@@ -557,9 +537,11 @@ class BuiltInEvaluator(Evaluator, Node):
         evaluator_class = await self._get_evaluator_class(info)
         base_configs = evaluator_class().output_configs  # type: ignore[operator]
         return [
-            _to_gql_builtin_output_config(
+            _to_gql_output_config(
                 config,
                 config.name or evaluator_class.name,  # type: ignore[attr-defined]
+                id_prefix="BuiltInEvaluator",
+                evaluator_id=self.id,
             )
             for config in base_configs
             if isinstance(
@@ -568,10 +550,23 @@ class BuiltInEvaluator(Evaluator, Node):
         ]
 
 
-def _to_gql_embedded_categorical_config(
+def _generate_output_config_id(id_prefix: str, evaluator_id: int, config_name: str) -> int:
+    """
+    Generate a stable negative ID for evaluator output configs.
+
+    The id_prefix ensures different contexts (e.g., "Evaluator" vs "DatasetEvaluator")
+    produce distinct IDs even when referencing the same underlying evaluator_id.
+    The config_name ensures uniqueness across multiple output configs on the same evaluator.
+    """
+    return -abs(zlib.crc32(f"{id_prefix}:{evaluator_id}:{config_name}".encode("utf-8")))
+
+
+def _to_gql_categorical_annotation_config(
     config: CategoricalAnnotationConfigModel,
     annotation_name: str,
-) -> EmbeddedCategoricalAnnotationConfig:
+    id_prefix: str,
+    evaluator_id: int,
+) -> CategoricalAnnotationConfig:
     values = [
         CategoricalAnnotationValue(
             label=val.label,
@@ -579,7 +574,8 @@ def _to_gql_embedded_categorical_config(
         )
         for val in config.values
     ]
-    return EmbeddedCategoricalAnnotationConfig(
+    return CategoricalAnnotationConfig(
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -588,11 +584,14 @@ def _to_gql_embedded_categorical_config(
     )
 
 
-def _to_gql_embedded_continuous_config(
+def _to_gql_continuous_annotation_config(
     config: ContinuousAnnotationConfigModel,
     annotation_name: str,
-) -> EmbeddedContinuousAnnotationConfig:
-    return EmbeddedContinuousAnnotationConfig(
+    id_prefix: str,
+    evaluator_id: int,
+) -> ContinuousAnnotationConfig:
+    return ContinuousAnnotationConfig(
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
         name=annotation_name,
         annotation_type=config.type,
         optimization_direction=config.optimization_direction,
@@ -602,14 +601,20 @@ def _to_gql_embedded_continuous_config(
     )
 
 
-def _to_gql_builtin_output_config(
+def _to_gql_output_config(
     config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
     annotation_name: str,
+    id_prefix: str,
+    evaluator_id: int,
 ) -> BuiltInEvaluatorOutputConfig:
     if isinstance(config, CategoricalAnnotationConfigModel):
-        return _to_gql_embedded_categorical_config(config, annotation_name)
+        return _to_gql_categorical_annotation_config(
+            config, annotation_name, id_prefix, evaluator_id
+        )
     else:
-        return _to_gql_embedded_continuous_config(config, annotation_name)
+        return _to_gql_continuous_annotation_config(
+            config, annotation_name, id_prefix, evaluator_id
+        )
 
 
 @strawberry.type
@@ -700,15 +705,36 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> list[BuiltInEvaluatorOutputConfig]:
         """
-        Returns the output_configs stored on this dataset evaluator.
+        Returns the effective output_configs for this dataset evaluator.
+        If an override is set, returns that. Otherwise, falls back to the base evaluator's configs.
         """
+        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+
         record = await self._get_record(info)
+        configs = record.output_configs
+        if configs is None:
+            # Fall back to the base evaluator's stored configs
+            async with info.context.db() as session:
+                evaluator = await session.get(models.Evaluator, record.evaluator_id)
+                if evaluator is None:
+                    return []
+                if isinstance(evaluator, models.LLMEvaluator):
+                    configs = evaluator.output_configs
+                elif isinstance(evaluator, models.BuiltinEvaluator):
+                    builtin = get_builtin_evaluator_by_key(evaluator.key)
+                    if builtin is None:
+                        return []
+                    configs = list(builtin().output_configs)
+                else:
+                    return []
         return [
-            _to_gql_builtin_output_config(
+            _to_gql_output_config(
                 config,
                 config.name or "",
+                id_prefix="DatasetEvaluator",
+                evaluator_id=self.id,
             )
-            for config in record.output_configs
+            for config in configs
             if isinstance(
                 config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
             )

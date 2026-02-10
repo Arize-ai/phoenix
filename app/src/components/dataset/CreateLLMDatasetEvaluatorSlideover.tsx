@@ -187,22 +187,12 @@ const CreateEvaluatorDialog = ({
         return;
       }
 
-      // Get the first categorical config for LLM evaluators
-      const categoricalConfig = outputConfigs.find(
-        (config): config is ClassificationEvaluatorAnnotationConfig =>
-          "values" in config
-      );
-      invariant(
-        categoricalConfig,
-        "At least one categorical output config is required for LLM evaluators"
-      );
-
       const input = createLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
         name: globalName,
         description,
-        outputConfig: categoricalConfig,
+        outputConfigs,
         datasetId: dataset.id,
         inputMapping,
         includeExplanation,

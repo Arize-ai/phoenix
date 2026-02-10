@@ -161,7 +161,7 @@ const EditEvaluatorDialog = ({
             pathMapping
           }
           outputConfigs {
-            ... on EmbeddedCategoricalAnnotationConfig {
+            ... on CategoricalAnnotationConfig {
               name
               optimizationDirection
               values {
@@ -169,7 +169,7 @@ const EditEvaluatorDialog = ({
                 score
               }
             }
-            ... on EmbeddedContinuousAnnotationConfig {
+            ... on ContinuousAnnotationConfig {
               name
               optimizationDirection
               lowerBound
@@ -182,7 +182,7 @@ const EditEvaluatorDialog = ({
             name
             ... on LLMEvaluator {
               outputConfigs {
-                ... on EmbeddedCategoricalAnnotationConfig {
+                ... on CategoricalAnnotationConfig {
                   name
                   optimizationDirection
                   values {
@@ -305,22 +305,12 @@ const EditEvaluatorDialog = ({
         return;
       }
 
-      // Get the first categorical config for LLM evaluators
-      const categoricalConfig = outputConfigs.find(
-        (config): config is ClassificationEvaluatorAnnotationConfig =>
-          "values" in config
-      );
-      invariant(
-        categoricalConfig,
-        "At least one categorical annotation config is required"
-      );
-
       const input = updateLLMEvaluatorPayload({
         playgroundStore,
         instanceId,
         name,
         description,
-        outputConfig: categoricalConfig,
+        outputConfigs,
         datasetId: dataset.id,
         datasetEvaluatorId,
         inputMapping,

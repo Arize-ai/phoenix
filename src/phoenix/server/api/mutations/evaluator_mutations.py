@@ -23,6 +23,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
+    LLMEvaluatorOutputConfigs,
     validate_consistent_llm_evaluator_and_prompt_version,
     validate_min_one_config,
     validate_unique_config_names,
@@ -44,18 +45,6 @@ from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
-
-
-def _validate_llm_evaluator_configs_are_categorical(
-    configs: list[AnnotationConfigInput],
-) -> None:
-    """LLM evaluators only support categorical output configs."""
-    for config in configs:
-        if config.categorical is None or config.categorical is UNSET:
-            raise ValueError(
-                "LLM evaluators only support categorical output configs. "
-                "Non-categorical config found."
-            )
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> AnnotationConfigType:
@@ -312,12 +301,10 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         # Validate output configs before conversion
         try:
-            validate_min_one_config(input.output_configs)
-            validate_unique_config_names(input.output_configs)
-            _validate_llm_evaluator_configs_are_categorical(input.output_configs)
-        except ValueError as e:
+            validated_configs = LLMEvaluatorOutputConfigs.from_inputs(input.output_configs)
+        except (ValueError, ValidationError) as e:
             raise BadRequest(str(e))
-        output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+        output_configs: list[AnnotationConfigType] = list(validated_configs.configs)
         try:
             validated_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
@@ -462,12 +449,10 @@ class EvaluatorMutationMixin:
 
         # Validate output configs before conversion
         try:
-            validate_min_one_config(input.output_configs)
-            validate_unique_config_names(input.output_configs)
-            _validate_llm_evaluator_configs_are_categorical(input.output_configs)
-        except ValueError as e:
+            validated_configs = LLMEvaluatorOutputConfigs.from_inputs(input.output_configs)
+        except (ValueError, ValidationError) as e:
             raise BadRequest(str(e))
-        output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+        output_configs: list[AnnotationConfigType] = list(validated_configs.configs)
 
         try:
             prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
@@ -805,9 +790,11 @@ class EvaluatorMutationMixin:
                 if builtin_evaluator is None:
                     raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
 
-                # If output_configs provided, convert them; otherwise copy base evaluator's configs
+                # If output_configs provided, convert them; otherwise copy base configs
                 if input.output_configs is not None:
-                    output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+                    output_configs: list[AnnotationConfigType] = (
+                        _convert_output_config_inputs_to_pydantic(input.output_configs)
+                    )
                 else:
                     output_configs = list(builtin_evaluator().output_configs)
 
@@ -913,7 +900,7 @@ class EvaluatorMutationMixin:
                             _convert_output_config_inputs_to_pydantic(input.output_configs)
                         )
                     else:
-                        # None means reset to base evaluator's configs
+                        # Reset to base evaluator's configs
                         dataset_evaluator.output_configs = list(builtin_evaluator().output_configs)
 
                 if input.description is not UNSET:

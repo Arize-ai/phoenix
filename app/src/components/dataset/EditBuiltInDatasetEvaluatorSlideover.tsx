@@ -107,7 +107,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                 description
                 ... on DatasetEvaluator {
                   outputConfigs {
-                    ... on EmbeddedCategoricalAnnotationConfig {
+                    ... on CategoricalAnnotationConfig {
                       name
                       optimizationDirection
                       values {
@@ -115,7 +115,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                         score
                       }
                     }
-                    ... on EmbeddedContinuousAnnotationConfig {
+                    ... on ContinuousAnnotationConfig {
                       name
                       optimizationDirection
                       lowerBound
@@ -134,7 +134,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     ... on BuiltInEvaluator {
                       inputSchema
                       outputConfigs {
-                        ... on EmbeddedCategoricalAnnotationConfig {
+                        ... on CategoricalAnnotationConfig {
                           name
                           optimizationDirection
                           values {
@@ -142,7 +142,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                             score
                           }
                         }
-                        ... on EmbeddedContinuousAnnotationConfig {
+                        ... on ContinuousAnnotationConfig {
                           name
                           optimizationDirection
                           lowerBound

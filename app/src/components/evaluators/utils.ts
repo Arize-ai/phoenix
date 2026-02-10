@@ -26,7 +26,7 @@ const createPromptVersionInput = ({
   playgroundStore,
   instanceId,
   description,
-  outputConfig,
+  outputConfigs,
   includeExplanation,
 }: {
   playgroundStore: ReturnType<typeof usePlaygroundStore>;
@@ -37,9 +37,9 @@ const createPromptVersionInput = ({
    */
   description?: string;
   /**
-   * The choice config of the evaluator.
+   * The output configs of the evaluator. Only categorical configs generate tools.
    */
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs: AnnotationConfig[];
   /**
    * Whether to include an explanation for the evaluation score.
    */
@@ -55,6 +55,43 @@ const createPromptVersionInput = ({
 }) => {
   const { promptInput, templateFormat, promptVersionId } =
     getInstancePromptParamsFromStore(instanceId, playgroundStore);
+
+  // Build one tool per categorical output config
+  const categoricalConfigs = outputConfigs.filter(
+    (c): c is ClassificationEvaluatorAnnotationConfig => "values" in c
+  );
+  const tools = categoricalConfigs.map((config) => ({
+    definition: fromOpenAIToolDefinition({
+      toolDefinition: CategoricalChoiceToolTypeSchema.parse({
+        type: "function",
+        function: {
+          name: config.name,
+          description,
+          parameters: {
+            type: "object",
+            properties: {
+              label: {
+                type: "string",
+                enum: config.values.map((value) => value.label),
+                description: config.name,
+              },
+              ...(includeExplanation
+                ? {
+                    explanation: {
+                      type: "string",
+                      description: `Explanation for choosing the label "${config.name}"`,
+                    },
+                  }
+                : {}),
+            },
+            required: ["label", ...(includeExplanation ? ["explanation"] : [])],
+          },
+        },
+      } satisfies CategoricalChoiceToolType),
+      targetProvider: promptInput.modelProvider,
+    }),
+  }));
+
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
     templateFormat,
@@ -66,43 +103,7 @@ const createPromptVersionInput = ({
         targetProvider: promptInput.modelProvider,
       }),
     },
-    tools: [
-      // replace whatever tools exist in the prompt with a categorical choice tool
-      {
-        definition: fromOpenAIToolDefinition({
-          toolDefinition: CategoricalChoiceToolTypeSchema.parse({
-            type: "function",
-            function: {
-              name: outputConfig.name,
-              description,
-              parameters: {
-                type: "object",
-                properties: {
-                  label: {
-                    type: "string",
-                    enum: outputConfig.values.map((value) => value.label),
-                    description: outputConfig.name,
-                  },
-                  ...(includeExplanation
-                    ? {
-                        explanation: {
-                          type: "string",
-                          description: `Explanation for choosing the label "${outputConfig.name}"`,
-                        },
-                      }
-                    : {}),
-                },
-                required: [
-                  "label",
-                  ...(includeExplanation ? ["explanation"] : []),
-                ],
-              },
-            },
-          } satisfies CategoricalChoiceToolType),
-          targetProvider: promptInput.modelProvider,
-        }),
-      },
-    ],
+    tools,
     responseFormat: undefined,
   };
 
@@ -117,7 +118,7 @@ export const updateLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfig,
+  outputConfigs,
   datasetId,
   datasetEvaluatorId,
   inputMapping,
@@ -130,9 +131,9 @@ export const updateLLMEvaluatorPayload = ({
   name: string;
   description: string;
   /**
-   * The output config for the evaluator. Used for the prompt tool definition.
+   * The output configs for the evaluator. Used for prompt tool definitions and GraphQL payload.
    */
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs: AnnotationConfig[];
   inputMapping?: EvaluatorInputMapping;
   includeExplanation: boolean;
 }): UpdateDatasetLLMEvaluatorInput => {
@@ -145,7 +146,7 @@ export const updateLLMEvaluatorPayload = ({
       instanceId,
       name,
       description,
-      outputConfig,
+      outputConfigs,
       includeExplanation,
     });
 
@@ -156,18 +157,7 @@ export const updateLLMEvaluatorPayload = ({
     datasetId,
     inputMapping: inputMapping,
     promptVersion,
-    outputConfigs: [
-      {
-        categorical: {
-          name: outputConfig.name,
-          optimizationDirection: outputConfig.optimizationDirection,
-          values: outputConfig.values.map((v) => ({
-            label: v.label,
-            score: v.score ?? null,
-          })),
-        },
-      },
-    ],
+    outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -179,7 +169,7 @@ export const createLLMEvaluatorPayload = ({
   instanceId,
   name: rawName,
   description: rawDescription,
-  outputConfig,
+  outputConfigs,
   datasetId,
   inputMapping,
   includeExplanation,
@@ -201,9 +191,9 @@ export const createLLMEvaluatorPayload = ({
    */
   description: string;
   /**
-   * The output config for the evaluator. Used for the prompt tool definition.
+   * The output configs for the evaluator. Used for prompt tool definitions and GraphQL payload.
    */
-  outputConfig: ClassificationEvaluatorAnnotationConfig;
+  outputConfigs: AnnotationConfig[];
   /**
    * The input mapping of the evaluator.
    */
@@ -226,7 +216,7 @@ export const createLLMEvaluatorPayload = ({
       instanceId,
       name,
       description,
-      outputConfig,
+      outputConfigs,
       includeExplanation,
     });
 
@@ -236,18 +226,7 @@ export const createLLMEvaluatorPayload = ({
     datasetId,
     inputMapping: inputMapping,
     promptVersion,
-    outputConfigs: [
-      {
-        categorical: {
-          name: outputConfig.name,
-          optimizationDirection: outputConfig.optimizationDirection,
-          values: outputConfig.values.map((v) => ({
-            label: v.label,
-            score: v.score ?? null,
-          })),
-        },
-      },
-    ],
+    outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
   };
 };
@@ -325,7 +304,7 @@ export const inferIncludeExplanationFromPrompt = (
  * This function transforms frontend annotation configs into the format
  * expected by the GraphQL mutations.
  */
-export const toAnnotationConfigInput = (
+const toAnnotationConfigInput = (
   config: AnnotationConfig
 ): {
   categorical?: {
@@ -383,7 +362,7 @@ export const buildOutputConfigsInput = (
  * @param configs - Array of annotation configs to validate
  * @returns An object with `isValid` boolean and `duplicateNames` set of duplicate names
  */
-export const validateOutputConfigNames = (
+const validateOutputConfigNames = (
   configs: AnnotationConfig[]
 ): { isValid: boolean; duplicateNames: Set<string>; emptyNames: number[] } => {
   const names = configs.map((config) => config.name);

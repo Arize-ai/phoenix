@@ -498,6 +498,7 @@ class LLMEvaluator(BaseEvaluator):
                                     "name": r["name"],
                                     "label": r["label"],
                                     "score": r["score"],
+                                    "explanation": r["explanation"],
                                 }
                                 for r in results
                             ]
@@ -576,7 +577,7 @@ class BuiltInEvaluator(BaseEvaluator):
         results: list[EvaluationResult] = []
         for config in output_configs:
             annotation_name = f"{name}.{config.name}" if multi_output else name
-            result = await self._evaluate_single(
+            result = await self._evaluate(
                 context=context,
                 input_mapping=input_mapping,
                 name=annotation_name,
@@ -587,7 +588,7 @@ class BuiltInEvaluator(BaseEvaluator):
         return results
 
     @abstractmethod
-    async def _evaluate_single(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1233,7 +1234,7 @@ class ContainsEvaluator(BuiltInEvaluator):
             )
         ]
 
-    async def _evaluate_single(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1437,7 +1438,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
             )
         ]
 
-    async def _evaluate_single(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1633,7 +1634,7 @@ class RegexEvaluator(BuiltInEvaluator):
             )
         ]
 
-    async def _evaluate_single(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -1853,7 +1854,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
             )
         ]
 
-    async def _evaluate_single(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],
@@ -2063,7 +2064,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             )
         ]
 
-    async def _evaluate_single(
+    async def _evaluate(
         self,
         *,
         context: dict[str, Any],

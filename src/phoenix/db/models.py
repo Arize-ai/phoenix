@@ -2395,8 +2395,8 @@ class DatasetEvaluators(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        _AnnotationConfigList, nullable=False
+    output_configs: Mapped[Optional[list[AnnotationConfigType]]] = mapped_column(
+        _AnnotationConfigList, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(

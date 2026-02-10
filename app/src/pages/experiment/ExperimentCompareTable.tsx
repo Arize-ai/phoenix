@@ -255,7 +255,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   node {
                     name
                     outputConfigs {
-                      ... on EmbeddedCategoricalAnnotationConfig {
+                      ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
                         values {
@@ -263,7 +263,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                           score
                         }
                       }
-                      ... on EmbeddedContinuousAnnotationConfig {
+                      ... on ContinuousAnnotationConfig {
                         name
                         optimizationDirection
                         lowerBound

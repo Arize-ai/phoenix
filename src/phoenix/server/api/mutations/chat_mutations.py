@@ -89,8 +89,8 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelInput,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
-from phoenix.server.api.mutations.annotation_config_mutations import (
-    _convert_annotation_config_inputs_to_pydantic,
+from phoenix.server.api.mutations.evaluator_mutations import (
+    _convert_output_config_inputs_to_pydantic,
 )
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
@@ -441,7 +441,7 @@ class ChatCompletionMutationMixin:
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
-                            output_configs=configs,  # type: ignore[arg-type]
+                            output_configs=configs,
                             tracer=tracer,
                         )
 
@@ -555,7 +555,7 @@ class ChatCompletionMutationMixin:
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
-                            output_configs=configs,  # type: ignore[arg-type]
+                            output_configs=configs,
                         )
 
                         for eval_result in eval_results:
@@ -689,7 +689,7 @@ class ChatCompletionMutationMixin:
                 except ValidationError as error:
                     raise BadRequest(str(error))
 
-                all_configs = _convert_annotation_config_inputs_to_pydantic(
+                all_configs = _convert_output_config_inputs_to_pydantic(
                     inline_llm_evaluator.output_configs
                 )
                 categorical_configs: list[CategoricalAnnotationConfig] = []

@@ -178,7 +178,7 @@ async def _stream_single_chat_completion(
                 context=context_dict,
                 input_mapping=evaluator_input.input_mapping,
                 name=name,
-                output_configs=configs,  # type: ignore[arg-type]
+                output_configs=configs,
             )
             for result in eval_results:
                 if result["error"] is not None:
@@ -816,7 +816,7 @@ class Subscription:
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
-                            output_configs=configs,  # type: ignore[arg-type]
+                            output_configs=configs,
                             tracer=tracer,
                         )
 

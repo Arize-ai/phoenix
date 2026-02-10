@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1789c9bcabc7507be6058fe9e17bdbe4>>
+ * @generated SignedSource<<596acc81f1bf39f675595548eee63cdb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -152,7 +152,7 @@ v8 = {
       "storageKey": null
     }
   ],
-  "type": "EmbeddedCategoricalAnnotationConfig",
+  "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
 v9 = {
@@ -176,7 +176,7 @@ v9 = {
       "storageKey": null
     }
   ],
-  "type": "EmbeddedContinuousAnnotationConfig",
+  "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
 v10 = {
@@ -262,7 +262,15 @@ return {
                 "selections": [
                   (v10/*: any*/),
                   (v8/*: any*/),
-                  (v9/*: any*/)
+                  (v9/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v2/*: any*/)
+                    ],
+                    "type": "Node",
+                    "abstractKey": "__isNode"
+                  }
                 ],
                 "storageKey": null
               }
@@ -276,16 +284,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5c5634b85585600846251982ea83b16d",
+    "cacheID": "cfbc2c9a5cc3b52d6f2c4d2337c3f651",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n      isBuiltin\n      description\n    }\n    ... on BuiltInEvaluator {\n      inputSchema\n      outputConfigs {\n        __typename\n        ... on EmbeddedCategoricalAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on EmbeddedContinuousAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n      isBuiltin\n      description\n    }\n    ... on BuiltInEvaluator {\n      inputSchema\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "841666136c7ab2b2e69acf156b62a962";
+(node as any).hash = "db206eb5beb4ea8bd174906c6dceaf2f";
 
 export default node;

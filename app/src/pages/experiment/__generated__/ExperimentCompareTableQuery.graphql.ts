@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dcb7039e3800ac3a46fa42132052647b>>
+ * @generated SignedSource<<4d937b1976475d9308b03554e62eaac6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -219,7 +219,10 @@ v17 = {
   "name": "__typename",
   "storageKey": null
 },
-v18 = {
+v18 = [
+  (v7/*: any*/)
+],
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -598,9 +601,7 @@ return {
                             "kind": "LinkedField",
                             "name": "project",
                             "plural": false,
-                            "selections": [
-                              (v7/*: any*/)
-                            ],
+                            "selections": (v18/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -711,7 +712,7 @@ return {
                                 "kind": "InlineFragment",
                                 "selections": [
                                   (v13/*: any*/),
-                                  (v18/*: any*/),
+                                  (v19/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -726,14 +727,14 @@ return {
                                     "storageKey": null
                                   }
                                 ],
-                                "type": "EmbeddedCategoricalAnnotationConfig",
+                                "type": "CategoricalAnnotationConfig",
                                 "abstractKey": null
                               },
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
                                   (v13/*: any*/),
-                                  (v18/*: any*/),
+                                  (v19/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -749,8 +750,14 @@ return {
                                     "storageKey": null
                                   }
                                 ],
-                                "type": "EmbeddedContinuousAnnotationConfig",
+                                "type": "ContinuousAnnotationConfig",
                                 "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": (v18/*: any*/),
+                                "type": "Node",
+                                "abstractKey": "__isNode"
                               }
                             ],
                             "storageKey": null
@@ -775,16 +782,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ff066413b3a8d2f0aa2d18805e752b30",
+    "cacheID": "d267d90984a342e1e3cf5bd29940a2e6",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_Gjac5\n}\n\nfragment ExperimentCompareTable_comparisons_Gjac5 on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        repeatedRunGroups {\n          ...ExperimentRepeatedRunGroupMetadataFragment\n          annotationSummaries {\n            annotationName\n            meanScore\n          }\n          experimentId\n          runs {\n            id\n            latencyMs\n            repetitionNumber\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n          id\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            datasetVersionId\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n            repetitions\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on EmbeddedCategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on EmbeddedContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentRepeatedRunGroupMetadataFragment on ExperimentRepeatedRunGroup {\n  id\n  averageLatencyMs\n  costSummary {\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n  $filterCondition: String = null\n  $first: Int = 50\n) {\n  ...ExperimentCompareTable_comparisons_Gjac5\n}\n\nfragment ExperimentCompareTable_comparisons_Gjac5 on Query {\n  compareExperiments(first: $first, after: $after, baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds, filterCondition: $filterCondition) {\n    edges {\n      comparison: node {\n        example {\n          id\n          revision {\n            input\n            referenceOutput: output\n          }\n        }\n        repeatedRunGroups {\n          ...ExperimentRepeatedRunGroupMetadataFragment\n          annotationSummaries {\n            annotationName\n            meanScore\n          }\n          experimentId\n          runs {\n            id\n            latencyMs\n            repetitionNumber\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  score\n                  label\n                  annotatorKind\n                  explanation\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n          id\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            datasetVersionId\n            project {\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            averageRunLatencyMs\n            runCount\n            repetitions\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment ExperimentRepeatedRunGroupMetadataFragment on ExperimentRepeatedRunGroup {\n  id\n  averageLatencyMs\n  costSummary {\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "03ae86961addbd1e2c476cfd41559d6f";
+(node as any).hash = "13b7742b787f2aaf62db96b1119750e3";
 
 export default node;

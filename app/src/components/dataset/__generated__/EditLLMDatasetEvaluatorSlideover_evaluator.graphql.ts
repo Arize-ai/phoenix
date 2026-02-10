@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c24ee1177979dd881e8811b5db667b5>>
+ * @generated SignedSource<<62d45eee73782c0a550ebd0656e85289>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,9 +18,9 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly outputConfigs?: ReadonlyArray<{
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly values: ReadonlyArray<{
+      readonly name?: string;
+      readonly optimizationDirection?: OptimizationDirection;
+      readonly values?: ReadonlyArray<{
         readonly label: string;
         readonly score: number | null;
       }>;
@@ -81,35 +81,40 @@ v2 = {
   "name": "optimizationDirection",
   "storageKey": null
 },
-v3 = [
-  (v1/*: any*/),
-  (v2/*: any*/),
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "CategoricalAnnotationValue",
-    "kind": "LinkedField",
-    "name": "values",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "label",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "score",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
+v3 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v1/*: any*/),
+    (v2/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
+},
 v4 = [
   (v0/*: any*/),
   (v1/*: any*/)
@@ -188,12 +193,7 @@ return {
       "name": "outputConfigs",
       "plural": true,
       "selections": [
-        {
-          "kind": "InlineFragment",
-          "selections": (v3/*: any*/),
-          "type": "EmbeddedCategoricalAnnotationConfig",
-          "abstractKey": null
-        },
+        (v3/*: any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -214,7 +214,7 @@ return {
               "storageKey": null
             }
           ],
-          "type": "EmbeddedContinuousAnnotationConfig",
+          "type": "ContinuousAnnotationConfig",
           "abstractKey": null
         }
       ],
@@ -249,11 +249,13 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "EmbeddedCategoricalAnnotationConfig",
+              "concreteType": null,
               "kind": "LinkedField",
               "name": "outputConfigs",
               "plural": true,
-              "selections": (v3/*: any*/),
+              "selections": [
+                (v3/*: any*/)
+              ],
               "storageKey": null
             },
             {
@@ -494,6 +496,6 @@ return {
 };
 })();
 
-(node as any).hash = "5616edf7bd4f58babae390b9e9839895";
+(node as any).hash = "602779cb9520b4ae273caa80f763db3e";
 
 export default node;

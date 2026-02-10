@@ -44,12 +44,12 @@ class TestDatasetLLMEvaluatorMutations:
             name
             description
             outputConfigs {
-              ... on EmbeddedCategoricalAnnotationConfig {
+              ... on CategoricalAnnotationConfig {
                 name
                 description
                 values { label score }
               }
-              ... on EmbeddedContinuousAnnotationConfig {
+              ... on ContinuousAnnotationConfig {
                 name
                 description
                 lowerBound
@@ -195,6 +195,7 @@ class TestDatasetLLMEvaluatorMutations:
                 literal_mapping={}, path_mapping={}
             )
             assert db_dataset_evaluator.description == "test description"
+            assert db_dataset_evaluator.output_configs is not None
             assert len(db_dataset_evaluator.output_configs) == 1
             dataset_eval_config = db_dataset_evaluator.output_configs[0]
             assert dataset_eval_config.name == "correctness"
@@ -1152,7 +1153,7 @@ class TestDatasetLLMEvaluatorMutations:
             outputConfigs=[],
         )
         assert result.errors
-        assert "At least one output config is required" in result.errors[0].message
+        assert "at least 1 item" in result.errors[0].message.lower()
 
 
 class TestUpdateDatasetLLMEvaluatorMutation:
@@ -1162,6 +1163,35 @@ class TestUpdateDatasetLLMEvaluatorMutation:
           evaluator {
             id
             name
+            evaluator {
+              ... on LLMEvaluator {
+                id
+                name
+                description
+                kind
+                promptVersion { id }
+              }
+            }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    _UPDATE_MUTATION_WITH_OUTPUT_CONFIGS = """
+      mutation($input: UpdateDatasetLLMEvaluatorInput!) {
+        updateDatasetLlmEvaluator(input: $input) {
+          evaluator {
+            id
+            name
+            outputConfigs {
+              ... on CategoricalAnnotationConfig {
+                name
+                description
+                optimizationDirection
+                values { label score }
+              }
+            }
             evaluator {
               ... on LLMEvaluator {
                 id
@@ -1283,11 +1313,144 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.output_configs is not None
             assert len(db_dataset_evaluator.output_configs) == 1
             assert db_dataset_evaluator.output_configs[0].name == "result"
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
             assert db_evaluator.output_configs[0].name == "result"
+
+        # Second update: from 1 output config to 2 (multi-output)
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION_WITH_OUTPUT_CONFIGS,
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "multi-output-evaluator",
+                    "description": "multi output description",
+                    "promptVersion": dict(
+                        description="multi output prompt version",
+                        templateFormat="MUSTACHE",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Evaluate: {{input}}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(
+                            temperature=0.5,
+                            tool_choice=dict(
+                                type="function",
+                                function=dict(name="quality"),
+                            ),
+                        ),
+                        tools=[
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="quality",
+                                        description="multi output description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["good", "bad"],
+                                                    description="quality",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            ),
+                            dict(
+                                definition=dict(
+                                    type="function",
+                                    function=dict(
+                                        name="relevance",
+                                        description="multi output description",
+                                        parameters=dict(
+                                            type="object",
+                                            properties=dict(
+                                                label=dict(
+                                                    type="string",
+                                                    enum=["relevant", "irrelevant"],
+                                                    description="relevance",
+                                                )
+                                            ),
+                                            required=["label"],
+                                        ),
+                                    ),
+                                )
+                            ),
+                        ],
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="quality",
+                                description="quality assessment",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="good", score=1),
+                                    dict(label="bad", score=0),
+                                ],
+                            )
+                        ),
+                        dict(
+                            categorical=dict(
+                                name="relevance",
+                                description="relevance assessment",
+                                optimizationDirection="MINIMIZE",
+                                values=[
+                                    dict(label="relevant", score=1),
+                                    dict(label="irrelevant", score=0),
+                                ],
+                            )
+                        ),
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        updated_evaluator = result.data["updateDatasetLlmEvaluator"]["evaluator"]
+        assert updated_evaluator["name"] == "multi-output-evaluator"
+
+        output_configs = updated_evaluator["outputConfigs"]
+        assert len(output_configs) == 2
+        assert output_configs[0]["name"] == "quality"
+        assert output_configs[0]["description"] == "quality assessment"
+        assert output_configs[0]["optimizationDirection"] == "MAXIMIZE"
+        assert len(output_configs[0]["values"]) == 2
+        assert output_configs[1]["name"] == "relevance"
+        assert output_configs[1]["description"] == "relevance assessment"
+        assert output_configs[1]["optimizationDirection"] == "MINIMIZE"
+        assert len(output_configs[1]["values"]) == 2
+
+        async with db() as session:
+            db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
+            assert db_evaluator is not None
+            assert len(db_evaluator.output_configs) == 2
+
+            first_config = db_evaluator.output_configs[0]
+            assert isinstance(first_config, CategoricalAnnotationConfig)
+            assert first_config.name == "quality"
+            assert first_config.description == "quality assessment"
+            assert len(first_config.values) == 2
+
+            second_config = db_evaluator.output_configs[1]
+            assert isinstance(second_config, CategoricalAnnotationConfig)
+            assert second_config.name == "relevance"
+            assert second_config.description == "relevance assessment"
+            assert len(second_config.values) == 2
 
     async def test_update_without_prompt_version_id_creates_new_prompt(
         self,
@@ -1998,7 +2161,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             id
             name
             outputConfigs {
-              ... on EmbeddedCategoricalAnnotationConfig {
+              ... on CategoricalAnnotationConfig {
                 name
                 description
                 optimizationDirection
@@ -2019,170 +2182,6 @@ class TestUpdateDatasetLLMEvaluatorMutation:
         }
       }
     """
-
-    async def test_update_llm_evaluator_from_one_to_multiple_output_configs(
-        self,
-        db: DbSessionFactory,
-        gql_client: AsyncGraphQLClient,
-        empty_dataset: models.Dataset,
-        llm_evaluator: models.LLMEvaluator,
-    ) -> None:
-        """Test updating an LLM evaluator from 1 output config to 2+ output configs."""
-        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
-
-        # Verify the evaluator starts with 1 output config
-        async with db() as session:
-            db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
-            assert db_evaluator is not None
-            assert len(db_evaluator.output_configs) == 1
-            assert db_evaluator.output_configs[0].name == "correctness"
-
-        # Get the dataset_evaluator ID from the fixture
-        async with db() as session:
-            dataset_evaluator = await session.scalar(
-                select(models.DatasetEvaluators).where(
-                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
-                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
-                )
-            )
-            assert dataset_evaluator is not None
-            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
-
-        # Update to 2 output configs, preserving original config as first element
-        result = await gql_client.execute(
-            self._UPDATE_MUTATION_WITH_OUTPUT_CONFIGS,
-            {
-                "input": {
-                    "datasetEvaluatorId": dataset_evaluator_id,
-                    "datasetId": dataset_id,
-                    "name": "multi-output-evaluator",
-                    "description": "multi output description",
-                    "promptVersion": dict(
-                        description="multi output prompt version",
-                        templateFormat="MUSTACHE",
-                        template=dict(
-                            messages=[
-                                dict(
-                                    role="USER",
-                                    content=[dict(text=dict(text="Evaluate: {{input}}"))],
-                                )
-                            ]
-                        ),
-                        invocationParameters=dict(
-                            temperature=0.5,
-                            tool_choice=dict(
-                                type="function",
-                                function=dict(name="quality"),
-                            ),
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
-                                    function=dict(
-                                        name="quality",
-                                        description="multi output description",
-                                        parameters=dict(
-                                            type="object",
-                                            properties=dict(
-                                                label=dict(
-                                                    type="string",
-                                                    enum=["good", "bad"],
-                                                    description="quality",
-                                                )
-                                            ),
-                                            required=["label"],
-                                        ),
-                                    ),
-                                )
-                            ),
-                            dict(
-                                definition=dict(
-                                    type="function",
-                                    function=dict(
-                                        name="relevance",
-                                        description="multi output description",
-                                        parameters=dict(
-                                            type="object",
-                                            properties=dict(
-                                                label=dict(
-                                                    type="string",
-                                                    enum=["relevant", "irrelevant"],
-                                                    description="relevance",
-                                                )
-                                            ),
-                                            required=["label"],
-                                        ),
-                                    ),
-                                )
-                            ),
-                        ],
-                        modelProvider="OPENAI",
-                        modelName="gpt-4",
-                    ),
-                    "outputConfigs": [
-                        dict(
-                            categorical=dict(
-                                name="quality",
-                                description="quality assessment",
-                                optimizationDirection="MAXIMIZE",
-                                values=[
-                                    dict(label="good", score=1),
-                                    dict(label="bad", score=0),
-                                ],
-                            )
-                        ),
-                        dict(
-                            categorical=dict(
-                                name="relevance",
-                                description="relevance assessment",
-                                optimizationDirection="MINIMIZE",
-                                values=[
-                                    dict(label="relevant", score=1),
-                                    dict(label="irrelevant", score=0),
-                                ],
-                            )
-                        ),
-                    ],
-                }
-            },
-        )
-        assert result.data and not result.errors
-
-        updated_evaluator = result.data["updateDatasetLlmEvaluator"]["evaluator"]
-        assert updated_evaluator["name"] == "multi-output-evaluator"
-
-        # Verify both output configs are returned via GraphQL
-        output_configs = updated_evaluator["outputConfigs"]
-        assert len(output_configs) == 2
-        assert output_configs[0]["name"] == "quality"
-        assert output_configs[0]["description"] == "quality assessment"
-        assert output_configs[0]["optimizationDirection"] == "MAXIMIZE"
-        assert len(output_configs[0]["values"]) == 2
-        assert output_configs[1]["name"] == "relevance"
-        assert output_configs[1]["description"] == "relevance assessment"
-        assert output_configs[1]["optimizationDirection"] == "MINIMIZE"
-        assert len(output_configs[1]["values"]) == 2
-
-        # Verify both configs are persisted correctly in the database
-        async with db() as session:
-            db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
-            assert db_evaluator is not None
-            assert len(db_evaluator.output_configs) == 2
-
-            # Verify first config
-            first_config = db_evaluator.output_configs[0]
-            assert isinstance(first_config, CategoricalAnnotationConfig)
-            assert first_config.name == "quality"
-            assert first_config.description == "quality assessment"
-            assert len(first_config.values) == 2
-
-            # Verify second config
-            second_config = db_evaluator.output_configs[1]
-            assert isinstance(second_config, CategoricalAnnotationConfig)
-            assert second_config.name == "relevance"
-            assert second_config.description == "relevance assessment"
-            assert len(second_config.values) == 2
 
 
 class TestCreateDatasetBuiltinEvaluatorMutation:
@@ -2661,7 +2660,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     dataset_id=empty_dataset.id,
                     name=llm_evaluator_name,
                     description="test description",
-                    output_configs=[],
+                    output_configs=None,
                     input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                     project=models.Project(
                         name=f"{empty_dataset.name}/{llm_evaluator_name}",
@@ -2925,7 +2924,7 @@ async def llm_evaluator(
                 dataset_id=empty_dataset.id,
                 name=evaluator_name,
                 description="correctness description",
-                output_configs=[],
+                output_configs=None,
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project=models.Project(
                     name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3086,7 +3085,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_configs=[],
+                        output_configs=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3212,7 +3211,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_configs=[],
+                        output_configs=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3373,7 +3372,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_configs=[],
+                        output_configs=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3485,7 +3484,7 @@ class TestDeleteDatasetEvaluators:
                         dataset_id=empty_dataset.id,
                         name=evaluator_name,
                         description="test description",
-                        output_configs=[],
+                        output_configs=None,
                         input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                         project=models.Project(
                             name=f"{empty_dataset.name}/{evaluator_name}",
@@ -3554,13 +3553,13 @@ class TestMultiOutputEvaluators:
             name
             description
             outputConfigs {
-              ... on EmbeddedCategoricalAnnotationConfig {
+              ... on CategoricalAnnotationConfig {
                 name
                 description
                 optimizationDirection
                 values { label score }
               }
-              ... on EmbeddedContinuousAnnotationConfig {
+              ... on ContinuousAnnotationConfig {
                 name
                 description
                 lowerBound
@@ -3588,13 +3587,13 @@ class TestMultiOutputEvaluators:
             id
             name
             outputConfigs {
-              ... on EmbeddedCategoricalAnnotationConfig {
+              ... on CategoricalAnnotationConfig {
                 name
                 description
                 optimizationDirection
                 values { label score }
               }
-              ... on EmbeddedContinuousAnnotationConfig {
+              ... on ContinuousAnnotationConfig {
                 name
                 description
                 lowerBound
@@ -3608,12 +3607,12 @@ class TestMultiOutputEvaluators:
                 name
                 kind
                 outputConfigs {
-                  ... on EmbeddedCategoricalAnnotationConfig {
+                  ... on CategoricalAnnotationConfig {
                     name
                     description
                     values { label score }
                   }
-                  ... on EmbeddedContinuousAnnotationConfig {
+                  ... on ContinuousAnnotationConfig {
                     name
                     description
                     lowerBound
@@ -3948,6 +3947,7 @@ class TestMultiOutputEvaluators:
         async with db() as session:
             db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.output_configs is not None
             assert len(db_dataset_evaluator.output_configs) == 1
             config = db_dataset_evaluator.output_configs[0]
             assert config.name == base_config_name

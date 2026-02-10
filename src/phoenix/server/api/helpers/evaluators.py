@@ -10,7 +10,11 @@ from pydantic import (
 from typing_extensions import Self, assert_never
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import AnnotationConfigType, CategoricalAnnotationConfig
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
+    CategoricalAnnotationConfig,
+    ContinuousAnnotationConfig,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
     PromptToolChoiceOneOrMore,
@@ -317,18 +321,84 @@ def validate_min_one_config(
         raise ValueError("At least one output config is required")
 
 
+class LLMEvaluatorOutputConfigs(BaseModel):
+    """Validated output configs for LLM evaluators (categorical only)."""
+
+    configs: list[CategoricalAnnotationConfig] = Field(min_length=1)
+
+    @field_validator("configs")
+    @classmethod
+    def check_unique_names(
+        cls, configs: list[CategoricalAnnotationConfig]
+    ) -> list[CategoricalAnnotationConfig]:
+        names = [c.name for c in configs]
+        if len(names) != len(set(names)):
+            duplicates = [n for n in names if names.count(n) > 1]
+            raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
+        return configs
+
+    @classmethod
+    def from_inputs(cls, inputs: "list[AnnotationConfigInput]") -> "LLMEvaluatorOutputConfigs":
+        """Convert Strawberry AnnotationConfigInput list to validated LLM evaluator configs."""
+        import strawberry
+
+        from phoenix.db.types.annotation_configs import (
+            AnnotationType,
+            CategoricalAnnotationValue,
+        )
+
+        configs: list[CategoricalAnnotationConfig] = []
+        for input_ in inputs:
+            if input_.categorical is not None and input_.categorical is not strawberry.UNSET:
+                cat = input_.categorical
+                configs.append(
+                    CategoricalAnnotationConfig(
+                        type=AnnotationType.CATEGORICAL.value,
+                        name=cat.name,
+                        description=cat.description,
+                        optimization_direction=cat.optimization_direction,
+                        values=[
+                            CategoricalAnnotationValue(label=v.label, score=v.score)
+                            for v in cat.values
+                        ],
+                    )
+                )
+            else:
+                raise ValueError(
+                    "LLM evaluators only support categorical output configs. "
+                    "Non-categorical config found."
+                )
+        return cls(configs=configs)
+
+
 def get_evaluator_output_configs(
     evaluator_input: "PlaygroundEvaluatorInput",
     evaluator: "BaseEvaluator",
-) -> list[AnnotationConfigType]:
+) -> list[CategoricalAnnotationConfig | ContinuousAnnotationConfig]:
     """
     Get the output configs for an evaluator run. Uses configs from the evaluator input
     if provided, otherwise falls back to the base evaluator's stored output configs.
+
+    Returns only categorical or continuous configs (the types supported by evaluators).
+    Raises ValueError if any freeform configs are encountered.
     """
+    from phoenix.db.types.annotation_configs import FreeformAnnotationConfig
+
+    configs: list[AnnotationConfigType]
     if evaluator_input.output_configs:
         from phoenix.server.api.mutations.evaluator_mutations import (
             _convert_output_config_inputs_to_pydantic,
         )
 
-        return _convert_output_config_inputs_to_pydantic(evaluator_input.output_configs)
-    return list(evaluator.output_configs)
+        configs = _convert_output_config_inputs_to_pydantic(evaluator_input.output_configs)
+    else:
+        configs = list(evaluator.output_configs)
+
+    narrowed: list[CategoricalAnnotationConfig | ContinuousAnnotationConfig] = []
+    for config in configs:
+        if isinstance(config, FreeformAnnotationConfig):
+            raise ValueError(
+                "Freeform annotation configs are not supported as evaluator output configs"
+            )
+        narrowed.append(config)
+    return narrowed

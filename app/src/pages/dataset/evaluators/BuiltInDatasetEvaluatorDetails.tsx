@@ -133,7 +133,7 @@ export function BuiltInDatasetEvaluatorDetails({
           pathMapping
         }
         outputConfigs {
-          ... on EmbeddedCategoricalAnnotationConfig {
+          ... on CategoricalAnnotationConfig {
             name
             optimizationDirection
             values {
@@ -141,7 +141,7 @@ export function BuiltInDatasetEvaluatorDetails({
               score
             }
           }
-          ... on EmbeddedContinuousAnnotationConfig {
+          ... on ContinuousAnnotationConfig {
             name
             optimizationDirection
             lowerBound
@@ -153,7 +153,7 @@ export function BuiltInDatasetEvaluatorDetails({
           name
           ... on BuiltInEvaluator {
             outputConfigs {
-              ... on EmbeddedCategoricalAnnotationConfig {
+              ... on CategoricalAnnotationConfig {
                 name
                 optimizationDirection
                 values {
@@ -161,7 +161,7 @@ export function BuiltInDatasetEvaluatorDetails({
                   score
                 }
               }
-              ... on EmbeddedContinuousAnnotationConfig {
+              ... on ContinuousAnnotationConfig {
                 name
                 optimizationDirection
                 lowerBound

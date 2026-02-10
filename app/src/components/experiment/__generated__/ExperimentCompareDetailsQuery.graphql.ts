@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2b84929ee3ecfb8603bb3a5c0e2dbe7d>>
+ * @generated SignedSource<<d8eae4eb7a48644dccb61f7b65726e0d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -423,7 +423,7 @@ v26 = {
       "storageKey": null
     }
   ],
-  "type": "EmbeddedCategoricalAnnotationConfig",
+  "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
 v27 = {
@@ -446,7 +446,7 @@ v27 = {
       "storageKey": null
     }
   ],
-  "type": "EmbeddedContinuousAnnotationConfig",
+  "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
 v28 = {
@@ -813,7 +813,15 @@ return {
                             "selections": [
                               (v28/*: any*/),
                               (v26/*: any*/),
-                              (v27/*: any*/)
+                              (v27/*: any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v7/*: any*/)
+                                ],
+                                "type": "Node",
+                                "abstractKey": "__isNode"
+                              }
                             ],
                             "storageKey": null
                           },
@@ -838,16 +846,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "782d77dd43219add70d546d5d28caacc",
+    "cacheID": "9db9b824c30cbf7add6118a2763f8c1b",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on EmbeddedCategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on EmbeddedContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eef534e6d443a212617ee04b60ab6d31";
+(node as any).hash = "b02872ee36b62f089986aa3afbe64bc0";
 
 export default node;
