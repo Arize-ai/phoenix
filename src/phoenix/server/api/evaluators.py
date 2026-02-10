@@ -2042,12 +2042,16 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
             "type": "object",
             "properties": {
                 "expected": {
-                    "type": "string",
-                    "description": "The expected JSON string",
+                    "description": "The expected JSON structure",
                 },
                 "actual": {
-                    "type": "string",
-                    "description": "The actual JSON string to compare",
+                    "description": "The actual JSON structure to compare",
+                },
+                "parse_strings": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether to parse string inputs as JSON before comparison (default: True)"
+                    ),
                 },
             },
             "required": ["expected", "actual"],
@@ -2119,8 +2123,19 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
-                expected_str = inputs.get("expected", "")
-                actual_str = inputs.get("actual", "")
+                expected_raw = inputs.get("expected", "")
+                actual_raw = inputs.get("actual", "")
+                parse_strings = inputs.get("parse_strings", True)
+
+                def _serialize_for_trace(value: Any) -> str:
+                    if isinstance(value, str):
+                        return value
+                    if isinstance(value, (dict, list)):
+                        return json.dumps(value)
+                    return str(value)
+
+                expected_trace = _serialize_for_trace(expected_raw)
+                actual_trace = _serialize_for_trace(actual_raw)
 
                 with tracer_.start_as_current_span(
                     self.name,
@@ -2128,15 +2143,22 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         **oi.get_span_kind_attributes("chain"),
                         **oi.get_input_attributes(
                             {
-                                "expected": expected_str,
-                                "actual": actual_str,
+                                "expected": expected_trace,
+                                "actual": actual_trace,
+                                "parse_strings": parse_strings,
                             }
                         ),
                     },
                 ) as execution_span:
                     try:
-                        expected = json.loads(expected_str)
-                        actual = json.loads(actual_str)
+                        if parse_strings and isinstance(expected_raw, str):
+                            expected = json.loads(expected_raw)
+                        else:
+                            expected = expected_raw
+                        if parse_strings and isinstance(actual_raw, str):
+                            actual = json.loads(actual_raw)
+                        else:
+                            actual = actual_raw
                         distance = json_diff_count(expected, actual)
                         error = None
                         explanation = f"JSON structures have {distance} difference(s)"
@@ -2178,7 +2200,11 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     label=None,
                     score=float(distance) if error is None else None,
                     explanation=explanation,
-                    metadata={"expected": expected_str, "actual": actual_str},
+                    metadata={
+                        "expected": expected_trace,
+                        "actual": actual_trace,
+                        "parse_strings": parse_strings,
+                    },
                     error=error,
                     trace_id=trace_id,
                     start_time=start_time,

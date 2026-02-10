@@ -1647,6 +1647,275 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["score"] == 1.0
 
 
+class TestJSONDistanceParseStringsToggle:
+    """Tests for JSONDistanceEvaluator parse_strings toggle behavior.
+
+    When parse_strings=true (default), string inputs are json.loads()'d before comparison.
+    When parse_strings=false, inputs pass directly to json_diff_count() without parsing.
+    """
+
+    async def test_parse_strings_true_with_json_strings(self) -> None:
+        """When parse_strings=true, JSON strings are parsed before comparison."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context: dict[str, Any] = {}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={
+                "expected": json.dumps({"a": 1, "b": [2, 3]}),
+                "actual": json.dumps({"a": 1, "b": [2, 4]}),
+                "parse_strings": True,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # One difference: b[1] is 3 vs 4
+        assert result["score"] == 1.0
+
+    async def test_parse_strings_false_with_dict_inputs(self) -> None:
+        """When parse_strings=false, dict inputs pass directly to comparison."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        # Provide dicts directly in context (simulating JSONPath extraction)
+        context: dict[str, Any] = {
+            "expected_obj": {"items": [1, 2, 3], "name": "test"},
+            "actual_obj": {"items": [1, 2, 3], "name": "changed"},
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected_obj",
+                "actual": "$.actual_obj",
+            },
+            literal_mapping={
+                "parse_strings": False,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # One difference: name "test" vs "changed"
+        assert result["score"] == 1.0
+
+    async def test_parse_strings_false_with_list_inputs(self) -> None:
+        """When parse_strings=false, list inputs pass directly to comparison."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context: dict[str, Any] = {
+            "expected_list": [1, 2, 3],
+            "actual_list": [1, 2, 3],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected_list",
+                "actual": "$.actual_list",
+            },
+            literal_mapping={
+                "parse_strings": False,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # Identical lists, distance 0
+        assert result["score"] == 0.0
+
+    async def test_parse_strings_false_with_bare_strings(self) -> None:
+        """When parse_strings=false, bare strings are compared as-is without JSON parsing."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context: dict[str, Any] = {}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={
+                "expected": "hello world",
+                "actual": "hello world",
+                "parse_strings": False,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # Same strings compared directly, distance 0
+        assert result["score"] == 0.0
+
+    async def test_parse_strings_default_behaves_as_true(self) -> None:
+        """When parse_strings is not provided, it defaults to true (JSON parsing)."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context: dict[str, Any] = {}
+        # No parse_strings in literal_mapping — should default to true
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={
+                "expected": json.dumps({"key": "value"}),
+                "actual": json.dumps({"key": "value"}),
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # Identical JSON, distance 0
+        assert result["score"] == 0.0
+
+    async def test_parse_strings_true_with_identical_json_strings(self) -> None:
+        """Identical JSON strings with parse_strings=true produce distance 0."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context: dict[str, Any] = {}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={
+                "expected": json.dumps({"a": 1}),
+                "actual": json.dumps({"a": 1}),
+                "parse_strings": True,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+
+    async def test_parse_strings_false_with_nested_dict_differences(self) -> None:
+        """When parse_strings=false, nested dict differences are counted correctly."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context: dict[str, Any] = {
+            "expected_obj": {"a": {"b": 1, "c": 2}, "d": 3},
+            "actual_obj": {"a": {"b": 99, "c": 2}, "d": 100},
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected_obj",
+                "actual": "$.actual_obj",
+            },
+            literal_mapping={
+                "parse_strings": False,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # Two differences: a.b (1 vs 99) and d (3 vs 100)
+        assert result["score"] == 2.0
+
+    async def test_parse_strings_false_tracing_metadata_serializes_non_strings(self) -> None:
+        """When parse_strings=false with dict inputs, metadata contains serialized forms."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        expected_dict = {"key": "value"}
+        actual_dict = {"key": "different"}
+        context: dict[str, Any] = {
+            "expected_obj": expected_dict,
+            "actual_obj": actual_dict,
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={
+                "expected": "$.expected_obj",
+                "actual": "$.actual_obj",
+            },
+            literal_mapping={
+                "parse_strings": False,
+            },
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="json_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 1.0
+        # Metadata should contain readable serialized forms of the inputs
+        metadata = result["metadata"]
+        assert "expected" in metadata
+        assert "actual" in metadata
+        # Non-string inputs should be serialized to JSON strings in metadata
+        assert json.loads(metadata["expected"]) == expected_dict
+        assert json.loads(metadata["actual"]) == actual_dict
+
+    async def test_input_schema_includes_parse_strings(self) -> None:
+        """Verify the input_schema exposes parse_strings as a boolean property."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        schema = evaluator.input_schema
+        assert "parse_strings" in schema["properties"]
+        assert schema["properties"]["parse_strings"]["type"] == "boolean"
+        # parse_strings should NOT be required
+        assert "parse_strings" not in schema.get("required", [])
+
+    async def test_input_schema_expected_actual_allow_non_string_types(self) -> None:
+        """Verify expected/actual in input_schema don't restrict to type: string."""
+        from phoenix.server.api.evaluators import JSONDistanceEvaluator
+
+        evaluator = JSONDistanceEvaluator()
+        schema = evaluator.input_schema
+        # expected and actual should NOT have "type": "string"
+        assert "type" not in schema["properties"]["expected"]
+        assert "type" not in schema["properties"]["actual"]
+
+
 class TestBuiltInEvaluatorOutputConfigUsage:
     """Tests for builtin evaluator output_config usage at execution time."""
 

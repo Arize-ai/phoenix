@@ -3,10 +3,7 @@ import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { CodeBlock } from "@phoenix/components/CodeBlock";
 import { usePreferencesContext } from "@phoenix/contexts";
 
-const PYTHON_CODE = `
-import json
-from typing import Any
-
+const PYTHON_DIFF_COUNT = `
 def json_diff_count(expected: Any, actual: Any) -> int:
   if type(expected) is not type(actual):
     return 1
@@ -24,13 +21,28 @@ def json_diff_count(expected: Any, actual: Any) -> int:
     for i in range(min(len(expected), len(actual))):
       diff += json_diff_count(expected[i], actual[i])
     return diff
-  return 0 if expected == actual else 1
+  return 0 if expected == actual else 1`.trim();
+
+const PYTHON_CODE_PARSE = `
+import json
+from typing import Any
+
+${PYTHON_DIFF_COUNT}
 
 def json_distance(expected: str, actual: str) -> int:
   return json_diff_count(json.loads(expected), json.loads(actual))
 `.trim();
 
-const TYPESCRIPT_CODE = `
+const PYTHON_CODE_DIRECT = `
+from typing import Any
+
+${PYTHON_DIFF_COUNT}
+
+def json_distance(expected: Any, actual: Any) -> int:
+  return json_diff_count(expected, actual)
+`.trim();
+
+const TS_DIFF_COUNT = `
 function jsonDiffCount(expected: unknown, actual: unknown): number {
   if (typeof expected !== typeof actual) {
     return 1;
@@ -65,20 +77,37 @@ function jsonDiffCount(expected: unknown, actual: unknown): number {
     return 1;
   }
   return expected === actual ? 0 : 1;
-}
+}`.trim();
+
+const TS_CODE_PARSE = `
+${TS_DIFF_COUNT}
 
 function jsonDistance(expected: string, actual: string): number {
   return jsonDiffCount(JSON.parse(expected), JSON.parse(actual));
 }
 `.trim();
 
-export const JSONDistanceEvaluatorCodeBlock = () => {
+const TS_CODE_DIRECT = `
+${TS_DIFF_COUNT}
+
+function jsonDistance(expected: unknown, actual: unknown): number {
+  return jsonDiffCount(expected, actual);
+}
+`.trim();
+
+export const JSONDistanceEvaluatorCodeBlock = ({
+  parseStrings = true,
+}: {
+  parseStrings?: boolean;
+}) => {
   const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
     (state) => ({
       programmingLanguage: state.programmingLanguage,
       setProgrammingLanguage: state.setProgrammingLanguage,
     })
   );
+  const pythonCode = parseStrings ? PYTHON_CODE_PARSE : PYTHON_CODE_DIRECT;
+  const tsCode = parseStrings ? TS_CODE_PARSE : TS_CODE_DIRECT;
   return (
     <Card
       title="Code"
@@ -94,7 +123,7 @@ export const JSONDistanceEvaluatorCodeBlock = () => {
     >
       <CodeBlock
         language={programmingLanguage}
-        value={programmingLanguage === "Python" ? PYTHON_CODE : TYPESCRIPT_CODE}
+        value={programmingLanguage === "Python" ? pythonCode : tsCode}
       />
     </Card>
   );
