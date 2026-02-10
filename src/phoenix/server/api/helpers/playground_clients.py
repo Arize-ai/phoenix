@@ -308,6 +308,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
                         span.set_attributes(output_attrs)
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
+                # no need to manually record exception, otel will handle for us
                 raise
 
     @abstractmethod
