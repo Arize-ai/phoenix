@@ -249,8 +249,9 @@ function PlaygroundContent() {
   useEffect(() => {
     setSearchParams(
       (prev) => {
-        setPromptParams(prev, instancePromptParams);
-        return prev;
+        const next = new URLSearchParams(prev);
+        setPromptParams({ searchParams: next, prompts: instancePromptParams });
+        return next;
       },
       { replace: true }
     );

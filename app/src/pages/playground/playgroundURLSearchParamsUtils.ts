@@ -39,10 +39,13 @@ export function parsePromptParams(
  * Returns `true` if the params actually changed, `false` if they were
  * already in sync.
  */
-export function setPromptParams(
-  searchParams: URLSearchParams,
-  prompts: PromptParam[]
-): boolean {
+export function setPromptParams({
+  searchParams,
+  prompts,
+}: {
+  searchParams: URLSearchParams;
+  prompts: PromptParam[];
+}): boolean {
   const currentIds = searchParams.getAll("promptId");
   const currentVersionIds = searchParams.getAll("promptVersionId");
   const currentTagNames = searchParams.getAll("promptTagName");
