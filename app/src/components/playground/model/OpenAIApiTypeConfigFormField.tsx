@@ -15,7 +15,7 @@ import type { OpenAIApiType } from "@phoenix/store";
 
 const API_TYPE_OPTIONS: { id: OpenAIApiType; label: string }[] = [
   { id: "CHAT_COMPLETIONS", label: "Chat Completions" },
-  { id: "RESPONSES", label: "Responses API" },
+  { id: "RESPONSES", label: "Responses" },
 ];
 
 const DEFAULT_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
@@ -27,14 +27,14 @@ function getApiTypeLabel(apiType: OpenAIApiType): string {
 export type OpenAIApiTypeConfigFormFieldProps = {
   playgroundInstanceId: number;
   /**
-   * When true, shows only the fixed default "Responses API" as static text (not editable).
+   * When true, shows only the fixed default "Responses" as static text (not editable).
    * Does not read from instance/model or localStorage — used when ephemeral routing is disabled.
    */
   displayDefaultOnly?: boolean;
 };
 
 /**
- * Form field for selecting OpenAI/Azure API type (Chat Completions vs Responses API).
+ * Form field for selecting OpenAI/Azure API type (Chat Completions vs Responses).
  * Shown for built-in OpenAI and Azure OpenAI providers only.
  */
 export function OpenAIApiTypeConfigFormField({
