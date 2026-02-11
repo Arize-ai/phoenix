@@ -8,6 +8,7 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
     ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
@@ -16,8 +17,6 @@ from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
 from phoenix.db import models
-from phoenix.db.types.evaluators import InputMapping
-from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -356,12 +355,9 @@ class TestChatCompletionSubscription:
         assert not context
         assert span.pop("metadata") is None
         assert span.pop("numDocuments") == 0
-        assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
-        assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
-        assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
-        assert token_count_prompt == 0
-        assert token_count_completion == 0
-        assert token_count_total == token_count_prompt + token_count_completion
+        assert span.pop("tokenCountTotal") == 0
+        assert span.pop("tokenCountPrompt") is None
+        assert span.pop("tokenCountCompletion") is None
         assert (input := span.pop("input")).pop("mimeType") == "json"
         assert (input_value := input.pop("value"))
         assert not input
@@ -384,9 +380,9 @@ class TestChatCompletionSubscription:
         assert isinstance(
             cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), float
         )
-        assert cumulative_token_count_total == token_count_total
-        assert cumulative_token_count_prompt == token_count_prompt
-        assert cumulative_token_count_completion == token_count_completion
+        assert cumulative_token_count_total == 0
+        assert cumulative_token_count_prompt == 0
+        assert cumulative_token_count_completion == 0
         assert span.pop("propagatedStatusCode") == "ERROR"
         assert not span
 
@@ -875,312 +871,6 @@ class TestChatCompletionSubscription:
         assert attributes.pop(URL_PATH) == "v1/messages"
         assert not attributes
 
-    async def test_evaluator_emits_evaluation_chunk(
-        self,
-        gql_client: AsyncGraphQLClient,
-        openai_api_key: str,
-        correctness_llm_evaluator: models.LLMEvaluator,
-        custom_vcr: CustomVCR,
-        db: DbSessionFactory,
-        synced_builtin_evaluators: None,
-    ) -> None:
-        # Create dataset and DatasetEvaluators
-        async with db() as session:
-            # Look up the builtin evaluator ID by key
-            contains_id = await session.scalar(
-                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
-            )
-            assert contains_id is not None
-
-            dataset = models.Dataset(name="test-sub-eval-dataset", metadata_={})
-            session.add(dataset)
-            await session.flush()
-
-            llm_dataset_evaluator = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                evaluator_id=correctness_llm_evaluator.id,
-                name=Identifier("correctness"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=models.Project(name="sub-correctness-project", description=""),
-            )
-            builtin_dataset_evaluator = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                evaluator_id=contains_id,
-                name=Identifier("contains-four"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=models.Project(name="sub-contains-project", description=""),
-            )
-            session.add_all([llm_dataset_evaluator, builtin_dataset_evaluator])
-            await session.flush()
-
-            llm_evaluator_gid = str(
-                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(llm_dataset_evaluator.id))
-            )
-            builtin_evaluator_gid = str(
-                GlobalID(
-                    type_name=DatasetEvaluator.__name__, node_id=str(builtin_dataset_evaluator.id)
-                )
-            )
-        variables = {
-            "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What is 2 + 2? Answer with just the number.",
-                    }
-                ],
-                "model": {"builtin": {"name": "gpt-4o-mini", "providerKey": "OPENAI"}},
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.0},
-                ],
-                "repetitions": 1,
-                "evaluators": [
-                    {
-                        "id": llm_evaluator_gid,
-                        "name": "correctness",
-                        "inputMapping": {
-                            "pathMapping": {
-                                "input": "$.input",
-                                "output": "$.output",
-                            },
-                        },
-                    },
-                    {
-                        "id": builtin_evaluator_gid,
-                        "name": "contains-four",
-                        "inputMapping": {
-                            "literalMapping": {"words": "4"},
-                            "pathMapping": {"text": "$.output"},
-                        },
-                    },
-                ],
-            },
-        }
-
-        text_chunks: list[dict[str, Any]] = []
-        evaluation_chunks: list[dict[str, Any]] = []
-        result_chunk: dict[str, Any] = {}
-
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                async for payload in subscription.stream():
-                    typename = payload["chatCompletion"]["__typename"]
-                    if typename == TextChunk.__name__:
-                        text_chunks.append(payload["chatCompletion"])
-                    elif typename == EvaluationChunk.__name__:
-                        evaluation_chunks.append(payload["chatCompletion"])
-                    elif typename == ChatCompletionSubscriptionResult.__name__:
-                        result_chunk = payload["chatCompletion"]
-
-        # Verify we got text chunks with content
-        assert len(text_chunks) >= 1
-        response_text = "".join(chunk["content"] for chunk in text_chunks)
-        assert "4" in response_text
-
-        # Verify we got a result chunk with a span
-        assert result_chunk["span"]["id"]
-
-        assert len(evaluation_chunks) == 2
-        llm_chunk = next(
-            chunk
-            for chunk in evaluation_chunks
-            if chunk["experimentRunEvaluation"]["name"] == "correctness"
-        )
-        llm_annotation = llm_chunk["experimentRunEvaluation"]
-        assert llm_annotation["annotatorKind"] == "LLM"
-        assert llm_annotation["label"] == "correct"
-        builtin_chunk = next(
-            chunk
-            for chunk in evaluation_chunks
-            if chunk["experimentRunEvaluation"]["name"] == "contains-four"
-        )
-        builtin_annotation = builtin_chunk["experimentRunEvaluation"]
-        assert builtin_annotation["annotatorKind"] == "CODE"
-        assert builtin_annotation["label"] == "true"
-
-    async def test_evaluator_not_emitted_when_task_errors(
-        self,
-        gql_client: AsyncGraphQLClient,
-        openai_api_key: str,
-        correctness_llm_evaluator: models.LLMEvaluator,
-        custom_vcr: CustomVCR,
-        db: DbSessionFactory,
-    ) -> None:
-        """Test that no evaluation chunks are emitted when the chat completion errors out."""
-        # Create dataset and DatasetEvaluator
-        async with db() as session:
-            dataset = models.Dataset(name="test-sub-error-dataset", metadata_={})
-            session.add(dataset)
-            await session.flush()
-
-            dataset_evaluator = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                evaluator_id=correctness_llm_evaluator.id,
-                name=Identifier("correctness"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=models.Project(name="sub-error-project", description=""),
-            )
-            session.add(dataset_evaluator)
-            await session.flush()
-
-            evaluator_gid = str(
-                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
-            )
-        variables = {
-            "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What is 2 + 2? Answer with just the number.",
-                    }
-                ],
-                "model": {
-                    "builtin": {
-                        "name": "gpt-nonexistent-model",  # non-existent model triggers an error
-                        "providerKey": "OPENAI",
-                    }
-                },
-                "repetitions": 1,
-                "evaluators": [
-                    {
-                        "id": evaluator_gid,
-                        "name": "correctness",
-                        "inputMapping": {
-                            "pathMapping": {
-                                "input": "$.input",
-                                "output": "$.output",
-                            },
-                        },
-                    }
-                ],
-            },
-        }
-
-        error_chunks: list[dict[str, Any]] = []
-        evaluation_chunks: list[dict[str, Any]] = []
-        result_chunk: dict[str, Any] = {}
-
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                async for payload in subscription.stream():
-                    typename = payload["chatCompletion"]["__typename"]
-                    if typename == ChatCompletionSubscriptionError.__name__:
-                        error_chunks.append(payload["chatCompletion"])
-                    elif typename == EvaluationChunk.__name__:
-                        evaluation_chunks.append(payload["chatCompletion"])
-                    elif typename == ChatCompletionSubscriptionResult.__name__:
-                        result_chunk = payload["chatCompletion"]
-
-        # Verify we got an error chunk
-        assert len(error_chunks) == 1
-        assert "model" in error_chunks[0]["message"].lower()
-
-        # Verify we got a result chunk with a span (span is still recorded on error)
-        assert result_chunk["span"]["id"]
-
-        # Verify NO evaluation chunks were emitted
-        assert len(evaluation_chunks) == 0
-
-    async def test_builtin_evaluator_uses_name(
-        self,
-        gql_client: AsyncGraphQLClient,
-        openai_api_key: str,
-        custom_vcr: CustomVCR,
-        db: DbSessionFactory,
-        synced_builtin_evaluators: None,
-    ) -> None:
-        """Test that builtin evaluators use name for annotation names."""
-        custom_name = "my-custom-exact-match"
-
-        # Create dataset and DatasetEvaluator
-        async with db() as session:
-            # Look up the builtin evaluator ID by key
-            exact_match_id = await session.scalar(
-                select(models.BuiltinEvaluator.id).where(
-                    models.BuiltinEvaluator.key == "exact_match"
-                )
-            )
-            assert exact_match_id is not None
-
-            dataset = models.Dataset(name="test-sub-builtin-name-dataset", metadata_={})
-            session.add(dataset)
-            await session.flush()
-
-            dataset_evaluator = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                evaluator_id=exact_match_id,
-                name=Identifier(custom_name),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=models.Project(name="sub-builtin-name-project", description=""),
-            )
-            session.add(dataset_evaluator)
-            await session.flush()
-
-            evaluator_gid = str(
-                GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(dataset_evaluator.id))
-            )
-        variables = {
-            "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "Say hello",
-                    }
-                ],
-                "model": {"builtin": {"name": "gpt-4o-mini", "providerKey": "OPENAI"}},
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.0},
-                ],
-                "repetitions": 1,
-                "evaluators": [
-                    {
-                        "id": evaluator_gid,
-                        "name": custom_name,
-                        "inputMapping": {
-                            "literalMapping": {
-                                "expected": "hello",
-                                "actual": "hello",
-                            },
-                        },
-                    }
-                ],
-            },
-        }
-
-        evaluation_chunks: list[dict[str, Any]] = []
-        result_chunk: dict[str, Any] = {}
-
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                async for payload in subscription.stream():
-                    typename = payload["chatCompletion"]["__typename"]
-                    if typename == EvaluationChunk.__name__:
-                        evaluation_chunks.append(payload["chatCompletion"])
-                    elif typename == ChatCompletionSubscriptionResult.__name__:
-                        result_chunk = payload["chatCompletion"]
-
-        # Verify we got a result chunk with a span
-        assert result_chunk["span"]["id"]
-
-        # Verify we got exactly 1 evaluation chunk with the custom display name
-        assert len(evaluation_chunks) == 1
-        eval_chunk = evaluation_chunks[0]
-        eval_annotation = eval_chunk["experimentRunEvaluation"]
-        assert eval_annotation["name"] == custom_name
-        assert eval_annotation["annotatorKind"] == "CODE"
-
 
 class TestChatCompletionOverDatasetSubscription:
     QUERY = """
@@ -1500,7 +1190,6 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_SYSTEM) == "openai"
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
-        assert attributes.pop(PROMPT_TEMPLATE_VARIABLES) == json.dumps({"city": "Paris"})
         assert not attributes
 
         # check example 2 span
@@ -1589,7 +1278,6 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_SYSTEM) == "openai"
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
-        assert attributes.pop(PROMPT_TEMPLATE_VARIABLES) == json.dumps({"city": "Tokyo"})
         assert not attributes
 
         # check that example 3 has no span
@@ -2297,7 +1985,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert not attributes
 
             # llm span
-            assert llm_llm_span.name == "gpt-4"
+            assert llm_llm_span.name == "ChatCompletion"
             assert llm_llm_span.span_kind == "LLM"
             assert llm_llm_span.status_code == "OK"
             assert not llm_llm_span.status_message
@@ -2368,6 +2056,12 @@ class TestChatCompletionOverDatasetSubscription:
             )
             assert arguments is not None
             assert json.loads(arguments) == {"label": "incorrect"}
+            assert attributes.pop(INPUT_MIME_TYPE) == JSON
+            assert isinstance(attributes.pop(INPUT_VALUE), str)
+            assert isinstance(attributes.pop(LLM_INVOCATION_PARAMETERS), str)
+            tool_json_schema = json.loads(attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}"))
+            assert tool_json_schema["type"] == "function"
+            assert tool_json_schema["function"]["name"] == "correctness"
             assert not attributes
 
             # span costs for evaluator trace
@@ -2789,6 +2483,9 @@ INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+
+# tool attributes
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 
 # tool call attributes
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID

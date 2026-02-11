@@ -78,8 +78,8 @@ phoenix = "phoenix.server.main:main"
 dev = [
   "aiobotocore>=3.1.1",
   "aiosqlite<0.22.0",  # new version is causing tests to hang
-  "anthropic",
-  "arize",
+  "anthropic>=0.79.0",
+  "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
   "azure-identity",
@@ -176,7 +176,7 @@ aws = [
   "aioboto3",
 ]
 container = [
-  "anthropic>=0.49.0",
+  "anthropic>=0.78.0",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",

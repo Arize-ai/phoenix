@@ -1,23 +1,12 @@
 import asyncio
 import logging
-from dataclasses import asdict, field
+from dataclasses import field
 from datetime import datetime, timezone
-from itertools import chain, islice
-from traceback import format_exc
+from itertools import islice
 from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
-from openinference.semconv.trace import (
-    MessageAttributes,
-    OpenInferenceMimeTypeValues,
-    OpenInferenceSpanKindValues,
-    SpanAttributes,
-    ToolAttributes,
-    ToolCallAttributes,
-)
-from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
-from opentelemetry.trace import StatusCode
+from openinference.semconv.trace import SpanAttributes
 from pydantic import ValidationError
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
@@ -25,7 +14,6 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
-from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -57,22 +45,15 @@ from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_configs,
 )
 from phoenix.server.api.helpers.message_helpers import (
+    PlaygroundMessage,
     build_template_variables,
+    create_playground_message,
     extract_and_convert_example_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
     initialize_playground_clients,
-)
-from phoenix.server.api.helpers.playground_spans import (
-    input_value_and_mime_type,
-    llm_input_messages,
-    llm_invocation_parameters,
-    llm_model_name,
-    llm_span_kind,
-    llm_tools,
-    prompt_metadata,
 )
 from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
@@ -95,7 +76,6 @@ from phoenix.server.api.mutations.evaluator_mutations import (
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
@@ -111,10 +91,8 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
-from phoenix.trace.attributes import get_attribute_value, unflatten
-from phoenix.trace.schemas import SpanException
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.tracers import Tracer
-from phoenix.utilities.json import jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +100,6 @@ initialize_playground_clients()
 
 ExampleRowID: TypeAlias = int
 RepetitionNumber: TypeAlias = int
-
-ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]
 
 
 @strawberry.type
@@ -304,7 +280,7 @@ class ChatCompletionMutationMixin:
         ]
 
         # Pre-extract appended messages for each revision if path is specified
-        appended_messages_by_revision: dict[int, list[ChatCompletionMessage]] = {}
+        appended_messages_by_revision: dict[int, list[PlaygroundMessage]] = {}
         if input.appended_messages_path:
             for revision in revisions:
                 try:
@@ -741,13 +717,10 @@ class ChatCompletionMutationMixin:
         repetition_number: int,
         project_name: str = PLAYGROUND_PROJECT_NAME,
         project_description: str = "Traces from prompt playground",
-        appended_messages: Optional[list[ChatCompletionMessage]] = None,
+        appended_messages: Optional[list[PlaygroundMessage]] = None,
     ) -> tuple[ChatCompletionRepetition, models.Span]:
-        attributes: dict[str, Any] = {}
-        attributes.update(dict(prompt_metadata(input.prompt_name)))
-
-        messages = [
-            (
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(
                 message.role,
                 message.content,
                 message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -757,9 +730,6 @@ class ChatCompletionMutationMixin:
         ]
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
-            attributes.update(
-                {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
-            )
 
         # Append messages from dataset example if provided
         if appended_messages:
@@ -771,31 +741,15 @@ class ChatCompletionMutationMixin:
 
         text_content = ""
         tool_calls: dict[str, ChatCompletionToolCall] = {}
-        events = []
-        if input.model.builtin:
-            model_name = input.model.builtin.name
-        else:
-            assert input.model.custom
-            model_name = input.model.custom.model_name
-        attributes.update(
-            chain(
-                llm_span_kind(),
-                llm_model_name(model_name),
-                llm_tools(input.tools or []),
-                llm_input_messages(messages),
-                llm_invocation_parameters(invocation_parameters),
-                input_value_and_mime_type(input),
-            )
-        )
-
-        start_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
-        status_code = StatusCode.OK
-        status_message = ""
+        error_message: Optional[str] = None
+        tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
         try:
             async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
+                messages=messages,
+                tools=input.tools or [],
+                tracer=tracer,
+                **invocation_parameters,
             ):
-                # Process the chunk
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
                 elif isinstance(chunk, ToolCallChunk):
@@ -812,37 +766,9 @@ class ChatCompletionMutationMixin:
                 else:
                     assert_never(chunk)
         except Exception as e:
-            # Handle exceptions and record exception event
-            status_code = StatusCode.ERROR
-            status_message = str(e)
-            end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
-            assert end_time is not None
-            events.append(
-                SpanException(
-                    timestamp=end_time,
-                    message=status_message,
-                    exception_type=type(e).__name__,
-                    exception_escaped=False,
-                    exception_stacktrace=format_exc(),
-                )
-            )
-        else:
-            end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
+            error_message = str(e)
 
-        attributes.update(llm_client.attributes)
-        if text_content or tool_calls:
-            attributes.update(
-                chain(
-                    _output_value_and_mime_type(text_content, tool_calls),
-                    _llm_output_messages(text_content, tool_calls),
-                )
-            )
-
-        # Now write the span to the database
-        trace_id = _generate_trace_id()
-        span_id = _generate_span_id()
         async with info.context.db() as session:
-            # Get or create the project ID
             if (
                 project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == project_name)
@@ -856,59 +782,20 @@ class ChatCompletionMutationMixin:
                         description=project_description,
                     )
                 )
-            trace = models.Trace(
-                project_rowid=project_id,
-                trace_id=trace_id,
-                start_time=start_time,
-                end_time=end_time,
-            )
-            span = models.Span(
-                trace_rowid=trace.id,
-                span_id=span_id,
-                parent_id=None,
-                name="ChatCompletion",
-                span_kind=LLM,
-                start_time=start_time,
-                end_time=end_time,
-                attributes=unflatten(attributes.items()),
-                events=[_serialize_event(event) for event in events],
-                status_code=status_code.name,
-                status_message=status_message,
-                cumulative_error_count=int(status_code is StatusCode.ERROR),
-                cumulative_llm_token_count_prompt=attributes.get(LLM_TOKEN_COUNT_PROMPT, 0),
-                cumulative_llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
-                llm_token_count_prompt=attributes.get(LLM_TOKEN_COUNT_PROMPT, 0),
-                llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
-                trace=trace,
-            )
-            session.add(trace)
-            session.add(span)
-            await session.flush()
-            try:
-                span_cost = info.context.span_cost_calculator.calculate_cost(
-                    start_time=span.start_time,
-                    attributes=span.attributes,
-                )
-            except Exception as e:
-                logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                span_cost = None
-            if span_cost:
-                span_cost.span_rowid = span.id
-                span_cost.trace_rowid = trace.id
-                session.add(span_cost)
-                await session.flush()
+            db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
 
-        gql_span = Span(id=span.id, db_record=span)
-
+        db_trace = db_traces[0]
+        db_span = db_trace.spans[0]
+        gql_span = Span(id=db_span.id, db_record=db_span)
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
-        if status_code is StatusCode.ERROR:
+        if error_message is not None:
             repetition = ChatCompletionRepetition(
                 repetition_number=repetition_number,
                 content=None,
                 tool_calls=[],
                 span=gql_span,
-                error_message=status_message,
+                error_message=error_message,
                 evaluations=[],
             )
         else:
@@ -920,89 +807,32 @@ class ChatCompletionMutationMixin:
                 error_message=None,
                 evaluations=[],
             )
-        return repetition, span
+        return repetition, db_span
 
 
 def _formatted_messages(
-    messages: Iterable[ChatCompletionMessage],
+    messages: Iterable[PlaygroundMessage],
     template_options: PromptTemplateOptions,
-) -> Iterator[ChatCompletionMessage]:
+) -> Iterator[PlaygroundMessage]:
     """
     Formats the messages using the given template options.
     """
-    # Convert to list to check if empty and allow multiple iterations
     messages_list = list(messages)
     if not messages_list:
         return iter([])
     template_formatter = get_template_formatter(template_format=template_options.format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages_list)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_options.variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
-
-
-def _output_value_and_mime_type(
-    text: str, tool_calls: dict[str, ChatCompletionToolCall]
-) -> Iterator[tuple[str, Any]]:
-    if text and tool_calls:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield (
-            OUTPUT_VALUE,
-            safe_json_dumps({"content": text, "tool_calls": jsonify(list(tool_calls.values()))}),
-        )
-    elif tool_calls:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield OUTPUT_VALUE, safe_json_dumps(jsonify(list(tool_calls.values())))
-    elif text:
-        yield OUTPUT_MIME_TYPE, TEXT
-        yield OUTPUT_VALUE, text
-
-
-def _llm_output_messages(
-    text_content: str, tool_calls: dict[str, ChatCompletionToolCall]
-) -> Iterator[tuple[str, Any]]:
-    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
-    if text_content:
-        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", text_content
-    for tool_call_index, tool_call in enumerate(tool_calls.values()):
-        if tool_call_id := tool_call.id:
-            yield (
-                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
-                tool_call_id,
+    result: list[PlaygroundMessage] = []
+    for msg in messages_list:
+        formatted_content = template_formatter.format(msg["content"], **template_options.variables)
+        result.append(
+            create_playground_message(
+                msg["role"],
+                formatted_content,
+                msg.get("tool_call_id"),
+                msg.get("tool_calls"),
             )
-        yield (
-            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-            tool_call.function.name,
         )
-        if arguments := tool_call.function.arguments:
-            yield (
-                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                arguments,
-            )
-
-
-def _generate_trace_id() -> str:
-    return _hex(DefaultOTelIDGenerator().generate_trace_id())
-
-
-def _generate_span_id() -> str:
-    return _hex(DefaultOTelIDGenerator().generate_span_id())
-
-
-def _hex(number: int) -> str:
-    return hex(number)[2:]
-
-
-def _serialize_event(event: SpanException) -> dict[str, Any]:
-    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
+    return iter(result)
 
 
 _AnyT = TypeVar("_AnyT")
@@ -1018,32 +848,5 @@ def _get_batches(
         yield batch
 
 
-JSON = OpenInferenceMimeTypeValues.JSON.value
-TEXT = OpenInferenceMimeTypeValues.TEXT.value
-LLM = OpenInferenceSpanKindValues.LLM.value
-
-OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
-LLM_TOOLS = SpanAttributes.LLM_TOOLS
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-
-MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
-MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
-MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
-
-TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
-TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
-TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
-
-TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
-PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

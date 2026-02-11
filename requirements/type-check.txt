@@ -3,13 +3,14 @@ asyncpg
 grpcio
 litellm>=1.0.3
 aioboto3
-opentelemetry-exporter-otlp
-opentelemetry-instrumentation-fastapi
-opentelemetry-instrumentation-grpc
-opentelemetry-instrumentation-sqlalchemy
-opentelemetry-proto>=1.12.0
-opentelemetry-sdk
-opentelemetry-semantic-conventions
+# Note: OpenTelemetry packages must use versions released on the same date to ensure compatibility
+opentelemetry-exporter-otlp==1.39.1
+opentelemetry-instrumentation-fastapi==0.60b1
+opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-instrumentation-sqlalchemy==0.60b1
+opentelemetry-proto==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-semantic-conventions==0.60b1
 pandas-stubs==2.0.3.230814
 pandas>=1.0
 prometheus_client
@@ -33,4 +34,4 @@ types-tqdm
 types-ldap3
 arize
 types-PyYAML
-arize
+arize>=8.1.0
