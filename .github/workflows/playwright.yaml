@@ -71,6 +71,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             "**/requirements/**/*.txt"
