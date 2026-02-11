@@ -1,5 +1,12 @@
 # @arizeai/phoenix-evals
 
+## 0.9.0
+
+### Minor Changes
+
+- 0738cb9: Add tool response handling llm evaluator.
+- d6d1953: Add createToolSelectionEvaluator for evaluating LLM tool selection decisions. This evaluator determines whether the correct tool was selected for a given context, checking if the LLM chose the best available tool for the user query.
+
 ## 0.8.0
 
 ### Minor Changes
