@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c5946e2f85a716d7793fa3881ed7b61>>
+ * @generated SignedSource<<b95bb68ca4d151ec2f95878cdf4a6af4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLE
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
@@ -50,6 +51,7 @@ export type GenerativeModelBuiltinProviderInput = {
   customHeaders?: any | null;
   endpoint?: string | null;
   name: string;
+  openaiApiType?: OpenAIApiType | null;
   providerKey: GenerativeProviderKey;
   region?: string | null;
 };

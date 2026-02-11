@@ -72,6 +72,11 @@ export type PlaygroundError = {
   message?: string;
 };
 
+/**
+ * OpenAI/Azure API type for built-in provider: Chat Completions or Responses API.
+ */
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
+
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
@@ -81,6 +86,11 @@ export type ModelConfig = {
    * The region of the deployment (e.x. us-east-1 for AWS Bedrock)
    */
   region?: string | null;
+  /**
+   * OpenAI/Azure built-in only: which API to use (Chat Completions vs Responses API).
+   * Omitted for custom providers (API type is set on the provider in Settings).
+   */
+  openaiApiType?: OpenAIApiType | null;
   /**
    * Custom headers to be sent with requests to the LLM provider
    */

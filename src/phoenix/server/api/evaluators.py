@@ -55,6 +55,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelBuiltinProviderInput,
     GenerativeModelCustomProviderInput,
     GenerativeModelInput,
+    OpenAIApiType,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
     EvaluatorInputMappingInput,
@@ -736,6 +737,7 @@ async def _get_llm_evaluators(
                 builtin=GenerativeModelBuiltinProviderInput(
                     provider_key=provider_key,
                     name=prompt_version.model_name,
+                    openai_api_type=OpenAIApiType.CHAT_COMPLETIONS,
                 )
             )
 

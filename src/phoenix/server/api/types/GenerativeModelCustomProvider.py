@@ -14,6 +14,7 @@ from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
@@ -82,6 +83,7 @@ class OpenAIClientKwargs:
 class OpenAICustomProviderConfig:
     openai_authentication_method: OpenAIAuthenticationMethod
     openai_client_kwargs: OpenAIClientKwargs | None = UNSET
+    openai_api_type: OpenAIApiType
 
     @classmethod
     def from_orm(cls, config: mp.OpenAICustomProviderConfig) -> Self:
@@ -90,6 +92,7 @@ class OpenAICustomProviderConfig:
                 config.openai_authentication_method
             ),
             openai_client_kwargs=OpenAIClientKwargs.from_orm(config.openai_client_kwargs),
+            openai_api_type=OpenAIApiType(config.openai_api_type),
         )
 
 
@@ -142,6 +145,7 @@ class AzureOpenAIClientKwargs:
 class AzureOpenAICustomProviderConfig:
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethod
     azure_openai_client_kwargs: AzureOpenAIClientKwargs
+    openai_api_type: OpenAIApiType
 
     @classmethod
     def from_orm(cls, config: mp.AzureOpenAICustomProviderConfig) -> Self:
@@ -152,6 +156,7 @@ class AzureOpenAICustomProviderConfig:
             azure_openai_client_kwargs=AzureOpenAIClientKwargs.from_orm(
                 config.azure_openai_client_kwargs
             ),
+            openai_api_type=OpenAIApiType(config.openai_api_type),
         )
 
 

@@ -56,6 +56,7 @@ export function createDefaultFormData(
         ...baseDefaults,
         sdk: "OPENAI",
         provider: SDK_DEFAULT_PROVIDER.OPENAI,
+        openai_api_type: "RESPONSES",
         openai_api_key: "",
         openai_base_url: undefined,
         openai_organization: undefined,
@@ -68,6 +69,7 @@ export function createDefaultFormData(
         ...baseDefaults,
         sdk: "AZURE_OPENAI",
         provider: SDK_DEFAULT_PROVIDER.AZURE_OPENAI,
+        openai_api_type: "RESPONSES",
         azure_endpoint: "",
         azure_auth_method: "api_key",
         azure_api_key: undefined,
@@ -155,6 +157,9 @@ export function transformConfigToFormValues(
       return {
         ...baseValues,
         sdk: "OPENAI",
+        openai_api_type:
+          (config?.openaiApiType as OpenAIFormData["openai_api_type"]) ??
+          "RESPONSES",
         openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
         openai_base_url: config?.openaiClientKwargs?.baseUrl ?? undefined,
         openai_organization:
@@ -180,6 +185,9 @@ export function transformConfigToFormValues(
       return {
         ...baseValues,
         sdk: "AZURE_OPENAI",
+        openai_api_type:
+          (config?.openaiApiType as AzureOpenAIFormData["openai_api_type"]) ??
+          "RESPONSES",
         azure_endpoint: kwargs?.azureEndpoint ?? "",
         azure_auth_method: authMethodType,
         azure_api_key: authMethod?.apiKey ?? undefined,
@@ -267,6 +275,7 @@ export function buildClientConfig(
     case "OPENAI":
       return {
         openai: {
+          openaiApiType: formData.openai_api_type,
           openaiAuthenticationMethod: {
             apiKey: formData.openai_api_key,
           },
@@ -346,6 +355,7 @@ export function buildClientConfig(
 
       return {
         azureOpenai: {
+          openaiApiType: formData.openai_api_type,
           azureOpenaiAuthenticationMethod: authMethod,
           azureOpenaiClientKwargs: {
             azureEndpoint: formData.azure_endpoint,
@@ -523,6 +533,7 @@ function hasConfigChanged(
     case "OPENAI": {
       invariant(originalValues.sdk === "OPENAI", "SDK mismatch");
       return (
+        formData.openai_api_type !== originalValues.openai_api_type ||
         formData.openai_api_key !== originalValues.openai_api_key ||
         formData.openai_base_url !== originalValues.openai_base_url ||
         formData.openai_organization !== originalValues.openai_organization ||
@@ -534,6 +545,7 @@ function hasConfigChanged(
     case "AZURE_OPENAI": {
       invariant(originalValues.sdk === "AZURE_OPENAI", "SDK mismatch");
       return (
+        formData.openai_api_type !== originalValues.openai_api_type ||
         formData.azure_endpoint !== originalValues.azure_endpoint ||
         formData.azure_auth_method !== originalValues.azure_auth_method ||
         formData.azure_api_key !== originalValues.azure_api_key ||

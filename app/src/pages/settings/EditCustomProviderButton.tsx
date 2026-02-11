@@ -59,6 +59,7 @@ const ProviderQuery = graphql`
             parseError
           }
           ... on OpenAICustomProviderConfig {
+            openaiApiType
             openaiAuthenticationMethod {
               apiKey
             }
@@ -70,6 +71,7 @@ const ProviderQuery = graphql`
             }
           }
           ... on AzureOpenAICustomProviderConfig {
+            openaiApiType
             azureOpenaiAuthenticationMethod {
               apiKey
               azureAdTokenProvider {

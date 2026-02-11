@@ -1156,6 +1156,14 @@ const getBaseChatCompletionInput = ({
   // Determine if we're using a custom provider or built-in provider
   const customProvider = instance.model.customProvider;
 
+  const openaiApiTypeParams =
+    instance.model.provider === "OPENAI" ||
+    instance.model.provider === "AZURE_OPENAI"
+      ? {
+          openaiApiType: instance.model.openaiApiType ?? ("RESPONSES" as const),
+        }
+      : {};
+
   const model = customProvider
     ? {
         custom: {
@@ -1170,6 +1178,7 @@ const getBaseChatCompletionInput = ({
           name: instance.model.modelName || "",
           baseUrl: instance.model.baseUrl,
           customHeaders: instance.model.customHeaders,
+          ...openaiApiTypeParams,
           ...azureModelParams,
           ...awsModelParams,
         },

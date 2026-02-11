@@ -22,6 +22,7 @@ from phoenix.db.types.model_provider import (
     OpenAIClientKwargs,
     OpenAICustomProviderConfig,
 )
+from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
 
 
 @strawberry.input
@@ -52,14 +53,18 @@ class OpenAIClientKwargsInput:
 class OpenAICustomProviderConfigInput:
     openai_authentication_method: OpenAIAuthenticationMethodInput
     openai_client_kwargs: OpenAIClientKwargsInput | None = UNSET
+    openai_api_type: OpenAIApiType | None = OpenAIApiType.RESPONSES
+    """ Which OpenAI API to use: chat_completions or responses. Default responses. """
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
+        api_type = self.openai_api_type.value if self.openai_api_type else "responses"
         return GenerativeModelCustomerProviderConfig(
             root=OpenAICustomProviderConfig(
                 openai_authentication_method=self.openai_authentication_method.to_orm(),
                 openai_client_kwargs=self.openai_client_kwargs.to_orm()
                 if self.openai_client_kwargs
                 else None,
+                openai_api_type=api_type,
             )
         )
 
@@ -123,13 +128,16 @@ class AzureOpenAIClientKwargsInput:
 class AzureOpenAICustomProviderConfigInput:
     azure_openai_authentication_method: AzureOpenAIAuthenticationMethodInput
     azure_openai_client_kwargs: AzureOpenAIClientKwargsInput
+    openai_api_type: OpenAIApiType | None = OpenAIApiType.RESPONSES
+    """ Which OpenAI API to use: chat_completions or responses. Default responses. """
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
-        # Build authentication method
+        api_type = self.openai_api_type.value if self.openai_api_type else "responses"
         return GenerativeModelCustomerProviderConfig(
             root=AzureOpenAICustomProviderConfig(
                 azure_openai_authentication_method=self.azure_openai_authentication_method.to_orm(),
                 azure_openai_client_kwargs=self.azure_openai_client_kwargs.to_orm(),
+                openai_api_type=api_type,
             )
         )
 

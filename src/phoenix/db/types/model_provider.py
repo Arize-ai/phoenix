@@ -162,6 +162,10 @@ class OpenAICustomProviderConfig(BaseModel):
         default=None,
         description="OpenAI client kwargs",
     )
+    openai_api_type: Literal["chat_completions", "responses"] = Field(
+        default="responses",
+        description="Which OpenAI API to use: chat_completions or responses",
+    )
 
     def get_client_factory(
         self,
@@ -266,6 +270,10 @@ class AzureOpenAICustomProviderConfig(BaseModel):
     azure_openai_client_kwargs: AzureOpenAIClientKwargs = Field(
         ...,
         description="Azure OpenAI client kwargs",
+    )
+    openai_api_type: Literal["chat_completions", "responses"] = Field(
+        default="responses",
+        description="Which OpenAI API to use: chat_completions or responses",
     )
 
     def get_client_factory(

@@ -3,6 +3,7 @@ from typing import Mapping, Sequence
 
 import sqlalchemy as sa
 import strawberry
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
@@ -158,8 +159,10 @@ class GenerativeModelCustomProviderMutationMixin:
         info: Info[Context, None],
         input: CreateGenerativeModelCustomProviderMutationInput,
     ) -> CreateGenerativeModelCustomProviderMutationPayload:
-        # Get the config object before creating the provider
-        config_obj = input.client_config.to_orm()
+        try:
+            config_obj = input.client_config.to_orm()
+        except ValidationError as e:
+            raise BadRequest(f"Invalid client config: {e}") from e
         # Serialize and encrypt the config
         config_json = config_obj.model_dump_json().encode("utf-8")
         encrypted_config = info.context.encrypt(config_json)
@@ -222,7 +225,10 @@ class GenerativeModelCustomProviderMutationMixin:
                 provider.provider = input.provider
 
             if input.client_config:
-                new_config = input.client_config.to_orm()
+                try:
+                    new_config = input.client_config.to_orm()
+                except ValidationError as e:
+                    raise BadRequest(f"Invalid client config: {e}") from e
                 new_sdk = _get_sdk_from_config(new_config)
 
                 # Block incompatible SDK changes to prevent breaking existing prompts.
