@@ -14,9 +14,9 @@ test.describe("Playground", () => {
     // Navigate to the playground
     await page.goto("/playground");
     await page.waitForURL("**/playground");
-    await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible(
-      { timeout: 10000 }
-    );
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
 
     // Save a new prompt so we have a prompt ID in the URL
     await page.getByRole("button", { name: "Save Prompt" }).click();
@@ -29,7 +29,7 @@ test.describe("Playground", () => {
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // Wait for the save to complete — the URL should now contain promptId
-    await expect(page).toHaveURL(/promptId=/, { timeout: 10000 });
+    await expect(page).toHaveURL(/promptId=/);
 
     // Capture the current URL with prompt params
     const urlAfterSave = page.url();
@@ -41,12 +41,12 @@ test.describe("Playground", () => {
     await page.reload({ waitUntil: "networkidle" });
 
     // Verify the playground loaded with the prompt still present
-    await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible(
-      { timeout: 10000 }
-    );
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
 
     // Verify the URL still contains the prompt params after reload
-    await expect(page).toHaveURL(/promptId=/, { timeout: 10000 });
+    await expect(page).toHaveURL(/promptId=/);
     const urlAfterReload = page.url();
     const reloadedSearchParams = new URL(urlAfterReload).searchParams;
     expect(reloadedSearchParams.get("promptId")).toBe(promptId);

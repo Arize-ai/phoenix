@@ -32,7 +32,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // After saving, the URL should contain the promptId
-    await expect(page).toHaveURL(/promptId=/, { timeout: 10000 });
+    await expect(page).toHaveURL(/promptId=/);
     const params = searchParamsFromURL(page.url());
     expect(params.get("promptId")).toBeTruthy();
 
@@ -57,7 +57,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Create Prompt" }).click();
 
     // Capture the promptId from the URL after creation
-    await expect(page).toHaveURL(/promptId=/, { timeout: 10000 });
+    await expect(page).toHaveURL(/promptId=/);
     const createdPromptId = searchParamsFromURL(page.url()).get("promptId");
     expect(createdPromptId).toBeTruthy();
 
@@ -76,7 +76,7 @@ test.describe("Prompt Management", () => {
       .click();
 
     // Ensure the playground loads with the correct prompt params
-    await expect(page).toHaveURL(/promptId=/, { timeout: 15000 });
+    await expect(page).toHaveURL(/promptId=/);
     const playgroundParams = searchParamsFromURL(page.url());
     expect(playgroundParams.get("promptId")).toBe(createdPromptId);
     expect(playgroundParams.get("promptVersionId")).toBeTruthy();
@@ -90,7 +90,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "Update Prompt" }).click();
 
     // After updating, verify the URL still tracks the same prompt
-    await expect(page).toHaveURL(/promptId=/, { timeout: 10000 });
+    await expect(page).toHaveURL(/promptId=/);
     expect(searchParamsFromURL(page.url()).get("promptId")).toBe(
       createdPromptId
     );
