@@ -133,6 +133,7 @@ phoenix/
 - **Node version**: 22+
 - **GraphQL**: Uses Relay for data fetching
 - **Linting**: ESLint with TypeScript
+- **Function parameters**: Prefer a single destructured object parameter over multiple positional arguments for functions with two or more parameters (e.g., `function foo({ searchParams, prompts }: { searchParams: URLSearchParams; prompts: Prompt[] })` instead of `function foo(searchParams: URLSearchParams, prompts: Prompt[])`). This improves readability at call sites and makes future parameter additions non-breaking.
 
 ### REST API Conventions
 

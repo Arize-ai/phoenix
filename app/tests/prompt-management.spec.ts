@@ -3,6 +3,13 @@ import { randomUUID } from "crypto";
 
 import { ADMIN_USER, login } from "./utils/login";
 
+/**
+ * Helper to extract URLSearchParams from the current page URL.
+ */
+function searchParamsFromURL(url: string): URLSearchParams {
+  return new URL(url).searchParams;
+}
+
 test.describe("Prompt Management", () => {
   test.beforeEach(async ({ page }) => {
     await login(page, ADMIN_USER);
@@ -23,6 +30,12 @@ test.describe("Prompt Management", () => {
     await page.getByLabel("Prompt Description").click();
     await page.getByLabel("Prompt Description").fill("very kind chatbot");
     await page.getByRole("button", { name: "Create Prompt" }).click();
+
+    // After saving, the URL should contain the promptId
+    await expect(page).toHaveURL(/promptId=/);
+    const params = searchParamsFromURL(page.url());
+    expect(params.get("promptId")).toBeTruthy();
+
     await page.getByRole("button", { name: "View Prompt" }).click();
 
     // Check if the prompt
@@ -42,6 +55,12 @@ test.describe("Prompt Management", () => {
     await page.getByLabel("Prompt Description").click();
     await page.getByLabel("Prompt Description").fill("very kind chatbot");
     await page.getByRole("button", { name: "Create Prompt" }).click();
+
+    // Capture the promptId from the URL after creation
+    await expect(page).toHaveURL(/promptId=/);
+    const createdPromptId = searchParamsFromURL(page.url()).get("promptId");
+    expect(createdPromptId).toBeTruthy();
+
     await page.getByRole("button", { name: "View Prompt" }).click();
 
     // Go to the prompt listing
@@ -56,8 +75,11 @@ test.describe("Prompt Management", () => {
       .getByRole("link", { name: "Playground" })
       .click();
 
-    // Ensure that the prompt is loaded into the playground page
-    await page.waitForURL("**/playground");
+    // Ensure the playground loads with the correct prompt params
+    await expect(page).toHaveURL(/promptId=/);
+    const playgroundParams = searchParamsFromURL(page.url());
+    expect(playgroundParams.get("promptId")).toBe(createdPromptId);
+    expect(playgroundParams.get("promptVersionId")).toBeTruthy();
 
     // Edit the prompt
     // Editing is a bit hard to do due to codemirror. TODO: figure out a way to type
@@ -66,6 +88,12 @@ test.describe("Prompt Management", () => {
     // Save the prompt
     await page.getByLabel("Change Description").fill("very angry chatbot");
     await page.getByRole("button", { name: "Update Prompt" }).click();
+
+    // After updating, verify the URL still tracks the same prompt
+    await expect(page).toHaveURL(/promptId=/);
+    expect(searchParamsFromURL(page.url()).get("promptId")).toBe(
+      createdPromptId
+    );
 
     await page.getByRole("button", { name: "View Prompt" }).click();
 
