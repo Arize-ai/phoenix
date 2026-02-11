@@ -77,7 +77,7 @@ function PromptVersionDetailsPageContent({
                   <LinkButton
                     variant="primary"
                     leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-                    to="playground"
+                    to={`/playground?promptId=${encodeURIComponent(promptId)}&promptVersionId=${encodeURIComponent(promptVersion.id)}`}
                     size="S"
                     data-testid="open-prompt-version-in-playground-button"
                     aria-label="Open this Prompt version in Playground"
