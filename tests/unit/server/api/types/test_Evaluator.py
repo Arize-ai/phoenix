@@ -761,9 +761,9 @@ class TestBuiltInEvaluatorMultiOutput:
             for evaluator in evaluators:
                 assert evaluator.output_configs is not None
                 assert isinstance(evaluator.output_configs, list)
-                assert (
-                    len(evaluator.output_configs) >= 1
-                ), f"Evaluator {evaluator.key} should have at least one output config"
+                assert len(evaluator.output_configs) >= 1, (
+                    f"Evaluator {evaluator.key} should have at least one output config"
+                )
                 # Verify each config is a valid annotation config type
                 for config in evaluator.output_configs:
                     assert hasattr(config, "type")
