@@ -380,6 +380,7 @@ pg = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aioboto3" },
     { name = "aiobotocore" },
     { name = "aiosqlite" },
     { name = "anthropic" },
@@ -545,6 +546,7 @@ provides-extras = ["aws", "container", "embeddings", "evals", "experimental", "p
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aioboto3" },
     { name = "aiobotocore", specifier = ">=3.1.1" },
     { name = "aiosqlite", specifier = "<0.22.0" },
     { name = "anthropic", specifier = ">=0.79.0" },

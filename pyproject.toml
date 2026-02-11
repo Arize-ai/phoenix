@@ -76,6 +76,7 @@ phoenix = "phoenix.server.main:main"
 
 [dependency-groups]
 dev = [
+  "aioboto3",
   "aiobotocore>=3.1.1",
   "aiosqlite<0.22.0",  # new version is causing tests to hang
   "anthropic>=0.79.0",
