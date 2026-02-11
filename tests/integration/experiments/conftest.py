@@ -194,6 +194,7 @@ async def _custom_providers(
                         "openai": {
                             "openaiAuthenticationMethod": {"apiKey": "test-api-key"},
                             "openaiClientKwargs": {"baseUrl": f"{_mock_llm_server.url}/v1"},
+                            "openaiApiType": "CHAT_COMPLETIONS",
                         }
                     },
                 }
