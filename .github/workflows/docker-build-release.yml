@@ -102,17 +102,14 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
       - name: Update Kustomize image version
-        run: |
-          sed -i "s/arizephoenix\/phoenix:version-.*$/arizephoenix\/phoenix:version-${{ needs.push_to_registry.outputs.version }}/" kustomize/base/phoenix.yaml
-          cat kustomize/base/phoenix.yaml
-          sed -i "s/tag:\ version-.*$/tag:\ version-${{ needs.push_to_registry.outputs.version }}-nonroot/" helm/values.yaml
-          cat helm/values.yaml
-          export helmPatchVersion=$(grep "version: [0-9]*\.[0-9]*\.[0-9]*" helm/Chart.yaml | sed -n 's/\(version:\ [0-9]*\.[0-9]*\.\)\([0-9]*\)/\2/p')
-          export incrementedHelmPatchVersion=$((helmPatchVersion + 1))
-          sed -i "s/\(version:\ [0-9]*\.[0-9]*\.\)[0-9]*/\1$incrementedHelmPatchVersion/" helm/Chart.yaml
-          sed -i 's/appVersion: "[^"]*"/appVersion: "${{ needs.push_to_registry.outputs.version }}"/' helm/Chart.yaml
-          cat helm/Chart.yaml
+        run: python scripts/update_kustomize.py "${{ needs.push_to_registry.outputs.version }}"
+      - name: Update Helm chart version
+        run: python scripts/update_helm.py "${{ needs.push_to_registry.outputs.version }}"
       - name: Setup helm-docs
         uses: gabe565/setup-helm-docs-action@v1
       - name: Run helm-docs

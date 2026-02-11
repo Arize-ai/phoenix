@@ -1,5 +1,12 @@
 # @arizeai/phoenix-client
 
+## 5.8.1
+
+### Patch Changes
+
+- Updated dependencies [a8896db]
+  - @arizeai/phoenix-otel@0.4.0
+
 ## 5.8.0
 
 ### Minor Changes
