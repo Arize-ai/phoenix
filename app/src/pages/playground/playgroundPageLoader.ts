@@ -48,7 +48,7 @@ function promptParamKey(
  * Returns `undefined` when there is no loader data so that `Playground`
  * falls through to its default behavior.
  */
-export function buildPlaygroundInstancesFromLoaderData(
+function buildPlaygroundInstancesFromLoaderData(
   loaderData: PlaygroundPageLoaderData
 ): PlaygroundInstance[] | undefined {
   if (!loaderData || loaderData.instances.length === 0) {
