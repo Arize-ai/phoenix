@@ -23,7 +23,11 @@ import { Mutable } from "@phoenix/typeUtils";
 import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
-import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
+import {
+  areInvocationParamsEqual,
+  isClaude4Model,
+  toCamelCase,
+} from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   ModelSupportedParamsFetcherQuery$data["modelInvocationParameters"]
@@ -43,12 +47,14 @@ const InvocationParameterFormField = ({
   onChange,
   errors,
   control,
+  isDisabled,
 }: {
   field: InvocationParameter;
   value: unknown;
   onChange: (value: unknown) => void;
   errors: FieldErrors<Record<string, unknown>>;
   control: Control<Record<string, unknown>>;
+  isDisabled?: boolean;
 }) => {
   const invocationName = field.invocationName;
   if (!invocationName) {
@@ -106,6 +112,7 @@ const InvocationParameterFormField = ({
           step={0.1}
           minValue={field.minValue}
           maxValue={field.maxValue}
+          isDisabled={isDisabled}
           onChange={(value) => {
             // NB: the type inference here is wrong. In the case
             // that the defaultValue is undefined, an array is returned here
@@ -307,6 +314,10 @@ export const InvocationParametersFormFields = ({
     instance.model.supportedInvocationParameters;
   const instanceInvocationParameters = instance.model.invocationParameters;
 
+  // Claude 4.x: only one of temperature or top_p may be set; setting one clears the other
+  const isClaude4 =
+    model.provider === "ANTHROPIC" && isClaude4Model(model.modelName);
+
   // Handle changes to the form state, either deleting or upserting an invocation parameter
   const onChange = useCallback(
     (field: InvocationParameter, value: unknown) => {
@@ -319,13 +330,31 @@ export const InvocationParametersFormFields = ({
           invocationParameterInputInvocationName: field.invocationName,
         });
       } else {
+        if (isClaude4) {
+          if (field.invocationName === "temperature") {
+            deleteInvocationParameterInput({
+              instanceId,
+              invocationParameterInputInvocationName: "top_p",
+            });
+          } else if (field.invocationName === "top_p") {
+            deleteInvocationParameterInput({
+              instanceId,
+              invocationParameterInputInvocationName: "temperature",
+            });
+          }
+        }
         upsertInvocationParameterInput({
           instanceId,
           invocationParameterInput: makeInvocationParameterInput(field, value),
         });
       }
     },
-    [instanceId, upsertInvocationParameterInput, deleteInvocationParameterInput]
+    [
+      instanceId,
+      isClaude4,
+      upsertInvocationParameterInput,
+      deleteInvocationParameterInput,
+    ]
   );
 
   // Reduce our invocation parameters array into a form state object
@@ -394,6 +423,12 @@ export const InvocationParametersFormFields = ({
         return null;
       }
 
+      // Claude 4.x: disable the other of temperature/top_p when one is set (visual feedback for mutual exclusion)
+      const isDisabled =
+        isClaude4 &&
+        ((field.invocationName === "temperature" && values["top_p"] != null) ||
+          (field.invocationName === "top_p" && values["temperature"] != null));
+
       // Remount the field when the provider changes so that we don't hang on to stale values
       const key = `${model.provider ?? "model"}-${field.invocationName}`;
 
@@ -405,6 +440,7 @@ export const InvocationParametersFormFields = ({
           onChange={(value) => onChange(field, value)}
           control={form.control}
           errors={form.formState.errors}
+          isDisabled={isDisabled}
         />
       );
     }
