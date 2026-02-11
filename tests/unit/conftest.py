@@ -297,6 +297,11 @@ async def app(
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
             graphql_schema=_graphql_schema,
+            skip_daemons={
+                "SpanCostCalculator",
+                "GenerativeModelStore",
+                "DbDiskUsageMonitor",
+            },
         )
 
 
