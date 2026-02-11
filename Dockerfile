@@ -37,7 +37,7 @@ RUN pnpm install
 RUN pnpm run build
 
 # The second stage builds the backend.
-FROM ghcr.io/astral-sh/uv:0.9.18-python3.11-bookworm-slim AS backend-builder
+FROM ghcr.io/astral-sh/uv:0.9.30-python3.11-bookworm-slim AS backend-builder
 WORKDIR /phoenix
 COPY ./src /phoenix/src
 COPY ./pyproject.toml /phoenix/
