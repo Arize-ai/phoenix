@@ -1,7 +1,7 @@
 import asyncio
-from asyncio import Event, sleep
+from asyncio import Event
 from datetime import datetime, timezone
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator
 from unittest.mock import patch
 
 import pytest
@@ -11,21 +11,49 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 
+class _FetchCycleController:
+    """Deterministic control over GenerativeModelStore daemon cycles.
+
+    Replaces the daemon's sleep with an event gate so that the test can
+    trigger exactly one fetch cycle and wait for it to complete before
+    making assertions.
+    """
+
+    def __init__(self) -> None:
+        self._trigger = Event()
+        self._cycle_done = Event()
+
+    async def _patched_sleep(self, seconds: int) -> None:
+        """Replacement for the daemon's ``sleep`` call.
+
+        Signals that the previous cycle finished (so the test can
+        proceed), then waits for the test to trigger the next cycle.
+        """
+        self._cycle_done.set()
+        await self._trigger.wait()
+        self._trigger.clear()
+
+    async def trigger_and_wait(self, timeout: float = 5.0) -> None:
+        """Trigger one fetch cycle and wait until it completes."""
+        self._cycle_done.clear()
+        self._trigger.set()
+        await asyncio.wait_for(self._cycle_done.wait(), timeout=timeout)
+
+
 @pytest.fixture
-async def fetch_trigger() -> AsyncIterator[Event]:
+async def fetch_cycle() -> AsyncIterator[_FetchCycleController]:
     """Control when the GenerativeModelStore runs by patching its sleep method.
 
-    Returns an event that can be set to trigger the store's next fetch cycle.
-    The store will wait for this event instead of sleeping for the refresh interval.
+    Yields a controller whose ``trigger_and_wait`` method fires exactly one
+    daemon fetch cycle and blocks until it finishes.
     """
-    event = Event()
+    ctrl = _FetchCycleController()
 
-    async def wait_for_event(seconds: int) -> None:
-        await event.wait()
-        event.clear()
-
-    with patch("phoenix.server.daemons.generative_model_store.sleep", wait_for_event):
-        yield event
+    with patch(
+        "phoenix.server.daemons.generative_model_store.sleep",
+        ctrl._patched_sleep,
+    ):
+        yield ctrl
 
 
 class TestGenerativeModelStore:
@@ -55,7 +83,7 @@ class TestGenerativeModelStore:
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
-        fetch_trigger: Event,
+        fetch_cycle: _FetchCycleController,
     ) -> None:
         """
         Test that GenerativeModelStore correctly manages model lifecycle through daemon cycles.
@@ -70,7 +98,7 @@ class TestGenerativeModelStore:
 
         Test flow uses controlled daemon execution:
         - Start the daemon running in background via store.start()
-        - wait_for_condition polls a predicate and triggers fetch cycles via fetch_trigger
+        - Trigger fetch cycles on demand via fetch_cycle fixture
         - Verify observable behavior (model lookups work correctly) after each cycle
         - Verify internal state (_last_fetch_time advances) to ensure incremental logic executes
 
@@ -138,23 +166,8 @@ class TestGenerativeModelStore:
         store = GenerativeModelStore(db=db)
         await store.start()
 
-        async def wait_for_condition(
-            predicate: Callable[[], bool],
-            timeout_seconds: float = 5.0,
-            interval_seconds: float = 0.05,
-        ) -> None:
-            deadline = asyncio.get_running_loop().time() + timeout_seconds
-            while True:
-                if predicate():
-                    return
-                if asyncio.get_running_loop().time() >= deadline:
-                    await store.stop()
-                    pytest.fail("Timed out waiting for GenerativeModelStore condition")
-                fetch_trigger.set()
-                await sleep(interval_seconds)
-
-        # Wait for initial fetch (polling loop triggers retries if auto-fetch fails)
-        await wait_for_condition(lambda: store._last_fetch_time is not None)
+        # Trigger first fetch cycle and wait for it to complete
+        await fetch_cycle.trigger_and_wait()
 
         # Verify initial fetch loaded both models
         lookup_time = datetime.now(timezone.utc)
@@ -207,17 +220,16 @@ class TestGenerativeModelStore:
         )
         assert not update_result.errors
 
-        # Wait for incremental fetch to pick up the update
-        await wait_for_condition(
-            lambda: getattr(
-                store.find_model(
-                    start_time=lookup_time,
-                    attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
-                ),
-                "name",
-                None,
+        # Trigger second fetch cycle (should use incremental fetching)
+        await fetch_cycle.trigger_and_wait()
+
+        # Verify incremental fetch picked up the update
+        assert (
+            store.find_model(
+                start_time=lookup_time,
+                attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
             )
-            == "gpt-3.5-updated"
+            is not None
         )
 
         # Verify timestamp advanced
@@ -235,9 +247,12 @@ class TestGenerativeModelStore:
         )
         assert not delete_result.errors
 
-        # Wait for fetch to pick up the delete
-        await wait_for_condition(
-            lambda: store.find_model(
+        # Trigger third fetch cycle
+        await fetch_cycle.trigger_and_wait()
+
+        # Verify deleted model was removed from lookup
+        assert (
+            store.find_model(
                 start_time=lookup_time,
                 attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
             )
@@ -253,7 +268,7 @@ class TestGenerativeModelStore:
 
         # Wait for empty fetch to advance timestamp
         third_fetch_time = store._last_fetch_time
-        await wait_for_condition(lambda: store._last_fetch_time != third_fetch_time)
+        await fetch_cycle.trigger_and_wait()
 
         # Verify timestamp advanced even with no changes
         assert store._last_fetch_time is not None
