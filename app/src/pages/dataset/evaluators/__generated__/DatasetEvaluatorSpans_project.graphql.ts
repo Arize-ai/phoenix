@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<293d129561c0e2ec4ad74ce36b27258e>>
+ * @generated SignedSource<<cd8b4e7ef0129b46d8a9dfe5c1805c23>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,21 +10,21 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetEvaluatorTraces_project$data = {
+export type DatasetEvaluatorSpans_project$data = {
   readonly id: string;
-  readonly " $fragmentSpreads": FragmentRefs<"TracesTable_spans">;
-  readonly " $fragmentType": "DatasetEvaluatorTraces_project";
+  readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans">;
+  readonly " $fragmentType": "DatasetEvaluatorSpans_project";
 };
-export type DatasetEvaluatorTraces_project$key = {
-  readonly " $data"?: DatasetEvaluatorTraces_project$data;
-  readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorTraces_project">;
+export type DatasetEvaluatorSpans_project$key = {
+  readonly " $data"?: DatasetEvaluatorSpans_project$data;
+  readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorSpans_project">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "DatasetEvaluatorTraces_project",
+  "name": "DatasetEvaluatorSpans_project",
   "selections": [
     {
       "alias": null,
@@ -36,13 +36,13 @@ const node: ReaderFragment = {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "TracesTable_spans"
+      "name": "SpansTable_spans"
     }
   ],
   "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "a8bd59ba91916f6e5cb2383bfe9890ca";
+(node as any).hash = "e78d81d15386e407dbde57bf1ae1a11e";
 
 export default node;

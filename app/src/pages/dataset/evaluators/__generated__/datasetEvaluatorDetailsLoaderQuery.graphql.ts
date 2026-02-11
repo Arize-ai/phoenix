@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd916429ecab60d387f48fb484d38655>>
+ * @generated SignedSource<<1814ec32833adaf21f6d04cbb3951e72>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type TimeRange = {
 export type datasetEvaluatorDetailsLoaderQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;
+  orphanSpanAsRootSpan: boolean;
   timeRange?: TimeRange | null;
 };
 export type datasetEvaluatorDetailsLoaderQuery$data = {
@@ -33,7 +34,7 @@ export type datasetEvaluatorDetailsLoaderQuery$data = {
       readonly name: string;
       readonly project: {
         readonly id: string;
-        readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorTraces_project">;
+        readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorSpans_project">;
       };
       readonly " $fragmentSpreads": FragmentRefs<"BuiltInDatasetEvaluatorDetails_datasetEvaluator" | "LLMDatasetEvaluatorDetails_datasetEvaluator">;
     };
@@ -59,79 +60,84 @@ v1 = {
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "orphanSpanAsRootSpan"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v3 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = [
+v6 = [
   {
     "kind": "Variable",
     "name": "datasetEvaluatorId",
     "variableName": "datasetEvaluatorId"
   }
 ],
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "CategoricalAnnotationValue",
@@ -139,20 +145,20 @@ v13 = {
   "name": "values",
   "plural": true,
   "selections": [
-    (v11/*: any*/),
-    (v12/*: any*/)
+    (v12/*: any*/),
+    (v13/*: any*/)
   ],
   "storageKey": null
 },
-v14 = {
+v15 = {
   "kind": "InlineFragment",
   "selections": [
-    (v4/*: any*/)
+    (v5/*: any*/)
   ],
   "type": "Node",
   "abstractKey": "__isNode"
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -160,13 +166,13 @@ v15 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
-    (v8/*: any*/),
+    (v9/*: any*/),
     {
       "kind": "InlineFragment",
       "selections": [
-        (v6/*: any*/),
-        (v10/*: any*/),
-        (v13/*: any*/)
+        (v7/*: any*/),
+        (v11/*: any*/),
+        (v14/*: any*/)
       ],
       "type": "CategoricalAnnotationConfig",
       "abstractKey": null
@@ -174,8 +180,8 @@ v15 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        (v6/*: any*/),
-        (v10/*: any*/),
+        (v7/*: any*/),
+        (v11/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -194,15 +200,15 @@ v15 = {
       "type": "ContinuousAnnotationConfig",
       "abstractKey": null
     },
-    (v14/*: any*/)
+    (v15/*: any*/)
   ],
   "storageKey": null
 },
-v16 = [
-  (v4/*: any*/),
-  (v6/*: any*/)
-],
 v17 = [
+  (v5/*: any*/),
+  (v7/*: any*/)
+],
+v18 = [
   {
     "alias": null,
     "args": null,
@@ -211,18 +217,23 @@ v17 = [
     "storageKey": null
   }
 ],
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v19 = [
+v20 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 30
+  },
+  {
+    "kind": "Variable",
+    "name": "orphanSpanAsRootSpan",
+    "variableName": "orphanSpanAsRootSpan"
   },
   {
     "kind": "Literal",
@@ -243,42 +254,7 @@ v19 = [
     "variableName": "timeRange"
   }
 ],
-v20 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "spanKind",
-  "storageKey": null
-},
-v21 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "startTime",
-  "storageKey": null
-},
-v22 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "endTime",
-  "storageKey": null
-},
-v23 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "latencyMs",
-  "storageKey": null
-},
-v24 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "parentId",
-  "storageKey": null
-},
-v25 = [
+v21 = [
   {
     "alias": "value",
     "args": null,
@@ -286,251 +262,14 @@ v25 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-],
-v26 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "input",
-  "plural": false,
-  "selections": (v25/*: any*/),
-  "storageKey": null
-},
-v27 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "output",
-  "plural": false,
-  "selections": (v25/*: any*/),
-  "storageKey": null
-},
-v28 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "spanId",
-  "storageKey": null
-},
-v29 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "traceId",
-  "storageKey": null
-},
-v30 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanAnnotation",
-  "kind": "LinkedField",
-  "name": "spanAnnotations",
-  "plural": true,
-  "selections": [
-    (v4/*: any*/),
-    (v6/*: any*/),
-    (v11/*: any*/),
-    (v12/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "annotatorKind",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "createdAt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "User",
-      "kind": "LinkedField",
-      "name": "user",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "username",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "profilePictureUrl",
-          "storageKey": null
-        },
-        (v4/*: any*/)
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v31 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "AnnotationSummary",
-  "kind": "LinkedField",
-  "name": "spanAnnotationSummaries",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "LabelFraction",
-      "kind": "LinkedField",
-      "name": "labelFractions",
-      "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "fraction",
-          "storageKey": null
-        },
-        (v11/*: any*/)
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "meanScore",
-      "storageKey": null
-    },
-    (v6/*: any*/)
-  ],
-  "storageKey": null
-},
-v32 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Project",
-  "kind": "LinkedField",
-  "name": "project",
-  "plural": false,
-  "selections": [
-    (v4/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "AnnotationConfigConnection",
-      "kind": "LinkedField",
-      "name": "annotationConfigs",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "AnnotationConfigEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                (v8/*: any*/),
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "annotationType",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "AnnotationConfigBase",
-                  "abstractKey": "__isAnnotationConfigBase"
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v4/*: any*/),
-                    (v6/*: any*/),
-                    (v10/*: any*/),
-                    (v13/*: any*/)
-                  ],
-                  "type": "CategoricalAnnotationConfig",
-                  "abstractKey": null
-                },
-                (v14/*: any*/)
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v33 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DocumentRetrievalMetrics",
-  "kind": "LinkedField",
-  "name": "documentRetrievalMetrics",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "evaluationName",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "ndcg",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "precision",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "hit",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -538,27 +277,27 @@ return {
     "selections": [
       {
         "alias": "dataset",
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v5/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "DatasetEvaluator",
                 "kind": "LinkedField",
                 "name": "datasetEvaluator",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/),
-                  (v6/*: any*/),
+                  (v5/*: any*/),
                   (v7/*: any*/),
+                  (v8/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -567,9 +306,9 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v8/*: any*/),
                       (v9/*: any*/),
-                      (v7/*: any*/)
+                      (v10/*: any*/),
+                      (v8/*: any*/)
                     ],
                     "storageKey": null
                   },
@@ -581,11 +320,11 @@ return {
                     "name": "project",
                     "plural": false,
                     "selections": [
-                      (v4/*: any*/),
+                      (v5/*: any*/),
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "DatasetEvaluatorTraces_project"
+                        "name": "DatasetEvaluatorSpans_project"
                       }
                     ],
                     "storageKey": null
@@ -619,6 +358,7 @@ return {
     "argumentDefinitions": [
       (v1/*: any*/),
       (v0/*: any*/),
+      (v3/*: any*/),
       (v2/*: any*/)
     ],
     "kind": "Operation",
@@ -626,28 +366,28 @@ return {
     "selections": [
       {
         "alias": "dataset",
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v8/*: any*/),
-          (v4/*: any*/),
+          (v9/*: any*/),
+          (v5/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "DatasetEvaluator",
                 "kind": "LinkedField",
                 "name": "datasetEvaluator",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/),
-                  (v6/*: any*/),
+                  (v5/*: any*/),
                   (v7/*: any*/),
+                  (v8/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -656,15 +396,15 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v8/*: any*/),
                       (v9/*: any*/),
+                      (v10/*: any*/),
+                      (v8/*: any*/),
+                      (v5/*: any*/),
                       (v7/*: any*/),
-                      (v4/*: any*/),
-                      (v6/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v15/*: any*/)
+                          (v16/*: any*/)
                         ],
                         "type": "BuiltInEvaluator",
                         "abstractKey": null
@@ -679,7 +419,7 @@ return {
                             "kind": "LinkedField",
                             "name": "prompt",
                             "plural": false,
-                            "selections": (v16/*: any*/),
+                            "selections": (v17/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -697,10 +437,10 @@ return {
                                 "kind": "LinkedField",
                                 "name": "tools",
                                 "plural": true,
-                                "selections": (v17/*: any*/),
+                                "selections": (v18/*: any*/),
                                 "storageKey": null
                               },
-                              (v4/*: any*/),
+                              (v5/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -729,7 +469,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "customProvider",
                                 "plural": false,
-                                "selections": (v16/*: any*/),
+                                "selections": (v17/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -739,7 +479,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "responseFormat",
                                 "plural": false,
-                                "selections": (v17/*: any*/),
+                                "selections": (v18/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -750,7 +490,7 @@ return {
                                 "name": "template",
                                 "plural": false,
                                 "selections": [
-                                  (v8/*: any*/),
+                                  (v9/*: any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
@@ -777,7 +517,7 @@ return {
                                             "name": "content",
                                             "plural": true,
                                             "selections": [
-                                              (v8/*: any*/),
+                                              (v9/*: any*/),
                                               {
                                                 "kind": "InlineFragment",
                                                 "selections": [
@@ -814,7 +554,7 @@ return {
                                                     "name": "toolCall",
                                                     "plural": false,
                                                     "selections": [
-                                                      (v18/*: any*/),
+                                                      (v19/*: any*/),
                                                       {
                                                         "alias": null,
                                                         "args": null,
@@ -823,7 +563,7 @@ return {
                                                         "name": "toolCall",
                                                         "plural": false,
                                                         "selections": [
-                                                          (v6/*: any*/),
+                                                          (v7/*: any*/),
                                                           {
                                                             "alias": null,
                                                             "args": null,
@@ -852,7 +592,7 @@ return {
                                                     "name": "toolResult",
                                                     "plural": false,
                                                     "selections": [
-                                                      (v18/*: any*/),
+                                                      (v19/*: any*/),
                                                       {
                                                         "alias": null,
                                                         "args": null,
@@ -926,8 +666,8 @@ return {
                             "name": "promptVersionTag",
                             "plural": false,
                             "selections": [
-                              (v6/*: any*/),
-                              (v4/*: any*/)
+                              (v7/*: any*/),
+                              (v5/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -946,8 +686,8 @@ return {
                     "name": "project",
                     "plural": false,
                     "selections": [
-                      (v4/*: any*/),
-                      (v6/*: any*/),
+                      (v5/*: any*/),
+                      (v7/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -956,8 +696,8 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": "rootSpans",
-                        "args": (v19/*: any*/),
+                        "alias": null,
+                        "args": (v20/*: any*/),
                         "concreteType": "SpanConnection",
                         "kind": "LinkedField",
                         "name": "spans",
@@ -972,16 +712,22 @@ return {
                             "plural": true,
                             "selections": [
                               {
-                                "alias": "rootSpan",
+                                "alias": "span",
                                 "args": null,
                                 "concreteType": "Span",
                                 "kind": "LinkedField",
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v4/*: any*/),
-                                  (v20/*: any*/),
-                                  (v6/*: any*/),
+                                  (v5/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "spanKind",
+                                    "storageKey": null
+                                  },
+                                  (v7/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -996,9 +742,20 @@ return {
                                     "name": "statusCode",
                                     "storageKey": null
                                   },
-                                  (v21/*: any*/),
-                                  (v22/*: any*/),
-                                  (v23/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "startTime",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "latencyMs",
+                                    "storageKey": null
+                                  },
                                   {
                                     "alias": null,
                                     "args": null,
@@ -1006,10 +763,13 @@ return {
                                     "name": "cumulativeTokenCountTotal",
                                     "storageKey": null
                                   },
-                                  (v24/*: any*/),
-                                  (v26/*: any*/),
-                                  (v27/*: any*/),
-                                  (v28/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "spanId",
+                                    "storageKey": null
+                                  },
                                   {
                                     "alias": null,
                                     "args": null,
@@ -1018,13 +778,12 @@ return {
                                     "name": "trace",
                                     "plural": false,
                                     "selections": [
-                                      (v4/*: any*/),
-                                      (v29/*: any*/),
+                                      (v5/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
                                         "kind": "ScalarField",
-                                        "name": "numSpans",
+                                        "name": "traceId",
                                         "storageKey": null
                                       },
                                       {
@@ -1059,81 +818,221 @@ return {
                                     ],
                                     "storageKey": null
                                   },
-                                  (v30/*: any*/),
-                                  (v31/*: any*/),
-                                  (v32/*: any*/),
-                                  (v33/*: any*/),
                                   {
                                     "alias": null,
-                                    "args": [
+                                    "args": null,
+                                    "concreteType": "SpanIOValue",
+                                    "kind": "LinkedField",
+                                    "name": "input",
+                                    "plural": false,
+                                    "selections": (v21/*: any*/),
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SpanIOValue",
+                                    "kind": "LinkedField",
+                                    "name": "output",
+                                    "plural": false,
+                                    "selections": (v21/*: any*/),
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SpanAnnotation",
+                                    "kind": "LinkedField",
+                                    "name": "spanAnnotations",
+                                    "plural": true,
+                                    "selections": [
+                                      (v5/*: any*/),
+                                      (v7/*: any*/),
+                                      (v12/*: any*/),
+                                      (v13/*: any*/),
                                       {
-                                        "kind": "Literal",
-                                        "name": "first",
-                                        "value": 50
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "annotatorKind",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "createdAt",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "User",
+                                        "kind": "LinkedField",
+                                        "name": "user",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "username",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "profilePictureUrl",
+                                            "storageKey": null
+                                          },
+                                          (v5/*: any*/)
+                                        ],
+                                        "storageKey": null
                                       }
                                     ],
-                                    "concreteType": "SpanConnection",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "AnnotationSummary",
                                     "kind": "LinkedField",
-                                    "name": "descendants",
-                                    "plural": false,
+                                    "name": "spanAnnotationSummaries",
+                                    "plural": true,
                                     "selections": [
                                       {
                                         "alias": null,
                                         "args": null,
-                                        "concreteType": "SpanEdge",
+                                        "concreteType": "LabelFraction",
                                         "kind": "LinkedField",
-                                        "name": "edges",
+                                        "name": "labelFractions",
                                         "plural": true,
                                         "selections": [
                                           {
                                             "alias": null,
                                             "args": null,
-                                            "concreteType": "Span",
+                                            "kind": "ScalarField",
+                                            "name": "fraction",
+                                            "storageKey": null
+                                          },
+                                          (v12/*: any*/)
+                                        ],
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "meanScore",
+                                        "storageKey": null
+                                      },
+                                      (v7/*: any*/)
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "DocumentRetrievalMetrics",
+                                    "kind": "LinkedField",
+                                    "name": "documentRetrievalMetrics",
+                                    "plural": true,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "evaluationName",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "ndcg",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "precision",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "hit",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "Project",
+                                    "kind": "LinkedField",
+                                    "name": "project",
+                                    "plural": false,
+                                    "selections": [
+                                      (v5/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "AnnotationConfigConnection",
+                                        "kind": "LinkedField",
+                                        "name": "annotationConfigs",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "AnnotationConfigEdge",
                                             "kind": "LinkedField",
-                                            "name": "node",
-                                            "plural": false,
+                                            "name": "edges",
+                                            "plural": true,
                                             "selections": [
-                                              (v4/*: any*/),
-                                              (v20/*: any*/),
-                                              (v6/*: any*/),
-                                              {
-                                                "alias": "statusCode",
-                                                "args": null,
-                                                "kind": "ScalarField",
-                                                "name": "propagatedStatusCode",
-                                                "storageKey": null
-                                              },
-                                              (v21/*: any*/),
-                                              (v22/*: any*/),
-                                              (v23/*: any*/),
-                                              (v24/*: any*/),
-                                              {
-                                                "alias": "cumulativeTokenCountTotal",
-                                                "args": null,
-                                                "kind": "ScalarField",
-                                                "name": "tokenCountTotal",
-                                                "storageKey": null
-                                              },
-                                              (v26/*: any*/),
-                                              (v27/*: any*/),
-                                              (v28/*: any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
-                                                "concreteType": "Trace",
+                                                "concreteType": null,
                                                 "kind": "LinkedField",
-                                                "name": "trace",
+                                                "name": "node",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v4/*: any*/),
-                                                  (v29/*: any*/)
+                                                  (v9/*: any*/),
+                                                  {
+                                                    "kind": "InlineFragment",
+                                                    "selections": [
+                                                      {
+                                                        "alias": null,
+                                                        "args": null,
+                                                        "kind": "ScalarField",
+                                                        "name": "annotationType",
+                                                        "storageKey": null
+                                                      }
+                                                    ],
+                                                    "type": "AnnotationConfigBase",
+                                                    "abstractKey": "__isAnnotationConfigBase"
+                                                  },
+                                                  {
+                                                    "kind": "InlineFragment",
+                                                    "selections": [
+                                                      (v5/*: any*/),
+                                                      (v7/*: any*/),
+                                                      (v11/*: any*/),
+                                                      (v14/*: any*/)
+                                                    ],
+                                                    "type": "CategoricalAnnotationConfig",
+                                                    "abstractKey": null
+                                                  },
+                                                  (v15/*: any*/)
                                                 ],
                                                 "storageKey": null
-                                              },
-                                              (v30/*: any*/),
-                                              (v32/*: any*/),
-                                              (v31/*: any*/),
-                                              (v33/*: any*/)
+                                              }
                                             ],
                                             "storageKey": null
                                           }
@@ -1141,7 +1040,7 @@ return {
                                         "storageKey": null
                                       }
                                     ],
-                                    "storageKey": "descendants(first:50)"
+                                    "storageKey": null
                                   }
                                 ],
                                 "storageKey": null
@@ -1161,8 +1060,8 @@ return {
                                 "name": "node",
                                 "plural": false,
                                 "selections": [
-                                  (v8/*: any*/),
-                                  (v4/*: any*/)
+                                  (v9/*: any*/),
+                                  (v5/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -1198,16 +1097,17 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": "rootSpans",
-                        "args": (v19/*: any*/),
+                        "alias": null,
+                        "args": (v20/*: any*/),
                         "filters": [
                           "sort",
                           "rootSpansOnly",
                           "filterCondition",
+                          "orphanSpanAsRootSpan",
                           "timeRange"
                         ],
                         "handle": "connection",
-                        "key": "TracesTable_rootSpans",
+                        "key": "SpansTable_spans",
                         "kind": "LinkedHandle",
                         "name": "spans"
                       }
@@ -1239,7 +1139,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v15/*: any*/)
+                  (v16/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -1253,16 +1153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6ab518181b4814056597142329232b49",
+    "cacheID": "20d8fe27cfb52983bf0b26e35796e190",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n  $timeRange: TimeRange\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        evaluator {\n          __typename\n          kind\n          description\n          id\n        }\n        project {\n          id\n          ...DatasetEvaluatorTraces_project\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n        ...LLMDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    ... on BuiltInEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorTraces_project on Project {\n  id\n  ...TracesTable_spans\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n\nfragment TracesTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 30, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              ...TraceHeaderRootSpanAnnotationsFragment\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
+    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n  $timeRange: TimeRange\n  $orphanSpanAsRootSpan: Boolean!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        evaluator {\n          __typename\n          kind\n          description\n          id\n        }\n        project {\n          id\n          ...DatasetEvaluatorSpans_project\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n        ...LLMDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    ... on BuiltInEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorSpans_project on Project {\n  id\n  ...SpansTable_spans\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          definition\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  spans(first: 30, sort: {col: startTime, dir: desc}, rootSpansOnly: true, orphanSpanAsRootSpan: $orphanSpanAsRootSpan, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        spanId\n        trace {\n          id\n          traceId\n          costSummary {\n            total {\n              cost\n            }\n          }\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fd2782a9b5f101f1789d26db83b1feff";
+(node as any).hash = "2c7ebcec94f0fdd40cf0aa78629e3a5f";
 
 export default node;

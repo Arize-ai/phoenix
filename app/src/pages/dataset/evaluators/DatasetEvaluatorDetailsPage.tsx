@@ -21,7 +21,7 @@ import {
   datasetEvaluatorDetailsLoader,
   datasetEvaluatorDetailsLoaderGQL,
 } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
-import { DatasetEvaluatorTraces } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorTraces";
+import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
 import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
@@ -88,7 +88,7 @@ function DatasetEvaluatorDetailsPageContent({
       <Tabs defaultSelectedKey="configuration">
         <TabList>
           <Tab id="configuration">Configuration</Tab>
-          <Tab id="traces">Traces</Tab>
+          <Tab id="spans">Spans</Tab>
         </TabList>
         <LazyTabPanel id="configuration">
           {isLLMEvaluator && (
@@ -108,8 +108,8 @@ function DatasetEvaluatorDetailsPageContent({
             />
           )}
         </LazyTabPanel>
-        <LazyTabPanel id="traces">
-          <DatasetEvaluatorTraces projectRef={datasetEvaluator.project} />
+        <LazyTabPanel id="spans">
+          <DatasetEvaluatorSpans projectRef={datasetEvaluator.project} />
         </LazyTabPanel>
       </Tabs>
       <Suspense>
