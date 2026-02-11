@@ -1,6 +1,7 @@
 from datetime import datetime
 from math import isfinite
-from typing import Optional
+from random import randint
+from typing import Any, Dict, Optional
 
 import strawberry
 from strawberry import Info
@@ -17,17 +18,25 @@ from phoenix.server.api.types.Trace import Trace
 class ExperimentRunAnnotation(Node):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.ExperimentRunAnnotation]] = None
+    _raw_annotation: strawberry.Private[Optional[Dict[str, Any]]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("ExperimentRunAnnotation ID mismatch")
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExperimentRunAnnotation":
+        annotation_id = data.get("id", randint(1, 1000000))
+        return cls(id=annotation_id, _raw_annotation=data)
 
     @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")  # type: ignore
     async def name(
         self,
         info: Info[Context, None],
     ) -> str:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val: str = self._raw_annotation.get("name", "")  # pyright: ignore
+        elif self.db_record:
             val = self.db_record.name
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -40,7 +49,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> ExperimentRunAnnotatorKind:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("annotator_kind", "LLM")
+        elif self.db_record:
             val = self.db_record.annotator_kind
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -55,7 +66,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("label")
+        elif self.db_record:
             val = self.db_record.label
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -68,7 +81,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[float]:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("score")
+        elif self.db_record:
             val = self.db_record.score
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -83,7 +98,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("explanation")
+        elif self.db_record:
             val = self.db_record.explanation
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -96,7 +113,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("error")
+        elif self.db_record:
             val = self.db_record.error
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -109,7 +128,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> JSON:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("metadata", {})
+        elif self.db_record:
             val = self.db_record.metadata_
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -122,7 +143,10 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> datetime:
-        if self.db_record:
+        val: datetime
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("start_time", datetime.now())  # pyright: ignore
+        elif self.db_record:
             val = self.db_record.start_time
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -135,7 +159,10 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> datetime:
-        if self.db_record:
+        val: datetime
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("end_time", datetime.now())  # pyright: ignore
+        elif self.db_record:
             val = self.db_record.end_time
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -148,7 +175,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[GlobalID]:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            val = self._raw_annotation.get("trace_id")
+        elif self.db_record:
             val = self.db_record.trace_id
         else:
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
@@ -161,7 +190,9 @@ class ExperimentRunAnnotation(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[Trace]:
-        if self.db_record:
+        if self._raw_annotation is not None:
+            trace_id = self._raw_annotation.get("trace_id")
+        elif self.db_record:
             trace_id = self.db_record.trace_id
         else:
             trace_id = await info.context.data_loaders.experiment_run_annotation_fields.load(

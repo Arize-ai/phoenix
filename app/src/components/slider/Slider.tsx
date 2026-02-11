@@ -1,5 +1,6 @@
 import React, { forwardRef, useContext } from "react";
 import {
+  Input,
   Label,
   LabelContext,
   Slider as AriaSlider,
@@ -12,13 +13,9 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import {
-  Input,
-  NumberField,
-  NumberFieldProps,
-  Text,
-} from "@phoenix/components";
-import { StylableProps } from "@phoenix/components/types";
+import { Text } from "../content";
+import { NumberField, NumberFieldProps } from "../field/NumberField";
+import { StylableProps } from "../types";
 
 const sliderCSS = css`
   --ac-slider-handle-width: var(--ac-global-dimension-size-250);

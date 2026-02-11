@@ -12,7 +12,7 @@ function Checkbox(props: CheckboxProps, ref: Ref<HTMLLabelElement>) {
       {...restProps}
       ref={ref}
       css={checkboxCSS}
-      data-is-hovered={isHovered || undefined}
+      data-force-hovered={isHovered || undefined}
     >
       {({ isIndeterminate }) => (
         <>

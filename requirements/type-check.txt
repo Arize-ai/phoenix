@@ -2,16 +2,15 @@
 asyncpg
 grpcio
 litellm>=1.0.3
-openai>=1.0.0
-boto3
-mypy-boto3-bedrock-runtime
-opentelemetry-exporter-otlp
-opentelemetry-instrumentation-fastapi
-opentelemetry-instrumentation-grpc
-opentelemetry-instrumentation-sqlalchemy
-opentelemetry-proto>=1.12.0
-opentelemetry-sdk
-opentelemetry-semantic-conventions
+aioboto3
+# Note: OpenTelemetry packages must use versions released on the same date to ensure compatibility
+opentelemetry-exporter-otlp==1.39.1
+opentelemetry-instrumentation-fastapi==0.60b1
+opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-instrumentation-sqlalchemy==0.60b1
+opentelemetry-proto==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-semantic-conventions==0.60b1
 pandas-stubs==2.0.3.230814
 pandas>=1.0
 prometheus_client
@@ -21,6 +20,7 @@ pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
 strawberry-graphql[opentelemetry]==0.287.3
 tenacity
+types-aiobotocore-bedrock-runtime
 types-cachetools
 types-jmespath
 types-jsonschema
@@ -33,3 +33,5 @@ types-tabulate
 types-tqdm
 types-ldap3
 arize
+types-PyYAML
+arize>=8.1.0

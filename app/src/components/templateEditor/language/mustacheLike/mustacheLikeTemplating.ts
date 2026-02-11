@@ -1,7 +1,6 @@
 import { LanguageSupport, LRLanguage } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
-
-import { extractVariables, format } from "../languageUtils";
+import Mustache from "mustache";
 
 import { parser } from "./mustacheLikeTemplating.syntax.grammar";
 
@@ -57,25 +56,106 @@ export const debugParser = (text: string) => {
 export const formatMustacheLike = ({
   text,
   variables,
-}: Omit<Parameters<typeof format>[0], "parser" | "postFormat">) =>
-  format({
-    parser: MustacheLikeTemplatingLanguage.parser,
-    text,
-    variables,
-    postFormat: (text) => {
-      // replace escaped double braces with double brace
-      return text.replaceAll("\\{{", "{{");
-    },
-  });
+}: {
+  text: string;
+  variables: Record<string, string | number | boolean | undefined>;
+}) => {
+  if (!text) {
+    return "";
+  }
+  try {
+    return Mustache.render(text, variables, undefined, {
+      escape: (value: string) => value,
+    });
+  } catch {
+    return text;
+  }
+};
 
 /**
- * Extracts the variables from a Mustache-like template
+ * Extract the root variable name from a dotted path.
+ *
+ * Mustache uses dot notation to traverse nested properties (e.g., output.available_tools
+ * means context["output"]["available_tools"]). For validation purposes, we only need
+ * to check that the root variable exists.
+ *
+ * @example
+ * getRootVariableName("output.available_tools") // => "output"
+ * getRootVariableName("user.name") // => "user"
+ * getRootVariableName("simple") // => "simple"
  */
-export const extractVariablesFromMustacheLike = (text: string) => {
-  return extractVariables({
-    parser: MustacheLikeTemplatingLanguage.parser,
-    text,
-  });
+const getRootVariableName = (variablePath: string): string => {
+  if (variablePath === ".") {
+    return variablePath;
+  }
+  return variablePath.split(".")[0];
+};
+
+/**
+ * Mustache token types that represent variables we want to extract.
+ * - "#" and "^": section/inverted section tags
+ * - "name": escaped variable {{name}}
+ * - "&" and "{": unescaped variables {{& name}} and {{{name}}}
+ */
+const VARIABLE_TOKEN_TYPES = new Set(["#", "^", "name", "&", "{"]);
+
+/**
+ * Extracts the variables from a Mustache-like template.
+ *
+ * For dotted paths like {{output.available_tools}}, only the root variable
+ * name (output) is extracted, since Mustache traverses nested properties
+ * starting from the root.
+ *
+ * Mustache.parse() returns a flat array of top-level tokens. Nested tokens
+ * (inside sections) are encapsulated in the children array of section tokens,
+ * so we only need to iterate the top-level array to extract top-level variables.
+ */
+export const extractVariablesFromMustacheLike = (text: string): string[] => {
+  let tokens: ReturnType<typeof Mustache.parse>;
+  try {
+    tokens = Mustache.parse(text);
+  } catch {
+    return [];
+  }
+
+  const variables = new Set<string>();
+
+  for (const [type, value] of tokens) {
+    if (typeof value !== "string") continue;
+    if (VARIABLE_TOKEN_TYPES.has(type)) {
+      const root = getRootVariableName(value.trim());
+      if (root) variables.add(root);
+    }
+  }
+
+  return Array.from(variables);
+};
+
+export type MustacheSectionValidation = {
+  errors: string[];
+  warnings: string[];
+};
+
+/**
+ * Validates Mustache section tags for proper nesting and closure.
+ *
+ * Uses the native Mustache.js parser for spec-compliant validation.
+ * Parser exceptions are surfaced directly as error messages.
+ */
+export const validateMustacheSections = (
+  text: string
+): MustacheSectionValidation => {
+  try {
+    Mustache.parse(text);
+    return { errors: [], warnings: [] };
+  } catch (parseError) {
+    const message =
+      parseError instanceof Error ? parseError.message : "Invalid template";
+    return {
+      errors: [message],
+      warnings: [],
+    };
+  }
 };
 
 /**

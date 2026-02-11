@@ -32,7 +32,6 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
-from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
 from phoenix.server.types import DbSessionFactory
 
 
@@ -137,6 +136,7 @@ class TestEnsureStartupAdmins:
         user = users.pop("benjamin@example.com")
         assert not users, "There should be no other users in the database"
         assert user.username == "Franklin, Benjamin"
+        assert admin_role_id is not None
         assert user.user_role_id == admin_role_id
         assert user.reset_password
 
@@ -173,8 +173,10 @@ class TestEnsureStartupAdmins:
             )
         assert user is not None
         assert user.username == "LDAP Admin"
-        assert user.oauth2_client_id == LDAP_CLIENT_ID_MARKER
-        assert user.oauth2_user_id is None  # NULL until first LDAP login (then upgraded to DN)
+        assert user.auth_method == "LDAP"  # LDAP users have auth_method='LDAP'
+        assert user.oauth2_client_id is None  # LDAP users don't use oauth2 fields
+        assert user.oauth2_user_id is None  # LDAP users don't use oauth2 fields
+        assert user.ldap_unique_id is None  # NULL until first LDAP login (then set to unique_id)
         assert user.password_hash is None  # LDAP users don't have passwords
         assert user.password_salt is None
 
@@ -216,9 +218,8 @@ class TestEnsureStartupAdmins:
             )
         assert user is not None
         assert user.username == "OAuth2 Admin"
-        # OAuth2 user should NOT have LDAP marker
-        assert user.oauth2_client_id != LDAP_CLIENT_ID_MARKER
-        assert user.oauth2_client_id is None  # Generic OAuth2 user
+        assert user.auth_method == "OAUTH2"  # Should be OAUTH2, not LDAP
+        assert user.oauth2_client_id is None  # Generic OAuth2 user (no specific client)
         assert user.password_hash is None
         assert user.password_salt is None
 
@@ -636,4 +637,94 @@ class TestEnsureModelCosts:
         expected_all_deleted = {"test-model-1", "test-model-2", "audio-model"}
         assert all_deleted_names == expected_all_deleted, (
             f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"
+        )
+
+
+class TestEnsureBuiltinEvaluators:
+    """Tests for _ensure_builtin_evaluators function."""
+
+    async def test_ensure_builtin_evaluators_syncs_registry_to_database(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test that _ensure_builtin_evaluators properly syncs the in-memory
+        builtin evaluator registry to the database.
+        """
+        from phoenix.db.facilitator import _ensure_builtin_evaluators
+        from phoenix.server.api.evaluators import get_builtin_evaluators
+
+        # First ensure enums exist (required for evaluator kinds)
+        await _ensure_enums(db)
+
+        # Initially, there should be no builtin evaluators in the database
+        async with db() as session:
+            base_evaluators = list(
+                await session.scalars(
+                    select(models.Evaluator).where(models.Evaluator.kind == "BUILTIN")
+                )
+            )
+            builtin_evaluators = list(await session.scalars(select(models.BuiltinEvaluator)))
+        assert len(base_evaluators) == 0, "No builtin evaluators should exist initially"
+        assert len(builtin_evaluators) == 0, "No builtin evaluator records should exist initially"
+
+        # Sync builtin evaluators
+        await _ensure_builtin_evaluators(db)
+
+        # Verify all builtin evaluators from registry are now in the database
+        registry_evaluators = list(get_builtin_evaluators())
+        expected_count = len(registry_evaluators)
+
+        async with db() as session:
+            base_evaluators = list(
+                await session.scalars(
+                    select(models.Evaluator).where(models.Evaluator.kind == "BUILTIN")
+                )
+            )
+            builtin_evaluators = list(await session.scalars(select(models.BuiltinEvaluator)))
+
+        assert len(base_evaluators) == expected_count, (
+            f"Expected {expected_count} base evaluator records, got {len(base_evaluators)}"
+        )
+        assert len(builtin_evaluators) == expected_count, (
+            f"Expected {expected_count} builtin evaluator records, got {len(builtin_evaluators)}"
+        )
+
+        # Verify that all registry keys are present in the database
+        registry_keys = {key for key, _ in registry_evaluators}
+        db_builtin_keys = {e.key for e in builtin_evaluators}
+
+        assert registry_keys == db_builtin_keys, (
+            f"Builtin evaluator keys mismatch: registry={registry_keys}, db={db_builtin_keys}"
+        )
+
+        # Verify that base evaluators and builtin evaluators have matching IDs
+        db_base_ids = {e.id for e in base_evaluators}
+        db_builtin_ids = {e.id for e in builtin_evaluators}
+        assert db_base_ids == db_builtin_ids, (
+            f"Base and builtin evaluator IDs should match: base={db_base_ids}, builtin={db_builtin_ids}"
+        )
+
+    async def test_ensure_builtin_evaluators_is_idempotent(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that calling _ensure_builtin_evaluators multiple times is idempotent."""
+        from phoenix.db.facilitator import _ensure_builtin_evaluators
+        from phoenix.server.api.evaluators import get_builtin_evaluators
+
+        await _ensure_enums(db)
+
+        # Call sync multiple times
+        for _ in range(3):
+            await _ensure_builtin_evaluators(db)
+
+        # Verify count matches registry exactly
+        registry_count = len(list(get_builtin_evaluators()))
+        async with db() as session:
+            builtin_count = await session.scalar(
+                select(sa.func.count()).select_from(models.BuiltinEvaluator)
+            )
+        assert builtin_count == registry_count, (
+            f"Expected {registry_count} builtin evaluators after multiple syncs, got {builtin_count}"
         )

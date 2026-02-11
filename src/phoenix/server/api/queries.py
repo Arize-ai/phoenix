@@ -1,14 +1,17 @@
+import json
 import re
 from collections import defaultdict
 from datetime import datetime
+from secrets import token_hex
 from typing import Any, Iterable, Iterator, Literal, Optional, Union
 from typing import cast as type_cast
 
+import anyio
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
+from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -24,14 +27,25 @@ from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
 from phoenix.db.models import LatencyMs
+from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import (
+    apply_input_mapping,
+    cast_template_variable_types,
+    infer_input_schema_from_template,
+    validate_template_variables,
+)
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.classification_evaluator_configs import (
+    get_classification_evaluator_configs,
+)
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
@@ -39,15 +53,26 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.prompts.models import PromptMessageRole
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
+from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
+from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
+    GenerativeModelCustomerProviderConfigInput,
+)
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
+from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
+from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
+from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -59,6 +84,13 @@ from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_MIN_CLUSTER_SIZE,
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
+)
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    CodeEvaluator,
+    DatasetEvaluator,
+    Evaluator,
+    LLMEvaluator,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
@@ -72,13 +104,15 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferenceModel import InferenceModel
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.node import (
-    from_global_id,
     from_global_id_with_expected_type,
-    is_global_id,
+    is_composite_global_id,
 )
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -95,6 +129,19 @@ from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
+from phoenix.server.api.types.PromptVersionTemplate import (
+    ContentPart,
+    PromptChatTemplate,
+    PromptMessage,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
+    ToolCallContentValue,
+    ToolCallFunction,
+    ToolResultContentPart,
+    ToolResultContentValue,
+)
+from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
@@ -106,6 +153,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
 
@@ -172,6 +220,11 @@ class ExperimentRunMetricComparisons:
 
 
 @strawberry.type
+class TestGenerativeModelCustomProviderCredentialsResult:
+    error: str | None = None
+
+
+@strawberry.type
 class Query:
     @strawberry.field
     async def model_providers(self) -> list[GenerativeProvider]:
@@ -183,6 +236,194 @@ class Query:
             )
             for provider_key in available_providers
         ]
+
+    @strawberry.field
+    async def generative_model_custom_providers(
+        self,
+        info: Info[Context, None],
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
+    ) -> Connection[GenerativeModelCustomProvider]:
+        page_size = first or 50
+
+        # Parse cursor for forward pagination
+        after_cursor = Cursor.from_string(after) if after else None
+
+        # Build query with ordering (descending by id)
+        stmt = select(models.GenerativeModelCustomProvider).order_by(
+            models.GenerativeModelCustomProvider.id.desc()
+        )
+
+        # Apply cursor filtering for forward pagination
+        if after_cursor:
+            # Get items with id < cursor.rowid (next items in desc order)
+            stmt = stmt.where(models.GenerativeModelCustomProvider.id < after_cursor.rowid)
+
+        # Fetch one extra item to check for next page
+        stmt = stmt.limit(page_size + 1)
+
+        async with info.context.db() as session:
+            providers = (await session.scalars(stmt)).all()
+
+        # Check for next page
+        has_next_page = len(providers) > page_size
+        if has_next_page:
+            providers = providers[:page_size]
+
+        # has_previous_page is True if we have an after cursor (we're not at the start)
+        has_previous_page = after_cursor is not None
+
+        # Convert ORM models to GraphQL types and create cursors
+        cursors_and_nodes: list[tuple[Cursor, GenerativeModelCustomProvider]] = []
+
+        for provider in providers:
+            gql_provider = GenerativeModelCustomProvider(id=provider.id, db_record=provider)
+            cursors_and_nodes.append((Cursor(rowid=provider.id), gql_provider))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def secrets(
+        self,
+        info: Info[Context, None],
+        keys: list[str] | None = None,
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
+    ) -> Connection[Secret]:
+        page_size = first or 50
+
+        stmt = select(models.Secret).order_by(models.Secret.key)
+        if keys:
+            keys = list({k.strip() for k in keys if k.strip()})
+            if keys:
+                stmt = stmt.where(models.Secret.key.in_(keys))
+        if after:
+            stmt = stmt.where(models.Secret.key > after)
+        stmt = stmt.limit(page_size + 1)
+        async with info.context.db() as session:
+            secrets = (await session.scalars(stmt)).all()
+
+        has_next_page = len(secrets) > page_size
+        if has_next_page:
+            secrets = secrets[:page_size]
+        has_previous_page = bool(after)
+        cursors_and_nodes: list[tuple[str, Secret]] = []
+        for secret in secrets:
+            cursors_and_nodes.append((secret.key, Secret(id=secret.key, db_record=secret)))
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def test_generative_model_custom_provider_credentials(
+        self,
+        input: GenerativeModelCustomerProviderConfigInput,
+    ) -> TestGenerativeModelCustomProviderCredentialsResult:
+        """
+        Test provider credentials by making a lightweight API call.
+        Uses models.list() where available, or a dummy model name where
+        non-auth errors indicate valid credentials.
+        """
+        config = input.to_orm()
+
+        if config.root.type == "openai":
+            try:
+                with anyio.move_on_after(10) as scope:
+                    async with config.root.get_client_factory()() as openai_client:
+                        await openai_client.models.list(timeout=10)
+                if scope.cancelled_caught:
+                    return TestGenerativeModelCustomProviderCredentialsResult(
+                        error="Request timed out after 10 seconds"
+                    )
+            except Exception as e:
+                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+        elif config.root.type == "azure_openai":
+            try:
+                with anyio.move_on_after(10) as scope:
+                    async with config.root.get_client_factory()() as azure_openai_client:
+                        await azure_openai_client.models.list(timeout=10)
+                if scope.cancelled_caught:
+                    return TestGenerativeModelCustomProviderCredentialsResult(
+                        error="Request timed out after 10 seconds"
+                    )
+            except Exception as e:
+                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+        elif config.root.type == "anthropic":
+            try:
+                from anthropic import NotFoundError as AnthropicNotFoundError
+
+                # Use dummy model - non-auth errors mean credentials are valid
+                with anyio.move_on_after(10) as scope:
+                    async with config.root.get_client_factory()() as anthropic_client:
+                        await anthropic_client.messages.create(
+                            model="test-credential-check",
+                            messages=[{"role": "user", "content": "Hi"}],
+                            max_tokens=10,
+                            timeout=10,
+                        )
+                if scope.cancelled_caught:
+                    return TestGenerativeModelCustomProviderCredentialsResult(
+                        error="Request timed out after 10 seconds"
+                    )
+            except AnthropicNotFoundError:
+                pass  # Fall through to return VALID
+            except Exception as e:
+                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+        elif config.root.type == "aws_bedrock":
+            try:
+                from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
+                # Use dummy model - ValidationException means credentials are valid
+                # Use async aioboto3 client
+                with anyio.move_on_after(10) as scope:
+                    async with config.root.get_client_factory()() as client:
+                        await client.converse(
+                            modelId=f"test-credential-check-{token_hex(4)}",
+                            messages=[{"role": "user", "content": [{"text": "Hi"}]}],
+                            inferenceConfig={"maxTokens": 10},
+                        )
+                if scope.cancelled_caught:
+                    return TestGenerativeModelCustomProviderCredentialsResult(
+                        error="Request timed out after 10 seconds"
+                    )
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                # ValidationException means credentials are valid but model ID is wrong
+                # This is still a successful credential test
+                if error_code == "ValidationException":
+                    pass  # Fall through to return VALID
+                else:
+                    return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+            except Exception as e:
+                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+        elif config.root.type == "google_genai":
+            try:
+                from google.genai.types import HttpOptions, ListModelsConfig
+
+                with anyio.move_on_after(10) as scope:
+                    async with config.root.get_client_factory()() as google_genai_client:
+                        await google_genai_client.models.list(
+                            config=ListModelsConfig(http_options=HttpOptions(timeout=10_000))
+                        )
+                if scope.cancelled_caught:
+                    return TestGenerativeModelCustomProviderCredentialsResult(
+                        error="Request timed out after 10 seconds"
+                    )
+            except Exception as e:
+                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+        else:
+            raise BadRequest("Invalid input")
+        return TestGenerativeModelCustomProviderCredentialsResult(error=None)
 
     @strawberry.field
     async def generative_models(
@@ -333,7 +574,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Project)
+        projects_query = select(models.Project)
 
         if sort and sort.col is ProjectColumn.endTime:
             # For end time sorting, we need to use a correlated subquery
@@ -344,17 +585,22 @@ class Query:
                 .where(models.Trace.project_rowid == models.Project.id)
                 .scalar_subquery()
             )
-            stmt = stmt.order_by(
+            projects_query = projects_query.order_by(
                 end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
             )
         elif sort:
             sort_col = getattr(models.Project, sort.col.value)
-            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+            projects_query = projects_query.order_by(
+                sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc()
+            )
         if filter:
-            stmt = stmt.where(getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%"))
-        stmt = exclude_experiment_projects(stmt)
+            projects_query = projects_query.where(
+                getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
+            )
+        projects_query = exclude_experiment_projects(projects_query)
+        projects_query = exclude_dataset_evaluator_projects(projects_query)
         async with info.context.db() as session:
-            projects = await session.stream_scalars(stmt)
+            projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
         return connection_from_list(data=data, args=args)
 
@@ -888,7 +1134,7 @@ class Query:
 
     @strawberry.field
     async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
-        if not is_global_id(id):
+        if is_composite_global_id(id):
             try:
                 experiment_rowid, dataset_example_rowid = (
                     parse_experiment_repeated_run_group_node_id(id)
@@ -901,7 +1147,10 @@ class Query:
             )
 
         global_id = GlobalID.from_id(id)
-        type_name, node_id = from_global_id(global_id)
+        type_name = global_id.type_name
+        if type_name == Secret.__name__:
+            return Secret(id=global_id.node_id)
+        node_id = int(global_id.node_id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
@@ -952,6 +1201,16 @@ class Query:
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
+        elif type_name == LLMEvaluator.__name__:
+            return LLMEvaluator(id=node_id)
+        elif type_name == CodeEvaluator.__name__:
+            return CodeEvaluator(id=node_id)
+        elif type_name == BuiltInEvaluator.__name__:
+            return BuiltInEvaluator(id=node_id)
+        elif type_name == DatasetEvaluator.__name__:
+            return DatasetEvaluator(id=node_id)
+        if type_name == GenerativeModelCustomProvider.__name__:
+            return GenerativeModelCustomProvider(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1086,6 +1345,101 @@ class Query:
             )
 
     @strawberry.field
+    async def built_in_evaluators(self, info: Info[Context, None]) -> list[BuiltInEvaluator]:
+        async with info.context.db() as session:
+            result = await session.execute(select(models.BuiltinEvaluator))
+            return [BuiltInEvaluator(id=row.id) for row in result.scalars()]
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        sort: Optional[EvaluatorSort] = UNSET,
+        filter: Optional[EvaluatorFilter] = UNSET,
+    ) -> Connection[Evaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
+        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
+        # base `evaluators` table.
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+        )  # eagerly join sub-classed evaluator tables
+
+        has_dataset_association = exists(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id
+            )
+        )
+        query = select(PolymorphicEvaluator).where(
+            or_(
+                # non-builtin evaluators are always included
+                PolymorphicEvaluator.kind != "BUILTIN",
+                # builtin evaluators are only included if associated with at least one dataset
+                has_dataset_association,
+            )
+        )
+
+        if filter:
+            if filter.col.value == "name":
+                parent_name_col = cast(PolymorphicEvaluator.name, String)
+                # Match parent name OR any child (datasetEvaluator) name
+                child_name_exists = exists(
+                    select(models.DatasetEvaluators.id)
+                    .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+                    .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
+                )
+                query = query.where(
+                    or_(
+                        parent_name_col.ilike(f"%{filter.value}%"),
+                        child_name_exists,
+                    )
+                )
+            else:
+                column = getattr(PolymorphicEvaluator, filter.col.value)
+                query = query.where(column.ilike(f"%{filter.value}%"))
+
+        if sort:
+            if sort.col.value == "updated_at":
+                # updated_at exists in sub-tables, not base table
+                # Use case to pick the value based on kind
+                # this special case can be removed if we add updated_at to the base table
+                sort_col = case(
+                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "BUILTIN", models.BuiltinEvaluator.synced_at),
+                    else_=None,
+                )
+            else:
+                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+            query = query.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        else:
+            query = query.order_by(PolymorphicEvaluator.name.asc())
+
+        async with info.context.db() as session:
+            evaluators = await session.scalars(query)
+        data: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.CodeEvaluator):
+                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.BuiltinEvaluator):
+                data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
     async def annotation_configs(
         self,
         info: Info[Context, None],
@@ -1106,6 +1460,54 @@ class Query:
             )
             data = [to_gql_annotation_config(config) async for config in configs]
             return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def classification_evaluator_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[ClassificationEvaluatorConfig]:
+        pydantic_configs = get_classification_evaluator_configs()
+
+        gql_configs: list[ClassificationEvaluatorConfig] = []
+        for config in pydantic_configs:
+            optimization_direction = (
+                OptimizationDirection.MAXIMIZE
+                if config.optimization_direction == "maximize"
+                else OptimizationDirection.MINIMIZE
+            )
+
+            gql_messages: list[PromptMessage] = []
+            for msg in config.messages:
+                role_str = msg.role.lower()
+                if role_str == "user":
+                    role = PromptMessageRole.USER
+                elif role_str == "system":
+                    role = PromptMessageRole.SYSTEM
+                elif role_str in ("ai", "assistant"):
+                    role = PromptMessageRole.AI
+                elif role_str == "tool":
+                    role = PromptMessageRole.TOOL
+                else:
+                    # Default to USER if unknown role
+                    role = PromptMessageRole.USER
+
+                content = type_cast(
+                    list[ContentPart],
+                    [TextContentPart(text=TextContentValue(text=msg.content))],
+                )
+
+                gql_messages.append(PromptMessage(role=role, content=content))
+
+            gql_config = ClassificationEvaluatorConfig(
+                name=config.name,
+                description=config.description,
+                optimization_direction=optimization_direction,
+                messages=gql_messages,
+                choices=config.choices,
+            )
+            gql_configs.append(gql_config)
+
+        return gql_configs
 
     @strawberry.field
     def clusters(
@@ -1378,6 +1780,102 @@ class Query:
         if session_row:
             return ProjectSession(id=session_row.id, db_record=session_row)
         return None
+
+    @strawberry.field
+    async def apply_chat_template(
+        self,
+        template: PromptChatTemplateInput,
+        template_options: PromptTemplateOptions,
+        input_mapping: Optional[EvaluatorInputMappingInput] = None,
+    ) -> PromptChatTemplate:
+        """
+        Applies template formatting to a prompt chat template.
+
+        Takes a template with messages containing template placeholders and template options
+        (format and variables), and returns the messages with placeholders replaced.
+        """
+        formatter = get_template_formatter(template_options.format)
+        # Ensure variables is a dict - JSON scalar can be any JSON type
+        raw_variables = template_options.variables
+        if isinstance(raw_variables, dict):
+            variables = raw_variables
+        elif isinstance(raw_variables, str):
+            parsed = json.loads(raw_variables)
+            if not isinstance(parsed, dict):
+                raise BadRequest("Variables JSON string must parse to a dictionary")
+            variables = parsed
+        else:
+            raise BadRequest("Variables must be a dictionary or a string")
+
+        if input_mapping:
+            input_schema = infer_input_schema_from_template(
+                template=template,
+                template_format=template_options.format,
+            )
+
+            try:
+                variables = apply_input_mapping(
+                    input_schema=input_schema,
+                    input_mapping=input_mapping,
+                    context=variables,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+            variables = cast_template_variable_types(
+                template_variables=variables,
+                input_schema=input_schema,
+            )
+
+            try:
+                validate_template_variables(
+                    template_variables=variables,
+                    input_schema=input_schema,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+        messages: list[PromptMessage] = []
+        for msg in template.messages:
+            content_parts: list[ContentPart] = []
+            for part in msg.content:
+                if part.text is not UNSET:
+                    assert part.text is not None
+                    try:
+                        formatted_text = formatter.format(part.text.text, **variables)
+                    except TemplateFormatterError as error:
+                        raise BadRequest(str(error))
+                    content_parts.append(
+                        TextContentPart(text=TextContentValue(text=formatted_text))
+                    )
+                elif part.tool_call is not UNSET:
+                    assert part.tool_call is not None
+                    tc = part.tool_call
+                    content_parts.append(
+                        ToolCallContentPart(
+                            tool_call=ToolCallContentValue(
+                                tool_call_id=tc.tool_call_id,
+                                tool_call=ToolCallFunction(
+                                    name=tc.tool_call.name,
+                                    arguments=tc.tool_call.arguments,
+                                ),
+                            )
+                        )
+                    )
+                elif part.tool_result is not UNSET:
+                    assert part.tool_result is not None
+                    tr = part.tool_result
+                    content_parts.append(
+                        ToolResultContentPart(
+                            tool_result=ToolResultContentValue(
+                                tool_call_id=tr.tool_call_id,
+                                result=tr.result,
+                            )
+                        )
+                    )
+            messages.append(PromptMessage(role=PromptMessageRole(msg.role), content=content_parts))
+
+        return PromptChatTemplate(messages=messages)
 
 
 def _consolidate_sqlite_db_table_stats(

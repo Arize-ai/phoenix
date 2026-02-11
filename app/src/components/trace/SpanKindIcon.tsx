@@ -541,6 +541,57 @@ const GuardrailFilledSVG = () => (
   </svg>
 );
 
+const PromptSVG = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="19"
+      height="19"
+      rx="3.5"
+      stroke="currentColor"
+      strokeOpacity="0.9"
+    />
+    <path
+      d="M4.5 15.5V5.5C4.5 5 5 4.5 5.5 4.5H14.5C15 4.5 15.5 5 15.5 5.5V12.5C15.5 13 15 13.5 14.5 13.5H8C7.8 13.5 7.6 13.55 7.45 13.65L4.5 15.5Z"
+      stroke="currentColor"
+      strokeOpacity="1"
+      strokeWidth="1.1"
+    />
+  </svg>
+);
+
+const PromptFilledSVG = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="19"
+      height="19"
+      rx="3.5"
+      fill="currentColor"
+      stroke="currentColor"
+    />
+    <path
+      d="M4.5 15.5V5.5C4.5 5 5 4.5 5.5 4.5H14.5C15 4.5 15.5 5 15.5 5.5V12.5C15.5 13 15 13.5 14.5 13.5H8C7.8 13.5 7.6 13.55 7.45 13.65L4.5 15.5Z"
+      stroke="black"
+      strokeWidth="1.05"
+    />
+  </svg>
+);
+
 export function SpanKindIcon({
   spanKind,
   variant = "fill",
@@ -578,6 +629,9 @@ export function SpanKindIcon({
       break;
     case "guardrail":
       icon = isFilled ? <GuardrailFilledSVG /> : <GuardrailSVG />;
+      break;
+    case "prompt":
+      icon = isFilled ? <PromptFilledSVG /> : <PromptSVG />;
       break;
   }
 

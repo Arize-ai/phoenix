@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c493a11429b88d1122faf2aad63d5246>>
+ * @generated SignedSource<<b6c0327bdc6c275d1608e4d3b07c81b4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,27 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareListPage_aggregateData$data = {
   readonly dataset: {
+    readonly datasetEvaluators?: {
+      readonly edges: ReadonlyArray<{
+        readonly node: {
+          readonly name: string;
+          readonly outputConfigs: ReadonlyArray<{
+            readonly lowerBound?: number | null;
+            readonly name?: string;
+            readonly optimizationDirection?: OptimizationDirection;
+            readonly upperBound?: number | null;
+            readonly values?: ReadonlyArray<{
+              readonly label: string;
+              readonly score: number | null;
+            }>;
+          }>;
+        };
+      }>;
+    };
     readonly experimentAnnotationSummaries?: ReadonlyArray<{
       readonly annotationName: string;
       readonly maxScore: number | null;
@@ -60,6 +78,20 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "annotationName",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -245,6 +277,114 @@ return {
                 }
               ],
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": [
+                {
+                  "kind": "Literal",
+                  "name": "first",
+                  "value": 100
+                }
+              ],
+              "concreteType": "DatasetEvaluatorConnection",
+              "kind": "LinkedField",
+              "name": "datasetEvaluators",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DatasetEvaluatorEdge",
+                  "kind": "LinkedField",
+                  "name": "edges",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DatasetEvaluator",
+                      "kind": "LinkedField",
+                      "name": "node",
+                      "plural": false,
+                      "selections": [
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "outputConfigs",
+                          "plural": true,
+                          "selections": [
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v2/*: any*/),
+                                (v3/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "CategoricalAnnotationValue",
+                                  "kind": "LinkedField",
+                                  "name": "values",
+                                  "plural": true,
+                                  "selections": [
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "label",
+                                      "storageKey": null
+                                    },
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "score",
+                                      "storageKey": null
+                                    }
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "CategoricalAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v2/*: any*/),
+                                (v3/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "lowerBound",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "upperBound",
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "ContinuousAnnotationConfig",
+                              "abstractKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": "datasetEvaluators(first:100)"
             }
           ],
           "type": "Dataset",
@@ -259,6 +399,6 @@ return {
 };
 })();
 
-(node as any).hash = "46e4b2378bc6dc7c46e9b892397393d9";
+(node as any).hash = "606a036b714fb5743999f3b76cf0eaee";
 
 export default node;

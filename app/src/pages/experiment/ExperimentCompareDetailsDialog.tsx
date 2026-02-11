@@ -67,6 +67,7 @@ export function ExperimentCompareDetailsDialog({
             compareExperimentIds={compareExperimentIds}
             defaultSelectedRepetitionNumber={repetitionNumber}
             openTraceDialog={openTraceDialog}
+            key={repetitionNumber} // reset selection state when repetition number changes
           />
         </Suspense>
       </DialogContent>

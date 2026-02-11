@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { ComponentProps, useCallback, useMemo, useState } from "react";
 import {
   Autocomplete,
   Input,
@@ -21,12 +21,12 @@ import {
   MenuItem,
   MenuTrigger,
   SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
   Token,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/field";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
@@ -47,11 +47,19 @@ type DatasetSelectWithSplitsProps = {
   size?: "S" | "M";
   label?: string;
   isRequired?: boolean;
+  placement?: ComponentProps<typeof MenuContainer>["placement"];
+  shouldFlip?: ComponentProps<typeof MenuContainer>["shouldFlip"];
+  isDisabled?: boolean;
+  isReadOnly?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideSplits?: boolean;
 };
 
 type SplitItem = {
   id: string;
   name: string;
+  color: string;
 };
 
 type LabelItem = {
@@ -71,6 +79,19 @@ type DatasetItem = {
 };
 
 export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
+  const [internalOpen, setInternalOpen] = useState(props.isOpen ?? false);
+  const _onOpenChange = props.onOpenChange;
+  const isOpen = props.isOpen ?? internalOpen;
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      if (_onOpenChange) {
+        _onOpenChange(open);
+      } else {
+        setInternalOpen(open);
+      }
+    },
+    [_onOpenChange]
+  );
   const { datasetId, splitIds = [] } = props.value || {};
   const data = useLazyLoadQuery<DatasetSelectWithSplitsQuery>(
     graphql`
@@ -85,6 +106,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               splits {
                 id
                 name
+                color
               }
               labels {
                 id
@@ -111,6 +133,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         splits: dataset.splits.map((split) => ({
           id: split.id,
           name: split.name,
+          color: split.color,
         })),
         labels: dataset.labels.map((label) => ({
           id: label.id,
@@ -146,38 +169,59 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
   );
 
   return (
-    <MenuTrigger>
+    <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <Button
+        css={css`
+          min-width: 0 !important;
+          justify-content: space-between;
+        `}
         data-testid="dataset-picker"
         className="dataset-picker-button"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
+        isDisabled={props.isDisabled}
       >
-        {selectedDataset ? (
-          <Flex alignItems="center">
-            <Text>{selectedDataset.name}</Text>
-            {selectedSplits.length > 0 ? (
-              <Text color="text-300">
-                &nbsp;/{" "}
-                {selectedSplits.length === 1
-                  ? selectedSplits[0].name
-                  : `${selectedSplits.length} splits`}
+        <Flex
+          alignItems="center"
+          width="100%"
+          css={css`
+            overflow: hidden;
+          `}
+        >
+          {selectedDataset ? (
+            <>
+              <Text>
+                <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
               </Text>
-            ) : (
-              <Text color="text-300">&nbsp;/ All Examples</Text>
-            )}
-          </Flex>
-        ) : (
-          <Text color="text-300">
-            {props.placeholder ?? "Select a dataset"}
-          </Text>
-        )}
+              {selectedSplits.length === 1 ? (
+                <>
+                  <Text color="text-300">&nbsp;/&nbsp;</Text>
+                  <Token color={selectedSplits[0].color} size="S">
+                    {selectedSplits[0].name}
+                  </Token>
+                </>
+              ) : (
+                <Text color="text-300" minWidth={0}>
+                  <Truncate maxWidth="100%">
+                    {selectedSplits.length > 1
+                      ? `/ ${selectedSplits.length} splits`
+                      : "/ All Examples"}
+                  </Truncate>
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text color="text-300">
+              {props.placeholder ?? "Select a dataset"}
+            </Text>
+          )}
+        </Flex>
       </Button>
-      <MenuContainer>
+      <MenuContainer placement={props.placement} shouldFlip={props.shouldFlip}>
         <Autocomplete filter={contains}>
           <MenuHeader>
-            <SearchField aria-label="Search" autoFocus>
+            <SearchField aria-label="Search" variant="quiet" autoFocus>
               <SearchIcon />
               <Input placeholder="Search datasets" />
             </SearchField>
@@ -204,7 +248,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               selectedSplitIds,
             }) => {
               const isDisabled = exampleCount === 0;
-              const hasSplits = splits.length > 0;
+              const hasSplits = !props.hideSplits && splits.length > 0;
 
               // If no splits, just select the dataset directly
               if (!hasSplits) {
@@ -227,9 +271,6 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         justifyContent="space-between"
                         width="100%"
                         css={css`
-                          opacity: ${isDisabled
-                            ? "var(--ac-global-opacity-disabled)"
-                            : 1};
                           padding-right: ${atLeastOneDatasetHasSplits
                             ? "28px"
                             : undefined}; // right align the examples text if a submenu chevron is present
@@ -313,10 +354,17 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                       )}
                     </Flex>
                   </MenuItem>
-                  <MenuContainer placement="end top" shouldFlip>
+                  <MenuContainer
+                    placement="end top"
+                    shouldFlip={props.shouldFlip}
+                  >
                     <Autocomplete filter={contains}>
                       <MenuHeader>
-                        <SearchField aria-label="Search" autoFocus>
+                        <SearchField
+                          aria-label="Search"
+                          variant="quiet"
+                          autoFocus
+                        >
                           <SearchIcon />
                           <Input placeholder="Search splits" />
                         </SearchField>
@@ -326,6 +374,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           {
                             id: "all-examples",
                             name: "All examples",
+                            color: null as string | null,
                             isAllExamples: true,
                           },
                           ...splits.map((split) => ({
@@ -412,20 +461,13 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           }
                         }}
                       >
-                        {({ id: itemId, name, isAllExamples }) => (
-                          <MenuItem
-                            id={itemId}
-                            textValue={name}
-                            css={
-                              isAllExamples
-                                ? css`
-                                    border-bottom: 1px solid
-                                      var(--ac-global-color-grey-200);
-                                  `
-                                : undefined
-                            }
-                          >
-                            <Text>{name}</Text>
+                        {({ id: itemId, name, color }) => (
+                          <MenuItem id={itemId} textValue={name}>
+                            {color ? (
+                              <Token color={color}>{name}</Token>
+                            ) : (
+                              <Text>{name}</Text>
+                            )}
                           </MenuItem>
                         )}
                       </Menu>
@@ -437,9 +479,20 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
           </Menu>
         </Autocomplete>
         <MenuFooter>
-          <LinkButton to="/datasets" size="S" variant="quiet">
-            Go to Datasets
-          </LinkButton>
+          {selectedDataset ? (
+            <LinkButton
+              to={`/datasets/${selectedDataset.id}`}
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+            >
+              View <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
+            </LinkButton>
+          ) : (
+            <LinkButton to="/datasets" size="S" variant="quiet">
+              Go to Datasets
+            </LinkButton>
+          )}
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>

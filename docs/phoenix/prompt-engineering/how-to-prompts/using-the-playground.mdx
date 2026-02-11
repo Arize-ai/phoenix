@@ -45,6 +45,67 @@ Phoenix lets you run a prompt (or multiple prompts) on a dataset. Simply [load a
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" />
 </Frame>
 
+## Appending Conversation History
+
+When running experiments over datasets, you can append conversation messages from your dataset examples to the prompt. This is useful for:
+
+- **A/B testing models**: Compare how different models respond to the same conversation history
+- **Testing system prompts**: Evaluate different system prompts against identical user conversations
+- **Multi-turn conversation experiments**: Run experiments using existing conversation threads
+
+### Setting the Appended Messages Path
+
+To use this feature:
+
+1. Load a dataset that contains conversation messages in OpenAI format
+2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
+3. Enter the **dot-notation path** to the messages array in your dataset examples (e.g., `messages` or `input.messages`)
+
+When you run the experiment, messages at the specified path will be appended to your prompt after template variables are applied.
+
+### Dataset Format
+
+Your dataset examples should contain messages in OpenAI's chat format:
+
+```json
+{
+  "messages": [
+    {"role": "user", "content": "What is the weather in San Francisco?"},
+    {"role": "assistant", "content": "Let me check that for you."},
+    {"role": "user", "content": "Thanks! Also, what about New York?"}
+  ]
+}
+```
+
+The supported message roles are:
+- `user` - User messages
+- `assistant` - Assistant/AI responses
+- `system` - System messages
+- `tool` - Tool response messages (with `tool_call_id`)
+
+For nested structures, use dot-notation paths:
+
+```json
+{
+  "input": {
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ]
+  }
+}
+```
+
+In this case, set the path to `input.messages`.
+
+### Example: A/B Testing System Prompts
+
+1. Create a dataset with conversation examples (user messages and expected context)
+2. In the playground, configure two prompt variants (A and B) with different system prompts
+3. Load your dataset and set the appended messages path to `messages`
+4. Run the experiment to compare how each system prompt handles the same conversations
+
+This approach lets you systematically evaluate prompt changes across many real-world conversation scenarios.
+
 ## Playground Traces
 
 All invocations of an LLM via the playground is recorded for analysis, annotations, evaluations, and dataset curation.

@@ -1,5 +1,26 @@
 # Migrations
 
+## v12.x to v13.0.0
+
+### Azure OpenAI v1 API
+
+Azure OpenAI integration now uses the OpenAI v1 API, which simplifies configuration by eliminating explicit API versioning. The `api_version` parameter is no longer required—versioning is now handled implicitly by the v1 API endpoint.
+
+This change requires `openai>=2.14.0`.
+
+**References**:
+- [Azure OpenAI API Version Lifecycle](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle)
+- [Migration from Azure AI Inference to OpenAI SDK](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-inference-to-openai-migration)
+
+### AWS Bedrock Async Client
+
+AWS Bedrock integration now uses `aioboto3` instead of `boto3` for fully async client operations. If you have `boto3` installed for Bedrock support, you should install `aioboto3` instead:
+
+```shell
+pip install aioboto3
+```
+
+
 ## v11.0.0 to v12.0.0
 
 Instrumentation helpers are being moved to `openinference-instrumentation`.

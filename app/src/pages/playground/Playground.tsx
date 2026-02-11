@@ -27,6 +27,10 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
+import {
+  PromptParam,
+  setPromptParams,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import { PlaygroundProps } from "@phoenix/store";
 
 import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
@@ -50,6 +54,9 @@ const playgroundWrapCSS = css`
 `;
 
 export function Playground(props: Partial<PlaygroundProps>) {
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
+
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
       query PlaygroundQuery {
@@ -62,6 +69,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
     `,
     {}
   );
+
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -78,6 +86,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   }
   return (
     <PlaygroundProvider
+      datasetId={datasetId}
       {...props}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
@@ -182,7 +191,7 @@ const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
   const splitIdsArray = searchParams.getAll("splitId");
   // Pass undefined instead of empty array to indicate "no filter"
@@ -201,6 +210,52 @@ function PlaygroundContent() {
       left.length === right.length &&
       left.every((id, index) => id === right[index])
   );
+
+  const playgroundDatasetStateByDatasetId = usePlaygroundContext(
+    (state) => state.stateByDatasetId
+  );
+  const playgroundDatasetState = datasetId
+    ? playgroundDatasetStateByDatasetId[datasetId]
+    : null;
+  const { appendedMessagesPath, availablePaths } = playgroundDatasetState ?? {};
+
+  // Derive prompt params from all instances for URL sync.
+  // Only re-render when the prompt params actually change.
+  const instancePromptParams = usePlaygroundContext(
+    (state) =>
+      state.instances
+        .map((instance): PromptParam | null =>
+          instance.prompt
+            ? {
+                promptId: instance.prompt.id,
+                promptVersionId: instance.prompt.version,
+                tagName: instance.prompt.tag,
+              }
+            : null
+        )
+        .filter((param): param is PromptParam => param != null),
+    (left, right) =>
+      left.length === right.length &&
+      left.every(
+        (param, index) =>
+          param.promptId === right[index].promptId &&
+          param.promptVersionId === right[index].promptVersionId &&
+          param.tagName === right[index].tagName
+      )
+  );
+
+  // Sync prompt state from the store to URL search params.
+  // Uses replace to avoid polluting browser history.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        setPromptParams({ searchParams: next, prompts: instancePromptParams });
+        return next;
+      },
+      { replace: true }
+    );
+  }, [instancePromptParams, setSearchParams]);
 
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
@@ -261,6 +316,8 @@ function PlaygroundContent() {
                         >
                           <PlaygroundTemplate
                             playgroundInstanceId={instanceId}
+                            appendedMessagesPath={appendedMessagesPath}
+                            availablePaths={availablePaths}
                           />
                         </View>
                       ))}
@@ -276,6 +333,7 @@ function PlaygroundContent() {
           {isDatasetMode ? (
             <Suspense fallback={<Loading />}>
               <PlaygroundDatasetSection
+                key={datasetId} // reset evaluator selection when dataset changes
                 datasetId={datasetId}
                 splitIds={splitIds}
               />

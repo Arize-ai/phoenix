@@ -11,9 +11,10 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
 import { classNames } from "@phoenix/utils";
 
+import { Icon, Icons } from "../icon";
+import { Flex } from "../layout";
 import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
@@ -86,6 +87,8 @@ export const DisclosurePanel = ({
 export type DisclosureTriggerProps = PropsWithChildren<{
   arrowPosition?: "start" | "end" | "none";
   justifyContent?: FlexStyleProps["justifyContent"];
+  alignItems?: FlexStyleProps["alignItems"];
+  direction?: FlexStyleProps["direction"];
   asHeading?: boolean;
   width?: CSSProperties["width"];
 }>;
@@ -99,6 +102,8 @@ export const DisclosureTrigger = ({
   children,
   arrowPosition,
   justifyContent,
+  alignItems = "center",
+  direction = "row",
   width,
 }: DisclosureTriggerProps) => {
   return (
@@ -110,9 +115,10 @@ export const DisclosureTrigger = ({
       >
         <Flex
           justifyContent={justifyContent}
-          alignItems="center"
+          direction={direction}
+          alignItems={alignItems}
           width="100%"
-          gap="size-100"
+          gap={direction === "row" ? "size-100" : "size-50"}
         >
           {children}
         </Flex>

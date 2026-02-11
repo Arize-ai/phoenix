@@ -1,0 +1,101 @@
+import type { AnnotationConfig } from "@phoenix/components/annotation";
+
+/**
+ * The shape of a dataset evaluator's output config from GraphQL.
+ * This is the union of CategoricalAnnotationConfig and ContinuousAnnotationConfig.
+ */
+export type DatasetEvaluatorOutputConfig = {
+  readonly name?: string;
+  readonly optimizationDirection?: string;
+  readonly values?: readonly {
+    readonly label: string;
+    readonly score: number | null;
+  }[];
+  readonly lowerBound?: number | null;
+  readonly upperBound?: number | null;
+};
+
+/**
+ * The minimal shape of a dataset evaluator needed for conversion.
+ * Uses the outputConfigs array for multi-output evaluator support.
+ */
+export type DatasetEvaluatorForConfig = {
+  readonly name: string;
+  /** Array of output configurations for multi-output evaluators */
+  readonly outputConfigs?: readonly DatasetEvaluatorOutputConfig[] | null;
+};
+
+/**
+ * Converts a single output config to an AnnotationConfig.
+ */
+function outputConfigToAnnotationConfig(
+  outputConfig: DatasetEvaluatorOutputConfig,
+  fallbackName: string
+): AnnotationConfig {
+  // Handle CategoricalAnnotationConfig from the union
+  if ("values" in outputConfig && outputConfig.values) {
+    return {
+      name: outputConfig.name ?? fallbackName,
+      optimizationDirection: outputConfig.optimizationDirection as
+        | "MAXIMIZE"
+        | "MINIMIZE"
+        | "NONE"
+        | undefined,
+      values: outputConfig.values,
+      annotationType: "CATEGORICAL",
+    };
+  }
+
+  // Handle ContinuousAnnotationConfig from the union
+  if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
+    return {
+      name: outputConfig.name ?? fallbackName,
+      optimizationDirection: outputConfig.optimizationDirection as
+        | "MAXIMIZE"
+        | "MINIMIZE"
+        | "NONE"
+        | undefined,
+      lowerBound: outputConfig.lowerBound,
+      upperBound: outputConfig.upperBound,
+      annotationType: "CONTINUOUS",
+    };
+  }
+
+  // Fallback for freeform or unknown types
+  return {
+    name: outputConfig.name ?? fallbackName,
+    annotationType: "FREEFORM",
+  };
+}
+
+/**
+ * Converts a single dataset evaluator to an array of AnnotationConfigs.
+ * Handles the outputConfigs array for multi-output evaluator support.
+ */
+export function datasetEvaluatorToAnnotationConfigs(
+  evaluator: DatasetEvaluatorForConfig
+): AnnotationConfig[] {
+  if (evaluator.outputConfigs && evaluator.outputConfigs.length > 0) {
+    return evaluator.outputConfigs.map((config) =>
+      outputConfigToAnnotationConfig(config, evaluator.name)
+    );
+  }
+
+  // No configs at all, return FREEFORM
+  return [
+    {
+      name: evaluator.name,
+      annotationType: "FREEFORM",
+    },
+  ];
+}
+
+/**
+ * Converts an array of dataset evaluators to an array of AnnotationConfigs.
+ * Each evaluator can produce multiple configs (for multi-output evaluators).
+ */
+export function datasetEvaluatorsToAnnotationConfigs(
+  evaluators: readonly DatasetEvaluatorForConfig[]
+): AnnotationConfig[] {
+  return evaluators.flatMap(datasetEvaluatorToAnnotationConfigs);
+}

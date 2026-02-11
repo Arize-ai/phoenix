@@ -1,11 +1,11 @@
 asyncpg
-openai
+openai>=2.14
 anthropic>=0.49.0
 google-genai
 psycopg[binary,pool]
 uvloop; platform_system != 'Windows'
 fast-hdbscan
 umap-learn
-boto3
+aioboto3
 jsonpath-ng
 debugpy

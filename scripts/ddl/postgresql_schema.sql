@@ -361,7 +361,7 @@ CREATE TABLE public.users (
     id serial NOT NULL,
     user_role_id INTEGER NOT NULL,
     username VARCHAR NOT NULL,
-    email VARCHAR NOT NULL,
+    email VARCHAR,
     profile_picture_url VARCHAR,
     password_hash BYTEA,
     password_salt BYTEA,
@@ -371,14 +371,17 @@ CREATE TABLE public.users (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     auth_method VARCHAR NOT NULL,
+    ldap_unique_id VARCHAR,
     CONSTRAINT pk_users PRIMARY KEY (id),
-    CONSTRAINT uq_users_oauth2_client_id_oauth2_user_id
-        UNIQUE (oauth2_client_id, oauth2_user_id),
-    CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL)))),
+    CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND ((email IS NOT NULL) OR (ldap_unique_id IS NOT NULL))))),
+    CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND (ldap_unique_id IS NULL)))),
+    CHECK ((((auth_method)::text = 'LDAP'::text) OR (email IS NOT NULL))),
     CHECK ((((auth_method)::text = 'LOCAL'::text) OR ((password_hash IS NULL) AND (password_salt IS NULL)))),
+    CHECK ((((auth_method)::text <> 'OAUTH2'::text) OR (ldap_unique_id IS NULL))),
     CHECK (((auth_method)::text = ANY ((ARRAY[
             'LOCAL'::character varying,
-            'OAUTH2'::character varying
+            'OAUTH2'::character varying,
+            'LDAP'::character varying
         ])::text[]))),
     CONSTRAINT fk_users_user_role_id_user_roles FOREIGN KEY
         (user_role_id)
@@ -388,6 +391,10 @@ CREATE TABLE public.users (
 
 CREATE UNIQUE INDEX ix_users_email ON public.users
     USING btree (email);
+CREATE UNIQUE INDEX ix_users_ldap_unique_id ON public.users
+    USING btree (ldap_unique_id) WHERE (((auth_method)::text = 'LDAP'::text) AND (ldap_unique_id IS NOT NULL));
+CREATE UNIQUE INDEX ix_users_oauth2_unique ON public.users
+    USING btree (oauth2_client_id, oauth2_user_id) WHERE ((auth_method)::text = 'OAUTH2'::text);
 CREATE INDEX ix_users_user_role_id ON public.users
     USING btree (user_role_id);
 CREATE UNIQUE INDEX ix_users_username ON public.users
@@ -650,6 +657,114 @@ CREATE INDEX ix_document_annotations_span_rowid ON public.document_annotations
     USING btree (span_rowid);
 
 
+-- Table: evaluators
+-- -----------------
+CREATE TABLE public.evaluators (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    metadata JSONB NOT NULL,
+    kind VARCHAR NOT NULL,
+    user_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_evaluators_kind_id
+        UNIQUE (kind, id),
+    CONSTRAINT uq_evaluators_name
+        UNIQUE (name),
+    CHECK (((kind)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'CODE'::character varying,
+            'BUILTIN'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_evaluators_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_evaluators_user_id ON public.evaluators
+    USING btree (user_id);
+
+
+-- Table: builtin_evaluators
+-- -------------------------
+CREATE TABLE public.builtin_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'BUILTIN'::character varying,
+    key VARCHAR NOT NULL,
+    input_schema JSONB NOT NULL,
+    output_configs JSONB NOT NULL,
+    synced_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_builtin_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_builtin_evaluators_key
+        UNIQUE (key),
+    CHECK (((kind)::text = 'BUILTIN'::text)),
+    CONSTRAINT fk_builtin_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: code_evaluators
+-- ----------------------
+CREATE TABLE public.code_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
+    CHECK (((kind)::text = 'CODE'::text)),
+    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: dataset_evaluators
+-- -------------------------
+CREATE TABLE public.dataset_evaluators (
+    id bigserial NOT NULL,
+    dataset_id BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    output_configs JSONB NOT NULL,
+    input_mapping JSONB NOT NULL,
+    user_id BIGINT,
+    project_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_evaluators_dataset_id_name
+        UNIQUE (dataset_id, name),
+    CONSTRAINT fk_dataset_evaluators_dataset_id_datasets FOREIGN KEY
+        (dataset_id)
+        REFERENCES public.datasets (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators FOREIGN KEY
+        (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_dataset_evaluators_project_id_projects FOREIGN KEY
+        (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_dataset_evaluators_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
+    USING btree (dataset_id);
+CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
+    USING btree (evaluator_id);
+CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
+    USING btree (project_id);
+
+
 -- Table: experiments
 -- ------------------
 CREATE TABLE public.experiments (
@@ -835,6 +950,29 @@ CREATE INDEX ix_experiments_dataset_splits_dataset_split_id ON public.experiment
     USING btree (dataset_split_id);
 
 
+-- Table: generative_model_custom_providers
+-- ----------------------------------------
+CREATE TABLE public.generative_model_custom_providers (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    provider VARCHAR NOT NULL,
+    sdk VARCHAR NOT NULL,
+    config BYTEA NOT NULL,
+    user_id BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
+    CONSTRAINT uq_generative_model_custom_providers_name
+        UNIQUE (name),
+    CONSTRAINT fk_generative_model_custom_providers_user_id_users
+        FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -915,6 +1053,7 @@ CREATE TABLE public.prompt_versions (
     model_name VARCHAR NOT NULL,
     metadata JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    custom_provider_id BIGINT,
     CONSTRAINT pk_prompt_versions PRIMARY KEY (id),
     CHECK (((template_format)::text = ANY ((ARRAY[
             'F_STRING'::character varying,
@@ -925,6 +1064,11 @@ CREATE TABLE public.prompt_versions (
             'CHAT'::character varying,
             'STR'::character varying
         ])::text[]))),
+    CONSTRAINT fk_prompt_versions_custom_provider_id_generative_model__f97f
+        FOREIGN KEY
+        (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
     CONSTRAINT fk_prompt_versions_prompt_id_prompts FOREIGN KEY
         (prompt_id)
         REFERENCES public.prompts (id)
@@ -935,6 +1079,8 @@ CREATE TABLE public.prompt_versions (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_prompt_versions_custom_provider_id ON public.prompt_versions
+    USING btree (custom_provider_id);
 CREATE INDEX ix_prompt_versions_prompt_id ON public.prompt_versions
     USING btree (prompt_id);
 CREATE INDEX ix_prompt_versions_user_id ON public.prompt_versions
@@ -974,6 +1120,38 @@ CREATE INDEX ix_prompt_version_tags_prompt_version_id ON public.prompt_version_t
     USING btree (prompt_version_id);
 CREATE INDEX ix_prompt_version_tags_user_id ON public.prompt_version_tags
     USING btree (user_id);
+
+
+-- Table: llm_evaluators
+-- ---------------------
+CREATE TABLE public.llm_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
+    prompt_id BIGINT NOT NULL,
+    prompt_version_tag_id BIGINT,
+    output_configs JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
+    CHECK (((kind)::text = 'LLM'::text)),
+    CONSTRAINT fk_llm_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_llm_evaluators_prompt_id_prompts FOREIGN KEY
+        (prompt_id)
+        REFERENCES public.prompts (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
+        FOREIGN KEY
+        (prompt_version_tag_id)
+        REFERENCES public.prompt_version_tags (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_llm_evaluators_prompt_id ON public.llm_evaluators
+    USING btree (prompt_id);
+CREATE INDEX ix_llm_evaluators_prompt_version_tag_id ON public.llm_evaluators
+    USING btree (prompt_version_tag_id);
 
 
 -- Table: refresh_tokens
@@ -1022,6 +1200,21 @@ CREATE UNIQUE INDEX ix_access_tokens_refresh_token_id ON public.access_tokens
     USING btree (refresh_token_id);
 CREATE INDEX ix_access_tokens_user_id ON public.access_tokens
     USING btree (user_id);
+
+
+-- Table: secrets
+-- --------------
+CREATE TABLE public.secrets (
+    key VARCHAR NOT NULL,
+    value BYTEA NOT NULL,
+    user_id BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_secrets PRIMARY KEY (key),
+    CONSTRAINT fk_secrets_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
 
 
 -- Table: span_annotations

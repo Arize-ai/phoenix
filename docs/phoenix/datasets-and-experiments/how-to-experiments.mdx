@@ -3,23 +3,42 @@ title: "How to: Experiments"
 sidebarTitle: "Overview"
 ---
 
-## How to run experiments
+## Running Experiments
 
-<Columns cols={2}>
-<Card title="How to upload a Dataset" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#load-a-dataset" icon="angles-right" horizontal/>
-<Card title="How to run a custom task" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#create-a-task" icon="angles-right" horizontal/>
-<Card title="How to configure evaluators" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#define-evaluators" icon="angles-right" horizontal/>
-<Card title="How to run the experiment" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#run-an-experiment" icon="angles-right" horizontal/>
-<Card title="How to use repetitions in experiments" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions" icon="angles-right" horizontal/>
-<Card title="How to run an experiment over a dataset split" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits" icon="angles-right" horizontal/>
+<CardGroup cols={2}>
+  <Card title="Upload a Dataset" icon="database" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#load-a-dataset">
+    Load your test cases into Phoenix to use as inputs for experiments.
+  </Card>
+  <Card title="Create a Task" icon="play" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#create-a-task">
+    Define the function or workflow you want to evaluate against your dataset.
+  </Card>
+  <Card title="Configure Evaluators" icon="gauge" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#define-evaluators">
+    Set up the scoring criteria to assess your task outputs.
+  </Card>
+  <Card title="Run an Experiment" icon="rocket" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#run-an-experiment">
+    Execute your task across all dataset examples and collect evaluation results.
+  </Card>
+  <Card title="Use Repetitions" icon="repeat" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions">
+    Run tasks multiple times to measure variance and consistency.
+  </Card>
+  <Card title="Dataset Splits" icon="scissors" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits">
+    Run experiments on specific subsets of your dataset.
+  </Card>
+</CardGroup>
 
-</Columns>
+## Using Evaluators
 
-
-## How to use evaluators
-
-<Columns cols={2}>
-<Card title="LLM Evaluators" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators#llm-evaluators" icon="angles-right" horizontal/>
-<Card title="Code Evaluators" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators#code-evaluators" icon="angles-right" horizontal/>
-<Card title="Custom Evaluators" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators#custom-llm-evaluators" icon="angles-right" horizontal/>
-</Columns>
+<CardGroup cols={2}>
+  <Card title="LLM Evaluators" icon="brain" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators#llm-evaluators">
+    Use LLM-as-a-judge to assess quality, correctness, and other criteria.
+  </Card>
+  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators#code-evaluators">
+    Built-in heuristic evaluators like exact match, JSON distance, and regex.
+  </Card>
+  <Card title="Custom Evaluators" icon="wand-magic-sparkles" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators#custom-llm-evaluators">
+    Build your own evaluation logic with custom prompts or code.
+  </Card>
+  <Card title="Dataset Evaluators" icon="clipboard-check" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators">
+    Attach evaluators to datasets for automatic scoring during experiments.
+  </Card>
+</CardGroup>

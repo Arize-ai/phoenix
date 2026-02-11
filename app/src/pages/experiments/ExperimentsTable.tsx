@@ -40,10 +40,14 @@ import {
   LoadMoreRow,
 } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
@@ -81,6 +85,7 @@ const TableBody = <T extends { id: string }>({
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
 }) => {
+  "use no memo";
   const navigate = useNavigate();
   return (
     <tbody>
@@ -102,6 +107,7 @@ const TableBody = <T extends { id: string }>({
                   style={{
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                    ...getCommonPinningStyles(cell.column),
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -197,6 +203,10 @@ export function ExperimentsTable({
                   count
                   errorCount
                 }
+                user {
+                  username
+                  profilePictureUrl
+                }
               }
             }
           }
@@ -279,6 +289,23 @@ export function ExperimentsTable({
             >
               {getValue() as string}
             </Link>
+          </Flex>
+        );
+      },
+    },
+    {
+      header: "user",
+      accessorKey: "user",
+      cell: ({ row }) => {
+        const user = row.original.user;
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <UserPicture
+              name={user?.username}
+              profilePictureUrl={user?.profilePictureUrl}
+              size={20}
+            />
+            <Text>{user?.username ?? "system"}</Text>
           </Flex>
         );
       },
@@ -443,7 +470,7 @@ export function ExperimentsTable({
     },
     {
       id: "actions",
-      maxSize: 120,
+      minSize: 180,
       cell: ({ row }) => {
         const project = row.original.project;
         const metadata = row.original.metadata;
@@ -467,6 +494,7 @@ export function ExperimentsTable({
                 projectId={project?.id || null}
                 experimentId={row.original.id}
                 metadata={metadata}
+                size="S"
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
                   refetch({}, { fetchPolicy: "network-only" });
@@ -485,6 +513,9 @@ export function ExperimentsTable({
     state: {
       rowSelection,
       columnSizing,
+      columnPinning: {
+        right: ["actions"],
+      },
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -565,6 +596,7 @@ export function ExperimentsTable({
                   key={header.id}
                   style={{
                     width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                    ...getCommonPinningStyles(header.column),
                   }}
                   align={header.column.columnDef?.meta?.textAlign}
                 >

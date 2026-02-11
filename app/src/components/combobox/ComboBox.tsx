@@ -16,11 +16,9 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { SizingProps } from "@phoenix/components/types";
-
-import { SelectChevronUpDownIcon } from "../icon";
+import { fieldBaseCSS } from "../field/styles";
+import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
+import { SizingProps } from "../types";
 
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
@@ -66,11 +64,13 @@ export function ComboBox<T extends object>({
   stopPropagation,
   renderEmptyState,
   isInvalid,
+  menuTrigger = "focus",
   ...props
 }: ComboBoxProps<T>) {
   return (
     <AriaComboBox
       {...props}
+      menuTrigger={menuTrigger}
       css={css(fieldBaseCSS, comboBoxCSS)}
       data-size={size}
       isInvalid={isInvalid || Boolean(errorMessage)}

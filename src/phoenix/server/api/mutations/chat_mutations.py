@@ -1,90 +1,106 @@
 import asyncio
 import logging
-from dataclasses import asdict, field
+from dataclasses import field
 from datetime import datetime, timezone
-from itertools import chain, islice
-from traceback import format_exc
+from itertools import islice
 from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
-from openinference.semconv.trace import (
-    MessageAttributes,
-    OpenInferenceMimeTypeValues,
-    OpenInferenceSpanKindValues,
-    SpanAttributes,
-    ToolAttributes,
-    ToolCallAttributes,
-)
-from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
-from opentelemetry.trace import StatusCode
+from openinference.semconv.trace import SpanAttributes
+from pydantic import ValidationError
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
-from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+)
+from phoenix.db.types.model_provider import (
+    is_sdk_compatible_with_model_provider,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
-from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
+from phoenix.server.api.evaluators import (
+    EvaluationResult as EvaluationResultDict,
+)
+from phoenix.server.api.evaluators import (
+    create_llm_evaluator_from_inline,
+    evaluation_result_to_model,
+    evaluation_result_to_span_annotation,
+    get_builtin_evaluator_by_key,
+    get_evaluator_project_ids,
+    get_evaluators,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
+from phoenix.server.api.helpers.evaluators import (
+    get_evaluator_output_configs,
+    validate_evaluator_prompt_and_configs,
+)
+from phoenix.server.api.helpers.message_helpers import (
+    PlaygroundMessage,
+    build_template_variables,
+    create_playground_message,
+    extract_and_convert_example_messages,
+)
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
     PlaygroundStreamingClient,
+    get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.playground_spans import (
-    input_value_and_mime_type,
-    llm_input_messages,
-    llm_invocation_parameters,
-    llm_model_name,
-    llm_span_kind,
-    llm_tools,
-    prompt_metadata,
-)
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
+from phoenix.server.api.input_types.EvaluatorPreviewInput import (
+    EvaluatorPreviewsInput,
+)
+from phoenix.server.api.input_types.GenerativeModelInput import (
+    GenerativeModelBuiltinProviderInput,
+    GenerativeModelCustomProviderInput,
+    GenerativeModelInput,
+    OpenAIApiType,
+)
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
+from phoenix.server.api.mutations.evaluator_mutations import (
+    _convert_output_config_inputs_to_pydantic,
+)
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
-from phoenix.trace.attributes import unflatten
-from phoenix.trace.schemas import SpanException
-from phoenix.utilities.json import jsonify
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-)
+from phoenix.trace.attributes import get_attribute_value
+from phoenix.tracers import Tracer
 
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[Any]]]
+ExampleRowID: TypeAlias = int
+RepetitionNumber: TypeAlias = int
 
 
 @strawberry.type
@@ -100,12 +116,21 @@ class ChatCompletionToolCall:
 
 
 @strawberry.type
+class EvaluationResult:
+    evaluator_name: str
+    annotation: Optional[ExperimentRunAnnotation] = None
+    trace: Optional[Trace] = None
+    error: Optional[str] = None
+
+
+@strawberry.type
 class ChatCompletionRepetition:
     repetition_number: int
     content: Optional[str]
     tool_calls: list[ChatCompletionToolCall]
     span: Optional[Span]
     error_message: Optional[str]
+    evaluations: list[EvaluationResult] = field(default_factory=list)
 
 
 @strawberry.type
@@ -130,6 +155,46 @@ class ChatCompletionOverDatasetMutationPayload:
 
 
 @strawberry.type
+class EvaluatorPreviewsPayload:
+    results: list[EvaluationResult]
+
+
+def _to_annotation(eval_result: EvaluationResultDict) -> ExperimentRunAnnotation:
+    return ExperimentRunAnnotation.from_dict(
+        {
+            "name": eval_result["name"],
+            "annotator_kind": eval_result["annotator_kind"],
+            "label": eval_result["label"],
+            "score": eval_result["score"],
+            "explanation": eval_result["explanation"],
+            "error": eval_result["error"],
+            "metadata": eval_result["metadata"],
+            "start_time": eval_result["start_time"],
+            "end_time": eval_result["end_time"],
+            "trace_id": eval_result["trace_id"],
+        }
+    )
+
+
+def _to_evaluation_result(
+    eval_result: EvaluationResultDict,
+    evaluator_name: str,
+    trace: Optional[Trace] = None,
+) -> EvaluationResult:
+    if eval_result["error"] is not None:
+        return EvaluationResult(
+            evaluator_name=evaluator_name,
+            error=eval_result["error"],
+            trace=trace,
+        )
+    return EvaluationResult(
+        evaluator_name=evaluator_name,
+        annotation=_to_annotation(eval_result),
+        trace=trace,
+    )
+
+
+@strawberry.type
 class ChatCompletionMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     @classmethod
@@ -138,30 +203,6 @@ class ChatCompletionMutationMixin:
         info: Info[Context, None],
         input: ChatCompletionOverDatasetInput,
     ) -> ChatCompletionOverDatasetMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
             from_global_id_with_expected_type(
@@ -172,6 +213,12 @@ class ChatCompletionMutationMixin:
         )
         project_name = generate_experiment_project_name()
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model=input.model,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
+            )
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
                 raise NotFound("Dataset not found")
@@ -232,6 +279,35 @@ class ChatCompletionMutationMixin:
             for revision in revisions
             for repetition_number in range(1, input.repetitions + 1)
         ]
+
+        # Pre-extract appended messages for each revision if path is specified
+        appended_messages_by_revision: dict[int, list[PlaygroundMessage]] = {}
+        if input.appended_messages_path:
+            for revision in revisions:
+                try:
+                    appended_messages_by_revision[revision.id] = (
+                        extract_and_convert_example_messages(
+                            revision.input, input.appended_messages_path
+                        )
+                    )
+                except (KeyError, TypeError, ValueError):
+                    # If extraction fails, store empty list; error will surface when processing
+                    appended_messages_by_revision[revision.id] = []
+
+        # Pre-compute template variables for each revision based on template_variables_path
+        template_variables_by_revision: dict[int, dict[str, Any]] = {}
+        for revision in revisions:
+            try:
+                template_variables_by_revision[revision.id] = build_template_variables(
+                    input_data=revision.input,
+                    output_data=revision.output,
+                    metadata=revision.metadata_,
+                    template_variables_path=input.template_variables_path,
+                )
+            except (KeyError, TypeError, ValueError):
+                # If extraction fails, store empty dict; error will surface when formatting
+                template_variables_by_revision[revision.id] = {}
+
         for batch in _get_batches(unbatched_items, batch_size):
             batch_results = await asyncio.gather(
                 *(
@@ -240,19 +316,20 @@ class ChatCompletionMutationMixin:
                         llm_client,
                         ChatCompletionInput(
                             model=input.model,
-                            credentials=input.credentials,
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
                             template=PromptTemplateOptions(
                                 format=input.template_format,
-                                variables=revision.input,
+                                variables=template_variables_by_revision[revision.id],
                             ),
                             prompt_name=input.prompt_name,
                             repetitions=repetition_number,
+                            evaluators=input.evaluators,
                         ),
                         repetition_number=repetition_number,
                         project_name=project_name,
+                        appended_messages=appended_messages_by_revision.get(revision.id),
                     )
                     for revision, repetition_number in batch
                 ),
@@ -284,7 +361,7 @@ class ChatCompletionMutationMixin:
                     dataset_example_id=revision.dataset_example_id,
                     trace_id=db_span.trace.trace_id,
                     output=models.ExperimentRunOutput(
-                        task_output=get_dataset_example_output(db_span),
+                        task_output=get_experiment_example_output(db_span),
                     ),
                     prompt_token_count=db_span.cumulative_llm_token_count_prompt,
                     completion_token_count=db_span.cumulative_llm_token_count_completion,
@@ -299,6 +376,75 @@ class ChatCompletionMutationMixin:
             session.add_all(experiment_runs)
             await session.flush()
 
+        evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResult]] = {}
+        if input.evaluators:
+            dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            async with info.context.db() as session:
+                evaluators = await get_evaluators(
+                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+                project_ids = await get_evaluator_project_ids(
+                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                    session=session,
+                )
+                for (revision, repetition_number), experiment_run in zip(
+                    unbatched_items, experiment_runs
+                ):
+                    if experiment_run.error:
+                        continue  # skip runs that errored out
+                    evaluation_key = (revision.dataset_example_id, repetition_number)
+                    evaluations[evaluation_key] = []
+
+                    context_dict: dict[str, Any] = {
+                        "input": revision.input,
+                        "reference": revision.output,
+                        "output": experiment_run.output.get("task_output", experiment_run.output),
+                        "metadata": revision.metadata_,
+                    }
+
+                    for evaluator, evaluator_input, project_id in zip(
+                        evaluators, input.evaluators, project_ids
+                    ):
+                        name = str(evaluator_input.name)
+                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                        tracer: Tracer | None = None
+                        if input.tracing_enabled:
+                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+
+                        eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_configs=configs,
+                            tracer=tracer,
+                        )
+
+                        trace: Trace | None = None
+                        if tracer is not None:
+                            db_traces = await tracer.save_db_traces(
+                                session=session, project_id=project_id
+                            )
+                            if db_traces:
+                                db_trace = db_traces[0]
+                                trace = Trace(id=db_trace.id, db_record=db_trace)
+                                for eval_result in eval_results:
+                                    eval_result["trace_id"] = db_trace.trace_id
+
+                        for eval_result in eval_results:
+                            if eval_result["error"] is None:
+                                annotation_model = evaluation_result_to_model(
+                                    eval_result,
+                                    experiment_run_id=experiment_run.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                            evaluations[evaluation_key].append(
+                                _to_evaluation_result(eval_result, name, trace=trace)
+                            )
+
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
         ):
@@ -306,19 +452,26 @@ class ChatCompletionMutationMixin:
                 models.DatasetExample.__name__, str(revision.dataset_example_id)
             )
             experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
-            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
-                dataset_example_id=dataset_example_id,
-                repetition_number=repetition_number,
-                experiment_run_id=experiment_run_id,
-                repetition=ChatCompletionRepetition(
+            evaluation_key = (revision.dataset_example_id, repetition_number)
+
+            if isinstance(result, BaseException):
+                repetition = ChatCompletionRepetition(
                     repetition_number=repetition_number,
                     content=None,
                     tool_calls=[],
                     span=None,
                     error_message=str(result),
+                    evaluations=[],
                 )
-                if isinstance(result, BaseException)
-                else result[0],
+            else:
+                repetition = result[0]
+                repetition.evaluations = evaluations.get(evaluation_key, [])
+
+            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
+                dataset_example_id=dataset_example_id,
+                repetition_number=repetition_number,
+                experiment_run_id=experiment_run_id,
+                repetition=repetition,
             )
             payload.examples.append(example_payload)
         return payload
@@ -328,31 +481,13 @@ class ChatCompletionMutationMixin:
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
     ) -> ChatCompletionMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
+        async with info.context.db() as session:
+            llm_client = await get_playground_client(
                 model=input.model,
-                credentials=credentials,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
             )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
@@ -367,6 +502,51 @@ class ChatCompletionMutationMixin:
             )
             results.extend(batch_results)
 
+        # Run evaluations if evaluators are specified
+        evaluations_by_repetition: dict[int, list[EvaluationResult]] = {}
+        if input.evaluators:
+            async with info.context.db() as session:
+                evaluators = await get_evaluators(
+                    dataset_evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+                for repetition_number, result in enumerate(results, start=1):
+                    if isinstance(result, BaseException):
+                        continue  # skip failed completions
+                    repetition, db_span = result
+                    if repetition.error_message:
+                        continue  # skip repetitions in which the task errored out
+                    evaluations_by_repetition[repetition_number] = []
+
+                    context_dict: dict[str, Any] = {
+                        "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
+                        "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                    }
+
+                    for evaluator, evaluator_input in zip(evaluators, input.evaluators):
+                        name = str(evaluator_input.name)
+                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                        eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                            context=context_dict,
+                            input_mapping=evaluator_input.input_mapping,
+                            name=name,
+                            output_configs=configs,
+                        )
+
+                        for eval_result in eval_results:
+                            if eval_result["error"] is None:
+                                annotation_model = evaluation_result_to_span_annotation(
+                                    eval_result,
+                                    span_rowid=db_span.id,
+                                )
+                                session.add(annotation_model)
+                                await session.flush()
+                            evaluations_by_repetition[repetition_number].append(
+                                _to_evaluation_result(eval_result, name)
+                            )
+
         repetitions: list[ChatCompletionRepetition] = []
         for repetition_number, result in enumerate(results, start=1):
             if isinstance(result, BaseException):
@@ -377,29 +557,172 @@ class ChatCompletionMutationMixin:
                         tool_calls=[],
                         span=None,
                         error_message=str(result),
+                        evaluations=[],
                     )
                 )
             else:
                 repetition, _ = result
+                repetition.evaluations = evaluations_by_repetition.get(repetition_number, [])
                 repetitions.append(repetition)
 
         return ChatCompletionMutationPayload(repetitions=repetitions)
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @classmethod
+    async def evaluator_previews(
+        cls, info: Info[Context, None], input: EvaluatorPreviewsInput
+    ) -> EvaluatorPreviewsPayload:
+        all_results: list[EvaluationResult] = []
+
+        for preview_item in input.previews:
+            evaluator_input = preview_item.evaluator
+            context = preview_item.context
+            input_mapping = preview_item.input_mapping
+
+            if evaluator_id := evaluator_input.built_in_evaluator_id:
+                type_name, db_id = from_global_id(evaluator_id)
+
+                if type_name != BuiltInEvaluator.__name__:
+                    raise BadRequest(f"Expected built-in evaluator, got {type_name}")
+
+                # Look up the builtin evaluator key from the database
+                async with info.context.db() as session:
+                    builtin_evaluator_record = await session.get(models.BuiltinEvaluator, db_id)
+                if builtin_evaluator_record is None:
+                    raise BadRequest(f"Built-in evaluator with id {evaluator_id} not found")
+
+                builtin_evaluator_cls = get_builtin_evaluator_by_key(builtin_evaluator_record.key)
+                if builtin_evaluator_cls is None:
+                    key = builtin_evaluator_record.key
+                    raise BadRequest(f"Built-in evaluator class for key '{key}' not found")
+                builtin_evaluator = builtin_evaluator_cls()
+
+                eval_results = await builtin_evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping,
+                    name=builtin_evaluator.name,
+                    output_configs=builtin_evaluator.output_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+            elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
+                prompt_version = inline_llm_evaluator.prompt_version
+                model_name = prompt_version.model_name
+                # Use custom provider if specified, otherwise fall back to built-in
+                if prompt_version.custom_provider_id is not None:
+                    # Validate SDK compatibility at runtime. This catches cases where someone
+                    # modified the custom provider's SDK in the database after it was attached
+                    # to a prompt.
+                    async with info.context.db() as session:
+                        custom_provider_id = from_global_id_with_expected_type(
+                            global_id=prompt_version.custom_provider_id,
+                            expected_type_name=GenerativeModelCustomProvider.__name__,
+                        )
+                        custom_provider = await session.get(
+                            models.GenerativeModelCustomProvider, custom_provider_id
+                        )
+                        if custom_provider is None:
+                            raise NotFound(
+                                f"Custom provider with ID '{custom_provider_id}' not found"
+                            )
+                        if not is_sdk_compatible_with_model_provider(
+                            custom_provider.sdk, prompt_version.model_provider
+                        ):
+                            raise BadRequest(
+                                f"Custom provider '{custom_provider.name}' has SDK "
+                                f"'{custom_provider.sdk}' which is not compatible with prompt's "
+                                f"model provider '{prompt_version.model_provider.value}'. "
+                                f"The custom provider's SDK may have been changed after it was "
+                                f"attached to this prompt."
+                            )
+
+                    model_input = GenerativeModelInput(
+                        custom=GenerativeModelCustomProviderInput(
+                            provider_id=prompt_version.custom_provider_id,
+                            model_name=model_name,
+                        )
+                    )
+                else:
+                    generative_provider_key = GenerativeProviderKey.from_model_provider(
+                        prompt_version.model_provider
+                    )
+                    model_input = GenerativeModelInput(
+                        builtin=GenerativeModelBuiltinProviderInput(
+                            provider_key=generative_provider_key,
+                            name=model_name,
+                            openai_api_type=OpenAIApiType.RESPONSES,
+                        )
+                    )
+                async with info.context.db() as session:
+                    llm_client = await get_playground_client(
+                        model=model_input,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                        credentials=input.credentials,
+                    )
+                try:
+                    prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(
+                        user_id=None
+                    )
+                except ValidationError as error:
+                    raise BadRequest(str(error))
+
+                all_configs = _convert_output_config_inputs_to_pydantic(
+                    inline_llm_evaluator.output_configs
+                )
+                categorical_configs: list[CategoricalAnnotationConfig] = []
+                for config in all_configs:
+                    if not isinstance(config, CategoricalAnnotationConfig):
+                        raise BadRequest(
+                            "Only categorical annotation configs "
+                            "are supported for LLM evaluator previews"
+                        )
+                    categorical_configs.append(config)
+
+                evaluator = create_llm_evaluator_from_inline(
+                    prompt_version_orm=prompt_version_orm,
+                    llm_client=llm_client,
+                    output_configs=categorical_configs,
+                    description=inline_llm_evaluator.description,
+                )
+
+                try:
+                    validate_evaluator_prompt_and_configs(
+                        prompt_tools=prompt_version_orm.tools,
+                        prompt_response_format=prompt_version_orm.response_format,
+                        evaluator_output_configs=categorical_configs,
+                        evaluator_description=inline_llm_evaluator.description,
+                    )
+                except ValueError as error:
+                    raise BadRequest(str(error))
+
+                eval_results = await evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping,
+                    name=evaluator.name,
+                    output_configs=categorical_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+
+            else:
+                raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
+
+        return EvaluatorPreviewsPayload(results=all_results)
 
     @classmethod
     async def _chat_completion(
         cls,
         info: Info[Context, None],
-        llm_client: PlaygroundStreamingClient,
+        llm_client: "PlaygroundStreamingClient[Any]",
         input: ChatCompletionInput,
         repetition_number: int,
         project_name: str = PLAYGROUND_PROJECT_NAME,
         project_description: str = "Traces from prompt playground",
+        appended_messages: Optional[list[PlaygroundMessage]] = None,
     ) -> tuple[ChatCompletionRepetition, models.Span]:
-        attributes: dict[str, Any] = {}
-        attributes.update(dict(prompt_metadata(input.prompt_name)))
-
-        messages = [
-            (
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(
                 message.role,
                 message.content,
                 message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -409,9 +732,10 @@ class ChatCompletionMutationMixin:
         ]
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
-            attributes.update(
-                {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
-            )
+
+        # Append messages from dataset example if provided
+        if appended_messages:
+            messages.extend(appended_messages)
 
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
@@ -419,26 +743,15 @@ class ChatCompletionMutationMixin:
 
         text_content = ""
         tool_calls: dict[str, ChatCompletionToolCall] = {}
-        events = []
-        attributes.update(
-            chain(
-                llm_span_kind(),
-                llm_model_name(input.model.name),
-                llm_tools(input.tools or []),
-                llm_input_messages(messages),
-                llm_invocation_parameters(invocation_parameters),
-                input_value_and_mime_type(input),
-            )
-        )
-
-        start_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
-        status_code = StatusCode.OK
-        status_message = ""
+        error_message: Optional[str] = None
+        tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
         try:
             async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
+                messages=messages,
+                tools=input.tools or [],
+                tracer=tracer,
+                **invocation_parameters,
             ):
-                # Process the chunk
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
                 elif isinstance(chunk, ToolCallChunk):
@@ -455,37 +768,9 @@ class ChatCompletionMutationMixin:
                 else:
                     assert_never(chunk)
         except Exception as e:
-            # Handle exceptions and record exception event
-            status_code = StatusCode.ERROR
-            status_message = str(e)
-            end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
-            assert end_time is not None
-            events.append(
-                SpanException(
-                    timestamp=end_time,
-                    message=status_message,
-                    exception_type=type(e).__name__,
-                    exception_escaped=False,
-                    exception_stacktrace=format_exc(),
-                )
-            )
-        else:
-            end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
+            error_message = str(e)
 
-        attributes.update(llm_client.attributes)
-        if text_content or tool_calls:
-            attributes.update(
-                chain(
-                    _output_value_and_mime_type(text_content, tool_calls),
-                    _llm_output_messages(text_content, tool_calls),
-                )
-            )
-
-        # Now write the span to the database
-        trace_id = _generate_trace_id()
-        span_id = _generate_span_id()
         async with info.context.db() as session:
-            # Get or create the project ID
             if (
                 project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == project_name)
@@ -499,59 +784,21 @@ class ChatCompletionMutationMixin:
                         description=project_description,
                     )
                 )
-            trace = models.Trace(
-                project_rowid=project_id,
-                trace_id=trace_id,
-                start_time=start_time,
-                end_time=end_time,
-            )
-            span = models.Span(
-                trace_rowid=trace.id,
-                span_id=span_id,
-                parent_id=None,
-                name="ChatCompletion",
-                span_kind=LLM,
-                start_time=start_time,
-                end_time=end_time,
-                attributes=unflatten(attributes.items()),
-                events=[_serialize_event(event) for event in events],
-                status_code=status_code.name,
-                status_message=status_message,
-                cumulative_error_count=int(status_code is StatusCode.ERROR),
-                cumulative_llm_token_count_prompt=attributes.get(LLM_TOKEN_COUNT_PROMPT, 0),
-                cumulative_llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
-                llm_token_count_prompt=attributes.get(LLM_TOKEN_COUNT_PROMPT, 0),
-                llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
-                trace=trace,
-            )
-            session.add(trace)
-            session.add(span)
-            await session.flush()
-            try:
-                span_cost = info.context.span_cost_calculator.calculate_cost(
-                    start_time=span.start_time,
-                    attributes=span.attributes,
-                )
-            except Exception as e:
-                logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                span_cost = None
-            if span_cost:
-                span_cost.span_rowid = span.id
-                span_cost.trace_rowid = trace.id
-                session.add(span_cost)
-                await session.flush()
+            db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
 
-        gql_span = Span(id=span.id, db_record=span)
-
+        db_trace = db_traces[0]
+        db_span = db_trace.spans[0]
+        gql_span = Span(id=db_span.id, db_record=db_span)
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
-        if status_code is StatusCode.ERROR:
+        if error_message is not None:
             repetition = ChatCompletionRepetition(
                 repetition_number=repetition_number,
                 content=None,
                 tool_calls=[],
                 span=gql_span,
-                error_message=status_message,
+                error_message=error_message,
+                evaluations=[],
             )
         else:
             repetition = ChatCompletionRepetition(
@@ -560,99 +807,34 @@ class ChatCompletionMutationMixin:
                 tool_calls=list(tool_calls.values()),
                 span=gql_span,
                 error_message=None,
+                evaluations=[],
             )
-        return repetition, span
+        return repetition, db_span
 
 
 def _formatted_messages(
-    messages: Iterable[ChatCompletionMessage],
+    messages: Iterable[PlaygroundMessage],
     template_options: PromptTemplateOptions,
-) -> Iterator[ChatCompletionMessage]:
+) -> Iterator[PlaygroundMessage]:
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_format=template_options.format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_options.variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
-
-
-def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    """
-    Instantiates the appropriate template formatter for the template format.
-    """
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
-
-
-def _output_value_and_mime_type(
-    text: str, tool_calls: dict[str, ChatCompletionToolCall]
-) -> Iterator[tuple[str, Any]]:
-    if text and tool_calls:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield (
-            OUTPUT_VALUE,
-            safe_json_dumps({"content": text, "tool_calls": jsonify(list(tool_calls.values()))}),
-        )
-    elif tool_calls:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield OUTPUT_VALUE, safe_json_dumps(jsonify(list(tool_calls.values())))
-    elif text:
-        yield OUTPUT_MIME_TYPE, TEXT
-        yield OUTPUT_VALUE, text
-
-
-def _llm_output_messages(
-    text_content: str, tool_calls: dict[str, ChatCompletionToolCall]
-) -> Iterator[tuple[str, Any]]:
-    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
-    if text_content:
-        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", text_content
-    for tool_call_index, tool_call in enumerate(tool_calls.values()):
-        if tool_call_id := tool_call.id:
-            yield (
-                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
-                tool_call_id,
+    messages_list = list(messages)
+    if not messages_list:
+        return iter([])
+    template_formatter = get_template_formatter(template_format=template_options.format)
+    result: list[PlaygroundMessage] = []
+    for msg in messages_list:
+        formatted_content = template_formatter.format(msg["content"], **template_options.variables)
+        result.append(
+            create_playground_message(
+                msg["role"],
+                formatted_content,
+                msg.get("tool_call_id"),
+                msg.get("tool_calls"),
             )
-        yield (
-            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-            tool_call.function.name,
         )
-        if arguments := tool_call.function.arguments:
-            yield (
-                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                arguments,
-            )
-
-
-def _generate_trace_id() -> str:
-    return _hex(DefaultOTelIDGenerator().generate_trace_id())
-
-
-def _generate_span_id() -> str:
-    return _hex(DefaultOTelIDGenerator().generate_span_id())
-
-
-def _hex(number: int) -> str:
-    return hex(number)[2:]
-
-
-def _serialize_event(event: SpanException) -> dict[str, Any]:
-    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
+    return iter(result)
 
 
 _AnyT = TypeVar("_AnyT")
@@ -668,32 +850,5 @@ def _get_batches(
         yield batch
 
 
-JSON = OpenInferenceMimeTypeValues.JSON.value
-TEXT = OpenInferenceMimeTypeValues.TEXT.value
-LLM = OpenInferenceSpanKindValues.LLM.value
-
-OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
-LLM_TOOLS = SpanAttributes.LLM_TOOLS
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-
-MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
-MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
-MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
-
-TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
-TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
-TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
-
-TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
-PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

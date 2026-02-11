@@ -13,6 +13,7 @@ const switchCSS = css`
   color: var(--ac-global-text-color-900);
   font-size: var(--ac-global-font-size-m);
   line-height: var(--ac-global-line-height-m);
+  white-space: nowrap;
 
   .indicator {
     width: var(--ac-global-dimension-size-400);

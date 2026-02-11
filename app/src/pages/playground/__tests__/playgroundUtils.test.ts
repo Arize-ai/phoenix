@@ -1,3 +1,4 @@
+import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
@@ -22,10 +23,14 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
-import { InvocationParameter } from "../InvocationParametersFormFields";
 import {
   areInvocationParamsEqual,
+  mergeInvocationParametersWithDefaults,
+} from "../invocationParameterUtils";
+import {
   areRequiredInvocationParametersConfigured,
+  extractRootVariable,
+  extractRootVariables,
   extractVariablesFromInstances,
   getAzureConfigFromAttributes,
   getBaseModelConfigFromAttributes,
@@ -37,7 +42,6 @@ import {
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
-  mergeInvocationParametersWithDefaults,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -51,7 +55,7 @@ import {
   spanAttributesWithInputMessages,
   SpanTool,
   SpanToolCall,
-  tesSpanAnthropicTool,
+  testSpanAnthropicTool,
   testSpanAnthropicToolDefinition,
   testSpanOpenAITool,
   testSpanOpenAIToolJsonSchema,
@@ -435,6 +439,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         tools: [
           {
             id: expect.any(Number),
+            editorType: "json",
             definition: testSpanOpenAIToolJsonSchema,
           },
         ],
@@ -1349,7 +1354,7 @@ describe("getToolsFromAttributes", () => {
   const ProviderToToolTestMap: ProviderToolTestMap = {
     ANTHROPIC: [
       "ANTHROPIC",
-      tesSpanAnthropicTool,
+      testSpanAnthropicTool,
       testSpanAnthropicToolDefinition,
     ],
     OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
@@ -1379,6 +1384,7 @@ describe("getToolsFromAttributes", () => {
         tools: [
           {
             id: expect.any(Number),
+            editorType: "json",
             definition: toolDefinition,
           },
         ],
@@ -1673,7 +1679,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "gpt-4o-mini",
-      apiVersion: "2024-10-01-preview",
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1688,7 +1693,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "my-azure-deployment",
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1706,7 +1710,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "url-deploy",
-      apiVersion: "2024-06-01",
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1716,7 +1719,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: null,
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1734,7 +1736,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: null,
     });
   });
@@ -1748,7 +1749,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "url-deploy",
-      apiVersion: null,
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1765,7 +1765,6 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: "https://example.openai.azure.com",
     });
   });
@@ -1779,8 +1778,64 @@ describe("getAzureConfigFromAttributes", () => {
     const result = getAzureConfigFromAttributes(attrs);
     expect(result).toEqual({
       deploymentName: "meta-deploy",
-      apiVersion: null,
       endpoint: null,
     });
+  });
+});
+
+describe("extractRootVariable", () => {
+  it("should return simple variable names unchanged", () => {
+    expect(extractRootVariable("name")).toBe("name");
+    expect(extractRootVariable("input")).toBe("input");
+    expect(extractRootVariable("reference")).toBe("reference");
+  });
+
+  it("should extract root from dot notation paths", () => {
+    expect(extractRootVariable("reference.label")).toBe("reference");
+    expect(extractRootVariable("user.name")).toBe("user");
+    expect(extractRootVariable("input.input.messages")).toBe("input");
+    expect(extractRootVariable("user.address.city")).toBe("user");
+  });
+
+  it("should extract root from bracket notation", () => {
+    expect(extractRootVariable("items[0]")).toBe("items");
+    expect(extractRootVariable("reference[label]")).toBe("reference");
+  });
+
+  it("should extract root from mixed notation", () => {
+    expect(extractRootVariable("items[0].name")).toBe("items");
+    expect(extractRootVariable("user.addresses[0].city")).toBe("user");
+  });
+
+  it("should handle empty string", () => {
+    expect(extractRootVariable("")).toBe("");
+  });
+});
+
+describe("extractRootVariables", () => {
+  it("should extract unique root variables from paths", () => {
+    const paths = [
+      "input.input.messages",
+      "reference.label",
+      "input.question",
+      "metadata",
+    ];
+    const result = extractRootVariables(paths);
+    expect(result).toEqual(["input", "reference", "metadata"]);
+  });
+
+  it("should return empty array for empty input", () => {
+    expect(extractRootVariables([])).toEqual([]);
+  });
+
+  it("should deduplicate root variables", () => {
+    const paths = [
+      "user.name",
+      "user.email",
+      "user.address.city",
+      "reference.label",
+    ];
+    const result = extractRootVariables(paths);
+    expect(result).toEqual(["user", "reference"]);
   });
 });

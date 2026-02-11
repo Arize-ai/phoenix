@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 /**
  * This is to keep the height of the picker and the button the same
@@ -39,16 +40,24 @@ const playgroundDatasetSelectCSS = css`
   }
 `;
 
-export function PlaygroundDatasetSelect() {
+type PlaygroundDatasetSelectProps = {
+  isDisabled?: boolean;
+};
+
+export function PlaygroundDatasetSelect({
+  isDisabled,
+}: PlaygroundDatasetSelectProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
   const splitIds = searchParams.getAll("splitId");
+  const setDatasetId = usePlaygroundContext((state) => state.setDatasetId);
 
   return (
     <div css={playgroundDatasetSelectCSS}>
       <DatasetSelectWithSplits
         size="S"
         placeholder="Test over a dataset"
+        isDisabled={isDisabled}
         value={
           datasetId
             ? {
@@ -58,6 +67,7 @@ export function PlaygroundDatasetSelect() {
             : null
         }
         onSelectionChange={({ datasetId, splitIds }) => {
+          setDatasetId(datasetId);
           setSearchParams((prev) => {
             if (datasetId) {
               prev.set("datasetId", datasetId);
@@ -81,8 +91,10 @@ export function PlaygroundDatasetSelect() {
         <Button
           className="dataset-clear-button"
           size="S"
+          isDisabled={isDisabled}
           leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
           onPress={() => {
+            setDatasetId(null);
             setSearchParams((prev) => {
               prev.delete("datasetId");
               prev.delete("splitId");

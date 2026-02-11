@@ -6,7 +6,19 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import {
+  datasetEvaluatorDetailsLoader,
+  DatasetEvaluatorDetailsLoaderData,
+} from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
+import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import {
+  EVALUATOR_DETAILS_ROUTE_ID,
+  EvaluatorTracePage,
+} from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
+import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
+import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
@@ -25,15 +37,11 @@ import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
-import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
-import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
-import {
-  promptVersionLoader,
-  PromptVersionLoaderData,
-} from "./pages/prompt/promptVersionLoader";
+import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
@@ -60,6 +68,7 @@ import {
   LoggedOutPage,
   LoginPage,
   PlaygroundPage,
+  playgroundPageLoader,
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
@@ -232,7 +241,26 @@ const router = createBrowserRouter(
                   element={<DatasetVersionsPage />}
                   loader={datasetVersionsLoader}
                 />
-                <Route path="evaluators" element={<DatasetEvaluatorsPage />} />
+                <Route
+                  path="evaluators"
+                  element={<DatasetEvaluatorsPage />}
+                  loader={datasetEvaluatorsLoader}
+                  handle={{
+                    crumb: () => "evaluators",
+                  }}
+                />
+              </Route>
+              <Route
+                id={EVALUATOR_DETAILS_ROUTE_ID}
+                path="evaluators/:evaluatorId"
+                element={<DatasetEvaluatorDetailsPage />}
+                loader={datasetEvaluatorDetailsLoader}
+                handle={{
+                  crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName || "evaluator",
+                }}
+              >
+                <Route path=":traceId" element={<EvaluatorTracePage />} />
               </Route>
               <Route
                 path="compare"
@@ -247,7 +275,11 @@ const router = createBrowserRouter(
               crumb: () => "Playground", // TODO: add playground name
             }}
           >
-            <Route index element={<PlaygroundPage />} />
+            <Route
+              index
+              element={<PlaygroundPage />}
+              loader={playgroundPageLoader}
+            />
             <Route
               path="spans/:spanId"
               element={<SpanPlaygroundPage />}
@@ -260,6 +292,13 @@ const router = createBrowserRouter(
                   return "span unknown";
                 },
               }}
+            />
+          </Route>
+          <Route path="/evaluators" handle={{ crumb: () => "Evaluators" }}>
+            <Route
+              index
+              element={<EvaluatorsPage />}
+              loader={evaluatorsPageLoader}
             />
           </Route>
           <Route
@@ -303,35 +342,6 @@ const router = createBrowserRouter(
                   loader={promptConfigLoader}
                 />
               </Route>
-              {/*
-               * Adds a duplicative versions/:versionId route group that bails out of
-               * the PromptLayout so that the version playground is not nested
-               */}
-              <Route
-                path="versions/:versionId"
-                loader={promptVersionLoader}
-                handle={{
-                  crumb: (data: PromptVersionLoaderData) =>
-                    data?.promptVersion.id,
-                }}
-              >
-                <Route
-                  path="playground"
-                  element={<PromptPlaygroundPage />}
-                  loader={promptPlaygroundLoader}
-                  handle={{
-                    crumb: () => "playground",
-                  }}
-                />
-              </Route>
-              <Route
-                path="playground"
-                element={<PromptPlaygroundPage />}
-                loader={promptPlaygroundLoader}
-                handle={{
-                  crumb: () => "playground",
-                }}
-              />
             </Route>
           </Route>
           <Route
@@ -424,6 +434,11 @@ const router = createBrowserRouter(
           <Route
             path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/prompts/:promptId/tags/:tagName"
+            loader={promptTagRedirectLoader}
             errorElement={<ErrorElement />}
           />
         </Route>

@@ -14,4 +14,5 @@ TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluator
         )
     ],
     choices={"correct": 1.0, "incorrect": 0.0},
+    substitutions=None,
 )

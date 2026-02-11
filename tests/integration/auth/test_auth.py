@@ -1631,6 +1631,130 @@ class TestTraceAnnotations:
         )
 
 
+class TestSecretsCRUDAndValueVisibility:
+    """Tests for secret management access control and value visibility.
+
+    Verifies that:
+    - Only admins can create/update/delete secrets (upsertOrDeleteSecrets mutation)
+    - Admins see decrypted secret values (DecryptedSecret)
+    - Non-admins (Members, Viewers) cannot access secret values (Unauthorized)
+    """
+
+    QUERY = """
+      mutation UpsertOrDeleteSecrets($input: UpsertOrDeleteSecretsMutationInput!) {
+        upsertOrDeleteSecrets(input: $input) {
+          deletedIds
+          upsertedSecrets {
+            id
+          }
+        }
+      }
+      query GetSecret($id: ID!) {
+        node(id: $id) {
+          ... on Secret {
+            key
+            value {
+              __typename
+              ... on DecryptedSecret {
+                value
+              }
+              ... on UnparsableSecret {
+                parseError
+              }
+            }
+          }
+        }
+      }
+    """
+
+    def test_secret_access_control_and_value_visibility(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test secret CRUD permissions and value visibility by role.
+
+        Verifies:
+        - Members/Viewers cannot upsert or delete secrets (admin-only)
+        - Admin can upsert and delete secrets
+        - Admin sees DecryptedSecret with actual value
+        - Members/Viewers cannot access secret value field (Unauthorized)
+        """
+        admin = _get_user(_app, _ADMIN)
+        member = _get_user(_app, _MEMBER)
+        viewer = _get_user(_app, _VIEWER)
+
+        logged_in_admin = admin.log_in(_app)
+        logged_in_member = member.log_in(_app)
+        logged_in_viewer = viewer.log_in(_app)
+
+        # Create a secret (admin-only operation)
+        secret_key = f"test-secret-{token_hex(8)}"
+        secret_value = f"super-secret-value-{token_hex(8)}"
+
+        # Member and Viewer should not be able to upsert the secret
+        for logged_in_user in [logged_in_member, logged_in_viewer]:
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="UpsertOrDeleteSecrets",
+                    variables={"input": {"secrets": [{"key": secret_key, "value": secret_value}]}},
+                )
+
+        # Admin should be able to upsert the secret
+        response, _ = logged_in_admin.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="UpsertOrDeleteSecrets",
+            variables={
+                "input": {"secrets": [{"key": secret_key, "value": secret_value}]},
+            },
+        )
+        id_ = response["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"][0]["id"]
+
+        # Admin should see decrypted value
+        response, _ = logged_in_admin.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="GetSecret",
+            variables={"id": id_},
+        )
+        secret = response["data"]["node"]
+        assert secret["key"] == secret_key
+        assert secret["value"]["__typename"] == "DecryptedSecret"
+        assert secret["value"]["value"] == secret_value
+
+        # Member and Viewer should get Unauthorized when accessing secret value field
+        for logged_in_user in [logged_in_member, logged_in_viewer]:
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="GetSecret",
+                    variables={"id": id_},
+                )
+
+        # Member and Viewer should not be able to delete the secret
+        for logged_in_user in [logged_in_member, logged_in_viewer]:
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="UpsertOrDeleteSecrets",
+                    variables={"input": {"secrets": [{"key": secret_key, "value": None}]}},
+                )
+
+        # Admin should be able to delete the secret
+        response, _ = logged_in_admin.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="UpsertOrDeleteSecrets",
+            variables={"input": {"secrets": [{"key": secret_key, "value": None}]}},
+        )
+        assert response["data"]["upsertOrDeleteSecrets"]["deletedIds"] == [id_]
+
+
 class TestApiAccessViaCookiesOrApiKeys:
     """Tests REST API v1 access control using both cookie and API key authentication.
 

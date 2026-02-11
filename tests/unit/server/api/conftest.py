@@ -1,10 +1,30 @@
 from datetime import datetime, timezone
-from typing import Any, NamedTuple
+from typing import Any, Awaitable, Callable, NamedTuple
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptToolChoiceOneOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -753,23 +773,8 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
 def cities_and_countries() -> list[tuple[str, str]]:
     return [
         ("Toronto", "Canada"),
-        ("Vancouver", "Canada"),
         ("Paris", "France"),
-        ("Lyon", "France"),
-        ("Berlin", "Germany"),
-        ("Munich", "Germany"),
         ("Tokyo", "Japan"),
-        ("Osaka", "Japan"),
-        ("Sydney", "Australia"),
-        ("Melbourne", "Australia"),
-        ("Guadalajara", "Mexico"),
-        ("Moscow", "Russia"),
-        ("Beijing", "China"),
-        ("Shanghai", "China"),
-        ("Mumbai", "India"),
-        ("Delhi", "India"),
-        ("Seoul", "South Korea"),
-        ("Busan", "South Korea"),
     ]
 
 
@@ -816,6 +821,189 @@ async def playground_city_and_country_dataset(
         await session.flush()
         session.add_all(revisions)
         await session.flush()
+
+
+@pytest.fixture
+async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator:
+    """
+    An LLM evaluator that assesses correctness.
+    """
+    async with db() as session:
+        evaluator_name = Identifier("correctness-evaluator")
+        prompt = models.Prompt(
+            name=Identifier("correctness-prompt"),
+            description="Prompt for correctness evaluation",
+            prompt_versions=[
+                models.PromptVersion(
+                    template_type=PromptTemplateType.CHAT,
+                    template_format=PromptTemplateFormat.MUSTACHE,
+                    template=PromptChatTemplate(
+                        type="chat",
+                        messages=[
+                            PromptMessage(
+                                role="system",
+                                content="You are an evaluator that assesses the correctness of outputs.",
+                            ),
+                            PromptMessage(
+                                role="user",
+                                content="Input: {{input}}\n\nOutput: {{output}}\n\nIs this output correct?",
+                            ),
+                        ],
+                    ),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    tools=PromptTools(
+                        type="tools",
+                        tools=[
+                            PromptToolFunction(
+                                type="function",
+                                function=PromptToolFunctionDefinition(
+                                    name="correctness",
+                                    description="evaluates the correctness of the output",
+                                    parameters={
+                                        "type": "object",
+                                        "properties": {
+                                            "label": {
+                                                "type": "string",
+                                                "enum": ["correct", "incorrect"],
+                                                "description": "correctness",
+                                            },
+                                        },
+                                        "required": ["label"],
+                                    },
+                                ),
+                            )
+                        ],
+                        tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                    ),
+                    response_format=None,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    metadata_={},
+                )
+            ],
+        )
+        llm_evaluator = models.LLMEvaluator(
+            name=evaluator_name,
+            description="evaluates the correctness of the output",
+            kind="LLM",
+            output_configs=[
+                CategoricalAnnotationConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness evaluation",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                )
+            ],
+            prompt=prompt,
+        )
+        session.add(llm_evaluator)
+        await session.flush()
+        return llm_evaluator
+
+
+@pytest.fixture
+async def assign_correctness_llm_evaluator_to_dataset(
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
+    """
+    Factory fixture to assign the correctness LLM evaluator to a dataset.
+    Reuses the correctness_llm_evaluator fixture.
+    """
+
+    async def _assign_correctness_llm_evaluator_to_dataset(
+        dataset_id: int,
+    ) -> models.DatasetEvaluators:
+        dataset_evaluator = models.DatasetEvaluators(
+            dataset_id=dataset_id,
+            evaluator_id=correctness_llm_evaluator.id,
+            name=correctness_llm_evaluator.name,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=None,
+            project=models.Project(
+                name="correctness-evaluator-project",
+                description="Project for llm evaluator",
+            ),
+        )
+        async with db() as session:
+            session.add(dataset_evaluator)
+        return dataset_evaluator
+
+    return _assign_correctness_llm_evaluator_to_dataset
+
+
+@pytest.fixture
+async def assign_exact_match_builtin_evaluator_to_dataset(
+    db: DbSessionFactory,
+    synced_builtin_evaluators: None,
+) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
+    async def _assign_exact_match_builtin_evaluator_to_dataset(
+        dataset_id: int,
+    ) -> models.DatasetEvaluators:
+        async with db() as session:
+            # Look up the builtin evaluator ID by key from the database
+            exact_match_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(
+                    models.BuiltinEvaluator.key == "exact_match"
+                )
+            )
+            assert exact_match_id is not None, "ExactMatch builtin evaluator not found in database"
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_id,
+                evaluator_id=exact_match_id,
+                name=Identifier(root="exact-match"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(
+                    name="exact-match-evaluator-project",
+                    description="Project for builtin evaluator",
+                ),
+            )
+            session.add(dataset_evaluator)
+        return dataset_evaluator
+
+    return _assign_exact_match_builtin_evaluator_to_dataset
+
+
+@pytest.fixture
+async def single_example_dataset(db: DbSessionFactory) -> models.Dataset:
+    """
+    A dataset with a single example.
+    """
+    async with db() as session:
+        dataset = models.Dataset(name="single-example-dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(version)
+        await session.flush()
+
+        example = models.DatasetExample(
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
+        )
+        session.add(example)
+        await session.flush()
+
+        revision = models.DatasetExampleRevision(
+            dataset_example_id=example.id,
+            dataset_version_id=version.id,
+            input={"city": "Paris"},
+            output={"country": "France"},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        session.add(revision)
+        await session.flush()
+
+    return dataset
 
 
 @pytest.fixture

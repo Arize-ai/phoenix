@@ -4,7 +4,7 @@ from typing import Any, Literal, Mapping, Optional, Union
 from pydantic import Field, RootModel, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
-from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
+from phoenix.db.types.db_helper_types import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.aws import AwsToolChoiceConversion
@@ -606,10 +606,10 @@ def normalize_tools(
 
 def denormalize_tools(
     tools: PromptTools, model_provider: ModelProvider
-) -> tuple[list[dict[str, Any]], Optional[Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     assert tools.type == "tools"
     denormalized_tools: list[DBBaseModel]
-    tool_choice: Optional[Any] = None
+    tool_choice: dict[str, Any] = {}
     if (
         model_provider is ModelProvider.OPENAI
         or model_provider is ModelProvider.AZURE_OPENAI
@@ -619,19 +619,20 @@ def denormalize_tools(
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
-            tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
+            tool_choice = {"tool_choice": OpenAIToolChoiceConversion.to_openai(tools.tool_choice)}
     elif model_provider is ModelProvider.AWS:
         denormalized_tools = [_prompt_to_bedrock_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
-            tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
+            tool_choice = {"tool_choice": AwsToolChoiceConversion.to_aws(tools.tool_choice)}
     elif model_provider is ModelProvider.ANTHROPIC:
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
         if tools.tool_choice and tools.tool_choice.type != "none":
-            tool_choice = AnthropicToolChoiceConversion.to_anthropic(tools.tool_choice)
+            tool_choice_value = AnthropicToolChoiceConversion.to_anthropic(tools.tool_choice)
+            tool_choice = {"tool_choice": tool_choice_value}
     elif model_provider is ModelProvider.GOOGLE:
         denormalized_tools = [_prompt_to_gemini_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
-            tool_choice = GoogleToolChoiceConversion.to_google(tools.tool_choice)
+            tool_choice = {"tool_config": GoogleToolChoiceConversion.to_google(tools.tool_choice)}
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     return [tool.model_dump() for tool in denormalized_tools], tool_choice

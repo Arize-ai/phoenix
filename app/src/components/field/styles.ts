@@ -47,7 +47,7 @@ export const fieldBaseCSS = css`
       opacity: var(--ac-global-opacity-disabled);
     }
     &[data-invalid="true"] {
-      border-color: var(--ac-global-color-danger);
+      border: 1px solid var(--ac-global-color-danger);
     }
     &::placeholder {
       color: var(--ac-text-color-placeholder);
@@ -97,13 +97,20 @@ export const textFieldCSS = css`
 
   &[data-size="S"] {
     --textfield-input-height: var(--ac-global-input-height-s);
-    --textfield-vertical-padding: 6px;
-    --textfield-horizontal-padding: 6px;
+    --textfield-vertical-padding: var(--ac-global-dimension-size-75);
+    --textfield-horizontal-padding: var(--ac-global-dimension-size-75);
+    --icon-size: var(--ac-global-font-size-s);
   }
   &[data-size="M"] {
     --textfield-input-height: var(--ac-global-input-height-m);
-    --textfield-vertical-padding: 10px;
-    --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
+    --textfield-vertical-padding: var(--ac-global-dimension-size-125);
+    --textfield-horizontal-padding: var(--ac-global-dimension-size-125);
+    --icon-size: var(--ac-global-font-size-m);
+  }
+  &[data-size="L"] {
+    --textfield-input-height: var(--ac-global-input-height-l);
+    --textfield-vertical-padding: var(--ac-global-dimension-size-150);
+    --textfield-horizontal-padding: var(--ac-global-dimension-size-150);
     --icon-size: var(--ac-global-font-size-l);
   }
 
@@ -142,6 +149,9 @@ export const textFieldCSS = css`
     outline: var(--ac-global-border-size-thin) solid transparent;
     &[data-focused]:not([data-invalid]) {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
+    }
+    &[data-focused][data-invalid] {
+      outline: 1px solid var(--ac-global-color-danger);
     }
   }
 

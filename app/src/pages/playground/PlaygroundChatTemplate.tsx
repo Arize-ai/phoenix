@@ -1,4 +1,10 @@
-import { PropsWithChildren, useCallback, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -16,6 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Button,
   Card,
   CopyToClipboardButton,
@@ -35,6 +42,8 @@ import {
   TemplateEditor,
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { validateMustacheSections } from "@phoenix/components/templateEditor/language/mustacheLike";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -52,6 +61,7 @@ import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
 } from "./constants";
+import { areInvocationParamsEqual } from "./invocationParameterUtils";
 import {
   AIMessageContentRadioGroup,
   AIMessageMode,
@@ -61,35 +71,38 @@ import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
-import {
-  areInvocationParamsEqual,
-  createToolCallForProvider,
-} from "./playgroundUtils";
+import { createToolCallForProvider } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
-const MESSAGE_Z_INDEX = 1;
 /**
  * The z-index of the dragging message.
- * Must be higher than the z-index of the other messages. Otherwise when dragging
- * from top to bottom, the dragging message will be covered by the message below.
+ * Only applied when actively dragging to ensure the dragged message appears above others.
+ * Non-dragging messages should NOT have a z-index to avoid creating stacking contexts
+ * that would clip autocomplete dropdowns.
  */
-const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
+const DRAGGING_MESSAGE_Z_INDEX = 10;
 
-interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
+interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {
+  appendedMessagesPath?: string | null;
+  availablePaths: string[] | undefined;
+}
 
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
 
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+
+  const appendedMessagesPath = props.appendedMessagesPath;
   const instanceSelector = useMemo(() => selectPlaygroundInstance(id), [id]);
   const playgroundInstance = usePlaygroundContext(instanceSelector);
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
 
-  const hasTools = playgroundInstance.tools.length > 0;
+  const hasTools = !props.disableTools && playgroundInstance.tools.length > 0;
   const hasResponseFormat =
+    !props.disableResponseFormat &&
     playgroundInstance.model.invocationParameters.find((p) =>
       areInvocationParamsEqual(p, {
         canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
@@ -109,6 +122,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const { disableResponseFormat, disableNewTool } = props;
 
   return (
     <DndContext
@@ -147,6 +162,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           {messageIds.map((messageId) => {
             return (
               <SortableMessageItem
+                availablePaths={props.availablePaths}
                 playgroundInstanceId={id}
                 templateFormat={templateFormat}
                 key={messageId}
@@ -156,10 +172,21 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           })}
         </ul>
       </SortableContext>
+      {appendedMessagesPath ? (
+        <View paddingTop="size-100" paddingBottom="size-100">
+          <Alert variant="info">
+            Messages from the configured path{" "}
+            <strong>{appendedMessagesPath}</strong> will be appended to this
+            prompt.
+          </Alert>
+        </View>
+      ) : null}
       <View paddingTop="size-100" paddingBottom="size-100">
         <PlaygroundChatTemplateFooter
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
+          disableResponseFormat={disableResponseFormat}
+          disableNewTool={disableNewTool}
         />
       </View>
       {hasTools || hasResponseFormat ? (
@@ -178,19 +205,42 @@ function MessageEditor({
   templateFormat,
   playgroundInstanceId,
   messageMode,
+  availablePaths,
 }: {
   playgroundInstanceId: number;
   message: ChatMessage;
   templateFormat: TemplateFormat;
   updateMessage: (patch: Partial<ChatMessage>) => void;
   messageMode: MessageMode;
+  availablePaths?: string[];
 }) {
+  // Track whether to show validation alerts - becomes true on first blur
+  // and stays true so errors remain visible until fixed
+  const [showValidation, setShowValidation] = useState(false);
+
   const onChange = useCallback(
     (val: string) => {
       updateMessage({ content: val });
     },
     [updateMessage]
   );
+  const onBlur = useCallback(() => setShowValidation(true), []);
+  const sectionValidation = useMemo(() => {
+    if (templateFormat !== TemplateFormats.Mustache) {
+      return null;
+    }
+    return validateMustacheSections(message.content ?? "");
+  }, [message.content, templateFormat]);
+  const hasValidationIssues =
+    sectionValidation != null &&
+    (sectionValidation?.errors.length > 0 ||
+      sectionValidation?.warnings.length > 0);
+  // Reset validation state when switching to a different message or template format
+  useEffect(() => {
+    if (!hasValidationIssues) {
+      setShowValidation(false);
+    }
+  }, [message.id, templateFormat, hasValidationIssues]);
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -246,12 +296,24 @@ function MessageEditor({
 
   return (
     <TemplateEditorWrap>
+      {showValidation && sectionValidation?.errors.length ? (
+        <Alert variant="danger" banner title="Invalid mustache sections">
+          {sectionValidation.errors.join(", ")}
+        </Alert>
+      ) : null}
+      {showValidation && sectionValidation?.warnings.length ? (
+        <Alert variant="warning" banner title="Unclosed mustache sections">
+          {sectionValidation.warnings.join(", ")}
+        </Alert>
+      ) : null}
       <TemplateEditor
         height="100%"
         defaultValue={message.content || ""}
         aria-label="Message content"
         templateFormat={templateFormat}
         onChange={onChange}
+        onBlur={onBlur}
+        availablePaths={availablePaths}
       />
     </TemplateEditorWrap>
   );
@@ -261,10 +323,12 @@ function SortableMessageItem({
   playgroundInstanceId,
   templateFormat,
   messageId,
+  availablePaths,
 }: PropsWithChildren<{
   playgroundInstanceId: number;
   messageId: number;
   templateFormat: TemplateFormat;
+  availablePaths: string[] | undefined;
 }>) {
   const updateMessage = usePlaygroundContext((state) => state.updateMessage);
   const deleteMessage = usePlaygroundContext((state) => state.deleteMessage);
@@ -300,7 +364,9 @@ function SortableMessageItem({
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
     transition,
-    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
+    // Only set z-index when dragging to avoid creating stacking contexts
+    // that would clip autocomplete dropdowns
+    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : undefined,
   };
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
@@ -448,6 +514,7 @@ function SortableMessageItem({
             playgroundInstanceId={playgroundInstanceId}
             templateFormat={templateFormat}
             updateMessage={onMessageUpdate}
+            availablePaths={availablePaths}
           />
         </div>
       </Card>

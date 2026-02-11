@@ -47,6 +47,7 @@ export * from "./datetime";
 export * from "./radio";
 export * from "./toggleButtonGroup";
 export * from "./listbox";
+export * from "./gridlist";
 export * from "./token";
 export * from "./slider";
 export * from "./counter";

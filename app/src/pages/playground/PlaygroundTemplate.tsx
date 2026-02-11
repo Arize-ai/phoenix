@@ -1,7 +1,9 @@
 import { Suspense, useCallback, useMemo } from "react";
+import { css } from "@emotion/react";
 
 import {
   Button,
+  CompositeField,
   DialogTrigger,
   Flex,
   Icon,
@@ -15,17 +17,22 @@ import {
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
+import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
+import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
+import { TagPromptVersionButton } from "@phoenix/components/prompt/TagPromptVersionButton";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
-import { ModelConfigButton } from "./ModelConfigButton";
-import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
-import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PlaygroundInstanceProps } from "./types";
 
-interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
+interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
+  appendedMessagesPath?: string | null;
+  availablePaths: string[] | undefined;
+}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
@@ -93,7 +100,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
-  const { template } = instance;
 
   // A prompt is "selected" in the PromptMenu when both a promptId and promptVersionId
   // are available in the instance
@@ -106,6 +112,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
     };
   }, [promptId, promptVersionId, promptTagName]);
 
+  const { disablePromptMenu, disablePromptSave, disableAlphabeticIndex } =
+    props;
+
   return (
     <>
       <Flex direction="row" justifyContent="space-between">
@@ -114,11 +123,22 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           gap="size-100"
           alignItems="center"
           marginEnd="size-100"
+          minWidth={0}
+          flex="1 1 auto"
+          css={css`
+            overflow: hidden;
+          `}
         >
-          <AlphabeticIndexIcon index={index} />
-          <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+          {!disableAlphabeticIndex ? (
+            <View flex="none">
+              <AlphabeticIndexIcon index={index} />
+            </View>
+          ) : null}
+          {!disablePromptMenu ? (
+            <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+          ) : null}
         </Flex>
-        <Flex direction="row" gap="size-100">
+        <Flex direction="row" gap="size-100" flex="none">
           <Suspense
             fallback={
               <div>
@@ -130,13 +150,29 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               invocation parameters for the model to the instance in the store */}
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
-          <ModelConfigButton {...props} />
-          <SaveButton instanceId={instanceId} dirty={dirty} />
+          <CompositeField>
+            <PlaygroundModelMenu playgroundInstanceId={instanceId} />
+            {/* Un-comment this to get legacy behavior for cross-checking */}
+            {/* <ModelConfigButton {...props} /> */}
+            <ModelParametersConfigButton
+              playgroundInstanceId={instanceId}
+              disableEphemeralRouting={props.disableEphemeralRouting}
+            />
+          </CompositeField>
+          {promptId && promptVersionId && (
+            <TagPromptVersionButton
+              promptId={promptId}
+              versionId={promptVersionId}
+            />
+          )}
+          {!disablePromptSave ? (
+            <SaveButton instanceId={instanceId} dirty={dirty} />
+          ) : null}
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>
       <View paddingY="size-100">
-        {template.__type === "chat" ? (
+        {instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
           </Suspense>

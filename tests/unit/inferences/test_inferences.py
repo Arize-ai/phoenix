@@ -1357,20 +1357,15 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
 
 
 def test_inferences_with_arize_schema() -> None:
+    import importlib
     from importlib.metadata import version
 
-    if int(version("arize").split(".")[0]) >= 8:
-        from arize.ml.types import (
-            EmbeddingColumnNames as ArizeEmbeddingColumnNames,
-        )
-        from arize.ml.types import Schema as ArizeSchema
-    else:
-        from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
-            EmbeddingColumnNames as ArizeEmbeddingColumnNames,
-        )
-        from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
-            Schema as ArizeSchema,
-        )
+    module_path = (
+        "arize.ml.types" if int(version("arize").split(".")[0]) >= 8 else "arize.utils.types"
+    )
+    arize_types = importlib.import_module(module_path)
+    ArizeEmbeddingColumnNames = arize_types.EmbeddingColumnNames
+    ArizeSchema = arize_types.Schema
 
     input_df = DataFrame(
         {
@@ -1410,16 +1405,15 @@ def test_inferences_with_arize_schema() -> None:
 
 
 def test_inferences_with_arize_schema_typed_columns() -> None:
+    import importlib
     from importlib.metadata import version
 
-    if int(version("arize").split(".")[0]) >= 8:
-        from arize.ml.types import Schema as ArizeSchema
-        from arize.ml.types import TypedColumns
-    else:
-        from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
-            Schema as ArizeSchema,
-        )
-        from arize.utils.types import TypedColumns  # type: ignore[attr-defined,no-redef]
+    module_path = (
+        "arize.ml.types" if int(version("arize").split(".")[0]) >= 8 else "arize.utils.types"
+    )
+    arize_types = importlib.import_module(module_path)
+    ArizeSchema = arize_types.Schema
+    TypedColumns = arize_types.TypedColumns
 
     input_df = DataFrame(
         {

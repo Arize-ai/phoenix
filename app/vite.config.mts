@@ -5,6 +5,7 @@ import { resolve } from "path";
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+import circleDependency from "vite-plugin-circular-dependency";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
@@ -41,6 +42,7 @@ export default defineConfig(() => {
     ),
     relay,
     lezer(),
+    circleDependency({ circleImportThrowErr: true }),
   ];
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
@@ -48,6 +50,9 @@ export default defineConfig(() => {
     root: resolve(__dirname, "src"),
     plugins,
     publicDir: resolve(__dirname, "static"),
+    server: {
+      port: parseInt(process.env.VITE_PORT || "5173"),
+    },
     preview: {
       port: 6006,
     },
@@ -90,12 +95,6 @@ export default defineConfig(() => {
                 return "vendor-codemirror";
               }
               return "vendor";
-            }
-            if (id.includes("src/components")) {
-              return "components";
-            }
-            if (id.includes("src/pages")) {
-              return "pages";
             }
           },
         },

@@ -25,6 +25,10 @@ dependencies = [
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
+  "jsonpath-ng",
+  "jsonschema",
+  "pystache",
+  "PyYAML",
   "starlette",
   "uvicorn",
   "psutil",
@@ -41,9 +45,9 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
-  "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.20",
-  "openinference-instrumentation>=0.1.32",
+  "openinference-semantic-conventions>=0.1.26",
+  "openinference-instrumentation>=0.1.44",
+  "openinference-instrumentation-openai>=0.1.41",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
@@ -73,9 +77,12 @@ phoenix = "phoenix.server.main:main"
 
 [dependency-groups]
 dev = [
+  "aioboto3",
+  "aiobotocore>=3.1.1",
+  "aioboto3",
   "aiosqlite<0.22.0",  # new version is causing tests to hang
-  "anthropic",
-  "arize",
+  "anthropic>=0.79.0",
+  "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
   "azure-identity",
@@ -91,6 +98,7 @@ dev = [
   "grpcio",
   "httpx",
   "httpx-ws",
+  "hypothesis-jsonschema>=0.23.1",
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15",
@@ -105,6 +113,8 @@ dev = [
   "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
   "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-httpx",
+  "opentelemetry-instrumentation-aiohttp-client",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk>=1.35.0",
   "opentelemetry-semantic-conventions",
@@ -136,6 +146,7 @@ dev = [
   "tenacity",
   "tiktoken",
   "ty",
+  "types-aiobotocore-bedrock-runtime>=3.1.1",
   "types-beautifulsoup4",
   "types-cachetools",
   "types-jmespath",
@@ -167,14 +178,14 @@ pg = [
   "psycopg[binary,pool]",
 ]
 aws = [
-  "boto3",
+  "aioboto3",
 ]
 container = [
-  "anthropic>=0.49.0",
+  "anthropic>=0.78.0",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
-  "openai>=1.0.0",
+  "openai>=2.14.0",
   "azure-identity",
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
@@ -192,7 +203,7 @@ container = [
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
-  "boto3",
+  "aioboto3",
 ]
 test = [
 ]
@@ -220,6 +231,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
 [tool.hatch.build]
@@ -240,6 +252,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
+  "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
 [tool.pytest.ini_options]
@@ -309,9 +322,11 @@ module = [
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
   "pypistats",
+  "pystache",
   "authlib.*",
   "google.*",
   "mistralai.*",
+  "jsonpath_ng",
 ]
 ignore_missing_imports = true
 

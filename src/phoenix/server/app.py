@@ -90,10 +90,14 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetDatasetSplitsDataLoader,
+    DatasetEvaluatorsByEvaluatorDataLoader,
+    DatasetEvaluatorsByIdDataLoader,
+    DatasetEvaluatorsDataLoader,
     DatasetExampleRevisionsDataLoader,
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
     DatasetExampleSpansDataLoader,
     DatasetExampleSplitsDataLoader,
+    DatasetsByEvaluatorDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -108,6 +112,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
+    LatestPromptVersionIdDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
@@ -115,6 +120,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -165,6 +171,7 @@ from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
@@ -284,6 +291,8 @@ class AppConfig(NamedTuple):
     """ Whether the database has a threshold for usage """
     allow_external_resources: bool = True
     """ Whether to allow external resources like Google Fonts in the web interface """
+    dev_vite_port: int = 5173
+    """ Port the Vite dev server runs on. Only used in development mode. """
 
 
 class Static(StaticFiles):
@@ -337,6 +346,7 @@ class Static(StaticFiles):
                     "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,
+                    "vite_port": self._app_config.dev_vite_port,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
@@ -648,6 +658,7 @@ def _lifespan(
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
+            _warn_if_missing_aioboto3()
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
@@ -687,6 +698,8 @@ def create_graphql_router(
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
     corpus: Optional[Model] = None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
@@ -731,6 +744,12 @@ def create_graphql_router(
                     db
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+                code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
+                dataset_evaluator_fields=TableFieldsDataLoader(db, models.DatasetEvaluators),
+                dataset_evaluators_by_evaluator=DatasetEvaluatorsByEvaluatorDataLoader(db),
+                dataset_evaluators_by_id=DatasetEvaluatorsByIdDataLoader(db),
+                dataset_evaluators=DatasetEvaluatorsDataLoader(db),
+                datasets_by_evaluator=DatasetsByEvaluatorDataLoader(db),
                 dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
                 dataset_example_fields=TableFieldsDataLoader(db, models.DatasetExample),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
@@ -780,6 +799,9 @@ def create_graphql_router(
                 ),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
                 generative_model_fields=TableFieldsDataLoader(db, models.GenerativeModel),
+                generative_model_custom_provider_fields=TableFieldsDataLoader(
+                    db, models.GenerativeModelCustomProvider
+                ),
                 last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
                     db
                 ),
@@ -789,6 +811,7 @@ def create_graphql_router(
                         cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
                     ),
                 ),
+                llm_evaluator_fields=TableFieldsDataLoader(db, models.LLMEvaluator),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
                     db,
                     cache_map=(
@@ -807,6 +830,7 @@ def create_graphql_router(
                 prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
+                latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
                 project_session_annotation_fields=TableFieldsDataLoader(
                     db, models.ProjectSessionAnnotation
                 ),
@@ -815,6 +839,8 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
+                secret_fields=TableFieldsDataLoader(db, models.Secret),
+                secrets=SecretsDataLoader(db),
                 session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
                 session_first_inputs=SessionIODataLoader(db, "first_input"),
                 session_last_outputs=SessionIODataLoader(db, "last_output"),
@@ -888,6 +914,8 @@ def create_graphql_router(
             token_store=token_store,
             email_sender=email_sender,
             span_cost_calculator=span_cost_calculator,
+            encrypt=encrypt,
+            decrypt=decrypt,
         )
 
     return GraphQLRouter(
@@ -992,6 +1020,7 @@ def create_app(
     corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
+    dev_vite_port: int = 5173,
     read_only: bool = False,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
@@ -1108,7 +1137,7 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
-
+    encryption_service = EncryptionService(secret=secret)
     graphql_router = create_graphql_router(
         db=db,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
@@ -1124,6 +1153,8 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
+        encrypt=encryption_service.encrypt,
+        decrypt=encryption_service.decrypt,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -1209,6 +1240,7 @@ def create_app(
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
+                    dev_vite_port=dev_vite_port,
                 ),
             ),
             name="static",
@@ -1228,6 +1260,8 @@ def create_app(
     app.state.db = db
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator
+    app.state.encrypt = encryption_service.encrypt
+    app.state.decrypt = encryption_service.decrypt
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
@@ -1278,3 +1312,27 @@ def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]
 
     app.state.get_token_store = MethodType(get_token_store, app.state)
     return app
+
+
+def _warn_if_missing_aioboto3() -> None:
+    """
+    Check if boto3 is installed without aioboto3 and log a warning.
+
+    This helps users who have boto3 installed but haven't migrated to
+    aioboto3 for Phoenix's AWS Bedrock integration in Playground.
+    """
+
+    try:
+        import aioboto3  # type: ignore[import-untyped] # noqa: F401
+
+        return
+    except ImportError:
+        try:
+            import boto3  # type: ignore[import-untyped] # noqa: F401
+
+            logger.warning(
+                "boto3 is installed but aioboto3 is not. To use AWS Bedrock models "
+                "in Playground, install aioboto3: pip install aioboto3"
+            )
+        except ImportError:
+            pass

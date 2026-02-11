@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - main
-      - feat/version-12
+      - version-13
   pull_request:
     paths:
       - "**/*.py"
@@ -219,7 +219,7 @@ jobs:
     strategy:
       matrix:
         py: ["3.10"]
-        os: [ubuntu-latest]
+        os: [oss-4-core-runner]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -417,7 +417,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.10", "3.13"]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [oss-4-core-runner, windows-latest, macos-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -501,7 +501,7 @@ jobs:
       matrix:
         py: ["3.10", "3.13"]
         db: [sqlite, postgresql]
-        os: [ubuntu-latest, windows-latest]
+        os: [oss-4-core-runner, windows-latest]
         exclude:
           - db: postgresql
             os: windows-latest
@@ -545,7 +545,7 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: uvx --with uv==0.9.30 tox run -e integration_tests -- -ra --reruns 5 -n auto
 
   test-migrations:
@@ -577,6 +577,8 @@ jobs:
           python-version: 3.13
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.30"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -601,7 +603,7 @@ jobs:
           sparse-checkout: src/phoenix/
       - name: Install Phoenix from current branch
         run: |
-          uv pip install --system --reinstall-package arize-phoenix .
+          uv pip install --system --reinstall-package arize-phoenix --no-sources .
       - name: Test new migrations
         working-directory: ${{ env.PHOENIX_PATH }}
         run: |

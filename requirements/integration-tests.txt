@@ -1,9 +1,12 @@
 -r ci.txt
 -r type-check.txt
+aioboto3
 asyncpg
 beautifulsoup4
 faker
+google-genai
 httpx
+hypothesis-jsonschema
 openinference-semantic-conventions
 opentelemetry-sdk>=1.35.0
 pandas-stubs

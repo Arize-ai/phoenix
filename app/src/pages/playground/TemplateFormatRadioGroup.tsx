@@ -6,7 +6,18 @@ import { isTemplateFormat } from "@phoenix/components/templateEditor/types";
 import { SizingProps } from "@phoenix/components/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
-export function TemplateFormatRadioGroup({ size }: SizingProps) {
+export type TemplateFormatRadioGroupProps = SizingProps & {
+  /**
+   * Whether to show the "None" option
+   * @default true
+   */
+  showNoneOption?: boolean;
+};
+
+export function TemplateFormatRadioGroup({
+  size,
+  showNoneOption = true,
+}: TemplateFormatRadioGroupProps) {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const setTemplateFormat = usePlaygroundContext(
     (state) => state.setTemplateFormat
@@ -33,15 +44,17 @@ export function TemplateFormatRadioGroup({ size }: SizingProps) {
           }
         }}
       >
-        <ToggleButton aria-label="None" id={TemplateFormats.NONE}>
-          None
-        </ToggleButton>
         <ToggleButton aria-label="Mustache" id={TemplateFormats.Mustache}>
           Mustache
         </ToggleButton>
         <ToggleButton aria-label="F-String" id={TemplateFormats.FString}>
           F-String
         </ToggleButton>
+        {showNoneOption && (
+          <ToggleButton aria-label="None" id={TemplateFormats.NONE}>
+            None
+          </ToggleButton>
+        )}
       </ToggleButtonGroup>
     </div>
   );

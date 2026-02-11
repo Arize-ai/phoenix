@@ -1,12 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
+import { login, VIEWER_USER } from "./utils/login";
+
 test.beforeEach(async ({ page }) => {
-  await page.goto(`/login`);
-  await page.getByLabel("Email").fill("viewer@localhost.com");
-  await page.getByLabel("Password").fill("viewer123");
-  await page.getByRole("button", { name: "Log In", exact: true }).click();
-  await page.waitForURL("**/projects");
+  await login(page, VIEWER_USER);
 });
 
 test("can create user key", async ({ page }) => {
