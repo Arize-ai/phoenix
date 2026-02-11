@@ -1298,7 +1298,13 @@ class ContainsEvaluator(BuiltInEvaluator):
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1492,7 +1498,13 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1703,7 +1715,13 @@ class RegexEvaluator(BuiltInEvaluator):
                         label, score = self._map_boolean_to_label_and_score(matched, output_config)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(json.dumps(matched), mime_type="application/json")
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 
@@ -1907,7 +1925,13 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     score = float(distance)
 
                     parse_span.set_attributes(
-                        oi.get_output_attributes(distance, mime_type="application/json")
+                        oi.get_output_attributes(
+                            {
+                                "label": label,
+                                "score": score,
+                                "explanation": explanation,
+                            }
+                        )
                     )
                     parse_span.set_status(Status(StatusCode.OK))
 

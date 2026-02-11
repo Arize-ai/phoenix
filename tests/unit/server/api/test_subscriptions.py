@@ -2265,7 +2265,12 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "CHAIN"
             assert json.loads(attributes.pop(INPUT_VALUE)) is True
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
-            assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
+            output_value = json.loads(attributes.pop(OUTPUT_VALUE))
+            assert output_value == {
+                "label": "true",
+                "score": 1.0,
+                "explanation": "expected matches actual",
+            }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
 
