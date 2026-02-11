@@ -3,26 +3,20 @@ import { LoaderFunctionArgs } from "react-router";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import {
+  parsePromptParams,
+  PromptParam,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import {
   createNormalizedPlaygroundInstance,
   PlaygroundInstance,
   PlaygroundProps,
 } from "@phoenix/store";
 
 /**
- * A single prompt selection parsed from URL search params.
+ * A playground instance as returned by the fetch layer, before a
+ * numeric `id` is assigned by {@link createNormalizedPlaygroundInstance}.
  */
-export type PromptParam = {
-  promptId: string;
-  promptVersionId: string | null;
-  tagName: string | null;
-};
-
-/**
- * The resolved result of a single prompt fetch.
- */
-type FetchedPromptResult = NonNullable<
-  Awaited<ReturnType<typeof fetchPlaygroundPromptAsInstance>>
->;
+type PlaygroundInstanceWithoutId = Omit<PlaygroundInstance, "id">;
 
 /**
  * The data returned by the playground page loader.
@@ -30,79 +24,20 @@ type FetchedPromptResult = NonNullable<
  */
 export type PlaygroundPageLoaderData = {
   promptParams: PromptParam[];
-  instances: FetchedPromptResult["instance"][];
+  instances: PlaygroundInstanceWithoutId[];
   templateFormat: TemplateFormat;
 } | null;
 
 /**
- * Parses prompt-related search params from a URLSearchParams instance.
- * The three param arrays (`promptId`, `promptVersionId`, `promptTagName`)
- * are zipped by position into {@link PromptParam} tuples.
- *
- * Returns an empty array if no `promptId` params are present.
+ * Produces a stable cache key for a prompt param triple.
+ * Uses a null-byte separator to avoid collisions between field values.
  */
-export function parsePromptParams(
-  searchParams: URLSearchParams
-): PromptParam[] {
-  const promptIds = searchParams.getAll("promptId");
-  if (promptIds.length === 0) {
-    return [];
-  }
-
-  const promptVersionIds = searchParams.getAll("promptVersionId");
-  const promptTagNames = searchParams.getAll("promptTagName");
-
-  return promptIds.map((promptId, index) => ({
-    promptId,
-    promptVersionId: promptVersionIds[index] || null,
-    tagName: promptTagNames[index] || null,
-  }));
-}
-
-/**
- * Writes an array of {@link PromptParam} into a URLSearchParams instance,
- * replacing any existing prompt-related params.
- *
- * Returns `true` if the params actually changed, `false` if they were
- * already in sync.
- */
-export function writePromptParams(
-  searchParams: URLSearchParams,
-  prompts: PromptParam[]
-): boolean {
-  const currentIds = searchParams.getAll("promptId");
-  const currentVersionIds = searchParams.getAll("promptVersionId");
-  const currentTagNames = searchParams.getAll("promptTagName");
-
-  const newIds = prompts.map((prompt) => prompt.promptId);
-  const newVersionIds = prompts.map((prompt) => prompt.promptVersionId ?? "");
-  const newTagNames = prompts.map((prompt) => prompt.tagName ?? "");
-
-  const idsMatch =
-    currentIds.length === newIds.length &&
-    currentIds.every((id, index) => id === newIds[index]);
-  const versionIdsMatch =
-    currentVersionIds.length === newVersionIds.length &&
-    currentVersionIds.every((id, index) => id === newVersionIds[index]);
-  const tagNamesMatch =
-    currentTagNames.length === newTagNames.length &&
-    currentTagNames.every((name, index) => name === newTagNames[index]);
-
-  if (idsMatch && versionIdsMatch && tagNamesMatch) {
-    return false;
-  }
-
-  searchParams.delete("promptId");
-  searchParams.delete("promptVersionId");
-  searchParams.delete("promptTagName");
-
-  for (const prompt of prompts) {
-    searchParams.append("promptId", prompt.promptId);
-    searchParams.append("promptVersionId", prompt.promptVersionId ?? "");
-    searchParams.append("promptTagName", prompt.tagName ?? "");
-  }
-
-  return true;
+function promptParamKey(
+  promptId: string,
+  promptVersionId: string | null,
+  tagName: string | null
+): string {
+  return `${promptId}\0${promptVersionId ?? ""}\0${tagName ?? ""}`;
 }
 
 /**
@@ -164,37 +99,53 @@ export const playgroundPageLoader = async ({
   const url = new URL(request.url);
   const promptParams = parsePromptParams(url.searchParams);
 
-  if (promptParams.length === 0) {
+  if (!promptParams.length) {
     return null;
   }
 
-  const results = await Promise.all(
-    promptParams.map(async ({ promptId, promptVersionId, tagName }) => {
-      try {
-        return await fetchPlaygroundPromptAsInstance({
+  // De-duplicate identical prompt params so we only make one network
+  // request per unique (promptId, promptVersionId, tagName) triple.
+  const fetchCache = new Map<
+    string,
+    Promise<{
+      instance: PlaygroundInstanceWithoutId;
+      promptVersion: { templateFormat: string };
+    } | null>
+  >();
+
+  for (const { promptId, promptVersionId, tagName } of promptParams) {
+    const key = promptParamKey(promptId, promptVersionId, tagName);
+    if (!fetchCache.has(key)) {
+      fetchCache.set(
+        key,
+        fetchPlaygroundPromptAsInstance({
           promptId,
           promptVersionId,
           tagName,
-        });
-      } catch {
-        // Skip prompts that fail to load (e.g. deleted prompts)
-        return null;
-      }
-    })
-  );
+        }).catch(() => null) // Skip prompts that fail to load (e.g. deleted)
+      );
+    }
+  }
 
-  const validResults = results.filter(
-    (result): result is NonNullable<typeof result> => result != null
-  );
+  // Wait for all unique fetches, then map each param to its result in
+  // the original order so that instance positions match the URL params.
+  await Promise.all(fetchCache.values());
 
-  if (validResults.length === 0) {
+  const instances: PlaygroundInstanceWithoutId[] = [];
+  let templateFormat: TemplateFormat | null = null;
+
+  for (const { promptId, promptVersionId, tagName } of promptParams) {
+    const key = promptParamKey(promptId, promptVersionId, tagName);
+    const result = await fetchCache.get(key);
+    if (result) {
+      instances.push(result.instance);
+      templateFormat ??= result.promptVersion.templateFormat as TemplateFormat;
+    }
+  }
+
+  if (instances.length === 0 || templateFormat === null) {
     return null;
   }
 
-  return {
-    promptParams,
-    instances: validResults.map((result) => result.instance),
-    templateFormat: validResults[0].promptVersion
-      .templateFormat as TemplateFormat,
-  };
+  return { promptParams, instances, templateFormat };
 };

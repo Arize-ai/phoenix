@@ -1,8 +1,8 @@
 import {
   parsePromptParams,
   PromptParam,
-  writePromptParams,
-} from "../playgroundPageLoader";
+  setPromptParams,
+} from "../playgroundURLSearchParamsUtils";
 
 describe("parsePromptParams", () => {
   it("returns an empty array when no promptId params are present", () => {
@@ -74,7 +74,7 @@ describe("parsePromptParams", () => {
   });
 });
 
-describe("writePromptParams", () => {
+describe("setPromptParams", () => {
   it("returns false and makes no changes when params already match", () => {
     const searchParams = new URLSearchParams(
       "promptId=P1&promptVersionId=V1&promptTagName=prod"
@@ -82,19 +82,19 @@ describe("writePromptParams", () => {
     const prompts: PromptParam[] = [
       { promptId: "P1", promptVersionId: "V1", tagName: "prod" },
     ];
-    const changed = writePromptParams(searchParams, prompts);
+    const changed = setPromptParams(searchParams, prompts);
     expect(changed).toBe(false);
     expect(searchParams.getAll("promptId")).toEqual(["P1"]);
     expect(searchParams.getAll("promptVersionId")).toEqual(["V1"]);
     expect(searchParams.getAll("promptTagName")).toEqual(["prod"]);
   });
 
-  it("returns true and writes params when they differ", () => {
+  it("returns true and sets params when they differ", () => {
     const searchParams = new URLSearchParams();
     const prompts: PromptParam[] = [
       { promptId: "P1", promptVersionId: "V1", tagName: "prod" },
     ];
-    const changed = writePromptParams(searchParams, prompts);
+    const changed = setPromptParams(searchParams, prompts);
     expect(changed).toBe(true);
     expect(searchParams.getAll("promptId")).toEqual(["P1"]);
     expect(searchParams.getAll("promptVersionId")).toEqual(["V1"]);
@@ -105,7 +105,7 @@ describe("writePromptParams", () => {
     const searchParams = new URLSearchParams(
       "promptId=P1&promptVersionId=V1&promptTagName=prod"
     );
-    const changed = writePromptParams(searchParams, []);
+    const changed = setPromptParams(searchParams, []);
     expect(changed).toBe(true);
     expect(searchParams.getAll("promptId")).toEqual([]);
     expect(searchParams.getAll("promptVersionId")).toEqual([]);
@@ -117,19 +117,19 @@ describe("writePromptParams", () => {
     const prompts: PromptParam[] = [
       { promptId: "P1", promptVersionId: "V1", tagName: null },
     ];
-    writePromptParams(searchParams, prompts);
+    setPromptParams(searchParams, prompts);
     expect(searchParams.get("datasetId")).toBe("DS1");
     expect(searchParams.get("splitId")).toBe("S1");
     expect(searchParams.getAll("promptId")).toEqual(["P1"]);
   });
 
-  it("writes multiple prompts in order", () => {
+  it("sets multiple prompts in order", () => {
     const searchParams = new URLSearchParams();
     const prompts: PromptParam[] = [
       { promptId: "P1", promptVersionId: "V1", tagName: "prod" },
       { promptId: "P2", promptVersionId: "V2", tagName: null },
     ];
-    writePromptParams(searchParams, prompts);
+    setPromptParams(searchParams, prompts);
     expect(searchParams.getAll("promptId")).toEqual(["P1", "P2"]);
     expect(searchParams.getAll("promptVersionId")).toEqual(["V1", "V2"]);
     expect(searchParams.getAll("promptTagName")).toEqual(["prod", ""]);
@@ -140,7 +140,7 @@ describe("writePromptParams", () => {
     const prompts: PromptParam[] = [
       { promptId: "P1", promptVersionId: null, tagName: null },
     ];
-    writePromptParams(searchParams, prompts);
+    setPromptParams(searchParams, prompts);
     expect(searchParams.getAll("promptVersionId")).toEqual([""]);
     expect(searchParams.getAll("promptTagName")).toEqual([""]);
   });
@@ -152,7 +152,7 @@ describe("writePromptParams", () => {
     const prompts: PromptParam[] = [
       { promptId: "NEW", promptVersionId: "V_NEW", tagName: "new_tag" },
     ];
-    const changed = writePromptParams(searchParams, prompts);
+    const changed = setPromptParams(searchParams, prompts);
     expect(changed).toBe(true);
     expect(searchParams.getAll("promptId")).toEqual(["NEW"]);
     expect(searchParams.getAll("promptVersionId")).toEqual(["V_NEW"]);
@@ -161,7 +161,7 @@ describe("writePromptParams", () => {
 
   it("returns false when clearing already-empty params", () => {
     const searchParams = new URLSearchParams("datasetId=DS1");
-    const changed = writePromptParams(searchParams, []);
+    const changed = setPromptParams(searchParams, []);
     expect(changed).toBe(false);
   });
 });

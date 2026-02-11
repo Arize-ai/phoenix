@@ -29,8 +29,8 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import {
   PromptParam,
-  writePromptParams,
-} from "@phoenix/pages/playground/playgroundPageLoader";
+  setPromptParams,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import { PlaygroundProps } from "@phoenix/store";
 
 import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
@@ -249,7 +249,7 @@ function PlaygroundContent() {
   useEffect(() => {
     setSearchParams(
       (prev) => {
-        writePromptParams(prev, instancePromptParams);
+        setPromptParams(prev, instancePromptParams);
         return prev;
       },
       { replace: true }
