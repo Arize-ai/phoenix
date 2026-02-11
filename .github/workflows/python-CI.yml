@@ -448,11 +448,11 @@ jobs:
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 60
-        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -n auto -ra -x --reruns 5 --run-postgres
+        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -n auto -ra --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
         timeout-minutes: 60
-        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -n auto -ra -x --reruns 5
+        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -n auto -ra --reruns 5
 
   type-check-integration-tests:
     name: Type Check Integration Tests
@@ -546,7 +546,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 20
-        run: uvx --with uv==0.9.30 tox run -e integration_tests -- -ra -x --reruns 5 -n auto
+        run: uvx --with uv==0.9.30 tox run -e integration_tests -- -ra --reruns 5 -n auto
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }})
