@@ -37,13 +37,8 @@ import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
-import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
-import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
-import {
-  promptVersionLoader,
-  PromptVersionLoaderData,
-} from "./pages/prompt/promptVersionLoader";
+import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
@@ -347,35 +342,6 @@ const router = createBrowserRouter(
                   loader={promptConfigLoader}
                 />
               </Route>
-              {/*
-               * Adds a duplicative versions/:versionId route group that bails out of
-               * the PromptLayout so that the version playground is not nested
-               */}
-              <Route
-                path="versions/:versionId"
-                loader={promptVersionLoader}
-                handle={{
-                  crumb: (data: PromptVersionLoaderData) =>
-                    data?.promptVersion.id,
-                }}
-              >
-                <Route
-                  path="playground"
-                  element={<PromptPlaygroundPage />}
-                  loader={promptPlaygroundLoader}
-                  handle={{
-                    crumb: () => "playground",
-                  }}
-                />
-              </Route>
-              <Route
-                path="playground"
-                element={<PromptPlaygroundPage />}
-                loader={promptPlaygroundLoader}
-                handle={{
-                  crumb: () => "playground",
-                }}
-              />
             </Route>
           </Route>
           <Route

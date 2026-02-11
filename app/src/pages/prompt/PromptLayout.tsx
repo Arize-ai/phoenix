@@ -132,7 +132,7 @@ export function PromptLayout() {
             <LinkButton
               variant="primary"
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              to="playground"
+              to={`/playground?promptId=${encodeURIComponent(data.id)}`}
               size="M"
               aria-label="Open this Prompt in Playground"
             >
