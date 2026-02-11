@@ -182,6 +182,16 @@ test.describe.serial("Server Evaluators", () => {
     await nameInput.clear();
     await nameInput.fill(prebuiltCodeEvaluatorName);
 
+    // Fill in the required Expected field (allowsCustomValue ComboBox)
+    await page
+      .getByRole("combobox", { name: "Expected path mapping" })
+      .fill("input.question");
+
+    // Fill in the required Actual field (allowsCustomValue ComboBox)
+    await page
+      .getByRole("combobox", { name: "Actual path mapping" })
+      .fill("input.context");
+
     // Click Create button
     await page.getByRole("button", { name: "Create" }).click();
 
