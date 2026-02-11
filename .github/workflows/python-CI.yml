@@ -448,11 +448,11 @@ jobs:
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 60
-        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -ra -x --reruns 5 --run-postgres
+        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -n auto -ra -x --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
         timeout-minutes: 60
-        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -ra -x --reruns 5
+        run: uvx --with uv==0.9.30 tox run -e unit_tests -- -n auto -ra -x --reruns 5
 
   type-check-integration-tests:
     name: Type Check Integration Tests
