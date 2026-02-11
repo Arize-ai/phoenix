@@ -110,6 +110,7 @@ class DataLoaders:
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     code_evaluator_fields: TableFieldsDataLoader
+    dataset_evaluator_fields: TableFieldsDataLoader
     dataset_evaluators_by_evaluator: DatasetEvaluatorsByEvaluatorDataLoader
     dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
     dataset_evaluators: DatasetEvaluatorsDataLoader
