@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Key } from "react-aria-components";
 import {
   Control,
@@ -14,6 +14,7 @@ import {
   ComboBox,
   ComboBoxItem,
   CompositeField,
+  FieldError,
   Input,
   Label,
   ListBox,
@@ -87,6 +88,11 @@ export interface SwitchableEvaluatorInputProps<TFieldValues extends FieldValues>
    * Whether to hide the label
    */
   hideLabel?: boolean;
+  /**
+   * Whether this field is required. When true, validation rules are added
+   * and the label is marked with an asterisk.
+   */
+  isRequired?: boolean;
 }
 
 const modeSelectCSS = css`
@@ -146,6 +152,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   pathInputValue,
   onPathInputChange,
   hideLabel,
+  isRequired,
   size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
   const [mode, setMode] = useState<MappingMode>(defaultMode);
@@ -180,8 +187,12 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     [pathOptions]
   );
 
+  const requiredRules = isRequired
+    ? { required: `${label} is required` }
+    : undefined;
+
   return (
-    <div css={fieldBaseCSS}>
+    <div css={fieldBaseCSS} data-required={isRequired || undefined}>
       {!hideLabel && <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>}
       <CompositeField>
         <Select
@@ -211,8 +222,11 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
             <Controller
               name={pathFieldName}
               control={control}
-              render={({ field }) => (
+              rules={requiredRules}
+              render={({ field, fieldState: { error } }) => (
                 <ComboBox
+                  isInvalid={!!error}
+                  errorMessage={error?.message}
                   aria-label={`${label} path mapping`}
                   placeholder={pathPlaceholder}
                   defaultItems={pathOptionsWithUnset}
@@ -266,8 +280,10 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
             <Controller
               name={literalFieldName}
               control={control}
-              render={({ field }) => (
+              rules={requiredRules}
+              render={({ field, fieldState: { error } }) => (
                 <TextField
+                  isInvalid={!!error}
                   aria-label={`${label} literal value`}
                   {...field}
                   value={String(field.value ?? "")}
@@ -276,6 +292,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                   id={`${fieldName}-${mode}`}
                 >
                   <Input placeholder={literalPlaceholder} />
+                  {error && <FieldError>{error.message}</FieldError>}
                 </TextField>
               )}
             />

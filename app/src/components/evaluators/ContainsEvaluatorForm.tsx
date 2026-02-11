@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useShallow } from "zustand/react/shallow";
 
@@ -39,7 +39,8 @@ const useContainsEvaluatorForm = () => {
 };
 
 export const ContainsEvaluatorForm = () => {
-  const { control, getValues, setValue } = useContainsEvaluatorForm();
+  const { control, getValues, setValue, trigger } = useContainsEvaluatorForm();
+  const store = useEvaluatorStoreInstance();
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
@@ -49,6 +50,24 @@ export const ContainsEvaluatorForm = () => {
     }))
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+
+  // Register validator for required SwitchableEvaluatorInput fields.
+  // Triggering both path and literal names is safe because only the
+  // mounted Controller is registered with RHF at any time.
+  const triggerValidation = useCallback(async () => {
+    return trigger([
+      "pathMapping.text",
+      "literalMapping.text",
+      "pathMapping.words",
+      "literalMapping.words",
+    ]);
+  }, [trigger]);
+  useEffect(() => {
+    const unregister = store
+      .getState()
+      .registerValidator("containsFields", triggerValidation);
+    return unregister;
+  }, [store, triggerValidation]);
 
   // Determine initial mode based on existing values
   const textDefaultMode =
@@ -71,6 +90,7 @@ export const ContainsEvaluatorForm = () => {
           literalPlaceholder="Enter literal text value"
           pathInputValue={containsTextPath}
           onPathInputChange={setContainsTextPath}
+          isRequired
         />
         <SwitchableEvaluatorInput
           fieldName="words"
@@ -82,6 +102,7 @@ export const ContainsEvaluatorForm = () => {
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Words"
           literalPlaceholder="e.g. word1, word2, word3"
+          isRequired
         />
         <Controller
           name="literalMapping.case_sensitive"

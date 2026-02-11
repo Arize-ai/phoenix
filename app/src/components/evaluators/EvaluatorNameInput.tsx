@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
 import { FieldError, Input, Label } from "@phoenix/components";
@@ -10,9 +10,13 @@ import {
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
   IDENTIFIER_ERROR_MESSAGES,
-  validateIdentifierAllowedChars,
-  validateIdentifierLeadingTrailing,
+  validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
+
+/**
+ * The field name used by react-hook-form and as the error key in the validation registry.
+ */
+const FIELD_NAME = "name" as const;
 
 /**
  * Transforms an evaluator name by lowercasing, converting spaces to dashes,
@@ -47,12 +51,16 @@ const useEvaluatorNameInputForm = () => {
     }
     return state.evaluator.globalName;
   });
-  const form = useForm({ defaultValues: { name }, mode: "onChange" });
+  const form = useForm({
+    defaultValues: { [FIELD_NAME]: name },
+    mode: "onChange",
+  });
   const subscribe = form.subscribe;
+  // Sync valid values to the store
   useEffect(() => {
     return subscribe({
       formState: { isValid: true, values: true },
-      callback({ values: { name }, isValid }) {
+      callback({ values: { [FIELD_NAME]: name }, isValid }) {
         if (!isValid) {
           return;
         }
@@ -73,23 +81,33 @@ export const EvaluatorNameInput = ({
   ...props
 }: Partial<TextFieldProps> & { placeholder?: string }) => {
   const form = useEvaluatorNameInputForm();
+  const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
   const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
-  // Always validate fully so form submission is blocked for invalid values.
+  // Register with the evaluator store so the parent can trigger
+  // validation on submit. Also forces deferred (blur-only) errors to display.
+  const triggerValidation = useCallback(async () => {
+    hasBlurredRef.current = true;
+    return trigger(FIELD_NAME);
+  }, [trigger]);
+  useEffect(() => {
+    const unregister = store
+      .getState()
+      .registerValidator(FIELD_NAME, triggerValidation);
+    return unregister;
+  }, [store, triggerValidation]);
+
+  // Validates the name field.
   // Display of blur-specific errors is handled separately in render.
   const validate = (value: string): ValidateResult => {
-    const allowedCharsResult = validateIdentifierAllowedChars(value);
-    if (allowedCharsResult !== true) {
-      return allowedCharsResult;
-    }
-    return validateIdentifierLeadingTrailing(value);
+    return validateIdentifier(value);
   };
 
   return (
     <Controller
-      name="name"
+      name={FIELD_NAME}
       control={control}
       rules={{ validate }}
       render={({ field, fieldState: { error } }) => {

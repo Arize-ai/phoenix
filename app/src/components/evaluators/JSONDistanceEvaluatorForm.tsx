@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
@@ -38,9 +38,10 @@ const useJSONDistanceEvaluatorForm = () => {
 };
 
 export const JSONDistanceEvaluatorForm = () => {
-  const { control, getValues, setValue, watch } =
+  const { control, getValues, setValue, watch, trigger } =
     useJSONDistanceEvaluatorForm();
   const parseStrings = watch("literalMapping.parse_strings") ?? true;
+  const store = useEvaluatorStoreInstance();
   const [expectedPath, setExpectedPath] = useState<string>(
     () => getValues("pathMapping.expected") ?? ""
   );
@@ -51,6 +52,22 @@ export const JSONDistanceEvaluatorForm = () => {
     (state) => state.evaluatorMappingSource
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+
+  // Register validator for required SwitchableEvaluatorInput fields.
+  const triggerValidation = useCallback(async () => {
+    return trigger([
+      "pathMapping.expected",
+      "literalMapping.expected",
+      "pathMapping.actual",
+      "literalMapping.actual",
+    ]);
+  }, [trigger]);
+  useEffect(() => {
+    const unregister = store
+      .getState()
+      .registerValidator("jsonDistanceFields", triggerValidation);
+    return unregister;
+  }, [store, triggerValidation]);
 
   // Determine initial mode based on existing values
   const expectedDefaultMode =
@@ -73,6 +90,7 @@ export const JSONDistanceEvaluatorForm = () => {
           literalPlaceholder="Enter expected JSON"
           pathInputValue={expectedPath}
           onPathInputChange={setExpectedPath}
+          isRequired
         />
         <SwitchableEvaluatorInput
           fieldName="actual"
@@ -86,6 +104,7 @@ export const JSONDistanceEvaluatorForm = () => {
           literalPlaceholder="Enter actual JSON"
           pathInputValue={actualPath}
           onPathInputChange={setActualPath}
+          isRequired
         />
         <Controller
           name="literalMapping.parse_strings"
