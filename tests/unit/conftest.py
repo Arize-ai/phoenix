@@ -13,6 +13,7 @@ import httpx
 import pytest
 import sqlalchemy
 import sqlean
+import strawberry
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
@@ -46,6 +47,7 @@ from phoenix.db.engines import (
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
+from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
@@ -273,9 +275,15 @@ async def project(db: DbSessionFactory) -> None:
         session.add(project)
 
 
+@pytest.fixture(scope="session")
+def _graphql_schema() -> strawberry.Schema:
+    return build_graphql_schema()
+
+
 @pytest.fixture
 async def app(
     db: DbSessionFactory,
+    _graphql_schema: strawberry.Schema,
 ) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
@@ -288,6 +296,7 @@ async def app(
             umap_params=get_umap_parameters(None),
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
+            graphql_schema=_graphql_schema,
         )
 
 
