@@ -970,7 +970,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
                 converse_messages.append({"role": "user", "content": [{"text": content}]})
-            elif role == ChatCompletionMessageRole.TOOL and tool_call_id:
+            elif role == ChatCompletionMessageRole.TOOL:
                 converse_messages.append(
                     {
                         "role": "user",
