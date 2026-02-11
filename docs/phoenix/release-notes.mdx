@@ -10,6 +10,20 @@ GitHub
 
 
 
+<Update label="02.11.2026">
+## [02.11.2026: Custom Providers for Playground and Prompts](/docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers)
+Phoenix now supports **custom providers** for OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI. Custom providers let you store provider credentials and routing configuration on the server and reuse them across the playground and saved prompt versions.
+
+**Key capabilities:**
+
+- **Centralized configuration:** Manage provider credentials and routing in Settings and reuse them across the playground and prompt versions.
+- **SDK-specific authentication:** Support API keys, Azure AD token providers, or default credentials (Azure/AWS) depending on the SDK.
+- **Model selection integration:** Custom providers show up in model menus as their own provider group and inherit model listings from the underlying SDK.
+- **Request-level overrides:** Continue to supply custom request headers per prompt while using custom provider configuration for routing and authentication.
+
+To get started, open **Settings → AI Providers → Custom Providers**, create a provider configuration, and select it from the model menu in the playground.
+</Update>
+
 <Update label="02.09.2026">
 ## [02.09.2026: Claude Opus 4.6 Model Support](/docs/phoenix/release-notes/02-2026/02-10-2026-claude-opus-4-6-model-support)
 Phoenix playground now supports Claude Opus 4.6, Anthropic's latest flagship model. Select `claude-opus-4-6` in the Anthropic provider or `anthropic.claude-opus-4-6-v1` in AWS Bedrock to start using the model with full extended thinking parameter support and accurate cost tracking.
