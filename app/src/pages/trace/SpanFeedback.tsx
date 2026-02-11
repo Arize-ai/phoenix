@@ -14,7 +14,7 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { Icons } from "@phoenix/components/icon";
 import { Icon } from "@phoenix/components/icon/Icon";
 import { Flex } from "@phoenix/components/layout/Flex";
-import { PreformattedTextCell } from "@phoenix/components/table";
+import { PrettyTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -102,7 +102,7 @@ function SpanAnnotationsTable({
       {
         header: "explanation",
         accessorKey: "explanation",
-        cell: PreformattedTextCell,
+        cell: PrettyTextCell,
         size: 400,
       },
       {
