@@ -20,10 +20,8 @@ from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
-from psycopg import Connection
 from pytest import FixtureRequest
-from pytest_postgresql import factories
-from sqlalchemy import URL, StaticPool, make_url
+from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
@@ -89,27 +87,71 @@ def anthropic_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     return api_key
 
 
-postgresql_connection = factories.postgresql("postgresql_proc")
+@pytest.fixture(scope="session")
+def _postgresql_template_db(postgresql_proc: Any) -> Iterator[str]:
+    """Create a template database with the full schema once per session.
+
+    Per-test databases are cloned from this template via CREATE DATABASE ... TEMPLATE,
+    which is a fast file-copy at the PG level (~5ms) instead of running create_all DDL
+    (~30-44ms) per test.
+    """
+    from pytest_postgresql.janitor import DatabaseJanitor
+
+    template_name = f"phoenix_template_{os.getpid()}"
+    janitor = DatabaseJanitor(
+        user=postgresql_proc.user,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        version=postgresql_proc.version,
+        dbname=template_name,
+        password=postgresql_proc.password or None,
+    )
+    janitor.init()
+    sync_url = URL.create(
+        "postgresql+psycopg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=template_name,
+    )
+    sync_engine = sqlalchemy.create_engine(sync_url)
+    models.Base.metadata.create_all(sync_engine)
+    sync_engine.dispose()
+    yield template_name
+    janitor.drop()
 
 
 @pytest.fixture(scope="function")
-async def postgresql_url(postgresql_connection: "Connection[Any]") -> AsyncIterator[URL]:
-    connection = postgresql_connection
-    user = connection.info.user
-    password = connection.info.password
-    database = connection.info.dbname
-    host = connection.info.host
-    port = connection.info.port
-    yield make_url(f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
+async def postgresql_engine(
+    postgresql_proc: Any,
+    _postgresql_template_db: str,
+) -> AsyncIterator[AsyncEngine]:
+    from pytest_postgresql.janitor import DatabaseJanitor
 
-
-@pytest.fixture(scope="function")
-async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
-    engine = aio_postgresql_engine(postgresql_url, migrate=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
+    dbname = f"phoenix_test_{os.getpid()}_{token_hex(4)}"
+    janitor = DatabaseJanitor(
+        user=postgresql_proc.user,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        version=postgresql_proc.version,
+        dbname=dbname,
+        password=postgresql_proc.password or None,
+        template_dbname=_postgresql_template_db,
+    )
+    janitor.init()
+    url = URL.create(
+        "postgresql+asyncpg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=dbname,
+    )
+    engine = aio_postgresql_engine(url, migrate=False)
     yield engine
     await engine.dispose()
+    janitor.drop()
 
 
 @pytest.fixture
