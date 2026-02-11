@@ -33,7 +33,6 @@ from typing_extensions import Self, TypeAlias, assert_never
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
-from phoenix.server.api.helpers.playground_clients import _OPENAI_RESPONSES_API_MODELS
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -196,14 +195,11 @@ def get_db_span(
 ) -> models.Span:
     prompt_tokens = get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT) or 0
     completion_tokens = get_attribute_value(span.attributes, LLM_TOKEN_COUNT_COMPLETION) or 0
-    # Determine span name based on API type
-    model_name = span._input.model.name
-    span_name = "Response" if model_name in _OPENAI_RESPONSES_API_MODELS else "ChatCompletion"
     return models.Span(
         trace_rowid=db_trace.id,
         span_id=span.span_id,
         parent_id=None,
-        name=span_name,
+        name="ChatCompletion",
         span_kind=LLM,
         start_time=span.start_time,
         end_time=span.end_time,

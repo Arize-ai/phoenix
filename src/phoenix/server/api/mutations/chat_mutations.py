@@ -35,7 +35,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
-    _OPENAI_RESPONSES_API_MODELS,
     PlaygroundClientCredential,
     PlaygroundStreamingClient,
     initialize_playground_clients,
@@ -507,15 +506,11 @@ class ChatCompletionMutationMixin:
                 start_time=start_time,
                 end_time=end_time,
             )
-            # Determine span name based on API type
-            span_name = (
-                "Response" if input.model.name in _OPENAI_RESPONSES_API_MODELS else "ChatCompletion"
-            )
             span = models.Span(
                 trace_rowid=trace.id,
                 span_id=span_id,
                 parent_id=None,
-                name=span_name,
+                name="ChatCompletion",
                 span_kind=LLM,
                 start_time=start_time,
                 end_time=end_time,
