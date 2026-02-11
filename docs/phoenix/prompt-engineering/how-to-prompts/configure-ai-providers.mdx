@@ -75,6 +75,55 @@ If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix
 
 </Warning>
 
+## Custom Providers
+
+Custom providers let you store provider credentials and routing settings on the server and reuse them across the playground and prompt versions. This is ideal for shared environments where you want a single, managed configuration instead of per-browser API keys or ephemeral routing fields.
+
+To create a custom provider:
+
+1. Go to **Settings** → **AI Providers**.
+2. In **Custom Providers**, select **New Provider**.
+3. Enter a **Name** and a **Provider String**.
+4. Choose the **SDK** and fill in the required fields.
+5. Click **Test** to validate the credentials, then **Create Provider**.
+
+### Supported SDKs and Fields
+
+**OpenAI**
+Required: API key, API type (Chat Completions or Responses)
+Optional: Base URL, Organization, Project, Default headers
+
+**Azure OpenAI**
+Required: Endpoint, authentication method
+API key auth: API key
+AD token provider auth: Tenant ID, Client ID, Client Secret (Scope optional)
+Default credentials auth: Endpoint only
+Optional: Default headers
+
+**Anthropic**
+Required: API key
+Optional: Base URL, Default headers
+
+**AWS Bedrock**
+Required: Region, authentication method
+Access keys auth: Access Key ID, Secret Access Key (Session Token optional)
+Default credentials auth: Region only
+Optional: Endpoint URL
+
+**Google GenAI**
+Required: API key
+Optional: Base URL, Headers
+
+### Using Custom Providers in the Playground and Prompts
+
+Custom providers appear in model selection menus as their own provider group. When you select one:
+
+1. The model list mirrors the built-in model list for that SDK.
+2. Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider config.
+3. You can still add request-level custom headers from the model configuration panel.
+
+Prompt versions and evaluators use custom providers when a prompt version is saved with a custom provider selection. If you do not select a custom provider for a prompt, Phoenix falls back to environment variables or saved secrets for the built-in provider.
+
 
 ## Custom Headers
 
