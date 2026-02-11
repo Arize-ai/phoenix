@@ -62,11 +62,7 @@ function computePositiveOptimization({
 
   let matchedConfig: AnnotationConfig | undefined;
   if (outputConfigs.length === 1) {
-    // Single-output: exact match on config name
-    const config = outputConfigs[0];
-    if (config.name === annotationName) {
-      matchedConfig = config;
-    }
+    matchedConfig = outputConfigs[0];
   } else {
     // Multi-output: annotation name is "evaluatorName.configName"
     const prefix = evaluatorName + ".";
