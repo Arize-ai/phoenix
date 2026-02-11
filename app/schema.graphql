@@ -2254,7 +2254,6 @@ enum InferencesRole {
 }
 
 input InlineLLMEvaluatorInput {
-  name: String!
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   description: String = null
