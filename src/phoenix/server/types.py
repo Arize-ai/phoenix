@@ -89,6 +89,14 @@ class DaemonTask(ABC):
         for task in reversed(self._tasks):
             if not task.done():
                 task.cancel()
+        if self._tasks:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._tasks, return_exceptions=True),
+                    timeout=5.0,
+                )
+            except asyncio.TimeoutError:
+                pass
         self._tasks.clear()
 
     async def __aenter__(self) -> None:
