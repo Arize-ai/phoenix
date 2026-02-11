@@ -82,12 +82,12 @@ export interface BaseProviderFormData {
  */
 type JSONString = string;
 
-/** OpenAI API type: Chat Completions (chat.completions.create) or Responses API (responses.create). */
+/** OpenAI API type: Chat Completions (chat.completions.create) or Responses (responses.create). */
 export type OpenAIApiTypeForm = "CHAT_COMPLETIONS" | "RESPONSES";
 
 const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
   { id: "CHAT_COMPLETIONS", label: "Chat Completions" },
-  { id: "RESPONSES", label: "Responses API" },
+  { id: "RESPONSES", label: "Responses" },
 ];
 
 /**
