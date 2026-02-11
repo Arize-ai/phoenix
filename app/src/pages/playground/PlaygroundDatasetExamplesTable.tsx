@@ -1499,6 +1499,7 @@ export function PlaygroundDatasetExamplesTable({
           flex: 1 1 auto;
           overflow: auto;
           height: 100%;
+          scrollbar-gutter: stable;
         `}
         ref={tableContainerCallbackRef}
         onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
