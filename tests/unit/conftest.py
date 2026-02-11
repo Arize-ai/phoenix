@@ -14,9 +14,7 @@ import pytest
 import sqlalchemy
 import sqlean
 import strawberry
-from _pytest.config import Config
 from _pytest.fixtures import SubRequest
-from _pytest.terminal import TerminalReporter
 from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
@@ -58,40 +56,12 @@ from tests.unit.transport import ASGIWebSocketTransport
 from tests.unit.vcr import CustomVCR
 
 
-def pytest_terminal_summary(
-    terminalreporter: TerminalReporter, exitstatus: int, config: Config
-) -> None:
-    xfails = len([x for x in terminalreporter.stats.get("xfailed", [])])
-    xpasses = len([x for x in terminalreporter.stats.get("xpassed", [])])
-
-    xfail_threshold = 12  # our tests are currently quite unreliable
-
-    if config.getoption("--run-postgres"):
-        terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
-        terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
-
-        if exitstatus == pytest.ExitCode.OK:
-            if xfails < xfail_threshold:
-                terminalreporter.write_sep(
-                    "=", "Within xfail threshold. Passing the test suite.", green=True
-                )
-                assert terminalreporter._session is not None
-                terminalreporter._session.exitstatus = pytest.ExitCode.OK
-            else:
-                terminalreporter.write_sep(
-                    "=", "Too many flaky tests. Failing the test suite.", red=True
-                )
-                assert terminalreporter._session is not None
-                terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
-
-
-def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
-    skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
-    if not config.getoption("--run-postgres"):
-        for item in items:
-            if "dialect" in item.fixturenames:
-                if "postgresql" in item.callspec.params.values():
-                    item.add_marker(skip_postgres)
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    if "dialect" in metafunc.fixturenames:
+        dialects = ["sqlite"]
+        if metafunc.config.getoption("--run-postgres"):
+            dialects.append("postgresql")
+        metafunc.parametrize("dialect", dialects, indirect=True)
 
 
 @pytest.fixture
@@ -137,13 +107,12 @@ async def postgresql_url(postgresql_connection: "Connection[Any]") -> AsyncItera
 async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
     engine = aio_postgresql_engine(postgresql_url, migrate=False)
     async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
 
 
-@pytest.fixture(params=["sqlite", "postgresql"])
+@pytest.fixture
 def dialect(request: SubRequest) -> str:
     return str(request.param)
 

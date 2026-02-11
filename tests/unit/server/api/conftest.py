@@ -772,9 +772,11 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
 @pytest.fixture
 def cities_and_countries() -> list[tuple[str, str]]:
     return [
-        ("Toronto", "Canada"),
         ("Paris", "France"),
         ("Tokyo", "Japan"),
+        ("Berlin", "Germany"),
+        ("Sydney", "Australia"),
+        ("Delhi", "India"),
     ]
 
 
