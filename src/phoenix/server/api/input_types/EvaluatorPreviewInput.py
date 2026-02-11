@@ -17,6 +17,7 @@ from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionI
 class InlineLLMEvaluatorInput:
     """Defines an inline LLM evaluator without requiring persistence."""
 
+    name: str
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
     description: Optional[str] = None

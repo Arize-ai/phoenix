@@ -1130,6 +1130,7 @@ def create_llm_evaluator_from_inline(
     prompt_version_orm: models.PromptVersion,
     llm_client: "PlaygroundStreamingClient[Any]",
     output_configs: Sequence[EvaluatorOutputConfig],
+    name: str,
     description: Optional[str] = None,
 ) -> LLMEvaluator:
     """
@@ -1142,7 +1143,7 @@ def create_llm_evaluator_from_inline(
     assert tools is not None
 
     return LLMEvaluator(
-        name="preview",
+        name=name,
         description=description,
         template=template,
         template_format=prompt_version_orm.template_format,

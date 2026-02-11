@@ -683,6 +683,7 @@ class ChatCompletionMutationMixin:
                     prompt_version_orm=prompt_version_orm,
                     llm_client=llm_client,
                     output_configs=categorical_configs,
+                    name=inline_llm_evaluator.name,
                     description=inline_llm_evaluator.description,
                 )
 
