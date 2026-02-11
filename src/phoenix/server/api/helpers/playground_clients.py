@@ -889,7 +889,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.custom_tool_call_input.delta":
                     pass
-                else:
+                elif TYPE_CHECKING:
                     assert_never(event.type)
 
         if completed_response is not None:

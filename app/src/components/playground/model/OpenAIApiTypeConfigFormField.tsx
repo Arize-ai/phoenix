@@ -18,7 +18,7 @@ const API_TYPE_OPTIONS: { id: OpenAIApiType; label: string }[] = [
   { id: "RESPONSES", label: "Responses API" },
 ];
 
-const DEFAULT_API_TYPE: OpenAIApiType = "RESPONSES";
+const DEFAULT_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
 
 function getApiTypeLabel(apiType: OpenAIApiType): string {
   return API_TYPE_OPTIONS.find((opt) => opt.id === apiType)?.label ?? apiType;
