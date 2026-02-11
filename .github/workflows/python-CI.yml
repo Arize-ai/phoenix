@@ -111,7 +111,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
-      - run: uvx --with uv==0.9.18 tox run -e phoenix_client -- -ra -x
+        with:
+          version: "0.9.18"
+      - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
     name: Phoenix Evals
@@ -133,7 +135,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
-      - run: uvx --with uv==0.9.18 tox run -e phoenix_evals -- -ra -x
+        with:
+          version: "0.9.18"
+      - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
     name: Phoenix OTel
@@ -154,7 +158,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
-      - run: uvx --with uv==0.9.18 tox run -e phoenix_otel -- -ra -x
+        with:
+          version: "0.9.18"
+      - run: uvx tox run -e phoenix_otel -- -ra -x
 
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
@@ -175,13 +181,14 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
             requirements/clean-jupyter-notebooks.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
-        run: uvx --with uv==0.9.18 tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+        run: uvx tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
       - run: git diff --exit-code
 
   build-graphql-schema:
@@ -203,13 +210,14 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
             requirements/build-graphql-schema.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build GraphQL schema
-        run: uvx --with uv==0.9.18 tox run -e build_graphql_schema
+        run: uvx tox run -e build_graphql_schema
       - run: git diff --exit-code
 
   build-openapi-schema:
@@ -231,12 +239,13 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
-        run: uvx --with uv==0.9.18 tox run -e build_openapi_schema
+        run: uvx tox run -e build_openapi_schema
       - run: git diff --exit-code
 
   compile-protobuf:
@@ -258,13 +267,14 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
             requirements/compile-protobuf.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
-        run: uvx --with uv==0.9.18 tox run -e compile_protobuf
+        run: uvx tox run -e compile_protobuf
       - run: git diff --exit-code
 
   compile-prompts:
@@ -285,8 +295,10 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
       - name: Compile Prompts
-        run: uvx --with uv==0.9.18 tox run -e compile_prompts
+        run: uvx tox run -e compile_prompts
       - name: Check for changes
         run: git diff --exit-code
 
@@ -309,6 +321,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -329,8 +343,10 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
       - name: Run `ruff`
-        run: uvx --with uv==0.9.18 tox run -e ruff
+        run: uvx tox run -e ruff
       - run: git diff --exit-code
 
   type-check:
@@ -359,6 +375,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -366,9 +383,9 @@ jobs:
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
-        run: uvx --with uv==0.9.18 tox run -e type_check
+        run: uvx tox run -e type_check
       - name: Ensure GraphQL mutations have permission classes
-        run: uvx --with uv==0.9.18 tox run -e ensure_graphql_mutations_have_permission_classes
+        run: uvx tox run -e ensure_graphql_mutations_have_permission_classes
 
   type-check-unit-tests:
     name: Type Check Unit Tests
@@ -399,6 +416,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -406,7 +424,7 @@ jobs:
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on unit tests
-        run: uvx --with uv==0.9.18 tox run -e type_check_unit_tests
+        run: uvx tox run -e type_check_unit_tests
 
   unit-tests:
     name: Unit Tests
@@ -436,6 +454,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -448,11 +467,11 @@ jobs:
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 60
-        run: uvx --with uv==0.9.18 tox run -e unit_tests -- -n auto -ra --reruns 5 --run-postgres
+        run: uvx tox run -e unit_tests -- -n auto -ra --reruns 5 --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
         timeout-minutes: 60
-        run: uvx --with uv==0.9.18 tox run -e unit_tests -- -n auto -ra --reruns 5
+        run: uvx tox run -e unit_tests -- -n auto -ra --reruns 5
 
   type-check-integration-tests:
     name: Type Check Integration Tests
@@ -482,6 +501,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -489,7 +509,7 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on integration tests
-        run: uvx --with uv==0.9.18 tox run -e type_check_integration_tests
+        run: uvx tox run -e type_check_integration_tests
 
   integration-tests:
     name: Integration Tests
@@ -538,6 +558,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -546,7 +567,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx --with uv==0.9.18 tox run -e integration_tests -- -ra --reruns 5 -n auto
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n auto
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }})
@@ -640,6 +661,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
+          version: "0.9.18"
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -647,4 +669,4 @@ jobs:
             requirements/canary/sdk/${{ matrix.pkg }}.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run canary tests for ${{ matrix.pkg }}
-        run: uvx --with uv==0.9.18 tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
+        run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
