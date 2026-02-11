@@ -27,7 +27,7 @@ type RegexFieldProps = {
   validateRegex?: boolean;
   /**
    * Callback fired when the internal regex validation state changes.
-   * Called with `true` when the regex is valid, `false` when invalid or empty.
+   * Called with `true` when the regex is valid, `false` when invalid.
    */
   onValidationChange?: (isValid: boolean) => void;
 } & Omit<TextFieldProps, "isInvalid" | "onChange">;

@@ -48,7 +48,8 @@ export const RegexEvaluatorForm = () => {
 
   // Cache for the latest async regex validation result from RegexField.
   // Read by the validate rule so trigger() returns the correct validity.
-  const regexValidCache = useRef(false);
+  // Initially set to true to avoid error flickering when the user starts typing.
+  const regexValidCache = useRef(true);
 
   // Updates the cache and re-syncs RHF error state via trigger().
   const handleRegexValidationChange = useCallback(
