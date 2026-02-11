@@ -3,7 +3,6 @@ Unit tests for playground cancellation cleanup logic.
 
 Tests the cleanup mechanics in:
 - `_cleanup_chat_completion_resources` in subscriptions.py
-- `streaming_llm_span` context manager in playground_spans.py
 """
 
 import asyncio
@@ -13,15 +12,13 @@ from typing import Any, AsyncGenerator, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from opentelemetry.trace import StatusCode
 
-from phoenix.db import models
-from phoenix.server.api.helpers.playground_spans import streaming_llm_span
 from phoenix.server.api.subscriptions import _cleanup_chat_completion_resources
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     TextChunk,
 )
+from phoenix.tracers import Tracer
 
 # Type alias for the async generator used in chat completion streams
 ChatStream = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
@@ -76,25 +73,6 @@ def create_tracked_async_gen(
     return gen()
 
 
-def create_mock_chat_input() -> MagicMock:
-    """
-    Create a mock ChatCompletionInput for testing streaming_llm_span.
-
-    The mock must be structured so that jsonify() returns a dict-like object.
-    We patch the input_value_and_mime_type function to avoid serialization issues.
-    """
-    mock_input = MagicMock()
-    mock_input.prompt_name = None
-    mock_input.model = MagicMock()
-    mock_input.model.builtin = MagicMock()
-    mock_input.model.builtin.name = "test-model"
-    mock_input.model.custom = None
-    mock_input.tools = None
-    # Make sure messages attribute exists for llm_input_messages
-    mock_input.messages = []
-    return mock_input
-
-
 @pytest.mark.asyncio
 class TestCleanupChatCompletionResources:
     """Tests for _cleanup_chat_completion_resources function."""
@@ -141,11 +119,11 @@ class TestCleanupChatCompletionResources:
             (0, mock_gen, task)
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         # Mock dependencies
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -153,7 +131,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -192,10 +170,10 @@ class TestCleanupChatCompletionResources:
             (0, mock_gen, task)
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -203,7 +181,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -257,10 +235,10 @@ class TestCleanupChatCompletionResources:
             (2, mock_gen3, task3),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -268,7 +246,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -288,10 +266,10 @@ class TestCleanupChatCompletionResources:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise any exceptions
@@ -300,7 +278,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -338,10 +316,10 @@ class TestCleanupChatCompletionResources:
                 (2, mock_gen2),
             ]
         )
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -349,7 +327,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -389,10 +367,10 @@ class TestCleanupChatCompletionResources:
                 (2, mock_gen2),
             ]
         )
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise even though gen1's aclose fails
@@ -401,7 +379,7 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -449,10 +427,10 @@ class TestCleanupChatCompletionResources:
                 (1, mock_gen_not_started),
             ]
         )
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
@@ -460,149 +438,13 @@ class TestCleanupChatCompletionResources:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
         # Both in_progress and not_started generators should be closed
         assert tracker_in_progress.aclose_called
         assert tracker_not_started.aclose_called
-
-
-@pytest.mark.asyncio
-class TestStreamingLlmSpanCancellation:
-    """Tests for streaming_llm_span context manager exception handling."""
-
-    async def test_cancelled_error_propagates(self) -> None:
-        """
-        Verify CancelledError is not suppressed by __aexit__.
-
-        CancelledError must propagate for proper task cancellation semantics.
-        """
-        mock_input = create_mock_chat_input()
-        messages: list[tuple[Any, str, Optional[str], Optional[list[str]]]] = []
-        invocation_parameters: dict[str, Any] = {}
-
-        # Patch input_value_and_mime_type to avoid jsonify issues with MagicMock
-        with patch(
-            "phoenix.server.api.helpers.playground_spans.input_value_and_mime_type",
-            return_value=iter([]),
-        ):
-            with pytest.raises(asyncio.CancelledError):
-                async with streaming_llm_span(
-                    input=mock_input,
-                    messages=messages,
-                    invocation_parameters=invocation_parameters,
-                ):
-                    raise asyncio.CancelledError()
-
-    async def test_generator_exit_propagates(self) -> None:
-        """
-        Verify GeneratorExit is not suppressed by __aexit__.
-
-        GeneratorExit is required by Python's async generator protocol and must
-        propagate for proper cleanup.
-        """
-        mock_input = create_mock_chat_input()
-        messages: list[tuple[Any, str, Optional[str], Optional[list[str]]]] = []
-        invocation_parameters: dict[str, Any] = {}
-
-        with patch(
-            "phoenix.server.api.helpers.playground_spans.input_value_and_mime_type",
-            return_value=iter([]),
-        ):
-            with pytest.raises(GeneratorExit):
-                async with streaming_llm_span(
-                    input=mock_input,
-                    messages=messages,
-                    invocation_parameters=invocation_parameters,
-                ):
-                    raise GeneratorExit()
-
-    async def test_regular_exceptions_are_logged_and_suppressed(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """
-        Verify regular exceptions are recorded in span but suppressed.
-
-        Non-cancellation exceptions should:
-        1. Set span status to ERROR
-        2. Record the exception in span events
-        3. Log the exception
-        4. NOT propagate (suppressed)
-        """
-        mock_input = create_mock_chat_input()
-        messages: list[tuple[Any, str, Optional[str], Optional[list[str]]]] = []
-        invocation_parameters: dict[str, Any] = {}
-
-        with patch(
-            "phoenix.server.api.helpers.playground_spans.input_value_and_mime_type",
-            return_value=iter([]),
-        ):
-            with caplog.at_level(logging.ERROR):
-                # Should NOT raise - exception is suppressed
-                async with streaming_llm_span(
-                    input=mock_input,
-                    messages=messages,
-                    invocation_parameters=invocation_parameters,
-                ) as span:
-                    raise ValueError("Test error")
-
-        # Verify span recorded the error
-        assert span.status_code == StatusCode.ERROR
-        assert span.status_message == "Test error"
-        assert len(span.events) == 1
-        assert span.events[0].attributes.get("exception.type") == "ValueError"
-
-    async def test_successful_completion_sets_ok_status(self) -> None:
-        """
-        Verify successful completion sets span status to OK.
-        """
-        mock_input = create_mock_chat_input()
-        messages: list[tuple[Any, str, Optional[str], Optional[list[str]]]] = []
-        invocation_parameters: dict[str, Any] = {}
-
-        with patch(
-            "phoenix.server.api.helpers.playground_spans.input_value_and_mime_type",
-            return_value=iter([]),
-        ):
-            async with streaming_llm_span(
-                input=mock_input,
-                messages=messages,
-                invocation_parameters=invocation_parameters,
-            ) as span:
-                # No exception - successful completion
-                pass
-
-        assert span.status_code == StatusCode.OK
-        assert span.status_message is None
-        assert len(span.events) == 0
-
-    async def test_cancelled_error_still_sets_error_status(self) -> None:
-        """
-        Verify CancelledError sets span status to ERROR before propagating.
-        """
-        mock_input = create_mock_chat_input()
-        messages: list[tuple[Any, str, Optional[str], Optional[list[str]]]] = []
-        invocation_parameters: dict[str, Any] = {}
-
-        span_ref: Optional[streaming_llm_span] = None
-
-        with patch(
-            "phoenix.server.api.helpers.playground_spans.input_value_and_mime_type",
-            return_value=iter([]),
-        ):
-            with pytest.raises(asyncio.CancelledError):
-                async with streaming_llm_span(
-                    input=mock_input,
-                    messages=messages,
-                    invocation_parameters=invocation_parameters,
-                ) as span:
-                    span_ref = span
-                    raise asyncio.CancelledError()
-
-        assert span_ref is not None
-        assert span_ref.status_code == StatusCode.ERROR
 
 
 @pytest.mark.asyncio
@@ -615,10 +457,10 @@ class TestResultsQueueFlushing:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should complete without errors
@@ -627,7 +469,7 @@ class TestResultsQueueFlushing:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -643,13 +485,13 @@ class TestResultsQueueFlushing:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         # Add some results to the queue
-        mock_span1 = MagicMock(spec=models.Span)
-        mock_span2 = MagicMock(spec=models.Span)
-        await results.put((mock_span1, 1))
-        await results.put((mock_span2, 2))
+        mock_tracer1 = MagicMock(spec=Tracer)
+        mock_tracer2 = MagicMock(spec=Tracer)
+        await results.put((mock_tracer1, 1))
+        await results.put((mock_tracer2, 2))
 
         # Create mock database session
         mock_session = AsyncMock()
@@ -657,8 +499,7 @@ class TestResultsQueueFlushing:
         mock_db.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        mock_span_cost_calculator = MagicMock()
-        mock_span_cost_calculator.calculate_cost = MagicMock(return_value=None)
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Use the actual _chat_completion_span_result_payloads
@@ -677,7 +518,7 @@ class TestResultsQueueFlushing:
                 not_started=not_started,
                 results=results,
                 db=mock_db,
-                span_cost_calculator=mock_span_cost_calculator,
+                project_id=mock_project_id,
                 on_span_insertion=mock_on_span_insertion,
             )
 
@@ -685,8 +526,8 @@ class TestResultsQueueFlushing:
             mock_flush.assert_called_once()
             call_kwargs = mock_flush.call_args.kwargs
             assert len(call_kwargs["results"]) == 2
-            assert (mock_span1, 1) in call_kwargs["results"]
-            assert (mock_span2, 2) in call_kwargs["results"]
+            assert (mock_tracer1, 1) in call_kwargs["results"]
+            assert (mock_tracer2, 2) in call_kwargs["results"]
 
     async def test_queue_flush_handles_errors(self, caplog: pytest.LogCaptureFixture) -> None:
         """
@@ -694,14 +535,14 @@ class TestResultsQueueFlushing:
         """
         in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         # Add a result to the queue
-        mock_span = MagicMock(spec=models.Span)
-        await results.put((mock_span, 1))
+        mock_tracer = MagicMock(spec=Tracer)
+        await results.put((mock_tracer, 1))
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Make the flush function raise an error
@@ -722,7 +563,7 @@ class TestResultsQueueFlushing:
                     not_started=not_started,
                     results=results,
                     db=mock_db,
-                    span_cost_calculator=mock_span_cost_calculator,
+                    project_id=mock_project_id,
                     on_span_insertion=mock_on_span_insertion,
                 )
 
@@ -802,10 +643,10 @@ class TestCancellationIntegration:
             (2, mock_gen3, task3),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise
@@ -814,7 +655,7 @@ class TestCancellationIntegration:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 
@@ -862,10 +703,10 @@ class TestCancellationIntegration:
             (1, mock_gen2, task2),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
 
         mock_db = MagicMock()
-        mock_span_cost_calculator = MagicMock()
+        mock_project_id = 1
         mock_on_span_insertion = MagicMock()
 
         # Should not raise even though gen1's aclose fails
@@ -874,7 +715,7 @@ class TestCancellationIntegration:
             not_started=not_started,
             results=results,
             db=mock_db,
-            span_cost_calculator=mock_span_cost_calculator,
+            project_id=mock_project_id,
             on_span_insertion=mock_on_span_insertion,
         )
 

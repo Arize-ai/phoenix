@@ -17,9 +17,7 @@ from typing import (
 )
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry.trace import StatusCode
 from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -36,7 +34,6 @@ from phoenix.db.helpers import (
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
-    BaseEvaluator,
     EvaluationResult,
     evaluation_result_to_model,
     get_evaluator_project_ids,
@@ -47,8 +44,9 @@ from phoenix.server.api.helpers.evaluators import (
     get_evaluator_output_configs,
 )
 from phoenix.server.api.helpers.message_helpers import (
-    ChatCompletionMessage,
+    PlaygroundMessage,
     build_template_variables,
+    create_playground_message,
     extract_and_convert_example_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
@@ -56,11 +54,8 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_spans import (
+from phoenix.server.api.helpers.playground_experiment_runs import (
     get_db_experiment_run,
-    get_db_span,
-    get_db_trace,
-    streaming_llm_span,
 )
 from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
@@ -88,7 +83,6 @@ from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.attributes import get_attribute_value
 from phoenix.tracers import Tracer
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
@@ -104,9 +98,14 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-DatasetExampleID: TypeAlias = GlobalID
+RepetitionNumber: TypeAlias = int
+DatasetExampleNodeID: TypeAlias = GlobalID
+DatasetExampleRowID: TypeAlias = int
 ChatCompletionResult: TypeAlias = tuple[
-    DatasetExampleID, Optional[models.Span], models.ExperimentRun
+    DatasetExampleRowID,
+    RepetitionNumber,
+    Optional[Tracer],
+    Optional[models.ExperimentRun],
 ]
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 
@@ -115,14 +114,12 @@ async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
     llm_client: "PlaygroundStreamingClient[Any]",
-    project_id: int,
     repetition_number: int,
-    results: asyncio.Queue[tuple[Optional[models.Span], int]],
-    info: Info[Context, None],
-    evaluators: list["BaseEvaluator"],
+    results: asyncio.Queue[tuple[Tracer, int]],
+    span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
-    messages = [
-        (
+    messages: list[PlaygroundMessage] = [
+        create_playground_message(
             message.role,
             message.content,
             message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -130,7 +127,6 @@ async def _stream_single_chat_completion(
         )
         for message in input.messages
     ]
-    attributes = None
     if template_options := input.template:
         messages = list(
             _formatted_messages(
@@ -139,108 +135,54 @@ async def _stream_single_chat_completion(
                 template_variables=template_options.variables,
             )
         )
-        attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes=attributes,
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    if span.status_message is not None:
+    tracer = Tracer(span_cost_calculator=span_cost_calculator)
+    try:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages,
+            tools=input.tools or [],
+            tracer=tracer,
+            **invocation_parameters,
+        ):
+            chunk.repetition_number = repetition_number
+            yield chunk
+    except Exception as error:
         yield ChatCompletionSubscriptionError(
-            message=span.status_message,
+            message=str(error),
             repetition_number=repetition_number,
         )
 
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    await results.put((db_span, repetition_number))
-
-    if input.evaluators and span.status_code is StatusCode.OK:
-        context_dict: dict[str, Any] = {
-            "input": get_attribute_value(span.attributes, LLM_INPUT_MESSAGES),
-            "output": get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
-        }
-        for evaluator, evaluator_input in zip(evaluators, input.evaluators):
-            name = str(evaluator_input.name)
-            configs = get_evaluator_output_configs(evaluator_input, evaluator)
-            eval_results: list[EvaluationResult] = await evaluator.evaluate(
-                context=context_dict,
-                input_mapping=evaluator_input.input_mapping,
-                name=name,
-                output_configs=configs,
-            )
-            for result in eval_results:
-                if result["error"] is not None:
-                    yield EvaluationChunk(
-                        evaluator_name=name,
-                        error=result["error"],
-                        dataset_example_id=None,
-                        repetition_number=repetition_number,
-                    )
-                    continue
-                annotation = ExperimentRunAnnotation.from_dict(
-                    {
-                        "name": result["name"],
-                        "annotator_kind": result["annotator_kind"],
-                        "label": result["label"],
-                        "score": result["score"],
-                        "explanation": result["explanation"],
-                        "metadata": result["metadata"],
-                    }
-                )
-                yield EvaluationChunk(
-                    evaluator_name=name,
-                    experiment_run_evaluation=annotation,
-                    dataset_example_id=None,
-                    repetition_number=repetition_number,
-                )
+    await results.put((tracer, repetition_number))
 
 
 async def _chat_completion_span_result_payloads(
     *,
     db: DbSessionFactory,
-    results: Sequence[tuple[Optional[models.Span], int]],
-    span_cost_calculator: SpanCostCalculator,
+    results: Sequence[tuple[Tracer, int]],
+    project_id: int,
     on_span_insertion: Callable[[], None],
 ) -> ChatStream:
     if not results:
         return
+    db_spans: list[models.Span] = []
+    repetition_numbers: list[int] = []
     async with db() as session:
-        for span, repetition_number in results:
-            if span:
-                session.add(span)
-                await session.flush()
-                try:
-                    span_cost = span_cost_calculator.calculate_cost(
-                        start_time=span.start_time,
-                        attributes=span.attributes,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                    span_cost = None
-                if span_cost:
-                    span_cost.span_rowid = span.id
-                    span_cost.trace_rowid = span.trace_rowid
-                    session.add(span_cost)
-        await session.flush()
-    for span, repetition_number in results:
-        if span:
-            yield ChatCompletionSubscriptionResult(
-                span=Span(id=span.id, db_record=span),
-                repetition_number=repetition_number,
-            )
-            on_span_insertion()
+        for tracer, repetition_number in results:
+            db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
+            if not db_traces:
+                continue
+            db_trace = db_traces[0]
+            if not db_trace.spans:
+                continue
+            db_span = db_trace.spans[0]
+            db_spans.append(db_span)
+            repetition_numbers.append(repetition_number)
+    for db_span, repetition_number in zip(db_spans, repetition_numbers):
+        yield ChatCompletionSubscriptionResult(
+            span=Span(id=db_span.id, db_record=db_span),
+            repetition_number=repetition_number,
+        )
+        on_span_insertion()
 
 
 def _is_span_result_payloads_stream(
@@ -262,9 +204,9 @@ async def _cleanup_chat_completion_resources(
         ]
     ],
     not_started: deque[tuple[int, ChatStream]],
-    results: asyncio.Queue[tuple[Optional[models.Span], int]],
+    results: asyncio.Queue[tuple[Tracer, int]],
     db: DbSessionFactory,
-    span_cost_calculator: SpanCostCalculator,
+    project_id: int,
     on_span_insertion: Callable[[], None],
 ) -> None:
     """
@@ -312,7 +254,7 @@ async def _cleanup_chat_completion_resources(
 
     # 5. Flush results queue to database (important for data integrity)
     if not results.empty():
-        remaining: list[tuple[Optional[models.Span], int]] = []
+        remaining: list[tuple[Tracer, int]] = []
         while not results.empty():
             try:
                 remaining.append(results.get_nowait())
@@ -325,7 +267,7 @@ async def _cleanup_chat_completion_resources(
                 async for _ in _chat_completion_span_result_payloads(
                     db=db,
                     results=remaining,
-                    span_cost_calculator=span_cost_calculator,
+                    project_id=project_id,
                     on_span_insertion=on_span_insertion,
                 ):
                     pass
@@ -338,15 +280,16 @@ async def _cleanup_chat_completion_resources(
 async def _cleanup_chat_completion_over_dataset_resources(
     in_progress: list[
         tuple[
-            Optional[DatasetExampleID],
+            Optional[DatasetExampleNodeID],
             ChatStream,
             asyncio.Task[ChatCompletionSubscriptionPayload],
         ]
     ],
-    not_started: list[tuple[DatasetExampleID, ChatStream]],
+    not_started: list[tuple[DatasetExampleNodeID, ChatStream]],
     results: asyncio.Queue[ChatCompletionResult],
     db: DbSessionFactory,
-    span_cost_calculator: SpanCostCalculator,
+    project_id: int,
+    experiment_id: int,
 ) -> None:
     """
     Cleanup all resources on cancellation or error. MUST be called in a finally block.
@@ -406,7 +349,8 @@ async def _cleanup_chat_completion_over_dataset_resources(
                 async for _ in _chat_completion_result_payloads(
                     db=db,
                     results=remaining,
-                    span_cost_calculator=span_cost_calculator,
+                    project_id=project_id,
+                    experiment_id=experiment_id,
                 ):
                     pass
             except Exception as e:
@@ -428,12 +372,6 @@ class Subscription:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
-            evaluators = await get_evaluators(
-                dataset_evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
-                session=session,
-                decrypt=info.context.decrypt,
-                credentials=input.credentials,
-            )
             if (
                 playground_project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
@@ -448,18 +386,16 @@ class Subscription:
                     )
                 )
 
-        results: asyncio.Queue[tuple[Optional[models.Span], int]] = asyncio.Queue()
+        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
         not_started: deque[tuple[int, ChatStream]] = deque(
             (
                 repetition_number,
                 _stream_single_chat_completion(
                     input=input,
                     llm_client=llm_client,
-                    project_id=playground_project_id,
                     repetition_number=repetition_number,
                     results=results,
-                    info=info,
-                    evaluators=evaluators,
+                    span_cost_calculator=info.context.span_cost_calculator,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
@@ -525,7 +461,7 @@ class Subscription:
                         result_payloads_stream = _chat_completion_span_result_payloads(
                             db=info.context.db,
                             results=_drain_no_wait(results),
-                            span_cost_calculator=info.context.span_cost_calculator,
+                            project_id=playground_project_id,
                             on_span_insertion=lambda: info.context.event_queue.put(
                                 SpanInsertEvent(ids=(playground_project_id,))
                             ),
@@ -539,7 +475,7 @@ class Subscription:
                 async for result_payload in _chat_completion_span_result_payloads(
                     db=info.context.db,
                     results=remaining_results,
-                    span_cost_calculator=info.context.span_cost_calculator,
+                    project_id=playground_project_id,
                     on_span_insertion=lambda: info.context.event_queue.put(
                         SpanInsertEvent(ids=(playground_project_id,))
                     ),
@@ -551,7 +487,7 @@ class Subscription:
                 not_started=not_started,
                 results=results,
                 db=info.context.db,
-                span_cost_calculator=info.context.span_cost_calculator,
+                project_id=playground_project_id,
                 on_span_insertion=lambda: info.context.event_queue.put(
                     SpanInsertEvent(ids=(playground_project_id,))
                 ),
@@ -680,7 +616,7 @@ class Subscription:
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
-        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
+        not_started: list[tuple[DatasetExampleNodeID, ChatStream]] = [
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
                 _stream_chat_completion_over_dataset_example(
@@ -689,8 +625,8 @@ class Subscription:
                     revision=revision,
                     results=results,
                     repetition_number=repetition_number,
+                    span_cost_calculator=info.context.span_cost_calculator,
                     experiment_id=experiment.id,
-                    project_id=playground_project_id,
                 ),
             )
             for revision in revisions
@@ -700,7 +636,7 @@ class Subscription:
         ]
         in_progress: list[
             tuple[
-                Optional[DatasetExampleID],
+                Optional[DatasetExampleNodeID],
                 ChatStream,
                 asyncio.Task[ChatCompletionSubscriptionPayload],
             ]
@@ -757,7 +693,8 @@ class Subscription:
                         result_payloads_stream = _chat_completion_result_payloads(
                             db=info.context.db,
                             results=_drain_no_wait(results),
-                            span_cost_calculator=info.context.span_cost_calculator,
+                            project_id=playground_project_id,
+                            experiment_id=experiment.id,
                         )
                         task = _create_task_with_timeout(result_payloads_stream)
                         in_progress.append((None, result_payloads_stream, task))
@@ -768,7 +705,8 @@ class Subscription:
                 async for result_payload in _chat_completion_result_payloads(
                     db=info.context.db,
                     results=remaining_results,
-                    span_cost_calculator=info.context.span_cost_calculator,
+                    project_id=playground_project_id,
+                    experiment_id=experiment.id,
                 ):
                     yield result_payload
         finally:
@@ -777,7 +715,8 @@ class Subscription:
                 not_started=not_started,
                 results=results,
                 db=info.context.db,
-                span_cost_calculator=info.context.span_cost_calculator,
+                project_id=playground_project_id,
+                experiment_id=experiment.id,
             )
 
         if input.evaluators:
@@ -867,13 +806,13 @@ async def _stream_chat_completion_over_dataset_example(
     revision: models.DatasetExampleRevision,
     repetition_number: int,
     results: asyncio.Queue[ChatCompletionResult],
+    span_cost_calculator: SpanCostCalculator,
     experiment_id: int,
-    project_id: int,
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
-    messages = [
-        (
+    messages: list[PlaygroundMessage] = [
+        create_playground_message(
             message.role,
             message.content,
             message.tool_call_id if isinstance(message.tool_call_id, str) else None,
@@ -912,7 +851,8 @@ async def _stream_chat_completion_over_dataset_example(
         )
         await results.put(
             (
-                example_id,
+                revision.dataset_example_id,
+                repetition_number,
                 None,
                 models.ExperimentRun(
                     experiment_id=experiment_id,
@@ -928,73 +868,77 @@ async def _stream_chat_completion_over_dataset_example(
             )
         )
         return
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)},
-    ) as span:
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                chunk.dataset_example_id = example_id
-                chunk.repetition_number = repetition_number
-                yield chunk
-        finally:
-            span.set_attributes(llm_client.attributes)
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    db_run = get_db_experiment_run(
-        db_span,
-        db_trace,
-        experiment_id=experiment_id,
-        example_id=revision.dataset_example_id,
-        repetition_number=repetition_number,
-    )
-    await results.put((example_id, db_span, db_run))
-    if span.status_message is not None:
+
+    tracer = Tracer(span_cost_calculator=span_cost_calculator)
+    try:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages,
+            tools=input.tools or [],
+            tracer=tracer,
+            **invocation_parameters,
+        ):
+            chunk.dataset_example_id = example_id
+            chunk.repetition_number = repetition_number
+            yield chunk
+    except Exception as error:
         yield ChatCompletionSubscriptionError(
-            message=span.status_message,
+            message=str(error),
             dataset_example_id=example_id,
             repetition_number=repetition_number,
         )
+    await results.put((revision.dataset_example_id, repetition_number, tracer, None))
 
 
 async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
+    project_id: int,
+    experiment_id: int,
     results: Sequence[ChatCompletionResult],
-    span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
     if not results:
         return
+    example_ids: list[int] = []
+    repetition_numbers: list[int] = []
+    db_spans: list[models.Span | None] = []
+    db_runs: list[models.ExperimentRun] = []
     async with db() as session:
-        for _, span, run in results:
-            if span:
-                session.add(span)
-                await session.flush()
-                try:
-                    span_cost = span_cost_calculator.calculate_cost(
-                        start_time=span.start_time,
-                        attributes=span.attributes,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                    span_cost = None
-                if span_cost:
-                    span_cost.span_rowid = span.id
-                    span_cost.trace_rowid = span.trace_rowid
-                    session.add(span_cost)
-            session.add(run)
+        for example_id, repetition_number, tracer, run in results:
+            if tracer is not None:
+                db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
+                if not db_traces:
+                    continue
+                db_trace = db_traces[0]
+                if not db_trace.spans:
+                    continue
+                db_span = db_trace.spans[0]
+                db_run = get_db_experiment_run(
+                    db_span,
+                    db_trace,
+                    experiment_id=experiment_id,
+                    example_id=example_id,
+                    repetition_number=repetition_number,
+                )
+                session.add(db_run)
+                example_ids.append(example_id)
+                repetition_numbers.append(repetition_number)
+                db_spans.append(db_span)
+                db_runs.append(db_run)
+            elif run is not None:
+                session.add(run)
+                example_ids.append(example_id)
+                repetition_numbers.append(repetition_number)
+                db_spans.append(None)
+                db_runs.append(run)
         await session.flush()
-    for example_id, span, run in results:
+    for example_id, repetition_number, maybe_db_span, db_run in zip(
+        example_ids, repetition_numbers, db_spans, db_runs
+    ):
         yield ChatCompletionSubscriptionResult(
-            span=Span(id=span.id, db_record=span) if span else None,
-            experiment_run=ExperimentRun(id=run.id, db_record=run),
-            dataset_example_id=example_id,
-            repetition_number=run.repetition_number,
+            span=Span(id=maybe_db_span.id, db_record=maybe_db_span) if maybe_db_span else None,
+            experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
+            dataset_example_id=GlobalID(DatasetExample.__name__, str(example_id)),
+            repetition_number=repetition_number,
         )
 
 
@@ -1066,30 +1010,29 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
 
 def _formatted_messages(
     *,
-    messages: Iterable[ChatCompletionMessage],
+    messages: Iterable[PlaygroundMessage],
     template_format: PromptTemplateFormat,
     template_variables: Mapping[str, Any],
-) -> Iterator[ChatCompletionMessage]:
+) -> Iterator[PlaygroundMessage]:
     """
     Formats the messages using the given template options.
     """
-    # Convert to list to check if empty and allow multiple iterations
     messages_list = list(messages)
     if not messages_list:
         return iter([])
     template_formatter = _template_formatter(template_format=template_format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages_list)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
+    result: list[PlaygroundMessage] = []
+    for msg in messages_list:
+        formatted_content = template_formatter.format(msg["content"], **template_variables)
+        result.append(
+            create_playground_message(
+                msg["role"],
+                formatted_content,
+                msg.get("tool_call_id"),
+                msg.get("tool_calls"),
+            )
+        )
+    return iter(result)
 
 
 def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
@@ -1114,8 +1057,3 @@ def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> st
 
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

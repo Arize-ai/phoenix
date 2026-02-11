@@ -6,17 +6,19 @@ import inspect
 import json
 import time
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager
 from functools import wraps
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
     AsyncIterable,
     Generic,
     Hashable,
+    Iterable,
     Mapping,
-    MutableMapping,
     Optional,
     Sequence,
     TypeVar,
@@ -24,14 +26,29 @@ from typing import (
     cast,
 )
 
+import openinference.instrumentation as oi
 import sqlalchemy as sa
 import wrapt
-from openinference.instrumentation import safe_json_dumps
+from openinference.instrumentation import (
+    get_input_attributes,
+    get_llm_provider_attributes,
+    get_llm_system_attributes,
+    get_output_attributes,
+    safe_json_dumps,
+)
 from openinference.semconv.trace import (
+    MessageAttributes,
     OpenInferenceLLMProviderValues,
     OpenInferenceLLMSystemValues,
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
+    ToolCallAttributes,
 )
+from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
+from opentelemetry.trace import Span as OTelSpan
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry import UNSET
@@ -51,6 +68,7 @@ from phoenix.evals.models.rate_limiters import (
     RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.GenerativeModelInput import (
@@ -82,6 +100,7 @@ from phoenix.server.api.types.GenerativeProvider import (
     GenerativeProviderKey,
 )
 from phoenix.server.api.types.node import from_global_id
+from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
     import httpx
@@ -92,7 +111,6 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
-    from opentelemetry.util.types import AttributeValue
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
 
 # TypeVar for generic client type
@@ -101,6 +119,7 @@ ClientT = TypeVar("ClientT")
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
+ToolCallID: TypeAlias = str
 
 
 class Dependency:
@@ -215,10 +234,13 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         model_name: str,
         provider: str,
     ) -> None:
-        self._attributes: dict[str, AttributeValue] = {LLM_PROVIDER: provider}
         self.provider = provider
         self.model_name = model_name
         self._client_factory = client_factory
+
+    @property
+    @abstractmethod
+    def llm_system(self) -> str: ...
 
     @classmethod
     @abstractmethod
@@ -230,18 +252,74 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     @abstractmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]: ...
 
-    @abstractmethod
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        # a yield statement is needed to satisfy the type-checker
-        # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
-        yield TextChunk(content="")
+        tracer_ = tracer or NoOpTracer()
+        attributes = dict(
+            chain(
+                llm_span_kind(),
+                llm_model_name(self.model_name),
+                get_llm_system_attributes(self.llm_system).items(),
+                get_llm_provider_attributes(self.provider).items(),
+                llm_tools(tools),
+                llm_input_messages(messages),
+                llm_invocation_parameters(invocation_parameters),
+                get_input_attributes(
+                    jsonify(
+                        {
+                            "messages": messages,
+                            "tools": tools,
+                            "invocation_parameters": _filter_invocation_parameters(
+                                invocation_parameters
+                            ),
+                        }
+                    )
+                ).items(),
+            )
+        )
+
+        with tracer_.start_as_current_span(
+            "ChatCompletion",
+            attributes=attributes,
+            set_status_on_exception=False,  # manually set exception to control message
+        ) as span:
+            text_chunks: list[TextChunk] = []
+            tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+            try:
+                async for chunk in self._chat_completion_create(
+                    messages=messages, tools=tools, span=span, **invocation_parameters
+                ):
+                    if isinstance(chunk, TextChunk):
+                        text_chunks.append(chunk)
+                        yield chunk
+                    elif isinstance(chunk, ToolCallChunk):
+                        tool_call_chunks[chunk.id].append(chunk)
+                        yield chunk
+
+                span.set_status(Status(StatusCode.OK))
+                if text_chunks or tool_call_chunks:
+                    span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+                    if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
+                        span.set_attributes(output_attrs)
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                # no need to manually record exception, otel will handle for us
+                raise
+
+    @abstractmethod
+    def _chat_completion_create(
+        self,
+        *,
+        messages: list[PlaygroundMessage],
+        tools: list[JSONScalarType],
+        span: OTelSpan,
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]: ...
 
     @classmethod
     def construct_invocation_parameters(
@@ -276,12 +354,12 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             # happens in some cases if the spec is None
             return False
 
-    @property
-    def attributes(self) -> dict[str, Any]:
-        return self._attributes
-
 
 class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
+    @property
+    def llm_system(self) -> str:
+        return OpenInferenceLLMSystemValues.OPENAI.value
+
     def __init__(
         self,
         *,
@@ -298,7 +376,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             provider=provider,
             model_name=model_name,
         )
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         self.rate_limiter = PlaygroundRateLimiter(provider, OpenAIRateLimitError)
 
     @classmethod
@@ -368,12 +445,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             ),
         ]
 
-    async def chat_completion_create(
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        *,
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
@@ -382,7 +459,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         # Convert standard messages to OpenAI messages
         openai_messages = []
         for message in messages:
-            openai_message = self.to_openai_chat_completion_param(*message)
+            openai_message = self.to_openai_chat_completion_param(message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
         tool_call_ids: dict[int, str] = {}
@@ -390,7 +467,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
         async with self._client_factory() as client:
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
+            client._client = _HttpxClient(client._client, span=span)
             throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
             stream = cast(
                 AsyncIterable[chat.ChatCompletionChunk],
@@ -413,8 +490,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 delta = choice.delta
                 if choice.finish_reason is None:
                     if isinstance(chunk_content := delta.content, str):
-                        text_chunk = TextChunk(content=chunk_content)
-                        yield text_chunk
+                        yield TextChunk(content=chunk_content)
                     if (tool_calls := delta.tool_calls) is not None:
                         for tool_call_index, tool_call in enumerate(tool_calls):
                             tool_call_id = (
@@ -424,24 +500,20 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                             )
                             tool_call_ids[tool_call_index] = tool_call_id
                             if (function := tool_call.function) is not None:
-                                tool_call_chunk = ToolCallChunk(
+                                yield ToolCallChunk(
                                     id=tool_call_id,
                                     function=FunctionCallChunk(
                                         name=function.name or "",
                                         arguments=function.arguments or "",
                                     ),
                                 )
-                                yield tool_call_chunk
 
-        if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+            if token_usage is not None:
+                span.set_attributes(dict(self._llm_token_counts(token_usage)))
 
     def to_openai_chat_completion_param(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -449,6 +521,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
@@ -632,6 +709,10 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     ],
 )
 class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
+    @property
+    def llm_system(self) -> str:
+        return "aws"
+
     def __init__(
         self,
         *,
@@ -640,7 +721,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         provider: str = "aws",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_SYSTEM] = "aws"
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -677,23 +757,28 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             ),
         ]
 
-    async def chat_completion_create(
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        *,
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
+        async for chunk in self._handle_converse_api(
+            messages=messages,
+            tools=tools,
+            span=span,
+            invocation_parameters=invocation_parameters,
+        ):
             yield chunk
 
     async def _handle_converse_api(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        *,
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        span: OTelSpan,
         invocation_parameters: dict[str, Any],
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
@@ -818,162 +903,29 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         del active_tool_calls[stop_index]
 
                 elif "metadata" in event:
-                    self._attributes.update(
+                    span.set_attributes(
                         {
                             LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
                             .get("usage", {})
-                            .get("inputTokens", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
+                            .get("inputTokens", 0),
                             LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
                             .get("usage", {})
-                            .get("outputTokens", 0)
-                        }
-                    )
-
-                    self._attributes.update(
-                        {
+                            .get("outputTokens", 0),
                             LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
                             .get("usage", {})
-                            .get("totalTokens", 0)
+                            .get("totalTokens", 0),
                         }
                     )
-
-    async def _handle_invoke_api(
-        self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        invocation_parameters: dict[str, Any],
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        if "anthropic" not in self.model_name:
-            raise ValueError("Invoke API is only supported for Anthropic models")
-
-        bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
-        bedrock_params = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "messages": bedrock_messages,
-            "system": system_prompt,
-            "tools": tools,
-        }
-
-        if (
-            "max_tokens" in invocation_parameters
-            and invocation_parameters["max_tokens"] is not None
-        ):
-            bedrock_params["max_tokens"] = invocation_parameters["max_tokens"]
-        if (
-            "temperature" in invocation_parameters
-            and invocation_parameters["temperature"] is not None
-        ):
-            bedrock_params["temperature"] = invocation_parameters["temperature"]
-        if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
-            bedrock_params["top_p"] = invocation_parameters["top_p"]
-
-        # Use async context manager for client creation
-        async with self._client_factory() as client:
-            response = await client.invoke_model_with_response_stream(
-                modelId=self.model_name,
-                contentType="application/json",
-                accept="application/json",
-                body=json.dumps(bedrock_params),
-                trace="ENABLED_FULL",
-            )
-
-            # The response['body'] is an async EventStream object
-            event_stream = response["body"]
-
-            # Track active tool calls and their accumulating arguments
-            active_tool_calls: dict[
-                int, dict[str, Any]
-            ] = {}  # index -> {id, name, arguments_buffer}
-
-            async for event in event_stream:
-                if "chunk" in event:
-                    chunk_data = json.loads(event["chunk"]["bytes"].decode("utf-8"))
-
-                    # Handle text content
-                    if chunk_data.get("type") == "content_block_delta":
-                        delta = chunk_data.get("delta", {})
-                        index = chunk_data.get("index", 0)
-
-                        if delta.get("type") == "text_delta" and "text" in delta:
-                            yield TextChunk(content=delta["text"])
-
-                        elif delta.get("type") == "input_json_delta":
-                            # Accumulate tool arguments
-                            if index in active_tool_calls:
-                                active_tool_calls[index]["arguments_buffer"] += delta.get(
-                                    "partial_json", ""
-                                )
-                                # Yield incremental argument update
-                                yield ToolCallChunk(
-                                    id=active_tool_calls[index]["id"],
-                                    function=FunctionCallChunk(
-                                        name=active_tool_calls[index]["name"],
-                                        arguments=delta.get("partial_json", ""),
-                                    ),
-                                )
-
-                    # Handle tool call start
-                    elif chunk_data.get("type") == "content_block_start":
-                        content_block = chunk_data.get("content_block", {})
-                        index = chunk_data.get("index", 0)
-
-                        if content_block.get("type") == "tool_use":
-                            # Initialize tool call tracking
-                            active_tool_calls[index] = {
-                                "id": content_block.get("id"),
-                                "name": content_block.get("name"),
-                                "arguments_buffer": "",
-                            }
-
-                            # Yield initial tool call chunk
-                            yield ToolCallChunk(
-                                id=content_block.get("id"),
-                                function=FunctionCallChunk(
-                                    name=content_block.get("name"),
-                                    arguments="",  # Start with empty, will be filled by deltas
-                                ),
-                            )
-
-                    # Handle content block stop (tool call complete)
-                    elif chunk_data.get("type") == "content_block_stop":
-                        index = chunk_data.get("index", 0)
-                        if index in active_tool_calls:
-                            # Tool call is complete, clean up
-                            del active_tool_calls[index]
-
-                    elif chunk_data.get("type") == "message_stop":
-                        self._attributes.update(
-                            {
-                                LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
-                                    "amazon-bedrock-invocationMetrics", {}
-                                ).get("outputTokenCount", 0)
-                            }
-                        )
-
-                        self._attributes.update(
-                            {
-                                LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
-                                    "amazon-bedrock-invocationMetrics", {}
-                                ).get("inputTokenCount", 0)
-                            }
-                        )
 
     def _build_bedrock_messages(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
     ) -> tuple[list[dict[str, Any]], str]:
         bedrock_messages = []
         system_prompt = ""
-        for role, content, _, _ in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.USER:
                 bedrock_messages.append(
                     {
@@ -994,26 +946,28 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     def _extract_system_prompt(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
     ) -> str:
         """Extract system prompt from messages."""
         system_prompts = []
-        for role, content, _, _ in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
         return "\n".join(system_prompts)
 
     def _build_converse_messages(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
     ) -> list[dict[str, Any]]:
         """Convert messages to Converse API format."""
         converse_messages: list[dict[str, Any]] = []
-        for role, content, _id, tool_calls in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            tool_call_id = msg.get("tool_call_id")
+            tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
                 converse_messages.append({"role": "user", "content": [{"text": content}]})
             elif role == ChatCompletionMessageRole.TOOL:
@@ -1023,7 +977,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         "content": [
                             {
                                 "toolResult": {
-                                    "toolUseId": _id,
+                                    "toolUseId": tool_call_id,
                                     "content": [{"json": json.loads(content)}],
                                 }
                             }
@@ -1155,10 +1109,7 @@ class OpenAIReasoningNonStreamingClient(
 ):
     def to_openai_chat_completion_param(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -1166,6 +1117,11 @@ class OpenAIReasoningNonStreamingClient(
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
@@ -1223,8 +1179,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
         provider: str = "azure",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+        self.provider = OpenInferenceLLMProviderValues.AZURE.value
 
 
 @register_llm_client(
@@ -1236,12 +1191,12 @@ class AzureOpenAIReasoningNonStreamingClient(
     AzureOpenAIStreamingClient,
 ):
     @override
-    async def chat_completion_create(
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        *,
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
@@ -1250,13 +1205,13 @@ class AzureOpenAIReasoningNonStreamingClient(
         # Convert standard messages to OpenAI messages
         openai_messages = []
         for message in messages:
-            openai_message = self.to_openai_chat_completion_param(*message)
+            openai_message = self.to_openai_chat_completion_param(message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
 
         async with self._client_factory() as client:
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
+            client._client = _HttpxClient(client._client, span=span)
             throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
             response = cast(
                 chat.ChatCompletion,
@@ -1270,7 +1225,7 @@ class AzureOpenAIReasoningNonStreamingClient(
             )
 
         if response.usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+            span.set_attributes(dict(self._llm_token_counts(response.usage)))
 
         choice = response.choices[0]
         if choice.message.content:
@@ -1293,10 +1248,7 @@ class AzureOpenAIReasoningNonStreamingClient(
 
     def to_openai_chat_completion_param(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -1304,6 +1256,11 @@ class AzureOpenAIReasoningNonStreamingClient(
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
@@ -1356,6 +1313,10 @@ class AzureOpenAIReasoningNonStreamingClient(
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
+    @property
+    def llm_system(self) -> str:
+        return OpenInferenceLLMSystemValues.ANTHROPIC.value
+
     def __init__(
         self,
         *,
@@ -1366,8 +1327,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         import anthropic
 
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
+        self.provider = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self.rate_limiter = PlaygroundRateLimiter(provider, anthropic.RateLimitError)
 
     @classmethod
@@ -1411,12 +1371,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             ),
         ]
 
-    async def chat_completion_create(
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        *,
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
@@ -1430,7 +1390,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
         async with self._client_factory() as client:
             # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, self._attributes)
+            client._client = _HttpxClient(client._client, span=span)
             throttled_stream = self.rate_limiter._alimit(client.messages.stream)
             async with await throttled_stream(**anthropic_params) as stream:
                 async for event in stream:
@@ -1450,7 +1410,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
                                     cache_creation_tokens
                                 )
-                        self._attributes.update(token_counts)
+                        if token_counts:
+                            span.set_attributes(token_counts)
                     elif event.type == "text":
                         yield TextChunk(content=event.text)
                     elif event.type == "message_stop":
@@ -1463,7 +1424,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
                                     cache_read_tokens
                                 )
-                        self._attributes.update(output_token_counts)
+                        if output_token_counts:
+                            span.set_attributes(output_token_counts)
                     elif (
                         event.type == "content_block_stop"
                         and event.content_block.type == "tool_use"
@@ -1499,12 +1461,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
     def _build_anthropic_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+        messages: list[PlaygroundMessage],
     ) -> tuple[list["MessageParam"], str]:
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
-        for role, content, _tool_call_id, _tool_calls in messages:
-            tool_aware_content = self._anthropic_message_content(content, _tool_calls)
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            tool_call_id = msg.get("tool_call_id")
+            tool_calls = msg.get("tool_calls")
+            tool_aware_content = self._anthropic_message_content(content, tool_calls)
             if role == ChatCompletionMessageRole.USER:
                 anthropic_messages.append({"role": "user", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.AI:
@@ -1518,7 +1484,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                         "content": [
                             {
                                 "type": "tool_result",
-                                "tool_use_id": _tool_call_id or "",
+                                "tool_use_id": tool_call_id or "",
                                 "content": content or "",
                             }
                         ],
@@ -1530,7 +1496,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return anthropic_messages, system_prompt
 
     def _anthropic_message_content(
-        self, content: str, tool_calls: Optional[list[JSONScalarType]]
+        self, content: str, tool_calls: Optional[Sequence[JSONScalarType]]
     ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
         if tool_calls:
             # Anthropic combines tool calls and the reasoning text into a single message object
@@ -1593,6 +1559,10 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     ],
 )
 class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
+    @property
+    def llm_system(self) -> str:
+        return OpenInferenceLLMSystemValues.VERTEXAI.value
+
     def __init__(
         self,
         *,
@@ -1601,8 +1571,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         provider: str = "google",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
+        self.provider = OpenInferenceLLMProviderValues.GOOGLE.value
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1657,12 +1626,12 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             ),
         ]
 
-    async def chat_completion_create(
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        *,
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from google.genai import types
@@ -1689,7 +1658,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             async for event in stream:
                 # Update token counts if usage_metadata is present
                 if event.usage_metadata:
-                    self._attributes.update(
+                    span.set_attributes(
                         {
                             LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
                             LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
@@ -1714,12 +1683,14 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     def _build_google_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+        messages: list[PlaygroundMessage],
     ) -> tuple[list["ContentType"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
         google_messages: list["ContentType"] = []
         system_prompts = []
-        for role, content, _tool_call_id, _tool_calls in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.USER:
                 google_messages.append({"role": "user", "parts": [{"text": content}]})
             elif role == ChatCompletionMessageRole.AI:
@@ -1805,10 +1776,9 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
@@ -1836,7 +1806,9 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
                 "thinking_level": thinking_level.upper(),
             }
 
-        async for chunk in super().chat_completion_create(messages, tools, **invocation_parameters):
+        async for chunk in super().chat_completion_create(
+            messages, tools, tracer=tracer, **invocation_parameters
+        ):
             yield chunk
 
 
@@ -1847,8 +1819,6 @@ def initialize_playground_clients() -> None:
     pass
 
 
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
-LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
@@ -1864,13 +1834,17 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLE
 
 
 class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
-    def __init__(self, wrapped: httpx.AsyncClient, attributes: MutableMapping[str, Any]):
+    def __init__(
+        self,
+        wrapped: httpx.AsyncClient,
+        span: OTelSpan,
+    ):
         super().__init__(wrapped)
-        self._self_attributes = attributes
+        self._self_span = span
 
     async def send(self, request: httpx.Request, **kwargs: Any) -> Any:
-        self._self_attributes["url.full"] = str(request.url)
-        self._self_attributes["url.path"] = request.url.path.removeprefix(self.base_url.path)
+        self._self_span.set_attribute(URL_FULL, str(request.url))
+        self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
         response = await self.__wrapped__.send(request, **kwargs)
         return response
 
@@ -2430,3 +2404,186 @@ async def _get_custom_provider_client(
         )
     else:
         assert_never(cfg)
+
+
+def llm_span_kind() -> Iterator[tuple[str, Any]]:
+    yield OPENINFERENCE_SPAN_KIND, LLM
+
+
+def llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
+    yield LLM_MODEL_NAME, model_name
+
+
+def _filter_invocation_parameters(
+    invocation_parameters: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Filter out sensitive keys (api_key, apiKey, credentials) from invocation parameters."""
+    disallowed_keys = {"api_key", "apikey", "credentials"}
+    result: dict[str, Any] = {}
+    for k, v in invocation_parameters.items():
+        key_lower = str(k).lower()
+        if key_lower in disallowed_keys:
+            continue
+        if isinstance(v, dict):
+            result[k] = _filter_invocation_parameters(v)
+        elif isinstance(v, list):
+            result[k] = [
+                _filter_invocation_parameters(item) if isinstance(item, dict) else item
+                for item in v
+            ]
+        else:
+            result[k] = v
+    return result
+
+
+def llm_invocation_parameters(
+    invocation_parameters: Mapping[str, Any],
+) -> Iterator[tuple[str, Any]]:
+    if invocation_parameters:
+        filtered = _filter_invocation_parameters(invocation_parameters)
+        if filtered:
+            yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(filtered)
+
+
+def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
+    for tool_index, tool in enumerate(tools):
+        yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
+
+
+def llm_input_messages(
+    messages: Iterable[PlaygroundMessage],
+) -> Iterator[tuple[str, Any]]:
+    oi_messages = [_playground_message_to_oi_message(message) for message in messages]
+    yield from oi.get_llm_input_message_attributes(oi_messages).items()
+
+
+def _playground_message_to_oi_message(message: PlaygroundMessage) -> oi.Message:
+    oi_message = oi.Message()
+    if (role := message.get("role")) is not None:
+        oi_message["role"] = role.value.lower()
+    if (content := message.get("content")) is not None:
+        oi_message["content"] = content
+    if (tool_call_id := message.get("tool_call_id")) is not None:
+        oi_message["tool_call_id"] = tool_call_id
+    if (tool_calls := message.get("tool_calls")) is not None:
+        oi_message["tool_calls"] = [
+            _playground_tool_call_to_oi_tool_call(tool_call) for tool_call in tool_calls
+        ]
+    return oi_message
+
+
+def _playground_tool_call_to_oi_tool_call(tool_call: PlaygroundToolCall) -> oi.ToolCall:
+    oi_tool_call = oi.ToolCall()
+    if (id := tool_call.get("id")) is not None:
+        oi_tool_call["id"] = id
+    if (function := tool_call.get("function")) is not None:
+        oi_tool_call_function = oi.ToolCallFunction()
+        if (name := function.get("name")) is not None:
+            oi_tool_call_function["name"] = name
+        if (arguments := function.get("arguments")) is not None:
+            oi_tool_call_function["arguments"] = json.dumps(arguments)
+        if oi_tool_call_function:
+            oi_tool_call["function"] = oi_tool_call_function
+    return oi_tool_call
+
+
+def _merge_tool_call_chunks_for_output(
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> list[dict[str, Any]]:
+    merged = []
+    for tool_id, chunks in tool_call_chunks.items():
+        if not chunks:
+            continue
+        first = chunks[0]
+        if not first or not hasattr(first, "function"):
+            continue
+        arguments = "".join(c.function.arguments for c in chunks if c and hasattr(c, "function"))
+        merged.append(
+            {
+                "id": tool_id,
+                "function": {
+                    "name": first.function.name or "",
+                    "arguments": arguments or "{}",
+                },
+            }
+        )
+    return merged
+
+
+def _output_attributes(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> dict[str, Any]:
+    """Return output span attributes via openinference-instrumentation.
+
+    For text-only responses, the output value is the plain text string.
+    When tool calls are present, the output is wrapped in a messages structure
+    to match the standard chat completion response format.
+    """
+    content = "".join(chunk.content for chunk in text_chunks)
+    merged_tool_calls = _merge_tool_call_chunks_for_output(tool_call_chunks)
+    if merged_tool_calls:
+        message: dict[str, Any] = {"role": "assistant"}
+        if content:
+            message["content"] = content
+        message["tool_calls"] = jsonify(merged_tool_calls)
+        return get_output_attributes({"messages": [message]})
+    if content:
+        return get_output_attributes(content)
+    return {}
+
+
+def _llm_output_messages(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> Iterator[tuple[str, Any]]:
+    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
+    if content := "".join(chunk.content for chunk in text_chunks):
+        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
+    for tool_call_index, (_tool_call_id, tool_call_chunks_) in enumerate(tool_call_chunks.items()):
+        if _tool_call_id:
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
+                _tool_call_id,
+            )
+        if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                name,
+            )
+        if arguments := "".join(chunk.function.arguments for chunk in tool_call_chunks_):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                arguments,
+            )
+
+
+JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value
+
+LLM = OpenInferenceSpanKindValues.LLM.value
+
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+METADATA = SpanAttributes.METADATA
+
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
+MESSAGE_TOOL_CALL_ID = MessageAttributes.MESSAGE_TOOL_CALL_ID
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
