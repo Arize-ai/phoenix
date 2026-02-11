@@ -219,7 +219,7 @@ jobs:
     strategy:
       matrix:
         py: ["3.10"]
-        os: [ubuntu-latest]
+        os: [oss-4-core-runner]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -417,7 +417,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.10", "3.13"]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [oss-4-core-runner, windows-latest, macos-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -501,7 +501,7 @@ jobs:
       matrix:
         py: ["3.10", "3.13"]
         db: [sqlite, postgresql]
-        os: [ubuntu-latest, windows-latest]
+        os: [oss-4-core-runner, windows-latest]
         exclude:
           - db: postgresql
             os: windows-latest
