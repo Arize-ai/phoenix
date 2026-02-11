@@ -25,6 +25,11 @@ type RegexFieldProps = {
   ariaLabel?: string;
   placeholder?: string;
   validateRegex?: boolean;
+  /**
+   * Callback fired when the internal regex validation state changes.
+   * Called with `true` when the regex is valid, `false` when invalid.
+   */
+  onValidationChange?: (isValid: boolean) => void;
 } & Omit<TextFieldProps, "isInvalid" | "onChange">;
 
 const regexFieldQuery = graphql`
@@ -46,6 +51,7 @@ export const RegexField = ({
   ariaLabel,
   placeholder,
   validateRegex = true,
+  onValidationChange,
   ...textFieldProps
 }: RegexFieldProps) => {
   const environment = useRelayEnvironment();
@@ -100,12 +106,14 @@ export const RegexField = ({
         if (data.validateRegularExpression.isValid) {
           setInternalError(undefined);
           setIsValid(true);
+          onValidationChange?.(true);
         } else {
           setInternalError(
             data.validateRegularExpression.errorMessage ??
               "Regular expression is invalid"
           );
           setIsValid(false);
+          onValidationChange?.(false);
         }
       },
     });
@@ -113,7 +121,7 @@ export const RegexField = ({
     return () => {
       subscription.unsubscribe();
     };
-  }, [validateRegex, debouncedValue, environment]);
+  }, [validateRegex, debouncedValue, environment, onValidationChange]);
 
   const error = externalError || internalError;
   const hasError = externalIsInvalid || !!externalError || !!internalError;
