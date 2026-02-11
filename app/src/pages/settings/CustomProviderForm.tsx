@@ -82,11 +82,20 @@ export interface BaseProviderFormData {
  */
 type JSONString = string;
 
+/** OpenAI API type: Chat Completions (chat.completions.create) or Responses API (responses.create). */
+export type OpenAIApiTypeForm = "CHAT_COMPLETIONS" | "RESPONSES";
+
+const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
+  { id: "CHAT_COMPLETIONS", label: "Chat Completions" },
+  { id: "RESPONSES", label: "Responses API" },
+];
+
 /**
  * OpenAI SDK configuration.
  */
 export interface OpenAIFormData extends BaseProviderFormData {
   sdk: "OPENAI";
+  openai_api_type: OpenAIApiTypeForm;
   openai_api_key: string;
   openai_base_url?: string;
   openai_organization?: string;
@@ -100,6 +109,7 @@ export interface OpenAIFormData extends BaseProviderFormData {
  */
 export interface AzureOpenAIFormData extends BaseProviderFormData {
   sdk: "AZURE_OPENAI";
+  openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;
   azure_auth_method: AzureAuthMethod;
   // API Key auth
@@ -181,6 +191,37 @@ function OpenAIFields({
 }) {
   return (
     <ProviderSection title="OpenAI Configuration">
+      <Controller
+        name="openai_api_type"
+        control={control}
+        render={({ field }) => (
+          <Select
+            {...field}
+            value={field.value ?? "RESPONSES"}
+            onChange={(key) => {
+              if (key != null) {
+                field.onChange(key);
+              }
+            }}
+            isDisabled={isSubmitting}
+          >
+            <Label>API Type</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox>
+                {OPENAI_API_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </ListBox>
+            </Popover>
+          </Select>
+        )}
+      />
       <Controller
         name="openai_api_key"
         control={control}
@@ -288,6 +329,37 @@ function AzureOpenAIFields({
 
   return (
     <ProviderSection title="Azure OpenAI Configuration">
+      <Controller
+        name="openai_api_type"
+        control={control}
+        render={({ field }) => (
+          <Select
+            {...field}
+            value={field.value ?? "RESPONSES"}
+            onChange={(key) => {
+              if (key != null) {
+                field.onChange(key);
+              }
+            }}
+            isDisabled={isSubmitting}
+          >
+            <Label>API Type</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox>
+                {OPENAI_API_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </ListBox>
+            </Popover>
+          </Select>
+        )}
+      />
       <Controller
         name="azure_endpoint"
         control={control}

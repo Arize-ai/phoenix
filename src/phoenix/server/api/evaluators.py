@@ -55,6 +55,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelBuiltinProviderInput,
     GenerativeModelCustomProviderInput,
     GenerativeModelInput,
+    OpenAIApiType,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
     EvaluatorInputMappingInput,
@@ -352,6 +353,16 @@ class LLMEvaluator(BaseEvaluator):
                 )
                 invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
                 invocation_parameters.update(denormalized_tool_choice)
+                # Only pass params the client supports (e.g. Responses API has no temperature)
+                supported_names = {
+                    p.invocation_name
+                    for p in self._llm_client.__class__.supported_invocation_parameters()
+                }
+                invocation_parameters = {
+                    k: v
+                    for k, v in invocation_parameters.items()
+                    if k in supported_names and v is not None
+                }
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
                 async for chunk in self._llm_client.chat_completion_create(
@@ -736,6 +747,7 @@ async def _get_llm_evaluators(
                 builtin=GenerativeModelBuiltinProviderInput(
                     provider_key=provider_key,
                     name=prompt_version.model_name,
+                    openai_api_type=OpenAIApiType.CHAT_COMPLETIONS,
                 )
             )
 

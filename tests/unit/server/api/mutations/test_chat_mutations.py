@@ -77,6 +77,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "messages": [
@@ -134,6 +135,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "messages": [
@@ -212,6 +214,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
@@ -296,7 +299,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [
@@ -373,7 +382,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [
@@ -449,7 +464,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
                 "messages": [
@@ -549,6 +570,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
@@ -643,6 +665,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
@@ -758,7 +781,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4o-mini",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "messages": [
                     {
                         "role": "USER",
@@ -896,6 +925,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-nonexistent-model",  # use a non-existent model to trigger an error
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "messages": [
@@ -1014,7 +1044,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
                 "messages": [
@@ -1609,6 +1645,7 @@ class TestChatCompletionMutationMixin:
                     "builtin": {
                         "providerKey": "OPENAI",
                         "name": "gpt-nonexistent-model",  # triggers an error
+                        "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_gid,
@@ -1719,7 +1756,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4o-mini",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "messages": [
                     {
                         "role": "USER",
@@ -1838,7 +1881,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
                 "messages": [
@@ -1982,7 +2031,13 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {"builtin": {"providerKey": "OPENAI", "name": "gpt-4o-mini"}},
+                "model": {
+                    "builtin": {
+                        "providerKey": "OPENAI",
+                        "name": "gpt-4o-mini",
+                        "openaiApiType": "CHAT_COMPLETIONS",
+                    }
+                },
                 "messages": [
                     {
                         "role": "USER",

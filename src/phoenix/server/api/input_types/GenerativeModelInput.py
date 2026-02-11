@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional
 
 import strawberry
@@ -6,6 +7,14 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+
+@strawberry.enum
+class OpenAIApiType(Enum):
+    """Chat Completions (chat.completions.create) or Responses API (responses.create)."""
+
+    CHAT_COMPLETIONS = "chat_completions"
+    RESPONSES = "responses"
 
 
 @strawberry.input
@@ -21,6 +30,8 @@ class GenerativeModelBuiltinProviderInput:
     """ The region to use for the model. """
     custom_headers: Optional[JSON] = UNSET
     """ Custom headers to use for the model. """
+    openai_api_type: Optional[OpenAIApiType] = UNSET
+    """ For OpenAI/Azure: chat_completions or responses. Required for OpenAI/Azure. """
 
 
 @strawberry.input

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2595edf12761e835793facb07f6a36b6>>
+ * @generated SignedSource<<6d7a9d77e8946910a96e9a1e1c4fc403>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PatchGenerativeModelCustomProviderMutationInput = {
   clientConfig?: GenerativeModelCustomerProviderConfigInput | null;
   description?: string | null;
@@ -26,6 +27,7 @@ export type GenerativeModelCustomerProviderConfigInput = {
   openai?: OpenAICustomProviderConfigInput | null;
 };
 export type OpenAICustomProviderConfigInput = {
+  openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
 };
@@ -41,6 +43,7 @@ export type OpenAIClientKwargsInput = {
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
   apiKey?: string | null;

@@ -20,6 +20,7 @@ import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
 import { EndpointConfigFormField } from "./EndpointConfigFormField";
 import { ModelInvocationParametersFormFields } from "./ModelInvocationParametersFormFields";
 import { ModelNameConfigFormField } from "./ModelNameConfigFormField";
+import { OpenAIApiTypeConfigFormField } from "./OpenAIApiTypeConfigFormField";
 import { SaveModelConfigButton } from "./SaveModelConfigButton";
 
 /**
@@ -113,6 +114,9 @@ export function ModelParametersConfigButton(
   const canConfigureBaseUrl = provider === "OPENAI" || provider === "OLLAMA";
   const canConfigureAzureFields = provider === "AZURE_OPENAI";
   const canConfigureRegion = provider === "AWS";
+  const canConfigureOpenAIApiType =
+    !usingCustomProvider &&
+    (provider === "OPENAI" || provider === "AZURE_OPENAI");
 
   const showBaseUrl =
     !usingCustomProvider && !disableEphemeralRouting && canConfigureBaseUrl;
@@ -141,6 +145,14 @@ export function ModelParametersConfigButton(
               <ModelNameConfigFormField
                 playgroundInstanceId={playgroundInstanceId}
               />
+
+              {/* OpenAI / Azure API type - built-in only: editable when ephemeral routing enabled, fixed default when disabled */}
+              {canConfigureOpenAIApiType && (
+                <OpenAIApiTypeConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                  displayDefaultOnly={disableEphemeralRouting}
+                />
+              )}
 
               {/* Custom provider info - shown when a custom provider is selected */}
               {customProvider && (

@@ -47,6 +47,7 @@ dependencies = [
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
+  "openinference-instrumentation-openai>=0.1.41",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
@@ -78,6 +79,7 @@ phoenix = "phoenix.server.main:main"
 dev = [
   "aioboto3",
   "aiobotocore>=3.1.1",
+  "aioboto3",
   "aiosqlite<0.22.0",  # new version is causing tests to hang
   "anthropic>=0.79.0",
   "arize>=8.1.0",
@@ -111,6 +113,8 @@ dev = [
   "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
   "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-httpx",
+  "opentelemetry-instrumentation-aiohttp-client",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk>=1.35.0",
   "opentelemetry-semantic-conventions",

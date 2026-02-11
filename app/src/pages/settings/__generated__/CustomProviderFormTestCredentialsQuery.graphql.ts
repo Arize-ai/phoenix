@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ca17e0b4177ca8772c71df3c4728cce>>
+ * @generated SignedSource<<3588f2463972c70e29be86b0524a5051>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type GenerativeModelCustomerProviderConfigInput = {
   anthropic?: AnthropicCustomProviderConfigInput | null;
   awsBedrock?: AWSBedrockCustomProviderConfigInput | null;
@@ -17,6 +18,7 @@ export type GenerativeModelCustomerProviderConfigInput = {
   openai?: OpenAICustomProviderConfigInput | null;
 };
 export type OpenAICustomProviderConfigInput = {
+  openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
 };
@@ -32,6 +34,7 @@ export type OpenAIClientKwargsInput = {
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
+  openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
   apiKey?: string | null;

@@ -68,6 +68,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import (
     GenerativeModelBuiltinProviderInput,
     GenerativeModelCustomProviderInput,
     GenerativeModelInput,
+    OpenAIApiType,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.mutations.evaluator_mutations import (
@@ -649,6 +650,7 @@ class ChatCompletionMutationMixin:
                         builtin=GenerativeModelBuiltinProviderInput(
                             provider_key=generative_provider_key,
                             name=model_name,
+                            openai_api_type=OpenAIApiType.RESPONSES,
                         )
                     )
                 async with info.context.db() as session:

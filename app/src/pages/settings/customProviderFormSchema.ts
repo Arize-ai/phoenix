@@ -57,6 +57,7 @@ const baseProviderSchema = z.object({
 // OpenAI schema
 const openAISchema = baseProviderSchema.extend({
   sdk: z.literal("OPENAI"),
+  openai_api_type: z.enum(["CHAT_COMPLETIONS", "RESPONSES"]),
   openai_api_key: z.string().min(1, "API key is required"),
   openai_base_url: urlFieldSchema,
   openai_organization: z.string().optional(),
@@ -82,6 +83,7 @@ const azureEndpointSchema = z
 
 const azureOpenAISchema = baseProviderSchema.extend({
   sdk: z.literal("AZURE_OPENAI"),
+  openai_api_type: z.enum(["CHAT_COMPLETIONS", "RESPONSES"]),
   azure_endpoint: azureEndpointSchema,
   azure_auth_method: z.enum([
     "api_key",

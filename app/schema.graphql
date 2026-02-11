@@ -272,11 +272,13 @@ input AzureOpenAIClientKwargsInput {
 type AzureOpenAICustomProviderConfig {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
+  openaiApiType: OpenAIApiType!
 }
 
 input AzureOpenAICustomProviderConfigInput {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
+  openaiApiType: OpenAIApiType = RESPONSES
 }
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
@@ -2016,6 +2018,7 @@ input GenerativeModelBuiltinProviderInput {
   endpoint: String
   region: String
   customHeaders: JSON
+  openaiApiType: OpenAIApiType
 }
 
 """A connection to a list of items."""
@@ -2486,6 +2489,11 @@ type NumericRange {
   end: Float!
 }
 
+enum OpenAIApiType {
+  CHAT_COMPLETIONS
+  RESPONSES
+}
+
 type OpenAIAuthenticationMethod {
   apiKey: String
 }
@@ -2511,11 +2519,13 @@ input OpenAIClientKwargsInput {
 type OpenAICustomProviderConfig {
   openaiAuthenticationMethod: OpenAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
+  openaiApiType: OpenAIApiType!
 }
 
 input OpenAICustomProviderConfigInput {
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
   openaiClientKwargs: OpenAIClientKwargsInput
+  openaiApiType: OpenAIApiType = RESPONSES
 }
 
 enum OptimizationDirection {
