@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
@@ -38,7 +38,9 @@ const useExactMatchEvaluatorForm = () => {
 };
 
 export const ExactMatchEvaluatorForm = () => {
-  const { control, getValues, setValue } = useExactMatchEvaluatorForm();
+  const { control, getValues, setValue, trigger } =
+    useExactMatchEvaluatorForm();
+  const store = useEvaluatorStoreInstance();
   const [expectedPath, setExpectedPath] = useState<string>(
     () => getValues("pathMapping.expected") ?? ""
   );
@@ -49,6 +51,21 @@ export const ExactMatchEvaluatorForm = () => {
     (state) => state.evaluatorMappingSource
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+
+  // Register validator for required SwitchableEvaluatorInput fields.
+  const triggerValidation = useCallback(async () => {
+    return trigger([
+      "pathMapping.expected",
+      "literalMapping.expected",
+      "pathMapping.actual",
+      "literalMapping.actual",
+    ]);
+  }, [trigger]);
+  useEffect(() => {
+    return store
+      .getState()
+      .registerValidator("exactMatchFields", triggerValidation);
+  }, [store, triggerValidation]);
 
   // Determine initial mode based on existing values
   const expectedDefaultMode =
@@ -71,6 +88,7 @@ export const ExactMatchEvaluatorForm = () => {
           literalPlaceholder="Enter expected value"
           pathInputValue={expectedPath}
           onPathInputChange={setExpectedPath}
+          isRequired
         />
         <SwitchableEvaluatorInput
           fieldName="actual"
@@ -84,6 +102,7 @@ export const ExactMatchEvaluatorForm = () => {
           literalPlaceholder="Enter actual value"
           pathInputValue={actualPath}
           onPathInputChange={setActualPath}
+          isRequired
         />
         <Controller
           name="literalMapping.case_sensitive"

@@ -59,14 +59,24 @@ export const RegexEvaluatorForm = () => {
     [trigger]
   );
 
-  const triggerValidation = useCallback(async () => {
+  const triggerPatternValidation = useCallback(async () => {
     return trigger("literalMapping.pattern");
   }, [trigger]);
   useEffect(() => {
     return store
       .getState()
-      .registerValidator("regexPattern", triggerValidation);
-  }, [store, triggerValidation]);
+      .registerValidator("regexPattern", triggerPatternValidation);
+  }, [store, triggerPatternValidation]);
+
+  // Register validator for the required text SwitchableEvaluatorInput field.
+  const triggerTextValidation = useCallback(async () => {
+    return trigger(["pathMapping.text", "literalMapping.text"]);
+  }, [trigger]);
+  useEffect(() => {
+    return store
+      .getState()
+      .registerValidator("regexTextField", triggerTextValidation);
+  }, [store, triggerTextValidation]);
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
@@ -111,6 +121,7 @@ export const RegexEvaluatorForm = () => {
           literalPlaceholder="Enter text value"
           pathInputValue={textPath}
           onPathInputChange={setTextPath}
+          isRequired
         />
         <Controller
           name="literalMapping.full_match"
