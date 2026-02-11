@@ -62,9 +62,10 @@ export const LevenshteinDistanceEvaluatorForm = () => {
     ]);
   }, [trigger]);
   useEffect(() => {
-    return store
+    const unregister = store
       .getState()
       .registerValidator("levenshteinFields", triggerValidation);
+    return unregister;
   }, [store, triggerValidation]);
 
   // Determine initial mode based on existing values

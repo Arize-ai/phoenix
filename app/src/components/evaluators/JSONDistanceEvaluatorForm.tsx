@@ -63,9 +63,10 @@ export const JSONDistanceEvaluatorForm = () => {
     ]);
   }, [trigger]);
   useEffect(() => {
-    return store
+    const unregister = store
       .getState()
       .registerValidator("jsonDistanceFields", triggerValidation);
+    return unregister;
   }, [store, triggerValidation]);
 
   // Determine initial mode based on existing values

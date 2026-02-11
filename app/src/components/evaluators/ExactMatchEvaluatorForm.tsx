@@ -62,9 +62,10 @@ export const ExactMatchEvaluatorForm = () => {
     ]);
   }, [trigger]);
   useEffect(() => {
-    return store
+    const unregister = store
       .getState()
       .registerValidator("exactMatchFields", triggerValidation);
+    return unregister;
   }, [store, triggerValidation]);
 
   // Determine initial mode based on existing values

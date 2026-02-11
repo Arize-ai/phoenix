@@ -93,7 +93,10 @@ export const EvaluatorNameInput = ({
     return trigger(FIELD_NAME);
   }, [trigger]);
   useEffect(() => {
-    return store.getState().registerValidator(FIELD_NAME, triggerValidation);
+    const unregister = store
+      .getState()
+      .registerValidator(FIELD_NAME, triggerValidation);
+    return unregister;
   }, [store, triggerValidation]);
 
   // Validates the name field.

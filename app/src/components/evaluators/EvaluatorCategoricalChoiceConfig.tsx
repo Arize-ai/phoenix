@@ -85,7 +85,10 @@ const useEvaluatorLLMChoiceForm = () => {
     return form.trigger();
   }, [form]);
   useEffect(() => {
-    return store.getState().registerValidator("choices", triggerValidation);
+    const unregister = store
+      .getState()
+      .registerValidator("choices", triggerValidation);
+    return unregister;
   }, [store, triggerValidation]);
 
   return form;
