@@ -103,6 +103,65 @@ test.describe.serial("Server Evaluators", () => {
     ).toBeVisible();
   });
 
+  test("blocks submission when form has validation errors and allows it once fixed", async ({
+    page,
+  }) => {
+    const validatedEvaluatorName = `validated-eval-${randomUUID().slice(0, 8)}`;
+
+    // Navigate to the dataset's evaluators tab
+    await page.goto("/datasets");
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.waitForURL("**/datasets/**/examples");
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Open the exact_match evaluator creation dialog
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Use built-in code evaluator" })
+      .hover();
+    await page.getByRole("menuitem", { name: /exact_match/i }).click();
+
+    // Verify the Create Evaluator dialog opens
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    // Clear the name field to make it invalid
+    const nameInput = page.getByRole("textbox", { name: "Name" }).first();
+    await nameInput.clear();
+
+    // Try to submit without filling required fields (Name, Expected, Actual)
+    await page.getByRole("button", { name: "Create" }).click();
+
+    // Verify the validation error alert appears
+    await expect(
+      page.getByText("Please fix the highlighted errors before submitting.")
+    ).toBeVisible({ timeout: 5000 });
+
+    // Now fix the errors: fill in Name, Expected, and Actual
+    await nameInput.fill(validatedEvaluatorName);
+    await page
+      .getByRole("combobox", { name: "Expected path mapping" })
+      .fill("input.question");
+    await page
+      .getByRole("combobox", { name: "Actual path mapping" })
+      .fill("input.context");
+
+    // Submit again - should succeed now
+    await page.getByRole("button", { name: "Create" }).click();
+
+    // Wait for dialog to close
+    await expect(page.getByTestId("dialog")).not.toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify the evaluator appears in the table
+    await expect(
+      page.getByRole("cell", { name: validatedEvaluatorName, exact: true })
+    ).toBeVisible();
+  });
+
   // Store names for prebuilt evaluators
   const prebuiltLLMEvaluatorName = `correctness-${randomUUID().slice(0, 8)}`;
   const prebuiltCodeEvaluatorName = `exact-match-${randomUUID().slice(0, 8)}`;
