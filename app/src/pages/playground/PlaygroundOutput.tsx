@@ -385,6 +385,31 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!runInProgress) {
       return;
     }
+    const state = playgroundStore.getState();
+    const currentInstance = state.instances.find((i) => i.id === instanceId);
+    if (
+      currentInstance?.template.__type === "chat" &&
+      (currentInstance.model.modelName?.includes("claude-opus-4-6") ?? false)
+    ) {
+      const messageIds = currentInstance.template.messageIds;
+      const hasAiMessage = messageIds.some(
+        (mid) => state.allInstanceMessages[mid]?.role === "ai"
+      );
+      if (hasAiMessage) {
+        const lastMessageId = messageIds[messageIds.length - 1];
+        const lastMessage = state.allInstanceMessages[lastMessageId];
+        if (lastMessage?.role !== "user") {
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          clearRepetitions(instanceId);
+          notifyError({
+            title: "Invalid message order",
+            message:
+              "This model requires the conversation to end with a user message. Add a user message last or move a user message to the end.",
+          });
+          return;
+        }
+      }
+    }
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
