@@ -475,12 +475,13 @@ class ChatCompletionMutationMixin:
 
         attributes.update(llm_client.attributes)
         if text_content or tool_calls:
-            attributes.update(
-                chain(
-                    _output_value_and_mime_type(text_content, tool_calls),
-                    _llm_output_messages(text_content, tool_calls),
+            if not llm_client.response_attributes_are_auto_accumulating:
+                attributes.update(
+                    chain(
+                        _output_value_and_mime_type(text_content, tool_calls),
+                        _llm_output_messages(text_content, tool_calls),
+                    )
                 )
-            )
 
         # Now write the span to the database
         trace_id = _generate_trace_id()

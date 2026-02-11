@@ -75,4 +75,8 @@ class OpenAIToolChoiceConversion:
                 function_name=function["name"],
             )
             return choice_function_tool
+        if obj["type"] == "allowed_tools":
+            raise NotImplementedError
+        if obj["type"] == "custom":
+            raise NotImplementedError
         assert_never(obj["type"])

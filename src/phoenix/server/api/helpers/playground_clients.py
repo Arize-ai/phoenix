@@ -9,10 +9,11 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union, cast
 
 import wrapt
 from openinference.instrumentation import safe_json_dumps
+from openinference.instrumentation.openai._attributes._responses_api import _ResponsesApiAttributes
 from openinference.semconv.trace import (
     OpenInferenceLLMProviderValues,
     OpenInferenceLLMSystemValues,
@@ -31,9 +32,6 @@ from phoenix.evals.models.rate_limiters import (
     RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.openai_responses_streaming import (
-    OpenAIResponsesStreamEventType,
-)
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
@@ -62,9 +60,21 @@ if TYPE_CHECKING:
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from botocore.awsrequest import AWSPreparedRequest  # type: ignore[import-untyped]
     from google.generativeai.types import ContentType
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    from openai import AsyncAzureOpenAI, AsyncOpenAI, AsyncStream
     from openai.types import CompletionUsage
-    from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionMessageParam,
+        ChatCompletionMessageToolCallParam,
+    )
+    from openai.types.chat import (
+        ChatCompletionChunk as OpenAIChatCompletionChunk,
+    )
+    from openai.types.responses import (
+        Response,
+        ResponseInputItemParam,
+        ResponseStreamEvent,
+    )
     from opentelemetry.util.types import AttributeValue
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
@@ -104,7 +114,7 @@ def _tools_chat_completions_to_responses_api(
     return result
 
 
-# Parameters accepted by OpenAI Responses API responses.create (GPT 5.1/5.2).
+# Parameters accepted by OpenAI Responses API responses.create.
 # Chat Completions uses different names; this mapping converts mixin params to Responses API.
 _RESPONSES_API_PARAM_NAMES = frozenset(
     {
@@ -289,6 +299,14 @@ class PlaygroundStreamingClient(ABC):
     @abstractmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]: ...
 
+    @property
+    def response_attributes_are_auto_accumulating(self) -> bool:
+        """
+        Whether the response attributes are automatically accumulating.
+        True for OpenAI Responses API
+        """
+        return False
+
     @abstractmethod
     async def chat_completion_create(
         self,
@@ -443,14 +461,16 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
+        create_result = await throttled_create(
             messages=openai_messages,
             model=self.model_name,
             stream=True,
             stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
+            tools=cast(Any, tools or NOT_GIVEN),
             **invocation_parameters,
-        ):
+        )
+        stream = cast("AsyncStream[OpenAIChatCompletionChunk]", create_result)
+        async for chunk in stream:
             if (usage := chunk.usage) is not None:
                 token_usage = usage
             if not chunk.choices:
@@ -587,96 +607,73 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
     @staticmethod
-    def _normalize_responses_api_usage(usage: Any) -> "CompletionUsage":
-        """
-        Normalize Responses API usage object to CompletionUsage format.
-        Maps input_tokens -> prompt_tokens and output_tokens -> completion_tokens.
-        Also maps input_tokens_details -> prompt_tokens_details and
-        output_tokens_details -> completion_tokens_details.
+    def _to_openai_response_input_item_param(
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+    ) -> list["ResponseInputItemParam"]:
+        from openai.types.responses.easy_input_message_param import EasyInputMessageParam
+        from openai.types.responses.response_function_tool_call_param import (
+            ResponseFunctionToolCallParam,
+        )
+        from openai.types.responses.response_input_item_param import (
+            FunctionCallOutput,
+        )
 
-        ResponseUsage structure:
-        - input_tokens: int
-        - input_tokens_details: InputTokensDetails (has cached_tokens: int)
-        - output_tokens: int
-        - output_tokens_details: OutputTokensDetails (has reasoning_tokens: int)
-        - total_tokens: int
+        result: list["ResponseInputItemParam"] = []
+        for role, content, tool_call_id, tool_calls in messages:
+            if role is ChatCompletionMessageRole.USER:
+                result.append(
+                    EasyInputMessageParam(
+                        role="user",
+                        content=content,
+                        type="message",
+                    )
+                )
+            elif role is ChatCompletionMessageRole.SYSTEM:
+                result.append(
+                    EasyInputMessageParam(
+                        role="system",
+                        content=content,
+                        type="message",
+                    )
+                )
+            elif role is ChatCompletionMessageRole.AI:
+                result.append(
+                    EasyInputMessageParam(
+                        role="assistant",
+                        content=content if content else "",
+                        type="message",
+                    )
+                )
+                if tool_calls:
+                    for tc in tool_calls:
+                        if not isinstance(tc, dict):
+                            continue
+                        fn = tc.get("function")
+                        fn = fn if isinstance(fn, dict) else {}
+                        result.append(
+                            ResponseFunctionToolCallParam(
+                                call_id=tc.get("id", ""),
+                                name=fn.get("name", ""),
+                                arguments=fn.get("arguments", ""),
+                                type="function_call",
+                            )
+                        )
+            elif role is ChatCompletionMessageRole.TOOL:
+                if tool_call_id is not None:
+                    result.append(
+                        FunctionCallOutput(
+                            call_id=tool_call_id,
+                            output=content,
+                            type="function_call_output",
+                        )
+                    )
+            else:
+                assert_never(role)
+        return result
 
-        CompletionUsage structure:
-        - prompt_tokens: int
-        - prompt_tokens_details: PromptTokensDetails
-          (has cached_tokens, audio_tokens - both optional)
-        - completion_tokens: int
-        - completion_tokens_details: CompletionTokensDetails
-          (has reasoning_tokens, audio_tokens, etc. - all optional)
-        - total_tokens: int
-        """
-
-        # Extract tokens with defensive getattr access
-        input_tokens = getattr(usage, "input_tokens", None)
-        output_tokens = getattr(usage, "output_tokens", None)
-        total_tokens = getattr(usage, "total_tokens", None)
-
-        # Map Responses API fields to CompletionUsage fields
-        prompt_tokens = input_tokens if input_tokens is not None else 0
-        completion_tokens = output_tokens if output_tokens is not None else 0
-        # total_tokens should be present, but fallback to sum if missing
-        if total_tokens is None:
-            total_tokens = prompt_tokens + completion_tokens
-
-        # Map token details: Responses API uses input_tokens_details/output_tokens_details
-        # but CompletionUsage expects prompt_tokens_details/completion_tokens_details
-        input_tokens_details = getattr(usage, "input_tokens_details", None)
-        output_tokens_details = getattr(usage, "output_tokens_details", None)
-
-        # Create normalized detail objects matching CompletionUsage structure
-        # Check fallback first (CompletionUsage format) before normalizing from Responses API format
-        prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
-        if prompt_tokens_details is None and input_tokens_details is not None:
-            # InputTokensDetails has cached_tokens (required).
-            # Map to PromptTokensDetails: cached_tokens (optional), audio_tokens (optional).
-            cached_tokens = getattr(input_tokens_details, "cached_tokens", None)
-            if cached_tokens is not None:
-                # Create a simple object matching PromptTokensDetails structure
-                class NormalizedPromptTokensDetails:
-                    def __init__(self) -> None:
-                        self.cached_tokens = cached_tokens
-                        # audio_tokens not available in InputTokensDetails, leave as None
-                        self.audio_tokens = None
-
-                prompt_tokens_details = NormalizedPromptTokensDetails()
-
-        completion_tokens_details = getattr(usage, "completion_tokens_details", None)
-        if completion_tokens_details is None and output_tokens_details is not None:
-            # OutputTokensDetails has reasoning_tokens (required).
-            # Map to CompletionTokensDetails: reasoning_tokens (optional), audio_tokens (optional).
-            reasoning_tokens = getattr(output_tokens_details, "reasoning_tokens", None)
-            if reasoning_tokens is not None:
-                # Create a simple object matching CompletionTokensDetails structure
-                class NormalizedCompletionTokensDetails:
-                    def __init__(self) -> None:
-                        self.reasoning_tokens = reasoning_tokens
-                        # audio_tokens not available in OutputTokensDetails, leave as None
-                        self.audio_tokens = None
-                        # Other fields not available in OutputTokensDetails
-                        self.accepted_prediction_tokens = None
-                        self.rejected_prediction_tokens = None
-
-                completion_tokens_details = NormalizedCompletionTokensDetails()
-
-        # Create a CompletionUsage-like object
-        # We'll create a simple object that provides the expected interface
-        class NormalizedUsage:
-            def __init__(self) -> None:
-                self.prompt_tokens = prompt_tokens
-                self.completion_tokens = completion_tokens
-                self.total_tokens = total_tokens
-                # Map details from Responses API format to CompletionUsage format
-                self.prompt_tokens_details = prompt_tokens_details
-                self.completion_tokens_details = completion_tokens_details
-
-        return NormalizedUsage()  # type: ignore[return-value]
-
-    async def _chat_completion_create_unified_endpoint(
+    async def _responses_create(
         self,
         messages: list[
             tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
@@ -685,42 +682,25 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
-        Shared implementation for unified responses.create endpoint used by GPT 5.1 and 5.2 models.
-        Uses event-driven streaming with the Responses API.
-        Converts messages to input string format and handles streaming responses.
+        Shared implementation for the OpenAI Responses API (responses.create) streaming.
+
+        Uses event-driven streaming. The API emits a hierarchy of events: deltas for
+        incremental content, then a series of "done" events at increasing scope
+        (output_text → content_part → output_item → response.completed). Each "done"
+        event carries the full content at that scope so a client could use any single
+        one; the same full text therefore appears in output_text.done, content_part.done,
+        output_item.done, and response.completed. We avoid that redundancy by using
+        only response.output_text.delta for streamed text, ignoring the full payloads
+        on all .done events, and reading usage only from response.completed.
+
+        Converts Chat Completions-style messages and tools to Responses API input
+        and yields ChatCompletionChunk-compatible chunks (TextChunk, ToolCallChunk).
         """
         from openai import NOT_GIVEN
 
-        # Convert messages to input format for responses.create unified endpoint
-        # The unified endpoint uses 'input' (string) instead of 'messages' (array)
-        input_parts = []
-        for role, content, tool_call_id, tool_calls in messages:
-            if role is ChatCompletionMessageRole.SYSTEM:
-                input_parts.append(f"System: {content}")
-            elif role is ChatCompletionMessageRole.USER:
-                input_parts.append(f"User: {content}")
-            elif role is ChatCompletionMessageRole.AI:
-                assistant_msg = f"Assistant: {content}" if content else "Assistant:"
-                if tool_calls:
-                    tool_call_parts = []
-                    for tool_call in tool_calls:
-                        tool_id = tool_call.get("id", "")
-                        function = tool_call.get("function", {})
-                        function_name = function.get("name", "")
-                        function_args = function.get("arguments", "")
-                        tool_call_parts.append(
-                            f"Tool Call ({tool_id}): {function_name}({function_args})"
-                        )
-                    assistant_msg += "\n" + "\n".join(tool_call_parts)
-                input_parts.append(assistant_msg)
-            elif role is ChatCompletionMessageRole.TOOL:
-                input_parts.append(f"Tool ({tool_call_id}): {content}")
+        input_item_param = self._to_openai_response_input_item_param(messages)
 
-        input_text = "\n\n".join(input_parts)
-
-        # Track active tool calls: tool_call_id -> {name, arguments_buffer}
-        active_tool_calls: dict[str, dict[str, str]] = {}
-        token_usage: Optional["CompletionUsage"] = None
+        completed_response: Optional["Response"] = None
 
         # Use responses.create instead of chat.completions.create for unified endpoint
         # The unified endpoint uses 'input' parameter instead of 'messages'
@@ -730,133 +710,211 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         # Map Chat Completions param names to Responses API.
         responses_params = _invocation_parameters_to_responses_api(dict(invocation_parameters))
         throttled_create = self.rate_limiter._alimit(self.client.responses.create)
-        async for event in await throttled_create(
-            input=input_text,
+        create_result = await throttled_create(
+            input=input_item_param,
             model=self.model_name,
             stream=True,
-            tools=responses_tools,
-            **responses_params,
-        ):
-            # Parse events using event.type for event-driven streaming
-            event_type = getattr(event, "type", None)
-            if not event_type:
-                continue
-
+            tools=cast(Any, responses_tools),
+            **cast(Any, responses_params),
+        )
+        stream = cast("AsyncStream[ResponseStreamEvent]", create_result)
+        async for event in stream:
             # Handle text streaming: yield TextChunk for every delta
-            if event_type == OpenAIResponsesStreamEventType.OUTPUT_TEXT_DELTA:
+            if event.type == "response.output_text.delta":
                 # Treat event.delta as a string directly
-                delta = getattr(event, "delta", None)
+                delta = event.delta
                 if delta and isinstance(delta, str) and delta:
                     yield TextChunk(content=delta)
-            # Don't duplicate text on .done - just skip it
-            elif event_type == OpenAIResponsesStreamEventType.OUTPUT_TEXT_DONE:
+
+            elif event.type == "response.output_text.done":
+                pass
+            elif event.type == "response.output_item.added":
                 pass
 
-            # Handle output_item.added event to extract function name for tool calls
-            elif event_type == OpenAIResponsesStreamEventType.OUTPUT_ITEM_ADDED:
-                item = getattr(event, "item", None)
-                if item is not None:
-                    item_id = getattr(item, "id", None)
-                    call_id = getattr(item, "call_id", None) or item_id
-                    function_name = getattr(item, "name", None)
-                    if item_id and function_name:
-                        active_tool_calls[item_id] = {
-                            "name": function_name,
-                            "arguments_buffer": "",
-                            "call_id": call_id,
-                        }
-
-            # Handle tool call streaming: accumulate arguments across deltas
-            elif event_type in (
-                OpenAIResponsesStreamEventType.FUNCTION_CALL_ARGUMENTS_DELTA,
-                OpenAIResponsesStreamEventType.CUSTOM_TOOL_CALL_INPUT_DELTA,
-            ):
-                # Read tool call ID from the event
-                tool_call_id = getattr(event, "item_id", None)
-                # Treat event.delta as the incremental arguments string directly
-                delta = getattr(event, "delta", None)
-                arguments_delta = None
-                if delta and isinstance(delta, str) and delta:
-                    arguments_delta = delta
-
-                if tool_call_id:
-                    # Initialize tool call tracking if not already present
-                    if tool_call_id not in active_tool_calls:
-                        active_tool_calls[tool_call_id] = {
-                            "name": "",
-                            "arguments_buffer": "",
-                            "call_id": tool_call_id,
-                        }
-                    # Accumulate arguments (ensure it's a string)
-                    if arguments_delta:
-                        arguments_str = (
-                            arguments_delta
-                            if isinstance(arguments_delta, str)
-                            else str(arguments_delta)
-                        )
-                        active_tool_calls[tool_call_id]["arguments_buffer"] += arguments_str
-
-            # Emit ToolCallChunk only when the tool call is complete
-            # Support both function_call_arguments and custom_tool_call_input events
-            elif event_type in (
-                OpenAIResponsesStreamEventType.FUNCTION_CALL_ARGUMENTS_DONE,
-                OpenAIResponsesStreamEventType.CUSTOM_TOOL_CALL_INPUT_DONE,
-            ):
-                tool_call_id = getattr(event, "item_id", None)
-                if tool_call_id and tool_call_id in active_tool_calls:
-                    tool_call_data = active_tool_calls[tool_call_id]
-                    # Use call_id (Responses API tool call identifier) for the chunk id
-                    chunk_id = tool_call_data.get("call_id", tool_call_id)
+            # Emit tool call chunks from output_item.done (full item: call_id, name,
+            # arguments/input)
+            elif event.type == "response.output_item.done":
+                item = event.item
+                if item.type == "function_call":
                     yield ToolCallChunk(
-                        id=chunk_id,
+                        id=item.call_id,
                         function=FunctionCallChunk(
-                            name=tool_call_data["name"],
-                            arguments=tool_call_data["arguments_buffer"],
+                            name=item.name,
+                            arguments=item.arguments,
                         ),
                     )
-                    # Clean up completed tool call
-                    del active_tool_calls[tool_call_id]
+                elif item.type == "custom_tool_call":
+                    yield ToolCallChunk(
+                        id=item.call_id,
+                        function=FunctionCallChunk(
+                            name=item.name,
+                            arguments=item.input,
+                        ),
+                    )
+                elif item.type == "message":
+                    pass
+                elif item.type == "file_search_call":
+                    pass
+                elif item.type == "web_search_call":
+                    pass
+                elif item.type == "computer_call":
+                    pass
+                elif item.type == "reasoning":
+                    pass
+                elif item.type == "compaction":
+                    pass
+                elif item.type == "image_generation_call":
+                    pass
+                elif item.type == "code_interpreter_call":
+                    pass
+                elif item.type == "local_shell_call":
+                    pass
+                elif item.type == "shell_call":
+                    pass
+                elif item.type == "shell_call_output":
+                    pass
+                elif item.type == "apply_patch_call":
+                    pass
+                elif item.type == "apply_patch_call_output":
+                    pass
+                elif item.type == "mcp_call":
+                    pass
+                elif item.type == "mcp_list_tools":
+                    pass
+                elif item.type == "mcp_approval_request":
+                    pass
+                elif TYPE_CHECKING:
+                    assert_never(item.type)
 
-            # Extract usage only from completed event
-            elif event_type == OpenAIResponsesStreamEventType.COMPLETED:
-                response = getattr(event, "response", None)
-                if response is not None:
-                    usage = getattr(response, "usage", None)
-                    if usage is not None:
-                        # Normalize Responses API usage format to CompletionUsage format
-                        token_usage = self._normalize_responses_api_usage(usage)
+            # Capture full response from completed event for attribute extraction
+            elif event.type == "response.completed":
+                completed_response = event.response
 
             # Handle failed events - raise exception to signal error
-            elif event_type == OpenAIResponsesStreamEventType.FAILED:
-                response = getattr(event, "response", None)
+            elif event.type == "response.failed":
+                response = event.response
                 error_message = "OpenAI Responses API request failed"
-                if response is not None:
-                    error = getattr(response, "error", None)
-                    if error is not None:
-                        error_message = getattr(error, "message", error_message)
-                        error_type = getattr(error, "type", None)
-                        error_code = getattr(error, "code", None)
-                        if error_type or error_code:
-                            error_message = (
-                                f"{error_message} (type: {error_type or 'unknown'}, "
-                                f"code: {error_code or 'unknown'})"
-                            )
+                if (error := response.error) is not None:
+                    error_message = error.message
+                    if error.code:
+                        error_message = f"{error_message} (code: {error.code})"
                 raise RuntimeError(error_message)
 
             # Handle incomplete events - raise exception to signal incomplete response
-            elif event_type == OpenAIResponsesStreamEventType.INCOMPLETE:
-                response = getattr(event, "response", None)
+            elif event.type == "response.incomplete":
+                response = event.response
                 error_message = "OpenAI Responses API request incomplete"
-                if response is not None:
-                    error = getattr(response, "error", None)
-                    if error is not None:
-                        error_message = getattr(error, "message", error_message)
+                if (error := response.error) is not None:
+                    error_message = error.message
                 raise RuntimeError(error_message)
-            # Skip unknown event types silently
 
-        # Update _llm_token_counts exactly once after streaming ends
-        if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+            elif event.type == "response.audio.delta":
+                pass
+            elif event.type == "response.audio.done":
+                pass
+            elif event.type == "response.audio.transcript.delta":
+                pass
+            elif event.type == "response.audio.transcript.done":
+                pass
+            elif event.type == "response.code_interpreter_call_code.delta":
+                pass
+            elif event.type == "response.code_interpreter_call_code.done":
+                pass
+            elif event.type == "response.code_interpreter_call.completed":
+                pass
+            elif event.type == "response.code_interpreter_call.in_progress":
+                pass
+            elif event.type == "response.code_interpreter_call.interpreting":
+                pass
+            elif event.type == "response.content_part.added":
+                pass
+            elif event.type == "response.content_part.done":
+                pass
+            elif event.type == "response.created":
+                pass
+            elif event.type == "error":
+                # Stream-level error (API/request failure); raise so caller sees it
+                error_message = event.message
+                if event.code:
+                    error_message = f"{error_message} (code: {event.code})"
+                if event.param:
+                    error_message = f"{error_message} (param: {event.param})"
+                raise RuntimeError(error_message)
+            elif event.type == "response.file_search_call.completed":
+                pass
+            elif event.type == "response.file_search_call.in_progress":
+                pass
+            elif event.type == "response.file_search_call.searching":
+                pass
+            elif event.type == "response.function_call_arguments.delta":
+                pass
+            elif event.type == "response.function_call_arguments.done":
+                pass
+            elif event.type == "response.custom_tool_call_input.done":
+                pass
+            elif event.type == "response.in_progress":
+                pass
+            elif event.type == "response.reasoning_summary_part.added":
+                pass
+            elif event.type == "response.reasoning_summary_part.done":
+                pass
+            elif event.type == "response.reasoning_summary_text.delta":
+                pass
+            elif event.type == "response.reasoning_summary_text.done":
+                pass
+            elif event.type == "response.reasoning_text.delta":
+                pass
+            elif event.type == "response.reasoning_text.done":
+                pass
+            elif event.type == "response.refusal.delta":
+                pass
+            elif event.type == "response.refusal.done":
+                pass
+            elif event.type == "response.web_search_call.completed":
+                pass
+            elif event.type == "response.web_search_call.in_progress":
+                pass
+            elif event.type == "response.web_search_call.searching":
+                pass
+            elif event.type == "response.image_generation_call.completed":
+                pass
+            elif event.type == "response.image_generation_call.generating":
+                pass
+            elif event.type == "response.image_generation_call.in_progress":
+                pass
+            elif event.type == "response.image_generation_call.partial_image":
+                pass
+            elif event.type == "response.mcp_call_arguments.delta":
+                pass
+            elif event.type == "response.mcp_call_arguments.done":
+                pass
+            elif event.type == "response.mcp_call.completed":
+                pass
+            elif event.type == "response.mcp_call.failed":
+                pass
+            elif event.type == "response.mcp_call.in_progress":
+                pass
+            elif event.type == "response.mcp_list_tools.completed":
+                pass
+            elif event.type == "response.mcp_list_tools.failed":
+                pass
+            elif event.type == "response.mcp_list_tools.in_progress":
+                pass
+            elif event.type == "response.output_text.annotation.added":
+                pass
+            elif event.type == "response.queued":
+                pass
+            elif event.type == "response.custom_tool_call_input.delta":
+                pass
+            elif TYPE_CHECKING:
+                assert_never(event.type)
+
+        # Update span attributes from full response (openinference semconv:
+        # model, usage, output, tools)
+        if completed_response is not None:
+            self._attributes.update(
+                dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
+            )
 
 
 def _get_credential_value(
@@ -1625,11 +1683,15 @@ class OpenAIReasoningReasoningModelsMixin:
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=_OPENAI_RESPONSES_API_MODELS,
 )
-class OpenAIResponseStreamingClient(
+class OpenAIResponsesAPIStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     OpenAIStreamingClient,
 ):
-    """Client for GPT 5.1 and 5.2 models using the unified responses.create endpoint."""
+    """Client for OpenAI Responses API."""
+
+    @property
+    def response_attributes_are_auto_accumulating(self) -> bool:
+        return True
 
     @override
     async def chat_completion_create(
@@ -1640,9 +1702,7 @@ class OpenAIResponseStreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        async for chunk in self._chat_completion_create_unified_endpoint(
-            messages, tools, **invocation_parameters
-        ):
+        async for chunk in self._responses_create(messages, tools, **invocation_parameters):
             yield chunk
 
 
@@ -1767,11 +1827,15 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=_OPENAI_RESPONSES_API_MODELS,
 )
-class AzureOpenAIGPT51_52StreamingClient(
+class AzureOpenAIResponsesAPIStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     AzureOpenAIStreamingClient,
 ):
-    """Azure OpenAI client for GPT 5.1 and 5.2 using unified responses.create endpoint."""
+    """Azure OpenAI client for OpenAI Responses API."""
+
+    @property
+    def response_attributes_are_auto_accumulating(self) -> bool:
+        return True
 
     @override
     async def chat_completion_create(
@@ -1782,9 +1846,7 @@ class AzureOpenAIGPT51_52StreamingClient(
         tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        async for chunk in self._chat_completion_create_unified_endpoint(
-            messages, tools, **invocation_parameters
-        ):
+        async for chunk in self._responses_create(messages, tools, **invocation_parameters):
             yield chunk
 
 
@@ -1815,13 +1877,14 @@ class AzureOpenAIReasoningNonStreamingClient(
                 openai_messages.append(openai_message)
 
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        response = await throttled_create(
+        create_result = await throttled_create(
             messages=openai_messages,
             model=self.model_name,
             stream=False,
-            tools=tools or NOT_GIVEN,
+            tools=cast(Any, tools or NOT_GIVEN),
             **invocation_parameters,
         )
+        response = cast("ChatCompletion", create_result)
 
         if response.usage is not None:
             self._attributes.update(dict(self._llm_token_counts(response.usage)))
@@ -1832,13 +1895,14 @@ class AzureOpenAIReasoningNonStreamingClient(
 
         if choice.message.tool_calls:
             for tool_call in choice.message.tool_calls:
-                yield ToolCallChunk(
-                    id=tool_call.id,
-                    function=FunctionCallChunk(
-                        name=tool_call.function.name,
-                        arguments=tool_call.function.arguments,
-                    ),
-                )
+                if hasattr(tool_call, "function") and tool_call.function is not None:
+                    yield ToolCallChunk(
+                        id=tool_call.id,
+                        function=FunctionCallChunk(
+                            name=tool_call.function.name,
+                            arguments=tool_call.function.arguments,
+                        ),
+                    )
 
     def to_openai_chat_completion_param(
         self,

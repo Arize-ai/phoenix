@@ -135,7 +135,8 @@ async def _stream_single_chat_completion(
             async for chunk in llm_client.chat_completion_create(
                 messages=messages, tools=input.tools or [], **invocation_parameters
             ):
-                span.add_response_chunk(chunk)
+                if not llm_client.response_attributes_are_auto_accumulating:
+                    span.add_response_chunk(chunk)
                 chunk.repetition_number = repetition_number
                 yield chunk
         finally:
