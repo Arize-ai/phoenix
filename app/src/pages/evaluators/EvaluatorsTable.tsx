@@ -245,7 +245,7 @@ export const EvaluatorsTable = ({
     },
     [setSort]
   );
-  const [expanded, setExpanded] = useState<ExpandedState>(true);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
   const tableData = useMemo(() => {
     const rawData = rowReferences.map(readRow).map((evaluator) => ({
       rowType: "evaluator" as const,
