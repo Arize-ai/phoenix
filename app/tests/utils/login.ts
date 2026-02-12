@@ -44,7 +44,7 @@ export async function login(
 
   // Wait for the login form to be fully loaded and interactive
   const emailInput = page.getByLabel("Email");
-  await expect(emailInput).toBeVisible({ timeout: 10000 });
+  await expect(emailInput).toBeVisible();
 
   // Fill in credentials
   await emailInput.fill(credentials.email);

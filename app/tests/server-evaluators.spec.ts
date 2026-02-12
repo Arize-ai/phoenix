@@ -18,11 +18,16 @@ test.describe.serial("Server Evaluators", () => {
     await page.goto("/datasets");
     await page.waitForURL("**/datasets");
 
-    // Click New Dataset dropdown button
+    // Click New Dataset button to open the create dataset dialog
     await page.getByRole("button", { name: "New Dataset" }).click();
 
-    // Select "New Dataset" from the dropdown menu
-    await page.getByRole("menuitem", { name: "New Dataset" }).click();
+    // Verify dialog opens with the correct heading
+    await expect(
+      page.getByRole("heading", { name: "Create Dataset" })
+    ).toBeVisible();
+
+    // Switch to the "From scratch" tab
+    await page.getByRole("tab", { name: "From scratch" }).click();
 
     // Fill in dataset details in the dialog
     await page.getByLabel("Dataset Name").clear();
