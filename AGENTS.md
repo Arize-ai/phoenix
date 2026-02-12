@@ -156,4 +156,3 @@ phoenix/
 5. **Lint Fix Required Before Handoff**: After making changes, run the relevant lint command with auto-fix and then re-run validation for touched areas.
    - `js/`: `pnpm --dir js lint --fix`
    - `app/`: `pnpm --dir app run lint:fix`
-   - Python: `tox run -e ruff`
