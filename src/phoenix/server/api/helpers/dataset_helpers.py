@@ -10,8 +10,19 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
+from pydantic import ValidationError
 
 from phoenix.db.models import Span
+from phoenix.server.api.helpers.prompts.models import (
+    AnthropicToolDefinition,
+    BedrockToolDefinition,
+    GeminiToolDefinition,
+    OpenAIToolDefinition,
+    _anthropic_to_prompt_tool,
+    _bedrock_to_prompt_tool,
+    _gemini_to_prompt_tool,
+    _prompt_to_openai_tool,
+)
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -102,7 +113,7 @@ def get_experiment_example_output(span: Span) -> dict[str, Any]:
                 if definition := get_attribute_value(tool, TOOL_DEFINITION):
                     tool_definitions.append(definition)
         tool_definitions_data = [
-            decoded
+            _normalize_tool_definition_to_openai(decoded)
             for tool_definition in tool_definitions
             if (decoded := _safely_json_decode(tool_definition)) is not None
         ]
@@ -249,6 +260,51 @@ def _safely_json_decode(value: Any) -> Any:
         return json.loads(value)
     except json.JSONDecodeError:
         return None
+
+
+def _normalize_tool_definition_to_openai(tool_def: dict[str, Any]) -> dict[str, Any]:
+    """
+    Normalize a tool definition from any supported provider format to OpenAI format.
+    Uses Pydantic validation for robust format detection, converting through the
+    intermediate PromptToolFunction representation.
+
+    Supported formats: OpenAI, Anthropic, AWS Bedrock, Google Gemini
+
+    Returns the tool definition in OpenAI format, or the original dict if unrecognized.
+    """
+    # Already OpenAI format -- validate and pass through
+    try:
+        openai_tool = OpenAIToolDefinition.model_validate(tool_def)
+        return openai_tool.model_dump()
+    except ValidationError:
+        pass
+
+    # Anthropic format
+    try:
+        anthropic_tool = AnthropicToolDefinition.model_validate(tool_def)
+        prompt_tool = _anthropic_to_prompt_tool(anthropic_tool)
+        return _prompt_to_openai_tool(prompt_tool).model_dump()
+    except ValidationError:
+        pass
+
+    # AWS Bedrock format
+    try:
+        bedrock_tool = BedrockToolDefinition.model_validate(tool_def)
+        prompt_tool = _bedrock_to_prompt_tool(bedrock_tool)
+        return _prompt_to_openai_tool(prompt_tool).model_dump()
+    except ValidationError:
+        pass
+
+    # Gemini format
+    try:
+        gemini_tool = GeminiToolDefinition.model_validate(tool_def)
+        prompt_tool = _gemini_to_prompt_tool(gemini_tool)
+        return _prompt_to_openai_tool(prompt_tool).model_dump()
+    except ValidationError:
+        pass
+
+    # Unknown format -- return as-is
+    return tool_def
 
 
 # MessageAttributes

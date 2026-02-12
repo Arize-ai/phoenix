@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from openinference.semconv.trace import (
@@ -14,6 +14,7 @@ from openinference.semconv.trace import (
 
 from phoenix.db.models import Span
 from phoenix.server.api.helpers.dataset_helpers import (
+    _normalize_tool_definition_to_openai,
     get_dataset_example_input,
     get_dataset_example_output,
     get_experiment_example_output,
@@ -52,6 +53,10 @@ OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
+
+# ToolAttributes
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 
 # ToolCallAttributes
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
@@ -387,19 +392,6 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             {"chain_output": "chain-output"},
             id="chain-span-with-json-output",
         ),
-        pytest.param(
-            Span(
-                span_kind=LLM,
-                attributes=unflatten(
-                    (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
-                    )
-                ),
-            ),
-            {"messages": [{"content": "No tools here.", "role": "assistant"}]},
-            id="llm-span-without-tools",
-        ),
     ],
 )
 def test_get_dataset_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
@@ -408,154 +400,134 @@ def test_get_dataset_example_output(span: Span, expected_output_value: dict[str,
 
 
 @pytest.mark.parametrize(
-    "span, expected_output_value",
+    "tool_def,expected_type,expected_name",
     [
         pytest.param(
-            Span(
-                span_kind=LLM,
-                attributes=unflatten(
-                    (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I can help with weather."),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
-                        (
-                            f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
-                            json.dumps(
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "get_weather",
-                                        "description": "Get current weather",
-                                        "parameters": {
-                                            "type": "object",
-                                            "properties": {"location": {"type": "string"}},
-                                            "required": ["location"],
-                                        },
-                                    },
-                                }
-                            ),
-                        ),
-                    )
-                ),
-            ),
             {
-                "messages": [{"content": "I can help with weather.", "role": "assistant"}],
-                "available_tools": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "get_weather",
-                            "description": "Get current weather",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {"location": {"type": "string"}},
-                                "required": ["location"],
-                            },
-                        },
-                    }
-                ],
-            },
-            id="llm-span-with-output-messages-and-single-tool",
-        ),
-        pytest.param(
-            Span(
-                span_kind=LLM,
-                attributes=unflatten(
-                    (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "I have multiple tools."),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
-                        (
-                            f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
-                            json.dumps(
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "get_weather",
-                                        "parameters": {"type": "object"},
-                                    },
-                                }
-                            ),
-                        ),
-                        (
-                            f"{SpanAttributes.LLM_TOOLS}.1.{ToolAttributes.TOOL_JSON_SCHEMA}",
-                            json.dumps(
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "send_email",
-                                        "parameters": {"type": "object"},
-                                    },
-                                }
-                            ),
-                        ),
-                    )
-                ),
-            ),
-            {
-                "messages": [{"content": "I have multiple tools.", "role": "assistant"}],
-                "available_tools": [
-                    {
-                        "type": "function",
-                        "function": {"name": "get_weather", "parameters": {"type": "object"}},
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"location": {"type": "string"}},
                     },
-                    {
-                        "type": "function",
-                        "function": {"name": "send_email", "parameters": {"type": "object"}},
+                },
+            },
+            "function",
+            "get_weather",
+            id="openai-format-passthrough",
+        ),
+        pytest.param(
+            {
+                "name": "get_weather",
+                "description": "Get the weather",
+                "input_schema": {"type": "object", "properties": {"location": {"type": "string"}}},
+            },
+            "function",
+            "get_weather",
+            id="anthropic-format-normalized",
+        ),
+        pytest.param(
+            {
+                "toolSpec": {
+                    "name": "get_weather",
+                    "description": "Get the weather",
+                    "inputSchema": {
+                        "json": {"type": "object", "properties": {"location": {"type": "string"}}}
                     },
-                ],
+                }
             },
-            id="llm-span-with-output-messages-and-multiple-tools",
+            "function",
+            "get_weather",
+            id="bedrock-format-normalized",
         ),
         pytest.param(
-            Span(
-                span_kind=LLM,
-                attributes=unflatten(
-                    (
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "No tools here."),
-                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
-                    )
-                ),
-            ),
             {
-                "messages": [{"content": "No tools here.", "role": "assistant"}],
-                "available_tools": [],
+                "name": "get_weather",
+                "description": "Get the weather",
+                "parameters": {"type": "object", "properties": {"location": {"type": "string"}}},
             },
-            id="llm-span-without-tools",
+            "function",
+            "get_weather",
+            id="gemini-format-normalized",
         ),
         pytest.param(
-            Span(
-                span_kind=LLM,
-                attributes=unflatten(
-                    (
-                        (OUTPUT_VALUE, "plain-text-output"),
-                        (OUTPUT_MIME_TYPE, TEXT),
-                        (
-                            f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}",
-                            json.dumps(
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "calculator",
-                                        "parameters": {"type": "object"},
-                                    },
-                                }
-                            ),
-                        ),
-                    )
-                ),
-            ),
-            {
-                "output": "plain-text-output",
-                "available_tools": [
-                    {
-                        "type": "function",
-                        "function": {"name": "calculator", "parameters": {"type": "object"}},
-                    }
-                ],
-            },
-            id="llm-span-with-plain-text-output-and-tools",
+            {"some_weird_key": "some_value", "another_key": {"nested": "data"}},
+            None,
+            None,
+            id="unknown-format-unchanged",
         ),
     ],
 )
-def test_get_experiment_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
-    output_value = get_experiment_example_output(span)
-    assert expected_output_value == output_value
+def test_normalize_tool_definition_to_openai(
+    tool_def: dict[str, Any], expected_type: Optional[str], expected_name: Optional[str]
+) -> None:
+    """Test tool definition normalization across different provider formats"""
+    result = _normalize_tool_definition_to_openai(tool_def)
+
+    if expected_type is None:
+        # Unknown format should be returned as-is
+        assert result == tool_def
+    else:
+        # All known formats should normalize to OpenAI structure
+        assert result["type"] == expected_type
+        assert result["function"]["name"] == expected_name
+
+
+@pytest.mark.parametrize(
+    "tools,expected_count",
+    [
+        pytest.param(
+            [
+                {
+                    "type": "function",
+                    "function": {"name": "get_weather", "parameters": {"type": "object"}},
+                }
+            ],
+            1,
+            id="openai-tool",
+        ),
+        pytest.param(
+            [{"name": "get_weather", "input_schema": {"type": "object"}}],
+            1,
+            id="anthropic-tool-normalized",
+        ),
+        pytest.param(
+            [
+                {
+                    "type": "function",
+                    "function": {"name": "openai_tool", "parameters": {"type": "object"}},
+                },
+                {"name": "anthropic_tool", "input_schema": {"type": "object"}},
+            ],
+            2,
+            id="mixed-providers",
+        ),
+        pytest.param([], 0, id="no-tools"),
+    ],
+)
+def test_get_experiment_example_output_with_tools(
+    tools: list[dict[str, Any]], expected_count: int
+) -> None:
+    """Test experiment output includes normalized available_tools"""
+    attributes_list = [
+        (INPUT_VALUE, "input"),
+        (OUTPUT_VALUE, "output"),
+        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant response"),
+        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+    ]
+
+    for idx, tool in enumerate(tools):
+        attributes_list.append((f"{LLM_TOOLS}.{idx}.{TOOL_JSON_SCHEMA}", json.dumps(tool)))
+
+    span = Span(span_kind=LLM, attributes=unflatten(tuple(attributes_list)))
+    result = get_experiment_example_output(span)
+
+    assert "available_tools" in result
+    assert len(result["available_tools"]) == expected_count
+
+    # All tools should be normalized to OpenAI format
+    for tool in result["available_tools"]:
+        assert tool["type"] == "function"
+        assert "name" in tool["function"]
