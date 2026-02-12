@@ -58,14 +58,12 @@ export const GlobalEvaluatorsTable = ({
     [_refetch]
   );
   return (
-    <>
-      <EvaluatorsTable
-        rowReferences={data.evaluators.edges.map((edge) => edge.node)}
-        isLoadingNext={isLoadingNext}
-        hasNext={hasNext}
-        loadNext={loadNext}
-        refetch={refetch}
-      />
-    </>
+    <EvaluatorsTable
+      rowReferences={data.evaluators.edges.map((edge) => edge.node)}
+      isLoadingNext={isLoadingNext}
+      hasNext={hasNext}
+      loadNext={loadNext}
+      refetch={refetch}
+    />
   );
 };

@@ -21,7 +21,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
@@ -34,6 +34,7 @@ import {
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 
 export const convertEvaluatorSortToTanstackSort = (
@@ -68,24 +69,6 @@ export const convertTanstackSortToEvaluatorSort = (
   // eslint-disable-next-line no-console
   console.error("Invalid sort column", col);
   return null;
-};
-
-const EmptyState = () => {
-  return (
-    <View width="100%" paddingY="size-400">
-      <Flex
-        direction="column"
-        width="100%"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Text size="XL">
-          Create and manage evaluators for your AI applications.
-        </Text>
-        {/* TODO: Put a video here explaining how to create and use evaluators */}
-      </Flex>
-    </View>
-  );
 };
 
 const readRow = (row: EvaluatorsTable_row$key) => {
@@ -456,7 +439,7 @@ export const EvaluatorsTable = ({
   const isEmpty = rows.length === 0;
 
   if (isEmpty) {
-    return <EmptyState />;
+    return <GlobalEvaluatorsEmptyState hasActiveFilter={!!filter} />;
   }
 
   return (
