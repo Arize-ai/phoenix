@@ -89,7 +89,7 @@
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
-    "@arizeai/openinference-vercel": "^2.3.1",
+    "@arizeai/openinference-vercel": "^2.7.0",
     "@arizeai/phoenix-otel": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "async": "^3.2.6",
