@@ -1,7 +1,7 @@
 export {
   trace,
   context,
-  type DiagLogLevel,
+  DiagLogLevel,
   type Tracer,
   SpanStatusCode,
 } from "@opentelemetry/api";

@@ -188,8 +188,7 @@ async function processOrder(orderId: string) {
 **Development** (with debug logging):
 
 ```typescript
-import { register } from "@arizeai/phoenix-otel";
-import { DiagLogLevel } from "@opentelemetry/api";
+import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app-dev",
@@ -255,7 +254,7 @@ import {
   context, // Context API
   SpanStatusCode, // Span status codes
   registerInstrumentations, // Register instrumentations
-  type DiagLogLevel, // Diagnostic log levels
+  DiagLogLevel, // Diagnostic log levels
   type Tracer, // Tracer type
   type Instrumentation, // Instrumentation type
   type NodeTracerProvider, // Provider type
