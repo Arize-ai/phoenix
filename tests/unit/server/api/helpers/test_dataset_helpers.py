@@ -117,7 +117,9 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                     {"content": "user-message", "role": "user"},
                     {
                         "role": "assistant",
-                        "function_call": {"name": "add", "arguments": {"a": 363, "b": 42}},
+                        "tool_calls": [
+                            {"function": {"name": "add", "arguments": {"a": 363, "b": 42}}},
+                        ],
                     },
                     {"content": "user-message", "role": "user"},
                     {
@@ -281,7 +283,9 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             ),
             {
                 "role": "assistant",
-                "function_call": {"name": "add", "arguments": {"a": 1, "b": 2}},
+                "tool_calls": [
+                    {"function": {"name": "add", "arguments": {"a": 1, "b": 2}}},
+                ],
             },
             id="function_call_json_string_deserialized",
         ),
@@ -295,7 +299,9 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             ),
             {
                 "role": "assistant",
-                "function_call": {"name": "add", "arguments": "not valid json"},
+                "tool_calls": [
+                    {"function": {"name": "add", "arguments": "not valid json"}},
+                ],
             },
             id="function_call_invalid_json_left_as_string",
         ),

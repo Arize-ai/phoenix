@@ -207,29 +207,38 @@ class _Message(TypedDict):
     role: str
     content: NotRequired[Any]
     name: NotRequired[str]
-    function_call: NotRequired[_Function]
     tool_calls: NotRequired[Sequence[_ToolCall]]
 
 
 def _get_message(message: Mapping[str, Any]) -> _Message:
     content = get_attribute_value(message, MESSAGE_CONTENT)
     name = get_attribute_value(message, MESSAGE_NAME)
-    function_call: _Function | None = None
-    if function_call_name := get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME):
-        arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
-        function_call_arguments = _safely_json_decode(arguments)
-        if function_call_arguments is None:
-            function_call_arguments = arguments
-        function_call = _Function(name=function_call_name, arguments=function_call_arguments)
-    tool_calls = []
-    for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or ():
-        if function_name := get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME):
-            arguments = get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON)
-            function_arguments = _safely_json_decode(arguments)
-            if function_arguments is None:
-                function_arguments = arguments
-            function = _Function(name=function_name, arguments=function_arguments)
-            tool_calls.append(_ToolCall(function=function))
+    # Collect tool_calls from both legacy function_call and modern tool_calls attributes.
+    tool_calls: list[_ToolCall] = []
+    # Legacy: single function_call is folded into tool_calls.
+    fn_name = get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME)
+    arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
+    if fn_name is not None or arguments is not None:
+        fn_arguments = _safely_json_decode(arguments)
+        if fn_arguments is None:
+            fn_arguments = arguments
+        function = _Function(name=fn_name or "", arguments=fn_arguments)
+        tool_calls.append(_ToolCall(function=function))
+    # Instrumentor emits MESSAGE_TOOL_CALLS.{j}.* with integer j; unflatten gives a list.
+    raw_tool_calls = get_attribute_value(message, MESSAGE_TOOL_CALLS)
+    if not isinstance(raw_tool_calls, Sequence) or isinstance(raw_tool_calls, str):
+        raw_tool_calls = ()
+    for tool_call in raw_tool_calls:
+        if not isinstance(tool_call, Mapping):
+            continue
+        fn_name = get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME)
+        arguments = get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON)
+        fn_arguments = _safely_json_decode(arguments)
+        if fn_arguments is None:
+            fn_arguments = arguments
+        if fn_name is not None or arguments is not None:
+            tc = _ToolCall(function=_Function(name=fn_name or "", arguments=fn_arguments))
+            tool_calls.append(tc)
     role = get_attribute_value(message, MESSAGE_ROLE) or "assistant"
     content = get_attribute_value(message, MESSAGE_CONTENT)
     msg = _Message(role=role)
@@ -237,8 +246,6 @@ def _get_message(message: Mapping[str, Any]) -> _Message:
         msg["content"] = content
     if name is not None:
         msg["name"] = name
-    if function_call is not None:
-        msg["function_call"] = function_call
     if tool_calls:
         msg["tool_calls"] = tool_calls
     return msg
