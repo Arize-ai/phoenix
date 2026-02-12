@@ -1323,8 +1323,8 @@ class ContainsEvaluator(BuiltInEvaluator):
                             )
                         else:
                             explanation = (
-                                f"One or more of the words [{word_list}]"
-                                f" were not found in the text:"
+                                f"None of the words [{word_list}]"
+                                f" were found in the text:"
                                 f" '{truncated_text}'."
                             )
 
