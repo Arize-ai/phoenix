@@ -1,5 +1,5 @@
-import { ensureCollectorEndpoint, register } from "../src/register";
 import { DiagLogLevel } from "../src";
+import { ensureCollectorEndpoint, register } from "../src/register";
 
 import { describe, expect, test } from "vitest";
 

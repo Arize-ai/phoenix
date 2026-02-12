@@ -152,3 +152,8 @@ phoenix/
 3. **GraphQL Schema**: After modifying schema in Python, rebuild with `tox run -e build_graphql_schema`.
 
 4. **Changesets**: Any change inside `js/` requires a changeset via `pnpm changeset` (including dependency updates, code changes, and config updates).
+
+5. **Lint Fix Required Before Handoff**: After making changes, run the relevant lint command with auto-fix and then re-run validation for touched areas.
+   - `js/`: `pnpm --dir js lint --fix`
+   - `app/`: `pnpm --dir app run lint:fix`
+   - Python: `tox run -e ruff`
