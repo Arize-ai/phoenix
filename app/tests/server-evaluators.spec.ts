@@ -67,12 +67,18 @@ test.describe.serial("Server Evaluators", () => {
 
     // Fill in the input field with valid JSON
     // JSONEditor renders a CodeMirror editor with .cm-content
-    const inputTextArea = page.locator(".cm-content").first();
+    // Scope to the dialog to avoid picking up background editors
+    const dialog = page.getByRole("dialog");
+    const inputTextArea = dialog.locator(".cm-content").first();
     await inputTextArea.waitFor({ state: "visible", timeout: 5000 });
     await inputTextArea.click();
-    // Clear existing content and type new JSON
+    // Select all existing content and replace it
     await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.type('{"question": "What is 2+2?", "context": "Math"}');
+    // Use insertText instead of type to bypass CodeMirror's bracket/quote
+    // auto-closing which mangles character-by-character input
+    await page.keyboard.insertText(
+      '{"question": "What is 2+2?", "context": "Math"}'
+    );
 
     // Click Add Example button to save
     await page.getByRole("button", { name: "Add Example" }).click();
