@@ -33,8 +33,8 @@ import {
   EvaluatorFilter,
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
-import { EvaluatorsEmptyState } from "@phoenix/pages/evaluators/EvaluatorsEmptyState";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
+import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 
 export const convertEvaluatorSortToTanstackSort = (
@@ -197,7 +197,6 @@ type EvaluatorsTableProps = {
     sort?: EvaluatorSort | null;
     filter?: EvaluatorFilter | null;
   }) => void;
-  EmptyState?: React.ComponentType<{ hasActiveFilter: boolean }>;
 };
 
 export const EvaluatorsTable = ({
@@ -206,7 +205,6 @@ export const EvaluatorsTable = ({
   hasNext,
   loadNext,
   refetch,
-  EmptyState = EvaluatorsEmptyState,
 }: EvaluatorsTableProps) => {
   "use no memo";
   const navigate = useNavigate();
@@ -441,7 +439,7 @@ export const EvaluatorsTable = ({
   const isEmpty = rows.length === 0;
 
   if (isEmpty) {
-    return <EmptyState hasActiveFilter={!!filter} />;
+    return <GlobalEvaluatorsEmptyState hasActiveFilter={!!filter} />;
   }
 
   return (

@@ -4,7 +4,6 @@ import { graphql } from "relay-runtime";
 
 import { GlobalEvaluatorsTable_evaluators$key } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTable_evaluators.graphql";
 import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
-import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 
 const PAGE_SIZE = 100;
 
@@ -59,15 +58,12 @@ export const GlobalEvaluatorsTable = ({
     [_refetch]
   );
   return (
-    <>
-      <EvaluatorsTable
-        rowReferences={data.evaluators.edges.map((edge) => edge.node)}
-        isLoadingNext={isLoadingNext}
-        hasNext={hasNext}
-        loadNext={loadNext}
-        refetch={refetch}
-        EmptyState={GlobalEvaluatorsEmptyState}
-      />
-    </>
+    <EvaluatorsTable
+      rowReferences={data.evaluators.edges.map((edge) => edge.node)}
+      isLoadingNext={isLoadingNext}
+      hasNext={hasNext}
+      loadNext={loadNext}
+      refetch={refetch}
+    />
   );
 };
