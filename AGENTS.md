@@ -151,4 +151,4 @@ phoenix/
 
 3. **GraphQL Schema**: After modifying schema in Python, rebuild with `tox run -e build_graphql_schema`.
 
-4. **Changesets**: TypeScript package changes require a changeset via `pnpm changeset`.
+4. **Changesets**: Any change inside `js/` requires a changeset via `pnpm changeset` (including dependency updates, code changes, and config updates).
