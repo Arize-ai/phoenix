@@ -20,7 +20,6 @@ import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
 import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
-import { TagPromptVersionButton } from "@phoenix/components/prompt/TagPromptVersionButton";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
@@ -159,12 +158,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               disableEphemeralRouting={props.disableEphemeralRouting}
             />
           </CompositeField>
-          {promptId && promptVersionId && (
-            <TagPromptVersionButton
-              promptId={promptId}
-              versionId={promptVersionId}
-            />
-          )}
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}

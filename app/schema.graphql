@@ -619,12 +619,13 @@ input CreateChatPromptInput {
   description: String = null
   promptVersion: ChatPromptVersionInput!
   metadata: JSON = null
+  tags: [CreatePromptVersionTagInput!] = null
 }
 
 input CreateChatPromptVersionInput {
   promptId: ID!
   promptVersion: ChatPromptVersionInput!
-  tags: [SetPromptVersionTagInput!] = null
+  tags: [CreatePromptVersionTagInput!] = null
 }
 
 input CreateDatasetBuiltinEvaluatorInput {
@@ -747,6 +748,11 @@ input CreatePromptLabelInput {
   name: String!
   description: String = null
   color: String!
+}
+
+input CreatePromptVersionTagInput {
+  name: Identifier!
+  description: String = null
 }
 
 input CreateSpanAnnotationInput {
