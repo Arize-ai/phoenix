@@ -8,12 +8,14 @@ def contains(
   text: str,
   words: str,
   case_sensitive: bool = False,
+  require_all: bool = False,
 ) -> bool:
-  words = [word.strip() for word in words.split(",")]
+  words = [word.strip() for word in words.split(",") if word.strip()]
+  match_fn = all if require_all else any
   if case_sensitive:
-    return any(word in text for word in words)
+    return match_fn(word in text for word in words)
   else:
-    return any(word.lower() in text.lower() for word in words)
+    return match_fn(word.lower() in text.lower() for word in words)
 `.trim();
 
 const TYPESCRIPT_CODE = `
@@ -21,12 +23,14 @@ function contains(
   text: string,
   words: string,
   caseSensitive: boolean = false,
+  requireAll: boolean = false,
 ): boolean {
-  words = words.split(",").map((word) => word.trim());
+  const wordList = words.split(",").map((w) => w.trim()).filter(Boolean);
+  const matchFn = requireAll ? wordList.every.bind(wordList) : wordList.some.bind(wordList);
   if (caseSensitive) {
-    return words.some((word) => text.includes(word));
+    return matchFn((word) => text.includes(word));
   }
-  return words.some((word) => text.toLowerCase().includes(word.toLowerCase()));
+  return matchFn((word) => text.toLowerCase().includes(word.toLowerCase()));
 }
 `.trim();
 

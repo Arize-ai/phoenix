@@ -1652,6 +1652,176 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["error"] is None
         assert result["score"] == 1.0
 
+    async def test_contains_evaluator_trailing_comma_filtered(self) -> None:
+        """Test that trailing comma in words does not produce empty token that matches everything."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": "cumin,", "text": "no spices here"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+
+    async def test_contains_evaluator_double_comma_filtered(self) -> None:
+        """Test that double comma in words is filtered and valid words still match."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": "cumin,,paprika", "text": "paprika soup"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 1.0
+
+    async def test_contains_evaluator_leading_comma_filtered(self) -> None:
+        """Test that leading comma in words does not produce empty token."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": ",cumin", "text": "no match here"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+
+    async def test_contains_evaluator_only_commas_handled(self) -> None:
+        """Test that words input with only commas results in empty word list handled gracefully."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": ",", "text": "any text"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        # any([]) returns False, so score should be 0.0
+        assert result["score"] == 0.0
+
+    async def test_contains_evaluator_explanation_clean_word_list(self) -> None:
+        """Test that explanation contains clean word list format without Python repr quotes."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": "cumin,paprika", "text": "The recipe uses cumin and paprika"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        explanation = result["explanation"]
+        assert explanation is not None
+        # Should contain clean format [cumin, paprika] not ['cumin', 'paprika']
+        assert "[cumin, paprika]" in explanation
+        assert "['cumin'" not in explanation
+
+    async def test_contains_evaluator_explanation_includes_text_value(self) -> None:
+        """Test that explanation includes the actual text value for debuggability."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": "hello", "text": "Hello, World!"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        explanation = result["explanation"]
+        assert explanation is not None
+        assert "Hello, World!" in explanation
+
+    async def test_contains_evaluator_explanation_require_all_missing(self) -> None:
+        """Test that explanation shows missing words when require_all=True and not all match."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": "cumin,paprika", "text": "The recipe uses cumin"}
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping={},
+            literal_mapping={"require_all": True},
+        )
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+        explanation = result["explanation"]
+        assert explanation is not None
+        assert "Missing:" in explanation
+        assert "paprika" in explanation
+
+    async def test_contains_evaluator_explanation_any_matched(self) -> None:
+        """Test that explanation shows matched words when require_all=False and words match."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"words": "cumin,paprika", "text": "The recipe uses cumin"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="contains",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 1.0
+        explanation = result["explanation"]
+        assert explanation is not None
+        assert "Matched:" in explanation
+        assert "cumin" in explanation
+
 
 class TestJSONDistanceParseStringsToggle:
     """Tests for JSONDistanceEvaluator parse_strings toggle behavior.
