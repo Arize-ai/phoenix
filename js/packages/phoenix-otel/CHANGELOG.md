@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 0.4.1
+
+### Patch Changes
+
+- 7456462: Re-export `DiagLogLevel` as a runtime value so consumers can import it directly from `@arizeai/phoenix-otel`.
+
 ## 0.4.0
 
 ### Minor Changes
