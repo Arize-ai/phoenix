@@ -14,6 +14,7 @@ from openinference.semconv.trace import (
 
 from phoenix.db.models import Span
 from phoenix.server.api.helpers.dataset_helpers import (
+    _get_message,
     get_dataset_example_input,
     get_dataset_example_output,
     get_experiment_example_output,
@@ -116,14 +117,14 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                     {"content": "user-message", "role": "user"},
                     {
                         "role": "assistant",
-                        "function_call": {"name": "add", "arguments": '{"a": 363, "b": 42}'},
+                        "function_call": {"name": "add", "arguments": {"a": 363, "b": 42}},
                     },
                     {"content": "user-message", "role": "user"},
                     {
                         "role": "assistant",
                         "tool_calls": [
-                            {"function": {"name": "multiply", "arguments": '{"a": 121, "b": 3}'}},
-                            {"function": {"name": "add", "arguments": '{"a": 363, "b": 42}'}},
+                            {"function": {"name": "multiply", "arguments": {"a": 121, "b": 3}}},
+                            {"function": {"name": "add", "arguments": {"a": 363, "b": 42}}},
                         ],
                     },
                 ],
@@ -249,6 +250,125 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, Any]) -> None:
     input_value = get_dataset_example_input(span)
     assert expected_input_value == input_value
+
+
+@pytest.mark.parametrize(
+    "message, expected",
+    [
+        pytest.param(
+            unflatten([(MESSAGE_ROLE, "user")]),
+            {"role": "user"},
+            id="role_only",
+        ),
+        pytest.param(
+            unflatten(
+                [
+                    (MESSAGE_ROLE, "assistant"),
+                    (MESSAGE_CONTENT, "hi"),
+                    (MESSAGE_NAME, "bot"),
+                ]
+            ),
+            {"role": "assistant", "content": "hi", "name": "bot"},
+            id="content_and_name",
+        ),
+        pytest.param(
+            unflatten(
+                [
+                    (MESSAGE_ROLE, "assistant"),
+                    (MESSAGE_FUNCTION_CALL_NAME, "add"),
+                    (MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, json.dumps({"a": 1, "b": 2})),
+                ]
+            ),
+            {
+                "role": "assistant",
+                "function_call": {"name": "add", "arguments": {"a": 1, "b": 2}},
+            },
+            id="function_call_json_string_deserialized",
+        ),
+        pytest.param(
+            unflatten(
+                [
+                    (MESSAGE_ROLE, "assistant"),
+                    (MESSAGE_FUNCTION_CALL_NAME, "add"),
+                    (MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, "not valid json"),
+                ]
+            ),
+            {
+                "role": "assistant",
+                "function_call": {"name": "add", "arguments": "not valid json"},
+            },
+            id="function_call_invalid_json_left_as_string",
+        ),
+        pytest.param(
+            unflatten(
+                [
+                    (MESSAGE_ROLE, "assistant"),
+                    (
+                        MESSAGE_TOOL_CALLS,
+                        [
+                            unflatten(
+                                [
+                                    (TOOL_CALL_FUNCTION_NAME, "multiply"),
+                                    (
+                                        TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+                                        json.dumps({"x": 10}),
+                                    ),
+                                ]
+                            ),
+                        ],
+                    ),
+                ]
+            ),
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {"function": {"name": "multiply", "arguments": {"x": 10}}},
+                ],
+            },
+            id="tool_calls_json_string_deserialized",
+        ),
+        pytest.param(
+            unflatten(
+                [
+                    (MESSAGE_ROLE, "assistant"),
+                    (
+                        MESSAGE_TOOL_CALLS,
+                        [
+                            unflatten(
+                                [
+                                    (TOOL_CALL_FUNCTION_NAME, "run"),
+                                    (
+                                        TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+                                        "{broken",
+                                    ),
+                                ]
+                            ),
+                        ],
+                    ),
+                ]
+            ),
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {"function": {"name": "run", "arguments": "{broken"}},
+                ],
+            },
+            id="tool_calls_invalid_json_left_as_string",
+        ),
+        pytest.param(
+            unflatten([(MESSAGE_ROLE, "user"), (MESSAGE_TOOL_CALLS, [])]),
+            {"role": "user"},
+            id="empty_tool_calls_omitted",
+        ),
+        pytest.param(
+            unflatten([(MESSAGE_ROLE, "user"), (MESSAGE_TOOL_CALLS, None)]),
+            {"role": "user"},
+            id="none_tool_calls_omitted",
+        ),
+    ],
+)
+def test_get_message(message: dict[str, Any], expected: dict[str, Any]) -> None:
+    assert _get_message(message) == expected
 
 
 @pytest.mark.parametrize(
