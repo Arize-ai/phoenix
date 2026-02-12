@@ -10,7 +10,7 @@ Consumer (evaluator) scenario: when the consumer sets context and does
 async for over a generator that raises, our tests show the consumer's token
 remains valid in the consumer's finally. So we do not reproduce a consumer-side
 failure; avoiding start_as_current_span in evaluate is defensive (same
-mechanism class, explicit otel_context is safer).
+mechanism class; generator-side fix is safer).
 
 Run from repo root:
   uv run python internal_docs/vignettes/otel-contextvars-async/contextvars_async_gen_demo.py

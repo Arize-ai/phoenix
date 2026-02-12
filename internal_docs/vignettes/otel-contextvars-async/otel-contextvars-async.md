@@ -1,6 +1,6 @@
 # OTel Context + Async Boundaries
 
-This document is the single reference for why we use **explicit OpenTelemetry context** (no contextvars) across async boundaries in the Phoenix playground (chat, evaluators, streaming), and how we proved and designed around it. It covers the problem, root cause (CPython/asyncio), two possible fixes, why we chose the generator-side fix, and where the design is applied in code.
+This document is the single reference for why we avoid **contextvars in async generator cleanup** in the Phoenix playground (chat, evaluators, streaming), and how we proved and designed around it. It covers the problem, root cause (CPython/asyncio), two possible fixes, why we chose the generator-side fix, and where the design is applied in code.
 
 ---
 
@@ -93,7 +93,7 @@ The language and library docs describe this behavior and the fix:
   Using `async with aclosing(agen):` ensures the generator’s async exit code is executed **in the same context as its iterations** (so that exceptions and context variables work as expected, and the exit code isn’t run after the lifetime of some task it depends on).
 
 The language therefore gives two ways to avoid the problem: 1. **Caller:** Explicitly close the generator (e.g. `async with aclosing(stream): ...`).  
-2. **Generator:** Do not rely on contextvars in its cleanup (use explicit context and manual span lifecycle). We chose (2) for the streaming client so we don’t depend on every consumer using `aclosing()`.
+2. **Generator:** Do not rely on contextvars in its cleanup (use `start_span` and `span.end()` in `finally`, not `start_as_current_span`). We chose (2) for the streaming client so we don’t depend on every consumer using `aclosing()`.
 
 ---
 
@@ -113,13 +113,13 @@ The language therefore gives two ways to avoid the problem: 1. **Caller:** Expli
 
 From this we learn: the failure is reproducible and tied to the finalizer; aclosing fixes it empirically when the direct consumer uses it; the consumer’s token stayed valid in our scenarios (no consumer-side failure reproduced); the problem is exception/teardown-specific, not every suspend. The script runs print demos first, then these assertions.
 
-**Why the consumer (evaluate) can use `start_as_current_span`:** The consumer is an async **function**, not an async generator. When the stream raises or the loop breaks, the exception propagates and the consumer's `with` blocks are exited by normal stack unwind—in the **same** task. So the consumer's contextvar token is still valid when its context manager runs `__exit__`. Our empirical tests (scenario 3–4) confirmed that the consumer's `reset(token)` succeeds. So `evaluate` could use `start_as_current_span`; we use explicit context there for consistency and defense in depth.
+**Why the consumer (evaluate) can use `start_as_current_span`:** The consumer is an async **function**, not an async generator. When the stream raises or the loop breaks, the exception propagates and the consumer's `with` blocks are exited by normal stack unwind—in the **same** task. So the consumer's contextvar token is still valid when its context manager runs `__exit__`. Our empirical tests (scenario 3–4) confirmed that the consumer's `reset(token)` succeeds. So `evaluate` can use `start_as_current_span`; its cleanup runs in the same task.
 
 ### 4.2 What aclosing can do for us
 
 - **Caller-side fix:** If the consumer uses `async with aclosing(stream):` and then `async for chunk in stream: ...`, on break/raise/cancel the context manager awaits `stream.aclose()`. The generator’s `finally` runs in the **same task** (and same context), so any contextvar token in the generator is still valid.
 - **Benefits:** (1) Explicit, prompt cleanup in the same task. (2) Same-context guarantee if we ever add context-dependent cleanup in the generator again. (3) Documented stdlib pattern.
-- **Why we didn’t rely on it:** We have multiple call sites (evaluators, subscriptions, chat_mutations, playground_clients). Requiring every caller to use `aclosing()` would be easy to miss and wouldn’t help legacy or third-party consumers. Fixing the **generator** (no contextvars, explicit `otel_context`) makes the stream safe regardless of how the caller iterates. We can still add `aclosing` at our own call sites as optional reinforcement.
+- **Why we didn’t rely on it:** We have multiple call sites (evaluators, subscriptions, chat_mutations, playground_clients). Requiring every caller to use `aclosing()` would be easy to miss and wouldn’t help legacy or third-party consumers. Fixing the **generator** (no contextvars in cleanup: use `start_span` + `span.end()` in `finally`) makes the stream safe regardless of how the caller iterates. We can still add `aclosing` at our own call sites as optional reinforcement.
 
 ### 4.3 Two valid fixes (clarification)
 
@@ -128,7 +128,7 @@ From this we learn: the failure is reproducible and tied to the finalizer; aclos
 | Fix | What you do | Effect |
 |-----|-------------|--------|
 | **Caller-side** | Every consumer uses `async with aclosing(stream): async for ...` | Generator’s `finally` runs in same task/context → `start_as_current_span` in the generator is safe. |
-| **Generator-side** (what we chose) | Generator uses explicit `otel_context` and `start_span(..., context=otel_context)`, no contextvars | Generator’s cleanup doesn’t depend on current context → safe regardless of whether the caller uses `aclosing`. |
+| **Generator-side** (what we chose) | Generator uses `start_span` and `span.end()` in `finally`, not `start_as_current_span` | Generator’s cleanup doesn’t depend on current context → safe regardless of whether the caller uses `aclosing`. |
 
 We chose the generator-side fix so correctness doesn’t depend on every caller (including future or third-party code) remembering to use `aclosing`.
 
@@ -159,8 +159,8 @@ So the stack below us is relevant not because it breaks aclosing, but because it
 ## 5. Testing strategy
 
 1. **Generic Python first** — Use only `contextvars` and async generators (no OTel) to prove that a token can be invalid after suspend + exception. This gives generalizable knowledge about Python.
-2. **Map to our architecture** — Generator = streaming LLM client; consumer = evaluator or subscription handler. Design so the generator never attaches span via contextvars; pass explicit `OtelContext` and use `start_span(..., context=otel_context)` + manual `span.end()` in `finally`.
-3. **Application tests** — Existing tests (e.g. `test_playground_clients.py`, evaluator tests, chat_mutations/subscriptions) verify that passing `otel_context` and using explicit spans produce the expected traces and no "Failed to detach context" or token errors.
+2. **Map to our architecture** — Generator = streaming LLM client; consumer = evaluator or subscription handler. Design so the generator never uses `start_as_current_span`; use `start_span` and manual `span.end()` in `finally` so cleanup doesn't touch contextvars.
+3. **Application tests** — Existing tests (e.g. `test_playground_clients.py`, evaluator tests, chat_mutations/subscriptions) verify that the generator-side fix produces the expected traces and no "Failed to detach context" or token errors.
 
 ---
 
@@ -168,10 +168,9 @@ So the stack below us is relevant not because it breaks aclosing, but because it
 
 | Component | Decision | Rationale |
 |-----------|----------|-----------|
-| **playground_clients.py** `chat_completion_create` | Accept `otel_context: OtelContext`; use `tracer.start_span(..., context=otel_context)` and `span.end()` in `finally`. No `start_as_current_span`. | Proven: generator’s contextvar token can be invalid in `finally` when consumer raises. |
-| **evaluators.py** BuiltInEvaluators | Use `start_span(..., context=otel_context)` and `set_span_in_context` + `span.end()` in `finally`. No contextvars. | Consistency and no async generator in the hot path. |
-| **evaluators.py** LLMEvaluator `evaluate` | Use explicit `otel_context` and `start_span` + pass same context into `chat_completion_create`. Prefer explicit span + `otel_context` for evaluate as well. | Defensive: same mechanism class; explicit context is safer. |
-| **subscriptions.py / chat_mutations.py** | Create `OtelContext()` in the handler and pass it into stream helpers, `evaluate(..., otel_context=...)`, and `chat_completion_create(..., otel_context=...)`. | Single explicit context for the whole request; no contextvars across async boundaries. |
+| **playground_clients.py** `chat_completion_create` | Use `tracer.start_span(...)` and `span.end()` in `finally`. No `start_as_current_span`. | Proven: generator’s contextvar token can be invalid in `finally` when closed in another task; avoid attaching contextvars in the generator. |
+| **evaluators.py** | Use `start_as_current_span` as usual; evaluate is an async function, not an async generator, so its cleanup runs in the same task. | Consumer's token stays valid (see §4.1); no generator-side risk in evaluate. |
+| **subscriptions.py / chat_mutations.py** | Use aclosing at call sites that consume the stream; generator-side fix in `chat_completion_create` makes the stream safe even when the subscription resolver is finalized. | Defense in depth; generator does not rely on contextvars in cleanup. |
 
 ---
 

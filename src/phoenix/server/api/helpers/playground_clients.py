@@ -391,11 +391,9 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             )
         )
 
-        # Use explicit otel_context and start_span (no contextvars) so that span lifecycle
-        # is independent of async context switches. Avoids "Failed to detach context" /
-        # "Token was created in a different Context" when the async generator yields.
-        # Not using current-context is the safest approach; it stays safe if more async
-        # is added later. Callers pass context explicitly (Go-style).
+        # Use start_span (not start_as_current_span) and span.end() in finally so we never
+        # attach contextvars in the generator. Avoids "Failed to detach context" /
+        # "Token was created in a different Context" when the generator is closed in another task.
         span = tracer_.start_span(
             "ChatCompletion",
             attributes=attributes,
