@@ -3,7 +3,6 @@ title: "Data Retention"
 ---
 By default Phoenix will store and preserve all your data and data retention is entirely under your control. However in production environments there might be good reasons to purge older data.
 
-
 Similar to data retention being infinite by default, Phoenix also does not gate the deletion of the data. If you no longer need certain projects, traces, datasets, experiments, or prompts, you can delete these resources through the UI as well as through the REST API.
 
 ## Project Retention Policies
@@ -15,6 +14,10 @@ In Phoenix 9.0 or greater you can automatically purge traces from projects by co
 </Frame>
 
 By default Phoenix comes with 1 project retention policy called `Default`. Every project in your instance is associated with this retention policy unless specified otherwise. The `Default` policy also specifies 0 days, which is equal to "Indefinite" retention.
+
+<Info>
+  For multi-party data governance, explicit retention and access policies, and auditability across stakeholders, [Arize AX](https://arize.com/docs/ax/security-and-settings/data-fabric) provides a data fabric with defined ownership and control boundaries.
+</Info>
 
 ### Configuring the Default Retention Policy
 
