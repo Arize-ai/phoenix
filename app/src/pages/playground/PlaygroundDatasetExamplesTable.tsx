@@ -44,6 +44,7 @@ import {
   ParagraphSkeleton,
   ProgressCircle,
   Text,
+  View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
@@ -126,7 +127,10 @@ import {
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
-import { PartialOutputToolCall } from "./PlaygroundToolCall";
+import {
+  PartialOutputToolCall,
+  PlaygroundToolCall,
+} from "./PlaygroundToolCall";
 import {
   extractRootVariable,
   getChatCompletionOverDatasetInput,
@@ -531,9 +535,15 @@ function ExampleOutputContent({
             {content != null ? (
               <DynamicContent value={content} key="content" />
             ) : null}
-            {toolCalls != null ? (
-              <DynamicContent value={toolCalls} key="tool-calls-wrap" />
-            ) : null}
+            {toolCalls != null && Object.keys(toolCalls).length > 0
+              ? Object.values(toolCalls)
+                  .filter((tc): tc is PartialOutputToolCall => tc != null)
+                  .map((toolCall) => (
+                    <View key={toolCall.id}>
+                      <PlaygroundToolCall toolCall={toolCall} />
+                    </View>
+                  ))
+              : null}
           </Flex>
         </div>
       </OverflowCell>
