@@ -26,6 +26,31 @@ When iterating on prompts in the Playground, dataset evaluators eliminate the ne
 3. Configure the input mapping to connect evaluator variables to dataset fields
 4. Test with an example, then save
 
+## Input Mapping Reference
+
+Dataset evaluators use the same input mapping concepts as the evals library, but the UI exposes them as dataset field paths. You can map evaluator inputs from any of these sources:
+
+- `input`: the example input payload
+- `output`: the example output payload
+- `reference`: the expected output value
+- `metadata`: example metadata for filtering, grouping, or scoring context
+
+If your dataset fields are nested, use dot notation (for example `input.query`, `output.response`, `metadata.intent`). For additional mapping patterns and transformation examples, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+
+## Built-In Code Evaluators
+
+Built-in evaluators are designed for fast, deterministic checks and are configured directly in the UI. Available built-ins and their key settings:
+
+| Evaluator | What it checks | Key settings |
+| --- | --- | --- |
+| `contains` | Whether a text contains one or more words | Case sensitivity, require all words |
+| `exact_match` | Whether two values match exactly | Case sensitivity |
+| `regex` | Whether a text matches a regex pattern | Pattern validation, full match vs. partial |
+| `levenshtein_distance` | Edit distance between expected and actual text | Case sensitivity |
+| `json_distance` | Structural differences between two JSON values | Parse strings as JSON toggle |
+
+You can map evaluator inputs from dataset fields or supply literal values (for example, a fixed regex pattern).
+
 ## Evaluator Traces
 
 Each dataset evaluator has its own project that captures traces. Use these traces to:
@@ -35,6 +60,10 @@ Each dataset evaluator has its own project that captures traces. Use these trace
 - Track how evaluator behavior changes over time
 
 Access traces from the **Traces** tab in any evaluator's detail page.
+
+<Frame caption="Evaluator traces overview">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/evaluator_traces_page.png" alt="Evaluator traces page" />
+</Frame>
 
 ## Workflow
 
