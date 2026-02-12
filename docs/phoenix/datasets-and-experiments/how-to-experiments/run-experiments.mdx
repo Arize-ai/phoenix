@@ -1,17 +1,28 @@
 ---
 title: "Run Experiments"
-description: The following are the key steps of running an experiment illustrated by simple example.
+description: Run experiments from the Playground or programmatically with the SDK.
 ---
 
-## Setup
+Phoenix supports two workflows for experiments. Use the Playground UI to iterate quickly, or the SDK to run experiments in code.
+
+<CardGroup cols={2}>
+  <Card title="Run Experiments with the SDK" icon="code" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#run-experiments-with-the-sdk">
+    Run experiments programmatically with tasks and evaluators in code.
+  </Card>
+  <Card title="Run Experiments in the UI" icon="flask" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#run-experiments-in-the-ui">
+    Configure prompts and evaluators in the Playground and compare results.
+  </Card>
+</CardGroup>
+
+## Run Experiments with the SDK
+
+### Setup
 
 Make sure you have the Phoenix client and the instrumentors needed for the experiment setup. For this example we will use the OpenAI instrumentor to trace the LLM calls.
 
 ```sh
 pip install arize-phoenix-client arize-phoenix-otel openinference-instrumentation-openai openai datasets duckdb pandas
 ```
-
-## Run Experiments
 
 The key steps of running an experiment are:
 
@@ -245,4 +256,61 @@ experiment = client.experiments.evaluate_experiment(
 
 Sometimes we may want to do a quick sanity check on the task function or the evaluators before unleashing them on the full dataset. `run_experiment()` and `evaluate_experiment()` both are equipped with a `dry_run=` parameter for this purpose: it executes the task and evaluators on a small subset without sending data to the Phoenix server. Setting `dry_run=True` selects one sample from the dataset, and setting it to a number, e.g. `dry_run=3`, selects multiple. The sampling is also deterministic, so you can keep re-running it for debugging purposes.
 
+## Run Experiments in the UI
 
+Phoenix lets you run experiments directly from the UI using a dataset and prompt(s) in the Playground. The results are tracked as experiments attached to the dataset so you can compare runs over time.
+
+### Load a Dataset
+
+1. Open **Datasets** and select the dataset you want to use.
+2. Open the Playground and choose your dataset from the dataset selector.
+
+### Configure a Prompt
+
+1. Define your prompt template and model settings.
+2. If your dataset inputs are nested, set the **Prompt variable path** in the dataset settings (gear icon).
+
+### Run an Experiment
+
+Click **Run** in the Playground. Phoenix runs your prompt across every dataset example and records results as an experiment. If your dataset has evaluators attached, Phoenix also scores each run and records the results as annotations.
+
+## Review Failure Modes
+
+After the run completes, open the experiment to understand where the prompt or model is underperforming.
+
+1. Use the results table to sort and filter by evaluator scores (if you have evaluators attached).
+2. Open examples with low scores (or incorrect categorical labels) to see the full input, output, and reference data.
+3. If an issue is unclear, open the associated traces to inspect tool calls, model parameters, and intermediate steps.
+
+If you do not have evaluators attached yet, start by scanning outputs and references for patterns, then add evaluators to encode those failure modes.
+
+This workflow helps you identify recurring failure patterns before you change your prompt or model.
+
+## Define Evaluators for the Issues You See
+
+Once you identify a failure mode, encode it as an evaluator so Phoenix can track it across future experiments.
+
+1. In the Playground experiment toolbar, open **Evaluators**.
+2. Add an evaluator (LLM evaluator or built-in code evaluator).
+3. Map its inputs from dataset fields, test it on a few examples, and save it.
+4. Make sure the evaluator is selected, then re-run your experiment so it produces annotation columns in the results table.
+
+Evaluator input mappings can reference `input`, `output`, `reference`, and `metadata` fields from your dataset examples.
+
+Use **LLM evaluators** for judgment-heavy issues like relevance, tone, or correctness. Use **built-in code evaluators** for deterministic checks like regex matching, exact match, or distance metrics.
+
+For more detail on evaluator configuration, see [Dataset Evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators) and [Using Evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators).
+
+## Experiment Annotations and Optimization Direction
+
+Evaluators configured in the UI produce annotations that are attached to experiment runs. These annotations power the experiment results table, comparison views, and summaries. In addition to the score itself, annotations carry metadata that helps Phoenix interpret the result.
+
+One of the most important metadata fields is **optimization direction**, which tells Phoenix whether **higher is better**, **lower is better**, or if there is **no ordering**. Phoenix uses this to visually indicate which runs are better or worse when comparing experiments.
+
+![Experiment annotations with optimization direction](https://storage.googleapis.com/arize-phoenix-assets/assets/images/experiments_with_optimization_direction.png)
+
+Optimization direction is set by the evaluator output configuration:
+
+- **Maximize**: higher scores indicate better outcomes (for example, faithfulness or correctness).
+- **Minimize**: lower scores indicate better outcomes (for example, distance or error rate).
+- **None**: no ordering (for example, categorical labels or freeform notes).

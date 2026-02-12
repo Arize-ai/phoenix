@@ -81,6 +81,8 @@ Mustache should be formatted with double `{{`s:
   We recommend using Mustache where possible, since it supports nested attributes, e.g. `attributes.input.value`, more seamlessly
 </Info>
 
+Phoenix supports the full Mustache template syntax, including sections and inverted sections, so you can express richer prompt templates when needed.
+
 ## Tools
 
 Tools allow LLMs to interact with the external environment. This can allow LLMs to interface with your application in more controlled ways. Given a prompt and some tools to choose from an LLM may choose to use some (or one) tools or not. Many LLM API's also expose a tool choice parameter which allow you to constrain how and which tools are selected.
