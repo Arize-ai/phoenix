@@ -234,6 +234,13 @@ def _str_trace_id(trace_id: Union[int, str]) -> str:
     return str(trace_id)
 
 
+def _normalize_time(t: Union[datetime, str]) -> str:
+    """Convert a datetime object or ISO string to an ISO format string."""
+    if isinstance(t, datetime):
+        return t.isoformat()
+    return t
+
+
 def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[EvaluatorName, Evaluator]:
     """Convert evaluators input to mapping by name."""
     evaluators_by_name: dict[EvaluatorName, Evaluator] = {}
@@ -2088,6 +2095,160 @@ class Experiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
+    def log_evaluation(
+        self,
+        *,
+        experiment_run_id: str,
+        name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "CODE",
+        start_time: Optional[Union[datetime, str]] = None,
+        end_time: Optional[Union[datetime, str]] = None,
+        result: Optional[v1.ExperimentEvaluationResult] = None,
+        error: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> str:
+        """Log an evaluation result to an existing experiment run.
+
+        Submits a single evaluation to the Phoenix server. Useful for distributed
+        evaluation pipelines where evaluations are computed across multiple machines
+        or processes independently of the experiment runner.
+
+        Uses upsert semantics: if an evaluation with the same
+        (experiment_run_id, name) already exists, it will be updated.
+
+        Args:
+            experiment_run_id (str): The ID of the experiment run being evaluated.
+            name (str): The name of the evaluation (e.g. evaluator name).
+            annotator_kind: The kind of annotator used. Defaults to "CODE".
+            start_time: When the evaluation started. Accepts a datetime object or
+                an ISO 8601 string. Defaults to current UTC time.
+            end_time: When the evaluation ended. Accepts a datetime object or
+                an ISO 8601 string. Defaults to current UTC time.
+            result: The evaluation result with optional label, score, and
+                explanation. Either result or error must be provided.
+            error: Error message if the evaluation failed.
+                Either result or error must be provided.
+            metadata: Optional metadata dictionary.
+            trace_id: Optional trace ID for linking to traces.
+            timeout: Request timeout in seconds (default: 60).
+
+        Returns:
+            str: The ID of the created or updated evaluation.
+
+        Raises:
+            httpx.HTTPStatusError: If the server returns an error (e.g. 404 if
+                the experiment run is not found, 422 if validation fails).
+
+        Example::
+
+            from phoenix.client import Client
+
+            client = Client()
+
+            # Log a successful evaluation
+            eval_id = client.experiments.log_evaluation(
+                experiment_run_id="RXhwZXJpbWVudFJ1bjox",
+                name="Hallucination",
+                annotator_kind="LLM",
+                result={"label": "factual", "score": 0.95, "explanation": "No hallucination"},
+            )
+
+            # Log a failed evaluation
+            eval_id = client.experiments.log_evaluation(
+                experiment_run_id="RXhwZXJpbWVudFJ1bjox",
+                name="Toxicity",
+                error="Evaluator timed out after 30s",
+            )
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        payload: dict[str, Any] = {
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": _normalize_time(start_time) if start_time is not None else now,
+            "end_time": _normalize_time(end_time) if end_time is not None else now,
+        }
+        if result is not None:
+            payload["result"] = dict(result)
+        if error is not None:
+            payload["error"] = error
+        if metadata is not None:
+            payload["metadata"] = dict(metadata)
+        if trace_id is not None:
+            payload["trace_id"] = trace_id
+        resp = self._client.post(
+            "v1/experiment_evaluations",
+            json=payload,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return cast(str, resp.json()["data"]["id"])
+
+    def log_evaluations(
+        self,
+        *,
+        evaluations: Sequence[v1.UpsertExperimentEvaluationRequestBody],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[str]:
+        """Log multiple evaluation results to experiment runs.
+
+        Convenience method for submitting many evaluations. Each evaluation is
+        posted individually since the server does not have a batch endpoint.
+        For high-throughput use cases, consider using the async client with
+        ``asyncio.gather()``.
+
+        Args:
+            evaluations: Sequence of evaluation request bodies. Each must include
+                experiment_run_id, name, annotator_kind, start_time, end_time,
+                and either result or error.
+            timeout: Request timeout in seconds per evaluation (default: 60).
+
+        Returns:
+            list[str]: List of evaluation IDs, one per input evaluation.
+
+        Raises:
+            httpx.HTTPStatusError: If any request fails.
+
+        Example::
+
+            from phoenix.client import Client
+
+            client = Client()
+
+            eval_ids = client.experiments.log_evaluations(
+                evaluations=[
+                    {
+                        "experiment_run_id": "run_1",
+                        "name": "Hallucination",
+                        "annotator_kind": "LLM",
+                        "start_time": "2025-10-16T16:42:07Z",
+                        "end_time": "2025-10-16T16:42:08Z",
+                        "result": {"score": 0.95},
+                    },
+                    {
+                        "experiment_run_id": "run_2",
+                        "name": "Hallucination",
+                        "annotator_kind": "LLM",
+                        "start_time": "2025-10-16T16:42:09Z",
+                        "end_time": "2025-10-16T16:42:10Z",
+                        "result": {"score": 0.3},
+                    },
+                ]
+            )
+        """
+        ids: list[str] = []
+        for evaluation in evaluations:
+            resp = self._client.post(
+                "v1/experiment_evaluations",
+                json=dict(evaluation),
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            ids.append(cast(str, resp.json()["data"]["id"]))
+        return ids
+
     def _paginate(
         self,
         *,
@@ -3835,6 +3996,144 @@ class AsyncExperiments:
             if e.response.status_code == 404:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
+
+    async def log_evaluation(
+        self,
+        *,
+        experiment_run_id: str,
+        name: str,
+        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "CODE",
+        start_time: Optional[Union[datetime, str]] = None,
+        end_time: Optional[Union[datetime, str]] = None,
+        result: Optional[v1.ExperimentEvaluationResult] = None,
+        error: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> str:
+        """Log an evaluation result to an existing experiment run.
+
+        Submits a single evaluation to the Phoenix server. Useful for distributed
+        evaluation pipelines where evaluations are computed across multiple machines
+        or processes independently of the experiment runner.
+
+        Uses upsert semantics: if an evaluation with the same
+        (experiment_run_id, name) already exists, it will be updated.
+
+        Args:
+            experiment_run_id (str): The ID of the experiment run being evaluated.
+            name (str): The name of the evaluation (e.g. evaluator name).
+            annotator_kind: The kind of annotator used. Defaults to "CODE".
+            start_time: When the evaluation started. Accepts a datetime object or
+                an ISO 8601 string. Defaults to current UTC time.
+            end_time: When the evaluation ended. Accepts a datetime object or
+                an ISO 8601 string. Defaults to current UTC time.
+            result: The evaluation result with optional label, score, and
+                explanation. Either result or error must be provided.
+            error: Error message if the evaluation failed.
+                Either result or error must be provided.
+            metadata: Optional metadata dictionary.
+            trace_id: Optional trace ID for linking to traces.
+            timeout: Request timeout in seconds (default: 60).
+
+        Returns:
+            str: The ID of the created or updated evaluation.
+
+        Raises:
+            httpx.HTTPStatusError: If the server returns an error (e.g. 404 if
+                the experiment run is not found, 422 if validation fails).
+
+        Example::
+
+            from phoenix.client import AsyncClient
+
+            async_client = AsyncClient()
+
+            eval_id = await async_client.experiments.log_evaluation(
+                experiment_run_id="RXhwZXJpbWVudFJ1bjox",
+                name="Hallucination",
+                annotator_kind="LLM",
+                result={"label": "factual", "score": 0.95, "explanation": "No hallucination"},
+            )
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        payload: dict[str, Any] = {
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": _normalize_time(start_time) if start_time is not None else now,
+            "end_time": _normalize_time(end_time) if end_time is not None else now,
+        }
+        if result is not None:
+            payload["result"] = dict(result)
+        if error is not None:
+            payload["error"] = error
+        if metadata is not None:
+            payload["metadata"] = dict(metadata)
+        if trace_id is not None:
+            payload["trace_id"] = trace_id
+        resp = await self._client.post(
+            "v1/experiment_evaluations",
+            json=payload,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return cast(str, resp.json()["data"]["id"])
+
+    async def log_evaluations(
+        self,
+        *,
+        evaluations: Sequence[v1.UpsertExperimentEvaluationRequestBody],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[str]:
+        """Log multiple evaluation results to experiment runs.
+
+        Convenience method for submitting many evaluations. Each evaluation is
+        posted individually since the server does not have a batch endpoint.
+        For high-throughput use cases, consider using ``asyncio.gather()``
+        with individual ``log_evaluation()`` calls.
+
+        Args:
+            evaluations: Sequence of evaluation request bodies. Each must include
+                experiment_run_id, name, annotator_kind, start_time, end_time,
+                and either result or error.
+            timeout: Request timeout in seconds per evaluation (default: 60).
+
+        Returns:
+            list[str]: List of evaluation IDs, one per input evaluation.
+
+        Raises:
+            httpx.HTTPStatusError: If any request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+
+            async_client = AsyncClient()
+
+            eval_ids = await async_client.experiments.log_evaluations(
+                evaluations=[
+                    {
+                        "experiment_run_id": "run_1",
+                        "name": "Hallucination",
+                        "annotator_kind": "LLM",
+                        "start_time": "2025-10-16T16:42:07Z",
+                        "end_time": "2025-10-16T16:42:08Z",
+                        "result": {"score": 0.95},
+                    },
+                ]
+            )
+        """
+        ids: list[str] = []
+        for evaluation in evaluations:
+            resp = await self._client.post(
+                "v1/experiment_evaluations",
+                json=dict(evaluation),
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            ids.append(cast(str, resp.json()["data"]["id"]))
+        return ids
 
     async def _paginate(
         self,
