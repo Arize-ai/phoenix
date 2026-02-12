@@ -49,6 +49,10 @@ projects.push({
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
   timeout: process.env.CI ? 60000 : 30000,
+  expect: {
+    /* CI runners are slower; 5s default is too tight for mutations that close dialogs */
+    timeout: process.env.CI ? 10_000 : 5_000,
+  },
   // Use default workers (cpu count) locally, limit to 2 on CI
   workers: process.env.CI ? 2 : undefined,
   fullyParallel: true,
