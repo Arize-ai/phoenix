@@ -45,6 +45,41 @@ Phoenix lets you run a prompt (or multiple prompts) on a dataset. Simply [load a
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" />
 </Frame>
 
+### Configuring Dataset Paths
+
+By default, the playground reads template variables from `input`, so `{question}` will resolve against `input.question` automatically. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
+
+1. Load a dataset
+2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
+3. Set the **Prompt variable path** to the dot-notation path that contains your template variables (e.g., `input` or `payload.inputs`)
+
+When set, Phoenix will resolve template variables against that object. For example, if your prompt uses `{question}` and your dataset example looks like:
+
+```json
+{
+  "input": {
+    "question": "What is the weather in San Francisco?"
+  }
+}
+```
+
+You can leave the default prompt variable path as `input`.
+
+If you want to reference root-level fields directly (for example `{input.question}` and `{output.response}`), clear the prompt variable path so variables resolve from the root object. With this dataset example:
+
+```json
+{
+  "input": {
+    "question": "What is the weather in San Francisco?"
+  },
+  "output": {
+    "response": "I can help with that."
+  }
+}
+```
+
+You can use template variables like `{input.question}` and `{output.response}` in your prompt.
+
 ## Appending Conversation History
 
 When running experiments over datasets, you can append conversation messages from your dataset examples to the prompt. This is useful for:
@@ -61,7 +96,7 @@ To use this feature:
 2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
 3. Enter the **dot-notation path** to the messages array in your dataset examples (e.g., `messages` or `input.messages`)
 
-When you run the experiment, messages at the specified path will be appended to your prompt after template variables are applied.
+When you run the experiment, messages at the specified path will be appended to the **end of your prompt template** after template variables are applied. This makes it easy to keep your system prompt and initial instructions in the template while replaying real conversation history from the dataset.
 
 ### Dataset Format
 
@@ -121,4 +156,3 @@ If however you run a prompt over dataset examples, the outputs and spans from yo
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" />
 </Frame>
-
