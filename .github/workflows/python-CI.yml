@@ -337,7 +337,7 @@ jobs:
       - run: git diff --exit-code
 
   type-check:
-    name: Type Check
+    name: Type Check Python
     runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
@@ -351,10 +351,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            Makefile
             scripts/ci/
             requirements/
-            src/phoenix/
-            packages/phoenix-client/
+            src/
+            packages/
+            tests/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -366,52 +368,14 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
-            requirements/ci.txt
-            requirements/type-check.txt
+            uv.lock
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check types
-        run: uvx tox run -e type_check
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Type check all Python code
+        run: uv run mypy
       - name: Ensure GraphQL mutations have permission classes
         run: uvx tox run -e ensure_graphql_mutations_have_permission_classes
-
-  type-check-unit-tests:
-    name: Type Check Unit Tests
-    runs-on: ${{ matrix.os }}
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        py: ["3.10", "3.13"]
-        os: [ubuntu-latest]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            requirements/
-            src/phoenix/
-            tests/unit/
-            tests/conftest.py
-            tests/mypy.ini
-            tests/__generated__/
-            tests/__init__.py
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/unit-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check types on unit tests
-        run: uvx tox run -e type_check_unit_tests
 
   unit-tests:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
@@ -459,44 +423,6 @@ jobs:
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
         run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
-
-  type-check-integration-tests:
-    name: Type Check Integration Tests
-    runs-on: ${{ matrix.os }}
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        py: ["3.10", "3.13"]
-        os: [ubuntu-latest]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            requirements/
-            src/phoenix/
-            packages/phoenix-client/
-            tests/integration/
-            tests/__generated__/
-            tests/__init__.py
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/integration-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check types on integration tests
-        run: uvx tox run -e type_check_integration_tests
 
   integration-tests:
     name: Integration Tests

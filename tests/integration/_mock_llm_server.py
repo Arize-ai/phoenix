@@ -1383,9 +1383,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         # Validate request using BaseModel wrapper (handles IO[Any] with arbitrary_types_allowed)
         try:
             # raw_body is dict[str, Any] from JSON parsing; Pydantic validates against TypedDict
-            validated = _BedrockConverseRequest(
-                request=cast(ConverseStreamRequestTypeDef, raw_body)
-            )
+            validated = _BedrockConverseRequest(request=raw_body)
             req = validated.request
         except ValidationError as e:
             logger.error(f"Invalid Bedrock ConverseStream request: {e}")
