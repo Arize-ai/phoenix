@@ -19,5 +19,9 @@
   "devDependencies": {
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.43",
+    "ai": "^6.0.84"
   }
 }
