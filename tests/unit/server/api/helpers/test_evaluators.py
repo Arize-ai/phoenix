@@ -1687,6 +1687,23 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert "[cumin, paprika]" in explanation
         assert "The recipe uses cumin" in explanation
 
+    async def test_contains_evaluator_empty_words_require_all_no_false_positive(self) -> None:
+        """Empty words list with require_all=True should not produce a false positive."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        result = (
+            await evaluator.evaluate(
+                context={"words": ",", "text": "any text", "require_all": True},
+                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                name="contains",
+                output_configs=[evaluator.output_configs[0]],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+        assert result["explanation"] == "No valid words were provided to check."
+
 
 class TestJSONDistanceParseStringsToggle:
     """Tests for JSONDistanceEvaluator parse_strings toggle behavior.
