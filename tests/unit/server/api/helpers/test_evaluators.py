@@ -1074,41 +1074,41 @@ class TestCastTemplateVariableTypes:
         )
         assert result == {"count": "42"}
 
-    def test_converts_list_to_string(self) -> None:
+    def test_rejects_list_for_string_field(self) -> None:
         template_variables = {"items": [1, 2, 3]}
         input_schema = {
             "type": "object",
             "properties": {"items": {"type": "string"}},
         }
-        result = cast_template_variable_types(
-            template_variables=template_variables,
-            input_schema=input_schema,
-        )
-        assert result == {"items": "[1, 2, 3]"}
+        with pytest.raises(ValueError, match="Field 'items' expects a string but got list"):
+            cast_template_variable_types(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
 
-    def test_converts_dict_to_string(self) -> None:
+    def test_rejects_dict_for_string_field(self) -> None:
         template_variables = {"data": {"key": "value"}}
         input_schema = {
             "type": "object",
             "properties": {"data": {"type": "string"}},
         }
-        result = cast_template_variable_types(
-            template_variables=template_variables,
-            input_schema=input_schema,
-        )
-        assert result == {"data": "{'key': 'value'}"}
+        with pytest.raises(ValueError, match="Field 'data' expects a string but got dict"):
+            cast_template_variable_types(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
 
-    def test_converts_none_to_string(self) -> None:
+    def test_rejects_none_for_string_field(self) -> None:
         template_variables = {"value": None}
         input_schema = {
             "type": "object",
             "properties": {"value": {"type": "string"}},
         }
-        result = cast_template_variable_types(
-            template_variables=template_variables,
-            input_schema=input_schema,
-        )
-        assert result == {"value": "None"}
+        with pytest.raises(ValueError, match="Field 'value' expects a string but got NoneType"):
+            cast_template_variable_types(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
 
     def test_leaves_existing_string_unchanged(self) -> None:
         template_variables = {"text": "hello world"}
@@ -1347,6 +1347,17 @@ class TestJsonDiffCount:
 
     def test_empty_arrays_returns_zero(self) -> None:
         assert json_diff_count([], []) == 0
+
+    def test_int_float_equivalence(self) -> None:
+        assert json_diff_count(1, 1.0) == 0
+        assert json_diff_count(1.0, 1) == 0
+
+    def test_float_precision(self) -> None:
+        assert json_diff_count(0.3, 0.1 + 0.2) == 0
+
+    def test_bool_vs_int_returns_one(self) -> None:
+        assert json_diff_count(True, 1) == 1
+        assert json_diff_count(False, 0) == 1
 
 
 class TestBuiltInEvaluatorsWithLLMContextStructures:
@@ -1598,8 +1609,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["explanation"] is not None
         assert "matched" in result["explanation"]
 
-    async def test_evaluator_handles_list_values_from_context(self) -> None:
-        """Test that evaluators can handle list values extracted from context."""
+    async def test_evaluator_rejects_list_values_for_string_fields(self) -> None:
+        """Test that list values are rejected for evaluators expecting string input."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
@@ -1610,7 +1621,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
                 {"message": {"content": "Second response with keyword"}},
             ],
         }
-        # When extracting all message contents, the result is stringified by cast_template_variable_types
+        # Extracting all message contents produces a list - now rejected instead of stringified
         input_mapping = EvaluatorInputMappingInput(
             path_mapping={"text": "$.output[*].message.content"},
             literal_mapping={"words": "keyword"},
@@ -1623,12 +1634,11 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
                 output_configs=[output_config],
             )
         )[0]
-        assert result["error"] is None
-        # The list gets stringified and searched
-        assert result["score"] == 1.0
+        assert result["error"] is not None
+        assert "expects a string but got list" in result["error"]
 
-    async def test_evaluator_handles_dict_values_cast_to_string(self) -> None:
-        """Test that dict values are properly cast to strings for evaluators expecting string input."""
+    async def test_evaluator_rejects_dict_values_for_string_fields(self) -> None:
+        """Test that dict values are rejected for evaluators expecting string input."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
@@ -1636,7 +1646,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         context = {
             "output": {"nested": {"value": "contains target word"}},
         }
-        # Extracting the whole nested object, which will be stringified
+        # Extracting the whole nested object - now rejected instead of stringified
         input_mapping = EvaluatorInputMappingInput(
             path_mapping={"text": "$.output.nested"},
             literal_mapping={"words": "target"},
@@ -1649,8 +1659,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
                 output_configs=[output_config],
             )
         )[0]
-        assert result["error"] is None
-        assert result["score"] == 1.0
+        assert result["error"] is not None
+        assert "expects a string but got dict" in result["error"]
 
 
 class TestJSONDistanceParseStringsToggle:
@@ -2122,6 +2132,48 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         assert result["name"] == "JSON Diff"
         assert result["score"] == 0.0
         assert result["label"] is None
+
+
+class TestCaseSensitiveDefault:
+    """Tests for case_sensitive default change from True to False."""
+
+    async def test_exact_match_case_insensitive_by_default(self) -> None:
+        """ExactMatch: 'Hello' vs 'hello' should match with default case_sensitive=False."""
+        from phoenix.server.api.evaluators import ExactMatchEvaluator
+
+        evaluator = ExactMatchEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"expected": "Hello", "actual": "hello"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="exact_match",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 1.0
+
+    async def test_levenshtein_case_insensitive_by_default(self) -> None:
+        """Levenshtein: 'Hello' vs 'hello' should return distance 0 by default."""
+        from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
+
+        evaluator = LevenshteinDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"expected": "Hello", "actual": "hello"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="levenshtein_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
 
 
 class TestLLMEvaluator:
@@ -3533,6 +3585,51 @@ class TestGetEvaluators:
         assert evaluators[0].name == "levenshtein_distance"
         assert evaluators[1].name == "json_distance"
         assert evaluators[2].name == "contains"
+
+
+class TestLevenshteinLengthCap:
+    """Tests for Levenshtein distance input length cap."""
+
+    async def test_levenshtein_length_cap_returns_error(self) -> None:
+        """Test that inputs longer than 5000 chars return an error result."""
+        from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
+
+        evaluator = LevenshteinDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        long_text = "a" * 5001
+        context = {"expected": long_text, "actual": "short"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="levenshtein_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["label"] is None
+        assert result["score"] is None
+        assert result["error"] is not None
+        assert "too long" in result["error"].lower() or "5000" in result["error"]
+
+    async def test_levenshtein_identical_strings_early_exit(self) -> None:
+        """Test that identical strings return score=0.0 quickly (early exit path)."""
+        from phoenix.server.api.evaluators import LevenshteinDistanceEvaluator
+
+        evaluator = LevenshteinDistanceEvaluator()
+        output_config = evaluator.output_configs[0]
+        context = {"expected": "hello world", "actual": "hello world"}
+        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        result = (
+            await evaluator.evaluate(
+                context=context,
+                input_mapping=input_mapping,
+                name="levenshtein_distance",
+                output_configs=[output_config],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
 
 
 @pytest.fixture
