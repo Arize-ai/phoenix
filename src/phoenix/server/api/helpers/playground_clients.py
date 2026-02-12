@@ -111,6 +111,7 @@ if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.genai.client import AsyncClient as GoogleAsyncClient
+    from google.genai.types import FunctionCall
     from google.generativeai.types import ContentType
     from openai import AsyncOpenAI, AsyncStream
     from openai.types import CompletionUsage
@@ -2104,6 +2105,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                 contents=contents,
                 config=config,
             )
+            converter = GeminiToolCallConverter()
             async for event in stream:
                 # Update token counts if usage_metadata is present
                 if event.usage_metadata:
@@ -2120,13 +2122,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                     if candidate.content and candidate.content.parts:
                         for part in candidate.content.parts:
                             if function_call := part.function_call:
-                                yield ToolCallChunk(
-                                    id=function_call.id or "",
-                                    function=FunctionCallChunk(
-                                        name=function_call.name or "",
-                                        arguments=json.dumps(function_call.args or {}),
-                                    ),
-                                )
+                                yield converter.process(function_call)
                             elif text := part.text:
                                 yield TextChunk(content=text)
 
@@ -3007,6 +3003,73 @@ def _llm_output_messages(
                 f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
                 arguments,
             )
+
+
+class GeminiToolCallConverter:
+    """Converts Gemini ``FunctionCall`` parts into ``ToolCallChunk`` objects
+    with unique IDs.
+
+    Gemini often returns an empty or ``None`` ``id`` on ``FunctionCall``.
+    The frontend merges streamed tool-call chunks by ``id``, so when every
+    call arrives as ``""`` they all collapse into one entry with garbled
+    arguments.  This class assigns a stable synthetic ID (``tool_call_0``,
+    ``tool_call_1``, …) whenever the upstream ``id`` is falsy, while
+    preserving real IDs when Gemini provides them.
+
+    This converter assumes each ``FunctionCall`` is self-contained — i.e.
+    ``name`` and ``args`` are both present on the same object.  If they
+    were ever split across separate ``FunctionCall`` messages, the converter
+    would emit two incorrect ``ToolCallChunk`` objects (one with the name
+    but empty args, another with args but an empty name).  This assumption
+    is safe today: the Gemini API always delivers complete function calls,
+    and the SDK itself makes the same assumption — it performs no
+    reassembly of ``FunctionCall`` fields (``_Candidate_from_mldev`` passes
+    ``content`` through to Pydantic's ``model_validate`` as-is).
+
+    The only mechanism that could disassociate ``name`` and ``args`` is the
+    ``will_continue`` / ``partial_args`` incremental streaming protocol.
+    As of this writing, both fields are rejected by the Gemini API with
+    ``ValueError`` (see ``google.genai.models``).  They are only supported
+    by the Vertex AI surface behind the
+    ``stream_function_call_arguments`` tool-config flag.  If Vertex AI
+    support is added in the future, this class should be extended to buffer
+    partial calls (``will_continue=True``) and reassemble ``partial_args``
+    using their ``json_path`` keys.
+
+    Example::
+
+        converter = GeminiToolCallConverter()
+        for part in candidate.content.parts:
+            if function_call := part.function_call:
+                yield converter.process(function_call)
+    """
+
+    def __init__(self) -> None:
+        self._counter = 0
+
+    def process(self, function_call: FunctionCall) -> ToolCallChunk:
+        """Convert a ``FunctionCall`` into a ``ToolCallChunk``.
+
+        Args:
+            function_call: A ``google.genai.types.FunctionCall`` from the
+                streamed response.  Each call is expected to be complete
+                (the Gemini API does not support incremental argument
+                streaming).
+
+        Returns:
+            A ``ToolCallChunk`` with a guaranteed non-empty ``id``.
+        """
+        tool_call_id = function_call.id
+        if not tool_call_id:
+            tool_call_id = f"tool_call_{self._counter}"
+            self._counter += 1
+        return ToolCallChunk(
+            id=tool_call_id,
+            function=FunctionCallChunk(
+                name=function_call.name or "",
+                arguments=json.dumps(function_call.args or {}),
+            ),
+        )
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value

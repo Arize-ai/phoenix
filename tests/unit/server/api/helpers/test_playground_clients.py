@@ -19,6 +19,7 @@ from opentelemetry.trace import StatusCode, Tracer
 
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    GeminiToolCallConverter,
     OpenAIBaseStreamingClient,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -392,6 +393,34 @@ class TestOpenAIBaseStreamingClient:
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
         assert not attributes
+
+
+class TestGeminiToolCallConverter:
+    @staticmethod
+    def _fc(**kwargs: Any) -> Any:
+        from google.genai.types import FunctionCall
+
+        return FunctionCall(**kwargs)
+
+    def test_generates_unique_ids_when_missing(self) -> None:
+        conv = GeminiToolCallConverter()
+        c1 = conv.process(self._fc(name="a", args={"x": 1}))
+        c2 = conv.process(self._fc(name="b", args={"y": 2}))
+        assert c1.id == "tool_call_0"
+        assert c2.id == "tool_call_1"
+
+    def test_preserves_real_id(self) -> None:
+        chunk = GeminiToolCallConverter().process(self._fc(id="real", name="a", args={}))
+        assert chunk.id == "real"
+
+    def test_empty_string_id_is_treated_as_missing(self) -> None:
+        chunk = GeminiToolCallConverter().process(self._fc(id="", name="a", args={}))
+        assert chunk.id == "tool_call_0"
+
+    def test_none_name_and_args_default_safely(self) -> None:
+        chunk = GeminiToolCallConverter().process(self._fc())
+        assert chunk.function.name == ""
+        assert json.loads(chunk.function.arguments) == {}
 
 
 # mime types
