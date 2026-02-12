@@ -18,9 +18,6 @@ from typing import (
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry.context import Context as OtelContext
-from opentelemetry.trace import NoOpTracer
-from opentelemetry.trace import Tracer as OtelTracer
 from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -120,7 +117,6 @@ async def _stream_single_chat_completion(
     repetition_number: int,
     results: asyncio.Queue[tuple[Tracer, int]],
     span_cost_calculator: SpanCostCalculator,
-    otel_context: OtelContext,
 ) -> ChatStream:
     messages: list[PlaygroundMessage] = [
         create_playground_message(
@@ -145,7 +141,6 @@ async def _stream_single_chat_completion(
         async for chunk in llm_client.chat_completion_create(
             messages=messages,
             tools=input.tools or [],
-            otel_context=otel_context,
             tracer=tracer,
             **invocation_parameters,
         ):
@@ -391,7 +386,6 @@ class Subscription:
                     )
                 )
 
-        otel_context = OtelContext()
         results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
         not_started: deque[tuple[int, ChatStream]] = deque(
             (
@@ -402,7 +396,6 @@ class Subscription:
                     repetition_number=repetition_number,
                     results=results,
                     span_cost_calculator=info.context.span_cost_calculator,
-                    otel_context=otel_context,
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)
@@ -622,7 +615,6 @@ class Subscription:
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
-        otel_context = OtelContext()
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
         not_started: list[tuple[DatasetExampleNodeID, ChatStream]] = [
             (
@@ -635,7 +627,6 @@ class Subscription:
                     repetition_number=repetition_number,
                     span_cost_calculator=info.context.span_cost_calculator,
                     experiment_id=experiment.id,
-                    otel_context=otel_context,
                 ),
             )
             for revision in revisions
@@ -756,24 +747,22 @@ class Subscription:
                     ):
                         name = str(evaluator_input.name)
                         configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        tracer: OtelTracer = (
-                            Tracer(span_cost_calculator=info.context.span_cost_calculator)
-                            if input.tracing_enabled
-                            else NoOpTracer()
-                        )
+                        tracer: Tracer | None = None
+                        if input.tracing_enabled:
+                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+
                         eval_results: list[EvaluationResult] = await evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
                             output_configs=configs,
                             tracer=tracer,
-                            otel_context=otel_context,
                         )
 
                         trace: Trace | None = None
-                        if input.tracing_enabled:
+                        if tracer is not None:
                             async with info.context.db() as session:
-                                db_traces = await cast(Tracer, tracer).save_db_traces(
+                                db_traces = await tracer.save_db_traces(
                                     session=session, project_id=project_id
                                 )
                             if db_traces:
@@ -819,7 +808,6 @@ async def _stream_chat_completion_over_dataset_example(
     results: asyncio.Queue[ChatCompletionResult],
     span_cost_calculator: SpanCostCalculator,
     experiment_id: int,
-    otel_context: OtelContext,
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
@@ -886,7 +874,6 @@ async def _stream_chat_completion_over_dataset_example(
         async for chunk in llm_client.chat_completion_create(
             messages=messages,
             tools=input.tools or [],
-            otel_context=otel_context,
             tracer=tracer,
             **invocation_parameters,
         ):

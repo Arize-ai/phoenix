@@ -12,7 +12,6 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.context import Context as OtelContext
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -76,7 +75,6 @@ class TestOpenAIBaseStreamingClient:
             async for chunk in client.chat_completion_create(
                 messages=messages,
                 tools=[],
-                otel_context=OtelContext(),
                 tracer=tracer,
                 **invocation_parameters,
             ):
@@ -203,7 +201,6 @@ class TestOpenAIBaseStreamingClient:
             async for chunk in client.chat_completion_create(
                 messages=messages,
                 tools=[get_current_weather_tool_schema],
-                otel_context=OtelContext(),
                 tracer=tracer,
                 **invocation_parameters,
             ):
@@ -327,7 +324,6 @@ class TestOpenAIBaseStreamingClient:
                 async for _ in client.chat_completion_create(
                     messages=messages,
                     tools=[],
-                    otel_context=OtelContext(),
                     tracer=tracer,
                     **invocation_parameters,
                 ):

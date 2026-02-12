@@ -13,15 +13,8 @@ from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
 )
-from opentelemetry.context import Context as OtelContext
-from opentelemetry.context import get_current
-from opentelemetry.trace import (
-    NoOpTracer,
-    Status,
-    StatusCode,
-    Tracer,
-    format_trace_id,
-)
+from opentelemetry.context import Context
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -143,8 +136,7 @@ class BaseEvaluator(ABC):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         """
         Evaluate the given context and return evaluation results.
@@ -249,8 +241,7 @@ class LLMEvaluator(BaseEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
 
@@ -269,20 +260,22 @@ class LLMEvaluator(BaseEvaluator):
             config.name or "": config for config in categorical_configs
         }
 
-        with tracer.start_as_current_span(
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=otel_context,
+            context=Context(),  # inject blank context to ensure the evaluator span is the root
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -313,7 +306,7 @@ class LLMEvaluator(BaseEvaluator):
                     input_mapping_span.set_attributes(oi.get_output_attributes(template_variables))
                     input_mapping_span.set_status(Status(StatusCode.OK))
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     f"Prompt: {self._prompt_name}",
                     attributes={
                         **oi.get_span_kind_attributes("prompt"),
@@ -375,8 +368,7 @@ class LLMEvaluator(BaseEvaluator):
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
                     tools=denormalized_tools,
-                    otel_context=get_current(),
-                    tracer=tracer,
+                    tracer=tracer_,
                     **invocation_parameters,
                 ):
                     if isinstance(chunk, ToolCallChunk):
@@ -388,7 +380,7 @@ class LLMEvaluator(BaseEvaluator):
                         else:
                             tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -547,8 +539,7 @@ class BuiltInEvaluator(BaseEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
         multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
@@ -560,7 +551,6 @@ class BuiltInEvaluator(BaseEvaluator):
                 name=annotation_name,
                 output_config=config,
                 tracer=tracer,
-                otel_context=otel_context,
             )
             results.append(result)
         return results
@@ -573,8 +563,7 @@ class BuiltInEvaluator(BaseEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult: ...
 
     def _map_boolean_to_label_and_score(
@@ -1222,25 +1211,25 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
 
-        with tracer.start_as_current_span(
+        with tracer_.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=otel_context,
+            context=Context(),
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1276,7 +1265,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                 case_sensitive = inputs.get("case_sensitive", False)
                 require_all = inputs.get("require_all", False)
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1310,7 +1299,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1432,25 +1421,25 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
 
-        with tracer.start_as_current_span(
+        with tracer_.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=otel_context,
+            context=Context(),
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1485,7 +1474,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 actual = inputs.get("actual", "")
                 case_sensitive = inputs.get("case_sensitive", True)
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1510,7 +1499,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1634,25 +1623,25 @@ class RegexEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
 
-        with tracer.start_as_current_span(
+        with tracer_.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=otel_context,
+            context=Context(),
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1687,7 +1676,7 @@ class RegexEvaluator(BuiltInEvaluator):
                 text = inputs.get("text", "")
                 full_match = inputs.get("full_match", False)
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1724,7 +1713,7 @@ class RegexEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1860,25 +1849,25 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
 
-        with tracer.start_as_current_span(
+        with tracer_.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=otel_context,
+            context=Context(),
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1913,7 +1902,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 actual = inputs.get("actual", "")
                 case_sensitive = inputs.get("case_sensitive", True)
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1938,7 +1927,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -2080,24 +2069,24 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Tracer = NoOpTracer(),
-        otel_context: OtelContext = OtelContext(),
+        tracer: Optional[Tracer] = None,
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
 
-        with tracer.start_as_current_span(
+        with tracer_.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=otel_context,
+            context=Context(),
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
             try:
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -2142,7 +2131,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 expected_trace = _serialize_for_trace(expected_raw)
                 actual_trace = _serialize_for_trace(actual_raw)
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -2177,7 +2166,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer.start_as_current_span(
+                with tracer_.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),

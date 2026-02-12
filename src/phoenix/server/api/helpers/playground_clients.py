@@ -49,7 +49,6 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.context import Context as OtelContext
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.trace import Span as OTelSpan
@@ -365,10 +364,10 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         self,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
-        otel_context: OtelContext = OtelContext(),
-        tracer: Tracer = NoOpTracer(),
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        tracer_ = tracer or NoOpTracer()
         attributes = dict(
             chain(
                 llm_span_kind(),
@@ -397,9 +396,8 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         # "Token was created in a different Context" when the async generator yields.
         # Not using current-context is the safest approach; it stays safe if more async
         # is added later. Callers pass context explicitly (Go-style).
-        span = tracer.start_span(
+        span = tracer_.start_span(
             "ChatCompletion",
-            context=otel_context,
             attributes=attributes,
             set_status_on_exception=False,  # we set status manually
         )
@@ -2236,8 +2234,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
         self,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
-        otel_context: OtelContext = OtelContext(),
-        tracer: Tracer = NoOpTracer(),
+        tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
@@ -2266,11 +2263,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             }
 
         async for chunk in super().chat_completion_create(
-            messages,
-            tools,
-            otel_context=otel_context,
-            tracer=tracer,
-            **invocation_parameters,
+            messages, tools, tracer=tracer, **invocation_parameters
         ):
             yield chunk
 
