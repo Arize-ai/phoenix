@@ -1994,18 +1994,21 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
         return invocation_params
 
 
+GEMINI_2_0_MODELS = [
+    PROVIDER_DEFAULT,
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash-001",
+    "gemini-2.0-flash-thinking-exp-01-21",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        PROVIDER_DEFAULT,
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash-001",
-        "gemini-2.0-flash-thinking-exp-01-21",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-pro",
-        "gemini-1.0-pro",
-    ],
+    model_names=GEMINI_2_0_MODELS,
 )
 class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     @property
@@ -2154,15 +2157,18 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         return google_messages, "\n".join(system_prompts)
 
 
+GEMINI_2_5_MODELS = [
+    PROVIDER_DEFAULT,
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro-preview-03-25",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        PROVIDER_DEFAULT,
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro-preview-03-25",
-    ],
+    model_names=GEMINI_2_5_MODELS,
 )
 class Gemini25GoogleStreamingClient(GoogleStreamingClient):
     @classmethod
@@ -2205,11 +2211,15 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
         ]
 
 
+GEMINI_3_MODELS = [
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        "gemini-3-pro-preview",
-    ],
+    model_names=GEMINI_3_MODELS,
 )
 class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
     @classmethod
@@ -2581,7 +2591,19 @@ async def _get_builtin_provider_client(
             return GoogleGenAIClient(api_key=api_key).aio
 
         client_factory = create_google_client
-        return GoogleStreamingClient(
+        if model_name in GEMINI_2_0_MODELS:
+            return GoogleStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        if model_name in GEMINI_2_5_MODELS:
+            return Gemini25GoogleStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return Gemini3GoogleStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -2848,7 +2870,19 @@ async def _get_custom_provider_client(
             google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return GoogleStreamingClient(
+        if model_name in GEMINI_2_0_MODELS:
+            return GoogleStreamingClient(
+                client_factory=google_genai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        if model_name in GEMINI_2_5_MODELS:
+            return Gemini25GoogleStreamingClient(
+                client_factory=google_genai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return Gemini3GoogleStreamingClient(
             client_factory=google_genai_client_factory,
             model_name=model_name,
             provider=provider,
