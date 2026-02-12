@@ -66,7 +66,7 @@ const defaultCardProps: Partial<CardProps> = {
 export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   const { datasetId, onCompleted } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [createMore, setCreateMore] = useState(false);
+  const [createMore, setCreateMore] = useState(true);
   const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddDatasetExampleDialogMutation>(
     graphql`
