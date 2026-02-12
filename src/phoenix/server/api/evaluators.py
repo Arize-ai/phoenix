@@ -417,7 +417,9 @@ class LLMEvaluator(BaseEvaluator):
                         args = json.loads(tool_call["arguments"])
                         label = args.get("label")
                         if label is None:
-                            continue
+                            raise ValueError(
+                                "LLM response missing required 'label' field in tool call arguments"
+                            )
                         scores_by_label = {
                             config_value.label: config_value.score
                             for config_value in matched_config.values
