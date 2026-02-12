@@ -14,6 +14,15 @@ class AnnotationResult(TypedDict):
     explanation: NotRequired[str]
 
 
+class AnnotationSummary(TypedDict):
+    annotation_name: str
+    min_score: Optional[float]
+    max_score: Optional[float]
+    mean_score: Optional[float]
+    count: int
+    error_count: int
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -100,6 +109,7 @@ class Experiment(TypedDict):
     successful_run_count: int
     failed_run_count: int
     missing_run_count: int
+    annotation_summaries: NotRequired[Sequence[AnnotationSummary]]
 
 
 class ExperimentEvaluationResult(TypedDict):

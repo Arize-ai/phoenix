@@ -13,7 +13,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from itertools import product
 from threading import Lock
-from typing import Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -56,6 +56,9 @@ from phoenix.client.resources.experiments.types import (
 )
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -2169,6 +2172,61 @@ class Experiments:
                 break
         return all_experiments
 
+    def get_test_results(
+        self,
+        *,
+        dataset_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> "pd.DataFrame":
+        """Get experiment results as a DataFrame for visualization and comparison.
+
+        Lists all experiments for a dataset and returns a DataFrame with one row per
+        experiment and columns for each annotation metric (mean, min, max scores).
+        Sorted by created_at so users can plot metrics over time.
+
+        Args:
+            dataset_id (str): The ID of the dataset to get results for.
+            timeout: Request timeout in seconds for each paginated request (default: 60).
+
+        Returns:
+            pd.DataFrame: A DataFrame with experiment metadata and annotation metrics.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            df = client.experiments.get_test_results(dataset_id="dataset_123")
+            # Plot metrics over time
+            df.plot(x="created_at", y=["Hallucination_mean", "Relevance_mean"])
+        """
+        import pandas as pd
+
+        experiments = self.list(dataset_id=dataset_id, timeout=timeout)
+        rows: list[dict[str, Any]] = []
+        for exp in experiments:
+            row: dict[str, Any] = {
+                "experiment_id": exp["id"],
+                "project_name": exp.get("project_name"),
+                "created_at": exp["created_at"],
+                "updated_at": exp["updated_at"],
+                "repetitions": exp["repetitions"],
+                "example_count": exp["example_count"],
+                "successful_run_count": exp["successful_run_count"],
+                "failed_run_count": exp["failed_run_count"],
+                "missing_run_count": exp["missing_run_count"],
+            }
+            for summary in exp.get("annotation_summaries", []):
+                name = summary["annotation_name"]
+                row[f"{name}_mean"] = summary.get("mean_score")
+                row[f"{name}_min"] = summary.get("min_score")
+                row[f"{name}_max"] = summary.get("max_score")
+                row[f"{name}_count"] = summary["count"]
+                row[f"{name}_error_count"] = summary["error_count"]
+            rows.append(row)
+        rows.sort(key=lambda r: r["created_at"])
+        return pd.DataFrame(rows)
+
 
 class AsyncExperiments:
     """
@@ -3916,3 +3974,58 @@ class AsyncExperiments:
             if not cursor:
                 break
         return all_experiments
+
+    async def get_test_results(
+        self,
+        *,
+        dataset_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> "pd.DataFrame":
+        """Get experiment results as a DataFrame for visualization and comparison.
+
+        Lists all experiments for a dataset and returns a DataFrame with one row per
+        experiment and columns for each annotation metric (mean, min, max scores).
+        Sorted by created_at so users can plot metrics over time.
+
+        Args:
+            dataset_id (str): The ID of the dataset to get results for.
+            timeout: Request timeout in seconds for each paginated request (default: 60).
+
+        Returns:
+            pd.DataFrame: A DataFrame with experiment metadata and annotation metrics.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            df = await async_client.experiments.get_test_results(dataset_id="dataset_123")
+            # Plot metrics over time
+            df.plot(x="created_at", y=["Hallucination_mean", "Relevance_mean"])
+        """
+        import pandas as pd
+
+        experiments = await self.list(dataset_id=dataset_id, timeout=timeout)
+        rows: list[dict[str, Any]] = []
+        for exp in experiments:
+            row: dict[str, Any] = {
+                "experiment_id": exp["id"],
+                "project_name": exp.get("project_name"),
+                "created_at": exp["created_at"],
+                "updated_at": exp["updated_at"],
+                "repetitions": exp["repetitions"],
+                "example_count": exp["example_count"],
+                "successful_run_count": exp["successful_run_count"],
+                "failed_run_count": exp["failed_run_count"],
+                "missing_run_count": exp["missing_run_count"],
+            }
+            for summary in exp.get("annotation_summaries", []):
+                name = summary["annotation_name"]
+                row[f"{name}_mean"] = summary.get("mean_score")
+                row[f"{name}_min"] = summary.get("min_score")
+                row[f"{name}_max"] = summary.get("max_score")
+                row[f"{name}_count"] = summary["count"]
+                row[f"{name}_error_count"] = summary["error_count"]
+            rows.append(row)
+        rows.sort(key=lambda r: r["created_at"])
+        return pd.DataFrame(rows)
