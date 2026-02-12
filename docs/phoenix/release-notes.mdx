@@ -9,10 +9,26 @@ GitHub
 
 
 
+<Update label="02.12.2026">
+## [02.12.2026: Dataset Evaluators](/docs/phoenix/release-notes/02-2026/02-12-2026-dataset-evaluators)
+**Requires Phoenix 13.x.**
+**Dataset evaluators** let you attach evaluators directly to a dataset so they automatically run server-side whenever you execute experiments from the Phoenix UI (for example, from the Playground). This turns your dataset into a reusable evaluation suite and removes the need to reconfigure evaluators for every experiment.
+
+**Key capabilities:**
+
+- **Attach once, evaluate everywhere:** Add LLM or built-in code evaluators to a dataset and reuse them across Playground experiments.
+- **Flexible input mapping:** Map evaluator inputs to dataset fields so each example is evaluated consistently.
+- **Built-in visibility:** Each evaluator captures traces for debugging and refinement, with details available from the evaluator view.
+
+To get started, open a dataset, navigate to the **Evaluators** tab, click **Add evaluator**, configure your input mapping, and run an experiment from the Playground to see server-side scores and traces.
+</Update>
+
 
 <Update label="02.11.2026">
 ## [02.11.2026: Custom Providers for Playground and Prompts](/docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers)
 Phoenix now supports **custom providers** for OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI. Custom providers let you store provider credentials and routing configuration on the server and reuse them across the playground and saved prompt versions.
+
+![Custom provider configuration in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/custom-provider-config.png)
 
 **Key capabilities:**
 
