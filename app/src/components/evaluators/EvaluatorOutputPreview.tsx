@@ -19,6 +19,7 @@ import {
 } from "@phoenix/components";
 import { type Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
+import { getPositiveOptimization } from "@phoenix/components/annotation/optimizationUtils";
 import { JSONBlock } from "@phoenix/components/code";
 import type {
   EvaluatorOutputPreviewMutation,
@@ -33,11 +34,79 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
+import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EvaluationPreviewResult =
   | { kind: "success"; annotation: Annotation }
   | { kind: "error"; evaluatorName: string; message: string };
+
+/**
+ * Computes whether an annotation score represents a positive optimization result
+ * by matching the annotation name to the corresponding output config.
+ */
+function computePositiveOptimization({
+  annotationName,
+  score,
+  evaluatorName,
+  outputConfigs,
+}: {
+  annotationName: string;
+  score: number | null | undefined;
+  evaluatorName: string;
+  outputConfigs: AnnotationConfig[];
+}): boolean | null {
+  if (outputConfigs.length === 0) {
+    return null;
+  }
+
+  let matchedConfig: AnnotationConfig | undefined;
+  if (outputConfigs.length === 1) {
+    matchedConfig = outputConfigs[0];
+  } else {
+    // Multi-output: annotation name is "evaluatorName.configName"
+    const prefix = evaluatorName + ".";
+    if (annotationName.startsWith(prefix)) {
+      const configName = annotationName.slice(prefix.length);
+      matchedConfig = outputConfigs.find((c) => c.name === configName);
+    }
+  }
+
+  if (matchedConfig == null) {
+    return null;
+  }
+
+  const optimizationDirection =
+    matchedConfig.optimizationDirection === "MAXIMIZE" ||
+    matchedConfig.optimizationDirection === "MINIMIZE"
+      ? matchedConfig.optimizationDirection
+      : undefined;
+
+  let lowerBound: number | undefined;
+  let upperBound: number | undefined;
+
+  if ("values" in matchedConfig) {
+    // Categorical: compute bounds from values scores
+    const scores = matchedConfig.values
+      .map((v) => v.score)
+      .filter((s): s is number => s != null);
+    if (scores.length > 0) {
+      lowerBound = Math.min(...scores);
+      upperBound = Math.max(...scores);
+    }
+  } else {
+    // Continuous: use bounds directly
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  }
+
+  return getPositiveOptimization({
+    score,
+    lowerBound,
+    upperBound,
+    optimizationDirection,
+  });
+}
 
 export const EvaluatorOutputPreview = () => {
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +115,10 @@ export const EvaluatorOutputPreview = () => {
   >([]);
   const evaluatorStore = useEvaluatorStoreInstance();
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
+  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
+  const evaluatorName = useEvaluatorStore(
+    (state) => state.evaluator.name || state.evaluator.globalName
+  );
   const playgroundStore = usePlaygroundStore();
   const credentials = useCredentialsContext((state) => state);
   const [previewEvaluator, isLoadingEvaluatorPreview] =
@@ -99,6 +172,7 @@ export const EvaluatorOutputPreview = () => {
       });
       params = {
         inlineLlmEvaluator: {
+          name: payload.name,
           description: payload.description,
           outputConfigs: payload.outputConfigs,
           promptVersion: payload.promptVersion,
@@ -216,6 +290,14 @@ export const EvaluatorOutputPreview = () => {
                       <DialogTrigger>
                         <ExperimentAnnotationButton
                           annotation={result.annotation}
+                          positiveOptimization={
+                            computePositiveOptimization({
+                              annotationName: result.annotation.name,
+                              score: result.annotation.score,
+                              evaluatorName,
+                              outputConfigs,
+                            }) ?? undefined
+                          }
                         />
                         <Popover>
                           <View padding="size-200">

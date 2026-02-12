@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8389270bcefc9acec6bf9cd8246dcd95>>
+ * @generated SignedSource<<16fa2a50c57f5f59e3040b75ebe3db91>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,7 @@ export type EvaluatorPreviewInput = {
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;
+  name: string;
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   promptVersion: ChatPromptVersionInput;
 };
