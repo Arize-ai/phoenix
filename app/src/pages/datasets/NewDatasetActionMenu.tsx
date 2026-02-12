@@ -11,12 +11,15 @@ import {
   DialogTitleExtra,
   Icon,
   Icons,
-  Menu,
-  MenuItem,
-  MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  View,
 } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
@@ -30,11 +33,7 @@ type CreateDatasetActionMenuProps = {
   onDatasetCreated: () => void;
 };
 
-enum CreateDatasetAction {
-  NEW = "newDataset",
-  FROM_CSV = "datasetFromCSV",
-  FROM_JSONL = "datasetFromJSONL",
-}
+type FileFormat = "csv" | "jsonl";
 
 export function NewDatasetActionMenu({
   onDatasetCreated,
@@ -43,55 +42,43 @@ export function NewDatasetActionMenu({
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [createDatasetDialogOpen, setCreateDatasetDialogOpen] = useState(false);
-  const [datasetFromCSVDialogOpen, setDatasetFromCSVDialogOpen] =
-    useState(false);
-  const [datasetFromJSONLDialogOpen, setDatasetFromJSONLDialogOpen] =
-    useState(false);
-  const onCreateDataset = () => {
-    setCreateDatasetDialogOpen(true);
+  const [fileFormat, setFileFormat] = useState<FileFormat>("csv");
+
+  const handleDatasetCreated = (newDataset: { id: string; name: string }) => {
+    notifySuccess({
+      title: "Dataset created",
+      message: `${newDataset.name} has been successfully created.`,
+      action: {
+        text: "Go to Dataset",
+        onClick: () => {
+          navigate(`/datasets/${newDataset.id}`);
+        },
+      },
+    });
+    setCreateDatasetDialogOpen(false);
+    onDatasetCreated();
   };
-  const onCreateDatasetFromCSV = () => {
-    setDatasetFromCSVDialogOpen(true);
+
+  const handleDatasetCreateError = (error: Error) => {
+    const formattedError = getErrorMessagesFromRelayMutationError(error);
+    notifyError({
+      title: "Dataset creation failed",
+      message: formattedError?.[0] ?? error.message,
+    });
   };
-  const onCreateDatasetFromJSONL = () => {
-    setDatasetFromJSONLDialogOpen(true);
-  };
+
   return (
     <StopPropagation>
-      <MenuTrigger>
-        <Button
-          variant="primary"
-          size="M"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-        >
-          New Dataset
-        </Button>
-        <Popover>
-          <Menu
-            onAction={(action) => {
-              switch (action) {
-                case CreateDatasetAction.NEW:
-                  onCreateDataset();
-                  break;
-                case CreateDatasetAction.FROM_CSV:
-                  onCreateDatasetFromCSV();
-                  break;
-                case CreateDatasetAction.FROM_JSONL:
-                  onCreateDatasetFromJSONL();
-                  break;
-              }
-            }}
-          >
-            <MenuItem id={CreateDatasetAction.NEW}>New Dataset</MenuItem>
-            <MenuItem id={CreateDatasetAction.FROM_CSV}>
-              Dataset from CSV
-            </MenuItem>
-            <MenuItem id={CreateDatasetAction.FROM_JSONL}>
-              Dataset from JSONL
-            </MenuItem>
-          </Menu>
-        </Popover>
-      </MenuTrigger>
+      <Button
+        variant="primary"
+        size="M"
+        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        onPress={() => {
+          setCreateDatasetDialogOpen(true);
+        }}
+      >
+        Create Dataset
+      </Button>
       <ModalOverlay
         isOpen={createDatasetDialogOpen}
         onOpenChange={setCreateDatasetDialogOpen}
@@ -100,117 +87,58 @@ export function NewDatasetActionMenu({
           <Dialog>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>New Dataset</DialogTitle>
+                <DialogTitle>Create Dataset</DialogTitle>
                 <DialogTitleExtra>
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <CreateDatasetForm
-                onDatasetCreated={(newDataset) => {
-                  notifySuccess({
-                    title: "Dataset created",
-                    message: `${newDataset.name} has been successfully created.`,
-                    action: {
-                      text: "Go to Dataset",
-                      onClick: () => {
-                        navigate(`/datasets/${newDataset.id}`);
-                      },
-                    },
-                  });
-                  setCreateDatasetDialogOpen(false);
-                  onDatasetCreated();
-                }}
-                onDatasetCreateError={(error) => {
-                  const formattedError =
-                    getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset creation failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-      <ModalOverlay
-        isOpen={datasetFromCSVDialogOpen}
-        onOpenChange={setDatasetFromCSVDialogOpen}
-      >
-        <Modal>
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New Dataset from CSV</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <DatasetFromCSVForm
-                onDatasetCreated={(newDataset) => {
-                  notifySuccess({
-                    title: "Dataset created",
-                    message: `${newDataset.name} has been successfully created.`,
-                    action: {
-                      text: "Go to Dataset",
-                      onClick: () => {
-                        navigate(`/datasets/${newDataset.id}`);
-                      },
-                    },
-                  });
-                  setDatasetFromCSVDialogOpen(false);
-                  onDatasetCreated();
-                }}
-                onDatasetCreateError={(error) => {
-                  const formattedError =
-                    getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset creation failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-      <ModalOverlay
-        isOpen={datasetFromJSONLDialogOpen}
-        onOpenChange={setDatasetFromJSONLDialogOpen}
-      >
-        <Modal>
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New Dataset from JSONL</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <DatasetFromJSONLForm
-                onDatasetCreated={(newDataset) => {
-                  notifySuccess({
-                    title: "Dataset created",
-                    message: `${newDataset.name} has been successfully created.`,
-                    action: {
-                      text: "Go to Dataset",
-                      onClick: () => {
-                        navigate(`/datasets/${newDataset.id}`);
-                      },
-                    },
-                  });
-                  setDatasetFromJSONLDialogOpen(false);
-                  onDatasetCreated();
-                }}
-                onDatasetCreateError={(error) => {
-                  const formattedError =
-                    getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset creation failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
-                }}
-              />
+              <Tabs defaultSelectedKey="fromFile">
+                <TabList>
+                  <Tab id="fromFile">From file</Tab>
+                  <Tab id="fromScratch">From scratch</Tab>
+                </TabList>
+                <TabPanel id="fromFile">
+                  <View padding="size-200">
+                    <ToggleButtonGroup
+                      aria-label="File format"
+                      selectedKeys={[fileFormat]}
+                      onSelectionChange={(v) => {
+                        if (v.size === 0) {
+                          return;
+                        }
+                        const selected = v.keys().next().value;
+                        if (selected === "csv" || selected === "jsonl") {
+                          setFileFormat(selected);
+                        }
+                      }}
+                    >
+                      <ToggleButton id="csv" aria-label="CSV">
+                        CSV
+                      </ToggleButton>
+                      <ToggleButton id="jsonl" aria-label="JSONL">
+                        JSONL
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </View>
+                  {fileFormat === "csv" ? (
+                    <DatasetFromCSVForm
+                      onDatasetCreated={handleDatasetCreated}
+                      onDatasetCreateError={handleDatasetCreateError}
+                    />
+                  ) : (
+                    <DatasetFromJSONLForm
+                      onDatasetCreated={handleDatasetCreated}
+                      onDatasetCreateError={handleDatasetCreateError}
+                    />
+                  )}
+                </TabPanel>
+                <TabPanel id="fromScratch">
+                  <CreateDatasetForm
+                    onDatasetCreated={handleDatasetCreated}
+                    onDatasetCreateError={handleDatasetCreateError}
+                  />
+                </TabPanel>
+              </Tabs>
             </DialogContent>
           </Dialog>
         </Modal>
