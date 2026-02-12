@@ -80,6 +80,11 @@ test.describe.serial("Server Evaluators", () => {
       '{"question": "What is 2+2?", "context": "Math"}'
     );
 
+    // Uncheck the "Create more" checkbox so the dialog closes after adding.
+    // Click the label text because React Aria's Checkbox has a hidden input
+    // whose visual overlay intercepts pointer events on the native checkbox.
+    await page.getByText("Create more", { exact: true }).click();
+
     // Click Add Example button to save
     await page.getByRole("button", { name: "Add Example" }).click();
 

@@ -63,7 +63,7 @@ pnpm dev                                 # Dev server with hot reload
 pnpm run build                           # Build production
 pnpm test                                # Run tests
 pnpm run test:e2e                        # Run Playwright E2E tests (builds first, starts test server)
-pnpm run test:e2e -- tests/foo.spec.ts --project=chromium  # Run specific E2E test file
+pnpm run test:e2e -- tests/foo.spec.ts --project=chromium # Run specific E2E test file
 pnpm run lint:fix                        # Fix linting issues
 pnpm run typecheck                       # Type check
 pnpm run build:relay                     # Build GraphQL schema
