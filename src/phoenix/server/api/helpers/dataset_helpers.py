@@ -1,6 +1,6 @@
 import json
 from collections.abc import Mapping
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Sequence, TypedDict
 
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -10,6 +10,7 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
+from typing_extensions import NotRequired
 
 from phoenix.db.models import Span
 from phoenix.trace.attributes import get_attribute_value
@@ -193,32 +194,54 @@ def _get_generic_io_value(
     return {}
 
 
-def _get_message(message: Mapping[str, Any]) -> dict[str, Any]:
+class _Function(TypedDict):
+    name: str
+    arguments: Any
+
+
+class _ToolCall(TypedDict):
+    function: _Function
+
+
+class _Message(TypedDict):
+    role: str
+    content: NotRequired[Any]
+    name: NotRequired[str]
+    function_call: NotRequired[_Function]
+    tool_calls: NotRequired[Sequence[_ToolCall]]
+
+
+def _get_message(message: Mapping[str, Any]) -> _Message:
     content = get_attribute_value(message, MESSAGE_CONTENT)
     name = get_attribute_value(message, MESSAGE_NAME)
-    function_call_name = get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME)
-    function_call_arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
-    function_call = (
-        {"name": function_call_name, "arguments": function_call_arguments}
-        if function_call_name is not None or function_call_arguments is not None
-        else None
-    )
-    tool_calls = [
-        {
-            "function": {
-                "name": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME),
-                "arguments": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON),
-            }
-        }
-        for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or ()
-    ]
-    return {
-        "role": get_attribute_value(message, MESSAGE_ROLE),
-        **({"content": content} if content is not None else {}),
-        **({"name": name} if name is not None else {}),
-        **({"function_call": function_call} if function_call is not None else {}),
-        **({"tool_calls": tool_calls} if tool_calls else {}),
-    }
+    function_call: _Function | None = None
+    if function_call_name := get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME):
+        arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
+        function_call_arguments = _safely_json_decode(arguments)
+        if function_call_arguments is None:
+            function_call_arguments = arguments
+        function_call = _Function(name=function_call_name, arguments=function_call_arguments)
+    tool_calls = []
+    for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or ():
+        if function_name := get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME):
+            arguments = get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON)
+            function_arguments = _safely_json_decode(arguments)
+            if function_arguments is None:
+                function_arguments = arguments
+            function = _Function(name=function_name, arguments=function_arguments)
+            tool_calls.append(_ToolCall(function=function))
+    role = get_attribute_value(message, MESSAGE_ROLE) or "assistant"
+    content = get_attribute_value(message, MESSAGE_CONTENT)
+    msg = _Message(role=role)
+    if content is not None:
+        msg["content"] = content
+    if name is not None:
+        msg["name"] = name
+    if function_call is not None:
+        msg["function_call"] = function_call
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return msg
 
 
 def _parse_retrieval_documents(retrieval_documents: Any) -> Optional[list[dict[str, Any]]]:
