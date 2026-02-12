@@ -190,7 +190,7 @@ const WorkflowDiagram = () => {
           fill={colors.subtext}
           fontSize="11"
         >
-          LLM / Agent / App
+          Playground Prompt
         </text>
       </g>
 
@@ -374,34 +374,6 @@ const WorkflowDiagram = () => {
         strokeWidth="2"
         markerEnd="url(#arrowhead)"
       />
-
-      {/* Legend */}
-      <g transform="translate(20, 265)">
-        <line
-          x1="0"
-          y1="8"
-          x2="20"
-          y2="8"
-          stroke={colors.arrow}
-          strokeWidth="2"
-        />
-        <text x="28" y="12" fill={colors.subtext} fontSize="10">
-          data flow
-        </text>
-
-        <line
-          x1="100"
-          y1="8"
-          x2="120"
-          y2="8"
-          stroke={colors.dashedArrow}
-          strokeWidth="1.5"
-          strokeDasharray="4 3"
-        />
-        <text x="128" y="12" fill={colors.subtext} fontSize="10">
-          context (optional)
-        </text>
-      </g>
     </svg>
   );
 };
