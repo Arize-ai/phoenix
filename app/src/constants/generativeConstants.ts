@@ -24,6 +24,11 @@ export const DEFAULT_MODEL_NAME = "gpt-4o";
 export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 
 /**
+ * The default OpenAI API type for built-in OpenAI and Azure OpenAI providers.
+ */
+export const DEFAULT_OPENAI_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
+
+/**
  * Map of {@link ChatMessageRole} to potential role values.
  * Used to map roles to a canonical role.
  */

@@ -531,6 +531,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             region: null,
             customHeaders: null,
             customProvider: null,
+            openaiApiType: null,
           };
 
           // Build final model config

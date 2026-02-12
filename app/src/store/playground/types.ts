@@ -72,11 +72,6 @@ export type PlaygroundError = {
   message?: string;
 };
 
-/**
- * OpenAI/Azure API type for built-in provider: Chat Completions or Responses.
- */
-export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
-
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;

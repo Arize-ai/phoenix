@@ -15,6 +15,11 @@ declare type ModelProvider =
 declare type ChatMessageRole = "user" | "system" | "ai" | "tool";
 
 /**
+ * OpenAI/Azure API type for built-in provider: Chat Completions or Responses.
+ */
+declare type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
+
+/**
  * The tool picking mechanism for an LLM
  * Either "auto", "required", "none", or a specific tool
  * @see https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice

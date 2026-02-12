@@ -7,6 +7,7 @@ import {
   ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
+  DEFAULT_OPENAI_API_TYPE,
   ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
@@ -1160,7 +1161,8 @@ const getBaseChatCompletionInput = ({
     instance.model.provider === "OPENAI" ||
     instance.model.provider === "AZURE_OPENAI"
       ? {
-          openaiApiType: instance.model.openaiApiType ?? ("RESPONSES" as const),
+          openaiApiType:
+            instance.model.openaiApiType ?? DEFAULT_OPENAI_API_TYPE,
         }
       : {};
 
