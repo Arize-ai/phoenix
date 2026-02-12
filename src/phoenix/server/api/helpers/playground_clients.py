@@ -391,36 +391,41 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             )
         )
 
-        with tracer_.start_as_current_span(
+        # Use start_span (not start_as_current_span) and span.end() in finally so we never
+        # attach contextvars in the generator. Avoids "Failed to detach context" /
+        # "Token was created in a different Context" when the generator is closed in another task.
+        span = tracer_.start_span(
             "ChatCompletion",
             attributes=attributes,
-            set_status_on_exception=False,  # manually set exception to control message
-        ) as span:
-            text_chunks: list[TextChunk] = []
-            tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
-            auto_accumulating = self.response_attributes_are_auto_accumulating
-            try:
-                async for chunk in self._chat_completion_create(
-                    messages=messages, tools=tools, span=span, **invocation_parameters
-                ):
-                    if isinstance(chunk, TextChunk):
-                        if not auto_accumulating:
-                            text_chunks.append(chunk)
-                        yield chunk
-                    elif isinstance(chunk, ToolCallChunk):
-                        if not auto_accumulating:
-                            tool_call_chunks[chunk.id].append(chunk)
-                        yield chunk
+            set_status_on_exception=False,  # we set status manually
+        )
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        auto_accumulating = self.response_attributes_are_auto_accumulating
+        try:
+            async for chunk in self._chat_completion_create(
+                messages=messages, tools=tools, span=span, **invocation_parameters
+            ):
+                if isinstance(chunk, TextChunk):
+                    if not auto_accumulating:
+                        text_chunks.append(chunk)
+                    yield chunk
+                elif isinstance(chunk, ToolCallChunk):
+                    if not auto_accumulating:
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
 
-                span.set_status(Status(StatusCode.OK))
-                if not auto_accumulating and (text_chunks or tool_call_chunks):
-                    span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
-                    if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
-                        span.set_attributes(output_attrs)
-            except Exception as e:
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                # no need to manually record exception, otel will handle for us
-                raise
+            span.set_status(Status(StatusCode.OK))
+            if not auto_accumulating and (text_chunks or tool_call_chunks):
+                span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+                if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
+                    span.set_attributes(output_attrs)
+        except Exception as e:
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            raise
+        finally:
+            span.end()
 
     @abstractmethod
     def _chat_completion_create(
