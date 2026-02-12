@@ -103,10 +103,12 @@ const app = express();
 **Enable diagnostic logging:**
 
 ```typescript
-import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
+import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
 
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
-register({ projectName: "my-app" });
+register({
+  projectName: "my-app",
+  diagLogLevel: DiagLogLevel.DEBUG,
+});
 ```
 
 ## Troubleshooting
