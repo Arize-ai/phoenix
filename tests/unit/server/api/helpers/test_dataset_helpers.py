@@ -5,6 +5,7 @@ import pytest
 from openinference.semconv.trace import (
     DocumentAttributes,
     MessageAttributes,
+    MessageContentAttributes,
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
@@ -15,6 +16,7 @@ from openinference.semconv.trace import (
 from phoenix.db.models import Span
 from phoenix.server.api.helpers.dataset_helpers import (
     _get_message,
+    _merge_assistant_output_items,
     get_dataset_example_input,
     get_dataset_example_output,
     get_experiment_example_output,
@@ -28,11 +30,15 @@ DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
 
 # MessageAttributes
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_CONTENTS = MessageAttributes.MESSAGE_CONTENTS
 MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = MessageAttributes.MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON
 MESSAGE_FUNCTION_CALL_NAME = MessageAttributes.MESSAGE_FUNCTION_CALL_NAME
 MESSAGE_NAME = MessageAttributes.MESSAGE_NAME
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+# MessageContentAttributes (OpenAI Responses API output format)
+MESSAGE_CONTENT_TEXT = MessageContentAttributes.MESSAGE_CONTENT_TEXT
 
 # OpenInferenceMimeTypeValues
 JSON = OpenInferenceMimeTypeValues.JSON.value
@@ -378,6 +384,130 @@ def test_get_message(message: dict[str, Any], expected: dict[str, Any]) -> None:
 
 
 @pytest.mark.parametrize(
+    "raw, expected",
+    [
+        pytest.param(
+            [],
+            [],
+            id="empty_input",
+        ),
+        pytest.param(
+            [{"role": "assistant", "content": "hello"}],
+            [{"role": "assistant", "content": "hello"}],
+            id="single_assistant_passthrough",
+        ),
+        pytest.param(
+            [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hey"}],
+            [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hey"}],
+            id="non_assistant_not_merged",
+        ),
+        pytest.param(
+            [
+                {"role": "assistant", "content": "I will call the tool."},
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {"function": {"name": "get_weather", "arguments": {"loc": "SF"}}}
+                    ],
+                },
+            ],
+            [
+                {
+                    "role": "assistant",
+                    "content": "I will call the tool.",
+                    "tool_calls": [
+                        {"function": {"name": "get_weather", "arguments": {"loc": "SF"}}}
+                    ],
+                }
+            ],
+            id="content_and_tool_call_merged",
+        ),
+        pytest.param(
+            [
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {"function": {"name": "tool_a", "arguments": {}}, "id": "c1"},
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {"function": {"name": "tool_b", "arguments": {}}, "id": "c2"},
+                    ],
+                },
+            ],
+            [
+                {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {"function": {"name": "tool_a", "arguments": {}}, "id": "c1"},
+                        {"function": {"name": "tool_b", "arguments": {}}, "id": "c2"},
+                    ],
+                }
+            ],
+            id="multiple_tool_calls_merged",
+        ),
+        pytest.param(
+            [
+                {"role": "user", "content": "question"},
+                {"role": "assistant", "content": "answer"},
+                {
+                    "role": "assistant",
+                    "tool_calls": [{"function": {"name": "search", "arguments": {"q": "x"}}}],
+                },
+                {"role": "user", "content": "follow-up"},
+                {"role": "assistant", "content": "done"},
+            ],
+            [
+                {"role": "user", "content": "question"},
+                {
+                    "role": "assistant",
+                    "content": "answer",
+                    "tool_calls": [{"function": {"name": "search", "arguments": {"q": "x"}}}],
+                },
+                {"role": "user", "content": "follow-up"},
+                {"role": "assistant", "content": "done"},
+            ],
+            id="interleaved_roles_merge_only_within_runs",
+        ),
+        pytest.param(
+            [
+                {
+                    "role": "assistant",
+                    "tool_calls": [{"function": {"name": "fn", "arguments": {}}}],
+                },
+            ],
+            [
+                {
+                    "role": "assistant",
+                    "tool_calls": [{"function": {"name": "fn", "arguments": {}}}],
+                },
+            ],
+            id="tool_calls_only_no_content",
+        ),
+        pytest.param(
+            [{"role": "assistant"}, {"role": "assistant"}],
+            [{"role": "assistant"}],
+            id="consecutive_empty_assistants_merged",
+        ),
+        pytest.param(
+            [
+                {"role": "assistant"},
+                {"role": "assistant", "content": "late content"},
+            ],
+            [{"role": "assistant", "content": "late content"}],
+            id="content_from_later_item_adopted",
+        ),
+    ],
+)
+def test_merge_assistant_output_items(
+    raw: list[dict[str, Any]], expected: list[dict[str, Any]]
+) -> None:
+    assert _merge_assistant_output_items(raw) == expected  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
     "span, expected_output_value",
     [
         pytest.param(
@@ -402,6 +532,49 @@ def test_get_message(message: dict[str, Any], expected: dict[str, Any]) -> None:
             ),
             {"messages": [{"content": "assistant-message", "role": "assistant"}]},
             id="llm-span-with-output-messages",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, TEXT),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
+                        # OpenAI Responses API stores output under message.contents.*.message_content.text
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT_TEXT}",
+                            "Responses API output text",
+                        ),
+                    )
+                ),
+            ),
+            {"messages": [{"content": "Responses API output text", "role": "assistant"}]},
+            id="llm-span-with-output-messages-responses-api-format",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT_TEXT}",
+                            "First block",
+                        ),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENTS}.1.{MESSAGE_CONTENT_TEXT}",
+                            "Second block",
+                        ),
+                    )
+                ),
+            ),
+            {"messages": [{"content": "First block\n\nSecond block", "role": "assistant"}]},
+            id="llm-span-with-output-messages-responses-api-format-multiple-parts",
         ),
         pytest.param(
             Span(
@@ -525,6 +698,114 @@ def test_get_message(message: dict[str, Any], expected: dict[str, Any]) -> None:
             ),
             {"messages": [{"content": "No tools here.", "role": "assistant"}]},
             id="llm-span-without-tools",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "Calling get_weather."),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}",
+                            "get_weather",
+                        ),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                            '{"location": "SF"}',
+                        ),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.1.{TOOL_CALL_FUNCTION_NAME}",
+                            "get_time",
+                        ),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.1.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                            "{}",
+                        ),
+                    )
+                ),
+            ),
+            {
+                "messages": [
+                    {
+                        "content": "Calling get_weather.",
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "function": {
+                                    "name": "get_weather",
+                                    "arguments": {"location": "SF"},
+                                },
+                            },
+                            {
+                                "function": {
+                                    "name": "get_time",
+                                    "arguments": {},
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+            id="llm-span-with-output-messages-and-tool-calls-including-id",
+        ),
+        pytest.param(
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        # Responses API: first item = message with content
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENTS}.0.{MESSAGE_CONTENT_TEXT}",
+                            "I will call the tool.",
+                        ),
+                        # Second item = function_call (single tool at MESSAGE_TOOL_CALLS.0)
+                        (f"{LLM_OUTPUT_MESSAGES}.1.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.1.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}",
+                            "fetch_data",
+                        ),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.1.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                            '{"q": "x"}',
+                        ),
+                        # Third item = another function_call
+                        (f"{LLM_OUTPUT_MESSAGES}.2.{MESSAGE_ROLE}", "assistant"),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.2.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}",
+                            "other_tool",
+                        ),
+                        (
+                            f"{LLM_OUTPUT_MESSAGES}.2.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                            "{}",
+                        ),
+                    )
+                ),
+            ),
+            {
+                "messages": [
+                    {
+                        "content": "I will call the tool.",
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "function": {
+                                    "name": "fetch_data",
+                                    "arguments": {"q": "x"},
+                                },
+                            },
+                            {
+                                "function": {
+                                    "name": "other_tool",
+                                    "arguments": {},
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+            id="llm-span-responses-api-merged-message-and-tool-calls",
         ),
     ],
 )
