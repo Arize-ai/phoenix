@@ -7,6 +7,11 @@ description: Write Playwright E2E tests for the Phoenix AI observability platfor
 
 Write end-to-end tests for Phoenix using Playwright. Tests live in `app/tests/` and follow established patterns.
 
+## Timeout Policy
+
+- Do not pass timeout args in test code under `app/tests`.
+- Tune timing centrally in `app/playwright.config.ts` (global `timeout`, `expect.timeout`, `use.navigationTimeout`, and `webServer.timeout`).
+
 ## Quick Start
 
 ```typescript
@@ -117,7 +122,7 @@ await page.getByLabel("Name").fill("test-name");
 // Submit
 await page.getByRole("button", { name: "Create" }).click();
 // Wait for close
-await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10000 });
+await expect(page.getByRole("dialog")).not.toBeVisible();
 ```
 
 ### Tables with Row Actions
@@ -183,7 +188,7 @@ test.describe.serial("Workflow", () => {
 ```typescript
 // Visibility
 await expect(element).toBeVisible();
-await expect(element).not.toBeVisible({ timeout: 10000 });
+await expect(element).not.toBeVisible();
 
 // Text content
 await expect(element).toHaveText("expected");
@@ -220,6 +225,12 @@ await page.goto(`/playground?datasetId=${datasetId}`);
 ```
 
 ## Running Tests
+
+Before running Playwright tests, build the app so E2E runs against the latest frontend changes:
+
+```bash
+pnpm run build
+```
 
 ```bash
 # Run specific test file
@@ -313,11 +324,11 @@ agent-browser get text @e1
 
 ## Common Gotchas
 
-1. **Dialog not closing**: Add longer timeout: `{ timeout: 10000 }`
+1. **Dialog not closing**: Wait for a deterministic post-action signal (e.g., dialog hidden + success row visible)
 2. **Multiple elements**: Use `.first()`, `.last()`, or `.nth(n)`
 3. **Dynamic content**: Use regex in name: `{ name: /pattern/i }`
 4. **Flaky waits**: Prefer `waitForURL` over `waitForTimeout`
-5. **Menu not appearing**: Add small delay or wait for specific element
+5. **Menu not appearing**: Wait for specific menu state/element visibility
 
 ## Debugging Flaky Tests
 
@@ -339,7 +350,7 @@ agent-browser get text @e1
      await element.click();
 
      // ✅ GOOD - waits for actual state
-     await element.waitFor({ state: "visible", timeout: 5000 });
+     await element.waitFor({ state: "visible" });
      await element.click();
      ```
 
@@ -391,7 +402,7 @@ When tests are flaky:
 |--------------|------------|-----|
 | Submenu item not found | Using `getByText()` instead of `getByRole()` | Use `getByRole("menuitem", { name: /pattern/i })` for submenu items |
 | Menu click fails | Menu not fully rendered | `await menu.waitFor({ state: "visible" })` before click |
-| Dialog assertion fails | Dialog animation not complete | Increase timeout or wait for specific content |
+| Dialog assertion fails | Dialog animation not complete | Assert specific completion signal (hidden dialog + next-state element) |
 | Navigation timeout | Page still loading | Remove `waitForLoadState("networkidle")` - it's flaky in CI |
 | Element not found | Dynamic content loading | Wait for element visibility, not arbitrary timeout |
 | Stale element | Re-render between locate and click | Store locator, not element handle |
@@ -423,7 +434,7 @@ When tests are flaky:
 
 4. **Don't fight animations** - wait for them:
    ```typescript
-   await expect(dialog).not.toBeVisible({ timeout: 10000 });
+   await expect(dialog).not.toBeVisible();
    ```
 
 5. **Verify URL changes** after navigation:

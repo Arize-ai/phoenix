@@ -55,8 +55,8 @@ export async function login(
 
   // Wait for the projects page URL and content
   // The login flow goes: /login -> / -> /projects (via redirects)
-  await page.waitForURL("**/projects", { timeout: 30000 });
+  await page.waitForURL("**/projects");
   await expect(
     page.getByRole("searchbox", { name: "Search projects by name" })
-  ).toBeVisible({ timeout: 30000 });
+  ).toBeVisible();
 }

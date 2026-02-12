@@ -8,6 +8,7 @@ import { defineConfig, devices, Project } from "@playwright/test";
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Skip WebKit for CI because of recurring issues with caching binaries.
+const isCI = !!process.env.CI;
 const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
 
 const projects: Project[] = [
@@ -48,19 +49,19 @@ projects.push({
  */
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
-  timeout: process.env.CI ? 60000 : 30000,
+  timeout: isCI ? 90_000 : 45_000,
   expect: {
-    /* CI runners are slower; 5s default is too tight for mutations that close dialogs */
-    timeout: process.env.CI ? 10_000 : 5_000,
+    /* CI runners are slower; use one centralized expect timeout policy */
+    timeout: isCI ? 30_000 : 10_000,
   },
   // Use default workers (cpu count) locally, limit to 2 on CI
-  workers: process.env.CI ? 2 : undefined,
+  workers: isCI ? 2 : undefined,
   fullyParallel: true,
   testDir: "./tests",
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  retries: isCI ? 2 : 0,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -71,8 +72,8 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
 
-    /* Wait for 15 seconds for each page navigation to complete */
-    navigationTimeout: 15000,
+    /* Wait for each page navigation to complete */
+    navigationTimeout: isCI ? 30_000 : 15_000,
   },
 
   /* Configure projects for major browsers */
@@ -82,7 +83,7 @@ export default defineConfig({
   webServer: {
     command: "pnpm run dev:server:test",
     url: "http://localhost:6006",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: !isCI,
+    timeout: isCI ? 240_000 : 120_000,
   },
 });
