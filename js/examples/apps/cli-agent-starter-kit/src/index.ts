@@ -1,5 +1,6 @@
-import { generateText } from "ai";
+/* eslint-disable no-console */
 import { anthropic } from "@ai-sdk/anthropic";
+import { generateText } from "ai";
 
 async function main() {
   console.log("CLI Agent Starter Kit - Calling Anthropic API...\n");
