@@ -13,8 +13,16 @@ from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
 )
-from opentelemetry.context import Context
-from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from opentelemetry.context import Context as OtelContext
+from opentelemetry.trace import (
+    INVALID_SPAN,
+    NoOpTracer,
+    Status,
+    StatusCode,
+    Tracer,
+    format_trace_id,
+    set_span_in_context,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -32,7 +40,7 @@ from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
+from phoenix.server.api.helpers.message_helpers import create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
@@ -136,7 +144,8 @@ class BaseEvaluator(ABC):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> list[EvaluationResult]:
         """
         Evaluate the given context and return evaluation results.
@@ -241,7 +250,8 @@ class LLMEvaluator(BaseEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
 
@@ -260,156 +270,177 @@ class LLMEvaluator(BaseEvaluator):
             config.name or "": config for config in categorical_configs
         }
 
-        tracer_ = tracer or NoOpTracer()
-
-        with tracer_.start_as_current_span(
+        # Explicit context + start_span (no start_as_current_span) so span lifecycle is
+        # independent of async context switches. Avoids "Failed to detach context" when
+        # the async for in chat_completion_create yields. Not using current-context
+        # (contextvars) is the safest approach; it stays safe if more async is added later.
+        evaluator_span = tracer.start_span(
             f"Evaluator: {name}",
+            context=otel_context,
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=Context(),  # inject blank context to ensure the evaluator span is the root
-        ) as evaluator_span:
-            trace_id = (
-                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+        )
+        ctx_with_eval = set_span_in_context(evaluator_span, otel_context)
+        trace_id = (
+            None
+            if evaluator_span is INVALID_SPAN
+            else format_trace_id(evaluator_span.get_span_context().trace_id)
+        )
+
+        try:
+            input_mapping_span = tracer.start_span(
+                "Input Mapping",
+                context=ctx_with_eval,
+                attributes={
+                    **oi.get_span_kind_attributes("chain"),
+                    **oi.get_input_attributes(
+                        {
+                            "input_mapping": {
+                                "path_mapping": input_mapping.path_mapping or {},
+                                "literal_mapping": input_mapping.literal_mapping or {},
+                            },
+                            "template_variables": context,
+                        }
+                    ),
+                },
             )
-
             try:
-                with tracer_.start_as_current_span(
-                    "Input Mapping",
-                    attributes={
-                        **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "input_mapping": {
-                                    "path_mapping": input_mapping.path_mapping or {},
-                                    "literal_mapping": input_mapping.literal_mapping or {},
-                                },
-                                "template_variables": context,
-                            }
-                        ),
-                    },
-                ) as input_mapping_span:
-                    template_variables = apply_input_mapping(
-                        input_schema=self.input_schema,
-                        input_mapping=input_mapping,
-                        context=context,
-                    )
-                    template_variables = cast_template_variable_types(
-                        template_variables=template_variables,
-                        input_schema=self.input_schema,
-                    )
-                    validate_template_variables(
-                        template_variables=template_variables,
-                        input_schema=self.input_schema,
-                    )
-                    input_mapping_span.set_attributes(oi.get_output_attributes(template_variables))
-                    input_mapping_span.set_status(Status(StatusCode.OK))
-
-                with tracer_.start_as_current_span(
-                    f"Prompt: {self._prompt_name}",
-                    attributes={
-                        **oi.get_span_kind_attributes("prompt"),
-                        **oi.get_input_attributes(template_variables),
-                    },
-                ) as prompt_span:
-                    template_formatter = get_template_formatter(self._template_format)
-                    messages: list[PlaygroundMessage] = []
-                    for msg in self._template.messages:
-                        role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
-                        if isinstance(msg.content, str):
-                            formatted_content = template_formatter.format(
-                                msg.content, **template_variables
-                            )
-                        else:
-                            text_parts = []
-                            for part in msg.content:
-                                if isinstance(part, TextContentPart):
-                                    formatted_text = template_formatter.format(
-                                        part.text, **template_variables
-                                    )
-                                    text_parts.append(formatted_text)
-                            formatted_content = "".join(text_parts)
-                        messages.append(create_playground_message(role, formatted_content))
-
-                    formatted_messages = [
-                        oi.Message(role=msg["role"].value.lower(), content=msg["content"])
-                        for msg in messages
-                    ]
-                    prompt_span.set_attributes(
-                        oi.get_output_attributes(
-                            {
-                                "messages": [
-                                    {"role": msg["role"], "content": msg["content"]}
-                                    for msg in formatted_messages
-                                ]
-                            }
-                        )
-                    )
-                    prompt_span.set_status(Status(StatusCode.OK))
-
-                denormalized_tools, denormalized_tool_choice = denormalize_tools(
-                    self._tools, self._model_provider
+                template_variables = apply_input_mapping(
+                    input_schema=self.input_schema,
+                    input_mapping=input_mapping,
+                    context=context,
                 )
-                invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-                invocation_parameters.update(denormalized_tool_choice)
-                # Only pass params the client supports (e.g. Responses API has no temperature)
-                supported_names = {
-                    p.invocation_name
-                    for p in self._llm_client.__class__.supported_invocation_parameters()
-                }
-                invocation_parameters = {
-                    k: v
-                    for k, v in invocation_parameters.items()
-                    if k in supported_names and v is not None
-                }
-                tool_call_by_id: dict[ToolCallId, ToolCall] = {}
+                template_variables = cast_template_variable_types(
+                    template_variables=template_variables,
+                    input_schema=self.input_schema,
+                )
+                validate_template_variables(
+                    template_variables=template_variables,
+                    input_schema=self.input_schema,
+                )
+                input_mapping_span.set_attributes(oi.get_output_attributes(template_variables))
+                input_mapping_span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                input_mapping_span.record_exception(e)
+                input_mapping_span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
+            finally:
+                input_mapping_span.end()
 
-                async for chunk in self._llm_client.chat_completion_create(
-                    messages=messages,
-                    tools=denormalized_tools,
-                    tracer=tracer_,
-                    **invocation_parameters,
-                ):
-                    if isinstance(chunk, ToolCallChunk):
-                        if chunk.id not in tool_call_by_id:
-                            tool_call_by_id[chunk.id] = ToolCall(
-                                name=chunk.function.name,
-                                arguments=chunk.function.arguments,
-                            )
-                        else:
-                            tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+            prompt_span = tracer.start_span(
+                f"Prompt: {self._prompt_name}",
+                context=ctx_with_eval,
+                attributes={
+                    **oi.get_span_kind_attributes("prompt"),
+                    **oi.get_input_attributes(template_variables),
+                },
+            )
+            try:
+                template_formatter = get_template_formatter(self._template_format)
+                messages = []
+                for msg in self._template.messages:
+                    role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+                    if isinstance(msg.content, str):
+                        formatted_content = template_formatter.format(
+                            msg.content, **template_variables
+                        )
+                    else:
+                        text_parts = []
+                        for part in msg.content:
+                            if isinstance(part, TextContentPart):
+                                formatted_text = template_formatter.format(
+                                    part.text, **template_variables
+                                )
+                                text_parts.append(formatted_text)
+                        formatted_content = "".join(text_parts)
+                    messages.append(create_playground_message(role, formatted_content))
 
-                with tracer_.start_as_current_span(
-                    "Parse Eval Result",
-                    attributes={
-                        **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "tool_calls": {
-                                    call_id: {"name": call["name"], "arguments": call["arguments"]}
-                                    for call_id, call in tool_call_by_id.items()
-                                },
-                                "output_configs": {
-                                    config_name: {
-                                        "values": [
-                                            {"label": v.label, "score": v.score}
-                                            for v in config.values
-                                        ]
-                                    }
-                                    for config_name, config in configs_by_name.items()
-                                },
-                            }
-                        ),
-                    },
-                ) as chain_span:
+                formatted_messages = [
+                    oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                    for msg in messages
+                ]
+                prompt_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "messages": [
+                                {"role": msg["role"], "content": msg["content"]}
+                                for msg in formatted_messages
+                            ]
+                        }
+                    )
+                )
+                prompt_span.set_status(Status(StatusCode.OK))
+            except Exception as e:
+                prompt_span.record_exception(e)
+                prompt_span.set_status(Status(StatusCode.ERROR, str(e)))
+                raise
+            finally:
+                prompt_span.end()
+
+            denormalized_tools, denormalized_tool_choice = denormalize_tools(
+                self._tools, self._model_provider
+            )
+            invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
+            invocation_parameters.update(denormalized_tool_choice)
+            # Only pass params the client supports (e.g. Responses API has no temperature)
+            supported_names = {
+                p.invocation_name
+                for p in self._llm_client.__class__.supported_invocation_parameters()
+            }
+            invocation_parameters = {
+                k: v
+                for k, v in invocation_parameters.items()
+                if k in supported_names and v is not None
+            }
+            tool_call_by_id = {}
+
+            async for chunk in self._llm_client.chat_completion_create(
+                messages=messages,
+                tools=denormalized_tools,
+                otel_context=ctx_with_eval,
+                tracer=tracer,
+                **invocation_parameters,
+            ):
+                if isinstance(chunk, ToolCallChunk):
+                    if chunk.id not in tool_call_by_id:
+                        tool_call_by_id[chunk.id] = ToolCall(
+                            name=chunk.function.name,
+                            arguments=chunk.function.arguments,
+                        )
+                    else:
+                        tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+
+            chain_span = tracer.start_span(
+                "Parse Eval Result",
+                context=ctx_with_eval,
+                attributes={
+                    **oi.get_span_kind_attributes("chain"),
+                    **oi.get_input_attributes(
+                        {
+                            "tool_calls": {
+                                call_id: {"name": call["name"], "arguments": call["arguments"]}
+                                for call_id, call in tool_call_by_id.items()
+                            },
+                            "output_configs": {
+                                config_name: {
+                                    "values": [
+                                        {"label": v.label, "score": v.score} for v in config.values
+                                    ]
+                                }
+                                for config_name, config in configs_by_name.items()
+                            },
+                        }
+                    ),
+                },
+            )
+            try:
+                try:
                     if not tool_call_by_id:
                         raise ValueError("No tool calls received from LLM")
 
-                    # Match each tool call to its output config by name.
-                    # Tool calls whose name doesn't match any config are skipped.
-                    # Configs with no matching tool call are skipped.
-                    results: list[EvaluationResult] = []
+                    results = []
                     for tool_call in tool_call_by_id.values():
                         matched_config = configs_by_name.get(tool_call["name"])
                         if matched_config is None:
@@ -458,43 +489,50 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     chain_span.set_status(Status(StatusCode.OK))
 
-                evaluator_span.set_attributes(
-                    oi.get_output_attributes(
-                        {
-                            "results": [
-                                {
-                                    "name": r["name"],
-                                    "label": r["label"],
-                                    "score": r["score"],
-                                    "explanation": r["explanation"],
-                                }
-                                for r in results
-                            ]
-                        }
+                    evaluator_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        )
                     )
+                    evaluator_span.set_status(Status(StatusCode.OK))
+                except Exception as e:
+                    chain_span.record_exception(e)
+                    chain_span.set_status(Status(StatusCode.ERROR, str(e)))
+                    raise
+            finally:
+                chain_span.end()
+
+        except Exception as e:
+            evaluator_span.record_exception(e)
+            evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+            end_time = datetime.now(timezone.utc)
+            results = [
+                EvaluationResult(
+                    name=name,
+                    annotator_kind="LLM",
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata={},
+                    error=str(e),
+                    trace_id=trace_id,
+                    start_time=start_time,
+                    end_time=end_time,
                 )
-                evaluator_span.set_status(Status(StatusCode.OK))
-
-            except Exception as e:
-                evaluator_span.record_exception(e)
-                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
-
-                end_time = datetime.now(timezone.utc)
-                # On error, return a single error result for the evaluator
-                results = [
-                    EvaluationResult(
-                        name=name,
-                        annotator_kind="LLM",
-                        label=None,
-                        score=None,
-                        explanation=None,
-                        metadata={},
-                        error=str(e),
-                        trace_id=trace_id,
-                        start_time=start_time,
-                        end_time=end_time,
-                    )
-                ]
+            ]
+        finally:
+            evaluator_span.end()
 
         return results
 
@@ -539,7 +577,8 @@ class BuiltInEvaluator(BaseEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> list[EvaluationResult]:
         multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
@@ -551,6 +590,7 @@ class BuiltInEvaluator(BaseEvaluator):
                 name=annotation_name,
                 output_config=config,
                 tracer=tracer,
+                otel_context=otel_context,
             )
             results.append(result)
         return results
@@ -563,7 +603,8 @@ class BuiltInEvaluator(BaseEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> EvaluationResult: ...
 
     def _map_boolean_to_label_and_score(
@@ -1211,25 +1252,25 @@ class ContainsEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        tracer_ = tracer or NoOpTracer()
 
-        with tracer_.start_as_current_span(
+        with tracer.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=Context(),
+            context=otel_context,
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1265,7 +1306,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                 case_sensitive = inputs.get("case_sensitive", False)
                 require_all = inputs.get("require_all", False)
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1299,7 +1340,7 @@ class ContainsEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1421,25 +1462,25 @@ class ExactMatchEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        tracer_ = tracer or NoOpTracer()
 
-        with tracer_.start_as_current_span(
+        with tracer.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=Context(),
+            context=otel_context,
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1474,7 +1515,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 actual = inputs.get("actual", "")
                 case_sensitive = inputs.get("case_sensitive", True)
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1499,7 +1540,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1623,25 +1664,25 @@ class RegexEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        tracer_ = tracer or NoOpTracer()
 
-        with tracer_.start_as_current_span(
+        with tracer.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=Context(),
+            context=otel_context,
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1676,7 +1717,7 @@ class RegexEvaluator(BuiltInEvaluator):
                 text = inputs.get("text", "")
                 full_match = inputs.get("full_match", False)
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1713,7 +1754,7 @@ class RegexEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1849,25 +1890,25 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        tracer_ = tracer or NoOpTracer()
 
-        with tracer_.start_as_current_span(
+        with tracer.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=Context(),
+            context=otel_context,
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
 
             try:
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1902,7 +1943,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 actual = inputs.get("actual", "")
                 case_sensitive = inputs.get("case_sensitive", True)
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -1927,7 +1968,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -2069,24 +2110,24 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
         input_mapping: EvaluatorInputMappingInput,
         name: str,
         output_config: EvaluatorOutputConfig,
-        tracer: Optional[Tracer] = None,
+        tracer: Tracer = NoOpTracer(),
+        otel_context: OtelContext = OtelContext(),
     ) -> EvaluationResult:
         start_time = datetime.now(timezone.utc)
-        tracer_ = tracer or NoOpTracer()
 
-        with tracer_.start_as_current_span(
+        with tracer.start_as_current_span(
             f"Evaluator: {name}",
             attributes={
                 **oi.get_span_kind_attributes("evaluator"),
                 **oi.get_input_attributes(context),
             },
-            context=Context(),
+            context=otel_context,
         ) as evaluator_span:
             trace_id = (
                 format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
             try:
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Input Mapping",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -2131,7 +2172,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                 expected_trace = _serialize_for_trace(expected_raw)
                 actual_trace = _serialize_for_trace(actual_raw)
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     self.name,
                     attributes={
                         **oi.get_span_kind_attributes("chain"),
@@ -2166,7 +2207,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     )
                     execution_span.set_status(Status(StatusCode.OK))
 
-                with tracer_.start_as_current_span(
+                with tracer.start_as_current_span(
                     "Parse Eval Result",
                     attributes={
                         **oi.get_span_kind_attributes("chain"),

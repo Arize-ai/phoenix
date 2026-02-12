@@ -3,10 +3,13 @@ import logging
 from dataclasses import field
 from datetime import datetime, timezone
 from itertools import islice
-from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
+from typing import Any, Iterable, Iterator, Optional, TypeVar, Union, cast
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry.context import Context as OtelContext
+from opentelemetry.trace import NoOpTracer
+from opentelemetry.trace import Tracer as OtelTracer
 from pydantic import ValidationError
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
@@ -271,6 +274,7 @@ class ChatCompletionMutationMixin:
                 ]
             await insert_experiment_with_examples_snapshot(session, experiment)
 
+        otel_context = OtelContext()
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
@@ -328,6 +332,7 @@ class ChatCompletionMutationMixin:
                             evaluators=input.evaluators,
                         ),
                         repetition_number=repetition_number,
+                        otel_context=otel_context,
                         project_name=project_name,
                         appended_messages=appended_messages_by_revision.get(revision.id),
                     )
@@ -410,21 +415,23 @@ class ChatCompletionMutationMixin:
                     ):
                         name = str(evaluator_input.name)
                         configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        tracer: Tracer | None = None
-                        if input.tracing_enabled:
-                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
-
+                        tracer: OtelTracer = (
+                            Tracer(span_cost_calculator=info.context.span_cost_calculator)
+                            if input.tracing_enabled
+                            else NoOpTracer()
+                        )
                         eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
                             context=context_dict,
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
                             output_configs=configs,
                             tracer=tracer,
+                            otel_context=otel_context,
                         )
 
                         trace: Trace | None = None
-                        if tracer is not None:
-                            db_traces = await tracer.save_db_traces(
+                        if input.tracing_enabled:
+                            db_traces = await cast(Tracer, tracer).save_db_traces(
                                 session=session, project_id=project_id
                             )
                             if db_traces:
@@ -488,13 +495,18 @@ class ChatCompletionMutationMixin:
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
+        otel_context = OtelContext()
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
         for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
             batch_results = await asyncio.gather(
                 *(
                     cls._chat_completion(
-                        info, llm_client, input, repetition_number=repetition_number
+                        info,
+                        llm_client,
+                        input,
+                        repetition_number=repetition_number,
+                        otel_context=otel_context,
                     )
                     for repetition_number in batch
                 ),
@@ -533,6 +545,7 @@ class ChatCompletionMutationMixin:
                             input_mapping=evaluator_input.input_mapping,
                             name=name,
                             output_configs=configs,
+                            otel_context=otel_context,
                         )
 
                         for eval_result in eval_results:
@@ -573,6 +586,7 @@ class ChatCompletionMutationMixin:
         cls, info: Info[Context, None], input: EvaluatorPreviewsInput
     ) -> EvaluatorPreviewsPayload:
         all_results: list[EvaluationResult] = []
+        otel_context = OtelContext()
 
         for preview_item in input.previews:
             evaluator_input = preview_item.evaluator
@@ -602,6 +616,7 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping,
                     name=builtin_evaluator.name,
                     output_configs=builtin_evaluator.output_configs,
+                    otel_context=otel_context,
                 )
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
@@ -702,6 +717,7 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping,
                     name=evaluator.name,
                     output_configs=categorical_configs,
+                    otel_context=otel_context,
                 )
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
@@ -718,6 +734,7 @@ class ChatCompletionMutationMixin:
         llm_client: "PlaygroundStreamingClient[Any]",
         input: ChatCompletionInput,
         repetition_number: int,
+        otel_context: OtelContext,
         project_name: str = PLAYGROUND_PROJECT_NAME,
         project_description: str = "Traces from prompt playground",
         appended_messages: Optional[list[PlaygroundMessage]] = None,
@@ -750,6 +767,7 @@ class ChatCompletionMutationMixin:
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
                 tools=input.tools or [],
+                otel_context=otel_context,
                 tracer=tracer,
                 **invocation_parameters,
             ):
