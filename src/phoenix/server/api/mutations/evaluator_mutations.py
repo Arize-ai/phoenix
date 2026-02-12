@@ -36,7 +36,6 @@ from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
-    CodeEvaluator,
     DatasetEvaluator,
     LLMEvaluator,
 )
@@ -190,7 +189,7 @@ async def _ensure_evaluator_prompt_label(
 
 def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     """
-    Parse evaluator ID accepting LLMEvaluator, CodeEvaluator and BuiltInEvaluator types.
+    Parse evaluator ID accepting LLMEvaluator and BuiltInEvaluator types.
 
     Returns:
         tuple of (evaluator_rowid, evaluator_kind)
@@ -198,7 +197,6 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     type_name, evaluator_rowid = from_global_id(global_id)
     evaluator_types: dict[str, EvaluatorKind] = {
         LLMEvaluator.__name__: "LLM",
-        CodeEvaluator.__name__: "CODE",
         BuiltInEvaluator.__name__: "BUILTIN",
     }
     if type_name not in evaluator_types:

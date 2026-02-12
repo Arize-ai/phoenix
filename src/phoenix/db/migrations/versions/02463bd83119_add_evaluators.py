@@ -162,30 +162,6 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        # TODO: This is a stub for development purposes; remove before product release
-        "code_evaluators",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "kind",
-            sa.String,
-            sa.CheckConstraint("kind = 'CODE'", name="valid_evaluator_kind"),
-            server_default="CODE",
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-            onupdate=sa.func.now(),
-        ),
-        sa.ForeignKeyConstraint(
-            ["kind", "id"],
-            ["evaluators.kind", "evaluators.id"],
-            ondelete="CASCADE",
-        ),
-    )
-    op.create_table(
         "dataset_evaluators",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
@@ -272,7 +248,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("builtin_evaluators")
     op.drop_table("dataset_evaluators")
-    op.drop_table("code_evaluators")
     op.drop_table("llm_evaluators")
     op.drop_table("evaluators")
     op.drop_table("generative_model_custom_providers")

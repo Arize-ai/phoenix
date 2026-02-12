@@ -744,7 +744,6 @@ def create_graphql_router(
                     db
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
-                code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
                 dataset_evaluator_fields=TableFieldsDataLoader(db, models.DatasetEvaluators),
                 dataset_evaluators_by_evaluator=DatasetEvaluatorsByEvaluatorDataLoader(db),
                 dataset_evaluators_by_id=DatasetEvaluatorsByIdDataLoader(db),

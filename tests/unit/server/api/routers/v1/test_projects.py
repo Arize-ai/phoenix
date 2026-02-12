@@ -793,17 +793,20 @@ class TestProjects:
             session.add(dataset)
             await session.flush()
 
-            code_evaluator = models.CodeEvaluator(
+            builtin_evaluator = models.BuiltinEvaluator(
                 name=Identifier(root="test-evaluator"),
                 description="Test evaluator",
                 metadata_={},
+                key="test-key",
+                input_schema={},
+                output_configs=[],
             )
-            session.add(code_evaluator)
+            session.add(builtin_evaluator)
             await session.flush()
 
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset.id,
-                evaluator_id=code_evaluator.id,
+                evaluator_id=builtin_evaluator.id,
                 name=Identifier(root="test-dataset-evaluator"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 project_id=dataset_evaluator_project.id,

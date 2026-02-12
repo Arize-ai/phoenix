@@ -2313,29 +2313,6 @@ class LLMEvaluator(Evaluator):
     )
 
 
-class CodeEvaluator(Evaluator):
-    __tablename__ = "code_evaluators"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    kind: Mapped[Literal["CODE"]] = mapped_column(
-        CheckConstraint("kind = 'CODE'", name="valid_evaluator_kind"),
-        server_default="CODE",
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-    __mapper_args__ = {
-        "polymorphic_identity": "CODE",
-    }
-    __table_args__ = (  # type: ignore[assignment]
-        ForeignKeyConstraint(
-            ["kind", "id"],
-            ["evaluators.kind", "evaluators.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-
 class BuiltinEvaluator(Evaluator):
     """
     Database reflection of the in-memory builtin evaluator registry.

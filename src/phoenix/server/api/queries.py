@@ -87,7 +87,6 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
-    CodeEvaluator,
     DatasetEvaluator,
     Evaluator,
     LLMEvaluator,
@@ -1203,8 +1202,6 @@ class Query:
             return GenerativeModel(id=node_id)
         elif type_name == LLMEvaluator.__name__:
             return LLMEvaluator(id=node_id)
-        elif type_name == CodeEvaluator.__name__:
-            return CodeEvaluator(id=node_id)
         elif type_name == BuiltInEvaluator.__name__:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
@@ -1371,7 +1368,7 @@ class Query:
         # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
         # base `evaluators` table.
         PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+            models.Evaluator, [models.LLMEvaluator, models.BuiltinEvaluator]
         )  # eagerly join sub-classed evaluator tables
 
         has_dataset_association = exists(
@@ -1414,7 +1411,6 @@ class Query:
                 # this special case can be removed if we add updated_at to the base table
                 sort_col = case(
                     (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
-                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
                     (PolymorphicEvaluator.kind == "BUILTIN", models.BuiltinEvaluator.synced_at),
                     else_=None,
                 )
@@ -1430,8 +1426,6 @@ class Query:
         for evaluator in evaluators:
             if isinstance(evaluator, models.LLMEvaluator):
                 data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
-            elif isinstance(evaluator, models.CodeEvaluator):
-                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
             elif isinstance(evaluator, models.BuiltinEvaluator):
                 data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
             else:

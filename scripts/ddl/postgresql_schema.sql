@@ -707,21 +707,6 @@ CREATE TABLE public.builtin_evaluators (
 );
 
 
--- Table: code_evaluators
--- ----------------------
-CREATE TABLE public.code_evaluators (
-    id BIGINT NOT NULL,
-    kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
-    CHECK (((kind)::text = 'CODE'::text)),
-    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
-        (kind, id)
-        REFERENCES public.evaluators (kind, id)
-        ON DELETE CASCADE
-);
-
-
 -- Table: dataset_evaluators
 -- -------------------------
 CREATE TABLE public.dataset_evaluators (

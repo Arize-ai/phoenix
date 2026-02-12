@@ -513,7 +513,7 @@ class Dataset(Node):
         )
 
         PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+            models.Evaluator, [models.LLMEvaluator, models.BuiltinEvaluator]
         )
         stmt = (
             select(models.DatasetEvaluators)

@@ -45,7 +45,6 @@ if TYPE_CHECKING:
 @strawberry.enum
 class EvaluatorKind(Enum):
     LLM = "LLM"
-    CODE = "CODE"
     BUILTIN = "BUILTIN"
 
 
@@ -121,111 +120,6 @@ class Evaluator(Node):
             await info.context.data_loaders.dataset_evaluators_by_evaluator.load(self.id)
         )
         return [DatasetEvaluator(id=de.id, db_record=de) for de in dataset_evaluator_records]
-
-
-@strawberry.type
-class CodeEvaluator(Evaluator, Node):
-    # TODO: This is a stub for development purposes; remove before product release
-    id: NodeID[int]
-    db_record: strawberry.Private[Optional[models.CodeEvaluator]] = None
-
-    def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.id:
-            raise ValueError("Evaluator ID mismatch")
-
-    @strawberry.field
-    async def name(
-        self,
-        info: Info[Context, None],
-    ) -> Identifier:
-        if self.db_record:
-            val = self.db_record.name
-        else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.name),
-            )
-        return val.root if val else ""
-
-    @strawberry.field
-    async def description(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[str]:
-        if self.db_record:
-            val = self.db_record.description
-        else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.description),
-            )
-        return val
-
-    @strawberry.field
-    async def metadata(
-        self,
-        info: Info[Context, None],
-    ) -> JSON:
-        if self.db_record:
-            val = self.db_record.metadata_
-        else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.metadata_),
-            )
-        return val
-
-    @strawberry.field
-    async def kind(
-        self,
-        info: Info[Context, None],
-    ) -> EvaluatorKind:
-        return EvaluatorKind.CODE
-
-    @strawberry.field
-    async def created_at(
-        self,
-        info: Info[Context, None],
-    ) -> datetime:
-        if self.db_record:
-            val = self.db_record.created_at
-        else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.created_at),
-            )
-        return val
-
-    @strawberry.field
-    async def updated_at(
-        self,
-        info: Info[Context, None],
-    ) -> datetime:
-        if self.db_record:
-            val = self.db_record.updated_at
-        else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.updated_at),
-            )
-        return val
-
-    @strawberry.field
-    async def input_schema(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[JSON]: ...  # TODO: Implement
-
-    @strawberry.field
-    async def user(
-        self, info: Info[Context, None]
-    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
-        if self.db_record:
-            user_id = self.db_record.user_id
-        else:
-            user_id = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.Evaluator.user_id),
-            )
-        if user_id is None:
-            return None
-        from .User import User
-
-        return User(id=user_id)
 
 
 @strawberry.type
@@ -669,8 +563,6 @@ class DatasetEvaluator(Node):
                 raise NotFound(f"Evaluator not found: {record.evaluator_id}")
             if isinstance(evaluator, models.LLMEvaluator):
                 return LLMEvaluator(id=evaluator.id)
-            elif isinstance(evaluator, models.CodeEvaluator):
-                return CodeEvaluator(id=evaluator.id)
             elif isinstance(evaluator, models.BuiltinEvaluator):
                 return BuiltInEvaluator(id=evaluator.id)
             else:
@@ -699,8 +591,6 @@ class DatasetEvaluator(Node):
                 builtin = get_builtin_evaluator_by_key(evaluator.key)
                 return builtin.description if builtin else None
             elif isinstance(evaluator, models.LLMEvaluator):
-                return evaluator.description
-            elif isinstance(evaluator, models.CodeEvaluator):
                 return evaluator.description
             return None
 
