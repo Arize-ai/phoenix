@@ -20,9 +20,18 @@ Phoenix supports two workflows for experiments. Use the Playground UI to iterate
 
 Make sure you have the Phoenix client and the instrumentors needed for the experiment setup. For this example we will use the OpenAI instrumentor to trace the LLM calls.
 
+<Tabs>
+<Tab title="Python" icon="python">
 ```sh
 pip install arize-phoenix-client arize-phoenix-otel openinference-instrumentation-openai openai datasets duckdb pandas
 ```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```sh
+npm install @arizeai/phoenix-client
+```
+</Tab>
+</Tabs>
 
 The key steps of running an experiment are:
 
@@ -216,6 +225,8 @@ OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
 Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix:
 
+<Tabs>
+<Tab title="Python" icon="python">
 ```python
 experiment = client.experiments.run_experiment(
     dataset=dataset,
@@ -223,6 +234,61 @@ experiment = client.experiments.run_experiment(
     evaluators=[no_error, has_results]
 )
 ```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import { asExperimentEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
+import type { EvaluatorParams } from "@arizeai/phoenix-client/types/experiments";
+
+const { datasetId } = await createDataset({
+  name: "names-dataset",
+  description: "a simple dataset of names",
+  examples: [
+    { input: { name: "John" }, output: { text: "Hello, John!" }, metadata: {} },
+    { input: { name: "Jane" }, output: { text: "Hello, Jane!" }, metadata: {} },
+  ],
+});
+
+const task = async (example) => `hello ${example.input.name}`;
+
+const evaluators = [
+  asExperimentEvaluator({
+    name: "matches",
+    kind: "CODE",
+    evaluate: async ({ output, expected }: EvaluatorParams) => {
+      const matches = output === expected?.text;
+      return {
+        label: matches ? "matches" : "does not match",
+        score: matches ? 1 : 0,
+        explanation: matches ? "output matches expected" : "output does not match expected",
+        metadata: {},
+      };
+    },
+  }),
+  asExperimentEvaluator({
+    name: "contains-hello",
+    kind: "CODE",
+    evaluate: async ({ output }: EvaluatorParams) => {
+      const matches = typeof output === "string" && output.includes("hello");
+      return {
+        label: matches ? "contains hello" : "does not contain hello",
+        score: matches ? 1 : 0,
+        explanation: matches ? "output contains hello" : "output does not contain hello",
+        metadata: {},
+      };
+    },
+  }),
+];
+
+const experiment = await runExperiment({
+  dataset: { datasetId },
+  task,
+  evaluators,
+});
+```
+</Tab>
+</Tabs>
 
 ### Add More Evaluations
 
