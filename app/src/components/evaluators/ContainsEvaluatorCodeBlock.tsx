@@ -11,6 +11,8 @@ def contains(
   require_all: bool = False,
 ) -> bool:
   words = [word.strip() for word in words.split(",") if word.strip()]
+  if not words:
+    return False
   match_fn = all if require_all else any
   if case_sensitive:
     return match_fn(word in text for word in words)
@@ -26,6 +28,7 @@ function contains(
   requireAll: boolean = false,
 ): boolean {
   const wordList = words.split(",").map((w) => w.trim()).filter(Boolean);
+  if (wordList.length === 0) return false;
   const matchFn = requireAll ? wordList.every.bind(wordList) : wordList.some.bind(wordList);
   if (caseSensitive) {
     return matchFn((word) => text.includes(word));
