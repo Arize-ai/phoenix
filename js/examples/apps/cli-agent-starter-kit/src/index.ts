@@ -15,7 +15,8 @@ async function main() {
   try {
     const { text } = await generateText({
       model: anthropic("claude-sonnet-4-20250514"),
-      prompt: "Say hello and introduce yourself as a CLI agent in one sentence.",
+      prompt:
+        "Say hello and introduce yourself as a CLI agent in one sentence.",
     });
 
     console.log("Response from Claude:");
