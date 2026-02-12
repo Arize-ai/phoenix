@@ -10,15 +10,13 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
+import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import type { OpenAIApiType } from "@phoenix/store";
 
 const API_TYPE_OPTIONS: { id: OpenAIApiType; label: string }[] = [
   { id: "CHAT_COMPLETIONS", label: "Chat Completions" },
   { id: "RESPONSES", label: "Responses" },
 ];
-
-const DEFAULT_API_TYPE: OpenAIApiType = "CHAT_COMPLETIONS";
 
 function getApiTypeLabel(apiType: OpenAIApiType): string {
   return API_TYPE_OPTIONS.find((opt) => opt.id === apiType)?.label ?? apiType;
@@ -27,7 +25,7 @@ function getApiTypeLabel(apiType: OpenAIApiType): string {
 export type OpenAIApiTypeConfigFormFieldProps = {
   playgroundInstanceId: number;
   /**
-   * When true, shows only the fixed default "Responses" as static text (not editable).
+   * When true, shows only the fixed default API type as static text (not editable).
    * Does not read from instance/model or localStorage — used when ephemeral routing is disabled.
    */
   displayDefaultOnly?: boolean;
@@ -50,17 +48,17 @@ export function OpenAIApiTypeConfigFormField({
     return null;
   }
 
-  // When ephemeral routing is disabled: always show RESPONSES, never use stored value
+  // When ephemeral routing is disabled: always show the default API type, never use stored value
   if (displayDefaultOnly) {
     return (
       <Flex direction="column" gap="size-50">
         <Label>API Type</Label>
-        <Text size="S">{getApiTypeLabel(DEFAULT_API_TYPE)}</Text>
+        <Text size="S">{getApiTypeLabel(DEFAULT_OPENAI_API_TYPE)}</Text>
       </Flex>
     );
   }
 
-  const value = instance.model.openaiApiType ?? DEFAULT_API_TYPE;
+  const value = instance.model.openaiApiType ?? DEFAULT_OPENAI_API_TYPE;
 
   return (
     <Select
