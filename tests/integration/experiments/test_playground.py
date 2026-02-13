@@ -180,6 +180,18 @@ async def _run_subscription_with_evaluators(
                     },
                 },
                 {
+                    "id": evaluators.openai_responses,
+                    "name": "openai_responses_eval",
+                    "inputMapping": {
+                        "pathMapping": {
+                            "input": "$.input",
+                            "output": "$.output",
+                            "reference": "$.reference",
+                        },
+                        "literalMapping": {},
+                    },
+                },
+                {
                     "id": evaluators.anthropic,
                     "name": "anthropic_eval",
                     "inputMapping": {
@@ -433,15 +445,21 @@ class TestChatCompletionOverDataset:
                     f"Total token count for trace should be > 0, got {total_tokens}"
                 )
 
-                # Verify we have 4 annotations (one per evaluator)
+                # Verify we have 5 annotations (one per evaluator)
                 annotations = run_node["annotations"]["edges"]
-                assert len(annotations) == 4, (
-                    f"Expected 4 annotations per run, got {len(annotations)}"
+                assert len(annotations) == 5, (
+                    f"Expected 5 annotations per run, got {len(annotations)}"
                 )
 
-                # Verify we have annotations from all 4 evaluators
+                # Verify we have annotations from all 5 evaluators
                 annotation_names = {ann["node"]["name"] for ann in annotations}
-                expected_names = {"openai_eval", "anthropic_eval", "google_eval", "bedrock_eval"}
+                expected_names = {
+                    "openai_eval",
+                    "openai_responses_eval",
+                    "anthropic_eval",
+                    "google_eval",
+                    "bedrock_eval",
+                }
                 assert annotation_names == expected_names, (
                     f"Expected annotations {expected_names}, got {annotation_names}"
                 )
@@ -486,6 +504,7 @@ class TestChatCompletionOverDataset:
         "provider_key,model_name,invocation_params",
         [
             pytest.param("openai", "gpt-4o-mini", [], id="openai"),
+            pytest.param("openai_responses", "gpt-4o-mini", [], id="openai_responses"),
             pytest.param(
                 "anthropic",
                 "claude-3-5-sonnet-latest",
