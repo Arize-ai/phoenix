@@ -1040,7 +1040,6 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
-    graphql_schema: Optional[strawberry.Schema] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     if model.embedding_dimensions:
@@ -1139,12 +1138,9 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
-
-    if graphql_schema is None:
-        graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
-        graphql_schema=graphql_schema,
+        graphql_schema=build_graphql_schema(graphql_schema_extensions),
         model=model,
         corpus=corpus,
         authentication_enabled=authentication_enabled,
