@@ -48,6 +48,7 @@ interface TokenProps
 
 const tokenBaseCSS = css`
   --ac-token-max-width: var(--ac-global-dimension-size-2000);
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: var(--ac-global-dimension-static-size-100);

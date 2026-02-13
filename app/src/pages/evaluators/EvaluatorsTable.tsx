@@ -1,4 +1,4 @@
-import {
+import React, {
   startTransition,
   useCallback,
   useEffect,
@@ -262,6 +262,7 @@ export const EvaluatorsTable = ({
           </Flex>
         ),
         accessorKey: "name",
+        size: 200,
         cell: ({ row }) => {
           const name = row.original.data.name;
           return (
@@ -291,7 +292,7 @@ export const EvaluatorsTable = ({
       {
         header: "kind",
         accessorKey: "kind",
-        size: 80,
+        size: 60,
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
             return <EvaluatorKindToken kind={row.original.data.kind} />;
@@ -316,6 +317,7 @@ export const EvaluatorsTable = ({
       {
         header: "prompt",
         accessorKey: "prompt",
+        size: 180,
         enableSorting: false,
         cell: ({ row }) => {
           // TODO: should dataset evaluators have a prompt?
@@ -334,6 +336,7 @@ export const EvaluatorsTable = ({
       {
         header: "model",
         accessorKey: "model",
+        size: 180,
         enableSorting: false,
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
@@ -351,7 +354,9 @@ export const EvaluatorsTable = ({
                     height={16}
                   />
                 )}
-                <Text>{modelName}</Text>
+                <Text minWidth={0}>
+                  <Truncate>{modelName}</Truncate>
+                </Text>
               </Flex>
             );
           }
@@ -361,6 +366,7 @@ export const EvaluatorsTable = ({
       {
         header: "used in",
         accessorKey: "datasets",
+        size: 160,
         enableSorting: false,
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
@@ -388,6 +394,7 @@ export const EvaluatorsTable = ({
       {
         header: "last modified by",
         accessorKey: "user",
+        size: 160,
         enableSorting: false,
         cell: ({ row }) => {
           const user = row.original.data.user;
@@ -410,13 +417,13 @@ export const EvaluatorsTable = ({
         header: "last updated",
         id: "updatedAt",
         accessorFn: (row) => row.data.updatedAt,
+        size: 160,
         cell: TimestampCell,
       },
     ];
     return cols;
   }, []);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -435,6 +442,28 @@ export const EvaluatorsTable = ({
     onExpandedChange: setExpanded,
     getRowId: (row) => row.data.id,
   });
+
+  const getFlatHeaders = table.getFlatHeaders;
+  /**
+   * Calculate all column sizes at once at the root table level
+   * and pass them down as CSS variables to the <table> element.
+   * This avoids calling `column.getSize()` on every render for every cell.
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columns]);
+
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null
   ) => {
@@ -484,7 +513,14 @@ export const EvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table
+        css={tableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -493,7 +529,7 @@ export const EvaluatorsTable = ({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
-                    minWidth: header.column.columnDef.size,
+                    width: `calc(var(--header-${header.id}-size) * 1px)`,
                   }}
                 >
                   {header.isPlaceholder ? null : (
@@ -552,14 +588,26 @@ export const EvaluatorsTable = ({
                   }
                 }}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    align={cell.column.columnDef.meta?.textAlign}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const colSizeVar = `--col-${cell.column.id}-size`;
+                  return (
+                    <td
+                      key={cell.id}
+                      style={{
+                        width: `calc(var(${colSizeVar}) * 1px)`,
+                        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

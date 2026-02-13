@@ -8,6 +8,9 @@ export function Link(props: LinkProps) {
       onClick={(e) => e.stopPropagation()}
       css={css`
         display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
       `}
     >
       <RouterLink

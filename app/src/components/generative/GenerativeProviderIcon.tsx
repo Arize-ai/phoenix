@@ -1,5 +1,11 @@
 "use no memo";
 import React from "react";
+import { css } from "@emotion/react";
+
+const iconWrapCSS = css`
+  display: inline-flex;
+  flex-shrink: 0;
+`;
 
 /**
  * Icons from https://icons.lobehub.com/
@@ -171,5 +177,5 @@ export function GenerativeProviderIcon({
   provider,
   height = 18,
 }: GenerativeProviderIconProps) {
-  return PROVIDER_ICONS[provider]({ height });
+  return <span css={iconWrapCSS}>{PROVIDER_ICONS[provider]({ height })}</span>;
 }
