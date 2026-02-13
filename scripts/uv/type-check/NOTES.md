@@ -36,3 +36,8 @@ src/phoenix/db/insertion/document_annotation.py
 Used `cast` in the `_select_existing` method to fix return type mismatch. The issue is that ty loses type information when accessing CTE columns via `.c.column_name.label()` (inferring them as `Any`) and doesn't recognize that columns from the right side of an outer join should be nullable. The method returns a SQLAlchemy Select statement with expected type `Select[_Existing]` where `_Existing` is `tuple[int, str, int, int | None, str | None, int | None, str | None, datetime | None]`, but ty infers `Select[tuple[Any, Any, Any, int, str, int, str, datetime]]`. The cast is safe because the actual runtime types match the expected types - the CTE columns are properly typed in the database schema, and the outer join does make the annotation columns nullable at runtime.
 
 
+src/phoenix/db/insertion/span_annotation.py
+
+Used `cast` in the `_select_existing` method to fix return type mismatch. Similar to `document_annotation.py`, ty loses type information when accessing CTE columns via `.c.column_name.label()` (inferring them as `Any`) and doesn't recognize that columns from the right side of an outer join should be nullable. The method returns a SQLAlchemy Select statement with expected type `Select[_Existing]` where `_Existing` is `tuple[int, str, int | None, str | None, str | None, datetime | None]`, but ty infers `Select[tuple[Any, Any, int, str, str, datetime]]`. The cast is safe because the actual runtime types match the expected types - the CTE columns are properly typed in the database schema, and the outer join does make the annotation columns nullable at runtime.
+
+

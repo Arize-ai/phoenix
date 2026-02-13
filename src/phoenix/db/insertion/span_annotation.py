@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, cast
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -138,14 +138,17 @@ class SpanAnnotationQueueInserter(
             anno.name.in_({k.annotation_name for k in keys}),
             tuple_(anno.name, anno.identifier, span.c.span_id).in_(keys),
         )
-        return select(
-            span.c.id.label("span_rowid"),
-            span.c.span_id,
-            anno.id,
-            anno.name,
-            anno.identifier,
-            anno.updated_at,
-        ).outerjoin_from(span, anno, onclause)
+        return cast(
+            Select[_Existing],
+            select(
+                span.c.id.label("span_rowid"),
+                span.c.span_id,
+                anno.id,
+                anno.name,
+                anno.identifier,
+                anno.updated_at,
+            ).outerjoin_from(span, anno, onclause),
+        )
 
 
 class _SpanAttr(NamedTuple):
