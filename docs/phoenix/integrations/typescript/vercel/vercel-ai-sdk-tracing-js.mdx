@@ -167,54 +167,11 @@ For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry document
   <iframe src="https://cdn.iframe.ly/ry2U623" width={1000} height={400} allowFullScreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"></iframe>
 </Frame>
 
-### Choosing a Span Processor
+<Note>
+Spans may not be exported if still queued in the processor when your process exits. Use `OpenInferenceSimpleSpanProcessor` for immediate export, or call `provider.shutdown()` to explicitly flush spans before exit when using `OpenInferenceBatchSpanProcessor`.
 
-For short-lived processes (scripts, batch jobs, tests), choose the appropriate span processor:
-
-**Use `OpenInferenceSimpleSpanProcessor` for simplicity** (exports immediately, no shutdown needed):
-
-```typescript
-import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
-
-export const provider = new NodeTracerProvider({
-  spanProcessors: [
-    new OpenInferenceSimpleSpanProcessor({
-      exporter: new OTLPTraceExporter({
-        url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
-      }),
-    }),
-  ],
-});
-```
-
-**Use `OpenInferenceBatchSpanProcessor` for production** (better performance, requires shutdown):
-
-```typescript
-import { OpenInferenceBatchSpanProcessor } from "@arizeai/openinference-vercel";
-
-export const provider = new NodeTracerProvider({
-  spanProcessors: [
-    new OpenInferenceBatchSpanProcessor({
-      exporter: new OTLPTraceExporter({
-        url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
-      }),
-    }),
-  ],
-});
-
-// Must call provider.shutdown() before process exit
-export async function shutdownTracing() {
-  await provider.shutdown();
-}
-```
-
-<Warning>
-When using `OpenInferenceBatchSpanProcessor`, you **must** call `provider.shutdown()` before your process exits to flush queued spans. See the [Phoenix OTEL Setup Guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel#flushing-spans-before-exit) for complete patterns.
-</Warning>
-
-<Tip>
-For automatic shutdown handling and simpler configuration, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) instead of manual OpenTelemetry setup.
-</Tip>
+For simpler setup, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) which handles this automatically.
+</Note>
 
 ### Examples
 

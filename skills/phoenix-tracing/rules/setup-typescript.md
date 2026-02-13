@@ -96,9 +96,7 @@ const app = express();
 
 ## Flushing Spans Before Exit
 
-**CRITICAL for short-lived processes:** Must call `provider.shutdown()` before exit to flush batched spans.
-
-Batch processors queue spans and export periodically. Processes that exit quickly (scripts, tests, batch jobs) don't run long enough for the export cycle, so spans are lost without explicit shutdown.
+**CRITICAL:** Spans may not be exported if still queued in the processor when your process exits. Call `provider.shutdown()` to explicitly flush before exit.
 
 **Standard pattern:**
 
@@ -120,17 +118,17 @@ main().catch(async (error) => {
 });
 ```
 
-**Alternative for scripts that don't need batching:**
+**Alternative:**
 
 ```typescript
-// No shutdown needed - spans export immediately
+// Use batch: false for immediate export (no shutdown needed)
 register({
   projectName: "my-app",
   batch: false,
 });
 ```
 
-For production patterns including long-lived processes, see `production-typescript.md`.
+For production patterns including graceful termination, see `production-typescript.md`.
 
 ## Verification
 
@@ -155,12 +153,11 @@ register({
 - Verify `PHOENIX_COLLECTOR_ENDPOINT` is correct
 - Set `PHOENIX_API_KEY` for Phoenix Cloud
 - For ESM: Ensure `manuallyInstrument()` is called
-- **Short-lived processes:** Call `provider.shutdown()` before exit (see Flushing Spans section)
+- **With `batch: true`:** Call `provider.shutdown()` before exit to flush queued spans (see Flushing Spans section)
 
-**Traces not appearing for scripts/batch jobs:**
-- With `batch: true`: Must call `await provider.shutdown()` before process exit
-- Quick fix: Set `batch: false` for immediate export (no shutdown needed)
-- Long-lived processes: Use `batch: true` (better performance)
+**Traces missing:**
+- With `batch: true`: Call `await provider.shutdown()` before process exit to flush queued spans
+- Alternative: Set `batch: false` for immediate export (no shutdown needed)
 
 **Missing attributes:**
 - Check instrumentation is registered (ESM requires manual setup)

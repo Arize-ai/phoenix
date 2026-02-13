@@ -25,10 +25,10 @@ const provider = register({
 
 ### Shutdown Handling
 
-**CRITICAL for short-lived processes:** Must call `provider.shutdown()` before exit to flush batched spans.
+**CRITICAL:** Spans may not be exported if still queued in the processor when your process exits. Call `provider.shutdown()` to explicitly flush before exit.
 
 ```typescript
-// Short-lived processes - explicit shutdown required
+// Explicit shutdown to flush queued spans
 const provider = register({
   projectName: "my-app",
   batch: true,
@@ -46,7 +46,7 @@ main().catch(async (error) => {
 });
 ```
 
-**Long-lived processes:** Shutdown on graceful termination signals.
+**Graceful termination signals:**
 
 ```typescript
 // Graceful shutdown on SIGTERM
@@ -138,8 +138,8 @@ try {
 ## Production Checklist
 
 - [ ] Batch processing enabled
-- [ ] **Shutdown handling:** Short-lived processes call `provider.shutdown()` before exit
-- [ ] **Graceful termination:** Long-lived processes flush spans on SIGTERM/SIGINT
+- [ ] **Shutdown handling:** Call `provider.shutdown()` before exit to flush queued spans
+- [ ] **Graceful termination:** Flush spans on SIGTERM/SIGINT signals
 - [ ] Data masking configured (`HIDE_INPUTS`/`HIDE_OUTPUTS` if PII)
 - [ ] Span filtering for health checks/noisy paths
 - [ ] Error handling implemented
