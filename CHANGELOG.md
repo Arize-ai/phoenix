@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.1...arize-phoenix-v13.0.2) (2026-02-13)
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 1.29.0 ([#11448](https://github.com/Arize-ai/phoenix/issues/11448)) ([74b3fcd](https://github.com/Arize-ai/phoenix/commit/74b3fcd6755cf8c1c64d6d86e1c5ca8680423a2b))
+
 ## [13.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.0...arize-phoenix-v13.0.1) (2026-02-13)
 
 
