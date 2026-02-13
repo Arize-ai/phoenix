@@ -16,7 +16,7 @@ class TestLoadSubstitutions:
     def test_load_substitutions_contains_expected_keys(self) -> None:
         """Test that the loaded substitutions contain the expected substitution names."""
         substitutions = load_substitutions()
-        assert "available_tools_descriptions" in substitutions
+        assert "available_tools_list" in substitutions
         assert "tool_calls_to_string" in substitutions
 
 
@@ -105,14 +105,14 @@ class TestExpandConfigTemplates:
             optimization_direction="maximize",
             messages=[PromptMessage(role="user", content="Tools: {{available_tools}}")],
             choices={"yes": 1.0, "no": 0.0},
-            substitutions={"available_tools": "available_tools_descriptions"},
+            substitutions={"available_tools": "available_tools_list"},
         )
 
         expanded = expand_config_templates(config)
 
         # The placeholder should be expanded to the full Mustache block
         assert "{{#output.available_tools}}" in expanded.messages[0].content
-        assert "{{function.name}}" in expanded.messages[0].content
+        assert "{{{.}}}" in expanded.messages[0].content
 
     def test_expand_config_without_substitutions_unchanged(self) -> None:
         """Test that configs without substitutions are returned unchanged."""
@@ -149,7 +149,7 @@ class TestClassificationEvaluatorConfigsLoading:
         # The available_tools placeholder should be expanded
         content = tool_sel.messages[0].content
         assert "{{#output.available_tools}}" in content
-        assert "{{function.name}}" in content
+        assert "{{{.}}}" in content
         assert "{{^output.available_tools}}" in content
 
     def test_non_tool_configs_unchanged(self) -> None:
