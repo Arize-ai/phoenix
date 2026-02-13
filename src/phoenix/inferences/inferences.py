@@ -560,7 +560,7 @@ def _discover_feature_columns(
             logger.debug(f"excluded feature: {column_name}")
     original_column_positions: list[int] = dataframe.columns.get_indexer(
         discovered_feature_column_names
-    )  # type: ignore
+    )
     feature_column_name_to_position: dict[str, int] = dict(
         zip(discovered_feature_column_names, original_column_positions)
     )
@@ -588,7 +588,7 @@ def _create_and_normalize_dataframe_and_schema(
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names].copy()
-    parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)  # type: ignore
+    parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)
     pred_id_col_name = parsed_schema.prediction_id_column_name
     if pred_id_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
@@ -686,13 +686,13 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
             from arize.ml.types import Schema as ArizeSchema
             from arize.ml.types import TypedColumns
         else:
-            from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
-                EmbeddingColumnNames as ArizeEmbeddingColumnNames,
+            from arize.utils.types import (
+                EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # type: ignore[unresolved-import]
             )
-            from arize.utils.types import (  # type: ignore[attr-defined,no-redef]
-                Schema as ArizeSchema,
+            from arize.utils.types import (
+                Schema as ArizeSchema,  # type: ignore[unresolved-import]
             )
-            from arize.utils.types import TypedColumns  # type: ignore[attr-defined,no-redef]
+            from arize.utils.types import TypedColumns  # type: ignore[unresolved-import]
 
         if not isinstance(schemaLike, ArizeSchema):
             raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
