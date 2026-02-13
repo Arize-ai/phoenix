@@ -261,19 +261,14 @@ class Explosion(_HasTmpSuffix, Projection):
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> "Explosion":
-        return cls(
-            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),  # type: ignore
-            **(
-                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}  # type: ignore
-                if (kwargs := obj.get("kwargs"))
-                else {}
-            ),
-            **(
-                {"primary_index_key": cast(str, primary_index_key)}  # type: ignore
-                if (primary_index_key := obj.get("primary_index_key"))
-                else {}
-            ),
-        )
+        kwargs_dict = {}
+        if key := obj.get("key"):
+            kwargs_dict["key"] = cast(str, key)
+        if kwargs := obj.get("kwargs"):
+            kwargs_dict["kwargs"] = MappingProxyType(dict(cast(Mapping[str, str], kwargs)))
+        if primary_index_key := obj.get("primary_index_key"):
+            kwargs_dict["primary_index_key"] = cast(str, primary_index_key)
+        return cls(**kwargs_dict)
 
 
 @dataclass(frozen=True)
@@ -407,19 +402,14 @@ class Concatenation(_HasTmpSuffix, Projection):
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> "Concatenation":
-        return cls(
-            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),  # type: ignore
-            **(
-                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}  # type: ignore
-                if (kwargs := obj.get("kwargs"))
-                else {}
-            ),
-            **(
-                {"separator": cast(str, separator)}  # type: ignore
-                if (separator := obj.get("separator"))
-                else {}
-            ),
-        )
+        kwargs_dict = {}
+        if key := obj.get("key"):
+            kwargs_dict["key"] = cast(str, key)
+        if kwargs := obj.get("kwargs"):
+            kwargs_dict["kwargs"] = MappingProxyType(dict(cast(Mapping[str, str], kwargs)))
+        if separator := obj.get("separator"):
+            kwargs_dict["separator"] = cast(str, separator)
+        return cls(**kwargs_dict)
 
 
 @dataclass(frozen=True)
@@ -674,52 +664,30 @@ class SpanQuery(_HasTmpSuffix):
         obj: Mapping[str, Any],
         valid_eval_names: Optional[Sequence[str]] = None,
     ) -> "SpanQuery":
-        return cls(
-            **(
+        kwargs_dict = {}
+        if select := obj.get("select"):
+            kwargs_dict["_select"] = MappingProxyType(
                 {
-                    "_select": MappingProxyType(
-                        {
-                            name: Projection.from_dict(proj)
-                            for name, proj in cast(Mapping[str, Any], select).items()
-                        }
-                    )
-                }  # type: ignore
-                if (select := obj.get("select"))
-                else {}
-            ),
-            **(
-                {
-                    "_filter": SpanFilter.from_dict(
-                        cast(Mapping[str, Any], filter),
-                        valid_eval_names=valid_eval_names,
-                    )
-                }  # type: ignore
-                if (filter := obj.get("filter"))
-                else {}
-            ),
-            **(
-                {"_explode": Explosion.from_dict(cast(Mapping[str, Any], explode))}  # type: ignore
-                if (explode := obj.get("explode"))
-                and explode.get("key")  # check `key` for backward-compatible truthiness
-                else {}
-            ),
-            **(
-                {"_concat": Concatenation.from_dict(cast(Mapping[str, Any], concat))}  # type: ignore
-                if (concat := obj.get("concat"))
-                and concat.get("key")  # check `key` for backward-compatible truthiness
-                else {}
-            ),
-            **(
-                {"_rename": MappingProxyType(dict(cast(Mapping[str, str], rename)))}  # type: ignore
-                if (rename := obj.get("rename"))
-                else {}
-            ),
-            **(
-                {"_index": Projection.from_dict(cast(Mapping[str, Any], index))}  # type: ignore
-                if (index := obj.get("index"))
-                else {}
-            ),
-        )
+                    name: Projection.from_dict(proj)
+                    for name, proj in cast(Mapping[str, Any], select).items()
+                }
+            )
+        if filter := obj.get("filter"):
+            kwargs_dict["_filter"] = SpanFilter.from_dict(
+                cast(Mapping[str, Any], filter),
+                valid_eval_names=valid_eval_names,
+            )
+        if (explode := obj.get("explode")) and explode.get("key"):
+            # check `key` for backward-compatible truthiness
+            kwargs_dict["_explode"] = Explosion.from_dict(cast(Mapping[str, Any], explode))
+        if (concat := obj.get("concat")) and concat.get("key"):
+            # check `key` for backward-compatible truthiness
+            kwargs_dict["_concat"] = Concatenation.from_dict(cast(Mapping[str, Any], concat))
+        if rename := obj.get("rename"):
+            kwargs_dict["_rename"] = MappingProxyType(dict(cast(Mapping[str, str], rename)))
+        if index := obj.get("index"):
+            kwargs_dict["_index"] = Projection.from_dict(cast(Mapping[str, Any], index))
+        return cls(**kwargs_dict)
 
 
 def _get_spans_dataframe(
