@@ -615,7 +615,6 @@ def _lifespan(
     read_only: bool = False,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
-    skip_daemons: Optional[set[str]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -623,7 +622,6 @@ def _lifespan(
             if isinstance((res := callback()), Awaitable):
                 await res
         db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
-        _skip = skip_daemons or set()
         async with AsyncExitStack() as stack:
             (
                 enqueue_annotations,
@@ -646,14 +644,11 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
-            if trace_data_sweeper and "TraceDataSweeper" not in _skip:
+            if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
-            if "SpanCostCalculator" not in _skip:
-                await stack.enter_async_context(span_cost_calculator)
-            if "GenerativeModelStore" not in _skip:
-                await stack.enter_async_context(generative_model_store)
-            if "DbDiskUsageMonitor" not in _skip:
-                await stack.enter_async_context(db_disk_usage_monitor)
+            await stack.enter_async_context(span_cost_calculator)
+            await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(db_disk_usage_monitor)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -1046,7 +1041,6 @@ def create_app(
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
     graphql_schema: Optional[strawberry.Schema] = None,
-    skip_daemons: Optional[set[str]] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     if model.embedding_dimensions:
@@ -1191,7 +1185,6 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
-            skip_daemons=skip_daemons,
         ),
         middleware=middlewares,
         exception_handlers={

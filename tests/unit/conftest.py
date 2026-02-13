@@ -14,6 +14,7 @@ import pytest
 import sqlalchemy
 import sqlean
 import strawberry
+from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
@@ -54,12 +55,13 @@ from tests.unit.transport import ASGIWebSocketTransport
 from tests.unit.vcr import CustomVCR
 
 
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    if "dialect" in metafunc.fixturenames:
-        dialects = ["sqlite"]
-        if metafunc.config.getoption("--run-postgres"):
-            dialects.append("postgresql")
-        metafunc.parametrize("dialect", dialects, indirect=True)
+def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
+    skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
+    if not config.getoption("--run-postgres"):
+        for item in items:
+            if "dialect" in item.fixturenames:
+                if "postgresql" in item.callspec.params.values():
+                    item.add_marker(skip_postgres)
 
 
 @pytest.fixture
@@ -154,7 +156,7 @@ async def postgresql_engine(
     janitor.drop()
 
 
-@pytest.fixture
+@pytest.fixture(params=["sqlite", "postgresql"])
 def dialect(request: SubRequest) -> str:
     return str(request.param)
 
@@ -308,11 +310,6 @@ async def app(
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
             graphql_schema=_graphql_schema,
-            skip_daemons={
-                "SpanCostCalculator",
-                "GenerativeModelStore",
-                "DbDiskUsageMonitor",
-            },
         )
 
 
