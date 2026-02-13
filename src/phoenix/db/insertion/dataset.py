@@ -109,10 +109,10 @@ class RevisionKind(Enum):
     DELETE = "DELETE"
 
     @classmethod
-    def _missing_(cls, v: Any) -> "RevisionKind":
-        if isinstance(v, str) and v and v.isascii() and not v.isupper():
-            return cls(v.upper())
-        raise ValueError(f"Invalid revision kind: {v}")
+    def _missing_(cls, value: object) -> "RevisionKind":
+        if isinstance(value, str) and value and value.isascii() and not value.isupper():
+            return cls(value.upper())
+        raise ValueError(f"Invalid revision kind: {value}")
 
 
 async def insert_dataset_example_revision(
@@ -272,10 +272,10 @@ class DatasetAction(Enum):
     APPEND = "append"
 
     @classmethod
-    def _missing_(cls, v: Any) -> "DatasetAction":
-        if isinstance(v, str) and v and v.isascii() and not v.islower():
-            return cls(v.lower())
-        raise ValueError(f"Invalid dateset action: {v}")
+    def _missing_(cls, value: object) -> "DatasetAction":
+        if isinstance(value, str) and value and value.isascii() and not value.islower():
+            return cls(value.lower())
+        raise ValueError(f"Invalid dateset action: {value}")
 
 
 async def add_dataset_examples(
