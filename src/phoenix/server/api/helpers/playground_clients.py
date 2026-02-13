@@ -1454,16 +1454,13 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     pass
 
 
-OPENAI_RESPONSES_API_MODELS = [
+OPENAI_REASONING_MODELS = [
     "gpt-5.2",
     "gpt-5.2-2025-12-11",
     "gpt-5.2-chat-latest",
     "gpt-5.1",
     "gpt-5.1-2025-11-13",
     "gpt-5.1-chat-latest",
-]
-
-OPENAI_CHAT_COMPLETIONS_API_MODELS = [
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -1526,7 +1523,9 @@ class OpenAIReasoningReasoningModelsMixin:
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_RESPONSES_API_MODELS,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
 )
 class OpenAIResponsesAPIStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1556,7 +1555,7 @@ class OpenAIResponsesAPIStreamingClient(
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_CHAT_COMPLETIONS_API_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1639,7 +1638,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_RESPONSES_API_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIResponsesAPIStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1669,7 +1668,7 @@ class AzureOpenAIResponsesAPIStreamingClient(
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_CHAT_COMPLETIONS_API_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -2513,6 +2512,12 @@ async def _get_builtin_provider_client(
         client_factory: ClientFactory = create_openai_client
         api_type = obj.openai_api_type
         if api_type is OpenAIApiType.CHAT_COMPLETIONS:
+            if model_name in OPENAI_REASONING_MODELS:
+                return OpenAIReasoningNonStreamingClient(
+                    client_factory=client_factory,
+                    model_name=model_name,
+                    provider=provider,
+                )
             return OpenAIStreamingClient(
                 client_factory=client_factory,
                 model_name=model_name,
@@ -2585,6 +2590,12 @@ async def _get_builtin_provider_client(
             client_factory = create_client_with_token
         api_type = obj.openai_api_type
         if api_type is OpenAIApiType.CHAT_COMPLETIONS:
+            if model_name in OPENAI_REASONING_MODELS:
+                return AzureOpenAIReasoningNonStreamingClient(
+                    client_factory=client_factory,
+                    model_name=model_name,
+                    provider=provider,
+                )
             return AzureOpenAIStreamingClient(
                 client_factory=client_factory,
                 model_name=model_name,
