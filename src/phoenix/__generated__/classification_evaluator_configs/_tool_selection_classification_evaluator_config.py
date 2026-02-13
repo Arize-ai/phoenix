@@ -18,4 +18,5 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         "available_tools": "available_tools_descriptions",
         "tool_selection": "tool_calls_to_string",
     },
+    labels=["dataset"],
 )

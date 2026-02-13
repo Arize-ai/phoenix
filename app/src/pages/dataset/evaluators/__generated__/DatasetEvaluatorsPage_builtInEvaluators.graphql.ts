@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff61bc3943c555f880d4a9817bf4d714>>
+ * @generated SignedSource<<ab2d740cf72b5c53fa65ff7441a81b63>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -76,7 +76,13 @@ return {
     },
     {
       "alias": null,
-      "args": null,
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "label",
+          "value": "dataset"
+        }
+      ],
       "concreteType": "ClassificationEvaluatorConfig",
       "kind": "LinkedField",
       "name": "classificationEvaluatorConfigs",
@@ -161,7 +167,7 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": null
+      "storageKey": "classificationEvaluatorConfigs(label:\"dataset\")"
     }
   ],
   "type": "Query",
@@ -169,6 +175,6 @@ return {
 };
 })();
 
-(node as any).hash = "428f4cce6830e48bc4768a982271ea85";
+(node as any).hash = "2efca65262696f4f0055ebefe23f3df7";
 
 export default node;

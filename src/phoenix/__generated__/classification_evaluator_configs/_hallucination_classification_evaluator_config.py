@@ -15,4 +15,5 @@ HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     ],
     choices={"hallucinated": 1.0, "factual": 0.0},
     substitutions=None,
+    labels=[],
 )
