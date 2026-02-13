@@ -111,21 +111,20 @@ export function LLMDatasetEvaluatorDetails({
                         {outputConfig.optimizationDirection}
                       </Text>
                     )}
-                    {outputConfig.values &&
-                      outputConfig.values.length > 0 && (
-                        <Text>
-                          <Text size="S" weight="heavy">
-                            Values:{" "}
-                          </Text>
-                          {outputConfig.values.map((v, valIdx, arr) => (
-                            <Text key={valIdx} size="S">
-                              {v.label}
-                              {v.score != null ? ` (${v.score})` : ""}
-                              {valIdx < arr.length - 1 ? ", " : ""}
-                            </Text>
-                          ))}
+                    {outputConfig.values && outputConfig.values.length > 0 && (
+                      <Text>
+                        <Text size="S" weight="heavy">
+                          Values:{" "}
                         </Text>
-                      )}
+                        {outputConfig.values.map((v, valIdx, arr) => (
+                          <Text key={valIdx} size="S">
+                            {v.label}
+                            {v.score != null ? ` (${v.score})` : ""}
+                            {valIdx < arr.length - 1 ? ", " : ""}
+                          </Text>
+                        ))}
+                      </Text>
+                    )}
                     <Text size="S">
                       <Text weight="heavy">Explanations:</Text>{" "}
                       {includeExplanation ? "Enabled" : "Disabled"}
