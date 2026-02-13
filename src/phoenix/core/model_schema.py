@@ -542,7 +542,7 @@ class TimeRange(NamedTuple):
     stop: datetime
 
 
-class ModelData(ObjectProxy, ABC):  # type: ignore
+class ModelData(ObjectProxy, ABC):
     """pd.DataFrame or pd.Series wrapped with extra functions and metadata."""
 
     def __init__(
@@ -576,7 +576,7 @@ class EventId(NamedTuple):
     inferences_id: InferencesRole = PRIMARY
 
     def __str__(self) -> str:
-        return ":".join(map(str, self))
+        return ":".join(str(v) for v in self)
 
 
 class Event(ModelData):
@@ -761,7 +761,7 @@ class Model:
         object.__setattr__(
             self,
             "_dimension_categories_from_all_inferences",
-            _Cache[Name, "pd.Series[Any]"](),
+            _Cache[Name, tuple[str, ...]](),
         )
         object.__setattr__(
             self,
@@ -986,7 +986,8 @@ class Model:
             pd.Series(dim[role].unique()).dropna().astype(str) for role in InferencesRole
         )
         all_values_combined = chain.from_iterable(categories_by_dataset)
-        ans = tuple(np.sort(pd.Series(all_values_combined).unique()))
+        sorted_unique = np.sort(pd.Series(all_values_combined).unique())
+        ans: tuple[str, ...] = tuple(str(v) for v in sorted_unique)
         with self._dimension_categories_from_all_inferences() as cache:
             cache[dimension_name] = ans
         return ans
@@ -1434,7 +1435,7 @@ def _objectify(json_data: Any) -> Any:
     # Note that this looks only at the immediate subclasses.
     for cls in CompositeDimensionSpec.__subclasses__():
         try:
-            return cls(**json_data)  # type: ignore
+            return cls(**json_data)
         except TypeError:
             pass
     raise ValueError(f"invalid json data: {repr(json_data)}")
