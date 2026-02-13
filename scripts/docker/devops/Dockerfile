@@ -22,24 +22,35 @@ RUN pnpm build
 FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder
 WORKDIR /phoenix
 
-# Install uv early for faster Python package management
-RUN pip install uv
+# Install uv - pin version to match pyproject.toml [tool.uv] required-version
+RUN pip install uv==0.9.18
 
 # Copy dependency files first for better layer caching
-COPY ./pyproject.toml ./LICENSE ./IP_NOTICE ./README.md ./
+COPY ./pyproject.toml ./uv.lock ./LICENSE ./IP_NOTICE ./README.md ./
 
 # Copy only essential files needed for dependency resolution and version detection
 COPY ./src/phoenix/__init__.py ./src/phoenix/version.py ./src/phoenix/
 
 # Install dependencies first (this layer will be cached)
-RUN uv pip install --compile-bytecode --target ./env ".[container, pg]" debugpy
+# --no-sources ignores workspace member references that don't exist in Docker context
+RUN uv sync \
+  --no-dev \
+  --no-install-project \
+  --no-sources \
+  --extra container \
+  --extra pg
+
+# Install debugpy for development (not in pyproject.toml)
+RUN uv pip install debugpy
 
 # Copy actual source code (this layer changes more frequently)
 COPY ./src ./src
 
-# Reinstall Phoenix with the real source code (fast since deps are cached)
+# Build and install Phoenix with the real source code (fast since deps are cached)
+# Remove broken symlinks (workspace packages not in Docker context), then build a wheel
 RUN find src/ -xtype l -delete && \
-    uv pip install --target ./env --no-deps --force-reinstall "."
+    uv build && \
+    uv pip install dist/*.whl --no-deps
 
 # Stage 3: Runtime (combines everything)
 FROM python:${PYTHON_VERSION}-slim-bullseye AS runtime
@@ -56,21 +67,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --chmod=755 scripts/docker/devops/scripts/start-phoenix.sh /usr/local/bin/start-phoenix.sh
 
 # Copy Python environment
-COPY --from=backend-builder /phoenix/env ./env
+COPY --from=backend-builder /phoenix/.venv ./.venv
 
 # Copy built frontend from frontend builder to correct location  
-COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./env/phoenix/server/static/
+COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./.venv/lib/python3.13/site-packages/phoenix/server/static/
 
 # Environment setup
-ENV PYTHONPATH="/phoenix/env"
+ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages"
 ENV PYTHONUNBUFFERED=1
 
-# Set working directory for VS Code Remote
-WORKDIR /phoenix/env
-
 # Create VS Code configuration for debugging
-RUN mkdir -p /phoenix/env/phoenix/.vscode
-COPY scripts/docker/devops/vscode-config/launch.json /phoenix/env/phoenix/.vscode/launch.json
+RUN mkdir -p /phoenix/.venv/lib/python3.13/site-packages/phoenix/.vscode
+COPY scripts/docker/devops/vscode-config/launch.json /phoenix/.venv/lib/python3.13/site-packages/phoenix/.vscode/launch.json
 COPY scripts/docker/devops/vscode-config/phoenix-debug.code-workspace /root/phoenix-debug.code-workspace
 
 # Expose ports
