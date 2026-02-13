@@ -160,7 +160,7 @@ export function TraceLatencyPercentilesTimeSeries({
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData}
-        margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
         syncId={"projectMetrics"}
       >
         <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
@@ -171,12 +171,12 @@ export function TraceLatencyPercentilesTimeSeries({
           tickFormatter={(x) => timeTickFormatter(x)}
         />
         <YAxis
-          width={55}
+          width={70}
           tickFormatter={(x) => intFormatter(x)}
           label={{
             value: "Latency (s)",
             angle: -90,
-            dx: -20,
+            dx: -28,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",

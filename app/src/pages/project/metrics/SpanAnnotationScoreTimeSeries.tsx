@@ -160,7 +160,7 @@ export function SpanAnnotationScoreTimeSeries({
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
         data={chartData}
-        margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
         syncId={"projectMetrics"}
       >
         <XAxis
@@ -175,7 +175,7 @@ export function SpanAnnotationScoreTimeSeries({
           label={{
             value: "Score",
             angle: -90,
-            dx: -20,
+            dx: -28,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",
