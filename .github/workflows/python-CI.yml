@@ -427,7 +427,7 @@ jobs:
         run: uvx tox run -e type_check_unit_tests
 
   unit-tests:
-    name: Unit Tests (${{ matrix.py }})
+    name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
     runs-on: oss-4-core-runner
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' && github.event_name == 'pull_request' }}
@@ -435,6 +435,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.10", "3.13"]
+        db: [sqlite, postgresql]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -460,14 +461,20 @@ jobs:
             requirements/ci.txt
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install PostgreSQL (Linux)
+      - name: Install PostgreSQL
+        if: matrix.db == 'postgresql'
         run: sudo apt-get -yqq install postgresql
-      - name: Run tests with PostgreSQL (Linux)
+      - name: Run SQLite tests
+        if: matrix.db == 'sqlite'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --run-postgres -n 4 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 4 --dist loadscope
+      - name: Run PostgreSQL tests
+        if: matrix.db == 'postgresql'
+        timeout-minutes: 60
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --run-postgres --skip-sqlite -n 4 --dist loadscope
 
   unit-tests-all-platforms:
-    name: Unit Tests - All Platforms (${{ matrix.py }}, ${{ matrix.os }})
+    name: Unit Tests - All Platforms (${{ matrix.db }}, ${{ matrix.py }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' && (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'run-all-platforms')) }}
@@ -476,6 +483,12 @@ jobs:
       matrix:
         py: ["3.10", "3.13"]
         os: [oss-4-core-runner, windows-latest, macos-latest]
+        db: [sqlite, postgresql]
+        exclude:
+          - db: postgresql
+            os: windows-latest
+          - db: postgresql
+            os: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -501,17 +514,17 @@ jobs:
             requirements/ci.txt
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install PostgreSQL (Linux)
-        if: runner.os == 'Linux'
+      - name: Install PostgreSQL
+        if: matrix.db == 'postgresql'
         run: sudo apt-get -yqq install postgresql
-      - name: Run tests with PostgreSQL (Linux)
-        if: runner.os == 'Linux'
-        timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --run-postgres -n 4 --dist loadscope
-      - name: Run tests without PostgreSQL (non-Linux)
-        if: runner.os != 'Linux'
+      - name: Run SQLite tests
+        if: matrix.db == 'sqlite'
         timeout-minutes: 60
         run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 4 --dist loadscope
+      - name: Run PostgreSQL tests
+        if: matrix.db == 'postgresql'
+        timeout-minutes: 60
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --run-postgres --skip-sqlite -n 4 --dist loadscope
 
   type-check-integration-tests:
     name: Type Check Integration Tests

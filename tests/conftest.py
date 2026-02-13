@@ -12,3 +12,8 @@ def pytest_addoption(parser: Parser) -> None:
         action="store_true",
         help="Run tests that require Postgres",
     )
+    parser.addoption(
+        "--skip-sqlite",
+        action="store_true",
+        help="Skip SQLite tests (use with --run-postgres to run only Postgres tests)",
+    )
