@@ -899,6 +899,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(event.type)
 
         if completed_response is not None:
+            span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+            span.set_attribute(OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True))
             span.set_attributes(
                 dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
             )
