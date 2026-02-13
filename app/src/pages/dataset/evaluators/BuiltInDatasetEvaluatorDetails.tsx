@@ -228,18 +228,25 @@ export function BuiltInDatasetEvaluatorDetails({
 
   return (
     <>
-      <View padding="size-200" overflow="auto" maxWidth={1000}>
-        <Flex direction="column" gap="size-200">
-          <Section title="Input Mapping">
-            <DetailsComponent inputMapping={inputMapping} />
-          </Section>
-          <OutputConfigsSection configs={outputConfigs} />
-          {name === "json_distance" ? (
-            <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
-          ) : (
-            <CodeBlockComponent />
-          )}
-        </Flex>
+      <View overflow="auto">
+        <View
+          padding="size-200"
+          maxWidth={1000}
+          marginStart="auto"
+          marginEnd="auto"
+        >
+          <Flex direction="column" gap="size-200">
+            <Section title="Input Mapping">
+              <DetailsComponent inputMapping={inputMapping} />
+            </Section>
+            <OutputConfigsSection configs={outputConfigs} />
+            {name === "json_distance" ? (
+              <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
+            ) : (
+              <CodeBlockComponent />
+            )}
+          </Flex>
+        </View>
       </View>
       <EditBuiltInDatasetEvaluatorSlideover
         datasetEvaluatorId={datasetEvaluator.id}

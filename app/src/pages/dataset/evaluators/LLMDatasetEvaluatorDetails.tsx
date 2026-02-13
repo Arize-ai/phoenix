@@ -84,75 +84,84 @@ export function LLMDatasetEvaluatorDetails({
 
   return (
     <>
-      <View padding="size-200" overflow="auto" maxWidth={1000}>
-        <Flex direction="column" gap="size-300">
-          {datasetEvaluator.outputConfigs &&
-            datasetEvaluator.outputConfigs.length > 0 &&
-            (() => {
-              const outputConfig = datasetEvaluator.outputConfigs[0];
-              return (
-                <Flex direction="column" gap="size-100">
-                  <Heading level={2}>Evaluator Annotation</Heading>
-                  <div
-                    css={css`
-                      background-color: var(--ac-global-background-color-dark);
-                      border-radius: var(--ac-global-rounding-medium);
-                      padding: var(--ac-global-dimension-static-size-200);
-                      margin-top: var(--ac-global-dimension-static-size-50);
-                      border: 1px solid var(--ac-global-border-color-default);
-                    `}
-                  >
-                    <Flex direction="column" gap="size-100">
-                      <Text size="S">
-                        <Text weight="heavy">Name:</Text> {outputConfig.name}
-                      </Text>
-                      {outputConfig.optimizationDirection && (
+      <View overflow="auto">
+        <View
+          padding="size-200"
+          maxWidth={1000}
+          marginStart="auto"
+          marginEnd="auto"
+        >
+          <Flex direction="column" gap="size-300">
+            {datasetEvaluator.outputConfigs &&
+              datasetEvaluator.outputConfigs.length > 0 &&
+              (() => {
+                const outputConfig = datasetEvaluator.outputConfigs[0];
+                return (
+                  <Flex direction="column" gap="size-100">
+                    <Heading level={2}>Evaluator Annotation</Heading>
+                    <div
+                      css={css`
+                        background-color: var(
+                          --ac-global-background-color-dark
+                        );
+                        border-radius: var(--ac-global-rounding-medium);
+                        padding: var(--ac-global-dimension-static-size-200);
+                        margin-top: var(--ac-global-dimension-static-size-50);
+                        border: 1px solid var(--ac-global-border-color-default);
+                      `}
+                    >
+                      <Flex direction="column" gap="size-100">
                         <Text size="S">
-                          <Text weight="heavy">Optimization Direction:</Text>{" "}
-                          {outputConfig.optimizationDirection}
+                          <Text weight="heavy">Name:</Text> {outputConfig.name}
                         </Text>
-                      )}
-                      {outputConfig.values &&
-                        outputConfig.values.length > 0 && (
-                          <Text>
-                            <Text size="S" weight="heavy">
-                              Values:{" "}
-                            </Text>
-                            {outputConfig.values.map((v, valIdx, arr) => (
-                              <Text key={valIdx} size="S">
-                                {v.label}
-                                {v.score != null ? ` (${v.score})` : ""}
-                                {valIdx < arr.length - 1 ? ", " : ""}
-                              </Text>
-                            ))}
+                        {outputConfig.optimizationDirection && (
+                          <Text size="S">
+                            <Text weight="heavy">Optimization Direction:</Text>{" "}
+                            {outputConfig.optimizationDirection}
                           </Text>
                         )}
-                      <Text size="S">
-                        <Text weight="heavy">Explanations:</Text>{" "}
-                        {includeExplanation ? "Enabled" : "Disabled"}
-                      </Text>
-                    </Flex>
-                  </div>
-                </Flex>
-              );
-            })()}
-          <Flex direction="column" gap="size-100">
-            <Flex justifyContent="space-between">
-              <Heading level={2}>Prompt</Heading>
-              {evaluator.prompt?.id && evaluator.prompt?.name && (
-                <PromptLink
-                  promptId={evaluator.prompt.id}
-                  promptName={evaluator.prompt.name}
-                  promptVersionTag={evaluator.promptVersionTag?.name}
-                />
+                        {outputConfig.values &&
+                          outputConfig.values.length > 0 && (
+                            <Text>
+                              <Text size="S" weight="heavy">
+                                Values:{" "}
+                              </Text>
+                              {outputConfig.values.map((v, valIdx, arr) => (
+                                <Text key={valIdx} size="S">
+                                  {v.label}
+                                  {v.score != null ? ` (${v.score})` : ""}
+                                  {valIdx < arr.length - 1 ? ", " : ""}
+                                </Text>
+                              ))}
+                            </Text>
+                          )}
+                        <Text size="S">
+                          <Text weight="heavy">Explanations:</Text>{" "}
+                          {includeExplanation ? "Enabled" : "Disabled"}
+                        </Text>
+                      </Flex>
+                    </div>
+                  </Flex>
+                );
+              })()}
+            <Flex direction="column" gap="size-100">
+              <Flex justifyContent="space-between">
+                <Heading level={2}>Prompt</Heading>
+                {evaluator.prompt?.id && evaluator.prompt?.name && (
+                  <PromptLink
+                    promptId={evaluator.prompt.id}
+                    promptName={evaluator.prompt.name}
+                    promptVersionTag={evaluator.promptVersionTag?.name}
+                  />
+                )}
+              </Flex>
+              {evaluator.promptVersion && (
+                <PromptChatMessages promptVersion={evaluator.promptVersion} />
               )}
             </Flex>
-            {evaluator.promptVersion && (
-              <PromptChatMessages promptVersion={evaluator.promptVersion} />
-            )}
+            <LLMEvaluatorInputMapping inputMapping={inputMapping} />
           </Flex>
-          <LLMEvaluatorInputMapping inputMapping={inputMapping} />
-        </Flex>
+        </View>
       </View>
       <EditLLMDatasetEvaluatorSlideover
         datasetEvaluatorId={datasetEvaluator.id}
