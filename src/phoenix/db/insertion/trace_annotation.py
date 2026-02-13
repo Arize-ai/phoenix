@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, cast
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +37,7 @@ _Existing: TypeAlias = tuple[
     _TraceId,
     Optional[_AnnoRowId],
     Optional[_Name],
+    Optional[_Identifier],
     Optional[datetime],
 ]
 
@@ -137,14 +138,17 @@ class TraceAnnotationQueueInserter(
             anno.name.in_({k.annotation_name for k in keys}),
             tuple_(anno.name, anno.identifier, trace.c.trace_id).in_(keys),
         )
-        return select(
-            trace.c.id.label("trace_rowid"),
-            trace.c.trace_id,
-            anno.id,
-            anno.name,
-            anno.identifier,
-            anno.updated_at,
-        ).outerjoin_from(trace, anno, onclause)
+        return cast(
+            Select[_Existing],
+            select(
+                trace.c.id.label("trace_rowid"),
+                trace.c.trace_id,
+                anno.id,
+                anno.name,
+                anno.identifier,
+                anno.updated_at,
+            ).outerjoin_from(trace, anno, onclause),
+        )
 
 
 class _TraceAttr(NamedTuple):
