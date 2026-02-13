@@ -78,6 +78,7 @@ phoenix = "phoenix.server.main:main"
 [dependency-groups]
 dev = [
   "hatch",
+  "hatchling",
   "check-wheel-contents",
   "twine",
   "aiobotocore>=3.1.1",
