@@ -6,6 +6,7 @@ import { css } from "@emotion/react";
 import { Flex, Heading, Text } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
@@ -40,6 +41,8 @@ export function LLMDatasetEvaluatorDetails({
               name
             }
             promptVersion {
+              modelName
+              modelProvider
               tools {
                 definition
               }
@@ -139,14 +142,27 @@ export function LLMDatasetEvaluatorDetails({
             );
           })()}
         <Flex direction="column" gap="size-100">
-          <Flex justifyContent="space-between">
-            <Heading level={2}>Prompt</Heading>
-            {evaluator.prompt?.id && evaluator.prompt?.name && (
+          <Heading level={2}>Prompt</Heading>
+          <Flex justifyContent="space-between" alignItems="center">
+            {evaluator.prompt?.id && evaluator.prompt.name ? (
               <PromptLink
                 promptId={evaluator.prompt.id}
                 promptName={evaluator.prompt.name}
                 promptVersionTag={evaluator.promptVersionTag?.name}
               />
+            ) : (
+              <div />
+            )}
+            {evaluator.promptVersion?.modelName && (
+              <Flex alignItems="center" gap="size-50">
+                <GenerativeProviderIcon
+                  provider={evaluator.promptVersion.modelProvider}
+                  height={14}
+                />
+                <Text size="S" color="text-700">
+                  {evaluator.promptVersion.modelName}
+                </Text>
+              </Flex>
             )}
           </Flex>
           {evaluator.promptVersion && (

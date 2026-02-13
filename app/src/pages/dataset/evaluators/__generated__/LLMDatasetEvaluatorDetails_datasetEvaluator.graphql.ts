@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e25068aae5449c8479d65bdbbfd8bb8d>>
+ * @generated SignedSource<<35cc3dc77abb098cef16dc8379bfc170>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
@@ -20,6 +21,8 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly name: string;
     };
     readonly promptVersion?: {
+      readonly modelName: string;
+      readonly modelProvider: ModelProvider;
       readonly tools: ReadonlyArray<{
         readonly definition: any;
       }>;
@@ -70,7 +73,21 @@ v2 = [
   (v0/*: any*/),
   (v1/*: any*/)
 ],
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
+  "storageKey": null
+},
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -79,31 +96,31 @@ v3 = [
     "storageKey": null
   }
 ],
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": (v3/*: any*/),
+  "selections": (v5/*: any*/),
   "storageKey": null
 },
-v5 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v6 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -178,26 +195,16 @@ return {
               "name": "promptVersion",
               "plural": false,
               "selections": [
+                (v3/*: any*/),
                 (v4/*: any*/),
+                (v6/*: any*/),
                 {
                   "kind": "InlineDataFragmentSpread",
                   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
                   "selections": [
                     (v0/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "modelName",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "modelProvider",
-                      "storageKey": null
-                    },
+                    (v3/*: any*/),
+                    (v4/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -222,7 +229,7 @@ return {
                       "kind": "LinkedField",
                       "name": "responseFormat",
                       "plural": false,
-                      "selections": (v3/*: any*/),
+                      "selections": (v5/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -233,7 +240,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v5/*: any*/),
+                        (v7/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -260,7 +267,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v5/*: any*/),
+                                    (v7/*: any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -297,7 +304,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v6/*: any*/),
+                                            (v8/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -335,7 +342,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v6/*: any*/),
+                                            (v8/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -377,7 +384,7 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v4/*: any*/)
+                    (v6/*: any*/)
                   ],
                   "args": null,
                   "argumentDefinitions": []
@@ -421,7 +428,7 @@ return {
           "kind": "InlineFragment",
           "selections": [
             (v1/*: any*/),
-            (v7/*: any*/),
+            (v9/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -455,7 +462,7 @@ return {
           "kind": "InlineFragment",
           "selections": [
             (v1/*: any*/),
-            (v7/*: any*/),
+            (v9/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -483,6 +490,6 @@ return {
 };
 })();
 
-(node as any).hash = "051c66d20aa8d761dce080fa38bc10e1";
+(node as any).hash = "39cd18f3814bb32f8b9ae8e60b401346";
 
 export default node;
