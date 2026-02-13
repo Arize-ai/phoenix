@@ -152,8 +152,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           </Suspense>
           <CompositeField>
             <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-            {/* Un-comment this to get legacy behavior for cross-checking */}
-            {/* <ModelConfigButton {...props} /> */}
             <ModelParametersConfigButton
               playgroundInstanceId={instanceId}
               disableEphemeralRouting={props.disableEphemeralRouting}

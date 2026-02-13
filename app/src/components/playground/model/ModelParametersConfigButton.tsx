@@ -3,7 +3,6 @@ import { css } from "@emotion/react";
 
 import {
   Button,
-  Dialog,
   DialogTrigger,
   Flex,
   Icon,
@@ -136,81 +135,84 @@ export function ModelParametersConfigButton(
         aria-label="Configure model parameters"
         leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
       />
-      <Popover>
+      <Popover
+        css={css`
+          overflow: auto;
+          overscroll-behavior: none;
+        `}
+      >
         <PopoverArrow />
-        <Dialog>
-          <View padding="size-200" overflow="auto" width="400px">
-            <div css={formFieldsCSS}>
-              {/* Model name field - shown for all providers */}
-              <ModelNameConfigFormField
+        <View padding="size-200" minWidth="386px">
+          <div css={formFieldsCSS}>
+            {/* Model name field - shown for all providers */}
+            <ModelNameConfigFormField
+              playgroundInstanceId={playgroundInstanceId}
+            />
+
+            {/* OpenAI / Azure API type - built-in only: editable when ephemeral routing enabled, fixed default when disabled */}
+            {canConfigureOpenAIApiType && (
+              <OpenAIApiTypeConfigFormField
+                playgroundInstanceId={playgroundInstanceId}
+                displayDefaultOnly={disableEphemeralRouting}
+              />
+            )}
+
+            {/* Custom provider info - shown when a custom provider is selected */}
+            {customProvider && (
+              <Flex direction="column" gap="size-50">
+                <Text weight="heavy" size="S" color="text-700">
+                  Custom Provider
+                </Text>
+                <Text size="S">{customProvider.name}</Text>
+              </Flex>
+            )}
+
+            {/* OpenAI / Ollama specific fields */}
+            {showBaseUrl && (
+              <BaseUrlConfigFormField
                 playgroundInstanceId={playgroundInstanceId}
               />
+            )}
 
-              {/* OpenAI / Azure API type - built-in only: editable when ephemeral routing enabled, fixed default when disabled */}
-              {canConfigureOpenAIApiType && (
-                <OpenAIApiTypeConfigFormField
-                  playgroundInstanceId={playgroundInstanceId}
-                  displayDefaultOnly={disableEphemeralRouting}
-                />
-              )}
+            {/* Azure OpenAI specific fields */}
+            {showAzureFields && (
+              <EndpointConfigFormField
+                playgroundInstanceId={playgroundInstanceId}
+              />
+            )}
+            {showEnvVarInfo && canConfigureAzureFields && (
+              <EnvVarRoutingInfo
+                label="Endpoint"
+                envVarName="AZURE_OPENAI_ENDPOINT"
+              />
+            )}
 
-              {/* Custom provider info - shown when a custom provider is selected */}
-              {customProvider && (
-                <Flex direction="column" gap="size-50">
-                  <Text weight="heavy" size="S" color="text-700">
-                    Custom Provider
-                  </Text>
-                  <Text size="S">{customProvider.name}</Text>
-                </Flex>
-              )}
+            {/* AWS Bedrock specific fields */}
+            {showRegion && (
+              <AWSRegionConfigFormField
+                playgroundInstanceId={playgroundInstanceId}
+              />
+            )}
+            {showEnvVarInfo && canConfigureRegion && (
+              <EnvVarRoutingInfo label="Region" envVarName="AWS_REGION" />
+            )}
 
-              {/* OpenAI / Ollama specific fields */}
-              {showBaseUrl && (
-                <BaseUrlConfigFormField
-                  playgroundInstanceId={playgroundInstanceId}
-                />
-              )}
-
-              {/* Azure OpenAI specific fields */}
-              {showAzureFields && (
-                <EndpointConfigFormField
-                  playgroundInstanceId={playgroundInstanceId}
-                />
-              )}
-              {showEnvVarInfo && canConfigureAzureFields && (
-                <EnvVarRoutingInfo
-                  label="Endpoint"
-                  envVarName="AZURE_OPENAI_ENDPOINT"
-                />
-              )}
-
-              {/* AWS Bedrock specific fields */}
-              {showRegion && (
-                <AWSRegionConfigFormField
-                  playgroundInstanceId={playgroundInstanceId}
-                />
-              )}
-              {showEnvVarInfo && canConfigureRegion && (
-                <EnvVarRoutingInfo label="Region" envVarName="AWS_REGION" />
-              )}
-
-              <Suspense>
-                <ModelInvocationParametersFormFields
-                  playgroundInstanceId={playgroundInstanceId}
-                />
-              </Suspense>
-            </div>
-          </View>
-          <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
-            <SaveModelConfigButton
-              playgroundInstanceId={playgroundInstanceId}
-              variant="quiet"
-              style={{
-                width: "100%",
-              }}
-            />
-          </View>
-        </Dialog>
+            <Suspense>
+              <ModelInvocationParametersFormFields
+                playgroundInstanceId={playgroundInstanceId}
+              />
+            </Suspense>
+          </div>
+        </View>
+        <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+          <SaveModelConfigButton
+            playgroundInstanceId={playgroundInstanceId}
+            variant="quiet"
+            style={{
+              width: "100%",
+            }}
+          />
+        </View>
       </Popover>
     </DialogTrigger>
   );
