@@ -193,15 +193,16 @@ function PlaygroundContent() {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
-  const splitIdsKey = searchParams.getAll("splitId").join("\0");
-  // Keep splitIds referentially stable unless splitId values actually change.
+  // Only depend on the split-id subset of query params.
+  const serializedSplitIds = searchParams.getAll("splitId").join("\0");
+  // Keep splitIds referentially stable unless split-id values actually change.
   const splitIds = useMemo(() => {
     // Pass undefined instead of empty array to indicate "no filter"
-    if (splitIdsKey.length === 0) {
+    if (serializedSplitIds.length === 0) {
       return undefined;
     }
-    return splitIdsKey.split("\0");
-  }, [splitIdsKey]);
+    return serializedSplitIds.split("\0");
+  }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
