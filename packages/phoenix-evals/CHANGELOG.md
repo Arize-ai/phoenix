@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.9.0...arize-phoenix-evals-v2.10.0) (2026-02-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* dataset evaluators
+
+### Features
+
+* add tool response handling evaluator template ([#11276](https://github.com/Arize-ai/phoenix/issues/11276)) ([0738cb9](https://github.com/Arize-ai/phoenix/commit/0738cb9209d158b4aebab42339d20e3a71da3f2d))
+* dataset evaluators ([1274b03](https://github.com/Arize-ai/phoenix/commit/1274b03f3be64c450094d620d65af6749af01ec4))
+* dataset evaluators ([5f47820](https://github.com/Arize-ai/phoenix/commit/5f4782012537d533570184a6ce1e005e9945d8bf))
+* dataset evaluators ([cf0e09a](https://github.com/Arize-ai/phoenix/commit/cf0e09a82a5e44c9df26619c6372d2474a289b49))
+* enable full mustache prompt templates in the server ([#11229](https://github.com/Arize-ai/phoenix/issues/11229)) ([68ba0ed](https://github.com/Arize-ai/phoenix/commit/68ba0ed2316b6d690bcf782c8575b56f4a8c4d9e))
+* filter built-in classification evaluators by label ([#11416](https://github.com/Arize-ai/phoenix/issues/11416)) ([aa95a3f](https://github.com/Arize-ai/phoenix/commit/aa95a3fb15badfe9d2b706e9bb3d604c0287e66b))
+
+
+### Bug Fixes
+
+* **templates:** simplify template formatters ([#11410](https://github.com/Arize-ai/phoenix/issues/11410)) ([1f6df01](https://github.com/Arize-ai/phoenix/commit/1f6df01e2975c6b713538a8b4c19787225c9d042))
+
+
+### Miscellaneous Chores
+
+* release 2.10.0 ([4561612](https://github.com/Arize-ai/phoenix/commit/4561612d7e2547e45ffd15970548f8a2d5d3070d))
+
 ## [2.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.8.0...arize-phoenix-evals-v2.9.0) (2026-02-02)
 
 
