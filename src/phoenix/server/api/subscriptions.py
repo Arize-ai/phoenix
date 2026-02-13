@@ -135,7 +135,9 @@ async def _stream_single_chat_completion(
                 template_variables=template_options.variables,
             )
         )
-    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    invocation_parameters = llm_client.apply_invocation_parameter_constraints(
+        llm_client.construct_invocation_parameters(input.invocation_parameters)
+    )
     tracer = Tracer(span_cost_calculator=span_cost_calculator)
     try:
         async for chunk in llm_client.chat_completion_create(
@@ -810,7 +812,9 @@ async def _stream_chat_completion_over_dataset_example(
     experiment_id: int,
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    invocation_parameters = llm_client.apply_invocation_parameter_constraints(
+        llm_client.construct_invocation_parameters(input.invocation_parameters)
+    )
     messages: list[PlaygroundMessage] = [
         create_playground_message(
             message.role,

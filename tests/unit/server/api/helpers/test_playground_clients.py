@@ -20,6 +20,8 @@ from opentelemetry.trace import StatusCode, Tracer
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     OpenAIBaseStreamingClient,
+    _apply_anthropic_invocation_parameter_constraints,
+    _is_claude_4_model,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
@@ -432,3 +434,49 @@ TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUME
 
 # tool attributes
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+
+
+@pytest.mark.parametrize(
+    "model_name, expected",
+    (
+        pytest.param("claude-opus-4-5", True, id="claude-4-5"),
+        pytest.param("claude-opus-4-5-20251101", True, id="claude-4-5-with-date"),
+        pytest.param("anthropic.claude-opus-4-5-20251101-v1:0", True, id="bedrock-claude-4"),
+        pytest.param("claude-sonnet-4-0", True, id="claude-4-0"),
+        pytest.param("claude-3-7-sonnet-20250219", False, id="claude-3-7"),
+        pytest.param("gpt-4.1", False, id="non-claude"),
+    ),
+)
+def test_is_claude_4_model(model_name: str, expected: bool) -> None:
+    assert _is_claude_4_model(model_name) is expected
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    ["claude-sonnet-4-5", "anthropic.claude-opus-4-5-20251101-v1:0"],
+)
+def test_apply_anthropic_invocation_parameter_constraints_drops_top_p_for_claude_4(
+    model_name: str,
+) -> None:
+    constrained = _apply_anthropic_invocation_parameter_constraints(
+        invocation_parameters={"temperature": 0.7, "top_p": 0.95, "max_tokens": 1024},
+        model_name=model_name,
+    )
+    assert constrained["temperature"] == 0.7
+    assert "top_p" not in constrained
+    assert constrained["max_tokens"] == 1024
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    ["claude-3-7-sonnet-20250219", "gpt-4.1"],
+)
+def test_apply_anthropic_invocation_parameter_constraints_keeps_top_p_for_non_claude_4(
+    model_name: str,
+) -> None:
+    constrained = _apply_anthropic_invocation_parameter_constraints(
+        invocation_parameters={"temperature": 0.7, "top_p": 0.95},
+        model_name=model_name,
+    )
+    assert constrained["temperature"] == 0.7
+    assert constrained["top_p"] == 0.95
