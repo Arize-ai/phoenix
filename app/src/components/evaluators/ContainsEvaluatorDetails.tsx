@@ -13,6 +13,7 @@ export function ContainsEvaluatorDetails({
     | string
     | undefined;
   const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
+  const requireAll = inputMapping?.literalMapping?.require_all;
 
   return (
     <Flex direction="column" gap="size-100">
@@ -27,6 +28,10 @@ export function ContainsEvaluatorDetails({
       <Text size="S">
         <Text weight="heavy">Case sensitive:</Text>{" "}
         {caseSensitive === true || caseSensitive === "true" ? "Yes" : "No"}
+      </Text>
+      <Text size="S">
+        <Text weight="heavy">Require all:</Text>{" "}
+        {requireAll === true || requireAll === "true" ? "Yes" : "No"}
       </Text>
     </Flex>
   );
