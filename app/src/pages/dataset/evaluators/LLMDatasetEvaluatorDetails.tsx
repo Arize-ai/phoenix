@@ -3,7 +3,7 @@ import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text, View } from "@phoenix/components";
+import { Flex, Heading, Text } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
@@ -84,76 +84,74 @@ export function LLMDatasetEvaluatorDetails({
 
   return (
     <>
-      <View padding="size-200" overflow="auto" maxWidth={1000}>
-        <Flex direction="column" gap="size-300">
-          {datasetEvaluator.outputConfigs &&
-            datasetEvaluator.outputConfigs.length > 0 &&
-            (() => {
-              const outputConfig = datasetEvaluator.outputConfigs[0];
-              return (
-                <Flex direction="column" gap="size-100">
-                  <Heading level={2}>Evaluator Annotation</Heading>
-                  <div
-                    css={css`
-                      background-color: var(--ac-global-background-color-dark);
-                      border-radius: var(--ac-global-rounding-medium);
-                      padding: var(--ac-global-dimension-static-size-200);
-                      margin-top: var(--ac-global-dimension-static-size-50);
-                      border: 1px solid var(--ac-global-border-color-default);
-                    `}
-                  >
-                    <Flex direction="column" gap="size-100">
+      <Flex direction="column" gap="size-300">
+        {datasetEvaluator.outputConfigs &&
+          datasetEvaluator.outputConfigs.length > 0 &&
+          (() => {
+            const outputConfig = datasetEvaluator.outputConfigs[0];
+            return (
+              <Flex direction="column" gap="size-100">
+                <Heading level={2}>Evaluator Annotation</Heading>
+                <div
+                  css={css`
+                    background-color: var(--ac-global-background-color-dark);
+                    border-radius: var(--ac-global-rounding-medium);
+                    padding: var(--ac-global-dimension-static-size-200);
+                    margin-top: var(--ac-global-dimension-static-size-50);
+                    border: 1px solid var(--ac-global-border-color-default);
+                  `}
+                >
+                  <Flex direction="column" gap="size-100">
+                    <Text size="S">
+                      <Text weight="heavy">Name:</Text> {outputConfig.name}
+                    </Text>
+                    {outputConfig.optimizationDirection && (
                       <Text size="S">
-                        <Text weight="heavy">Name:</Text> {outputConfig.name}
+                        <Text weight="heavy">Optimization Direction:</Text>{" "}
+                        {outputConfig.optimizationDirection}
                       </Text>
-                      {outputConfig.optimizationDirection && (
-                        <Text size="S">
-                          <Text weight="heavy">Optimization Direction:</Text>{" "}
-                          {outputConfig.optimizationDirection}
+                    )}
+                    {outputConfig.values &&
+                      outputConfig.values.length > 0 && (
+                        <Text>
+                          <Text size="S" weight="heavy">
+                            Values:{" "}
+                          </Text>
+                          {outputConfig.values.map((v, valIdx, arr) => (
+                            <Text key={valIdx} size="S">
+                              {v.label}
+                              {v.score != null ? ` (${v.score})` : ""}
+                              {valIdx < arr.length - 1 ? ", " : ""}
+                            </Text>
+                          ))}
                         </Text>
                       )}
-                      {outputConfig.values &&
-                        outputConfig.values.length > 0 && (
-                          <Text>
-                            <Text size="S" weight="heavy">
-                              Values:{" "}
-                            </Text>
-                            {outputConfig.values.map((v, valIdx, arr) => (
-                              <Text key={valIdx} size="S">
-                                {v.label}
-                                {v.score != null ? ` (${v.score})` : ""}
-                                {valIdx < arr.length - 1 ? ", " : ""}
-                              </Text>
-                            ))}
-                          </Text>
-                        )}
-                      <Text size="S">
-                        <Text weight="heavy">Explanations:</Text>{" "}
-                        {includeExplanation ? "Enabled" : "Disabled"}
-                      </Text>
-                    </Flex>
-                  </div>
-                </Flex>
-              );
-            })()}
-          <Flex direction="column" gap="size-100">
-            <Flex justifyContent="space-between">
-              <Heading level={2}>Prompt</Heading>
-              {evaluator.prompt?.id && evaluator.prompt?.name && (
-                <PromptLink
-                  promptId={evaluator.prompt.id}
-                  promptName={evaluator.prompt.name}
-                  promptVersionTag={evaluator.promptVersionTag?.name}
-                />
-              )}
-            </Flex>
-            {evaluator.promptVersion && (
-              <PromptChatMessages promptVersion={evaluator.promptVersion} />
+                    <Text size="S">
+                      <Text weight="heavy">Explanations:</Text>{" "}
+                      {includeExplanation ? "Enabled" : "Disabled"}
+                    </Text>
+                  </Flex>
+                </div>
+              </Flex>
+            );
+          })()}
+        <Flex direction="column" gap="size-100">
+          <Flex justifyContent="space-between">
+            <Heading level={2}>Prompt</Heading>
+            {evaluator.prompt?.id && evaluator.prompt?.name && (
+              <PromptLink
+                promptId={evaluator.prompt.id}
+                promptName={evaluator.prompt.name}
+                promptVersionTag={evaluator.promptVersionTag?.name}
+              />
             )}
           </Flex>
-          <LLMEvaluatorInputMapping inputMapping={inputMapping} />
+          {evaluator.promptVersion && (
+            <PromptChatMessages promptVersion={evaluator.promptVersion} />
+          )}
         </Flex>
-      </View>
+        <LLMEvaluatorInputMapping inputMapping={inputMapping} />
+      </Flex>
       <EditLLMDatasetEvaluatorSlideover
         datasetEvaluatorId={datasetEvaluator.id}
         datasetId={datasetId}

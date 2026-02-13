@@ -6,6 +6,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  Flex,
   Icon,
   Icons,
   LazyTabPanel,
@@ -14,6 +15,7 @@ import {
   Tab,
   TabList,
   Tabs,
+  View,
 } from "@phoenix/components";
 import { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
@@ -91,22 +93,34 @@ function DatasetEvaluatorDetailsPageContent({
           <Tab id="spans">Spans</Tab>
         </TabList>
         <LazyTabPanel id="configuration">
-          {isLLMEvaluator && (
-            <LLMDatasetEvaluatorDetails
-              datasetEvaluatorRef={datasetEvaluator}
-              datasetId={datasetId}
-              isEditSlideoverOpen={isEditSlideoverOpen}
-              onEditSlideoverOpenChange={setIsEditSlideoverOpen}
-            />
-          )}
-          {isBuiltInEvaluator && (
-            <BuiltInDatasetEvaluatorDetails
-              datasetEvaluatorRef={datasetEvaluator}
-              datasetId={datasetId}
-              isEditSlideoverOpen={isEditSlideoverOpen}
-              onEditSlideoverOpenChange={setIsEditSlideoverOpen}
-            />
-          )}
+          <View width="100%" overflow="auto" height="100%">
+            <View padding="size-200">
+              <Flex
+                direction="column"
+                gap="size-300"
+                maxWidth={1000}
+                marginStart="auto"
+                marginEnd="auto"
+              >
+                {isLLMEvaluator && (
+                  <LLMDatasetEvaluatorDetails
+                    datasetEvaluatorRef={datasetEvaluator}
+                    datasetId={datasetId}
+                    isEditSlideoverOpen={isEditSlideoverOpen}
+                    onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+                  />
+                )}
+                {isBuiltInEvaluator && (
+                  <BuiltInDatasetEvaluatorDetails
+                    datasetEvaluatorRef={datasetEvaluator}
+                    datasetId={datasetId}
+                    isEditSlideoverOpen={isEditSlideoverOpen}
+                    onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+                  />
+                )}
+              </Flex>
+            </View>
+          </View>
         </LazyTabPanel>
         <LazyTabPanel id="spans">
           <DatasetEvaluatorSpans projectRef={datasetEvaluator.project} />
