@@ -687,12 +687,12 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
             from arize.ml.types import TypedColumns
         else:
             from arize.utils.types import (
-                EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # type: ignore[unresolved-import]
+                EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # ty: ignore[unresolved-import]
             )
             from arize.utils.types import (
-                Schema as ArizeSchema,  # type: ignore[unresolved-import]
+                Schema as ArizeSchema,  # ty: ignore[unresolved-import]
             )
-            from arize.utils.types import TypedColumns  # type: ignore[unresolved-import]
+            from arize.utils.types import TypedColumns  # ty: ignore[unresolved-import]
 
         if not isinstance(schemaLike, ArizeSchema):
             raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
