@@ -124,7 +124,7 @@ export function LLMSpanErrorsTimeSeries({
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={chartData}
-        margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
         barSize={10}
         syncId={"projectMetrics"}
       >
@@ -141,7 +141,7 @@ export function LLMSpanErrorsTimeSeries({
           label={{
             value: "Count",
             angle: -90,
-            dx: -20,
+            dx: -28,
             style: {
               textAnchor: "middle",
               fill: "var(--chart-axis-label-color)",

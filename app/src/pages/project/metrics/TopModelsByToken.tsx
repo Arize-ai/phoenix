@@ -27,6 +27,22 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
 
+const MAX_MODEL_NAME_LENGTH = 14;
+
+/**
+ * Truncates a model name if it exceeds the maximum length.
+ * Uses ellipsis at the end   .
+ */
+function truncateModelName(value: unknown): string {
+  if (typeof value !== "string") {
+    return String(value);
+  }
+  if (value.length <= MAX_MODEL_NAME_LENGTH) {
+    return value;
+  }
+  return value.slice(0, MAX_MODEL_NAME_LENGTH) + "...";
+}
+
 function TooltipContent({
   active,
   payload,
@@ -121,7 +137,7 @@ export function TopModelsByToken({
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={chartData}
-        margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
         layout="vertical"
         barSize={10}
       >
@@ -142,6 +158,7 @@ export function TopModelsByToken({
           dataKey="model"
           type="category"
           width={120}
+          tickFormatter={truncateModelName}
         />
         <Bar
           dataKey="prompt_tokens"
