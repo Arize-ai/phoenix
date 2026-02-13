@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.0...arize-phoenix-v13.0.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* **build:** prevent .gitignore negation patterns from leaking files into sdist ([#11421](https://github.com/Arize-ai/phoenix/issues/11421)) ([97aa93c](https://github.com/Arize-ai/phoenix/commit/97aa93ce46908d7eaff4853de43680c82af45505))
+
 ## [13.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v12.35.0...arize-phoenix-v13.0.0) (2026-02-13)
 
 
