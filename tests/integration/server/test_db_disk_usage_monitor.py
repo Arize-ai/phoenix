@@ -159,14 +159,33 @@ class TestDbDiskUsageMonitor:
         # The monitor runs asynchronously, so we need to poll for the email.
         # This verifies that the notification threshold (0.1%) was exceeded and
         # an alert was properly sent to the configured admin email address.
+        #
+        # IMPORTANT: Test Isolation with Parallel Execution
+        # --------------------------------------------------
+        # The _smtpd fixture is package-scoped (shared across all integration tests).
+        # When tests run in parallel via pytest-xdist (-n auto), multiple worker
+        # processes execute tests concurrently. Each worker can send emails to the
+        # same shared SMTP server instance, causing the messages list to accumulate
+        # emails from different tests running simultaneously.
+        #
+        # Simply checking _smtpd.messages[-1] is unsafe because:
+        # 1. Worker A starts this test, generates _admin_email="abc@example.com"
+        # 2. Worker B starts a different test, sends email to "xyz@example.com"
+        # 3. Worker A polls for its email, but messages[-1] is now "xyz@example.com"
+        # 4. Assertion fails with: assert 'xyz@example.com' == 'abc@example.com'
+        #
+        # Solution: Filter messages by the expected recipient (_admin_email) to
+        # isolate this test's emails from concurrent tests. This ensures we only
+        # check messages actually intended for this test's admin user.
         retries_left = 100
         received_email = False
         while retries_left and not received_email:
             retries_left -= 1
             try:
-                assert _smtpd.messages
-                message = _smtpd.messages[-1]
-                assert message["To"] == _admin_email
+                # Filter messages by recipient to handle parallel test execution
+                matching_messages = [m for m in _smtpd.messages if m.get("To") == _admin_email]
+                assert matching_messages, f"No email found for {_admin_email}"
+                message = matching_messages[-1]  # Get the most recent matching message
                 assert message["Cc"] == _support_email
                 assert (
                     message["Subject"] == "[Phoenix] Database Disk Space Usage Threshold Exceeded"

@@ -12,8 +12,3 @@ def pytest_addoption(parser: Parser) -> None:
         action="store_true",
         help="Run tests that require Postgres",
     )
-    parser.addoption(
-        "--allow-flaky",
-        action="store_true",
-        help="Allows a number of flaky database tests to fail",
-    )

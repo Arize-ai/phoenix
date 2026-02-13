@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import os
 from asyncio import AbstractEventLoop
 from functools import partial
 from importlib.metadata import version
@@ -7,22 +8,23 @@ from random import getrandbits
 from secrets import token_hex
 from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal
 
+import aiosqlite
 import httpx
 import pytest
+import sqlalchemy
+import sqlean
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
-from _pytest.terminal import TerminalReporter
 from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
-from psycopg import Connection
 from pytest import FixtureRequest
-from pytest_postgresql import factories
-from sqlalchemy import URL, make_url
+from pytest_postgresql.janitor import DatabaseJanitor
+from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
@@ -31,7 +33,14 @@ from phoenix.config import EXPORT_DIR
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
-from phoenix.db.engines import aio_postgresql_engine, aio_sqlite_engine
+from phoenix.db.engines import (
+    _dumps as _json_serializer,
+)
+from phoenix.db.engines import (
+    aio_postgresql_engine,
+    aio_sqlite_engine,
+    set_sqlite_pragma,
+)
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
@@ -43,33 +52,6 @@ from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.transport import ASGIWebSocketTransport
 from tests.unit.vcr import CustomVCR
-
-
-def pytest_terminal_summary(
-    terminalreporter: TerminalReporter, exitstatus: int, config: Config
-) -> None:
-    xfails = len([x for x in terminalreporter.stats.get("xfailed", [])])
-    xpasses = len([x for x in terminalreporter.stats.get("xpassed", [])])
-
-    xfail_threshold = 12  # our tests are currently quite unreliable
-
-    if config.getoption("--run-postgres"):
-        terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
-        terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
-
-        if exitstatus == pytest.ExitCode.OK:
-            if xfails < xfail_threshold:
-                terminalreporter.write_sep(
-                    "=", "Within xfail threshold. Passing the test suite.", green=True
-                )
-                assert terminalreporter._session is not None
-                terminalreporter._session.exitstatus = pytest.ExitCode.OK
-            else:
-                terminalreporter.write_sep(
-                    "=", "Too many flaky tests. Failing the test suite.", red=True
-                )
-                assert terminalreporter._session is not None
-                terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
@@ -106,28 +88,68 @@ def anthropic_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     return api_key
 
 
-postgresql_connection = factories.postgresql("postgresql_proc")
+@pytest.fixture(scope="session")
+def _postgresql_template_db(postgresql_proc: Any) -> Iterator[str]:
+    """Create a template database with the full schema once per session.
+
+    Per-test databases are cloned from this template via CREATE DATABASE ... TEMPLATE,
+    which is a fast file-copy at the PG level (~5ms) instead of running create_all DDL
+    (~30-44ms) per test.
+    """
+
+    template_name = f"phoenix_template_{os.getpid()}"
+    janitor = DatabaseJanitor(
+        user=postgresql_proc.user,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        version=postgresql_proc.version,
+        dbname=template_name,
+        password=postgresql_proc.password or None,
+    )
+    janitor.init()
+    sync_url = URL.create(
+        "postgresql+psycopg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=template_name,
+    )
+    sync_engine = sqlalchemy.create_engine(sync_url)
+    models.Base.metadata.create_all(sync_engine)
+    sync_engine.dispose()
+    yield template_name
+    janitor.drop()
 
 
 @pytest.fixture(scope="function")
-async def postgresql_url(postgresql_connection: "Connection[Any]") -> AsyncIterator[URL]:
-    connection = postgresql_connection
-    user = connection.info.user
-    password = connection.info.password
-    database = connection.info.dbname
-    host = connection.info.host
-    port = connection.info.port
-    yield make_url(f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
-
-
-@pytest.fixture(scope="function")
-async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
-    engine = aio_postgresql_engine(postgresql_url, migrate=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
-        await conn.run_sync(models.Base.metadata.create_all)
+async def postgresql_engine(
+    postgresql_proc: Any,
+    _postgresql_template_db: str,
+) -> AsyncIterator[AsyncEngine]:
+    dbname = f"phoenix_test_{os.getpid()}_{token_hex(4)}"
+    janitor = DatabaseJanitor(
+        user=postgresql_proc.user,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        version=postgresql_proc.version,
+        dbname=dbname,
+        password=postgresql_proc.password or None,
+        template_dbname=_postgresql_template_db,
+    )
+    janitor.init()
+    url = URL.create(
+        "postgresql+asyncpg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=dbname,
+    )
+    engine = aio_postgresql_engine(url, migrate=False)
     yield engine
     await engine.dispose()
+    janitor.drop()
 
 
 @pytest.fixture(params=["sqlite", "postgresql"])
@@ -145,25 +167,87 @@ def sqlalchemy_dialect(dialect: str) -> Any:
         raise ValueError(f"Unsupported dialect: {dialect}")
 
 
+@pytest.fixture(scope="session")
+def _sqlite_schema_db() -> Iterator[str]:
+    """Create the schema once per session in a named in-memory SQLite database."""
+    db_name = f"phoenix_test_{os.getpid()}"
+    uri = f"file:{db_name}?mode=memory&cache=shared"
+    # Keeper connection keeps the named in-memory DB alive for the session
+    keeper = sqlean.connect(uri, uri=True)
+    sync_engine = sqlalchemy.create_engine(
+        "sqlite://",
+        creator=lambda: sqlean.connect(uri, uri=True),
+    )
+    models.Base.metadata.create_all(sync_engine)
+    yield db_name
+    sync_engine.dispose()
+    keeper.close()
+
+
 @pytest.fixture(scope="function")
 async def sqlite_engine(
     request: SubRequest,
     tmp_path_factory: TempPathFactory,
+    _sqlite_schema_db: str,
 ) -> AsyncIterator[AsyncEngine]:
     config = request.config
-    url = URL.create("sqlite+aiosqlite")
     if config.getoption("--sqlite-on-disk"):
+        # Fall back to per-test DB for on-disk debugging
+        url = URL.create("sqlite+aiosqlite")
         db_file = tmp_path_factory.mktemp("sqlite") / f"_{token_hex(8)}.db"
         print(f"SQLite file: {db_file}")
         url = url.set(database=str(db_file))
+        engine = aio_sqlite_engine(url, migrate=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.drop_all)
+            await conn.run_sync(models.Base.metadata.create_all)
+        yield engine
+        await engine.dispose()
     else:
-        url = url.set(database=":memory:")
-    engine = aio_sqlite_engine(url, migrate=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
-        await conn.run_sync(models.Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
+        db_name = _sqlite_schema_db
+        uri = f"file:{db_name}?mode=memory&cache=shared"
+
+        def async_creator() -> aiosqlite.Connection:
+            conn = aiosqlite.Connection(
+                lambda: sqlean.connect(uri, uri=True),
+                iter_chunk_size=64,
+            )
+            conn.daemon = True
+            return conn
+
+        engine = create_async_engine(
+            url="sqlite+aiosqlite://",
+            async_creator=async_creator,
+            poolclass=StaticPool,
+            json_serializer=_json_serializer,
+        )
+        sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+        yield engine
+        await engine.dispose()
+
+
+@pytest.fixture(scope="function")
+async def _sqlite_test_conn(
+    sqlite_engine: AsyncEngine,
+) -> AsyncIterator[AsyncConnection]:
+    """Open a connection with a SAVEPOINT so each test's data is rolled back."""
+    conn = await sqlite_engine.connect()
+    txn = await conn.begin()
+    await conn.begin_nested()
+    yield conn
+    # Roll back the outer transaction to undo all data changes, including
+    # any nested SAVEPOINTs that may have been released or rolled back during the test.
+    # Wrap in try/except because error-path tests may leave the connection in a
+    # closed or otherwise unusable state.
+    try:
+        if txn.is_active:
+            await txn.rollback()
+    except Exception:
+        pass
+    try:
+        await conn.close()
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="function")
@@ -172,12 +256,13 @@ def db(
     dialect: str,
 ) -> DbSessionFactory:
     if dialect == "sqlite":
-        engine = request.getfixturevalue("sqlite_engine")
+        conn = request.getfixturevalue("_sqlite_test_conn")
+        return DbSessionFactory(db=_db(conn), dialect=dialect)
     elif dialect == "postgresql":
         engine = request.getfixturevalue("postgresql_engine")
+        return DbSessionFactory(db=_db(engine), dialect=dialect)
     else:
         raise ValueError(f"Unknown db fixture: {dialect}")
-    return DbSessionFactory(db=_db(engine), dialect=dialect)
 
 
 @pytest.fixture
