@@ -647,7 +647,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-client"
-version = "1.28.1"
+version = "1.29.0"
 source = { editable = "packages/phoenix-client" }
 dependencies = [
     { name = "httpx" },
@@ -672,7 +672,7 @@ requires-dist = [
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "2.9.0"
+version = "2.10.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },

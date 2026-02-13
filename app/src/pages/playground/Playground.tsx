@@ -1,4 +1,4 @@
-import { Fragment, Suspense, useCallback, useEffect } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { BlockerFunction, useBlocker, useSearchParams } from "react-router";
@@ -193,9 +193,16 @@ function PlaygroundContent() {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
-  const splitIdsArray = searchParams.getAll("splitId");
-  // Pass undefined instead of empty array to indicate "no filter"
-  const splitIds = splitIdsArray.length > 0 ? splitIdsArray : undefined;
+  // Only depend on the split-id subset of query params.
+  const serializedSplitIds = searchParams.getAll("splitId").join("\0");
+  // Keep splitIds referentially stable unless split-id values actually change.
+  const splitIds = useMemo(() => {
+    // Pass undefined instead of empty array to indicate "no filter"
+    if (serializedSplitIds.length === 0) {
+      return undefined;
+    }
+    return serializedSplitIds.split("\0");
+  }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
