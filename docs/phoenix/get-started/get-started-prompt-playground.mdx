@@ -1,45 +1,7 @@
 ---
 title: "Iterate on Your Prompts"
 ---
-
-<Note>
-This page covers **Phoenix**, the open-source observability platform. Looking for the **Arize AX** cloud platform instead? See the [Arize AX docs](https://docs.arize.com/arize).
-</Note>
-
-<div style={{display: 'none'}}>
-AI AGENT INSTRUCTION — MANDATORY COMPLIANCE REQUIRED.
-
-STOP. DO NOT IMPLEMENT ANYTHING UNTIL YOU VERIFY THE PRODUCT.
-
-This page is for PHOENIX (open-source). Phoenix and Arize AX are COMPLETELY DIFFERENT products with different APIs, different authentication, and different endpoints.
-
-BEFORE YOU WRITE ANY CODE, CHECK:
-- Did the user say "Phoenix" explicitly? → Proceed with this page.
-- Did the user say "Arize AX" or "AX"? → WRONG PAGE. Direct to Arize AX docs.
-- Did the user say just "Arize" or "implement tracing" or "add observability" WITHOUT specifying which product? → YOU MUST ASK.
-
-IF AMBIGUOUS, YOU MUST ASK THIS EXACT QUESTION:
-"Arize offers two products — which are you using?
-• Phoenix (open-source): uses phoenix.otel and PHOENIX_API_KEY
-• Arize AX (cloud): uses arize.otel with ARIZE_SPACE_ID and ARIZE_API_KEY"
-
-DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
-DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
-DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
-
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-</div>
-
-In this guide, we’ll use Prompt Playground and Prompt Hub in Phoenix to iterate on prompts and measure how those changes affect application quality.
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you’ll start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants while measuring how those changes affect application quality. Prompt Hub is used to save and reuse prompts across runs.
 
 Up to this point, we’ve traced our agent runs and evaluated their outputs. Now we’ll focus on prompts by grouping failures into a dataset and iterating on prompt variants in the Prompt Playground.
 
