@@ -64,7 +64,7 @@ import inspect
 import json
 from collections import defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, TypeGuard, Union, cast
 
 import numpy as np
 from openinference.semconv import trace
@@ -85,7 +85,7 @@ JSON_STRING_ATTRIBUTES = (
 )
 
 # e.g. "input.value", "llm.token_count.total", etc.
-_semantic_conventions_list: list[str] = [
+SEMANTIC_CONVENTIONS: list[str] = [
     cast(str, getattr(klass, attr))
     for name in dir(trace)
     if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
@@ -93,9 +93,7 @@ _semantic_conventions_list: list[str] = [
     if attr.isupper()
 ]
 # sorted so the longer strings go first
-SEMANTIC_CONVENTIONS: list[str] = cast(
-    list[str], sorted(_semantic_conventions_list, key=len, reverse=True)
-)
+SEMANTIC_CONVENTIONS.sort(key=len, reverse=True)
 
 
 def unflatten(
@@ -126,10 +124,9 @@ def flatten(
     The `prefix` argument is used to prefix the keys in the output list, but
     it's mostly used internally to facilitate recursion.
     """
-    if isinstance(obj, Mapping):
-        mapping_obj = cast(Mapping[str, Any], obj)
+    if _is_mapping_with_string_keys(obj):
         yield from _flatten_mapping(
-            mapping_obj,
+            obj,
             prefix=prefix,
             recurse_on_sequence=recurse_on_sequence,
             json_string_attributes=json_string_attributes,
@@ -409,3 +406,9 @@ def _flatten_sequence(
             json_string_attributes=json_string_attributes,
             separator=separator,
         )
+
+
+def _is_mapping_with_string_keys(maybe_mapping: Any) -> TypeGuard[Mapping[str, Any]]:
+    return isinstance(maybe_mapping, Mapping) and all(
+        isinstance(key, str) for key in maybe_mapping.keys()
+    )
