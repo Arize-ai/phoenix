@@ -42,7 +42,7 @@ def create_model_from_inferences(*inference_sets: Optional[Inferences]) -> Model
         df = inferences.dataframe
         # Coerce string column names at run time.
         df = df.set_axis(
-            map(str, df.columns),
+            [str(col) for col in df.columns],
             axis=1,
         )
         named_dataframes.append((inferences.name, df))
