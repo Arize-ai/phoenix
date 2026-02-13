@@ -119,7 +119,7 @@ def aio_sqlite_engine(
 
     def async_creator() -> aiosqlite.Connection:
         conn = aiosqlite.Connection(
-            lambda: sqlean.connect(f"file:{database}", uri=True),  # type: ignore[attr-defined]
+            lambda: sqlean.connect(f"file:{database}", uri=True),  # ty: ignore[unresolved-attribute]
             iter_chunk_size=64,
         )
         conn.daemon = True
@@ -147,7 +147,7 @@ def aio_sqlite_engine(
             url=url.set(drivername="sqlite"),
             echo=log_migrations_to_stdout,
             json_serializer=_dumps,
-            creator=lambda: sqlean.connect(f"file:{database}", uri=True),  # type: ignore[attr-defined]
+            creator=lambda: sqlean.connect(f"file:{database}", uri=True),  # ty: ignore[unresolved-attribute]
         )
         migrate_in_thread(sync_engine)
     return engine
