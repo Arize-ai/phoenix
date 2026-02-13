@@ -48,9 +48,11 @@ COPY ./src ./src
 
 # Build and install Phoenix with the real source code (fast since deps are cached)
 # Remove broken symlinks (workspace packages not in Docker context), then build a wheel
+# Flatten site-packages into /phoenix/env so the runtime stage has no version-specific paths
 RUN find src/ -xtype l -delete && \
     uv build && \
-    uv pip install dist/*.whl --no-deps
+    uv pip install dist/*.whl --no-deps && \
+    cp -a .venv/lib/python*/site-packages/ /phoenix/env/
 
 # Stage 3: Runtime (combines everything)
 FROM python:${PYTHON_VERSION}-slim-bullseye AS runtime
@@ -66,19 +68,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy startup script
 COPY --chmod=755 scripts/docker/devops/scripts/start-phoenix.sh /usr/local/bin/start-phoenix.sh
 
-# Copy Python environment
-COPY --from=backend-builder /phoenix/.venv ./.venv
+# Copy Python environment (version-independent flat directory)
+COPY --from=backend-builder /phoenix/env ./env
 
 # Copy built frontend from frontend builder to correct location  
-COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./.venv/lib/python3.13/site-packages/phoenix/server/static/
+COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./env/phoenix/server/static/
 
 # Environment setup
-ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages"
+ENV PYTHONPATH="/phoenix/env"
 ENV PYTHONUNBUFFERED=1
 
 # Create VS Code configuration for debugging
-RUN mkdir -p /phoenix/.venv/lib/python3.13/site-packages/phoenix/.vscode
-COPY scripts/docker/devops/vscode-config/launch.json /phoenix/.venv/lib/python3.13/site-packages/phoenix/.vscode/launch.json
+RUN mkdir -p /phoenix/env/phoenix/.vscode
+COPY scripts/docker/devops/vscode-config/launch.json /phoenix/env/phoenix/.vscode/launch.json
 COPY scripts/docker/devops/vscode-config/phoenix-debug.code-workspace /root/phoenix-debug.code-workspace
 
 # Expose ports
