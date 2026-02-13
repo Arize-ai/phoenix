@@ -13,7 +13,6 @@ import httpx
 import pytest
 import sqlalchemy
 import sqlean
-import strawberry
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.tmpdir import TempPathFactory
@@ -22,6 +21,7 @@ from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
 from pytest import FixtureRequest
+from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
@@ -44,7 +44,6 @@ from phoenix.db.engines import (
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
-from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
@@ -97,7 +96,6 @@ def _postgresql_template_db(postgresql_proc: Any) -> Iterator[str]:
     which is a fast file-copy at the PG level (~5ms) instead of running create_all DDL
     (~30-44ms) per test.
     """
-    from pytest_postgresql.janitor import DatabaseJanitor
 
     template_name = f"phoenix_template_{os.getpid()}"
     janitor = DatabaseJanitor(
@@ -129,8 +127,6 @@ async def postgresql_engine(
     postgresql_proc: Any,
     _postgresql_template_db: str,
 ) -> AsyncIterator[AsyncEngine]:
-    from pytest_postgresql.janitor import DatabaseJanitor
-
     dbname = f"phoenix_test_{os.getpid()}_{token_hex(4)}"
     janitor = DatabaseJanitor(
         user=postgresql_proc.user,
@@ -288,15 +284,9 @@ async def project(db: DbSessionFactory) -> None:
         session.add(project)
 
 
-@pytest.fixture(scope="session")
-def _graphql_schema() -> strawberry.Schema:
-    return build_graphql_schema()
-
-
 @pytest.fixture
 async def app(
     db: DbSessionFactory,
-    _graphql_schema: strawberry.Schema,
 ) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
@@ -309,7 +299,6 @@ async def app(
             umap_params=get_umap_parameters(None),
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
-            graphql_schema=_graphql_schema,
         )
 
 
