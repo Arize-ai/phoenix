@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 // Initialize Phoenix tracing before any AI SDK calls
 import "./instrumentation.js";
+
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 
