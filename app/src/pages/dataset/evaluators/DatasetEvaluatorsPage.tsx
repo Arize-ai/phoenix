@@ -54,7 +54,7 @@ export function DatasetEvaluatorsPageContent() {
             name
             description
           }
-          classificationEvaluatorConfigs {
+          classificationEvaluatorConfigs(label: "dataset") {
             name
             description
             choices
