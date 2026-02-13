@@ -31,3 +31,8 @@ src/phoenix/trace/otel.py
 Used `cast` in the `_encode_attributes` function for numpy array conversion. The issue is that `np.ndarray.tolist()` has multiple overloads depending on the array shape, but ty cannot determine which overload to use when the array shape is unknown at type-check time. The workaround is to cast the ndarray to `Any` first (using `cast(Any, value).tolist()`), which allows ty to call tolist() without resolving a specific overload, then cast the result to `AttributeValue`. This is safe because numpy's tolist() always returns valid Python objects (scalars or nested lists), and the resulting value is validated when passed to `_encode_value()`.
 
 
+src/phoenix/db/insertion/document_annotation.py
+
+Used `cast` in the `_select_existing` method to fix return type mismatch. The issue is that ty loses type information when accessing CTE columns via `.c.column_name.label()` (inferring them as `Any`) and doesn't recognize that columns from the right side of an outer join should be nullable. The method returns a SQLAlchemy Select statement with expected type `Select[_Existing]` where `_Existing` is `tuple[int, str, int, int | None, str | None, int | None, str | None, datetime | None]`, but ty infers `Select[tuple[Any, Any, Any, int, str, int, str, datetime]]`. The cast is safe because the actual runtime types match the expected types - the CTE columns are properly typed in the database schema, and the outer join does make the annotation columns nullable at runtime.
+
+
