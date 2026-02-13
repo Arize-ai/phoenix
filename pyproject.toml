@@ -236,6 +236,7 @@ artifacts = [
 
 [tool.hatch.build]
 only-packages = true
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.sdist]
 exclude = [

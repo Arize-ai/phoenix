@@ -89,7 +89,7 @@ jobs:
           python-version: "3.10"
           version: "0.9.18"
       - name: Build distribution
-        run: rm -rf dist && uvx hatch build
+        run: rm -rf dist && uv run hatch build
       - name: Check wheel contents
         run: uvx check-wheel-contents --ignore W004 dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
