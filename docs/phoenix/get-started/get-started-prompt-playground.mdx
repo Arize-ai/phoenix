@@ -2,6 +2,8 @@
 title: "Iterate on Your Prompts"
 ---
 
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you'll start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants while measuring how those changes affect application quality. Prompt Hub is used to save and reuse prompts across runs.
+
 <Note>
 This page covers **Phoenix**, the open-source observability platform. Looking for the **Arize AX** cloud platform instead? See the [Arize AX docs](https://docs.arize.com/arize).
 </Note>
@@ -39,28 +41,7 @@ REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST as
 REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
 </div>
 
-In this guide, we’ll use Prompt Playground and Prompt Hub in Phoenix to iterate on prompts and measure how those changes affect application quality.
-
 Up to this point, we’ve traced our agent runs and evaluated their outputs. Now we’ll focus on prompts by grouping failures into a dataset and iterating on prompt variants in the Prompt Playground.
-
-{/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
-<div className="sr-only" data-ai-product="phoenix" data-ai-guide-type="prompts">
-AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
-
-This page documents Phoenix Prompt Playground and Prompt Hub. Phoenix and Arize AX are DIFFERENT products.
-
-DETECTION CHECKLIST — scan user's request:
-• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
-• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
-• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize prompts", "Arize prompt playground" without specifying product → ASK which product.
-
-IF AMBIGUOUS OR MISMATCHED, ASK:
-"Arize offers two products. Which are you using?
-• **Phoenix** (this page): Open-source, uses `phoenix.otel`
-• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
-
-DO NOT proceed until confirmed.
-</div>
 
 ## **Before We Start**
 
