@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager
 from functools import wraps
 from itertools import chain
+from secrets import token_hex
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -2128,8 +2129,51 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                     if candidate.content and candidate.content.parts:
                         for part in candidate.content.parts:
                             if function_call := part.function_call:
+                                # Gemini often returns an empty or ``None``
+                                # ``id`` on ``FunctionCall``.  The frontend
+                                # merges streamed tool-call chunks by ``id``,
+                                # so when every call arrives as ``""`` they all
+                                # collapse into one entry with garbled
+                                # arguments.  This class assigns a stable
+                                # synthetic ID (``tool_call_0``,
+                                # ``tool_call_1``, …) whenever the upstream
+                                # ``id`` is falsy, while preserving real IDs
+                                # when Gemini provides them.
+
+                                # This converter assumes each ``FunctionCall``
+                                # is self-contained — i.e. ``name`` and
+                                # ``args`` are both present on the same
+                                # object.  If they were ever split across
+                                # separate ``FunctionCall`` messages, the
+                                # converter would emit two incorrect
+                                # ``ToolCallChunk`` objects (one with the
+                                # name but empty args, another with args but
+                                # an empty name).  This assumption is safe
+                                # today: the Gemini API always delivers
+                                # complete function calls, and the SDK itself
+                                # makes the same assumption — it performs no
+                                # reassembly of ``FunctionCall`` fields
+                                # (``_Candidate_from_mldev`` passes
+                                # ``content`` through to Pydantic's
+                                # ``model_validate`` as-is).
+
+                                # The only mechanism that could disassociate
+                                # ``name`` and ``args`` is the
+                                # ``will_continue`` / ``partial_args``
+                                # incremental streaming protocol.  As of this
+                                # writing, both fields are rejected by the
+                                # Gemini API with ``ValueError`` (see
+                                # ``google.genai.models``).  They are only
+                                # supported by the Vertex AI surface behind
+                                # the ``stream_function_call_arguments``
+                                # tool-config flag.  If Vertex AI support is
+                                # added in the future, this class should be
+                                # extended to buffer partial calls
+                                # (``will_continue=True``) and reassemble
+                                # ``partial_args`` using their ``json_path``
+                                # keys.
                                 yield ToolCallChunk(
-                                    id=function_call.id or "",
+                                    id=function_call.id or token_hex(4),
                                     function=FunctionCallChunk(
                                         name=function_call.name or "",
                                         arguments=json.dumps(function_call.args or {}),
