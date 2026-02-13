@@ -56,4 +56,4 @@ choices:
   incorrect: 0.0
 substitutions:
   available_tools: available_tools_list
-  tool_selection: tool_calls_to_string
+  tool_selection: output_with_tool_calls

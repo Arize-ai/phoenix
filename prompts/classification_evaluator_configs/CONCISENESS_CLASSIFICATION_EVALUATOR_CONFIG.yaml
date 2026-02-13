@@ -48,3 +48,5 @@ messages:
 choices:
   concise: 1.0
   verbose: 0.0
+substitutions:
+  output: output_messages_to_conversation
