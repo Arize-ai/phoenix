@@ -29,7 +29,9 @@ class Undefined:
     None.
     """
 
-    def __new__(cls) -> Any:
+    _instance: "Undefined"
+
+    def __new__(cls) -> "Undefined":
         if not hasattr(cls, "_instance"):
             cls._instance = super().__new__(cls)
         return cls._instance
