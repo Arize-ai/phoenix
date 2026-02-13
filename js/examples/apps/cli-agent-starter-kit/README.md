@@ -47,6 +47,7 @@ The starter kit includes automatic OpenTelemetry tracing via `@arizeai/phoenix-o
 **Automatic Local Phoenix Setup**: The `pnpm dev` command automatically ensures a Phoenix Docker container is running. No manual setup required!
 
 **Environment Variable Sharing**: The Phoenix container receives your `ANTHROPIC_API_KEY` from your `.env` file. This enables Phoenix features like:
+
 - **LLM Evaluations**: Run evaluators (relevance, hallucination, toxicity) directly in Phoenix UI
 - **Experiments**: Test different prompts and compare outputs
 - **Dataset Testing**: Test your traces against evaluation criteria
@@ -54,6 +55,7 @@ The starter kit includes automatic OpenTelemetry tracing via `@arizeai/phoenix-o
 Only the Anthropic API key is passed to Phoenix for security and simplicity.
 
 Traces are sent to:
+
 - **Local Phoenix** (default): `http://localhost:6006` - Automatically started via Docker
 - **Phoenix Cloud**: Set `PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com` and provide your `PHOENIX_API_KEY`
 
@@ -75,6 +77,7 @@ pnpm phoenix:down     # Stop and remove Phoenix container (data persists in volu
 ```
 
 **When to use reload vs restart:**
+
 - Use `phoenix:restart` for quick container restarts (keeps same config)
 - Use `phoenix:reload` after updating `.env` file (recreates container with new env vars)
 
@@ -92,6 +95,7 @@ pnpm dev:verbose      # Verbose mode - detailed Phoenix startup diagnostics
 ```
 
 The `dev` command will:
+
 1. Silently check if Phoenix Docker container is running
 2. Start Phoenix automatically if needed (shows 2-line status message)
 3. Wait for Phoenix to be healthy
@@ -162,6 +166,7 @@ Skills are symlinked from the Phoenix monorepo root and available in both `.agen
 ### Phoenix Container Issues
 
 **Container won't start:**
+
 ```bash
 # Check Docker is running
 docker info
@@ -179,6 +184,7 @@ pnpm phoenix:start
 ```
 
 **Port 6006 already in use:**
+
 ```bash
 # Find what's using port 6006
 lsof -i :6006
