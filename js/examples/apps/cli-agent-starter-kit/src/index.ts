@@ -1,4 +1,6 @@
 /* eslint-disable no-console */
+// Import instrumentation first to ensure tracing is initialized
+import "./instrumentation";
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 
@@ -17,6 +19,7 @@ async function main() {
       model: anthropic("claude-sonnet-4-20250514"),
       prompt:
         "Say hello and introduce yourself as a CLI agent in one sentence.",
+      experimental_telemetry: { isEnabled: true },
     });
 
     console.log("Response from Claude:");
