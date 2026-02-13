@@ -312,10 +312,9 @@ def _get_message(message: Mapping[str, Any]) -> _Message:
             tool_calls.append(tc)
     role = get_attribute_value(message, MESSAGE_ROLE) or "assistant"
     msg = _Message(role=role)
-    if content is not None:
+    if content:
         msg["content"] = content
-    # Omit legacy "name" when message has tool_calls (avoid spurious name from nesting)
-    if name is not None and not tool_calls:
+    if name:
         msg["name"] = name
     if tool_calls:
         msg["tool_calls"] = tool_calls
