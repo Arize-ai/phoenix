@@ -1,4 +1,3 @@
-src/phoenix/trace/schemas.py
 src/phoenix/trace/span_json_encoder.py
 src/phoenix/db/helpers.py
 src/phoenix/db/models.py
