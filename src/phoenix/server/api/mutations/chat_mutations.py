@@ -390,60 +390,61 @@ class ChatCompletionMutationMixin:
                     dataset_evaluator_node_ids=dataset_evaluator_node_ids,
                     session=session,
                 )
-                for (revision, repetition_number), experiment_run in zip(
-                    unbatched_items, experiment_runs
+            for (revision, repetition_number), experiment_run in zip(
+                unbatched_items, experiment_runs
+            ):
+                if experiment_run.error:
+                    continue  # skip runs that errored out
+                evaluation_key = (revision.dataset_example_id, repetition_number)
+                evaluations[evaluation_key] = []
+
+                context_dict: dict[str, Any] = {
+                    "input": revision.input,
+                    "reference": revision.output,
+                    "output": experiment_run.output.get("task_output", experiment_run.output),
+                    "metadata": revision.metadata_,
+                }
+
+                for evaluator, evaluator_input, project_id in zip(
+                    evaluators, input.evaluators, project_ids
                 ):
-                    if experiment_run.error:
-                        continue  # skip runs that errored out
-                    evaluation_key = (revision.dataset_example_id, repetition_number)
-                    evaluations[evaluation_key] = []
+                    name = str(evaluator_input.name)
+                    configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                    tracer: Tracer | None = None
+                    if input.tracing_enabled:
+                        tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
 
-                    context_dict: dict[str, Any] = {
-                        "input": revision.input,
-                        "reference": revision.output,
-                        "output": experiment_run.output.get("task_output", experiment_run.output),
-                        "metadata": revision.metadata_,
-                    }
+                    eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                        context=context_dict,
+                        input_mapping=evaluator_input.input_mapping,
+                        name=name,
+                        output_configs=configs,
+                        tracer=tracer,
+                    )
 
-                    for evaluator, evaluator_input, project_id in zip(
-                        evaluators, input.evaluators, project_ids
-                    ):
-                        name = str(evaluator_input.name)
-                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        tracer: Tracer | None = None
-                        if input.tracing_enabled:
-                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
-
-                        eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
-                            name=name,
-                            output_configs=configs,
-                            tracer=tracer,
-                        )
-
-                        trace: Trace | None = None
-                        if tracer is not None:
+                    trace: Trace | None = None
+                    if tracer is not None:
+                        async with info.context.db() as session:
                             db_traces = await tracer.save_db_traces(
                                 session=session, project_id=project_id
                             )
-                            if db_traces:
-                                db_trace = db_traces[0]
-                                trace = Trace(id=db_trace.id, db_record=db_trace)
-                                for eval_result in eval_results:
-                                    eval_result["trace_id"] = db_trace.trace_id
+                        if db_traces:
+                            db_trace = db_traces[0]
+                            trace = Trace(id=db_trace.id, db_record=db_trace)
+                            for eval_result in eval_results:
+                                eval_result["trace_id"] = db_trace.trace_id
 
-                        for eval_result in eval_results:
-                            if eval_result["error"] is None:
-                                annotation_model = evaluation_result_to_model(
-                                    eval_result,
-                                    experiment_run_id=experiment_run.id,
-                                )
-                                session.add(annotation_model)
-                                await session.flush()
-                            evaluations[evaluation_key].append(
-                                _to_evaluation_result(eval_result, name, trace=trace)
+                    for eval_result in eval_results:
+                        if eval_result["error"] is None:
+                            annotation_model = evaluation_result_to_model(
+                                eval_result,
+                                experiment_run_id=experiment_run.id,
                             )
+                            async with info.context.db() as session:
+                                session.add(annotation_model)
+                        evaluations[evaluation_key].append(
+                            _to_evaluation_result(eval_result, name, trace=trace)
+                        )
 
         for (revision, repetition_number), experiment_run, result in zip(
             unbatched_items, experiment_runs, results
@@ -512,40 +513,40 @@ class ChatCompletionMutationMixin:
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,
                 )
-                for repetition_number, result in enumerate(results, start=1):
-                    if isinstance(result, BaseException):
-                        continue  # skip failed completions
-                    repetition, db_span = result
-                    if repetition.error_message:
-                        continue  # skip repetitions in which the task errored out
-                    evaluations_by_repetition[repetition_number] = []
+            for repetition_number, result in enumerate(results, start=1):
+                if isinstance(result, BaseException):
+                    continue  # skip failed completions
+                repetition, db_span = result
+                if repetition.error_message:
+                    continue  # skip repetitions in which the task errored out
+                evaluations_by_repetition[repetition_number] = []
 
-                    context_dict: dict[str, Any] = {
-                        "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
-                        "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
-                    }
+                context_dict: dict[str, Any] = {
+                    "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
+                    "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                }
 
-                    for evaluator, evaluator_input in zip(evaluators, input.evaluators):
-                        name = str(evaluator_input.name)
-                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
-                            name=name,
-                            output_configs=configs,
-                        )
+                for evaluator, evaluator_input in zip(evaluators, input.evaluators):
+                    name = str(evaluator_input.name)
+                    configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                    eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                        context=context_dict,
+                        input_mapping=evaluator_input.input_mapping,
+                        name=name,
+                        output_configs=configs,
+                    )
 
-                        for eval_result in eval_results:
-                            if eval_result["error"] is None:
-                                annotation_model = evaluation_result_to_span_annotation(
-                                    eval_result,
-                                    span_rowid=db_span.id,
-                                )
-                                session.add(annotation_model)
-                                await session.flush()
-                            evaluations_by_repetition[repetition_number].append(
-                                _to_evaluation_result(eval_result, name)
+                    for eval_result in eval_results:
+                        if eval_result["error"] is None:
+                            annotation_model = evaluation_result_to_span_annotation(
+                                eval_result,
+                                span_rowid=db_span.id,
                             )
+                            async with info.context.db() as session:
+                                session.add(annotation_model)
+                        evaluations_by_repetition[repetition_number].append(
+                            _to_evaluation_result(eval_result, name)
+                        )
 
         repetitions: list[ChatCompletionRepetition] = []
         for repetition_number, result in enumerate(results, start=1):
