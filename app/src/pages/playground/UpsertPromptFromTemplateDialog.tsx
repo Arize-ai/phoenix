@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
+import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
@@ -20,6 +21,21 @@ import {
   SavePromptFormParams,
 } from "@phoenix/pages/playground/SavePromptForm";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+/**
+ * Map tag names to the input shape expected by the create/update mutations.
+ */
+function toTagInputs(tags: string[]) {
+  return tags.map((tagName) => {
+    const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
+      (def) => def.name === tagName
+    );
+    return {
+      name: tagName,
+      description: tagDefinition?.description ?? null,
+    };
+  });
+}
 
 type UpsertPromptFromTemplateProps = {
   instanceId: number;
@@ -64,7 +80,12 @@ export const UpsertPromptFromTemplateDialog = ({
     `);
   // tasks to complete after either mutation completes successfully
   const onSuccess = useCallback(
-    (promptId: string, promptName: string, promptVersion: string) => {
+    (
+      promptId: string,
+      promptName: string,
+      promptVersion: string,
+      tag: string | null
+    ) => {
       const state = store.getState();
       const instance = state.instances.find(
         (instance) => instance.id === instanceId
@@ -79,8 +100,7 @@ export const UpsertPromptFromTemplateDialog = ({
             id: promptId,
             name: promptName,
             version: promptVersion,
-            // TODO: allow users to create tags at prompt creation time
-            tag: null,
+            tag,
           },
         },
         dirty: false,
@@ -108,6 +128,7 @@ export const UpsertPromptFromTemplateDialog = ({
         }
       }
 
+      const tags = params.tags ?? [];
       createPrompt({
         variables: {
           input: {
@@ -118,9 +139,11 @@ export const UpsertPromptFromTemplateDialog = ({
               ...promptInput,
               templateFormat,
             },
+            tags: tags.length > 0 ? toTagInputs(tags) : null,
           },
         },
         onCompleted: (response) => {
+          const versionId = response.createChatPrompt.version.id;
           notifySuccess({
             title: `Prompt successfully created`,
             action: {
@@ -133,7 +156,8 @@ export const UpsertPromptFromTemplateDialog = ({
           onSuccess(
             response.createChatPrompt.id,
             response.createChatPrompt.name,
-            response.createChatPrompt.version.id
+            versionId,
+            tags[0] ?? null
           );
           close();
         },
@@ -165,6 +189,7 @@ export const UpsertPromptFromTemplateDialog = ({
         instanceId,
         store
       );
+      const tags = params.tags ?? [];
       updatePrompt({
         variables: {
           input: {
@@ -174,6 +199,7 @@ export const UpsertPromptFromTemplateDialog = ({
               templateFormat,
               description: params.description,
             },
+            tags: tags.length > 0 ? toTagInputs(tags) : null,
           },
         },
         onCompleted: (response) => {
@@ -189,7 +215,8 @@ export const UpsertPromptFromTemplateDialog = ({
           onSuccess(
             response.createChatPromptVersion.id,
             response.createChatPromptVersion.name,
-            response.createChatPromptVersion.version.id
+            response.createChatPromptVersion.version.id,
+            tags[0] ?? null
           );
           close();
         },

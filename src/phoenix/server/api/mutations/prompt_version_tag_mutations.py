@@ -27,6 +27,12 @@ class DeletePromptVersionTagInput:
 
 
 @strawberry.input
+class CreatePromptVersionTagInput:
+    name: Identifier
+    description: Optional[str] = None
+
+
+@strawberry.input
 class SetPromptVersionTagInput:
     prompt_version_id: GlobalID
     name: Identifier

@@ -1,12 +1,17 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Button,
+  Checkbox,
   FieldError,
   Flex,
   Form,
+  Icon,
+  Icons,
+  Input,
   Label,
   Text,
   TextArea,
@@ -14,6 +19,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
+import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
@@ -29,6 +35,7 @@ export type SavePromptFormParams = {
   name: string;
   description?: string;
   metadata?: string;
+  tags?: string[];
 };
 
 export function SavePromptForm({
@@ -52,6 +59,9 @@ export function SavePromptForm({
             prompt: node {
               id
               name
+              versionTags {
+                name
+              }
             }
           }
         }
@@ -73,9 +83,25 @@ export function SavePromptForm({
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
   const submitButtonText =
     mode === "create" ? "Create Prompt" : "Update Prompt";
+
+  // Tags state: tags added via inline "New Tag" form (not yet saved)
+  const [newTags, setNewTags] = useState<string[]>([]);
+
+  // Compute available tags: defaults + prompt-specific tags (update mode) + new tags
+  const availableTags = useMemo(() => {
+    const defaultTagNames = DEFAULT_PROMPT_VERSION_TAGS.map((t) => t.name);
+    const promptTagNames =
+      selectedPrompt?.prompt?.versionTags?.map((t) => t.name) ?? [];
+    return Array.from(
+      new Set([...defaultTagNames, ...promptTagNames, ...newTags])
+    );
+  }, [selectedPrompt, newTags]);
+
   const {
     control,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { isDirty, isValid },
   } = useForm<SavePromptFormParams>({
     values: {
@@ -88,6 +114,7 @@ export function SavePromptForm({
     defaultValues: {
       description: "",
       metadata: "{}",
+      tags: [],
     },
     mode: "onChange",
     resetOptions: {
@@ -210,6 +237,64 @@ export function SavePromptForm({
           </Flex>
         </View>
 
+        <View paddingX="size-200" paddingBottom="size-200">
+          <Flex direction="column" gap="size-50">
+            <Label>Tags (optional)</Label>
+            <Text
+              color="text-700"
+              size="XS"
+              css={css`
+                margin-bottom: var(--ac-global-dimension-size-50);
+              `}
+            >
+              Select tags to apply to the saved version
+            </Text>
+
+            <Controller
+              name="tags"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <ul>
+                  {availableTags.map((tagName) => {
+                    const isSelected = (value ?? []).includes(tagName);
+                    return (
+                      <li key={tagName}>
+                        <View paddingY="size-50">
+                          <Checkbox
+                            name={tagName}
+                            isSelected={isSelected}
+                            onChange={(checked) => {
+                              const current = value ?? [];
+                              if (checked) {
+                                onChange([...current, tagName]);
+                              } else {
+                                onChange(current.filter((t) => t !== tagName));
+                              }
+                            }}
+                          >
+                            {tagName}
+                          </Checkbox>
+                        </View>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            />
+            <NewTagInlineForm
+              existingTags={availableTags}
+              onAdd={(tagName) => {
+                setNewTags((prev) => [...prev, tagName]);
+                // Auto-select the newly created tag
+                const currentTags = getValues("tags") ?? [];
+                setValue("tags", [...currentTags, tagName], {
+                  shouldDirty: true,
+                });
+              }}
+            />
+          </Flex>
+        </View>
+
         <View
           paddingEnd="size-200"
           paddingTop="size-100"
@@ -229,6 +314,64 @@ export function SavePromptForm({
           </Flex>
         </View>
       </Form>
+    </Flex>
+  );
+}
+
+function NewTagInlineForm({
+  existingTags,
+  onAdd,
+}: {
+  existingTags: string[];
+  onAdd: (tagName: string) => void;
+}) {
+  const [inputValue, setInputValue] = useState("");
+
+  const error = useMemo(() => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return null;
+    const validationError = validateIdentifier(trimmed);
+    if (typeof validationError === "string") return validationError;
+    if (existingTags.includes(trimmed)) return "Tag already exists";
+    return null;
+  }, [inputValue, existingTags]);
+
+  const handleAdd = useCallback(() => {
+    const trimmed = inputValue.trim();
+    if (!trimmed || error) return;
+    onAdd(trimmed);
+    setInputValue("");
+  }, [inputValue, error, onAdd]);
+
+  return (
+    <Flex direction="row" gap="size-100" alignItems="start">
+      <TextField
+        size="S"
+        aria-label="New tag name"
+        value={inputValue}
+        onChange={setInputValue}
+        isInvalid={!!error}
+        css={css`
+          flex: 1 1 auto;
+        `}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleAdd();
+          }
+        }}
+      >
+        <Input placeholder="New tag name" />
+        {error ? <FieldError>{error}</FieldError> : null}
+      </TextField>
+      <Button
+        size="S"
+        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        onPress={handleAdd}
+        isDisabled={!inputValue.trim() || !!error}
+      >
+        Add
+      </Button>
     </Flex>
   );
 }
