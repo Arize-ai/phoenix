@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 5.8.2
+
+### Patch Changes
+
+- 8be1940: Update `@arizeai/openinference-vercel` dependency to `^2.7.0`.
+- Updated dependencies [7456462]
+  - @arizeai/phoenix-otel@0.4.1
+
 ## 5.8.1
 
 ### Patch Changes

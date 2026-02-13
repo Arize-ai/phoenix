@@ -28,9 +28,7 @@ test("can create user key", async ({ page }) => {
     .click();
 
   // Verify the named key appears in the table - which means key creation succeeded
-  await expect(page.getByRole("cell", { name: keyName })).toBeVisible({
-    timeout: 60000,
-  });
+  await expect(page.getByRole("cell", { name: keyName })).toBeVisible();
 });
 
 test("should be able to create a new project", async ({ page }) => {

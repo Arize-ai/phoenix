@@ -10,6 +10,19 @@ GitHub
 
 
 <Update label="02.12.2026">
+## [02.12.2026: OpenAI Responses API Type Support](/docs/phoenix/release-notes/02-2026/02-12-2026-openai-responses-api-support)
+Phoenix now supports selecting the **OpenAI API type** for OpenAI and Azure OpenAI calls in the Playground and custom providers. Choose **Chat Completions** (`chat.completions.create`) or **Responses** (`responses.create`) depending on the model and features you want to use.
+
+**Key capabilities:**
+
+- **API type selection:** Choose Chat Completions or Responses per model configuration.
+- **Custom provider support:** OpenAI and Azure OpenAI custom providers can be configured with an API type for consistent routing.
+- **Parameter compatibility:** Phoenix maps shared invocation parameters to the chosen API type and filters unsupported fields automatically.
+
+To get started, open the Playground model configuration panel and select an **OpenAI API type**, or set it in **Settings → AI Providers → Custom Providers** for server-managed routing.
+</Update>
+
+<Update label="02.12.2026">
 ## [02.12.2026: Dataset Evaluators](/docs/phoenix/release-notes/02-2026/02-12-2026-dataset-evaluators)
 **Requires Phoenix 13.x.**
 **Dataset evaluators** let you attach evaluators directly to a dataset so they automatically run server-side whenever you execute experiments from the Phoenix UI (for example, from the Playground). This turns your dataset into a reusable evaluation suite and removes the need to reconfigure evaluators for every experiment.

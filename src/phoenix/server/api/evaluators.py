@@ -417,7 +417,9 @@ class LLMEvaluator(BaseEvaluator):
                         args = json.loads(tool_call["arguments"])
                         label = args.get("label")
                         if label is None:
-                            continue
+                            raise ValueError(
+                                "LLM response missing required 'label' field in tool call arguments"
+                            )
                         scores_by_label = {
                             config_value.label: config_value.score
                             for config_value in matched_config.values
@@ -1160,7 +1162,9 @@ def create_llm_evaluator_from_inline(
 class ContainsEvaluator(BuiltInEvaluator):
     _key = "contains"
     name = "contains"
-    description = "Evaluates whether the output contains a specific string"
+    description = (
+        "Evaluates whether the text contains any (or all) of the specified comma-separated words"
+    )
     metadata = {"type": "string_matching"}
 
     @property
@@ -1260,7 +1264,9 @@ class ContainsEvaluator(BuiltInEvaluator):
                     template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
-                words = [word.strip() for word in inputs.get("words", "").split(",")]
+                words = [
+                    word.strip() for word in inputs.get("words", "").split(",") if word.strip()
+                ]
                 text = inputs.get("text", "")
                 case_sensitive = inputs.get("case_sensitive", False)
                 require_all = inputs.get("require_all", False)
@@ -1279,20 +1285,56 @@ class ContainsEvaluator(BuiltInEvaluator):
                         ),
                     },
                 ) as execution_span:
-                    match_fn = all if require_all else any
-                    if case_sensitive:
+                    if not words:
+                        matched = False
+                    elif case_sensitive:
+                        match_fn = all if require_all else any
                         matched = match_fn(word in text for word in words)
                     else:
+                        match_fn = all if require_all else any
                         matched = match_fn(word.lower() in text.lower() for word in words)
 
-                    if require_all:
-                        all_or_not = "all" if matched else "not all"
-                        explanation = (
-                            f"{all_or_not} of the words {repr(words)} were found in the text"
-                        )
+                    if not words:
+                        explanation = "No valid words were provided to check."
                     else:
-                        found_or_not = "found" if matched else "not found"
-                        explanation = f"one or more of the words {repr(words)} were {found_or_not} in the text"  # noqa: E501
+                        word_list = ", ".join(words)
+                        truncated_text = (text[:100] + "...") if len(text) > 100 else text
+                        if case_sensitive:
+                            found_words = [w for w in words if w in text]
+                            missing_words = [w for w in words if w not in text]
+                        else:
+                            text_lower = text.lower()
+                            found_words = [w for w in words if w.lower() in text_lower]
+                            missing_words = [w for w in words if w.lower() not in text_lower]
+
+                        if require_all:
+                            if matched:
+                                explanation = (
+                                    f"All of the words [{word_list}] were found"
+                                    f" in the text: '{truncated_text}'."
+                                )
+                            else:
+                                missing_list = ", ".join(missing_words)
+                                explanation = (
+                                    f"Not all of the words [{word_list}] were"
+                                    f" found in the text: '{truncated_text}'."
+                                    f" Missing: {missing_list}"
+                                )
+                        else:
+                            if matched:
+                                matched_list = ", ".join(found_words)
+                                explanation = (
+                                    f"One or more of the words [{word_list}]"
+                                    f" were found in the text:"
+                                    f" '{truncated_text}'."
+                                    f" Matched: {matched_list}"
+                                )
+                            else:
+                                explanation = (
+                                    f"None of the words [{word_list}]"
+                                    f" were found in the text:"
+                                    f" '{truncated_text}'."
+                                )
 
                     execution_span.set_attributes(
                         oi.get_output_attributes(json.dumps(matched), mime_type="application/json")

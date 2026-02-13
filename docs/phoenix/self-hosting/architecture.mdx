@@ -17,6 +17,10 @@ Phoenix supports two database backends. Choose based on your deployment needs:
 | **SQLite** | Local development, single-user deployments | Default, no setup required |
 | **PostgreSQL** | Production, multi-user, high availability | Set [PHOENIX_SQL_DATABASE_URL](/docs/phoenix/self-hosting/configuration#environment-variables) |
 
+<Info>
+  For high-volume ingestion, sub-second queries at scale, and OLAP workloads beyond what SQLite or PostgreSQL are designed for, [Arize AX](https://arize.com/docs/ax/release-notes/history/2025/06-2025#arize-database-adb) runs on [adb](https://arize.com/blog/introducing-adb-arizes-proprietary-olap-database/), Arize's proprietary OLAP database.
+</Info>
+
 ### SQLite
 
 The default storage option. Phoenix stores data in `~/.phoenix/` or the directory specified by [PHOENIX_WORKING_DIR](/docs/phoenix/self-hosting/configuration#environment-variables). Simple to get started—just mount a volume for persistence.
@@ -34,6 +38,10 @@ See the [Docker deployment guide](/docs/phoenix/self-hosting/deployment-options/
 A single Phoenix instance represents **one tenant**. All data within an instance—projects, traces, datasets, experiments—is accessible to users based on their [role-based access controls](/docs/phoenix/settings/access-control-rbac).
 
 This single-tenant model keeps deployments simple with clear data isolation boundaries. For multi-team scenarios, deploy multiple Phoenix instances.
+
+<Info>
+  When multiple teams rely on the same system and need isolation, [Arize AX](https://arize.com/docs/ax/security-and-settings/sso-and-rbac) provides multi-tenancy via organizations and spaces.
+</Info>
 
 ## Scaling
 

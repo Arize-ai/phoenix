@@ -1652,6 +1652,58 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["error"] is None
         assert result["score"] == 1.0
 
+    async def test_contains_evaluator_trailing_comma_no_false_positive(self) -> None:
+        """Trailing comma should not produce an empty token that matches everything."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        result = (
+            await evaluator.evaluate(
+                context={"words": "cumin,", "text": "no spices here"},
+                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                name="contains",
+                output_configs=[evaluator.output_configs[0]],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+
+    async def test_contains_evaluator_explanation_format(self) -> None:
+        """Explanation should use clean word list (not repr) and include the text value."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        result = (
+            await evaluator.evaluate(
+                context={"words": "cumin,paprika", "text": "The recipe uses cumin and paprika"},
+                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                name="contains",
+                output_configs=[evaluator.output_configs[0]],
+            )
+        )[0]
+        assert result["error"] is None
+        explanation = result["explanation"]
+        assert explanation is not None
+        assert "[cumin, paprika]" in explanation
+        assert "The recipe uses cumin" in explanation
+
+    async def test_contains_evaluator_empty_words_require_all_no_false_positive(self) -> None:
+        """Empty words list with require_all=True should not produce a false positive."""
+        from phoenix.server.api.evaluators import ContainsEvaluator
+
+        evaluator = ContainsEvaluator()
+        result = (
+            await evaluator.evaluate(
+                context={"words": ",", "text": "any text", "require_all": True},
+                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                name="contains",
+                output_configs=[evaluator.output_configs[0]],
+            )
+        )[0]
+        assert result["error"] is None
+        assert result["score"] == 0.0
+        assert result["explanation"] == "No valid words were provided to check."
+
 
 class TestJSONDistanceParseStringsToggle:
     """Tests for JSONDistanceEvaluator parse_strings toggle behavior.
@@ -3247,6 +3299,67 @@ class TestLLMEvaluator:
         assert json.loads(attributes.pop(INPUT_VALUE)) == {"input": "What is 2 + 2?", "output": "4"}
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
+
+    async def test_evaluate_with_missing_label_in_tool_call_records_error(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        tracer: Tracer,
+        llm_evaluator: LLMEvaluator,
+        output_config: CategoricalAnnotationConfig,
+        input_mapping: EvaluatorInputMappingInput,
+    ) -> None:
+        tool_call_response_body = (
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":null,'
+            '"tool_calls":[{"index":0,"id":"call_abc123","type":"function",'
+            '"function":{"name":"correctness","arguments":""}}],"refusal":null},'
+            '"logprobs":null,"finish_reason":null}],"usage":null}\n\n'
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,'
+            '"function":{"arguments":"{\\"explanation\\": \\"The output is correct.\\"}"}}]},'
+            '"logprobs":null,"finish_reason":null}],"usage":null}\n\n'
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},'
+            '"finish_reason":"tool_calls"}],"usage":null}\n\n'
+            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
+            '"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":10,'
+            '"completion_tokens":20,"total_tokens":30}}\n\n'
+            "data: [DONE]\n\n"
+        )
+        with respx.mock:
+            respx.post("https://api.openai.com/v1/chat/completions").mock(
+                return_value=httpx.Response(
+                    200,
+                    content=tool_call_response_body,
+                    headers={"content-type": "text/event-stream"},
+                )
+            )
+            evaluation_results = await llm_evaluator.evaluate(
+                context={"input": "What is 2 + 2?", "output": "4"},
+                input_mapping=input_mapping,
+                name="correctness",
+                output_configs=[output_config],
+                tracer=tracer,
+            )
+            assert len(evaluation_results) == 1
+            evaluation_result = evaluation_results[0]
+
+        result = dict(evaluation_result)
+        error = result.pop("error")
+        assert isinstance(error, str)
+        assert "LLM response missing required 'label' field in tool call arguments" in error
+        assert result.pop("label") is None
+        assert result.pop("score") is None
+        assert result.pop("explanation") is None
+        assert result.pop("annotator_kind") == "LLM"
+        assert result.pop("name") == "correctness"
+        trace_id = result.pop("trace_id")
+        assert isinstance(trace_id, str)
+        assert isinstance(result.pop("start_time"), datetime)
+        assert isinstance(result.pop("end_time"), datetime)
+        assert result.pop("metadata") == {}
+        assert not result
 
     async def test_evaluate_with_multipart_template(
         self,

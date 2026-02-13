@@ -18,11 +18,16 @@ test.describe.serial("Server Evaluators", () => {
     await page.goto("/datasets");
     await page.waitForURL("**/datasets");
 
-    // Click New Dataset dropdown button
+    // Click New Dataset button to open the create dataset dialog
     await page.getByRole("button", { name: "New Dataset" }).click();
 
-    // Select "New Dataset" from the dropdown menu
-    await page.getByRole("menuitem", { name: "New Dataset" }).click();
+    // Verify dialog opens with the correct heading
+    await expect(
+      page.getByRole("heading", { name: "Create Dataset" })
+    ).toBeVisible();
+
+    // Switch to the "From scratch" tab
+    await page.getByRole("tab", { name: "From scratch" }).click();
 
     // Fill in dataset details in the dialog
     await page.getByLabel("Dataset Name").clear();
@@ -33,14 +38,10 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Create Dataset" }).click();
 
     // Wait for dialog to close and verify we're on the new dataset page
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Wait for the dataset to appear in the table
-    await expect(page.getByRole("link", { name: datasetName })).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
 
     // Navigate to the dataset to verify it was created
     await page.getByRole("link", { name: datasetName }).click();
@@ -58,25 +59,36 @@ test.describe.serial("Server Evaluators", () => {
       .click();
 
     // Wait for the Add Example dialog to open
-    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("dialog")).toBeVisible();
 
     // Fill in the input field with valid JSON
     // JSONEditor renders a CodeMirror editor with .cm-content
-    const inputTextArea = page.locator(".cm-content").first();
-    await inputTextArea.waitFor({ state: "visible", timeout: 5000 });
+    // Scope to the dialog to avoid picking up background editors
+    const dialog = page.getByRole("dialog");
+    const inputTextArea = dialog.locator(".cm-content").first();
+    await expect(inputTextArea).toBeVisible();
     await inputTextArea.click();
-    // Clear existing content and type new JSON
+    // Select all existing content and replace it
     await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.type('{"question": "What is 2+2?", "context": "Math"}');
+    // Use insertText instead of type to bypass CodeMirror's bracket/quote
+    // auto-closing which mangles character-by-character input
+    await page.keyboard.insertText(
+      '{"question": "What is 2+2?", "context": "Math"}'
+    );
+
+    // Uncheck the "Create more" checkbox so the dialog closes after adding.
+    // Click the label text because React Aria's Checkbox has a hidden input
+    // whose visual overlay intercepts pointer events on the native checkbox.
+    await page.getByText("Create more", { exact: true }).click();
 
     // Click Add Example button to save
     await page.getByRole("button", { name: "Add Example" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("dialog")).not.toBeVisible();
 
     // Verify the example appears in the table (or at least the table is no longer empty)
-    await expect(page.getByRole("row")).toHaveCount(2, { timeout: 10000 }); // header + 1 example
+    await expect(page.getByRole("row")).toHaveCount(2); // header + 1 example
   });
 
   test("can navigate to evaluators tab", async ({ page }) => {
@@ -143,9 +155,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Create" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the evaluator appears in the table
     await expect(
@@ -196,9 +206,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Create" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the evaluator appears in the table
     await expect(
@@ -258,9 +266,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Update" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the evaluator still appears in the table
     await expect(
@@ -327,9 +333,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Create" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the evaluator appears in the table
     await expect(
@@ -372,9 +376,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Update" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the evaluator still appears in the table
     await expect(
@@ -414,9 +416,7 @@ test.describe.serial("Server Evaluators", () => {
 
     // Close the dialog
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
   test("evaluators are visible in playground when dataset is selected", async ({
@@ -447,37 +447,39 @@ test.describe.serial("Server Evaluators", () => {
     const noProviderMessage = page.getByText(
       "The playground is not available until an LLM provider client is installed"
     );
-    if (
-      await noProviderMessage.isVisible({ timeout: 5000 }).catch(() => false)
-    ) {
+    const readinessResult = await Promise.race([
+      noProviderMessage.waitFor({ state: "visible" }).then(() => "no-provider"),
+      page
+        .getByText("Experiment", { exact: true })
+        .waitFor({ state: "visible" })
+        .then(() => "ready"),
+    ]);
+
+    if (readinessResult === "no-provider") {
       throw new Error(
         "Playground requires an LLM provider to be installed. Playwright test environment is not configured correctly."
       );
     }
 
     // Wait for the playground title to appear first
-    await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible(
-      { timeout: 10000 }
-    );
+    await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible();
 
     // Wait for the "Experiment" text to appear, which indicates
     // the dataset section has loaded (this appears in PlaygroundExperimentToolbar)
-    await expect(page.getByText("Experiment", { exact: true })).toBeVisible({
-      timeout: 30000,
-    });
+    await expect(page.getByText("Experiment", { exact: true })).toBeVisible();
 
     // Find and click the Evaluators button to open the evaluators menu
     // Use the button inside the content area (not the tab)
     const evaluatorsButton = page
       .getByTestId("content")
       .getByRole("button", { name: /Evaluators/i });
-    await expect(evaluatorsButton).toBeVisible({ timeout: 10000 });
+    await expect(evaluatorsButton).toBeVisible();
     await evaluatorsButton.click();
 
     // Wait for the evaluators menu to appear - the GridList has aria-label="Select evaluators"
     // React Aria GridList renders with role="grid"
     const evaluatorsList = page.locator('[aria-label="Select evaluators"]');
-    await expect(evaluatorsList).toBeVisible({ timeout: 10000 });
+    await expect(evaluatorsList).toBeVisible();
 
     // Verify that the prebuilt LLM evaluator (correctness) appears in the list
     // GridList items render as role="row"

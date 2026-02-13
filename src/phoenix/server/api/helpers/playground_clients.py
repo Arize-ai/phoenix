@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager
 from functools import wraps
 from itertools import chain
+from secrets import token_hex
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -391,36 +392,41 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             )
         )
 
-        with tracer_.start_as_current_span(
+        # Use start_span (not start_as_current_span) and span.end() in finally so we never
+        # attach contextvars in the generator. Avoids "Failed to detach context" /
+        # "Token was created in a different Context" when the generator is closed in another task.
+        span = tracer_.start_span(
             "ChatCompletion",
             attributes=attributes,
-            set_status_on_exception=False,  # manually set exception to control message
-        ) as span:
-            text_chunks: list[TextChunk] = []
-            tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
-            auto_accumulating = self.response_attributes_are_auto_accumulating
-            try:
-                async for chunk in self._chat_completion_create(
-                    messages=messages, tools=tools, span=span, **invocation_parameters
-                ):
-                    if isinstance(chunk, TextChunk):
-                        if not auto_accumulating:
-                            text_chunks.append(chunk)
-                        yield chunk
-                    elif isinstance(chunk, ToolCallChunk):
-                        if not auto_accumulating:
-                            tool_call_chunks[chunk.id].append(chunk)
-                        yield chunk
+            set_status_on_exception=False,  # we set status manually
+        )
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        auto_accumulating = self.response_attributes_are_auto_accumulating
+        try:
+            async for chunk in self._chat_completion_create(
+                messages=messages, tools=tools, span=span, **invocation_parameters
+            ):
+                if isinstance(chunk, TextChunk):
+                    if not auto_accumulating:
+                        text_chunks.append(chunk)
+                    yield chunk
+                elif isinstance(chunk, ToolCallChunk):
+                    if not auto_accumulating:
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
 
-                span.set_status(Status(StatusCode.OK))
-                if not auto_accumulating and (text_chunks or tool_call_chunks):
-                    span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
-                    if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
-                        span.set_attributes(output_attrs)
-            except Exception as e:
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                # no need to manually record exception, otel will handle for us
-                raise
+            span.set_status(Status(StatusCode.OK))
+            if not auto_accumulating and (text_chunks or tool_call_chunks):
+                span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+                if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
+                    span.set_attributes(output_attrs)
+        except Exception as e:
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            raise
+        finally:
+            span.end()
 
     @abstractmethod
     def _chat_completion_create(
@@ -1994,18 +2000,21 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
         return invocation_params
 
 
+GEMINI_2_0_MODELS = [
+    PROVIDER_DEFAULT,
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash-001",
+    "gemini-2.0-flash-thinking-exp-01-21",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        PROVIDER_DEFAULT,
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash-001",
-        "gemini-2.0-flash-thinking-exp-01-21",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-pro",
-        "gemini-1.0-pro",
-    ],
+    model_names=GEMINI_2_0_MODELS,
 )
 class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     @property
@@ -2120,8 +2129,51 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                     if candidate.content and candidate.content.parts:
                         for part in candidate.content.parts:
                             if function_call := part.function_call:
+                                # Gemini often returns an empty or ``None``
+                                # ``id`` on ``FunctionCall``.  The frontend
+                                # merges streamed tool-call chunks by ``id``,
+                                # so when every call arrives as ``""`` they all
+                                # collapse into one entry with garbled
+                                # arguments.  This class assigns a stable
+                                # synthetic ID (``tool_call_0``,
+                                # ``tool_call_1``, …) whenever the upstream
+                                # ``id`` is falsy, while preserving real IDs
+                                # when Gemini provides them.
+
+                                # This converter assumes each ``FunctionCall``
+                                # is self-contained — i.e. ``name`` and
+                                # ``args`` are both present on the same
+                                # object.  If they were ever split across
+                                # separate ``FunctionCall`` messages, the
+                                # converter would emit two incorrect
+                                # ``ToolCallChunk`` objects (one with the
+                                # name but empty args, another with args but
+                                # an empty name).  This assumption is safe
+                                # today: the Gemini API always delivers
+                                # complete function calls, and the SDK itself
+                                # makes the same assumption — it performs no
+                                # reassembly of ``FunctionCall`` fields
+                                # (``_Candidate_from_mldev`` passes
+                                # ``content`` through to Pydantic's
+                                # ``model_validate`` as-is).
+
+                                # The only mechanism that could disassociate
+                                # ``name`` and ``args`` is the
+                                # ``will_continue`` / ``partial_args``
+                                # incremental streaming protocol.  As of this
+                                # writing, both fields are rejected by the
+                                # Gemini API with ``ValueError`` (see
+                                # ``google.genai.models``).  They are only
+                                # supported by the Vertex AI surface behind
+                                # the ``stream_function_call_arguments``
+                                # tool-config flag.  If Vertex AI support is
+                                # added in the future, this class should be
+                                # extended to buffer partial calls
+                                # (``will_continue=True``) and reassemble
+                                # ``partial_args`` using their ``json_path``
+                                # keys.
                                 yield ToolCallChunk(
-                                    id=function_call.id or "",
+                                    id=function_call.id or token_hex(4),
                                     function=FunctionCallChunk(
                                         name=function_call.name or "",
                                         arguments=json.dumps(function_call.args or {}),
@@ -2154,15 +2206,18 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         return google_messages, "\n".join(system_prompts)
 
 
+GEMINI_2_5_MODELS = [
+    PROVIDER_DEFAULT,
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro-preview-03-25",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        PROVIDER_DEFAULT,
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro-preview-03-25",
-    ],
+    model_names=GEMINI_2_5_MODELS,
 )
 class Gemini25GoogleStreamingClient(GoogleStreamingClient):
     @classmethod
@@ -2205,11 +2260,15 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
         ]
 
 
+GEMINI_3_MODELS = [
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        "gemini-3-pro-preview",
-    ],
+    model_names=GEMINI_3_MODELS,
 )
 class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
     @classmethod
@@ -2581,7 +2640,19 @@ async def _get_builtin_provider_client(
             return GoogleGenAIClient(api_key=api_key).aio
 
         client_factory = create_google_client
-        return GoogleStreamingClient(
+        if model_name in GEMINI_2_0_MODELS:
+            return GoogleStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        if model_name in GEMINI_2_5_MODELS:
+            return Gemini25GoogleStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return Gemini3GoogleStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -2848,7 +2919,19 @@ async def _get_custom_provider_client(
             google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return GoogleStreamingClient(
+        if model_name in GEMINI_2_0_MODELS:
+            return GoogleStreamingClient(
+                client_factory=google_genai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        if model_name in GEMINI_2_5_MODELS:
+            return Gemini25GoogleStreamingClient(
+                client_factory=google_genai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return Gemini3GoogleStreamingClient(
             client_factory=google_genai_client_factory,
             model_name=model_name,
             provider=provider,

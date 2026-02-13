@@ -75,6 +75,10 @@ If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix
 
 </Warning>
 
+<Info>
+OpenAI and Azure OpenAI support two API types: **Chat Completions** (`chat.completions.create`) and **Responses** (`responses.create`). For built-in providers, choose the API type from the model configuration panel in the Playground. For custom providers, set the API type in the provider configuration. Built-in providers default to Chat Completions, while custom providers default to Responses.
+</Info>
+
 ## Custom Providers
 
 Custom providers let you store provider credentials and routing settings on the server and reuse them across the playground and prompt versions. This is ideal for shared environments where you want a single, managed configuration instead of per-browser API keys or ephemeral routing fields.

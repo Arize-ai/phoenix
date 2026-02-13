@@ -84,7 +84,7 @@ Phoenix captures detailed traces from your AI applications, giving you visibilit
       <Card title="Portkey" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/portkey-logo.png" href="/docs/phoenix/integrations/python/portkey" />
       <Card title="Graphite" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/graphite-logo.png" href="/docs/phoenix/integrations/python/graphite" />
       <Card title="NVIDIA" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/nvidia-logo.png" href="/docs/phoenix/integrations/python/nvidia" />
-      <Card title="MCP" href="/docs/phoenix/integrations/python/mcp-tracing" />
+      <Card title="MCP" href="/docs/phoenix/integrations/python/mcp-tracing" icon="plug" description="MCP tracing integration"/>
       <Card title="Agent Spec" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/agentspec-logo.png" href="/docs/phoenix/integrations/python/agentspec" />
     </CardGroup>
   </Tab>
@@ -94,7 +94,7 @@ Phoenix captures detailed traces from your AI applications, giving you visibilit
       <Card title="LangChain.js" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif" href="/docs/phoenix/integrations/typescript/langchain" />
       <Card title="Mastra" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b97976e8-image.jpeg" href="/docs/phoenix/integrations/typescript/mastra" />
       <Card title="BeeAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9de53658-image.avif" href="/docs/phoenix/integrations/typescript/beeai" />
-      <Card title="MCP" href="/docs/phoenix/integrations/typescript/mcp" />
+      <Card title="MCP" href="/docs/phoenix/integrations/typescript/mcp" icon="plug" description="MCP tracing integration"/>
     </CardGroup>
   </Tab>
   <Tab title="Java" icon="java">
@@ -158,10 +158,10 @@ Phoenix's evaluation library (`phoenix-evals`) can use any LLM provider to power
 Use external evaluation libraries alongside Phoenix to get the best of both worlds:
 
 <CardGroup cols={4}>
-  <Card title="Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas" />
-  <Card title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" />
-  <Card title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" />
-  <Card title="MLflow" href="/docs/phoenix/integrations/evaluation-integrations/mlflow" />
+  <Card title="Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas" icon="clipboard-check" description="RAG evaluation library"/>
+  <Card title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" icon="check-circle" description="Model quality diagnostics"/>
+  <Card title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" icon="code" description="Pydantic-based evals"/>
+  <Card title="MLflow" href="/docs/phoenix/integrations/evaluation-integrations/mlflow" icon="chart-line" description="MLflow evaluation tracking"/>
 </CardGroup>
 
 ---
@@ -171,13 +171,13 @@ Use external evaluation libraries alongside Phoenix to get the best of both worl
 Connect Phoenix with your vector database for embedding analysis and retrieval debugging:
 
 <CardGroup cols={4}>
-  <Card title="Pinecone" href="/docs/phoenix/integrations/vector-databases/pinecone" />
-  <Card title="Qdrant" href="/docs/phoenix/integrations/vector-databases/qdrant" />
-  <Card title="Weaviate" href="/docs/phoenix/integrations/vector-databases/weaviate" />
-  <Card title="MongoDB" href="/docs/phoenix/integrations/vector-databases/mongodb" />
-  <Card title="Zilliz/Milvus" href="/docs/phoenix/integrations/vector-databases/zilliz-milvus" />
-  <Card title="Couchbase" href="/docs/phoenix/integrations/vector-databases/couchbase" />
-  <Card title="OpenSearch" href="/docs/phoenix/integrations/vector-databases/opensearch" />
+  <Card title="Pinecone" href="/docs/phoenix/integrations/vector-databases/pinecone" icon="database" description="Vector database integration"/>
+  <Card title="Qdrant" href="/docs/phoenix/integrations/vector-databases/qdrant" icon="database" description="Vector database integration"/>
+  <Card title="Weaviate" href="/docs/phoenix/integrations/vector-databases/weaviate" icon="database" description="Vector database integration"/>
+  <Card title="MongoDB" href="/docs/phoenix/integrations/vector-databases/mongodb" icon="database" description="Vector database integration"/>
+  <Card title="Zilliz/Milvus" href="/docs/phoenix/integrations/vector-databases/zilliz-milvus" icon="database" description="Vector database integration"/>
+  <Card title="Couchbase" href="/docs/phoenix/integrations/vector-databases/couchbase" icon="database" description="Vector database integration"/>
+  <Card title="OpenSearch" href="/docs/phoenix/integrations/vector-databases/opensearch" icon="database" description="Vector database integration"/>
 </CardGroup>
 
 ---
@@ -187,7 +187,7 @@ Connect Phoenix with your vector database for embedding analysis and retrieval d
 Normalize and convert data from other instrumentation libraries by adding span processors that unify traces to the OpenInference format:
 
 <CardGroup cols={3}>
-  <Card title="OpenLIT" href="https://pypi.org/project/openinference-instrumentation-openlit/" />
-  <Card title="OpenLLMetry (Traceloop)" href="https://pypi.org/project/openinference-instrumentation-openllmetry/" />
+  <Card title="OpenLIT" href="https://pypi.org/project/openinference-instrumentation-openlit/" icon="arrows-rotate" description="OpenLIT span processor"/>
+  <Card title="OpenLLMetry (Traceloop)" href="https://pypi.org/project/openinference-instrumentation-openllmetry/" icon="arrows-rotate" description="OpenLLMetry span processor"/>
 </CardGroup>
 

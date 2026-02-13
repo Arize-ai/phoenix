@@ -189,7 +189,7 @@ export type RegisterParams = {
  * @example
  * Full configuration with custom settings:
  * ```typescript
- * import { register } from '@arizeai/phoenix-otel';
+ * import { DiagLogLevel, register } from '@arizeai/phoenix-otel';
  * import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
  * import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
  *
@@ -229,6 +229,8 @@ export type RegisterParams = {
  * @example
  * Debugging configuration:
  * ```typescript
+ * import { DiagLogLevel, register } from '@arizeai/phoenix-otel';
+ *
  * const provider = register({
  *   projectName: 'debug-app',
  *   url: 'http://localhost:6006',

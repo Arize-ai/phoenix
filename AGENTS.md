@@ -62,6 +62,8 @@ tox list                                                 # List all environments
 pnpm dev                                 # Dev server with hot reload
 pnpm run build                           # Build production
 pnpm test                                # Run tests
+pnpm run test:e2e                        # Run Playwright E2E tests (builds first, starts test server)
+pnpm run test:e2e -- tests/foo.spec.ts --project=chromium # Run specific E2E test file
 pnpm run lint:fix                        # Fix linting issues
 pnpm run typecheck                       # Type check
 pnpm run build:relay                     # Build GraphQL schema
@@ -149,4 +151,8 @@ phoenix/
 
 3. **GraphQL Schema**: After modifying schema in Python, rebuild with `tox run -e build_graphql_schema`.
 
-4. **Changesets**: TypeScript package changes require a changeset via `pnpm changeset`.
+4. **Changesets**: Any change inside `js/` requires a changeset via `pnpm changeset` (including dependency updates, code changes, and config updates).
+
+5. **Lint Fix Required Before Handoff**: After making changes, run the relevant lint command with auto-fix and then re-run validation for touched areas.
+   - `js/`: `pnpm --dir js lint --fix`
+   - `app/`: `pnpm --dir app run lint:fix`

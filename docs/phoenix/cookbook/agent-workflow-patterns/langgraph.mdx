@@ -63,7 +63,7 @@ A linear sequence of prompt steps, where the output of one becomes the input to 
 **Use case:** Multistep reasoning, query rewriting, or building up answers gradually.
 
 <CardGroup>
-<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_promptchaining.ipynb" icon="book" horizontal/>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_promptchaining.ipynb" icon="book" horizontal description="Prompt chaining notebook"/>
 </CardGroup>
 
 ### Parallelization
@@ -83,7 +83,7 @@ With the `Send` API, LangGraph lets you:
 This improves reliability and reduces bottlenecks in linear pipelines.
 
 <CardGroup>
-<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_parallel.ipynb" icon="book" horizontal/>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_parallel.ipynb" icon="book" horizontal description="Parallelization notebook"/>
 </CardGroup>
 
 ### Router
@@ -95,7 +95,7 @@ Routes an input to the most appropriate follow-up node based on its type or inte
 LangGraph routers enable domain-specific delegation — e.g., classify an incoming query as "billing", "technical support", or "FAQ", and send it to a specialized sub-agent. Each route can have its own tools, memory, and context. Use structured output with a routing schema to make classification more reliable.
 
 <CardGroup>
-<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_router.ipynb" icon="book" horizontal/>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_router.ipynb" icon="book" horizontal description="Routing notebook"/>
 </CardGroup>
 
 ### Evaluator–Optimizer Loop
@@ -105,7 +105,7 @@ One LLM generates content, another LLM evaluates it, and the loop repeats until 
 **Use case:** Improving code, jokes, summaries, or any generative output with measurable quality.
 
 <CardGroup>
-<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_evaluator.ipynb" icon="book" horizontal/>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_evaluator.ipynb" icon="book" horizontal description="Evaluator-optimizer notebook"/>
 </CardGroup>
 
 ### Orchestrator–Worker
@@ -123,7 +123,7 @@ You can also incorporate agents like `PDF_Reader` or a `WebSearcher`, and the or
 </Warning>
 
 <CardGroup>
-<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_orchestrator.ipynb" icon="book" horizontal/>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_orchestrator.ipynb" icon="book" horizontal description="Orchestrator-worker notebook"/>
 </CardGroup>
 
 

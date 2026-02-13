@@ -40,7 +40,7 @@ agent = Agent(
 An LLM agent with access to tools to accomplish a task is the most basic flow. This agent answers questions about stocks and uses OpenAI web search to get real time information.
 
 
-<Card title="phoenix/tutorials/agents/openai/openai_agents_basic.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_basic.ipynb" icon="github" horizontal/>
+<Card title="phoenix/tutorials/agents/openai/openai_agents_basic.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_basic.ipynb" icon="github" horizontal description="Basic agent notebook"/>
 
 ```python
 from agents import Agent, Runner, WebSearchTool
@@ -60,7 +60,7 @@ This agent builds a portfolio of stocks and ETFs using multiple agents linked to
 1. **Search Agent:** Searches the web for information on particular stock tickers.
 2. **Report Agent:** Creates a portfolio of stocks and ETFs that supports the user's investment strategy.
 
-<Card title="phoenix/tutorials/agents/openai/openai_agents_prompt_chaining.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_prompt_chaining.ipynb" icon="github" horizontal/>
+<Card title="phoenix/tutorials/agents/openai/openai_agents_prompt_chaining.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_prompt_chaining.ipynb" icon="github" horizontal description="Prompt chaining notebook"/>
 
 ```python expandable
 portfolio_agent = Agent(
@@ -83,7 +83,7 @@ research_agent = Agent(
 
 This agent researches stocks for you. If we want to research 5 stocks, we can force the agent to run multiple tool calls, instead of sequentially.
 
-<Card title="phoenix/tutorials/agents/openai/openai_agents_parallelization.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_parallelization.ipynb" icon="github" horizontal/>
+<Card title="phoenix/tutorials/agents/openai/openai_agents_parallelization.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_parallelization.ipynb" icon="github" horizontal description="Parallelization notebook"/>
 
 ```python expandable
 @function_tool
@@ -117,7 +117,7 @@ This agent answers questions about investing using multiple agents. A central ro
 1. **Research Agent:** Searches the web for information about stocks and ETFs.
 2. **Question Answering Agent:** Answers questions about investing like Warren Buffett.
 
-<Card title="phoenix/tutorials/agents/openai/openai_agents_routing.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_routing.ipynb" icon="github" horizontal/>
+<Card title="phoenix/tutorials/agents/openai/openai_agents_routing.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_routing.ipynb" icon="github" horizontal description="Routing notebook"/>
 
 ```python expandable
 qa_agent = Agent(
@@ -149,7 +149,7 @@ This agent pattern creates reports and evaluates itself to improve its output.
 1. **Report Agent (Generation):** Creates a report on a particular stock ticker.
 2. **Evaluator Agent (Feedback):** Evaluates the report and provides feedback on what to improve.
 
-<Card title="phoenix/tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb" icon="github" horizontal/>
+<Card title="phoenix/tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb" icon="github" horizontal description="Evaluator-optimizer notebook"/>
 
 ```python expandable
 class EvaluationFeedback(BaseModel):
@@ -188,7 +188,7 @@ In the following example, we'll build an agent which creates a portfolio of stoc
 3. **Evaluation Agent:** Evaluates the research report and provides feedback on what data is missing.
 4. **Portfolio Agent:** Creates a portfolio of stocks and ETFs based on the research report.
 
-<Card title="phoenix/tutorials/agents/openai/openai_agents_orchestrator.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_orchestrator.ipynb" icon="github" horizontal/>
+<Card title="phoenix/tutorials/agents/openai/openai_agents_orchestrator.ipynb at main · Arize-ai/phoenix" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/openai/openai_agents_orchestrator.ipynb" icon="github" horizontal description="Orchestrator-worker notebook"/>
 
 ```python expandable
 evaluation_agent = Agent(

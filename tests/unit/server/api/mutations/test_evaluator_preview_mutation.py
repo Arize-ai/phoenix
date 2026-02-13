@@ -97,7 +97,7 @@ class TestEvaluatorPreviewMutation:
 
         annotation = results[0]["annotation"]
         assert annotation["score"] == 0.0
-        assert "not found" in annotation["explanation"]
+        assert "None of the words" in annotation["explanation"]
 
     async def test_preview_multiple_evaluators(
         self,
