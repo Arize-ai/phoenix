@@ -1,3 +1,5 @@
+from typing import Optional
+
 import phoenix.__generated__.classification_evaluator_configs as configs_module
 from phoenix.__generated__.classification_evaluator_configs import (
     ClassificationEvaluatorConfig as PydanticClassificationEvaluatorConfig,
@@ -8,7 +10,9 @@ from phoenix.server.api.helpers.substitutions import (
 )
 
 
-def get_classification_evaluator_configs() -> list[PydanticClassificationEvaluatorConfig]:
+def get_classification_evaluator_configs(
+    label: Optional[str] = None,
+) -> list[PydanticClassificationEvaluatorConfig]:
     """
     Load all CLASSIFICATION_EVALUATOR_CONFIG objects from __generated__.
 
@@ -27,5 +31,8 @@ def get_classification_evaluator_configs() -> list[PydanticClassificationEvaluat
                 if getattr(config, "substitutions", None):
                     config = expand_config_templates(config, substitutions)
                 configs.append(config)
+
+    if label:
+        configs = [config for config in configs if label in config.labels]
 
     return configs
