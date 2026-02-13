@@ -74,8 +74,8 @@ def _delete_empty_document_metadata(documents: Any) -> Any:
     # If the documents is a list, iterate over them, check that the metadata is
     # a dict, see if it is empty, and if it's empty, delete the metadata
     if isinstance(documents, list):
-        # Make a shallow copy of the keys
-        documents = list(map(dict, documents))
+        # Make a shallow copy of the dicts
+        documents = [doc.copy() for doc in documents]
         for document in documents:
             metadata = document.get(DOCUMENT_METADATA)
             if isinstance(metadata, dict) and not metadata:
