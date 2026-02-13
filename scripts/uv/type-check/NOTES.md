@@ -53,3 +53,8 @@ Used `# type: ignore[assignment]` on line 113 for the `existing_roles` list comp
 Used `# type: ignore[attr-defined]` on line 274 for accessing `table.deleted_at`. The function parameter `table` has type `type[models.HasId]`, and while the function checks at runtime that the table has a `deleted_at` attribute (via `hasattr`), ty's type system doesn't track this dynamic attribute check. The type ignore is necessary because the `HasId` base class doesn't define `deleted_at` - it's only present on specific subclasses like `GenerativeModel`. At runtime, the hasattr check ensures safety.
 
 
+src/phoenix/server/api/types/ExampleRevisionInterface.py
+
+Used `TYPE_CHECKING` conditional with a type alias for the strawberry `JSON` scalar. The issue is that `strawberry.scalars.JSON` is a `ScalarWrapper` (which wraps a `NewType("JSON", object)`), and ty reports `invalid-type-form` errors when NewType is used in type expressions. At runtime, strawberry needs the actual `JSON` scalar object to build the GraphQL schema. The solution uses `TYPE_CHECKING` to provide `JSONType = object` for ty (since JSON wraps object) while keeping `JSONType = JSON` at runtime for strawberry. This pattern maintains GraphQL functionality while satisfying ty's type checking requirements. This same pattern should be applied to other modules using strawberry scalars.
+
+
