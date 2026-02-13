@@ -63,10 +63,10 @@ fi
 # Check if Phoenix container exists but is stopped
 if docker ps -a --format '{{.Names}}' | grep -q "^cli-agent-phoenix$"; then
   log_info "Starting Phoenix..."
-  docker-compose start phoenix > /dev/null 2>&1
+  docker compose start phoenix > /dev/null 2>&1
 else
   log_info "Starting Phoenix (first run may take ~30s)..."
-  docker-compose up -d phoenix > /dev/null 2>&1
+  docker compose up -d phoenix > /dev/null 2>&1
 fi
 
 # Wait for Phoenix to be healthy
