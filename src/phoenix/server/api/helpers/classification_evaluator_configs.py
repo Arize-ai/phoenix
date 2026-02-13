@@ -19,6 +19,10 @@ def get_classification_evaluator_configs(
     Automatically discovers all configs by looking for attributes ending with
     '_CLASSIFICATION_EVALUATOR_CONFIG'. For configs with a `substitutions` mapping,
     expands simple placeholders into full Mustache blocks before returning.
+
+    If `labels` is not provided, all discovered evaluator configs are returned.
+    If `labels` is provided, only evaluator configs with at least one matching
+    label are returned.
     """
     configs = []
     substitutions = load_substitutions()
