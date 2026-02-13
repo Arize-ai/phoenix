@@ -4,7 +4,9 @@
 
 ### DB Index for Session ID
 
-A partial index on `spans.attributes` for session id is added by migration. No action required. Migration run time is estimated locally on a MacBook Pro at >200 seconds per 100 GiB. Cloud environments may take longer depending on instance size and I/O throughput.
+A partial index on `spans.attributes` for session id is added by migration. No action required. Migration run time is estimated at approximately 200 seconds per 100 GiB on a MacBook Pro. Cloud environments may take longer depending on instance size and I/O throughput.
+
+Note: On PostgreSQL, the index uses the `#>>` path operator (e.g., `attributes #>> '{session,id}'`). Queries using chained arrow operators (`attributes -> 'session' ->> 'id'`) will not match the index. Phoenix's built-in query layer always uses the `#>>` form, so this only affects custom SQL queries run directly against the database.
 
 ### Azure OpenAI v1 API
 
