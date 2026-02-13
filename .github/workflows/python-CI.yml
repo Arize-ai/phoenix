@@ -471,7 +471,7 @@ jobs:
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --run-postgres --skip-sqlite -n 4 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
 
   unit-tests-all-platforms:
     name: Unit Tests - All Platforms
@@ -524,7 +524,7 @@ jobs:
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --run-postgres --skip-sqlite -n 4 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
 
   type-check-integration-tests:
     name: Type Check Integration Tests

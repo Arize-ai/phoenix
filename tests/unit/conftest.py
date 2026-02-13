@@ -55,21 +55,19 @@ from tests.unit.vcr import CustomVCR
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
-    run_postgres = config.getoption("--run-postgres")
-    skip_sqlite = config.getoption("--skip-sqlite")
-    if not run_postgres and not skip_sqlite:
-        skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
+    db = config.getoption("--db")
+    if db == "sqlite":
+        skip_marker = pytest.mark.skip(reason="Skipping Postgres tests (--db sqlite)")
         for item in items:
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
-                    item.add_marker(skip_postgres)
-    elif skip_sqlite:
-        skip_sqlite_marker = pytest.mark.skip(reason="Skipping SQLite tests")
+                    item.add_marker(skip_marker)
+    elif db == "postgresql":
+        skip_marker = pytest.mark.skip(reason="Skipping SQLite tests (--db postgresql)")
         for item in items:
-            if "dialect" not in item.fixturenames:
-                item.add_marker(skip_sqlite_marker)
-            elif "sqlite" in item.callspec.params.values():
-                item.add_marker(skip_sqlite_marker)
+            if "dialect" in item.fixturenames:
+                if "sqlite" in item.callspec.params.values():
+                    item.add_marker(skip_marker)
 
 
 @pytest.fixture
