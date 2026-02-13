@@ -16,7 +16,7 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"correct": 1.0, "incorrect": 0.0},
     substitutions={
         "available_tools": "available_tools_list",
-        "tool_selection": "tool_calls_to_string",
+        "tool_selection": "output_with_tool_calls",
     },
     labels=["promoted_dataset_evaluator"],
 )
