@@ -120,9 +120,12 @@ if TYPE_CHECKING:
         ChatCompletionMessageToolCallParam,
     )
     from openai.types.responses import (
+        FunctionToolParam,
         Response,
         ResponseInputItemParam,
         ResponseStreamEvent,
+        ToolChoiceFunction,
+        ToolChoiceOptions,
     )
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
 
@@ -137,34 +140,34 @@ ToolCallID: TypeAlias = str
 
 def _tools_chat_completions_to_responses_api(
     tools: list[JSONScalarType],
-) -> list[dict[str, Any]]:
+) -> list[FunctionToolParam]:
     """
     Convert tools from Chat Completions format (name/description/parameters under
     a nested 'function' key) to Responses API format (flat type, name, description,
     parameters at top level). Leaves non-function tools and already-flat tools
     unchanged. Skips non-dict items.
     """
-    result: list[dict[str, Any]] = []
+    from openai.types.responses import FunctionToolParam
+
+    result: list[FunctionToolParam] = []
     for tool in tools:
         if not isinstance(tool, dict):
             continue
         if "function" in tool:
             fn = tool["function"]
             if not isinstance(fn, dict):
-                result.append(tool)
                 continue
-            flat: dict[str, Any] = {
-                "type": tool.get("type", "function"),
-                "name": fn.get("name", ""),
-                "parameters": fn.get("parameters") if fn.get("parameters") is not None else {},
-            }
+            flat = FunctionToolParam(
+                type="function",
+                name=fn.get("name", ""),
+                parameters=fn.get("parameters") if fn.get("parameters") is not None else {},
+                strict=fn.get("strict", True),
+            )
             if "description" in fn:
                 flat["description"] = fn["description"]
-            if "strict" in fn:
-                flat["strict"] = fn["strict"]
             result.append(flat)
         else:
-            result.append(tool)
+            result.append(cast(FunctionToolParam, tool))
     return result
 
 
@@ -180,6 +183,31 @@ _RESPONSES_API_PARAM_NAMES = frozenset(
         "extra_body",
     }
 )
+
+
+def _tool_choice_chat_completions_to_responses_api(
+    tool_choice: Any,
+) -> ToolChoiceOptions | ToolChoiceFunction:
+    """
+    Convert tool_choice from Chat Completions format to Responses API format.
+
+    Chat Completions uses ``{"type": "function", "function": {"name": "..."}}``
+    while Responses API expects ``{"type": "function", "name": "..."}``.
+    String values ("auto", "none", "required") and already-flat dicts are
+    passed through unchanged.
+    """
+    from openai.types.responses import ToolChoiceFunction
+
+    if not isinstance(tool_choice, dict):
+        return cast(ToolChoiceOptions, tool_choice)
+    if "function" in tool_choice:
+        fn = tool_choice["function"]
+        if isinstance(fn, dict) and "name" in fn:
+            return ToolChoiceFunction(
+                type="function",
+                name=fn["name"],
+            )
+    return cast(ToolChoiceFunction, tool_choice)
 
 
 def _invocation_parameters_to_responses_api(
@@ -205,7 +233,7 @@ def _invocation_parameters_to_responses_api(
         elif key == "top_p":
             out["top_p"] = value
         elif key == "tool_choice":
-            out["tool_choice"] = value
+            out["tool_choice"] = _tool_choice_chat_completions_to_responses_api(value)
         elif key == "extra_body":
             if isinstance(value, dict):
                 extra_body.update(value)
