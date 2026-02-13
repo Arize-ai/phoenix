@@ -2512,6 +2512,10 @@ async def _get_builtin_provider_client(
 
         client_factory: ClientFactory = create_openai_client
         api_type = obj.openai_api_type
+        if model_name in OPENAI_RESPONSES_API_MODELS:
+            api_type = OpenAIApiType.RESPONSES
+        elif model_name in OPENAI_CHAT_COMPLETIONS_API_MODELS:
+            api_type = OpenAIApiType.CHAT_COMPLETIONS
         if api_type is OpenAIApiType.CHAT_COMPLETIONS:
             return OpenAIStreamingClient(
                 client_factory=client_factory,
@@ -2584,6 +2588,10 @@ async def _get_builtin_provider_client(
 
             client_factory = create_client_with_token
         api_type = obj.openai_api_type
+        if model_name in OPENAI_RESPONSES_API_MODELS:
+            api_type = OpenAIApiType.RESPONSES
+        elif model_name in OPENAI_CHAT_COMPLETIONS_API_MODELS:
+            api_type = OpenAIApiType.CHAT_COMPLETIONS
         if api_type is OpenAIApiType.CHAT_COMPLETIONS:
             return AzureOpenAIStreamingClient(
                 client_factory=client_factory,
