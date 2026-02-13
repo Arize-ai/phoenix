@@ -50,9 +50,9 @@ jobs:
         with:
           python-version: "3.10"
           version: "0.9.18"
-      - run: uvx hatch build
-      - run: uvx check-wheel-contents dist/*.whl
-      - run: uvx twine upload --skip-existing --verbose dist/*
+      - run: uv run hatch build
+      - run: uv run check-wheel-contents dist/*.whl
+      - run: uv run twine upload --skip-existing --verbose dist/*
         env:
           TWINE_USERNAME: "__token__"
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
       - name: Build distribution
         run: rm -rf dist && uv run hatch build
       - name: Check wheel contents
-        run: uvx check-wheel-contents --ignore W004 dist/*.whl
+        run: uv run check-wheel-contents --ignore W004 dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
       - uses: slackapi/slack-github-action@v1
         if: failure()
