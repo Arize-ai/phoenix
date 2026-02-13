@@ -23,3 +23,8 @@ tool_calls_to_string: |-
   No tools called.
   {{/tool_calls}}
   {{/output.messages}}
+
+output_messages_to_conversation: |-
+  {{#output.messages}}
+  {{role}}: {{content}}
+  {{/output.messages}}
