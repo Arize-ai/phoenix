@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.2...arize-phoenix-v13.0.3) (2026-02-13)
+
+
+### Bug Fixes
+
+* Prevent playground rerun when opening trace slide-over ([#11453](https://github.com/Arize-ai/phoenix/issues/11453)) ([04b8a48](https://github.com/Arize-ai/phoenix/commit/04b8a489d39cf0ef7d84eb72a78a0c7c488a05ad))
+
 ## [13.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.1...arize-phoenix-v13.0.2) (2026-02-13)
 
 
