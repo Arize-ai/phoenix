@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, cast
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +40,7 @@ _Existing: TypeAlias = tuple[
     _SessionId,
     Optional[_AnnoRowId],
     Optional[_Name],
+    Optional[_Identifier],
     Optional[datetime],
 ]
 
@@ -89,7 +90,12 @@ class SessionAnnotationQueueInserter(
                 session_id=e.session_id,
             ): _AnnoAttr(e.session_rowid, e.id, e.updated_at)
             for e in existing
-            if e.id is not None and e.name is not None and e.updated_at is not None
+            if (
+                e.id is not None
+                and e.name is not None
+                and e.identifier is not None
+                and e.updated_at is not None
+            )
         }
 
         for p in parcels:
@@ -140,14 +146,17 @@ class SessionAnnotationQueueInserter(
             anno.name.in_({k.annotation_name for k in keys}),
             tuple_(anno.name, anno.identifier, session.c.session_id).in_(keys),
         )
-        return select(
-            session.c.id.label("session_rowid"),
-            session.c.session_id,
-            anno.id,
-            anno.name,
-            anno.identifier,
-            anno.updated_at,
-        ).outerjoin_from(session, anno, onclause)
+        return cast(
+            Select[_Existing],
+            select(
+                session.c.id.label("session_rowid"),
+                session.c.session_id,
+                anno.id,
+                anno.name,
+                anno.identifier,
+                anno.updated_at,
+            ).outerjoin_from(session, anno, onclause),
+        )
 
 
 class _SessionAttr(NamedTuple):
