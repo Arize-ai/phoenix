@@ -26,7 +26,7 @@ def get_pg_config(
     """
     # Create new URL with appropriate driver
     query = url.query
-    ssl_args = _get_ssl_args(query)
+    ssl_args: _SSLArgs = _get_ssl_args(query)
 
     if enforce_ssl and not ssl_args:
         ssl_args = {"sslmode": "require"}
@@ -49,7 +49,9 @@ def get_pg_config(
         base_url = base_url.set(query=_remove_asyncpg_only_params(base_url.query))
     elif driver == "asyncpg":
         # Only create SSL context if we have SSL parameters and sslmode is not disable
-        if ssl_args and ssl_args.get("sslmode") != "disable":
+        has_ssl_config = bool(ssl_args)
+        sslmode_not_disabled = ssl_args.get("sslmode") != "disable"
+        if has_ssl_config and sslmode_not_disabled:
             connect_args = {"ssl": _get_ssl_context(ssl_args)}
         else:
             connect_args = {}
