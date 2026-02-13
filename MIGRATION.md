@@ -2,6 +2,10 @@
 
 ## v12.x to v13.0.0
 
+### DB Index for Session ID
+
+A partial index on `spans.attributes` for session id is added by migration. No action required. Migration run time is estimated locally on a MacBook Pro at >200 seconds per 100 GiB. Cloud environments may take longer depending on instance size and I/O throughput.
+
 ### Azure OpenAI v1 API
 
 Azure OpenAI integration now uses the OpenAI v1 API, which simplifies configuration by eliminating explicit API versioning. The `api_version` parameter is no longer required—versioning is now handled implicitly by the v1 API endpoint.
