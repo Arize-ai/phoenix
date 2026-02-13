@@ -106,6 +106,52 @@ export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
 );
 
 /**
+ * The zod schema for an OpenAI Responses API tool definition.
+ * @see https://platform.openai.com/docs/api-reference/responses/create
+ *
+ * Unlike the Chat Completions API which nests under a `function` key,
+ * the Responses API flattens name, description, and parameters to the top level
+ * alongside `type` and `strict`.
+ */
+export const openAIResponsesToolDefinitionSchema = z
+  .object({
+    type: z.literal("function").describe("The type of the tool"),
+    name: z.string().describe("The name of the function"),
+    description: z
+      .string()
+      .optional()
+      .describe("A description of the function"),
+    parameters: jsonSchemaZodSchema.describe(
+      "The parameters that the function accepts"
+    ),
+    strict: z
+      .boolean()
+      .optional()
+      .describe(
+        "Whether or not the arguments should exactly match the function definition"
+      ),
+  })
+  .passthrough();
+
+/**
+ * The type of an OpenAI Responses API tool definition
+ * @see https://platform.openai.com/docs/api-reference/responses/create
+ */
+export type OpenAIResponsesToolDefinition = z.infer<
+  typeof openAIResponsesToolDefinitionSchema
+>;
+
+/**
+ * The JSON schema for an OpenAI Responses API tool definition
+ */
+export const openAIResponsesToolDefinitionJSONSchema = zodToJsonSchema(
+  openAIResponsesToolDefinitionSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
+
+/**
  * The zod schema for an anthropic tool definition
  */
 export const anthropicToolDefinitionSchema = z.object({
@@ -152,6 +198,7 @@ export const awsToolDefinitionJSONSchema = zodToJsonSchema(
 
 export type AnyProviderToolDefinition =
   | OpenAIToolDefinition
+  | OpenAIResponsesToolDefinition
   | AnthropicToolDefinition
   | AwsToolDefinition;
 
@@ -245,6 +292,36 @@ export const geminiToolToOpenAI = geminiToolDefinitionSchema.transform(
 );
 
 /**
+ * Parse incoming object as an OpenAI Responses API tool and immediately convert to
+ * OpenAI Chat Completions format
+ */
+export const openAIResponsesToOpenAI =
+  openAIResponsesToolDefinitionSchema.transform(
+    (responses): OpenAIToolDefinition => ({
+      type: "function",
+      function: {
+        name: responses.name,
+        description: responses.description,
+        parameters: responses.parameters,
+      },
+    })
+  );
+
+/**
+ * Parse incoming object as an OpenAI Chat Completions tool and immediately convert to
+ * OpenAI Responses API format
+ */
+export const openAIToOpenAIResponses = openAIToolDefinitionSchema.transform(
+  (openai): OpenAIResponsesToolDefinition => ({
+    type: "function",
+    name: openai.function.name,
+    description: openai.function.description,
+    parameters: openai.function.parameters,
+    strict: false,
+  })
+);
+
+/**
  * Parse incoming object as an OpenAI tool and immediately convert to Gemini format
  */
 export const openAIToolToGemini = openAIToolDefinitionSchema.transform(
@@ -268,6 +345,9 @@ export const openAIToolToGemini = openAIToolDefinitionSchema.transform(
  */
 export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
+  // Responses API must come before Gemini: both have top-level name + parameters,
+  // but only Responses API requires type: "function", which Gemini tools lack.
+  openAIResponsesToolDefinitionSchema,
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
   geminiToolDefinitionSchema,
@@ -315,6 +395,25 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: openaiData,
     };
   }
+
+  // Responses API has top-level type: "function" + name + parameters (no nested `function` key).
+  // Detected as OPENAI and normalized to Chat Completions format for internal use.
+  const { success: openaiResponsesSuccess, data: openaiResponsesData } =
+    openAIResponsesToolDefinitionSchema.safeParse(toolDefinition);
+  if (openaiResponsesSuccess) {
+    return {
+      provider: "OPENAI",
+      validatedToolDefinition: {
+        type: "function" as const,
+        function: {
+          name: openaiResponsesData.name,
+          description: openaiResponsesData.description,
+          parameters: openaiResponsesData.parameters,
+        },
+      },
+    };
+  }
+
   const { success: anthropicSuccess, data: anthropicData } =
     anthropicToolDefinitionSchema.safeParse(toolDefinition);
   if (anthropicSuccess) {
@@ -481,6 +580,31 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
         },
       },
     },
+  };
+}
+
+/**
+ * Creates an OpenAI Responses API tool definition
+ * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
+ * @returns an OpenAI Responses API tool definition
+ */
+export function createOpenAIResponsesToolDefinition(
+  toolNumber: number
+): OpenAIResponsesToolDefinition {
+  return {
+    type: "function",
+    name: `new_function_${toolNumber}`,
+    description: "a description",
+    parameters: {
+      type: "object",
+      properties: {
+        new_arg: {
+          type: "string",
+        },
+      },
+      required: [],
+    },
+    strict: false,
   };
 }
 
