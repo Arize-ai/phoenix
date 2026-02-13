@@ -119,10 +119,10 @@ def aio_sqlite_engine(
 
     def async_creator() -> aiosqlite.Connection:
         conn = aiosqlite.Connection(
-            lambda: sqlean.connect(f"file:{database}", uri=True),
+            lambda: sqlean.connect(f"file:{database}", uri=True),  # type: ignore[attr-defined]
             iter_chunk_size=64,
         )
-        conn.daemon = True  # type: ignore[attr-defined]
+        conn.daemon = True
         return conn
 
     engine = create_async_engine(
@@ -147,7 +147,7 @@ def aio_sqlite_engine(
             url=url.set(drivername="sqlite"),
             echo=log_migrations_to_stdout,
             json_serializer=_dumps,
-            creator=lambda: sqlean.connect(f"file:{database}", uri=True),
+            creator=lambda: sqlean.connect(f"file:{database}", uri=True),  # type: ignore[attr-defined]
         )
         migrate_in_thread(sync_engine)
     return engine
@@ -184,7 +184,7 @@ def aio_postgresql_engine(
         token_lifetime = get_env_postgres_iam_token_lifetime()
 
         async def iam_async_creator() -> Any:
-            import asyncpg  # type: ignore
+            import asyncpg
 
             from phoenix.db.iam_auth import generate_aws_rds_token
 
@@ -242,7 +242,7 @@ def aio_postgresql_engine(
                 user=iam_config["user"],
             )
 
-            conn_kwargs = {
+            conn_kwargs: dict[str, Any] = {
                 "host": iam_config["host"],
                 "port": iam_config["port"],
                 "user": iam_config["user"],
