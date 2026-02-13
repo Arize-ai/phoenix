@@ -122,8 +122,7 @@ check-tools: ## Verify required tools are installed
 
 install-python: ## Install Python dependencies
 	@echo -e "$(CYAN)Installing Python dependencies...$(NC)"
-	@$(UV) venv --python 3.10
-	@$(UV) pip install -e ".[dev]"
+	@$(UV) sync --python 3.10
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 install-node: ## Install Node.js dependencies
