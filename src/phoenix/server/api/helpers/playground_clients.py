@@ -120,9 +120,12 @@ if TYPE_CHECKING:
         ChatCompletionMessageToolCallParam,
     )
     from openai.types.responses import (
+        FunctionToolParam,
         Response,
         ResponseInputItemParam,
         ResponseStreamEvent,
+        ToolChoiceFunction,
+        ToolChoiceOptions,
     )
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
 
@@ -137,34 +140,34 @@ ToolCallID: TypeAlias = str
 
 def _tools_chat_completions_to_responses_api(
     tools: list[JSONScalarType],
-) -> list[dict[str, Any]]:
+) -> list[FunctionToolParam]:
     """
     Convert tools from Chat Completions format (name/description/parameters under
     a nested 'function' key) to Responses API format (flat type, name, description,
     parameters at top level). Leaves non-function tools and already-flat tools
     unchanged. Skips non-dict items.
     """
-    result: list[dict[str, Any]] = []
+    from openai.types.responses import FunctionToolParam
+
+    result: list[FunctionToolParam] = []
     for tool in tools:
         if not isinstance(tool, dict):
             continue
         if "function" in tool:
             fn = tool["function"]
             if not isinstance(fn, dict):
-                result.append(tool)
                 continue
-            flat: dict[str, Any] = {
-                "type": tool.get("type", "function"),
-                "name": fn.get("name", ""),
-                "parameters": fn.get("parameters") if fn.get("parameters") is not None else {},
-            }
+            flat = FunctionToolParam(
+                type="function",
+                name=fn.get("name", ""),
+                parameters=fn.get("parameters"),
+                strict=fn.get("strict"),
+            )
             if "description" in fn:
                 flat["description"] = fn["description"]
-            if "strict" in fn:
-                flat["strict"] = fn["strict"]
             result.append(flat)
         else:
-            result.append(tool)
+            result.append(cast(FunctionToolParam, tool))
     return result
 
 
@@ -180,6 +183,31 @@ _RESPONSES_API_PARAM_NAMES = frozenset(
         "extra_body",
     }
 )
+
+
+def _tool_choice_chat_completions_to_responses_api(
+    tool_choice: Any,
+) -> ToolChoiceOptions | ToolChoiceFunction:
+    """
+    Convert tool_choice from Chat Completions format to Responses API format.
+
+    Chat Completions uses ``{"type": "function", "function": {"name": "..."}}``
+    while Responses API expects ``{"type": "function", "name": "..."}``.
+    String values ("auto", "none", "required") and already-flat dicts are
+    passed through unchanged.
+    """
+    from openai.types.responses import ToolChoiceFunction, ToolChoiceOptions
+
+    if not isinstance(tool_choice, dict):
+        return cast(ToolChoiceOptions, tool_choice)
+    if "function" in tool_choice:
+        fn = tool_choice["function"]
+        if isinstance(fn, dict) and "name" in fn:
+            return ToolChoiceFunction(
+                type="function",
+                name=fn["name"],
+            )
+    return cast(ToolChoiceFunction, tool_choice)
 
 
 def _invocation_parameters_to_responses_api(
@@ -205,7 +233,7 @@ def _invocation_parameters_to_responses_api(
         elif key == "top_p":
             out["top_p"] = value
         elif key == "tool_choice":
-            out["tool_choice"] = value
+            out["tool_choice"] = _tool_choice_chat_completions_to_responses_api(value)
         elif key == "extra_body":
             if isinstance(value, dict):
                 extra_body.update(value)
@@ -899,6 +927,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(event.type)
 
         if completed_response is not None:
+            span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+            span.set_attribute(OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True))
             span.set_attributes(
                 dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
             )
@@ -1424,16 +1454,13 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     pass
 
 
-OPENAI_RESPONSES_API_MODELS = [
+OPENAI_REASONING_MODELS = [
     "gpt-5.2",
     "gpt-5.2-2025-12-11",
     "gpt-5.2-chat-latest",
     "gpt-5.1",
     "gpt-5.1-2025-11-13",
     "gpt-5.1-chat-latest",
-]
-
-OPENAI_CHAT_COMPLETIONS_API_MODELS = [
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
@@ -1496,7 +1523,9 @@ class OpenAIReasoningReasoningModelsMixin:
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_RESPONSES_API_MODELS,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
 )
 class OpenAIResponsesAPIStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1526,7 +1555,7 @@ class OpenAIResponsesAPIStreamingClient(
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_CHAT_COMPLETIONS_API_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1609,7 +1638,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_RESPONSES_API_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIResponsesAPIStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -1639,7 +1668,7 @@ class AzureOpenAIResponsesAPIStreamingClient(
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_CHAT_COMPLETIONS_API_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
 class AzureOpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
@@ -2002,13 +2031,8 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
 
 GEMINI_2_0_MODELS = [
     PROVIDER_DEFAULT,
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash-001",
-    "gemini-2.0-flash-thinking-exp-01-21",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
-    "gemini-1.5-pro",
-    "gemini-1.0-pro",
+    "gemini-2.0-flash-lite",  # Will be deprecated and will be shut down on March 31, 2026.
+    "gemini-2.0-flash-001",  # Will be deprecated and will be shut down on March 31, 2026.
 ]
 
 
@@ -2208,10 +2232,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
 GEMINI_2_5_MODELS = [
     PROVIDER_DEFAULT,
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro-preview-03-25",
+    "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
 ]
 
 
@@ -2489,6 +2512,12 @@ async def _get_builtin_provider_client(
         client_factory: ClientFactory = create_openai_client
         api_type = obj.openai_api_type
         if api_type is OpenAIApiType.CHAT_COMPLETIONS:
+            if model_name in OPENAI_REASONING_MODELS:
+                return OpenAIReasoningNonStreamingClient(
+                    client_factory=client_factory,
+                    model_name=model_name,
+                    provider=provider,
+                )
             return OpenAIStreamingClient(
                 client_factory=client_factory,
                 model_name=model_name,
@@ -2561,6 +2590,12 @@ async def _get_builtin_provider_client(
             client_factory = create_client_with_token
         api_type = obj.openai_api_type
         if api_type is OpenAIApiType.CHAT_COMPLETIONS:
+            if model_name in OPENAI_REASONING_MODELS:
+                return AzureOpenAIReasoningNonStreamingClient(
+                    client_factory=client_factory,
+                    model_name=model_name,
+                    provider=provider,
+                )
             return AzureOpenAIStreamingClient(
                 client_factory=client_factory,
                 model_name=model_name,

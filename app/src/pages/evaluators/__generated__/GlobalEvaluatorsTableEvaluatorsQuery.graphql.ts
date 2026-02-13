@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7dc6afdf032a74d579f1baa78db10d60>>
+ * @generated SignedSource<<44599d63dec71b15b614dd054a10e54a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -303,6 +303,32 @@ return {
                         ],
                         "storageKey": null
                       },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "promptVersion",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "modelName",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "modelProvider",
+                            "storageKey": null
+                          },
+                          (v2/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
                       (v7/*: any*/)
                     ],
                     "type": "LLMEvaluator",
@@ -384,12 +410,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dcd1b6ea67c5411e6d5115175b16f5a3",
+    "cacheID": "806b6b553af840b55a5ee39077eea562",
     "id": null,
     "metadata": {},
     "name": "GlobalEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query GlobalEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: EvaluatorFilter = null\n  $first: Int = 100\n  $sort: EvaluatorSort = null\n) {\n  ...GlobalEvaluatorsTable_evaluators_3JsJJ3\n}\n\nfragment EvaluatorsTable_row on Evaluator {\n  __isEvaluator: __typename\n  id\n  name\n  kind\n  description\n  createdAt\n  updatedAt\n  datasets(first: 10) {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n  datasetEvaluators {\n    id\n    name\n    description\n    updatedAt\n    dataset {\n      id\n      name\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on LLMEvaluator {\n    prompt {\n      id\n      name\n    }\n    promptVersionTag {\n      name\n      id\n    }\n    promptVersion {\n      modelName\n      modelProvider\n      id\n    }\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  ... on CodeEvaluator {\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n}\n\nfragment GlobalEvaluatorsTable_evaluators_3JsJJ3 on Query {\n  evaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        __typename\n        ...EvaluatorsTable_row\n        id\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

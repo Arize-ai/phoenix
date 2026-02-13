@@ -20,6 +20,7 @@ import {
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
+  truncateModelName,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
 import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
@@ -119,7 +120,7 @@ export function TopModelsByCost({
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={chartData}
-        margin={{ top: 0, right: 18, left: 0, bottom: 0 }}
+        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
         layout="vertical"
         barSize={10}
       >
@@ -139,6 +140,7 @@ export function TopModelsByCost({
           dataKey="model"
           type="category"
           width={120}
+          tickFormatter={truncateModelName}
         />
         <Bar
           dataKey="prompt_cost"

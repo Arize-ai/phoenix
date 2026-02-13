@@ -4,6 +4,7 @@ from typing import Any, Literal, Optional, Sequence, TypedDict
 
 from openinference.semconv.trace import (
     MessageAttributes,
+    MessageContentAttributes,
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
@@ -155,9 +156,15 @@ def _get_llm_span_output(
     Extracts the output value from an LLM span and returns it as a dictionary.
     The output is extracted from the output messages (if present).
     """
-    if messages := [_get_message(m) for m in output_messages or ()]:
-        return {"messages": messages}
-    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
+    raw = [_get_message(m) for m in output_messages or ()]
+    if not raw:
+        return _get_generic_io_value(
+            io_value=output_value, mime_type=output_mime_type, kind="output"
+        )
+    # OpenAI Responses API emits one output item per message/tool_call; merge
+    # consecutive assistant items into one (content + tool_calls).
+    messages = _merge_assistant_output_items(raw)
+    return {"messages": messages}
 
 
 def _get_retriever_span_output(
@@ -210,8 +217,72 @@ class _Message(TypedDict):
     tool_calls: NotRequired[Sequence[_ToolCall]]
 
 
+def _merge_assistant_output_items(raw: list[_Message]) -> list[_Message]:
+    """
+    Merge consecutive assistant-role items into a single ``_Message``.
+
+    The OpenAI Responses API instrumentor emits one ``LLM_OUTPUT_MESSAGES``
+    item per output item (a text block *or* a tool-call), so a single
+    assistant turn can arrive as two or three separate messages.  This
+    function collapses each *run* of consecutive assistant items into one
+    ``_Message`` that carries both ``content`` and ``tool_calls``.
+
+    Non-assistant messages are passed through unchanged.
+    """
+    result: list[_Message] = []
+    i = 0
+    while i < len(raw):
+        msg = raw[i]
+        if msg["role"] != "assistant":
+            result.append(msg)
+            i += 1
+            continue
+        # Start a new merged assistant message from the first item in the run.
+        content = msg.get("content")
+        tool_calls: list[_ToolCall] = list(msg.get("tool_calls") or [])
+        j = i + 1
+        while j < len(raw) and raw[j]["role"] == "assistant":
+            next_msg = raw[j]
+            if next_tool_calls := next_msg.get("tool_calls"):
+                tool_calls.extend(next_tool_calls)
+            if content is None and next_msg.get("content") is not None:
+                content = next_msg["content"]
+            j += 1
+        merged = _Message(role="assistant")
+        if content is not None:
+            merged["content"] = content
+        if tool_calls:
+            merged["tool_calls"] = tool_calls
+        result.append(merged)
+        i = j
+    return result
+
+
+def _get_content_from_message_contents(message: Mapping[str, Any]) -> Optional[str]:
+    """
+    Extract plain-text content from OpenInference message.contents.
+
+    The OpenAI Responses API instrumentor emits output under
+    LLM_OUTPUT_MESSAGES.{i}.MESSAGE_CONTENTS.{j}.MESSAGE_CONTENT_TEXT (and
+    MESSAGE_CONTENT_TYPE) for each content block, so after unflatten
+    message.contents is a list of blocks; we take message_content.text from each.
+    """
+    contents = get_attribute_value(message, MESSAGE_CONTENTS)
+    if not isinstance(contents, Sequence) or isinstance(contents, str):
+        return None
+    parts: list[str] = []
+    for item in contents:
+        if isinstance(item, Mapping):
+            text = get_attribute_value(item, MESSAGE_CONTENT_TEXT)
+            if isinstance(text, str):
+                parts.append(text)
+    return "\n\n".join(parts) if parts else None
+
+
 def _get_message(message: Mapping[str, Any]) -> _Message:
     content = get_attribute_value(message, MESSAGE_CONTENT)
+    if content is None:
+        content = _get_content_from_message_contents(message)
     name = get_attribute_value(message, MESSAGE_NAME)
     # Collect tool_calls from both legacy function_call and modern tool_calls attributes.
     tool_calls: list[_ToolCall] = []
@@ -240,7 +311,6 @@ def _get_message(message: Mapping[str, Any]) -> _Message:
             tc = _ToolCall(function=_Function(name=fn_name or "", arguments=fn_arguments))
             tool_calls.append(tc)
     role = get_attribute_value(message, MESSAGE_ROLE) or "assistant"
-    content = get_attribute_value(message, MESSAGE_CONTENT)
     msg = _Message(role=role)
     if content is not None:
         msg["content"] = content
@@ -283,11 +353,15 @@ def _safely_json_decode(value: Any) -> Any:
 
 # MessageAttributes
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_CONTENTS = MessageAttributes.MESSAGE_CONTENTS
 MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = MessageAttributes.MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON
 MESSAGE_FUNCTION_CALL_NAME = MessageAttributes.MESSAGE_FUNCTION_CALL_NAME
 MESSAGE_NAME = MessageAttributes.MESSAGE_NAME
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+# MessageContentAttributes (e.g. OpenAI Responses API output)
+MESSAGE_CONTENT_TEXT = MessageContentAttributes.MESSAGE_CONTENT_TEXT
 
 # OpenInferenceSpanKindValues
 LLM = OpenInferenceSpanKindValues.LLM.value

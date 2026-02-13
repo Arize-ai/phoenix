@@ -4,7 +4,7 @@ import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text, View } from "@phoenix/components";
+import { Flex, Heading, Text } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { ContainsEvaluatorDetails } from "@phoenix/components/evaluators/ContainsEvaluatorDetails";
@@ -228,19 +228,17 @@ export function BuiltInDatasetEvaluatorDetails({
 
   return (
     <>
-      <View padding="size-200" overflow="auto" maxWidth={1000}>
-        <Flex direction="column" gap="size-200">
-          <Section title="Input Mapping">
-            <DetailsComponent inputMapping={inputMapping} />
-          </Section>
-          <OutputConfigsSection configs={outputConfigs} />
-          {name === "json_distance" ? (
-            <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
-          ) : (
-            <CodeBlockComponent />
-          )}
-        </Flex>
-      </View>
+      <Flex direction="column" gap="size-200">
+        <Section title="Input Mapping">
+          <DetailsComponent inputMapping={inputMapping} />
+        </Section>
+        <OutputConfigsSection configs={outputConfigs} />
+        {name === "json_distance" ? (
+          <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
+        ) : (
+          <CodeBlockComponent />
+        )}
+      </Flex>
       <EditBuiltInDatasetEvaluatorSlideover
         datasetEvaluatorId={datasetEvaluator.id}
         datasetId={datasetId}

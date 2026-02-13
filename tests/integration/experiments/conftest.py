@@ -119,6 +119,7 @@ class CustomProviders(NamedTuple):
     """Container for custom provider IDs."""
 
     openai: str
+    openai_responses: str
     anthropic: str
     google_genai: str
     bedrock: str
@@ -128,6 +129,7 @@ class DatasetEvaluators(NamedTuple):
     """Container for dataset evaluator IDs."""
 
     openai: str
+    openai_responses: str
     anthropic: str
     google_genai: str
     bedrock: str
@@ -202,6 +204,29 @@ async def _custom_providers(
         )
         openai_id = str(openai_data["createGenerativeModelCustomProvider"]["provider"]["id"])
 
+        # Create OpenAI Responses API provider
+        openai_responses_data = await _gql(
+            client,
+            CREATE_CUSTOM_PROVIDER,
+            {
+                "input": {
+                    "name": f"Test OpenAI Responses Provider {suffix}",
+                    "description": "OpenAI Responses API provider pointing to mock server",
+                    "provider": "openai",
+                    "clientConfig": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": "test-api-key"},
+                            "openaiClientKwargs": {"baseUrl": f"{_mock_llm_server.url}/v1"},
+                            "openaiApiType": "RESPONSES",
+                        }
+                    },
+                }
+            },
+        )
+        openai_responses_id = str(
+            openai_responses_data["createGenerativeModelCustomProvider"]["provider"]["id"]
+        )
+
         # Create Anthropic provider
         anthropic_data = await _gql(
             client,
@@ -274,6 +299,7 @@ async def _custom_providers(
 
         providers = CustomProviders(
             openai=openai_id,
+            openai_responses=openai_responses_id,
             anthropic=anthropic_id,
             google_genai=google_id,
             bedrock=bedrock_id,
@@ -282,7 +308,13 @@ async def _custom_providers(
         yield providers
 
         # Cleanup: delete all custom providers
-        for provider_id in [openai_id, anthropic_id, google_id, bedrock_id]:
+        for provider_id in [
+            openai_id,
+            openai_responses_id,
+            anthropic_id,
+            google_id,
+            bedrock_id,
+        ]:
             await _gql(
                 client,
                 DELETE_CUSTOM_PROVIDER,
@@ -609,6 +641,32 @@ async def _dataset_evaluators(
         )
         openai_id = str(openai_data["createDatasetLlmEvaluator"]["evaluator"]["id"])
 
+        # Create OpenAI Responses API evaluator
+        openai_responses_output_name = f"openai_responses_eval_{suffix}"
+        openai_responses_data = await _gql(
+            client,
+            CREATE_DATASET_LLM_EVALUATOR,
+            {
+                "input": {
+                    "datasetId": _dataset_id,
+                    "name": f"openai_responses_evaluator_{suffix}",
+                    "description": "Evaluate the correctness of the output",
+                    "promptVersion": _evaluator_prompt_version(
+                        model_provider="OPENAI",
+                        model_name="gpt-4o-mini",
+                        output_name=openai_responses_output_name,
+                        custom_provider_id=_custom_providers.openai_responses,
+                    ),
+                    "outputConfigs": [
+                        {"categorical": _evaluator_output_config(openai_responses_output_name)}
+                    ],
+                }
+            },
+        )
+        openai_responses_id = str(
+            openai_responses_data["createDatasetLlmEvaluator"]["evaluator"]["id"]
+        )
+
         # Create Anthropic evaluator
         anthropic_output_name = f"anthropic_eval_{suffix}"
         anthropic_data = await _gql(
@@ -683,6 +741,7 @@ async def _dataset_evaluators(
 
         evaluators = DatasetEvaluators(
             openai=openai_id,
+            openai_responses=openai_responses_id,
             anthropic=anthropic_id,
             google_genai=google_id,
             bedrock=bedrock_id,
@@ -696,7 +755,13 @@ async def _dataset_evaluators(
             DELETE_DATASET_EVALUATORS,
             {
                 "input": {
-                    "datasetEvaluatorIds": [openai_id, anthropic_id, google_id, bedrock_id],
+                    "datasetEvaluatorIds": [
+                        openai_id,
+                        openai_responses_id,
+                        anthropic_id,
+                        google_id,
+                        bedrock_id,
+                    ],
                     "deleteAssociatedPrompt": True,
                 }
             },

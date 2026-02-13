@@ -102,6 +102,12 @@ get_profile_config() {
         "ldap")
             echo "override:overrides/ldap.yml"
             ;;
+        "ldap-no-email")
+            echo "override:overrides/ldap-no-email.yml"
+            ;;
+        "ldap-posix")
+            echo "override:overrides/ldap-posix.yml"
+            ;;
         "ldap-test")
             echo "override:overrides/ldap-test.yml"
             ;;
@@ -346,6 +352,16 @@ show_services() {
                     echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
                     echo "  LDAP Tests:     docker logs ${PROJECT_NAME:-devops}-ldap-test"
                     ;;
+                "ldap-no-email")
+                    echo "  Authentication: LDAP server enabled (no-email mode)"
+                    echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
+                    echo "  Email Mode:     null email markers (users identified by entryUUID)"
+                    ;;
+                "ldap-posix")
+                    echo "  Authentication: LDAP server enabled (POSIX groups mode)"
+                    echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
+                    echo "  Group Mode:     POSIX (memberUid via GROUP_SEARCH_FILTER, no memberOf)"
+                    ;;
                 schema*)
                     echo "  Schema: $CURRENT_SCHEMA"
                     ;;
@@ -390,6 +406,8 @@ list_profiles() {
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
   echo "  grafana            Enable Grafana and Prometheus monitoring"
   echo "  ldap               Enable LDAP authentication (mock LDAP server)"
+  echo "  ldap-no-email      Enable LDAP authentication (users without email)"
+  echo "  ldap-posix         Enable LDAP authentication (POSIX groups, no memberOf)"
   echo "  schema=NAME        Dynamic schema profile (custom database name)"
   echo ""
     echo "Usage:"
@@ -402,6 +420,8 @@ list_profiles() {
     echo "  ./dev.sh up --profile toxiproxy          # Enable network simulation"
   echo "  ./dev.sh up --profile grafana            # Enable Grafana monitoring"
   echo "  ./dev.sh up --profile ldap               # Enable LDAP authentication"
+  echo "  ./dev.sh up --profile ldap-no-email      # LDAP without email addresses"
+  echo "  ./dev.sh up --profile ldap-posix         # LDAP with POSIX groups"
   echo "  ./dev.sh up --profile schema=myapp       # Custom schema 'myapp'"
   echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
 }
@@ -592,6 +612,8 @@ Phoenix Development Environment
   toxiproxy                    Enable network simulation with Toxiproxy
   grafana                      Enable Grafana and Prometheus monitoring
   ldap                         Enable LDAP authentication (mock LDAP server)
+  ldap-no-email                Enable LDAP authentication (users without email)
+  ldap-posix                   Enable LDAP with POSIX groups (no memberOf)
   schema=NAME                  Dynamic schema profile (custom database name)
 
 💡 Which command to use?
@@ -614,6 +636,8 @@ Examples:
   ./dev.sh up --profile pkce-public        # Test PKCE public client
   ./dev.sh up --profile grafana            # Enable monitoring
   ./dev.sh up --profile ldap               # Test LDAP authentication
+  ./dev.sh up --profile ldap-no-email      # LDAP without email addresses
+  ./dev.sh up --profile ldap-posix         # LDAP with POSIX groups
   ./dev.sh status                          # Check what's running
   ./dev.sh prune                           # Free up disk space
   ./dev.sh env | grep DATABASE             # Check database config

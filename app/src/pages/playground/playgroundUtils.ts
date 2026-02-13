@@ -14,6 +14,7 @@ import {
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
   fromOpenAIToolDefinition,
+  openAIResponsesToOpenAI,
   OpenAIToolDefinition,
 } from "@phoenix/schemas";
 import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
@@ -559,9 +560,12 @@ export function getResponseFormatFromAttributes(parsedAttributes: unknown) {
 }
 
 /**
- * Processes the tools from the span attributes into OpenAI tools to be used in the playground
+ * Processes the tools from the span attributes to be used in the playground.
+ * Provider-specific formats (Gemini, Anthropic, AWS, etc.) are preserved as-is.
+ * OpenAI Responses API tools are normalized to Chat Completions format since
+ * the playground only supports Chat Completions tools for now.
  * @param tools tools from the span attributes
- * @returns playground OpenAI tools
+ * @returns playground tools
  */
 function processAttributeTools(tools: LlmToolSchema): Tool[] {
   return (tools?.llm?.tools ?? [])
@@ -569,10 +573,16 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
       if (tool?.tool == null) {
         return null;
       }
+      const rawDefinition = tool.tool.json_schema;
+      // Normalize OpenAI Responses API tools to Chat Completions format,
+      // since the playground only supports Chat Completions tools for now.
+      // All other provider formats are kept as-is.
+      const definition =
+        openAIResponsesToOpenAI.safeParse(rawDefinition).data ?? rawDefinition;
       return {
         id: generateToolId(),
         editorType: "json",
-        definition: tool.tool.json_schema,
+        definition,
       } satisfies Tool;
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);

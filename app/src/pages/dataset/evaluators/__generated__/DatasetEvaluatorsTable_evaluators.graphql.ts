@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<246f52a70a80c14e986a59e58dfb056d>>
+ * @generated SignedSource<<c349a1dea86cc1043fe770959eb3e074>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -232,6 +232,31 @@ return {
                               "plural": false,
                               "selections": [
                                 (v2/*: any*/)
+                              ],
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "PromptVersion",
+                              "kind": "LinkedField",
+                              "name": "promptVersion",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "modelName",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "modelProvider",
+                                  "storageKey": null
+                                }
                               ],
                               "storageKey": null
                             }

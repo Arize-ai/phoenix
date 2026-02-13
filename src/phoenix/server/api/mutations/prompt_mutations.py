@@ -21,7 +21,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import (
-    SetPromptVersionTagInput,
+    CreatePromptVersionTagInput,
     upsert_prompt_version_tag,
 )
 from phoenix.server.api.queries import Query
@@ -37,13 +37,14 @@ class CreateChatPromptInput:
     description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
     metadata: Optional[strawberry.scalars.JSON] = None
+    tags: Optional[list[CreatePromptVersionTagInput]] = None
 
 
 @strawberry.input
 class CreateChatPromptVersionInput:
     prompt_id: GlobalID
     prompt_version: ChatPromptVersionInput
-    tags: Optional[list[SetPromptVersionTagInput]] = None
+    tags: Optional[list[CreatePromptVersionTagInput]] = None
 
 
 @strawberry.input
@@ -96,9 +97,14 @@ class PromptMutationMixin:
         async with info.context.db() as session:
             session.add(prompt)
             try:
-                await session.commit()
+                await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A prompt named '{input.name}' already exists")
+            if input.tags:
+                for tag in input.tags:
+                    await upsert_prompt_version_tag(
+                        session, prompt.id, prompt_version.id, tag.name, tag.description
+                    )
         return Prompt(id=prompt.id, db_record=prompt)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
