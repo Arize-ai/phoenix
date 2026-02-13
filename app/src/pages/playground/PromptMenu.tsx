@@ -30,9 +30,6 @@ import { useTimeFormatters } from "@phoenix/hooks";
 import { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
-/** Minimum number of items before showing search field */
-const SEARCH_THRESHOLD = 10;
-
 export type PromptVersion = {
   id: string;
   createdAt: string;
@@ -289,18 +286,12 @@ export function PromptSelector({
       </Button>
       <MenuContainer placement="bottom start" minHeight={0}>
         <Autocomplete filter={contains}>
-          {promptItems.length >= SEARCH_THRESHOLD && (
-            <MenuHeader>
-              <SearchField
-                aria-label="Search prompts"
-                variant="quiet"
-                autoFocus
-              >
-                <SearchIcon />
-                <Input placeholder="Search prompts" />
-              </SearchField>
-            </MenuHeader>
-          )}
+          <MenuHeader>
+            <SearchField aria-label="Search prompts" variant="quiet" autoFocus>
+              <SearchIcon />
+              <Input placeholder="Search prompts" />
+            </SearchField>
+          </MenuHeader>
           <Menu
             selectionMode="single"
             selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
@@ -416,18 +407,16 @@ export function PromptVersionSelector({
           </TabList>
           <LazyTabPanel id="versions">
             <Autocomplete filter={contains}>
-              {versionItems.length >= SEARCH_THRESHOLD && (
-                <MenuHeader>
-                  <SearchField
-                    aria-label="Search versions"
-                    variant="quiet"
-                    autoFocus
-                  >
-                    <SearchIcon />
-                    <Input placeholder="Search versions" />
-                  </SearchField>
-                </MenuHeader>
-              )}
+              <MenuHeader>
+                <SearchField
+                  aria-label="Search versions"
+                  variant="quiet"
+                  autoFocus
+                >
+                  <SearchIcon />
+                  <Input placeholder="Search versions" />
+                </SearchField>
+              </MenuHeader>
               <Menu
                 items={versionItems}
                 renderEmptyState={() => (
@@ -485,18 +474,12 @@ export function PromptVersionSelector({
           </LazyTabPanel>
           <LazyTabPanel id="tags">
             <Autocomplete filter={contains}>
-              {tagItems.length >= SEARCH_THRESHOLD && (
-                <MenuHeader>
-                  <SearchField
-                    aria-label="Search tags"
-                    variant="quiet"
-                    autoFocus
-                  >
-                    <SearchIcon />
-                    <Input placeholder="Search tags" />
-                  </SearchField>
-                </MenuHeader>
-              )}
+              <MenuHeader>
+                <SearchField aria-label="Search tags" variant="quiet" autoFocus>
+                  <SearchIcon />
+                  <Input placeholder="Search tags" />
+                </SearchField>
+              </MenuHeader>
               <Menu
                 items={tagItems}
                 renderEmptyState={() => (
