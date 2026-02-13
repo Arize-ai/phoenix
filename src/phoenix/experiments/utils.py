@@ -19,7 +19,11 @@ def get_func_name(fn: Callable[..., Any]) -> str:
     """
 
     if isinstance(fn, functools.partial):
-        return fn.func.__qualname__
-    if hasattr(fn, "__qualname__") and not fn.__qualname__.endswith("<lambda>"):
-        return fn.__qualname__.split(".<locals>.")[-1]
+        func = fn.func
+        qualname = getattr(func, "__qualname__", None)
+        if isinstance(qualname, str):
+            return qualname
+    qualname = getattr(fn, "__qualname__", None)
+    if isinstance(qualname, str) and not qualname.endswith("<lambda>"):
+        return qualname.split(".<locals>.")[-1]
     return str(fn)
