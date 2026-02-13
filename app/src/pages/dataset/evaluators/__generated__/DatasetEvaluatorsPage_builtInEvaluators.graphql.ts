@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab2d740cf72b5c53fa65ff7441a81b63>>
+ * @generated SignedSource<<5714907b9b3ee64f155b3d89daf8f2f8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -79,8 +79,10 @@ return {
       "args": [
         {
           "kind": "Literal",
-          "name": "label",
-          "value": "dataset"
+          "name": "labels",
+          "value": [
+            "promoted_dataset_evaluator"
+          ]
         }
       ],
       "concreteType": "ClassificationEvaluatorConfig",
@@ -167,7 +169,7 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": "classificationEvaluatorConfigs(label:\"dataset\")"
+      "storageKey": "classificationEvaluatorConfigs(labels:[\"promoted_dataset_evaluator\"])"
     }
   ],
   "type": "Query",
@@ -175,6 +177,6 @@ return {
 };
 })();
 
-(node as any).hash = "2efca65262696f4f0055ebefe23f3df7";
+(node as any).hash = "58b2e08e1721152eca250b032c88d5b4";
 
 export default node;

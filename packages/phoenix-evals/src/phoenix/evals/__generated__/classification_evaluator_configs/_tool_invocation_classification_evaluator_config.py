@@ -18,5 +18,5 @@ TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         "available_tools": "available_tools_parameters",
         "tool_selection": "tool_calls_to_string",
     },
-    labels=["dataset"],
+    labels=["promoted_dataset_evaluator"],
 )

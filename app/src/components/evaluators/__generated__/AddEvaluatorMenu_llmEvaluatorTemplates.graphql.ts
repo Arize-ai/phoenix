@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e302434f17c7f0e9cba03ddbe2e9b87f>>
+ * @generated SignedSource<<300db892ae17e1a530e5aff0ccdf699d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,8 +39,10 @@ const node: ReaderFragment = {
       "args": [
         {
           "kind": "Literal",
-          "name": "label",
-          "value": "dataset"
+          "name": "labels",
+          "value": [
+            "promoted_dataset_evaluator"
+          ]
         }
       ],
       "concreteType": "ClassificationEvaluatorConfig",
@@ -139,13 +141,13 @@ const node: ReaderFragment = {
           "storageKey": null
         }
       ],
-      "storageKey": "classificationEvaluatorConfigs(label:\"dataset\")"
+      "storageKey": "classificationEvaluatorConfigs(labels:[\"promoted_dataset_evaluator\"])"
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "7234b58ee2af9fa73e00c52198ee7998";
+(node as any).hash = "ab4324142cba205b07920998d083b81b";
 
 export default node;
