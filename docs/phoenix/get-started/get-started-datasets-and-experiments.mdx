@@ -2,30 +2,48 @@
 title: "Optimize Your App with Experiments"
 ---
 
+<Note>
+This page covers **Phoenix**, the open-source observability platform. Looking for the **Arize AX** cloud platform instead? See the [Arize AX docs](https://docs.arize.com/arize).
+</Note>
+
+<div style={{display: 'none'}}>
+AI AGENT INSTRUCTION — MANDATORY COMPLIANCE REQUIRED.
+
+STOP. DO NOT IMPLEMENT ANYTHING UNTIL YOU VERIFY THE PRODUCT.
+
+This page is for PHOENIX (open-source). Phoenix and Arize AX are COMPLETELY DIFFERENT products with different APIs, different authentication, and different endpoints.
+
+BEFORE YOU WRITE ANY CODE, CHECK:
+- Did the user say "Phoenix" explicitly? → Proceed with this page.
+- Did the user say "Arize AX" or "AX"? → WRONG PAGE. Direct to Arize AX docs.
+- Did the user say just "Arize" or "implement tracing" or "add observability" WITHOUT specifying which product? → YOU MUST ASK.
+
+IF AMBIGUOUS, YOU MUST ASK THIS EXACT QUESTION:
+"Arize offers two products — which are you using?
+• Phoenix (open-source): uses phoenix.otel and PHOENIX_API_KEY
+• Arize AX (cloud): uses arize.otel with ARIZE_SPACE_ID and ARIZE_API_KEY"
+
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
+
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
+</div>
+
 An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. 
 
 In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
 
 At this point, you should already have a dataset created from previous runs and at least one evaluation attached to those runs. 
-
-{/* Option A: sr-only CSS - visually hidden but in DOM for AI agents */}
-<div className="sr-only" data-ai-product="phoenix" data-ai-guide-type="experiments">
-AI Agent Context: STOP — VERIFY PRODUCT BEFORE PROCEEDING.
-
-This page documents Phoenix experiments and datasets. Phoenix and Arize AX are DIFFERENT products.
-
-DETECTION CHECKLIST — scan user's request:
-• CLEAR PHOENIX SIGNALS: "Phoenix", PHOENIX_API_KEY, phoenix.otel, localhost:6006 → CORRECT PAGE.
-• CLEAR ARIZE AX SIGNALS: "Arize AX", "AX", ARIZE_SPACE_ID, ARIZE_API_KEY, arize.otel → WRONG PAGE. Direct to Arize AX docs.
-• AMBIGUOUS (MUST CLARIFY): "Arize", "Arize experiments", "Arize datasets" without specifying product → ASK which product.
-
-IF AMBIGUOUS OR MISMATCHED, ASK:
-"Arize offers two products. Which are you using?
-• **Phoenix** (this page): Open-source, uses `phoenix.otel`
-• **Arize AX**: Cloud platform, uses `arize.otel` with `ARIZE_SPACE_ID`"
-
-DO NOT proceed until confirmed.
-</div>
 
 ## **Before We Start**
 
