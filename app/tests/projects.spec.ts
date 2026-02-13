@@ -1,0 +1,74 @@
+import { expect, test } from "@playwright/test";
+import { randomUUID } from "crypto";
+
+import { ADMIN_USER, login } from "./utils/login";
+
+test.describe.serial("Projects", () => {
+  const projectName = `test-project-${randomUUID()}`;
+
+  test.beforeEach(async ({ page }) => {
+    await login(page, ADMIN_USER);
+  });
+
+  test("can create a project from scratch", async ({ page }) => {
+    await page.goto("/projects");
+    await page.waitForURL("**/projects");
+
+    await page.getByRole("button", { name: "New Project" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Create a New Project" })
+    ).toBeVisible();
+
+    await page.getByRole("tab", { name: /Manual|From scratch/i }).click();
+    await page.getByLabel("Project Name").fill(projectName);
+    await page
+      .getByLabel("Description")
+      .fill("A project created manually from scratch in Playwright");
+
+    await page.getByRole("button", { name: "Create Project" }).click();
+    await page.waitForURL("**/projects/*");
+
+    await expect(
+      page.getByRole("heading", { name: projectName, exact: true })
+    ).toBeVisible();
+  });
+
+  test("can delete a project and it disappears from the listing", async ({
+    page,
+  }) => {
+    await page.goto("/projects");
+    await page.waitForURL("**/projects");
+
+    const search = page.getByRole("searchbox", {
+      name: "Search projects by name",
+    });
+    await search.fill(projectName);
+
+    const projectCard = page
+      .locator("li")
+      .filter({ has: page.getByRole("heading", { name: projectName }) });
+    const projectRow = page
+      .getByRole("row")
+      .filter({ has: page.getByRole("link", { name: projectName }) });
+
+    if ((await projectCard.count()) > 0) {
+      await expect(projectCard.first()).toBeVisible();
+      await projectCard.first().getByRole("button").last().click();
+    } else {
+      await expect(projectRow.first()).toBeVisible();
+      await projectRow.first().getByRole("button").last().click();
+    }
+
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Delete Project", exact: true })
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete Project" }).click();
+
+    await expect(page.getByRole("link", { name: projectName })).not.toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: projectName, exact: true })
+    ).not.toBeVisible();
+  });
+});
