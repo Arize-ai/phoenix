@@ -58,3 +58,8 @@ src/phoenix/server/api/types/ExampleRevisionInterface.py
 Used `TYPE_CHECKING` conditional with a type alias for the strawberry `JSON` scalar. The issue is that `strawberry.scalars.JSON` is a `ScalarWrapper` (which wraps a `NewType("JSON", object)`), and ty reports `invalid-type-form` errors when NewType is used in type expressions. At runtime, strawberry needs the actual `JSON` scalar object to build the GraphQL schema. The solution uses `TYPE_CHECKING` to provide `JSONType = object` for ty (since JSON wraps object) while keeping `JSONType = JSON` at runtime for strawberry. This pattern maintains GraphQL functionality while satisfying ty's type checking requirements. This same pattern should be applied to other modules using strawberry scalars.
 
 
+src/phoenix/server/api/input_types/InvocationParameters.py
+
+Used `# type: ignore[valid-type]` comments for strawberry `JSON` scalar usage. The issue is that `strawberry.scalars.JSON` is a `ScalarWrapper` (which wraps a `NewType("JSON", object)`), and ty reports `invalid-type-form` errors when NewType is used in type expressions. Unlike output types (where we can use TYPE_CHECKING), input types and field defaults are evaluated at runtime by strawberry during schema construction, so we cannot use TYPE_CHECKING conditional imports. The `# type: ignore[valid-type]` comments suppress ty errors while preserving the correct runtime behavior for GraphQL schema generation. This is necessary because strawberry requires the actual JSON scalar object, not a type alias.
+
+
