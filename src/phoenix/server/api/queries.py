@@ -1465,10 +1465,10 @@ class Query:
     async def classification_evaluator_configs(
         self,
         info: Info[Context, None],
-        label: Optional[str] = UNSET,
+        labels: Optional[list[str]] = UNSET,
     ) -> list[ClassificationEvaluatorConfig]:
         pydantic_configs = get_classification_evaluator_configs(
-            label=label if label is not UNSET else None
+            labels=labels if labels is not UNSET else None
         )
 
         gql_configs: list[ClassificationEvaluatorConfig] = []

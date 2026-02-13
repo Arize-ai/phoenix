@@ -11,7 +11,7 @@ from phoenix.server.api.helpers.substitutions import (
 
 
 def get_classification_evaluator_configs(
-    label: Optional[str] = None,
+    labels: Optional[list[str]] = None,
 ) -> list[PydanticClassificationEvaluatorConfig]:
     """
     Load all CLASSIFICATION_EVALUATOR_CONFIG objects from __generated__.
@@ -32,7 +32,12 @@ def get_classification_evaluator_configs(
                     config = expand_config_templates(config, substitutions)
                 configs.append(config)
 
-    if label:
-        configs = [config for config in configs if label in config.labels]
+    if labels:
+        requested_labels = set(labels)
+        configs = [
+            config
+            for config in configs
+            if any(config_label in requested_labels for config_label in config.labels)
+        ]
 
     return configs
