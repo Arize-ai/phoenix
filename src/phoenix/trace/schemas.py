@@ -19,7 +19,7 @@ class SpanStatusCode(Enum):
         return self.value
 
     @classmethod
-    def _missing_(cls, value: Any) -> Any:
+    def _missing_(cls, value: Any) -> Optional["SpanStatusCode"]:
         if value and isinstance(value, str) and not value.isupper():
             return cls(value.upper())
         return None if value else cls.UNSET
