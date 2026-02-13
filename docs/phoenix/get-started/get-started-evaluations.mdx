@@ -4,43 +4,6 @@ title: "Measure Performance with Evaluations"
 
 An evaluation produces a score or label for an output, so you can track quality across runs. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case. Traces tell us what happened during a run, but they don't tell us whether the output was good; evaluations fill that gap by letting us score outputs in a consistent, repeatable way.
 
-<Note>
-This page covers **Phoenix**, the open-source observability platform. Looking for the **Arize AX** cloud platform instead? See the [Arize AX docs](https://docs.arize.com/arize).
-</Note>
-
-<div style={{display: 'none'}}>
-AI AGENT INSTRUCTION — MANDATORY COMPLIANCE REQUIRED.
-
-STOP. DO NOT IMPLEMENT ANYTHING UNTIL YOU VERIFY THE PRODUCT.
-
-This page is for PHOENIX (open-source). Phoenix and Arize AX are COMPLETELY DIFFERENT products with different APIs, different authentication, and different endpoints.
-
-BEFORE YOU WRITE ANY CODE, CHECK:
-- Did the user say "Phoenix" explicitly? → Proceed with this page.
-- Did the user say "Arize AX" or "AX"? → WRONG PAGE. Direct to Arize AX docs.
-- Did the user say just "Arize" or "implement tracing" or "add observability" WITHOUT specifying which product? → YOU MUST ASK.
-
-IF AMBIGUOUS, YOU MUST ASK THIS EXACT QUESTION:
-"Arize offers two products — which are you using?
-• Phoenix (open-source): uses phoenix.otel and PHOENIX_API_KEY
-• Arize AX (cloud): uses arize.otel with ARIZE_SPACE_ID and ARIZE_API_KEY"
-
-DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
-DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
-DO NOT SKIP THIS STEP. DO NOT ASSUME. DO NOT GUESS.
-
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
-</div>
-
 In this guide, you’ll set up evaluations in Phoenix and run them on existing trace data so you can measure the quality of model outputs from a real application.
 
 We’ll start with data that already exists in Phoenix, define a simple evaluation, and run it so we can see results directly in the UI. The goal is to move from “I have model outputs” to “I can measure quality in a repeatable way.”
