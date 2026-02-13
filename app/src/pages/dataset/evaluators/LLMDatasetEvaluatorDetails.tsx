@@ -7,6 +7,7 @@ import { Flex, Heading, Text } from "@phoenix/components";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
 
@@ -99,12 +100,15 @@ export function LLMDatasetEvaluatorDetails({
                     padding: var(--global-dimension-static-size-200);
                     margin-top: var(--global-dimension-static-size-50);
                     border: 1px solid var(--global-border-color-default);
+                    overflow: hidden;
                   `}
                 >
                   <Flex direction="column" gap="size-100">
-                    <Text size="S">
-                      <Text weight="heavy">Name:</Text> {outputConfig.name}
-                    </Text>
+                    <Truncate title={outputConfig.name}>
+                      <Text size="S">
+                        <Text weight="heavy">Name:</Text> {outputConfig.name}
+                      </Text>
+                    </Truncate>
                     {outputConfig.optimizationDirection && (
                       <Text size="S">
                         <Text weight="heavy">Optimization Direction:</Text>{" "}

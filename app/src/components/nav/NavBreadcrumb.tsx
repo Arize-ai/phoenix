@@ -8,10 +8,11 @@ export function NavBreadcrumb() {
   return (
     <Breadcrumbs size="L">
       {matchesWithCrumb.map((match, index) => {
+        const crumb = match.handle.crumb(match.loaderData);
         return (
           <Breadcrumb key={index}>
-            <Link to={match.pathname}>
-              {match.handle.crumb(match.loaderData)}
+            <Link to={match.pathname} title={crumb}>
+              {crumb}
             </Link>
           </Breadcrumb>
         );

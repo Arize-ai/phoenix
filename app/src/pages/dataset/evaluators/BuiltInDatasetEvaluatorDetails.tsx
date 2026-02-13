@@ -16,6 +16,7 @@ import { LevenshteinDistanceEvaluatorCodeBlock } from "@phoenix/components/evalu
 import { LevenshteinDistanceEvaluatorDetails } from "@phoenix/components/evaluators/LevenshteinDistanceEvaluatorDetails";
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { RegexEvaluatorDetails } from "@phoenix/components/evaluators/RegexEvaluatorDetails";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 const boxCSS = css`
@@ -24,6 +25,7 @@ const boxCSS = css`
   padding: var(--global-dimension-static-size-200);
   margin-top: var(--global-dimension-static-size-50);
   border: 1px solid var(--global-border-color-default);
+  overflow: hidden;
 `;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -53,9 +55,11 @@ function OutputConfigCard({ config }: { config: OutputConfig }) {
   return (
     <div css={boxCSS}>
       <Flex direction="column" gap="size-100">
-        <Text size="S">
-          <Text weight="heavy">Name:</Text> {config.name}
-        </Text>
+        <Truncate title={config.name}>
+          <Text size="S">
+            <Text weight="heavy">Name:</Text> {config.name}
+          </Text>
+        </Truncate>
         {direction && (
           <Text size="S">
             <Text weight="heavy">Optimization Direction:</Text> {direction}
