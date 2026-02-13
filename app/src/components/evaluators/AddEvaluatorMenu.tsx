@@ -261,7 +261,7 @@ const LLMEvaluatorTemplateSubmenu = ({
   const data = useFragment<AddEvaluatorMenu_llmEvaluatorTemplates$key>(
     graphql`
       fragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {
-        classificationEvaluatorConfigs {
+        classificationEvaluatorConfigs(labels: ["promoted_dataset_evaluator"]) {
           name
           description
           choices

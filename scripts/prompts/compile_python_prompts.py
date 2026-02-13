@@ -26,6 +26,7 @@ class ClassificationEvaluatorConfig(BaseModel):
     messages: list[PromptMessage]
     choices: dict[str, float]
     substitutions: Optional[dict[str, str]] = None  # placeholder -> substitution_name
+    labels: list[str] = []
 
 
 MODELS_TEMPLATE = """\

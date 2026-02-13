@@ -1,5 +1,6 @@
 name: faithfulness
 description: For determining if a response is faithful to the context.
+labels: []
 optimization_direction: maximize
 messages:
   - role: user

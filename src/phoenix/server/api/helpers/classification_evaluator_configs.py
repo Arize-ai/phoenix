@@ -1,3 +1,5 @@
+from typing import Optional
+
 import phoenix.__generated__.classification_evaluator_configs as configs_module
 from phoenix.__generated__.classification_evaluator_configs import (
     ClassificationEvaluatorConfig as PydanticClassificationEvaluatorConfig,
@@ -8,13 +10,19 @@ from phoenix.server.api.helpers.substitutions import (
 )
 
 
-def get_classification_evaluator_configs() -> list[PydanticClassificationEvaluatorConfig]:
+def get_classification_evaluator_configs(
+    labels: Optional[list[str]] = None,
+) -> list[PydanticClassificationEvaluatorConfig]:
     """
     Load all CLASSIFICATION_EVALUATOR_CONFIG objects from __generated__.
 
     Automatically discovers all configs by looking for attributes ending with
     '_CLASSIFICATION_EVALUATOR_CONFIG'. For configs with a `substitutions` mapping,
     expands simple placeholders into full Mustache blocks before returning.
+
+    If `labels` is not provided, all discovered evaluator configs are returned.
+    If `labels` is provided, only evaluator configs with at least one matching
+    label are returned.
     """
     configs = []
     substitutions = load_substitutions()
@@ -27,5 +35,13 @@ def get_classification_evaluator_configs() -> list[PydanticClassificationEvaluat
                 if getattr(config, "substitutions", None):
                     config = expand_config_templates(config, substitutions)
                 configs.append(config)
+
+    if labels:
+        requested_labels = set(labels)
+        configs = [
+            config
+            for config in configs
+            if any(config_label in requested_labels for config_label in config.labels)
+        ]
 
     return configs

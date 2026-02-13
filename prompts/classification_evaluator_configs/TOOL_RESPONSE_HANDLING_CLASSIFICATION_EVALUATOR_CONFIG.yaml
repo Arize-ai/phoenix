@@ -1,5 +1,6 @@
 name: tool_response_handling
 description: For determining if an AI agent properly handled a tool's response, including error handling, data extraction, transformation, and safe information disclosure. Requires conversation context, the tool call(s), the tool result(s), and the agent's output.
+labels: []
 optimization_direction: maximize
 messages:
   - role: user

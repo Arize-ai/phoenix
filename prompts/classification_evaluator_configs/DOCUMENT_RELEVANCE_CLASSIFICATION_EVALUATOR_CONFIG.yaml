@@ -1,5 +1,6 @@
 name: document_relevance
 description: For determining if a document is relevant to a given question.
+labels: []
 optimization_direction: maximize
 messages:
   - role: user

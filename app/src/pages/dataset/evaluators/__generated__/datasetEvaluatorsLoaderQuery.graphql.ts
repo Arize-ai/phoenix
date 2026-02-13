@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5539a272181afe32914d034aa0be5796>>
+ * @generated SignedSource<<7abd7a84b3c78007b5435ca4e8da115d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -353,7 +353,15 @@ return {
       },
       {
         "alias": null,
-        "args": null,
+        "args": [
+          {
+            "kind": "Literal",
+            "name": "labels",
+            "value": [
+              "promoted_dataset_evaluator"
+            ]
+          }
+        ],
         "concreteType": "ClassificationEvaluatorConfig",
         "kind": "LinkedField",
         "name": "classificationEvaluatorConfigs",
@@ -431,17 +439,17 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "classificationEvaluatorConfigs(labels:[\"promoted_dataset_evaluator\"])"
       }
     ]
   },
   "params": {
-    "cacheID": "4942c668b85f1de8a3efbf538e406082",
+    "cacheID": "c301aaf852f4f4cd4c724d971921e183",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
