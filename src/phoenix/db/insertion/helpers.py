@@ -58,23 +58,26 @@ def insert_on_conflict(
         stmt_postgresql = insert_postgresql(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:
             return stmt_postgresql.on_conflict_do_nothing(constraint=constraint)
-        if on_conflict is OnConflict.DO_UPDATE:
+        elif on_conflict is OnConflict.DO_UPDATE:
             return stmt_postgresql.on_conflict_do_update(
                 constraint=constraint,
                 set_=set_ if set_ else dict(_clean(stmt_postgresql.excluded.items())),
             )
-        assert_never(on_conflict)
-    if dialect is SupportedSQLDialect.SQLITE:
+        else:
+            assert_never(on_conflict)
+    elif dialect is SupportedSQLDialect.SQLITE:
         stmt_sqlite = insert_sqlite(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:
             return stmt_sqlite.on_conflict_do_nothing(unique_by)
-        if on_conflict is OnConflict.DO_UPDATE:
+        elif on_conflict is OnConflict.DO_UPDATE:
             return stmt_sqlite.on_conflict_do_update(
                 unique_by,
                 set_=set_ if set_ else dict(_clean(stmt_sqlite.excluded.items())),
             )
-        assert_never(on_conflict)
-    assert_never(dialect)
+        else:
+            assert_never(on_conflict)
+    else:
+        assert_never(dialect)
 
 
 def _clean(
