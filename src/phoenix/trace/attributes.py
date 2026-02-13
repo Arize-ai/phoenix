@@ -84,18 +84,18 @@ JSON_STRING_ATTRIBUTES = (
     TOOL_PARAMETERS,
 )
 
-SEMANTIC_CONVENTIONS: list[str] = sorted(
-    # e.g. "input.value", "llm.token_count.total", etc.
-    (
-        cast(str, getattr(klass, attr))
-        for name in dir(trace)
-        if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
-        for attr in dir(klass)
-        if attr.isupper()
-    ),
-    key=len,
-    reverse=True,
-)  # sorted so the longer strings go first
+# e.g. "input.value", "llm.token_count.total", etc.
+_semantic_conventions_list: list[str] = [
+    cast(str, getattr(klass, attr))
+    for name in dir(trace)
+    if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
+    for attr in dir(klass)
+    if attr.isupper()
+]
+# sorted so the longer strings go first
+SEMANTIC_CONVENTIONS: list[str] = cast(
+    list[str], sorted(_semantic_conventions_list, key=len, reverse=True)
+)
 
 
 def unflatten(
@@ -127,8 +127,9 @@ def flatten(
     it's mostly used internally to facilitate recursion.
     """
     if isinstance(obj, Mapping):
+        mapping_obj = cast(Mapping[str, Any], obj)
         yield from _flatten_mapping(
-            obj,
+            mapping_obj,
             prefix=prefix,
             recurse_on_sequence=recurse_on_sequence,
             json_string_attributes=json_string_attributes,
