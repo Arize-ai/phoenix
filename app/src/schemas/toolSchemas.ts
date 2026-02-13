@@ -115,20 +115,26 @@ export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
  */
 export const openAIResponsesToolDefinitionSchema = z
   .object({
-    type: z.literal("function").describe("The type of the tool"),
-    name: z.string().describe("The name of the function"),
+    type: z
+      .literal("function")
+      .describe("The type of the tool. Always `function`."),
+    name: z.string().describe("The name of the function to call."),
+    parameters: jsonSchemaZodSchema
+      .nullable()
+      .describe(
+        "A JSON schema object describing the parameters of the function."
+      ),
+    strict: z
+      .boolean()
+      .nullable()
+      .describe(
+        "Whether to enforce strict parameter validation. Default `true`."
+      ),
     description: z
       .string()
       .optional()
-      .describe("A description of the function"),
-    parameters: jsonSchemaZodSchema.describe(
-      "The parameters that the function accepts"
-    ),
-    strict: z
-      .boolean()
-      .optional()
       .describe(
-        "Whether or not the arguments should exactly match the function definition"
+        "A description of the function. Used by the model to determine whether or not to call the function."
       ),
   })
   .passthrough();
@@ -140,16 +146,6 @@ export const openAIResponsesToolDefinitionSchema = z
 export type OpenAIResponsesToolDefinition = z.infer<
   typeof openAIResponsesToolDefinitionSchema
 >;
-
-/**
- * The JSON schema for an OpenAI Responses API tool definition
- */
-export const openAIResponsesToolDefinitionJSONSchema = zodToJsonSchema(
-  openAIResponsesToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
-);
 
 /**
  * The zod schema for an anthropic tool definition
@@ -302,24 +298,10 @@ export const openAIResponsesToOpenAI =
       function: {
         name: responses.name,
         description: responses.description,
-        parameters: responses.parameters,
+        parameters: responses.parameters ?? { type: "object" },
       },
     })
   );
-
-/**
- * Parse incoming object as an OpenAI Chat Completions tool and immediately convert to
- * OpenAI Responses API format
- */
-export const openAIToOpenAIResponses = openAIToolDefinitionSchema.transform(
-  (openai): OpenAIResponsesToolDefinition => ({
-    type: "function",
-    name: openai.function.name,
-    description: openai.function.description,
-    parameters: openai.function.parameters,
-    strict: false,
-  })
-);
 
 /**
  * Parse incoming object as an OpenAI tool and immediately convert to Gemini format
@@ -398,19 +380,12 @@ export const detectToolDefinitionProvider = (
 
   // Responses API has top-level type: "function" + name + parameters (no nested `function` key).
   // Detected as OPENAI and normalized to Chat Completions format for internal use.
-  const { success: openaiResponsesSuccess, data: openaiResponsesData } =
-    openAIResponsesToolDefinitionSchema.safeParse(toolDefinition);
+  const { success: openaiResponsesSuccess, data: openaiResponsesConverted } =
+    openAIResponsesToOpenAI.safeParse(toolDefinition);
   if (openaiResponsesSuccess) {
     return {
       provider: "OPENAI",
-      validatedToolDefinition: {
-        type: "function" as const,
-        function: {
-          name: openaiResponsesData.name,
-          description: openaiResponsesData.description,
-          parameters: openaiResponsesData.parameters,
-        },
-      },
+      validatedToolDefinition: openaiResponsesConverted,
     };
   }
 
@@ -580,31 +555,6 @@ export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
         },
       },
     },
-  };
-}
-
-/**
- * Creates an OpenAI Responses API tool definition
- * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
- * @returns an OpenAI Responses API tool definition
- */
-export function createOpenAIResponsesToolDefinition(
-  toolNumber: number
-): OpenAIResponsesToolDefinition {
-  return {
-    type: "function",
-    name: `new_function_${toolNumber}`,
-    description: "a description",
-    parameters: {
-      type: "object",
-      properties: {
-        new_arg: {
-          type: "string",
-        },
-      },
-      required: [],
-    },
-    strict: false,
   };
 }
 
