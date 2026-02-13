@@ -10,7 +10,7 @@ available_tools_list: |-
   No tools available.
   {{/output.available_tools}}
 
-tool_calls_to_string: |-
+output_with_tool_calls: |-
   {{#output.messages}}
   Message:
   {{role}}: {{content}}
