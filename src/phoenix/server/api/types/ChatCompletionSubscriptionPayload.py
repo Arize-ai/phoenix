@@ -34,6 +34,14 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
+class ImageChunk(ChatCompletionSubscriptionPayload):
+    """Chunk containing base64-encoded image data."""
+
+    data: str  # base64-encoded image data
+    mime_type: str  # e.g., "image/png", "image/jpeg"
+
+
+@strawberry.type
 class ChatCompletionSubscriptionResult(ChatCompletionSubscriptionPayload):
     span: Optional[Span] = None
     experiment_run: Optional[ExperimentRun] = None

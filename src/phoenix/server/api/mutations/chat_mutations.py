@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
@@ -78,6 +78,7 @@ from phoenix.server.api.subscriptions import (
     _default_playground_experiment_name,
 )
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    ImageChunk,
     TextChunk,
     ToolCallChunk,
 )
@@ -766,8 +767,12 @@ class ChatCompletionMutationMixin:
                         )
                     else:
                         tool_calls[chunk.id].function.arguments += chunk.function.arguments
-                else:
-                    assert_never(chunk)
+                elif isinstance(chunk, ImageChunk):
+                    # For image chunks, we can include the image data in the text content
+                    # as a markdown image with base64 data URI
+                    text_content += (
+                        f"\n![Generated Image](data:{chunk.mime_type};base64,{chunk.data})\n"
+                    )
         except Exception as e:
             error_message = str(e)
 

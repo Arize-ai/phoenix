@@ -36,6 +36,7 @@ import {
   generateMessageId,
   PlaygroundRepetition,
 } from "@phoenix/store";
+import { ImageData } from "@phoenix/store/playground/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   getErrorMessagesFromRelayMutationError,
@@ -64,6 +65,55 @@ import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
+
+/**
+ * Extracts base64-encoded images from text content.
+ * Supports markdown image syntax: ![alt](data:image/png;base64,...)
+ * Also attempts to extract images from JSON structures.
+ */
+function extractImagesFromText(content: string): ImageData[] {
+  const images: ImageData[] = [];
+
+  // Extract markdown images: ![alt](data:image/png;base64,...)
+  const markdownImageRegex = /!\[([^\]]*)\]\(data:([^;]+);base64,([^)]+)\)/g;
+  let match;
+  while ((match = markdownImageRegex.exec(content)) !== null) {
+    const [, , mimeType, base64Data] = match;
+    if (mimeType && base64Data) {
+      images.push({
+        data: base64Data,
+        mimeType: mimeType.trim(),
+      });
+    }
+  }
+
+  // Also check for JSON structures that might contain image data
+  // This handles cases where the LLM returns structured output with image data
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      // Check for common image data fields
+      if (parsed.image_data || parsed.imageData || parsed.data) {
+        const imageData = parsed.image_data || parsed.imageData || parsed.data;
+        const mimeType =
+          parsed.mime_type || parsed.mimeType || parsed.type || "image/png";
+        if (typeof imageData === "string" && imageData.length > 0) {
+          // Remove data URI prefix if present
+          const base64Data = imageData.replace(/^data:[^;]+;base64,/, "");
+          images.push({
+            data: base64Data,
+            mimeType: mimeType,
+          });
+        }
+      }
+    }
+  } catch {
+    // Not valid JSON, ignore
+  }
+
+  return images;
+}
 
 /**
  * A chat message with potentially partial tool calls, for when tool calls are being streamed back to the client
@@ -135,25 +185,62 @@ function PlaygroundOutputMessage({
 function PlaygroundOutputContent({
   output,
   partialToolCalls,
+  images,
 }: {
   output: PlaygroundRepetition["output"];
   partialToolCalls: readonly PartialOutputToolCall[];
+  images?: PlaygroundRepetition["images"];
 }) {
   if (isChatMessages(output)) {
     return output.map((message, index) => {
       return <PlaygroundOutputMessage key={index} message={message} />;
     });
   }
-  if (typeof output === "string" || partialToolCalls.length > 0) {
+
+  // Extract images from text content if output is a string
+  const extractedImages: ImageData[] = [];
+  if (typeof output === "string") {
+    const imagesFromText = extractImagesFromText(output);
+    extractedImages.push(...imagesFromText);
+  }
+
+  // Combine extracted images with explicitly provided images
+  const allImages = [...(images || []), ...extractedImages];
+
+  const hasContent =
+    typeof output === "string" ||
+    partialToolCalls.length > 0 ||
+    allImages.length > 0;
+  if (hasContent) {
     return (
-      <PlaygroundOutputMessage
-        message={{
-          id: generateMessageId(),
-          content: output ?? undefined,
-          role: "ai",
-          toolCalls: partialToolCalls,
-        }}
-      />
+      <>
+        <PlaygroundOutputMessage
+          message={{
+            id: generateMessageId(),
+            content: output ?? undefined,
+            role: "ai",
+            toolCalls: partialToolCalls,
+          }}
+        />
+        {allImages.length > 0 && (
+          <View padding="size-200">
+            <Flex direction="column" gap="size-200">
+              {allImages.map((image, index) => (
+                <img
+                  key={index}
+                  src={`data:${image.mimeType};base64,${image.data}`}
+                  alt={`Generated image ${index + 1}`}
+                  style={{
+                    maxWidth: "100%",
+                    height: "auto",
+                    borderRadius: "var(--ac-global-rounding-medium)",
+                  }}
+                />
+              ))}
+            </Flex>
+          </View>
+        )}
+      </>
     );
   }
   return "click run to see output";
@@ -176,6 +263,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
   const {
     appendRepetitionOutput,
+    appendRepetitionImage,
     setSelectedRepetitionNumber,
     setRepetitionSpanId,
     setRepetitionError,
@@ -186,6 +274,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     markPlaygroundInstanceComplete,
   } = usePlaygroundContext((state) => ({
     appendRepetitionOutput: state.appendRepetitionOutput,
+    appendRepetitionImage: state.appendRepetitionImage,
     setSelectedRepetitionNumber: state.setSelectedRepetitionNumber,
     setRepetitionSpanId: state.setRepetitionSpanId,
     setRepetitionError: state.setRepetitionError,
@@ -278,6 +367,25 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             },
           }
         );
+      } else if (chatCompletion.__typename === "ImageChunk") {
+        const imageData = chatCompletion.data;
+        const mimeType = chatCompletion.mimeType;
+        if (
+          imageData == null ||
+          mimeType == null ||
+          chatCompletion.repetitionNumber == null
+        ) {
+          return;
+        }
+        setRepetitionStatus(
+          instanceId,
+          chatCompletion.repetitionNumber,
+          "streamInProgress"
+        );
+        appendRepetitionImage(instanceId, chatCompletion.repetitionNumber, {
+          data: imageData,
+          mimeType: mimeType,
+        });
       }
       if (chatCompletion.__typename === "ChatCompletionSubscriptionResult") {
         if (chatCompletion.repetitionNumber == null) {
@@ -316,6 +424,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       addRepetitionPartialToolCall,
       instanceId,
       appendRepetitionOutput,
+      appendRepetitionImage,
       setRepetitionSpanId,
       setRepetitionStatus,
       setRepetitionError,
@@ -546,6 +655,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
                     <PlaygroundOutputContent
                       output={selectedRepetition?.output ?? null}
                       partialToolCalls={selectedRepetitionToolCalls}
+                      images={selectedRepetition?.images}
                     />
                   </MarkdownDisplayProvider>
                 </View>
@@ -577,6 +687,10 @@ graphql`
           name
           arguments
         }
+      }
+      ... on ImageChunk {
+        data
+        mimeType
       }
       ... on ChatCompletionSubscriptionResult {
         span {
