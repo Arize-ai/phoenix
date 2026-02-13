@@ -14,6 +14,53 @@
 
 **Enable batch processing for production efficiency.** Batching reduces network overhead by sending spans in groups rather than individually.
 
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-app",
+  batch: true,  // Production default
+});
+```
+
+### Shutdown Handling
+
+**CRITICAL:** Spans may not be exported if still queued in the processor when your process exits. Call `provider.shutdown()` to explicitly flush before exit.
+
+```typescript
+// Explicit shutdown to flush queued spans
+const provider = register({
+  projectName: "my-app",
+  batch: true,
+});
+
+async function main() {
+  await doWork();
+  await provider.shutdown();  // Flush spans before exit
+}
+
+main().catch(async (error) => {
+  console.error(error);
+  await provider.shutdown();  // Flush on error too
+  process.exit(1);
+});
+```
+
+**Graceful termination signals:**
+
+```typescript
+// Graceful shutdown on SIGTERM
+const provider = register({
+  projectName: "my-server",
+  batch: true,
+});
+
+process.on("SIGTERM", async () => {
+  await provider.shutdown();
+  process.exit(0);
+});
+```
+
 ---
 
 ## Data Masking (PII Protection)
@@ -91,6 +138,8 @@ try {
 ## Production Checklist
 
 - [ ] Batch processing enabled
+- [ ] **Shutdown handling:** Call `provider.shutdown()` before exit to flush queued spans
+- [ ] **Graceful termination:** Flush spans on SIGTERM/SIGINT signals
 - [ ] Data masking configured (`HIDE_INPUTS`/`HIDE_OUTPUTS` if PII)
 - [ ] Span filtering for health checks/noisy paths
 - [ ] Error handling implemented

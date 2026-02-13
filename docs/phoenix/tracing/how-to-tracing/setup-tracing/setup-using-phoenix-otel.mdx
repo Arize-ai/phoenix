@@ -180,6 +180,12 @@ Add instrumentation to capture traces from your LLM calls:
 
 ---
 
+<Note>
+Spans may not be exported if still queued in the processor when your process exits. With `batch: true`, call `shutdown()` to explicitly flush before exit. Alternatively, use `batch: false` for immediate export.
+</Note>
+
+---
+
 ## Advanced Configuration
 
 For more control over tracing behavior, see the SDK reference documentation:

@@ -92,6 +92,12 @@ tracer_provider = register(
 
 ---
 
+<Note>
+Spans may not be exported if still queued in the processor when your process exits. With `batch=True`, call `tracer_provider.shutdown()` to explicitly flush before exit. Alternatively, use `batch=False` for immediate export or a context manager (`with register(...) as tracer_provider`).
+</Note>
+
+---
+
 ## Advanced: OTel Primitives
 
 For granular control, use Phoenix wrappers as drop-in replacements for OpenTelemetry primitives:

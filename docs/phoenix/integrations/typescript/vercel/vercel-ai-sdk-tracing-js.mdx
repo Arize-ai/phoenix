@@ -167,6 +167,12 @@ For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry document
   <iframe src="https://cdn.iframe.ly/ry2U623" width={1000} height={400} allowFullScreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"></iframe>
 </Frame>
 
+<Note>
+Spans may not be exported if still queued in the processor when your process exits. Use `OpenInferenceSimpleSpanProcessor` for immediate export, or call `provider.shutdown()` to explicitly flush spans before exit when using `OpenInferenceBatchSpanProcessor`.
+
+For simpler setup, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) which handles this automatically.
+</Note>
+
 ### Examples
 
 To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the [OpenInference repo](https://github.com/Arize-ai/openinference/tree/main/js).

@@ -150,6 +150,10 @@ register({
 });
 ```
 
+<Note>
+Spans may not be exported if still queued in the processor when your process exits. With `batch: true`, call `await provider.shutdown()` to explicitly flush before exit. Alternatively, use `batch: false` for immediate export.
+</Note>
+
 ### Manual Tracing
 
 After registration, you can create custom spans using the OpenTelemetry API:
