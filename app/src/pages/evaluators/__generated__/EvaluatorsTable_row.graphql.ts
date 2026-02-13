@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e9a6ef514334defaf291a1270683dea>>
+ * @generated SignedSource<<4a3e885ae63c73cbc1a9786332fd7a2a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorsTable_row$data = {
   readonly createdAt: string;
@@ -43,6 +44,10 @@ export type EvaluatorsTable_row$data = {
     readonly id: string;
     readonly name: string;
   };
+  readonly promptVersion?: {
+    readonly modelName: string;
+    readonly modelProvider: ModelProvider;
+  };
   readonly promptVersionTag?: {
     readonly name: string;
   } | null;
@@ -63,6 +68,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "aef72040c8ad447ffde5d09cb3a2a642";
+(node as any).hash = "d6cb203c1f400edc5472e768c8255fdd";
 
 export default node;

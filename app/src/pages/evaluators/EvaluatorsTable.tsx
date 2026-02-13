@@ -23,6 +23,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -36,6 +37,7 @@ import {
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: EvaluatorSort | null | undefined
@@ -110,6 +112,10 @@ const readRow = (row: EvaluatorsTable_row$key) => {
           }
           promptVersionTag {
             name
+          }
+          promptVersion {
+            modelName
+            modelProvider
           }
           user {
             username
@@ -320,6 +326,33 @@ export const EvaluatorsTable = ({
                 promptVersionTag={row.original.data.promptVersionTag?.name}
                 wrapWidth={200}
               />
+            );
+          }
+          return "--";
+        },
+      },
+      {
+        header: "model",
+        accessorKey: "model",
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (row.original.rowType === "evaluator") {
+            const promptVersion = row.original.data.promptVersion;
+            if (!promptVersion) {
+              return "--";
+            }
+            const { modelName, modelProvider } = promptVersion;
+            const providerIsValid = isModelProvider(modelProvider);
+            return (
+              <Flex direction="row" gap="size-100" alignItems="center">
+                {providerIsValid && (
+                  <GenerativeProviderIcon
+                    provider={modelProvider}
+                    height={16}
+                  />
+                )}
+                <Text>{modelName}</Text>
+              </Flex>
             );
           }
           return "--";

@@ -19,6 +19,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -34,6 +35,7 @@ import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/Da
 import type { DatasetEvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: DatasetEvaluatorSort | null | undefined
@@ -217,6 +219,10 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
             promptVersionTag {
               name
             }
+            promptVersion {
+              modelName
+              modelProvider
+            }
           }
         }
       }
@@ -342,6 +348,27 @@ export const DatasetEvaluatorsTable = ({
             wrapWidth={200}
           />
         ),
+      },
+      {
+        header: "model",
+        accessorKey: "model",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const promptVersion = row.original.evaluator.promptVersion;
+          if (!promptVersion) {
+            return <Text color="text-700">—</Text>;
+          }
+          const { modelName, modelProvider } = promptVersion;
+          const providerIsValid = isModelProvider(modelProvider);
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {providerIsValid && (
+                <GenerativeProviderIcon provider={modelProvider} height={16} />
+              )}
+              <Text>{modelName}</Text>
+            </Flex>
+          );
+        },
       },
       {
         header: "last modified by",
