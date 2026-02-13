@@ -26,3 +26,8 @@ Type ignores are justified here because:
 3. The code works correctly at runtime and tests pass
 
 
+src/phoenix/trace/otel.py
+
+Used `cast` in the `_encode_attributes` function for numpy array conversion. The issue is that `np.ndarray.tolist()` has multiple overloads depending on the array shape, but ty cannot determine which overload to use when the array shape is unknown at type-check time. The workaround is to cast the ndarray to `Any` first (using `cast(Any, value).tolist()`), which allows ty to call tolist() without resolving a specific overload, then cast the result to `AttributeValue`. This is safe because numpy's tolist() always returns valid Python objects (scalars or nested lists), and the resulting value is validated when passed to `_encode_value()`.
+
+

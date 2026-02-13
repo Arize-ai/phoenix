@@ -282,7 +282,8 @@ def _encode_attributes(attributes: Attributes) -> Iterator[KeyValue]:
         return
     for key, value in attributes.items():
         if isinstance(value, np.ndarray):
-            value = value.tolist()
+            # Convert numpy array to list - cast to Any to avoid overload resolution
+            value = cast(AttributeValue, cast(Any, value).tolist())
         yield KeyValue(key=key, value=_encode_value(value))
 
 
