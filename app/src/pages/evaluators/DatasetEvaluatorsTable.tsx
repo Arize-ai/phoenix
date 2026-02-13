@@ -1,4 +1,4 @@
-import {
+import React, {
   startTransition,
   useCallback,
   useEffect,
@@ -19,12 +19,14 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type {
   DatasetEvaluatorFilter,
@@ -34,6 +36,7 @@ import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/Da
 import type { DatasetEvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 export const convertEvaluatorSortToTanstackSort = (
   sort: DatasetEvaluatorSort | null | undefined
@@ -217,6 +220,10 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
             promptVersionTag {
               name
             }
+            promptVersion {
+              modelName
+              modelProvider
+            }
           }
         }
       }
@@ -307,6 +314,7 @@ export const DatasetEvaluatorsTable = ({
       {
         header: "name",
         accessorKey: "name",
+        size: 200,
         cell: ({ getValue, row }) => {
           return (
             <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
@@ -319,7 +327,7 @@ export const DatasetEvaluatorsTable = ({
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
         accessorFn: (row) => row.evaluator.kind,
-        size: 80,
+        size: 60,
         cell: ({ getValue }) => (
           <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
         ),
@@ -334,6 +342,7 @@ export const DatasetEvaluatorsTable = ({
       {
         header: "prompt",
         accessorKey: "prompt",
+        size: 180,
         enableSorting: false,
         cell: ({ row }) => (
           <PromptCell
@@ -344,8 +353,33 @@ export const DatasetEvaluatorsTable = ({
         ),
       },
       {
+        header: "model",
+        accessorKey: "model",
+        size: 180,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const promptVersion = row.original.evaluator.promptVersion;
+          if (!promptVersion) {
+            return <Text color="text-700">—</Text>;
+          }
+          const { modelName, modelProvider } = promptVersion;
+          const providerIsValid = isModelProvider(modelProvider);
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {providerIsValid && (
+                <GenerativeProviderIcon provider={modelProvider} height={16} />
+              )}
+              <Text minWidth={0}>
+                <Truncate>{modelName}</Truncate>
+              </Text>
+            </Flex>
+          );
+        },
+      },
+      {
         header: "last modified by",
         accessorKey: "user",
+        size: 160,
         enableSorting: false,
         cell: ({ row }) => {
           const user = row.original.user;
@@ -367,6 +401,7 @@ export const DatasetEvaluatorsTable = ({
       {
         header: "last updated",
         accessorKey: "updatedAt",
+        size: 160,
         cell: TimestampCell,
       },
     ];
@@ -374,6 +409,7 @@ export const DatasetEvaluatorsTable = ({
       cols.push({
         header: "",
         id: "actions",
+        size: 50,
         cell: ({ row }) => (
           <DatasetEvaluatorActionMenu
             datasetEvaluatorId={row.original.id}
@@ -388,7 +424,6 @@ export const DatasetEvaluatorsTable = ({
     return cols;
   }, [datasetId, updateConnectionIds]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -400,6 +435,28 @@ export const DatasetEvaluatorsTable = ({
     onSortingChange: setSorting,
     getRowId: (row) => row.id,
   });
+
+  const getFlatHeaders = table.getFlatHeaders;
+  /**
+   * Calculate all column sizes at once at the root table level
+   * and pass them down as CSS variables to the <table> element.
+   * This avoids calling `column.getSize()` on every render for every cell.
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columns]);
+
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null
   ) => {
@@ -445,7 +502,14 @@ export const DatasetEvaluatorsTable = ({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -454,7 +518,7 @@ export const DatasetEvaluatorsTable = ({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
-                    minWidth: header.column.columnDef.size,
+                    width: `calc(var(--header-${header.id}-size) * 1px)`,
                   }}
                 >
                   {header.isPlaceholder ? null : (
@@ -510,17 +574,26 @@ export const DatasetEvaluatorsTable = ({
                     onRowClick?.(row.original);
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      align={cell.column.columnDef.meta?.textAlign}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const colSizeVar = `--col-${cell.column.id}-size`;
+                    return (
+                      <td
+                        key={cell.id}
+                        style={{
+                          width: `calc(var(${colSizeVar}) * 1px)`,
+                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
