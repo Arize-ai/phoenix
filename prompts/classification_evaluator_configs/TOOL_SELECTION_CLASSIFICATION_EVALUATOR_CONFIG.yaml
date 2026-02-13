@@ -1,5 +1,7 @@
 name: tool_selection
 description: For determining if the correct tool was selected for a given context.
+labels:
+  - dataset
 optimization_direction: maximize
 messages:
   - role: user

@@ -1,5 +1,7 @@
 name: tool_invocation
 description: For determining if a tool was invoked correctly with proper arguments, formatting, and safe content.
+labels:
+  - dataset
 optimization_direction: maximize
 messages:
   - role: user
