@@ -46,3 +46,10 @@ src/phoenix/db/insertion/trace_annotation.py
 Used `cast` in the `_select_existing` method to fix return type mismatch. Similar to `document_annotation.py` and `span_annotation.py`, ty loses type information when accessing CTE columns via `.c.column_name.label()` (inferring them as `Any`) and doesn't recognize that columns from the right side of an outer join should be nullable. The method returns a SQLAlchemy Select statement with expected type `Select[_Existing]` where `_Existing` is `tuple[int, str, int | None, str | None, str | None, datetime | None]`, but ty infers `Select[tuple[Any, Any, int, str, str, datetime]]`. The cast is safe because the actual runtime types match the expected types - the CTE columns are properly typed in the database schema, and the outer join does make the annotation columns nullable at runtime.
 
 
+src/phoenix/db/facilitator.py
+
+Used `# type: ignore[assignment]` on line 113 for the `existing_roles` list comprehension. The issue is that `session.stream_scalars(sa.select(sa.distinct(models.UserRole.name)))` returns an async generator that yields values of type `str | Unknown` (due to SQLAlchemy's dynamic query typing), but we need `list[models.UserRoleName]` where `UserRoleName = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]`. The type ignore is necessary because ty cannot narrow the type from the database query result to the specific Literal union. At runtime, the database constraint ensures only valid enum values are returned.
+
+Used `# type: ignore[attr-defined]` on line 274 for accessing `table.deleted_at`. The function parameter `table` has type `type[models.HasId]`, and while the function checks at runtime that the table has a `deleted_at` attribute (via `hasattr`), ty's type system doesn't track this dynamic attribute check. The type ignore is necessary because the `HasId` base class doesn't define `deleted_at` - it's only present on specific subclasses like `GenerativeModel`. At runtime, the hasattr check ensures safety.
+
+

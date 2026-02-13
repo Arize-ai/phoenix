@@ -94,7 +94,7 @@ async def _ensure_enums(db: DbSessionFactory) -> None:
                 raise ValueError(f"Unexpected values in {table.name}.{column.key}: {unexpected}")
             if not (missing := expected - existing):
                 continue
-            await session.execute(sa.insert(table), [{column.key: v} for v in missing])
+            await session.execute(sa.insert(table.__table__), [{column.key: v} for v in missing])
 
 
 async def _ensure_user_roles(db: DbSessionFactory) -> None:
@@ -110,7 +110,9 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
                 sa.select(models.UserRole.name, models.UserRole.id)
             )
         }
-        existing_roles: list[models.UserRoleName] = [
+        # ty cannot infer that stream_scalars returns UserRoleName literals
+        # since the query result type is not sufficiently narrow
+        existing_roles: list[models.UserRoleName] = [  # type: ignore[assignment]
             name
             async for name in await session.stream_scalars(
                 sa.select(sa.distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
@@ -270,12 +272,14 @@ def _stmt_to_delete_expired_childless_records(
     cutoff_time = datetime.now(timezone.utc) - timedelta(
         days=_CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS
     )
+    deleted_at_col: InstrumentedAttribute[Optional[datetime]] = table.deleted_at  # type: ignore[attr-defined]
+    id_col: InstrumentedAttribute[int] = table.id
     return (
         sa.delete(table)
-        .where(table.deleted_at.isnot(None))
-        .where(table.deleted_at < cutoff_time)
-        .where(~sa.exists().where(table.id == foreign_key))
-        .returning(table.id)
+        .where(deleted_at_col.isnot(None))
+        .where(deleted_at_col < cutoff_time)
+        .where(~sa.exists().where(id_col == foreign_key))
+        .returning(id_col)
     )
 
 
