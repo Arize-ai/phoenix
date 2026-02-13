@@ -1074,29 +1074,29 @@ class TestCastTemplateVariableTypes:
         )
         assert result == {"count": "42"}
 
-    def test_rejects_list_for_string_field(self) -> None:
+    def test_serializes_list_to_json_for_string_field(self) -> None:
         template_variables = {"items": [1, 2, 3]}
         input_schema = {
             "type": "object",
             "properties": {"items": {"type": "string"}},
         }
-        with pytest.raises(ValueError, match="Field 'items' expects a string but got list"):
-            cast_template_variable_types(
-                template_variables=template_variables,
-                input_schema=input_schema,
-            )
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"items": "[1, 2, 3]"}
 
-    def test_rejects_dict_for_string_field(self) -> None:
+    def test_serializes_dict_to_json_for_string_field(self) -> None:
         template_variables = {"data": {"key": "value"}}
         input_schema = {
             "type": "object",
             "properties": {"data": {"type": "string"}},
         }
-        with pytest.raises(ValueError, match="Field 'data' expects a string but got dict"):
-            cast_template_variable_types(
-                template_variables=template_variables,
-                input_schema=input_schema,
-            )
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"data": '{"key": "value"}'}
 
     def test_rejects_none_for_string_field(self) -> None:
         template_variables = {"value": None}
@@ -1359,6 +1359,12 @@ class TestJsonDiffCount:
         assert json_diff_count(True, 1) == 1
         assert json_diff_count(False, 0) == 1
 
+    def test_large_int_equality(self) -> None:
+        assert json_diff_count(10**309, 10**309) == 0
+
+    def test_large_int_inequality(self) -> None:
+        assert json_diff_count(10**309, 10**309 + 1) == 1
+
 
 class TestBuiltInEvaluatorsWithLLMContextStructures:
     """Tests for builtin evaluators using context structures similar to subscriptions.py.
@@ -1609,8 +1615,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         assert result["explanation"] is not None
         assert "matched" in result["explanation"]
 
-    async def test_evaluator_rejects_list_values_for_string_fields(self) -> None:
-        """Test that list values are rejected for evaluators expecting string input."""
+    async def test_evaluator_serializes_list_values_for_string_fields(self) -> None:
+        """Test that list values are JSON-serialized for evaluators expecting string input."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
@@ -1621,7 +1627,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
                 {"message": {"content": "Second response with keyword"}},
             ],
         }
-        # Extracting all message contents produces a list - now rejected instead of stringified
+        # Extracting all message contents produces a list - JSON-serialized for string fields
         input_mapping = EvaluatorInputMappingInput(
             path_mapping={"text": "$.output[*].message.content"},
             literal_mapping={"words": "keyword"},
@@ -1634,11 +1640,12 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
                 output_configs=[output_config],
             )
         )[0]
-        assert result["error"] is not None
-        assert "expects a string but got list" in result["error"]
+        assert result["error"] is None
+        # The list gets JSON-serialized and searched
+        assert result["score"] == 1.0
 
-    async def test_evaluator_rejects_dict_values_for_string_fields(self) -> None:
-        """Test that dict values are rejected for evaluators expecting string input."""
+    async def test_evaluator_serializes_dict_values_for_string_fields(self) -> None:
+        """Test that dict values are JSON-serialized for evaluators expecting string input."""
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
@@ -1646,7 +1653,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         context = {
             "output": {"nested": {"value": "contains target word"}},
         }
-        # Extracting the whole nested object - now rejected instead of stringified
+        # Extracting the whole nested object - JSON-serialized for string fields
         input_mapping = EvaluatorInputMappingInput(
             path_mapping={"text": "$.output.nested"},
             literal_mapping={"words": "target"},
@@ -1659,8 +1666,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
                 output_configs=[output_config],
             )
         )[0]
-        assert result["error"] is not None
-        assert "expects a string but got dict" in result["error"]
+        assert result["error"] is None
+        assert result["score"] == 1.0
 
 
 class TestJSONDistanceParseStringsToggle:

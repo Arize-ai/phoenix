@@ -1029,11 +1029,11 @@ def cast_template_variable_types(
             prop_type = prop_schema.get("type")
             if prop_type == "string":
                 value = casted_template_variables[key]
-                if isinstance(value, (type(None), list, dict)):
-                    raise ValueError(
-                        f"Field '{key}' expects a string but got {type(value).__name__}"
-                    )
-                if not isinstance(value, str):
+                if value is None:
+                    raise ValueError(f"Field '{key}' expects a string but got NoneType")
+                if isinstance(value, (dict, list)):
+                    casted_template_variables[key] = json.dumps(value, default=str)
+                elif not isinstance(value, str):
                     casted_template_variables[key] = str(value)
 
     return casted_template_variables
@@ -2020,6 +2020,9 @@ def json_diff_count(expected: Any, actual: Any) -> int:
     if isinstance(expected, bool) or isinstance(actual, bool):
         if type(expected) is not type(actual):
             return 1
+        return 0 if expected == actual else 1
+    # Integer fast-path (avoids float overflow for large ints)
+    if isinstance(expected, int) and isinstance(actual, int):
         return 0 if expected == actual else 1
     # Handle numeric equivalence (int/float interchangeable)
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
