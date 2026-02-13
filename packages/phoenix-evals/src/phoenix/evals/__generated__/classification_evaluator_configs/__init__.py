@@ -1,5 +1,8 @@
 # This file is generated. Do not edit by hand.
 
+from ._conciseness_classification_evaluator_config import (
+    CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ._correctness_classification_evaluator_config import (
     CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG,
 )
@@ -26,6 +29,7 @@ from ._tool_selection_classification_evaluator_config import (
 __all__ = [
     "ClassificationEvaluatorConfig",
     "PromptMessage",
+    "CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG",
     "FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG",

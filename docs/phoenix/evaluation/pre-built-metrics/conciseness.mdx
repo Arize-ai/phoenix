@@ -1,0 +1,251 @@
+---
+title: "Conciseness"
+description: "Evaluate whether LLM responses are concise and free of unnecessary content."
+---
+
+## Overview
+
+The **Conciseness** evaluator assesses whether an LLM's response uses the minimum number of words necessary to fully answer the question. It detects unnecessary pleasantries, hedging language, meta-commentary, redundant restatements, and unsolicited explanations.
+
+### When to Use
+
+Use the Conciseness evaluator when you need to:
+
+- **Detect filler language** - Identify unnecessary pleasantries like "Great question!" or "I'd be happy to help"
+- **Flag hedging and qualifiers** - Catch excessive hedging like "It's worth noting that..."
+- **Identify meta-commentary** - Detect self-referential statements about the model's capabilities
+- **Find redundant content** - Spot restatements and unnecessary repetition
+- **Enforce brevity** - Ensure responses are direct and to the point
+
+<Info>
+Conciseness evaluates only whether the response uses more words than necessary. It does not assess correctness, helpfulness, or quality of information. Use the [Correctness evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) for factual accuracy.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply to LLM spans where you want to evaluate response brevity. |
+
+**Relevant span kinds:** LLM spans, particularly ones where brevity is important.
+
+## Input Requirements
+
+The Conciseness evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The user's query or question |
+| `output` | `string` | The LLM's response to evaluate |
+
+### Formatting Tips
+
+For best results:
+
+- **Use human-readable strings** rather than raw JSON for all inputs
+- **For multi-turn conversations**, format input as a readable conversation:
+  ```
+  User: What is the capital of France?
+  Assistant: Paris is the capital of France.
+  User: What is its population?
+  ```
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"concise"` or `"verbose"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = concise, 0.0 = verbose) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Concise (1.0)**: The response contains only the information necessary to answer the question
+- **Verbose (0.0)**: The response contains unnecessary filler, hedging, meta-commentary, or redundant content
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ConcisenessEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    conciseness_eval = ConcisenessEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(conciseness_eval.describe())
+
+    # Evaluate a single example
+    eval_input = {
+        "input": "What is the capital of France?",
+        "output": "Paris."
+    }
+
+    scores = conciseness_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='conciseness', score=1.0, label='concise', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createConcisenessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const concisenessEvaluator = createConcisenessEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate an example
+    const result = await concisenessEvaluator.evaluate({
+      input: "What is the capital of France?",
+      output: "Paris.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "concise", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names or requires transformation, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ConcisenessEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    conciseness_eval = ConcisenessEvaluator(llm=llm)
+
+    # Example with different field names
+    eval_input = {
+        "question": "What is the speed of light?",
+        "answer": "Approximately 299,792 km/s."
+    }
+
+    # Use input mapping to match expected field names
+    input_mapping = {
+        "input": "question",
+        "output": "answer"
+    }
+
+    scores = conciseness_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createConcisenessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const concisenessEvaluator = createConcisenessEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Bind with input mapping for different field names
+    const boundEvaluator = bindEvaluator(concisenessEvaluator, {
+      inputMapping: {
+        input: "question",
+        output: "answer",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      question: "What is the speed of light?",
+      answer: "Approximately 299,792 km/s.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import ConcisenessEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = ConcisenessEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="conciseness",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"concise": 1.0, "verbose": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG, createConcisenessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createConcisenessEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Conciseness evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [ConcisenessEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createConcisenessEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating factual accuracy of responses
+- [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - For evaluating responses against retrieved context

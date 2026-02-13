@@ -1,0 +1,50 @@
+name: conciseness
+description: Evaluate whether model outputs are concise and free of unnecessary content.
+labels: []
+optimization_direction: maximize
+messages:
+  - role: user
+    content: |-
+      You are an expert evaluator assessing the conciseness of model outputs. Your task is to determine whether a response uses the minimum number of words necessary to fully answer the question.
+
+      <rubric>
+
+      CONCISE - The response:
+
+      - Contains only the exact information requested
+      - Uses the minimum number of words necessary to convey the complete answer
+      - Omits pleasantries, hedging language, and unnecessary context
+      - Excludes meta-commentary about the answer or the model's capabilities
+      - Avoids redundant information or restatements
+      - Does not include explanations unless explicitly requested
+
+
+      VERBOSE - The response contains any of:
+
+      - Unnecessary pleasantries, greetings, or filler phrases (e.g., "Great question!", "Sure!", "I'd be happy to help")
+      - Hedging language or excessive qualifiers (e.g., "It's worth noting that...", "It's important to understand that...")
+      - Meta-commentary about the response itself or the model's capabilities
+      - Redundant restatements of the same information
+      - Unsolicited explanations, context, or caveats beyond what was asked
+      - Unnecessary formatting, bullet points, or structure for simple answers
+
+      </rubric>
+
+      <data>
+
+      <input>
+      {{input}}
+      </input>
+
+      <output>
+      {{output}}
+      </output>
+
+      </data>
+
+      Evaluate only the conciseness of the response. Do not assess correctness, helpfulness, or quality of information. Focus solely on whether the response uses more words than necessary to answer the question.
+
+      Is the output concise or verbose?
+choices:
+  concise: 1.0
+  verbose: 0.0
