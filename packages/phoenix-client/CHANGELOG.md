@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.28.1...arize-phoenix-client-v1.29.0) (2026-02-13)
+
+
+### Features
+
+* dataset evaluators ([5f47820](https://github.com/Arize-ai/phoenix/commit/5f4782012537d533570184a6ce1e005e9945d8bf))
+* dataset evaluators ([cf0e09a](https://github.com/Arize-ai/phoenix/commit/cf0e09a82a5e44c9df26619c6372d2474a289b49))
+
 ## [1.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.28.0...arize-phoenix-client-v1.28.1) (2026-02-09)
 
 
