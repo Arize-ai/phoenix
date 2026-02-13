@@ -160,8 +160,8 @@ def _tools_chat_completions_to_responses_api(
             flat = FunctionToolParam(
                 type="function",
                 name=fn.get("name", ""),
-                parameters=fn.get("parameters") if fn.get("parameters") is not None else {},
-                strict=fn.get("strict", True),
+                parameters=fn.get("parameters"),
+                strict=fn.get("strict"),
             )
             if "description" in fn:
                 flat["description"] = fn["description"]
@@ -196,7 +196,7 @@ def _tool_choice_chat_completions_to_responses_api(
     String values ("auto", "none", "required") and already-flat dicts are
     passed through unchanged.
     """
-    from openai.types.responses import ToolChoiceFunction
+    from openai.types.responses import ToolChoiceFunction, ToolChoiceOptions
 
     if not isinstance(tool_choice, dict):
         return cast(ToolChoiceOptions, tool_choice)
