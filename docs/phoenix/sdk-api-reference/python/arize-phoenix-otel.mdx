@@ -92,6 +92,96 @@ tracer_provider = register(
 
 ---
 
+## Flushing Spans Before Exit
+
+<Warning>
+**Short-lived processes with `batch=True` must explicitly shutdown the tracer provider to flush spans before exit.**
+
+Batch processing queues spans and exports them periodically. If your process exits before the next export cycle, queued spans are lost.
+</Warning>
+
+**Pattern for short-lived processes:**
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="my-app",
+    batch=True,
+)
+
+def main():
+    do_work()
+
+    # Flush spans before exit
+    tracer_provider.shutdown()
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"Error: {e}")
+        tracer_provider.shutdown()
+        exit(1)
+```
+
+**Alternative approaches:**
+
+```python
+# Option 1: Immediate export (no shutdown needed)
+register(project_name="my-app", batch=False)
+
+# Option 2: Context manager (automatic cleanup)
+with register(project_name="my-app", batch=True) as tracer_provider:
+    do_work()  # Automatic shutdown when context exits
+```
+
+**Graceful shutdown for long-lived processes:**
+
+```python
+import signal
+from phoenix.otel import register
+
+provider = register(project_name="my-server", batch=True)
+
+def shutdown_handler(signum, frame):
+    provider.shutdown()
+    exit(0)
+
+signal.signal(signal.SIGTERM, shutdown_handler)
+signal.signal(signal.SIGINT, shutdown_handler)
+
+# Start your server
+run_server()
+```
+
+**When is shutdown needed?**
+
+- **Scripts, batch jobs, test runners** - Required if using `batch=True`
+- **Long-lived servers** - Optional but recommended for graceful termination
+- **Any process with `batch=False`** - Not needed (spans export immediately)
+
+<Accordion title="Shutdown methods">
+The tracer provider provides two shutdown methods:
+
+- **`shutdown()`** - Flushes all pending spans and stops the provider (recommended)
+- **`force_flush(timeout_millis=30000)`** - Exports pending spans without stopping the provider
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(project_name="my-app", batch=True)
+
+# Flush without shutdown (provider can continue)
+tracer_provider.force_flush()
+
+# Complete shutdown (call before exit)
+tracer_provider.shutdown()
+```
+</Accordion>
+
+---
+
 ## Advanced: OTel Primitives
 
 For granular control, use Phoenix wrappers as drop-in replacements for OpenTelemetry primitives:

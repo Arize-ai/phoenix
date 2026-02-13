@@ -167,6 +167,55 @@ For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry document
   <iframe src="https://cdn.iframe.ly/ry2U623" width={1000} height={400} allowFullScreen scrolling="no" allow="accelerometer *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *;"></iframe>
 </Frame>
 
+### Choosing a Span Processor
+
+For short-lived processes (scripts, batch jobs, tests), choose the appropriate span processor:
+
+**Use `OpenInferenceSimpleSpanProcessor` for simplicity** (exports immediately, no shutdown needed):
+
+```typescript
+import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
+
+export const provider = new NodeTracerProvider({
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+      }),
+    }),
+  ],
+});
+```
+
+**Use `OpenInferenceBatchSpanProcessor` for production** (better performance, requires shutdown):
+
+```typescript
+import { OpenInferenceBatchSpanProcessor } from "@arizeai/openinference-vercel";
+
+export const provider = new NodeTracerProvider({
+  spanProcessors: [
+    new OpenInferenceBatchSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces`,
+      }),
+    }),
+  ],
+});
+
+// Must call provider.shutdown() before process exit
+export async function shutdownTracing() {
+  await provider.shutdown();
+}
+```
+
+<Warning>
+When using `OpenInferenceBatchSpanProcessor`, you **must** call `provider.shutdown()` before your process exits to flush queued spans. See the [Phoenix OTEL Setup Guide](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel#flushing-spans-before-exit) for complete patterns.
+</Warning>
+
+<Tip>
+For automatic shutdown handling and simpler configuration, consider using [`@arizeai/phoenix-otel`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) instead of manual OpenTelemetry setup.
+</Tip>
+
 ### Examples
 
 To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the [OpenInference repo](https://github.com/Arize-ai/openinference/tree/main/js).

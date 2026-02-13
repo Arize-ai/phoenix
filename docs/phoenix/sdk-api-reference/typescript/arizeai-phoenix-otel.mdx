@@ -150,6 +150,85 @@ register({
 });
 ```
 
+### Flushing Spans Before Exit
+
+<Warning>
+**Short-lived processes with `batch: true` must explicitly shutdown the provider to flush spans before exit.**
+
+Batch processing queues spans and exports them periodically. If your process exits before the next export cycle, queued spans are lost.
+</Warning>
+
+**Pattern for short-lived processes:**
+
+```typescript
+// instrumentation.ts
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-app",
+  batch: true,
+});
+
+export async function shutdownTracing(): Promise<void> {
+  await provider.shutdown();
+}
+```
+
+```typescript
+// index.ts
+import { shutdownTracing } from "./instrumentation";
+
+async function main() {
+  await doWork();
+
+  // Flush spans before exit
+  await shutdownTracing();
+}
+
+main().catch(async (error) => {
+  console.error(error);
+  await shutdownTracing();
+  process.exit(1);
+});
+```
+
+**Alternative for immediate export:**
+
+```typescript
+// No shutdown needed - spans export immediately
+register({
+  projectName: "my-app",
+  batch: false,
+});
+```
+
+**Graceful shutdown for long-lived processes:**
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-server",
+  batch: true,
+});
+
+process.on("SIGTERM", async () => {
+  await provider.shutdown();
+  process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  await provider.shutdown();
+  process.exit(0);
+});
+```
+
+**When is shutdown needed?**
+
+- **Scripts, batch jobs, test runners** - Required if using `batch: true`
+- **Long-lived servers** - Optional but recommended for graceful termination
+- **Any process with `batch: false`** - Not needed (spans export immediately)
+
 ### Manual Tracing
 
 After registration, you can create custom spans using the OpenTelemetry API:

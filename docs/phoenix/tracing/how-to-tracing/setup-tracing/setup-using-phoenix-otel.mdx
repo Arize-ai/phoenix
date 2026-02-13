@@ -180,6 +180,143 @@ Add instrumentation to capture traces from your LLM calls:
 
 ---
 
+## Flushing Spans Before Exit
+
+<Warning>
+**Short-lived processes with `batch: true` must explicitly shutdown the provider to flush spans before exit.**
+
+Batch processing queues spans and exports them periodically. If your process exits before the next export cycle, queued spans are lost.
+</Warning>
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.otel import register
+
+    tracer_provider = register(
+        project_name="my-app",
+        batch=True,
+    )
+
+    def main():
+        do_work()
+
+        # Flush spans before exit
+        tracer_provider.shutdown()
+
+    if __name__ == "__main__":
+        try:
+            main()
+        except Exception as e:
+            print(f"Error: {e}")
+            tracer_provider.shutdown()  # Flush on error too
+            exit(1)
+    ```
+
+    **Alternative for immediate export:**
+    ```python
+    # No shutdown needed - spans export immediately
+    register(project_name="my-app", batch=False)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    // instrumentation.ts
+    import { register } from "@arizeai/phoenix-otel";
+
+    const provider = register({
+      projectName: "my-app",
+      batch: true,
+    });
+
+    export async function shutdownTracing(): Promise<void> {
+      await provider.shutdown();
+    }
+    ```
+
+    ```typescript
+    // index.ts
+    import { shutdownTracing } from "./instrumentation";
+
+    async function main() {
+      await doWork();
+
+      // Flush spans before exit
+      await shutdownTracing();
+    }
+
+    main().catch(async (error) => {
+      console.error(error);
+      await shutdownTracing();  // Flush on error too
+      process.exit(1);
+    });
+    ```
+
+    **Alternative for immediate export:**
+    ```typescript
+    // No shutdown needed - spans export immediately
+    register({ projectName: "my-app", batch: false });
+    ```
+  </Tab>
+</Tabs>
+
+<AccordionGroup>
+  <Accordion title="When is this needed?">
+    **Shutdown required:**
+    - Scripts and batch jobs that complete quickly
+    - One-off tasks and migrations
+    - Test runners
+    - Any process that exits within seconds/minutes
+
+    **Shutdown optional (but recommended for graceful termination):**
+    - Long-lived servers and daemons
+    - Processes that run indefinitely
+
+    With `batch: false`, spans export immediately and no shutdown is needed, but batching is more efficient for most production workloads.
+  </Accordion>
+
+  <Accordion title="Graceful shutdown for servers">
+    Long-lived processes should flush spans when receiving termination signals:
+
+    <Tabs>
+      <Tab title="Python" icon="python">
+        ```python
+        import signal
+        from phoenix.otel import register
+
+        provider = register(project_name="my-server", batch=True)
+
+        def shutdown_handler(signum, frame):
+            provider.shutdown()
+            exit(0)
+
+        signal.signal(signal.SIGTERM, shutdown_handler)
+        signal.signal(signal.SIGINT, shutdown_handler)
+        ```
+      </Tab>
+
+      <Tab title="TypeScript" icon="js">
+        ```typescript
+        import { register } from "@arizeai/phoenix-otel";
+
+        const provider = register({
+          projectName: "my-server",
+          batch: true,
+        });
+
+        process.on("SIGTERM", async () => {
+          await provider.shutdown();
+          process.exit(0);
+        });
+        ```
+      </Tab>
+    </Tabs>
+  </Accordion>
+</AccordionGroup>
+
+---
+
 ## Advanced Configuration
 
 For more control over tracing behavior, see the SDK reference documentation:

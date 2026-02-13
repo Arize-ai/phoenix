@@ -94,6 +94,44 @@ register({ projectName: "my-express-app" });
 const app = express();
 ```
 
+## Flushing Spans Before Exit
+
+**CRITICAL for short-lived processes:** Must call `provider.shutdown()` before exit to flush batched spans.
+
+Batch processors queue spans and export periodically. Processes that exit quickly (scripts, tests, batch jobs) don't run long enough for the export cycle, so spans are lost without explicit shutdown.
+
+**Standard pattern:**
+
+```typescript
+const provider = register({
+  projectName: "my-app",
+  batch: true,
+});
+
+async function main() {
+  await doWork();
+  await provider.shutdown();  // Flush spans before exit
+}
+
+main().catch(async (error) => {
+  console.error(error);
+  await provider.shutdown();  // Flush on error too
+  process.exit(1);
+});
+```
+
+**Alternative for scripts that don't need batching:**
+
+```typescript
+// No shutdown needed - spans export immediately
+register({
+  projectName: "my-app",
+  batch: false,
+});
+```
+
+For production patterns including long-lived processes, see `production-typescript.md`.
+
 ## Verification
 
 1. Open Phoenix UI: `http://localhost:6006`
@@ -117,6 +155,12 @@ register({
 - Verify `PHOENIX_COLLECTOR_ENDPOINT` is correct
 - Set `PHOENIX_API_KEY` for Phoenix Cloud
 - For ESM: Ensure `manuallyInstrument()` is called
+- **Short-lived processes:** Call `provider.shutdown()` before exit (see Flushing Spans section)
+
+**Traces not appearing for scripts/batch jobs:**
+- With `batch: true`: Must call `await provider.shutdown()` before process exit
+- Quick fix: Set `batch: false` for immediate export (no shutdown needed)
+- Long-lived processes: Use `batch: true` (better performance)
 
 **Missing attributes:**
 - Check instrumentation is registered (ESM requires manual setup)
