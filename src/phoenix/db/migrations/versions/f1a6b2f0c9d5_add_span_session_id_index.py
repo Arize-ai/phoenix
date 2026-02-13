@@ -1,7 +1,7 @@
 """add span session.id index
 
 Revision ID: f1a6b2f0c9d5
-Revises: deb2c81c0bb2
+Revises: a1b2c3d4e5f6
 Create Date: 2026-01-19 12:00:00.000000
 
 """
@@ -40,22 +40,21 @@ JSON_ = (
 
 # revision identifiers, used by Alembic.
 revision: str = "f1a6b2f0c9d5"
-down_revision: Union[str, None] = "deb2c81c0bb2"
+down_revision: Union[str, None] = "a1b2c3d4e5f6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    dialect = op.get_context().dialect.name
-    if dialect not in {"postgresql", "sqlite"}:
-        # Unknown dialect; skip to avoid migration failure.
-        return
+    session_id = sa.column("attributes", JSON_)[["session", "id"]].as_string()
     op.create_index(
         "ix_spans_session_id",
         "spans",
-        [sa.column("attributes", JSON_)[["session", "id"]].as_string()],
+        [session_id],
         unique=False,
         if_not_exists=True,
+        postgresql_where=session_id.is_not(None),
+        sqlite_where=session_id.is_not(None),
     )
 
 

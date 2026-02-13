@@ -841,6 +841,10 @@ class Span(HasId):
         Index(
             "ix_spans_session_id",
             column("attributes", JSON_)[["session", "id"]].as_string(),
+            postgresql_where=column("attributes", JSON_)[["session", "id"]]
+            .as_string()
+            .is_not(None),
+            sqlite_where=column("attributes", JSON_)[["session", "id"]].as_string().is_not(None),
         ),
     )
 
