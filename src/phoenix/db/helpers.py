@@ -34,7 +34,7 @@ class SupportedSQLDialect(Enum):
     POSTGRESQL = "postgresql"
 
     @classmethod
-    def _missing_(cls, value: object) -> Any:
+    def _missing_(cls, value: object) -> "SupportedSQLDialect":
         if isinstance(value, str) and value and value.isascii() and not value.islower():
             return cls(value.lower())
         raise ValueError(f"`{value}` is not a supported SQL backend/dialect.")
