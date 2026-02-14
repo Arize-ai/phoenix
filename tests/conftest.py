@@ -8,7 +8,8 @@ def pytest_addoption(parser: Parser) -> None:
         help="Run tests using file-based SQLite",
     )
     parser.addoption(
-        "--run-postgres",
-        action="store_true",
-        help="Run tests that require Postgres",
+        "--db",
+        default="sqlite",
+        choices=["sqlite", "postgresql", "all"],
+        help="Which database dialect(s) to test: sqlite (default), postgresql, or all",
     )
