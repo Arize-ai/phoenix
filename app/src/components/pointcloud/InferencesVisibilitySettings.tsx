@@ -82,8 +82,8 @@ export function InferencesVisibilitySettings({
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-static-size-50);
-        padding: var(--ac-global-dimension-static-size-100);
+        gap: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-static-size-100);
       `}
     >
       <VisibilityCheckboxField

@@ -33,8 +33,8 @@ export function ExperimentRepetitionSelector({
             <Icon svg={<Icons.RepeatOutline />} />
             <Text
               css={css`
-                margin-inline-start: var(--ac-global-dimension-size-100);
-                margin-inline-end: var(--ac-global-dimension-size-100);
+                margin-inline-start: var(--global-dimension-size-100);
+                margin-inline-end: var(--global-dimension-size-100);
                 width: ${widthInChars}ch;
                 text-align: center;
               `}

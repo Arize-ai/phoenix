@@ -16,25 +16,25 @@ const breadcrumbsCSS = css`
   align-items: center;
   margin: 0;
   padding: 0;
-  color: var(--ac-global-text-color-900);
-  --breadcrumb-separator-icon-padding: var(--ac-global-dimension-size-50);
+  color: var(--global-text-color-900);
+  --breadcrumb-separator-icon-padding: var(--global-dimension-size-50);
 
   &[data-size="S"] {
-    font-size: var(--ac-global-font-size-s);
-    line-height: var(--ac-global-line-height-s);
-    --breadcrumb-separator-icon-padding: var(--ac-global-dimension-size-25);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    --breadcrumb-separator-icon-padding: var(--global-dimension-size-25);
   }
 
   &[data-size="M"] {
-    font-size: var(--ac-global-font-size-m);
-    line-height: var(--ac-global-line-height-m);
-    --breadcrumb-separator-icon-padding: var(--ac-global-dimension-size-50);
+    font-size: var(--global-font-size-m);
+    line-height: var(--global-line-height-m);
+    --breadcrumb-separator-icon-padding: var(--global-dimension-size-50);
   }
 
   &[data-size="L"] {
-    font-size: var(--ac-global-font-size-l);
-    line-height: var(--ac-global-line-height-l);
-    --breadcrumb-separator-icon-padding: var(--ac-global-dimension-size-75);
+    font-size: var(--global-font-size-l);
+    line-height: var(--global-line-height-l);
+    --breadcrumb-separator-icon-padding: var(--global-dimension-size-75);
   }
 
   .ac-icon-wrap {

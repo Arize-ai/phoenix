@@ -188,7 +188,7 @@ export const ChoiceLabel = ({ choiceType }: { choiceType: string }) => {
           width="100%"
         >
           <span>Use at least one tool</span>
-          <Token color="var(--ac-global-color-grey-900)" size="S">
+          <Token color="var(--global-color-grey-900)" size="S">
             {choiceType}
           </Token>
         </Flex>
@@ -202,7 +202,7 @@ export const ChoiceLabel = ({ choiceType }: { choiceType: string }) => {
           width="100%"
         >
           <span>Don&apos;t use any tools</span>
-          <Token color="var(--ac-global-color-grey-900)" size="S">
+          <Token color="var(--global-color-grey-900)" size="S">
             {choiceType}
           </Token>
         </Flex>
@@ -217,7 +217,7 @@ export const ChoiceLabel = ({ choiceType }: { choiceType: string }) => {
           width="100%"
         >
           <span>Tools auto-selected by LLM</span>
-          <Token color="var(--ac-global-color-grey-900)" size="S">
+          <Token color="var(--global-color-grey-900)" size="S">
             {choiceType}
           </Token>
         </Flex>

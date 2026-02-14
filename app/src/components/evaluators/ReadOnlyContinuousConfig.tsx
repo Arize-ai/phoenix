@@ -52,11 +52,11 @@ export const ReadOnlyContinuousConfig = ({
   return (
     <div
       css={css`
-        background-color: var(--ac-global-background-color-dark);
-        border-radius: var(--ac-global-rounding-medium);
-        padding: var(--ac-global-dimension-static-size-200);
-        margin-top: var(--ac-global-dimension-static-size-50);
-        border: 1px solid var(--ac-global-border-color-default);
+        background-color: var(--global-background-color-dark);
+        border-radius: var(--global-rounding-medium);
+        padding: var(--global-dimension-static-size-200);
+        margin-top: var(--global-dimension-static-size-50);
+        border: 1px solid var(--global-border-color-default);
       `}
     >
       <Flex direction="column" gap="size-200">

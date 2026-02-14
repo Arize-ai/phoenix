@@ -97,7 +97,7 @@ export const WithTitleExtra = Template.bind({});
 WithTitleExtra.args = {
   title: "Experiment Results",
   titleExtra: (
-    <Token color="var(--ac-global-color-yellow-500)" size="S">
+    <Token color="var(--global-color-yellow-500)" size="S">
       #42
     </Token>
   ),

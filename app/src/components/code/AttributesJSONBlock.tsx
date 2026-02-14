@@ -10,8 +10,8 @@ import { PreBlock } from "./PreBlock";
 
 const buttonContainerCSS = css`
   position: absolute;
-  top: var(--ac-global-dimension-size-100);
-  right: var(--ac-global-dimension-size-100);
+  top: var(--global-dimension-size-100);
+  right: var(--global-dimension-size-100);
   z-index: 1;
 `;
 

@@ -148,7 +148,7 @@ const descriptionListCSS = css`
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: var(--ac-global-dimension-static-size-50);
+    gap: var(--global-dimension-static-size-50);
   }
 `;
 
@@ -163,13 +163,13 @@ function CanvasTools() {
     <div
       css={css`
         position: absolute;
-        left: var(--ac-global-dimension-static-size-100);
-        top: var(--ac-global-dimension-static-size-100);
+        left: var(--global-dimension-static-size-100);
+        top: var(--global-dimension-static-size-100);
         z-index: 1;
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: var(--ac-global-dimension-static-size-100);
+        gap: var(--global-dimension-static-size-100);
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={setCanvasMode} />

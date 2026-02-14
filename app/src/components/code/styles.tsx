@@ -13,8 +13,8 @@ export const codeBlockWithCopyCSS = css`
     min-height: var(--code-block-min-height);
   }
   .cm-editor {
-    padding-top: var(--ac-global-dimension-size-100);
-    padding-bottom: var(--ac-global-dimension-size-100);
+    padding-top: var(--global-dimension-size-100);
+    padding-bottom: var(--global-dimension-size-100);
   }
   .cm-gutters,
   .cm-gutters * {
@@ -24,8 +24,8 @@ export const codeBlockWithCopyCSS = css`
   }
   .copy-to-clipboard-button {
     position: absolute;
-    top: var(--ac-global-dimension-size-100);
-    right: var(--ac-global-dimension-size-100);
+    top: var(--global-dimension-size-100);
+    right: var(--global-dimension-size-100);
     z-index: 1;
   }
 `;

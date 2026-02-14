@@ -20,7 +20,7 @@ import { SizeProvider } from "@phoenix/contexts";
 const groupCSS = css`
   display: flex;
   align-items: center;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 type GroupProps = AriaGroupProps & {

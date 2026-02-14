@@ -43,7 +43,7 @@ function CredentialInput(
         --credential-visibility-toggle-size: calc(
           var(--textfield-input-height) - 2 *
             var(--textfield-vertical-padding) +
-            var(--ac-global-dimension-size-50)
+            var(--global-dimension-size-50)
         );
 
         & > input {
@@ -65,19 +65,19 @@ function CredentialInput(
           padding: 0;
           width: var(--credential-visibility-toggle-size);
           height: var(--credential-visibility-toggle-size);
-          color: var(--ac-global-text-color-700);
+          color: var(--global-text-color-700);
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: var(--ac-global-rounding-small);
+          border-radius: var(--global-rounding-small);
           transition: background-color 0.2s;
-          background-color: var(--ac-global-color-grey-200);
+          background-color: var(--global-color-grey-200);
           &:hover {
-            background-color: var(--ac-global-color-grey-300);
+            background-color: var(--global-color-grey-300);
           }
 
           &:focus-visible {
-            outline: 2px solid var(--ac-global-color-primary);
+            outline: 2px solid var(--global-color-primary);
             outline-offset: 2px;
           }
 

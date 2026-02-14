@@ -24,7 +24,7 @@ export const EvaluatorInputPreview = () => {
           display: flex;
           flex-direction: column;
           overflow-y: auto;
-          border-top: 1px solid var(--ac-global-border-color-default);
+          border-top: 1px solid var(--global-border-color-default);
         `}
       >
         <Suspense fallback={<Loading />}>

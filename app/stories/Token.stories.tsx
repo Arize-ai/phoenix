@@ -118,13 +118,13 @@ const SizeTemplate: StoryFn<TokenProps> = (args) => (
   <Card title="Token Size">
     <View width="600px" padding="size-200">
       <Flex gap="size-100" wrap>
-        <Token {...args} size="S" color="var(--ac-global-color-primary)">
+        <Token {...args} size="S" color="var(--global-color-primary)">
           Small Token
         </Token>
-        <Token {...args} size="M" color="var(--ac-global-color-primary)">
+        <Token {...args} size="M" color="var(--global-color-primary)">
           Medium Token
         </Token>
-        <Token {...args} size="L" color="var(--ac-global-color-primary)">
+        <Token {...args} size="L" color="var(--global-color-primary)">
           Large Token
         </Token>
       </Flex>
@@ -144,13 +144,13 @@ const GroupTemplate: StoryFn<TokenProps> = (args) => (
     <View width="600px" padding="size-200">
       <Flex gap="size-100" wrap>
         <Token {...args}>Default Token</Token>
-        <Token {...args} color="var(--ac-global-color-primary)">
+        <Token {...args} color="var(--global-color-primary)">
           Primary Token
         </Token>
-        <Token {...args} color="var(--ac-global-color-danger)">
+        <Token {...args} color="var(--global-color-danger)">
           Danger Token
         </Token>
-        <Token {...args} color="var(--ac-global-color-success)">
+        <Token {...args} color="var(--global-color-success)">
           Success Token
         </Token>
       </Flex>
@@ -180,7 +180,7 @@ const TruncatedTemplate: StoryFn<TokenProps> = (args) => (
         <Token
           {...args}
           maxWidth="300px"
-          color="var(--ac-global-color-primary)"
+          color="var(--global-color-primary)"
         >
           Custom maxWidth=`&quot;`300px`&quot;` allows more text before
           truncation happens

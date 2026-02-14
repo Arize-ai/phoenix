@@ -18,7 +18,7 @@ const loginCSS = css`
     display: block;
     width: 20px;
     height: 20px;
-    padding-right: var(--ac-global-dimension-size-50);
+    padding-right: var(--global-dimension-size-50);
   }
   &[data-provider^="aws"],
   &[data-provider^="google"],

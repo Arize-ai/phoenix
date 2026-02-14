@@ -23,8 +23,8 @@ export function PreBlock({ children }: { children: string }) {
       data-testid="pre-block"
       css={css`
         white-space: pre-wrap;
-        padding: var(--ac-global-dimension-static-size-200);
-        font-size: var(--ac-global-font-size-s);
+        padding: var(--global-dimension-static-size-200);
+        font-size: var(--global-font-size-s);
       `}
     >
       {children}

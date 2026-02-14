@@ -118,7 +118,7 @@ export function DatasetFromJSONLForm(props: CreateDatasetFromJSONLFormProps) {
     <Form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
       <div
         css={css`
-          padding: var(--ac-global-dimension-size-200);
+          padding: var(--global-dimension-size-200);
           .ac-dropdown-button {
             width: 100%;
           }
@@ -136,8 +136,8 @@ export function DatasetFromJSONLForm(props: CreateDatasetFromJSONLFormProps) {
                   css`
                     display: flex;
                     flex-direction: column;
-                    gap: var(--ac-global-dimension-size-50);
-                    margin-bottom: var(--ac-global-dimension-size-200);
+                    gap: var(--global-dimension-size-50);
+                    margin-bottom: var(--global-dimension-size-200);
                   `
                 )}
               >

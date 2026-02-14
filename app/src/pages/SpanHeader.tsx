@@ -56,7 +56,7 @@ export function SpanHeader(props: SpanHeaderProps) {
           <SpanStatusCodeIcon
             statusCode={span.code}
             css={css`
-              font-size: var(--ac-global-font-size-m);
+              font-size: var(--global-font-size-m);
             `}
           />
         </Flex>

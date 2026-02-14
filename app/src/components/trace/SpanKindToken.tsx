@@ -8,37 +8,37 @@ export function SpanKindToken(props: {
 }) {
   const { spanKind, size = "M" } = props;
   const color = useMemo<TokenProps["color"]>(() => {
-    let color: TokenProps["color"] = "var(--ac-global-color-grey-300)";
+    let color: TokenProps["color"] = "var(--global-color-grey-300)";
     switch (spanKind) {
       case "llm":
-        color = "var(--ac-global-color-orange-500)";
+        color = "var(--global-color-orange-500)";
         break;
       case "prompt":
-        color = "var(--ac-global-color-orange-400)";
+        color = "var(--global-color-orange-400)";
         break;
       case "chain":
-        color = "var(--ac-global-color-blue-500)";
+        color = "var(--global-color-blue-500)";
         break;
       case "retriever":
-        color = "var(--ac-global-color-seafoam-500)";
+        color = "var(--global-color-seafoam-500)";
         break;
       case "reranker":
-        color = "var(--ac-global-color-celery-500)";
+        color = "var(--global-color-celery-500)";
         break;
       case "embedding":
-        color = "var(--ac-global-color-indigo-500)";
+        color = "var(--global-color-indigo-500)";
         break;
       case "agent":
-        color = "var(--ac-global-color-grey-500)";
+        color = "var(--global-color-grey-500)";
         break;
       case "tool":
-        color = "var(--ac-global-color-yellow-500)";
+        color = "var(--global-color-yellow-500)";
         break;
       case "evaluator":
-        color = "var(--ac-global-color-indigo-500)";
+        color = "var(--global-color-indigo-500)";
         break;
       case "guardrail":
-        color = "var(--ac-global-color-fuchsia-500)";
+        color = "var(--global-color-fuchsia-500)";
         break;
     }
     return color;

@@ -131,7 +131,7 @@ export function ExperimentMultiSelector(props: {
                 <Text
                   css={css`
                     white-space: nowrap;
-                    max-width: var(--ac-global-dimension-size-2000);
+                    max-width: var(--global-dimension-size-2000);
                     overflow: hidden;
                     text-overflow: ellipsis;
                   `}
@@ -186,7 +186,7 @@ export function ExperimentMultiSelector(props: {
                             <Text
                               css={css`
                                 white-space: nowrap;
-                                max-width: var(--ac-global-dimension-size-2000);
+                                max-width: var(--global-dimension-size-2000);
                                 overflow: hidden;
                                 text-overflow: ellipsis;
                               `}
@@ -244,7 +244,7 @@ export function ExperimentMultiSelector(props: {
                                 css={css`
                                   white-space: nowrap;
                                   max-width: var(
-                                    --ac-global-dimension-size-2000
+                                    --global-dimension-size-2000
                                   );
                                   overflow: hidden;
                                   text-overflow: ellipsis;

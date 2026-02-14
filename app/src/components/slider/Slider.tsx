@@ -18,23 +18,23 @@ import { NumberField, NumberFieldProps } from "../field/NumberField";
 import { StylableProps } from "../types";
 
 const sliderCSS = css`
-  --ac-slider-handle-width: var(--ac-global-dimension-size-250);
-  --ac-slider-handle-height: var(--ac-global-dimension-size-250);
-  --ac-slider-handle-halo-width: var(--ac-global-dimension-size-350);
-  --ac-slider-handle-border-radius: var(--ac-global-dimension-size-250);
-  --ac-slider-handle-background-color: white;
-  --ac-slider-track-height: var(--ac-global-dimension-size-100);
-  --ac-slider-filled-color: var(--ac-global-color-primary);
+  --slider-handle-width: var(--global-dimension-size-250);
+  --slider-handle-height: var(--global-dimension-size-250);
+  --slider-handle-halo-width: var(--global-dimension-size-350);
+  --slider-handle-border-radius: var(--global-dimension-size-250);
+  --slider-handle-background-color: white;
+  --slider-track-height: var(--global-dimension-size-100);
+  --slider-filled-color: var(--global-color-primary);
 
   display: grid;
   grid-template-areas:
     "label output"
     "track track";
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   grid-template-columns: 1fr auto;
   width: var(
-    --ac-alias-single-line-width,
-    var(--ac-global-dimension-size-2400)
+    --alias-single-line-width,
+    var(--global-dimension-size-2400)
   );
   color: var(--text-color);
 
@@ -44,13 +44,13 @@ const sliderCSS = css`
 
   .ac-slider-output {
     grid-area: output;
-    min-height: var(--ac-global-dimension-size-350);
+    min-height: var(--global-dimension-size-350);
   }
 
   .ac-slider-track {
     grid-area: track;
     position: relative;
-    height: var(--ac-slider-track-height, var(--ac-global-border-size-thick));
+    height: var(--slider-track-height, var(--global-border-size-thick));
     width: 100%;
 
     /* Background track line */
@@ -58,9 +58,9 @@ const sliderCSS = css`
       content: "";
       display: block;
       position: absolute;
-      background: var(--ac-global-color-grey-300);
+      background: var(--global-color-grey-300);
       height: 100%;
-      border-radius: var(--ac-global-border-size-thicker);
+      border-radius: var(--global-border-size-thicker);
     }
 
     /* Filled track line */
@@ -68,27 +68,27 @@ const sliderCSS = css`
       content: "";
       display: block;
       position: absolute;
-      background: var(--ac-slider-filled-color);
+      background: var(--slider-filled-color);
       height: 100%;
-      border-radius: var(--ac-global-border-size-thicker);
+      border-radius: var(--global-border-size-thicker);
     }
   }
 
   .ac-slider-thumb {
-    width: var(--ac-slider-handle-width, var(--ac-global-dimension-size-200));
-    height: var(--ac-slider-handle-height, var(--ac-global-dimension-size-200));
+    width: var(--slider-handle-width, var(--global-dimension-size-200));
+    height: var(--slider-handle-height, var(--global-dimension-size-200));
     border-radius: var(
-      --ac-slider-handle-border-radius,
-      var(--ac-global-rounding-medium)
+      --slider-handle-border-radius,
+      var(--global-rounding-medium)
     );
-    background-color: var(--ac-slider-handle-background-color);
+    background-color: var(--slider-handle-background-color);
     border: 2px solid var(--background-color);
     box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25);
     forced-color-adjust: none;
     transition: border-width
       var(
-        --ac-slider-animation-duration,
-        var(--ac-global-animation-duration-100)
+        --slider-animation-duration,
+        var(--global-animation-duration-100)
       )
       ease-in-out;
     position: relative;
@@ -100,14 +100,14 @@ const sliderCSS = css`
       background: white;
       opacity: 0.5;
       display: block;
-      width: var(--ac-slider-handle-halo-width);
-      height: var(--ac-slider-handle-halo-width);
+      width: var(--slider-handle-halo-width);
+      height: var(--slider-handle-halo-width);
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       border-radius: var(
-        --ac-slider-handle-border-radius,
-        var(--ac-global-rounding-medium)
+        --slider-handle-border-radius,
+        var(--global-rounding-medium)
       );
       z-index: -1;
     }
@@ -117,7 +117,7 @@ const sliderCSS = css`
     }
 
     &[data-focus-visible] {
-      outline: 2px solid var(--ac-focus-ring-color);
+      outline: 2px solid var(--focus-ring-color);
     }
   }
 
@@ -128,34 +128,34 @@ const sliderCSS = css`
 
     .ac-slider-number-field {
       .react-aria-Input {
-        min-width: var(--ac-global-dimension-size-800);
-        width: var(--ac-global-dimension-size-800);
-        padding: 0 var(--ac-global-dimension-size-100);
-        height: var(--ac-global-dimension-size-350);
+        min-width: var(--global-dimension-size-800);
+        width: var(--global-dimension-size-800);
+        padding: 0 var(--global-dimension-size-100);
+        height: var(--global-dimension-size-350);
         text-align: right;
-        margin-bottom: var(--ac-global-dimension-size-100);
+        margin-bottom: var(--global-dimension-size-100);
       }
     }
 
     .ac-slider-track {
-      height: var(--ac-slider-track-height, var(--ac-global-border-size-thick));
-      width: calc(100% - var(--ac-slider-handle-width));
-      left: calc(var(--ac-slider-handle-width) / 2);
+      height: var(--slider-track-height, var(--global-border-size-thick));
+      width: calc(100% - var(--slider-handle-width));
+      left: calc(var(--slider-handle-width) / 2);
 
       /* background track line */
       &:before {
-        left: calc(var(--ac-slider-handle-width) / -2);
-        width: calc(100% + var(--ac-slider-handle-width));
+        left: calc(var(--slider-handle-width) / -2);
+        width: calc(100% + var(--slider-handle-width));
         top: 50%;
         transform: translateY(-50%);
       }
 
       /* filled track line */
       &:after {
-        left: calc(var(--slider-start) - var(--ac-slider-handle-width) / 2);
+        left: calc(var(--slider-start) - var(--slider-handle-width) / 2);
         width: calc(
           var(--slider-end) - var(--slider-start) +
-            var(--ac-slider-handle-width)
+            var(--slider-handle-width)
         );
         top: 50%;
         transform: translateY(-50%);

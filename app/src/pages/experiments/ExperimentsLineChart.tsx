@@ -198,41 +198,41 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
         </defs>
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <XAxis
           dataKey="iteration"
-          tick={{ fontSize: 12, fill: "var(--ac-global-text-color-700)" }}
+          tick={{ fontSize: 12, fill: "var(--global-text-color-700)" }}
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-grey-500)"
           label={{
             value: "Score",
             angle: -90,
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
           domain={yDomain}
         />
         <YAxis
           yAxisId="right"
           orientation="right"
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-grey-500)"
           label={{
             value: "avg latency",
             angle: 90,
             position: "insideRight",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
           tickFormatter={latencyFormatter}
         />
 

@@ -452,7 +452,7 @@ function SimpleExperimentTable({
                   css={css`
                     display: flex;
                     flex-direction: row;
-                    gap: var(--ac-global-dimension-static-size-100);
+                    gap: var(--global-dimension-static-size-100);
                     align-items: center;
                     flex-wrap: wrap;
                   `}

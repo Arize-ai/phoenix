@@ -45,11 +45,11 @@ export function PointCloudDisplaySettings() {
   return (
     <section
       css={css`
-        padding: var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-100) 0
-          var(--ac-global-dimension-static-size-100);
+        padding: var(--global-dimension-static-size-100)
+          var(--global-dimension-static-size-100) 0
+          var(--global-dimension-static-size-100);
         & > .ac-alert {
-          margin: var(--ac-global-dimension-static-size-100);
+          margin: var(--global-dimension-static-size-100);
         }
       `}
     >
@@ -82,7 +82,7 @@ export function PointCloudDisplaySettings() {
       {isAwaitingDimensionMetadataRetrieval ? (
         <div
           css={css`
-            padding: var(--ac-global-dimension-static-size-100);
+            padding: var(--global-dimension-static-size-100);
             min-height: 100px;
             display: flex;
             flex-direction: column;

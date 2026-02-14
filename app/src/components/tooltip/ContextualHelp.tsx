@@ -38,8 +38,8 @@ export const ContextualHelp = ({
             all: unset;
             height: 14px !important;
             width: 14px !important;
-            padding: var(--ac-global-dimension-size-50) !important;
-            border-radius: var(--ac-global-rounding-small);
+            padding: var(--global-dimension-size-50) !important;
+            border-radius: var(--global-rounding-small);
             svg {
               height: 14px;
               width: 14px;

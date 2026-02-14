@@ -39,14 +39,14 @@ export function AuthLayout({ children }: PropsWithChildren) {
         css={css`
           display: flex;
           justify-content: center;
-          padding: var(--ac-global-dimension-size-400);
-          gap: var(--ac-global-dimension-size-200);
+          padding: var(--global-dimension-size-400);
+          gap: var(--global-dimension-size-200);
           a {
-            color: var(--ac-global-text-color-700);
+            color: var(--global-text-color-700);
             transition: color 0.2s ease-in-out;
             text-decoration: none;
             &:hover {
-              color: var(--ac-global-text-color-900);
+              color: var(--global-text-color-900);
               text-decoration: underline;
             }
           }

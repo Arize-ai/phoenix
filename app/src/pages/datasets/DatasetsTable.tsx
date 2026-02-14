@@ -182,7 +182,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
               css={css`
                 display: flex;
                 flex-direction: row;
-                gap: var(--ac-global-dimension-size-100);
+                gap: var(--global-dimension-size-100);
                 min-width: 0;
                 flex-wrap: wrap;
               `}

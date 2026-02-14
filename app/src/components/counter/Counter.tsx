@@ -11,17 +11,17 @@ export type CounterProps = PropsWithChildren<{
 
 const counterCSS = css`
   display: inline-block;
-  padding: 0 var(--ac-global-dimension-size-50);
-  border-radius: var(--ac-global-rounding-large);
-  border: 1px solid var(--ac-global-color-grey-300);
-  min-width: var(--ac-global-dimension-size-150);
-  background-color: var(--ac-global-background-color-light);
-  font-size: var(--ac-global-font-size-xs);
-  line-height: var(--ac-global-line-height-xs);
+  padding: 0 var(--global-dimension-size-50);
+  border-radius: var(--global-rounding-large);
+  border: 1px solid var(--global-color-grey-300);
+  min-width: var(--global-dimension-size-150);
+  background-color: var(--global-background-color-light);
+  font-size: var(--global-font-size-xs);
+  line-height: var(--global-line-height-xs);
   text-align: center;
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
   &[data-variant="danger"] {
-    background-color: var(--ac-global-background-color-danger);
+    background-color: var(--global-background-color-danger);
   }
 `;
 

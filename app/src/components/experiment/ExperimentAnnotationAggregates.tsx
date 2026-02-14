@@ -56,11 +56,11 @@ const listCSS = css`
   grid-template-columns:
     minmax(100px, max-content) minmax(70px, max-content)
     minmax(100px, 1fr);
-  column-gap: var(--ac-global-dimension-size-100);
+  column-gap: var(--global-dimension-size-100);
 `;
 
 const listItemCSS = css`
-  height: var(--ac-global-dimension-size-350);
+  height: var(--global-dimension-size-350);
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
@@ -211,14 +211,14 @@ function ExperimentAnnotationAggregateItem({
             --mod-barloader-fill-color: ${annotationColor};
           `}
           value={0}
-          height="var(--ac-global-dimension-size-50)"
+          height="var(--global-dimension-size-50)"
           width="100%"
           aria-label={`${config.name} average score`}
         />
       ) : executionState === "running" ? (
         <Skeleton
           width="100%"
-          height="var(--ac-global-dimension-size-50)"
+          height="var(--global-dimension-size-50)"
           css={css`
             align-self: center;
           `}
@@ -230,7 +230,7 @@ function ExperimentAnnotationAggregateItem({
             --mod-barloader-fill-color: ${annotationColor};
           `}
           value={meanScore != null ? scorePercentile : 0}
-          height="var(--ac-global-dimension-size-50)"
+          height="var(--global-dimension-size-50)"
           width="100%"
           aria-label={`${config.name} average score`}
         />

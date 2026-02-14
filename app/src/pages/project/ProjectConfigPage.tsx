@@ -40,7 +40,7 @@ const projectConfigPageCSS = css`
 `;
 
 const projectConfigPageInnerCSS = css`
-  padding: var(--ac-global-dimension-size-400);
+  padding: var(--global-dimension-size-400);
   max-width: 800px;
   min-width: 500px;
   box-sizing: border-box;
@@ -54,7 +54,7 @@ const gradientPreviewCSS = css`
   height: 75px;
   flex: none;
   border-radius: 50%;
-  margin-top: var(--ac-global-dimension-size-100);
+  margin-top: var(--global-dimension-size-100);
 `;
 
 export const ProjectConfigPage = () => {

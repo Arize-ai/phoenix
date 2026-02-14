@@ -76,7 +76,7 @@ export const WithoutIcon: StoryFn<SearchFieldProps> = (args) => (
  * Quiet variant - no border, transparent background
  */
 export const Quiet: StoryFn<SearchFieldProps> = (args) => (
-  <div style={{ background: "var(--ac-global-color-grey-200)", padding: 16 }}>
+  <div style={{ background: "var(--global-color-grey-200)", padding: 16 }}>
     <SearchField {...args} variant="quiet">
       <Label>Quiet Search</Label>
       <SearchIcon />
@@ -151,7 +151,7 @@ export const Gallery = () => (
     </SearchField>
 
     {/* Quiet variant */}
-    <div style={{ background: "var(--ac-global-color-grey-200)", padding: 16 }}>
+    <div style={{ background: "var(--global-color-grey-200)", padding: 16 }}>
       <SearchField variant="quiet">
         <Label>Quiet Variant</Label>
         <SearchIcon />

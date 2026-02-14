@@ -24,7 +24,7 @@ function StoryBackground({
     <div
       data-testid="story-background"
       style={{
-        backgroundColor: "var(--ac-global-background-color-default)",
+        backgroundColor: "var(--global-background-color-default)",
         padding: padding ?? "0",
       }}
     >
@@ -82,7 +82,7 @@ const preview: Preview = {
               <StoryBackground
                 padding={
                   // Add padding to the story entries if we have multiple themes so that we can see a background color
-                  numThemes < 1 ? "0" : "var(--ac-global-dimension-size-500)"
+                  numThemes < 1 ? "0" : "var(--global-dimension-size-500)"
                 }
               >
                 <Story />

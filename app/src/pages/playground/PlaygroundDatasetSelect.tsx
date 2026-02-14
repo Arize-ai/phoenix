@@ -23,7 +23,7 @@ const playgroundDatasetSelectCSS = css`
     &:hover {
       // remove the bright hover border effect so that it matches the "clear" button
       // next to the dataset picker
-      --button-border-color: var(--ac-global-input-field-border-color);
+      --button-border-color: var(--global-input-field-border-color);
     }
   }
   & .dataset-clear-button {

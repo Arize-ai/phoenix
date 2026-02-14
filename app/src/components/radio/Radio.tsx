@@ -10,9 +10,9 @@ import { classNames } from "@phoenix/utils";
 const baseRadioCSS = css(`
   display: flex;
   align-items: center;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
   font-size: 14px;
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
   forced-color-adjust: none;
 
   &:before {
@@ -21,34 +21,34 @@ const baseRadioCSS = css(`
     width: 1.286rem;
     height: 1.286rem;
     box-sizing: border-box;
-    border: 0.143rem solid var(--ac-global-input-field-border-color);
-    background: var(--ac-global-input-field-background-color);
+    border: 0.143rem solid var(--global-input-field-border-color);
+    background: var(--global-input-field-background-color);
     border-radius: 1.286rem;
     transition: all 200ms;
   }
 
   &[data-pressed]:before {
-    border-color: var(--ac-global-input-field-border-color-active);
+    border-color: var(--global-input-field-border-color-active);
   }
 
   &[data-selected] {
     &:before {
-      border-color: var(--ac-global-button-primary-background-color);
+      border-color: var(--global-button-primary-background-color);
       border-width: 0.429rem;
     }
 
     &[data-pressed]:before {
-      border-color: var(--ac-global-button-primary-background-color-active);
+      border-color: var(--global-button-primary-background-color-active);
     }
   }
 
   &[data-focus-visible]:before {
-    outline: 2px solid var(--ac-global-input-field-border-color-active);
+    outline: 2px solid var(--global-input-field-border-color-active);
     outline-offset: 2px;
   }
 
   &[data-disabled] {
-    opacity: var(--ac-global-opacity-disabled);
+    opacity: var(--global-opacity-disabled);
   }
 `);
 

@@ -39,13 +39,13 @@ const searchFieldCSS = css`
 
   /* Size-specific icon sizes to match TextField sizing */
   &[data-size="S"] {
-    --searchfield-icon-size: var(--ac-global-font-size-s);
+    --searchfield-icon-size: var(--global-font-size-s);
   }
   &[data-size="M"] {
-    --searchfield-icon-size: var(--ac-global-font-size-m);
+    --searchfield-icon-size: var(--global-font-size-m);
   }
   &[data-size="L"] {
-    --searchfield-icon-size: var(--ac-global-font-size-l);
+    --searchfield-icon-size: var(--global-font-size-l);
   }
 
   .react-aria-Label {
@@ -91,8 +91,8 @@ const searchFieldCSS = css`
     border: none;
     padding: 2px;
     cursor: pointer;
-    color: var(--ac-global-text-color-700);
-    border-radius: var(--ac-global-rounding-small);
+    color: var(--global-text-color-700);
+    border-radius: var(--global-rounding-small);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -100,13 +100,13 @@ const searchFieldCSS = css`
     font-size: var(--searchfield-icon-size);
 
     &[data-focus-visible] {
-      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline: 1px solid var(--global-input-field-border-color-active);
       outline-offset: 1px;
     }
 
     &:hover {
-      color: var(--ac-global-text-color-900);
-      background-color: var(--ac-global-color-grey-300);
+      color: var(--global-text-color-900);
+      background-color: var(--global-color-grey-300);
     }
 
     &[data-empty] {
@@ -130,7 +130,7 @@ const searchFieldCSS = css`
 
   &[data-invalid="true"] {
     .ac-search-icon {
-      color: var(--ac-global-color-danger);
+      color: var(--global-color-danger);
     }
   }
 

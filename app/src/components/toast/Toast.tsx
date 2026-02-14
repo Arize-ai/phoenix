@@ -33,11 +33,11 @@ const colorFromVariant = (
 ) => {
   switch (variant) {
     case "success":
-      return "var(--ac-global-color-success)";
+      return "var(--global-color-success)";
     case "error":
-      return "var(--ac-global-color-danger)";
+      return "var(--global-color-danger)";
     default:
-      return "var(--ac-global-background-color-dark)";
+      return "var(--global-background-color-dark)";
   }
 };
 
@@ -56,7 +56,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
       style={{
         viewTransitionName: toast.key,
         // @ts-expect-error incorrect react types
-        "--ac-internal-token-color": colorFromVariant(toast.content.variant),
+        "--internal-token-color": colorFromVariant(toast.content.variant),
       }}
       data-variant={toast.content.variant}
       data-theme={theme}

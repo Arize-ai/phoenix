@@ -11,7 +11,7 @@ import {
 
 const contentCSS = css`
   flex: none;
-  padding: var(--ac-global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 
 export interface ExperimentInputCellProps {

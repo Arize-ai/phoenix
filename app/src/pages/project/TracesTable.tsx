@@ -166,7 +166,7 @@ const MetadataCell = <TData extends ISpanItem, TValue>({
 
 const trCSS = css`
   &[data-is-additional-row="true"] {
-    box-shadow: inset 0 -10px 20px var(--ac-global-color-grey-100);
+    box-shadow: inset 0 -10px 20px var(--global-color-grey-100);
   }
 `;
 

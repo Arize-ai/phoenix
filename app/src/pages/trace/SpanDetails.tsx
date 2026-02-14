@@ -408,7 +408,7 @@ const spanInfoWrapCSS = css`
   & > *:after {
     content: "";
     display: block;
-    height: var(--ac-global-dimension-static-size-400);
+    height: var(--global-dimension-static-size-400);
   }
 `;
 
@@ -952,8 +952,8 @@ function RetrieverSpanInfo(props: {
               css={css`
                 display: flex;
                 flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-                padding: var(--ac-global-dimension-static-size-200);
+                gap: var(--global-dimension-static-size-200);
+                padding: var(--global-dimension-static-size-200);
               `}
             >
               {documents.map((document, idx) => {
@@ -964,7 +964,7 @@ function RetrieverSpanInfo(props: {
                       documentEvaluations={documentEvaluationsMap[idx]}
                       borderColor={"seafoam-700"}
                       backgroundColor={"seafoam-100"}
-                      tokenColor="var(--ac-global-color-seafoam-1000)"
+                      tokenColor="var(--global-color-seafoam-1000)"
                     />
                   </li>
                 );
@@ -1031,10 +1031,10 @@ function RerankerSpanInfo(props: {
         {
           <ul
             css={css`
-              padding: var(--ac-global-dimension-static-size-200);
+              padding: var(--global-dimension-static-size-200);
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-200);
+              gap: var(--global-dimension-static-size-200);
             `}
           >
             {input_documents.map((document, idx) => {
@@ -1044,7 +1044,7 @@ function RerankerSpanInfo(props: {
                     document={document}
                     borderColor={"seafoam-700"}
                     backgroundColor={"seafoam-100"}
-                    tokenColor="var(--ac-global-color-seafoam-1000)"
+                    tokenColor="var(--global-color-seafoam-1000)"
                   />
                 </li>
               );
@@ -1060,10 +1060,10 @@ function RerankerSpanInfo(props: {
         {
           <ul
             css={css`
-              padding: var(--ac-global-dimension-static-size-200);
+              padding: var(--global-dimension-static-size-200);
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-200);
+              gap: var(--global-dimension-static-size-200);
             `}
           >
             {output_documents.map((document, idx) => {
@@ -1073,7 +1073,7 @@ function RerankerSpanInfo(props: {
                     document={document}
                     borderColor={"celery-700"}
                     backgroundColor={"celery-100"}
-                    tokenColor="var(--ac-global-color-celery-1000)"
+                    tokenColor="var(--global-color-celery-1000)"
                   />
                 </li>
               );
@@ -1121,8 +1121,8 @@ function EmbeddingSpanInfo(props: {
               css={css`
                 display: flex;
                 flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-                padding: var(--ac-global-dimension-static-size-200);
+                gap: var(--global-dimension-static-size-200);
+                padding: var(--global-dimension-static-size-200);
               `}
             >
               {embeddings.map((embedding, idx) => {
@@ -1347,7 +1347,7 @@ function DocumentItem({
                     DANGER_DOCUMENT_EVALUATION_LABELS.includes(
                       documentEvaluation.label
                     )
-                      ? "var(--ac-global-color-danger)"
+                      ? "var(--global-color-danger)"
                       : tokenColor;
                   return (
                     <li key={idx}>
@@ -1388,7 +1388,7 @@ function DocumentItem({
                             <p
                               css={css`
                                 margin-top: var(
-                                  --ac-global-dimension-static-size-100
+                                  --global-dimension-static-size-100
                                 );
                                 margin-bottom: 0;
                               `}
@@ -1530,7 +1530,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                         idx === 0
                           ? css`
                               border-top: 1px solid
-                                var(--ac-global-border-color-default);
+                                var(--global-border-color-default);
                             `
                           : null
                       }
@@ -1548,7 +1548,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                           css={css`
                             text-wrap: wrap;
                             margin: 0;
-                            padding: var(--ac-global-dimension-static-size-200);
+                            padding: var(--global-dimension-static-size-200);
                           `}
                         >
                           {toolCall?.function?.name as string}(
@@ -1572,7 +1572,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   <pre
                     css={css`
                       text-wrap: wrap;
-                      margin: var(--ac-global-dimension-static-size-100) 0;
+                      margin: var(--global-dimension-static-size-100) 0;
                     `}
                   >
                     {
@@ -1636,8 +1636,8 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-static-size-100);
-        padding: var(--ac-global-dimension-static-size-200);
+        gap: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-static-size-200);
       `}
     >
       {messages.map((message, idx) => {
@@ -1657,8 +1657,8 @@ function LLMToolSchemasList({ toolSchemas }: { toolSchemas: string[] }) {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-static-size-100);
-        padding: var(--ac-global-dimension-static-size-200);
+        gap: var(--global-dimension-static-size-100);
+        padding: var(--global-dimension-static-size-200);
       `}
     >
       {toolSchemas.map((toolSchema, idx) => {
@@ -1677,10 +1677,10 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
     <ul
       data-testid="llm-prompts-list"
       css={css`
-        padding: var(--ac-global-dimension-size-200);
+        padding: var(--global-dimension-size-200);
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-size-100);
+        gap: var(--global-dimension-size-100);
       `}
     >
       {prompts.map((prompt, idx) => {
@@ -1707,7 +1707,7 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
 const messageContentListCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--ac-global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
   flex-wrap: wrap;
 `;
 
@@ -1738,7 +1738,7 @@ function MessageContentsList({
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
-  padding: var(--ac-global-dimension-static-size-200);
+  padding: var(--global-dimension-static-size-200);
 `;
 /**
  * Displays multi-modal message content. Typically an image or text.
@@ -1830,7 +1830,7 @@ function CopyToClipboard({
   children,
   padding,
 }: PropsWithChildren<{ text: string; padding?: "size-100" }>) {
-  const paddingValue = padding ? `var(--ac-global-dimension-${padding})` : "0";
+  const paddingValue = padding ? `var(--global-dimension-${padding})` : "0";
   return (
     <div
       css={css`

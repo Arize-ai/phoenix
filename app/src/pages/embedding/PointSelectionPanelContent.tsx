@@ -323,11 +323,11 @@ export function PointSelectionPanelContent() {
         role="toolbar"
         css={css`
           position: absolute;
-          top: var(--ac-global-dimension-static-size-100);
-          right: var(--ac-global-dimension-static-size-200);
+          top: var(--global-dimension-static-size-100);
+          right: var(--global-dimension-static-size-200);
           display: flex;
           flex-direction: row-reverse;
-          gap: var(--ac-global-dimension-static-size-100);
+          gap: var(--global-dimension-static-size-100);
         `}
       >
         <Button
@@ -435,7 +435,7 @@ function SelectionToolbar({
           css={css`
             display: flex;
             flex-direction: row;
-            gap: var(--ac-global-dimension-static-size-100);
+            gap: var(--global-dimension-static-size-100);
           `}
         >
           <SearchField

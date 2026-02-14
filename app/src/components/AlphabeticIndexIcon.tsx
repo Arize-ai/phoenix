@@ -16,32 +16,32 @@ export type AlphabeticIndexIconProps = {
 };
 
 const iconBaseCSS = css`
-  border-radius: var(--ac-global-rounding-small);
+  border-radius: var(--global-rounding-small);
   border: 1px solid
-    var(--alphabetic-index-icon-border-color, var(--ac-global-color-grey-300));
+    var(--alphabetic-index-icon-border-color, var(--global-color-grey-300));
   background-color: var(
     --alphabetic-index-icon-background-color,
-    var(--ac-global-color-grey-100)
+    var(--global-color-grey-100)
   );
-  color: var(--alphabetic-index-icon-color, var(--ac-global-text-color-900));
+  color: var(--alphabetic-index-icon-color, var(--global-text-color-900));
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   &[data-size="XS"] {
-    width: var(--ac-global-dimension-static-size-250);
-    height: var(--ac-global-dimension-static-size-250);
-    font-size: var(--ac-global-font-size-xs);
+    width: var(--global-dimension-static-size-250);
+    height: var(--global-dimension-static-size-250);
+    font-size: var(--global-font-size-xs);
   }
   &[data-size="S"] {
-    width: var(--ac-global-button-height-s);
-    height: var(--ac-global-button-height-s);
-    font-size: var(--ac-global-font-size-s);
+    width: var(--global-button-height-s);
+    height: var(--global-button-height-s);
+    font-size: var(--global-font-size-s);
   }
   &[data-size="M"] {
-    width: var(--ac-global-button-height-m);
-    height: var(--ac-global-button-height-m);
-    font-size: var(--ac-global-font-size-m);
+    width: var(--global-button-height-m);
+    height: var(--global-button-height-m);
+    font-size: var(--global-font-size-m);
   }
 `;
 export function AlphabeticIndexIcon({

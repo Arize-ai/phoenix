@@ -29,7 +29,7 @@ const PAGE_SIZE = 50;
 
 const emailLinkCSS = css`
   text-decoration: none;
-  color: var(--ac-global-color-grey-600);
+  color: var(--global-color-grey-600);
   font-size: 12px;
   &:hover {
     text-decoration: underline;
@@ -56,7 +56,7 @@ const userTableRowCSS = css`
  */
 const usersTableContainerCSS = css`
   overflow: auto;
-  max-height: var(--ac-global-dimension-size-6000);
+  max-height: var(--global-dimension-size-6000);
 `;
 
 const isDefaultAdminUser = (user: { email: string | null; username: string }) =>

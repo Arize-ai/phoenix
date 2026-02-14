@@ -36,36 +36,36 @@ interface MessageBubbleProps {
 }
 
 const bubbleCSS = css`
-  padding: var(--ac-global-dimension-size-100)
-    var(--ac-global-dimension-size-150);
-  font-size: var(--ac-global-font-size-s);
-  line-height: var(--ac-global-line-height-s);
+  padding: var(--global-dimension-size-100)
+    var(--global-dimension-size-150);
+  font-size: var(--global-font-size-s);
+  line-height: var(--global-line-height-s);
   word-wrap: break-word;
   &[data-outgoing="true"] {
-    background-color: var(--ac-global-color-primary);
-    color: var(--ac-global-color-grey-50);
-    border-radius: var(--ac-global-rounding-large)
-      var(--ac-global-rounding-large) 0 var(--ac-global-rounding-large);
+    background-color: var(--global-color-primary);
+    color: var(--global-color-grey-50);
+    border-radius: var(--global-rounding-large)
+      var(--global-rounding-large) 0 var(--global-rounding-large);
   }
   &[data-outgoing="false"] {
-    background-color: var(--ac-global-background-color-light);
-    color: var(--ac-global-text-color-900);
-    border-radius: var(--ac-global-rounding-large)
-      var(--ac-global-rounding-large) var(--ac-global-rounding-large) 0;
+    background-color: var(--global-background-color-light);
+    color: var(--global-text-color-900);
+    border-radius: var(--global-rounding-large)
+      var(--global-rounding-large) var(--global-rounding-large) 0;
   }
 `;
 
 const timestampCSS = css`
-  font-size: var(--ac-global-font-size-xs);
-  color: var(--ac-global-text-color-500);
+  font-size: var(--global-font-size-xs);
+  color: var(--global-text-color-500);
   padding-left: calc(
-    ${USER_PICTURE_SIZE}px + var(--ac-global-dimension-size-100)
+    ${USER_PICTURE_SIZE}px + var(--global-dimension-size-100)
   );
   &[data-outgoing="true"] {
     text-align: right;
     padding-left: 0;
     padding-right: calc(
-      ${USER_PICTURE_SIZE}px + var(--ac-global-dimension-size-100)
+      ${USER_PICTURE_SIZE}px + var(--global-dimension-size-100)
     );
   }
 `;

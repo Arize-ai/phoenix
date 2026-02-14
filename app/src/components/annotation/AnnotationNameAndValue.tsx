@@ -105,7 +105,7 @@ export function AnnotationNameAndValue({
           css={css(
             textCSS(maxWidth),
             css`
-              margin-left: var(--ac-global-dimension-100);
+              margin-left: var(--global-dimension-100);
             `
           )}
         >

@@ -99,23 +99,23 @@ export function ProjectPageHeader(props: {
             background-image:
               linear-gradient(
                 to right,
-                var(--ac-global-color-grey-75),
-                var(--ac-global-color-grey-75)
+                var(--global-color-grey-75),
+                var(--global-color-grey-75)
               ),
               linear-gradient(
                 to right,
-                var(--ac-global-color-grey-75),
-                var(--ac-global-color-grey-75)
+                var(--global-color-grey-75),
+                var(--global-color-grey-75)
               ),
               linear-gradient(
                 to right,
-                rgba(var(--ac-global-color-grey-300-rgb), 0.9),
-                rgba(var(--ac-global-color-grey-300-rgb), 0)
+                rgba(var(--global-color-grey-300-rgb), 0.9),
+                rgba(var(--global-color-grey-300-rgb), 0)
               ),
               linear-gradient(
                 to left,
-                rgba(var(--ac-global-color-grey-300-rgb), 0.9),
-                rgba(var(--ac-global-color-grey-300-rgb), 0)
+                rgba(var(--global-color-grey-300-rgb), 0.9),
+                rgba(var(--global-color-grey-300-rgb), 0)
               );
             background-repeat: no-repeat;
             background-size:

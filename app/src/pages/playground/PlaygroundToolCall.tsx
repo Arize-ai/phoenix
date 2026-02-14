@@ -85,7 +85,7 @@ export function PlaygroundToolCall({
     <pre
       css={css`
         text-wrap: wrap;
-        margin: var(--ac-global-dimension-static-size-100) 0;
+        margin: var(--global-dimension-static-size-100) 0;
         margin-block: 0;
       `}
     >

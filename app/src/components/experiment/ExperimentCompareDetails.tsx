@@ -419,8 +419,8 @@ export function ExperimentRunOutputs() {
               flex: 1;
               overflow: auto;
               display: flex;
-              gap: var(--ac-global-dimension-static-size-200);
-              padding: var(--ac-global-dimension-static-size-200);
+              gap: var(--global-dimension-static-size-200);
+              padding: var(--global-dimension-static-size-200);
               > li {
                 flex: 1 1 0;
                 min-width: 500px;
@@ -536,9 +536,9 @@ function ExperimentRunOutputsSidebar() {
     <div
       css={css`
         flex: none;
-        font-size: var(--ac-global-dimension-static-font-size-100);
-        color: var(--ac-global-color-grey-700);
-        padding: var(--ac-global-dimension-static-size-200);
+        font-size: var(--global-dimension-static-font-size-100);
+        color: var(--global-color-grey-700);
+        padding: var(--global-dimension-static-size-200);
         overflow: auto;
         height: 100%;
         box-sizing: border-box;
@@ -569,7 +569,7 @@ function ExperimentRunOutputsSidebar() {
               alignItems="center"
               css={css`
                 overflow: hidden;
-                padding: var(--ac-global-dimension-size-25);
+                padding: var(--global-dimension-size-25);
               `}
             >
               <MenuTrigger>
@@ -608,7 +608,7 @@ function ExperimentRunOutputsSidebar() {
                       );
                     }}
                     css={css`
-                      font-size: var(--ac-global-font-size-s);
+                      font-size: var(--global-font-size-s);
                     `}
                   >
                     {(annotation) => (
@@ -740,7 +740,7 @@ function ExperimentSidebarItem({
               <span
                 css={css`
                   flex: none;
-                  padding-left: var(--ac-global-dimension-size-50);
+                  padding-left: var(--global-dimension-size-50);
                 `}
               >
                 <ColorSwatch
@@ -840,7 +840,7 @@ function ExperimentRepetitionsSidebarItems({
                 css={css`
                   overflow: hidden;
                   color: ${repetitionDidNotRun
-                    ? "var(--ac-global-color-grey-500)"
+                    ? "var(--global-color-grey-500)"
                     : "inherit"};
                 `}
               >
@@ -872,8 +872,8 @@ function ExperimentRepetitionsSidebarItems({
 }
 
 const experimentItemCSS = css`
-  border: 1px solid var(--ac-global-border-color-dark);
-  border-radius: var(--ac-global-rounding-medium);
+  border: 1px solid var(--global-border-color-dark);
+  border-radius: var(--global-rounding-medium);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   overflow: hidden;
   height: 100%;
@@ -895,7 +895,7 @@ function ExperimentItemHeader({
         <div
           css={css`
             margin-left: auto;
-            padding-left: var(--ac-global-dimension-size-100);
+            padding-left: var(--global-dimension-size-100);
           `}
         >
           <Flex direction="row" gap="size-100">
@@ -1121,7 +1121,7 @@ function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
         height: 100%;
         width: 100%;
         overflow: auto;
-        padding: var(--ac-global-dimension-size-200);
+        padding: var(--global-dimension-size-200);
         box-sizing: border-box;
         & .cm-theme, // CodeMirror wrapper component
         & .cm-editor {
@@ -1160,7 +1160,7 @@ export function ExperimentRunAnnotations({
         grid-template-columns:
           minmax(100px, max-content) minmax(32px, max-content)
           minmax(150px, 1fr) min-content;
-        column-gap: var(--ac-global-dimension-size-100);
+        column-gap: var(--global-dimension-size-100);
       `}
     >
       {annotationSummaries.map((annotationSummary) => {
@@ -1173,7 +1173,7 @@ export function ExperimentRunAnnotations({
           <li
             key={annotationSummary.annotationName}
             css={css`
-              height: var(--ac-global-dimension-size-350);
+              height: var(--global-dimension-size-350);
               display: grid;
               grid-template-columns: subgrid;
               grid-column: 1 / -1;
@@ -1226,15 +1226,15 @@ function ExperimentRunAnnotationButton({
       css={[
         css`
           cursor: pointer;
-          padding: var(--ac-global-dimension-size-50)
-            var(--ac-global-dimension-size-100);
-          border-radius: var(--ac-global-rounding-small);
+          padding: var(--global-dimension-size-50)
+            var(--global-dimension-size-100);
+          border-radius: var(--global-rounding-small);
           width: 100%;
           display: grid;
           grid-template-columns: subgrid;
           grid-column: 1 / -2;
           &:hover {
-            background-color: var(--ac-global-color-grey-200);
+            background-color: var(--global-color-grey-200);
           }
         `,
         !annotation && ghostAnnotationCss,
@@ -1284,7 +1284,7 @@ function ExperimentRunAnnotationButton({
           annotationSummary.minScore,
           annotationSummary.maxScore
         )}
-        height="var(--ac-global-dimension-size-50)"
+        height="var(--global-dimension-size-50)"
         width="100%"
         aria-label={`${annotationSummary.annotationName} score`}
       />

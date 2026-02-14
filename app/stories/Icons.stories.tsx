@@ -28,9 +28,9 @@ function IconsGrid() {
             height: 50,
             alignItems: "center",
             justifyContent: "center",
-            color: "var(--ac-global-color-grey-800)",
-            backgroundColor: "var(--ac-global-color-grey-100)",
-            border: "1px solid var(--ac-global-color-grey-300)",
+            color: "var(--global-color-grey-800)",
+            backgroundColor: "var(--global-color-grey-100)",
+            border: "1px solid var(--global-color-grey-300)",
             borderRadius: 3,
           }}
           title={name}

@@ -96,18 +96,18 @@ export function ClusterItem(props: ClusterItemProps) {
   return (
     <div
       css={css`
-        border: 1px solid var(--ac-global-border-color-light);
-        border-radius: var(--ac-global-rounding-medium);
+        border: 1px solid var(--global-border-color-light);
+        border-radius: var(--global-rounding-medium);
         overflow: hidden;
         transition: background-color 0.2s ease-in-out;
         cursor: pointer;
         &:hover {
-          background-color: var(--ac-global-color-primary-700);
-          border-color: var(--ac-global-color-primary);
+          background-color: var(--global-color-primary-700);
+          border-color: var(--global-color-primary);
         }
         &.is-selected {
-          border-color: var(--ac-global-color-primary);
-          background-color: var(--ac-global-color-primary-700);
+          border-color: var(--global-color-primary);
+          background-color: var(--global-color-primary-700);
         }
       `}
       className={isSelected ? "is-selected" : ""}
@@ -118,7 +118,7 @@ export function ClusterItem(props: ClusterItemProps) {
     >
       <div
         css={css`
-          padding: var(--ac-global-dimension-static-size-100);
+          padding: var(--global-dimension-static-size-100);
           display: flex;
           flex-direction: row;
           justify-content: space-between;
@@ -188,10 +188,10 @@ function DistributionBar({
         css={css`
           background-image: linear-gradient(
             to right,
-            var(--px-primary-color--transparent) 0%,
-            var(--px-primary-color)
+            var(--primary-color--transparent) 0%,
+            var(--primary-color)
           );
-          height: var(--px-gradient-bar-height);
+          height: var(--gradient-bar-height);
           width: ${primaryPercentage}%;
         `}
       />
@@ -202,19 +202,19 @@ function DistributionBar({
           &[data-reference-inferences-role="reference"] {
             background-image: linear-gradient(
               to right,
-              var(--px-reference-color) 0%,
-              var(--px-reference-color--transparent)
+              var(--reference-color) 0%,
+              var(--reference-color--transparent)
             );
           }
           &[data-reference-inferences-role="corpus"] {
             background-image: linear-gradient(
               to right,
-              var(--px-corpus-color) 0%,
-              var(--px-corpus-color--transparent)
+              var(--corpus-color) 0%,
+              var(--corpus-color--transparent)
             );
           }
 
-          height: var(--px-gradient-bar-height);
+          height: var(--gradient-bar-height);
           width: ${100 - primaryPercentage}%;
         `}
       />

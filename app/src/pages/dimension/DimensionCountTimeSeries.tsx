@@ -140,21 +140,21 @@ export function DimensionCountTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-grey-500)"
           label={{
             value: "Count",
             angle: -90,
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />

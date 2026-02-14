@@ -46,27 +46,27 @@ const expandButtonCSS = css`
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: var(--ac-global-dimension-size-50);
-  padding-bottom: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-50);
+  padding-bottom: var(--global-dimension-size-100);
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    var(--ac-global-background-color-default) 80%,
-    var(--ac-global-background-color-default) 100%
+    var(--global-background-color-default) 80%,
+    var(--global-background-color-default) 100%
   );
   cursor: pointer;
   border: none;
-  font-size: var(--ac-global-font-size-s);
-  color: var(--ac-global-text-color-500);
+  font-size: var(--global-font-size-s);
+  color: var(--global-text-color-500);
   transition: color 0.2s ease-in-out;
 
   .ac-icon-wrap {
-    font-size: var(--ac-global-font-size-m);
+    font-size: var(--global-font-size-m);
     color: inherit;
   }
 
   &:hover {
-    color: var(--ac-global-color-primary);
+    color: var(--global-color-primary);
   }
 `;
 

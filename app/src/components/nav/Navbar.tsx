@@ -23,29 +23,29 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--ac-global-dimension-static-size-100);
-  background-color: var(--ac-global-color-grey-100);
+  padding: var(--global-dimension-static-size-100);
+  background-color: var(--global-color-grey-100);
   flex: none;
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  gap: var(--ac-global-dimension-static-size-100);
+  gap: var(--global-dimension-static-size-100);
 `;
 
 const sideNavCSS = css`
-  padding: var(--ac-global-dimension-static-size-200)
-    var(--ac-global-dimension-static-size-100);
-  background-color: var(--ac-global-color-grey-100);
+  padding: var(--global-dimension-static-size-200)
+    var(--global-dimension-static-size-100);
+  background-color: var(--global-color-grey-100);
   flex: none;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   height: 100vh;
-  width: var(--px-nav-collapsed-width);
+  width: var(--nav-collapsed-width);
   transition: width 0.15s cubic-bezier(0, 0.57, 0.21, 0.99);
   &[data-expanded="true"] {
-    width: var(--px-nav-expanded-width);
+    width: var(--nav-expanded-width);
   }
   &[data-expanded="false"] {
     .brand-text-wrap {
@@ -56,9 +56,9 @@ const sideNavCSS = css`
 
 const navLinkCSS = css`
   width: 100%;
-  color: var(--ac-global-color-grey-500);
+  color: var(--global-color-grey-500);
   background-color: transparent;
-  border-radius: var(--ac-global-rounding-small);
+  border-radius: var(--global-rounding-small);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -70,33 +70,33 @@ const navLinkCSS = css`
   cursor: pointer;
 
   &.active {
-    color: var(--ac-global-text-color-900);
-    background-color: var(--ac-global-color-grey-200);
+    color: var(--global-text-color-900);
+    background-color: var(--global-color-grey-200);
   }
   &:hover:not(.active) {
-    color: var(--ac-global-text-color-900);
-    background-color: var(--ac-global-color-grey-200);
+    color: var(--global-text-color-900);
+    background-color: var(--global-color-grey-200);
   }
   & > .ac-icon-wrap {
-    padding: var(--ac-global-dimension-size-100);
+    padding: var(--global-dimension-size-100);
     display: inline-block;
   }
   .ac-text {
-    padding-inline-start: var(--ac-global-dimension-size-50);
-    padding-inline-end: var(--ac-global-dimension-size-100);
+    padding-inline-start: var(--global-dimension-size-50);
+    padding-inline-end: var(--global-dimension-size-100);
     white-space: nowrap;
   }
 `;
 
 const brandCSS = css`
-  color: var(--ac-global-text-color-900);
-  font-size: var(--ac-global-font-size-xl);
+  color: var(--global-text-color-900);
+  font-size: var(--global-font-size-xl);
   text-decoration: none;
-  margin: 0 0 var(--ac-global-dimension-static-size-200) 0;
+  margin: 0 0 var(--global-dimension-static-size-200) 0;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--ac-global-dimension-static-size-150);
+  gap: var(--global-dimension-static-size-150);
   overflow: hidden;
   & > * {
     flex: none;

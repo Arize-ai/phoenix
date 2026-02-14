@@ -144,7 +144,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                 css={css`
                   overflow-y: auto;
                   height: 100%;
-                  padding: var(--ac-global-dimension-static-size-200);
+                  padding: var(--global-dimension-static-size-200);
                 `}
               >
                 <View
@@ -174,13 +174,13 @@ export function PlaygroundExperimentRunDetailsDialog({
                       <ul
                         css={css`
                           margin-top: var(
-                            --ac-global-dimension-static-size-100
+                            --global-dimension-static-size-100
                           );
                           display: flex;
                           flex-direction: column;
                           justify-content: flex-start;
                           align-items: flex-end;
-                          gap: var(--ac-global-dimension-static-size-100);
+                          gap: var(--global-dimension-static-size-100);
                         `}
                       >
                         {run.annotations?.edges.map((edge) => (

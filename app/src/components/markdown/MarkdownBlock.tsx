@@ -23,7 +23,7 @@ export function MarkdownBlock({
           margin: 0;
         `
       : css`
-          margin: var(--ac-global-dimension-static-size-200);
+          margin: var(--global-dimension-static-size-200);
         `;
 
   return mode === "markdown" ? (

@@ -72,8 +72,8 @@ function ConnectionTimeoutFallback({
         <p>Possible solutions:</p>
         <ul
           css={css`
-            margin: var(--ac-global-dimension-static-size-100) 0;
-            padding-left: var(--ac-global-dimension-static-size-300);
+            margin: var(--global-dimension-static-size-100) 0;
+            padding-left: var(--global-dimension-static-size-300);
           `}
         >
           <li>Increase your load balancer or proxy timeout settings</li>

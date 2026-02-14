@@ -85,10 +85,10 @@ const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
             Content Title
             <span
               style={{
-                color: "var(--ac-global-text-color-500)",
-                border: "1px solid var(--ac-global-text-color-500)",
+                color: "var(--global-text-color-500)",
+                border: "1px solid var(--global-text-color-500)",
                 borderRadius: "12px",
-                padding: "var(--ac-global-dimension-static-size-100)",
+                padding: "var(--global-dimension-static-size-100)",
                 height: "8px",
                 width: "16px",
                 lineHeight: "0px",

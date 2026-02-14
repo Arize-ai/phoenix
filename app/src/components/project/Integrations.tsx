@@ -34,39 +34,39 @@ export type IntegrationLinkProps = {
 };
 
 const integrationLinkCSS = css`
-  border-radius: var(--ac-global-rounding-medium);
-  border: 1px solid var(--ac-global-color-grey-400);
-  padding: var(--ac-global-dimension-size-100)
-    var(--ac-global-dimension-size-150);
+  border-radius: var(--global-rounding-medium);
+  border: 1px solid var(--global-color-grey-400);
+  padding: var(--global-dimension-size-100)
+    var(--global-dimension-size-150);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   transition:
     background-color 0.2s ease-in-out,
     border-color 0.2s ease-in-out;
   &:hover {
-    background-color: var(--ac-global-color-grey-100);
-    border-color: var(--ac-global-color-primary);
+    background-color: var(--global-color-grey-100);
+    border-color: var(--global-color-primary);
   }
   min-width: 230px;
   .integration__main-link {
     flex: 1 1 auto;
-    color: var(--ac-global-text-color-900);
+    color: var(--global-text-color-900);
     text-decoration: none;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: var(--ac-global-dimension-size-150);
+    gap: var(--global-dimension-size-150);
   }
   .integration__github-link {
-    color: var(--ac-global-color-grey-500);
+    color: var(--global-color-grey-500);
     transition: color 0.2s ease-in-out;
     display: flex;
     align-items: center;
     &:hover {
-      color: var(--ac-global-color-grey-700);
+      color: var(--global-color-grey-700);
     }
   }
 `;
@@ -266,7 +266,7 @@ const integrationsListCSS = css`
   width: 100%;
   display: flex;
   flex-direction: row;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   flex-wrap: wrap;
 `;
 

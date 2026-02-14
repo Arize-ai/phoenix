@@ -14,14 +14,14 @@ export const disclosureGroupCSS = css`
   // add border between items, only when child is expanded
   > .ac-disclosure:not(:last-child) {
     &[data-expanded="true"] {
-      border-bottom: 1px solid var(--ac-global-border-color-default);
+      border-bottom: 1px solid var(--global-border-color-default);
     }
   }
 
   &[data-size="S"] > * {
     .react-aria-Heading {
       .react-aria-Button[slot="trigger"] {
-        padding: var(--ac-global-dimension-static-size-50);
+        padding: var(--global-dimension-static-size-50);
       }
     }
   }
@@ -41,21 +41,21 @@ export const disclosureCSS = css`
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    font-size: var(--ac-global-font-size-s);
-    line-height: var(--ac-global-line-height-s);
-    padding: var(--ac-global-dimension-static-size-100)
-      var(--ac-global-dimension-static-size-200);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    padding: var(--global-dimension-static-size-100)
+      var(--global-dimension-static-size-200);
 
     // style trigger
-    color: var(--ac-global-text-color-900);
-    border-bottom: 1px solid var(--ac-global-border-color-default);
+    color: var(--global-text-color-900);
+    border-bottom: 1px solid var(--global-border-color-default);
     outline: none;
     background-color: transparent;
     &:hover:not([disabled]) {
-      background-color: var(--ac-global-disclosure-background-color-active);
+      background-color: var(--global-disclosure-background-color-active);
     }
     &[data-focus-visible] {
-      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline: 1px solid var(--global-input-field-border-color-active);
       outline-offset: -1px;
     }
     &:not([disabled]) {

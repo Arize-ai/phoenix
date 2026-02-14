@@ -617,7 +617,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   return (
     <div
       css={css`
-        background-color: var(--ac-global-color-grey-75);
+        background-color: var(--global-color-grey-75);
         width: 100%;
         height: 100%;
       `}
@@ -688,8 +688,8 @@ const ClustersPanelContents = memo(function ClustersPanelContents() {
                 flex: 1 1 auto;
                 display: flex;
                 flex-direction: column;
-                gap: var(--ac-global-dimension-size-100);
-                margin: var(--ac-global-dimension-size-100);
+                gap: var(--global-dimension-size-100);
+                margin: var(--global-dimension-size-100);
               `}
             >
               {clusters.map((cluster) => {

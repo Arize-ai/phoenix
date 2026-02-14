@@ -11,8 +11,8 @@ export type LoadMoreButtonProps = {
 
 const buttonCSS = css`
   border-radius: 16px;
-  padding: var(--ac-global-dimension-size-50)
-    var(--ac-global-dimension-size-200) !important;
+  padding: var(--global-dimension-size-50)
+    var(--global-dimension-size-200) !important;
 `;
 
 export const LoadMoreButton = ({

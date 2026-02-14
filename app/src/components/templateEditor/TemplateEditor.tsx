@@ -125,8 +125,8 @@ export const TemplateEditorWrap = ({
           border-right: none !important;
         }
         & .cm-content {
-          padding: var(--ac-global-dimension-size-100)
-            var(--ac-global-dimension-size-250);
+          padding: var(--global-dimension-size-100)
+            var(--global-dimension-size-250);
         }
         & .cm-gutter,
         & .cm-content {

@@ -212,8 +212,8 @@ export function ResetPasswordForm(props: {
         css={css`
           display: flex;
           flex-direction: row;
-          gap: var(--ac-global-dimension-size-200);
-          padding-top: var(--ac-global-dimension-size-100);
+          gap: var(--global-dimension-size-200);
+          padding-top: var(--global-dimension-size-100);
           overflow: hidden;
           & > * {
             width: 50%;

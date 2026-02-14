@@ -156,7 +156,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           css={css`
             display: flex;
             flex-direction: column;
-            gap: var(--ac-global-dimension-size-100);
+            gap: var(--global-dimension-size-100);
           `}
         >
           {messageIds.map((messageId) => {

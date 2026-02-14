@@ -26,8 +26,8 @@ export default meta;
 const Template: StoryFn<Omit<GridListProps<object>, "children">> = (props) => (
   <div
     css={css`
-      border: 1px solid var(--ac-global-color-grey-300);
-      border-radius: var(--ac-global-rounding-small);
+      border: 1px solid var(--global-color-grey-300);
+      border-radius: var(--global-rounding-small);
     `}
   >
     <GridList aria-label="Example grid list" {...props}>
@@ -77,8 +77,8 @@ export const WithSubtitleAndTrailingContent: StoryFn<
 > = (props) => (
   <div
     css={css`
-      border: 1px solid var(--ac-global-color-grey-300);
-      border-radius: var(--ac-global-rounding-small);
+      border: 1px solid var(--global-color-grey-300);
+      border-radius: var(--global-rounding-small);
     `}
   >
     <GridList aria-label="Items with details" {...props}>
@@ -119,8 +119,8 @@ export const Empty: StoryFn<Omit<GridListProps<object>, "children">> = (
 ) => (
   <div
     css={css`
-      border: 1px solid var(--ac-global-color-grey-300);
-      border-radius: var(--ac-global-rounding-small);
+      border: 1px solid var(--global-color-grey-300);
+      border-radius: var(--global-rounding-small);
     `}
   >
     <GridList
@@ -145,8 +145,8 @@ export const WithSections: StoryFn<Omit<GridListProps<object>, "children">> = (
 ) => (
   <div
     css={css`
-      border: 1px solid var(--ac-global-color-grey-300);
-      border-radius: var(--ac-global-rounding-small);
+      border: 1px solid var(--global-color-grey-300);
+      border-radius: var(--global-rounding-small);
     `}
   >
     <GridList aria-label="Grid list with sections" {...props}>

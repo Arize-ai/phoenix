@@ -438,9 +438,9 @@ function ProjectsGrid({
           display: grid;
           grid-template-columns: repeat(
             auto-fill,
-            minmax(var(--ac-global-dimension-size-3600), 1fr)
+            minmax(var(--global-dimension-size-3600), 1fr)
           );
-          gap: var(--ac-global-dimension-size-200);
+          gap: var(--global-dimension-size-200);
         `}
       >
         {projects?.map((project) => (
@@ -518,20 +518,20 @@ function ProjectItem({
   return (
     <div
       css={css`
-        padding: var(--ac-global-dimension-size-200);
-        border: 1px solid var(--ac-global-color-grey-100);
+        padding: var(--global-dimension-size-200);
+        border: 1px solid var(--global-color-grey-100);
         box-shadow:
-          0 0 1px 0px var(--ac-global-color-grey-400) inset,
-          0 0 1px 0px var(--ac-global-color-grey-400);
-        border-radius: var(--ac-global-rounding-medium);
+          0 0 1px 0px var(--global-color-grey-400) inset,
+          0 0 1px 0px var(--global-color-grey-400);
+        border-radius: var(--global-rounding-medium);
         transition: border-color 0.2s;
         &:hover {
-          border-color: var(--ac-global-color-primary);
+          border-color: var(--global-color-primary);
         }
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        gap: var(--ac-global-dimension-size-200);
+        gap: var(--global-dimension-size-200);
         height: 100%;
       `}
     >

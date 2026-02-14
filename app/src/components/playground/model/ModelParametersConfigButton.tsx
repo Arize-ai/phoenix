@@ -64,7 +64,7 @@ function EnvVarRoutingInfo({
 const formFieldsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
   .ac-field,
   .ac-dropdown,
   .ac-dropdown-button,

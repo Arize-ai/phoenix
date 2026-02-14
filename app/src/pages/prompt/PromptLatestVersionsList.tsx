@@ -10,7 +10,7 @@ import { PromptVersionSummary } from "./PromptVersionSummary";
 const NUM_VERSIONS_TO_SHOW = 5;
 
 const versionListItemCSS = css`
-  padding-bottom: var(--ac-global-dimension-size-200);
+  padding-bottom: var(--global-dimension-size-200);
   position: relative;
 `;
 export function PromptLatestVersionsList(props: {
@@ -73,12 +73,12 @@ const versionsConnectorCSS = css`
   left: 11px;
   height: calc(100% - 32px);
   width: 2px;
-  --connector-color: var(--ac-global-color-grey-400);
+  --connector-color: var(--global-color-grey-400);
   background:
     repeating-linear-gradient(
       to bottom,
       transparent 0 4px,
-      var(--ac-global-color-grey-50) 4px 8px
+      var(--global-color-grey-50) 4px 8px
     ),
     var(--connector-color);
   background-size: 4px 100%;
@@ -89,7 +89,7 @@ const versionsConnectorCSS = css`
       repeating-linear-gradient(
         to bottom,
         transparent 0 4px,
-        var(--ac-global-color-grey-50) 4px 8px
+        var(--global-color-grey-50) 4px 8px
       ),
       linear-gradient(to bottom, var(--connector-color), transparent);
   }

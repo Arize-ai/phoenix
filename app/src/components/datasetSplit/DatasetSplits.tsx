@@ -7,7 +7,7 @@ const ulCSS = css`
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
 `;
 
 export type DatasetSplit = {

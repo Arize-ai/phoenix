@@ -150,10 +150,10 @@ export function dimensionValue(value: DimensionValue) {
   }
 
   if (FUNC_RE.test(value)) {
-    return value.replace(AC_VARIABLE_RE, "var(--ac-global-dimension-$&)");
+    return value.replace(AC_VARIABLE_RE, "var(--global-dimension-$&)");
   }
 
-  return `var(--ac-global-dimension-${value})`;
+  return `var(--global-dimension-${value})`;
 }
 
 export function responsiveDimensionValue(
@@ -218,11 +218,11 @@ function rtl(ltr: string, rtl: string) {
 type ColorType = "default" | "background" | "border" | "icon" | "status";
 export function colorValue(value: ColorValue, type: ColorType = "default") {
   // TODO actually support semantic colors
-  return `var(--ac-global-color-${value}, var(--ac-semantic-${value}-color-${type}))`;
+  return `var(--global-color-${value}, var(--semantic-${value}-color-${type}))`;
 }
 
 function backgroundColorValue(value: BackgroundColorValue) {
-  return `var(--ac-global-background-color-${value}, ${colorValue(
+  return `var(--global-background-color-${value}, ${colorValue(
     value as ColorValue,
     "background"
   )})`;
@@ -231,17 +231,17 @@ function backgroundColorValue(value: BackgroundColorValue) {
 function borderColorValue(value: BorderColorValue) {
   // TODO support default color
   if (value === "default") {
-    return "var(--ac-global-border-color)";
+    return "var(--global-border-color)";
   }
 
-  return `var(--ac-global-border-color-${value}, ${colorValue(
+  return `var(--global-border-color-${value}, ${colorValue(
     value as ColorValue,
     "border"
   )})`;
 }
 
 function borderSizeValue(value: BorderSizeValue) {
-  return `var(--ac-global-border-size-${value})`;
+  return `var(--global-border-size-${value})`;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -250,7 +250,7 @@ export function passthroughStyle(value: any) {
 }
 
 function borderRadiusValue(value: BorderRadiusValue) {
-  return `var(--ac-global-rounding-${value})`;
+  return `var(--global-rounding-${value})`;
 }
 
 function hiddenValue(value: boolean) {

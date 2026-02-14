@@ -13,15 +13,15 @@ import { PhoenixLogo } from "./PhoenixLogo";
 
 const separatorCSS = css`
   text-align: center;
-  margin-top: var(--ac-global-dimension-size-200);
-  margin-bottom: var(--ac-global-dimension-size-200);
-  color: var(--ac-global-text-color-700);
+  margin-top: var(--global-dimension-size-200);
+  margin-bottom: var(--global-dimension-size-200);
+  color: var(--global-text-color-700);
 `;
 
 const oAuthLoginButtonListCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   flex-wrap: wrap;
   justify-content: center;
 `;

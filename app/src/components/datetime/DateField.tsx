@@ -16,24 +16,24 @@ export interface DateFieldProps<T extends DateValue>
 const dateFieldCSS = css`
   --date-field-vertical-padding: 6px;
   --date-field-horizontal-padding: 8px;
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
 
   &[data-size="S"] .react-aria-DateInput {
-    height: var(--ac-global-input-height-s);
+    height: var(--global-input-height-s);
   }
 
   &[data-size="M"] .react-aria-DateInput {
-    height: var(--ac-global-input-height-m);
+    height: var(--global-input-height-m);
   }
 
   .react-aria-DateInput {
     display: flex;
     padding: var(--date-field-vertical-padding)
       var(--date-field-horizontal-padding);
-    border: var(--ac-global-border-size-thin) solid
-      var(--ac-global-input-field-border-color);
-    border-radius: var(--ac-global-rounding-small);
-    background-color: var(--ac-global-input-field-background-color);
+    border: var(--global-border-size-thin) solid
+      var(--global-input-field-border-color);
+    border-radius: var(--global-rounding-small);
+    background-color: var(--global-input-field-background-color);
     width: fit-content;
     box-sizing: border-box;
     min-width: 150px;
@@ -41,12 +41,12 @@ const dateFieldCSS = css`
     forced-color-adjust: none;
 
     &[data-focus-within] {
-      outline: 1px solid var(--ac-global-color-primary);
+      outline: 1px solid var(--global-color-primary);
       outline-offset: -1px;
     }
 
     &[data-invalid] {
-      border-color: var(--ac-global-color-danger);
+      border-color: var(--global-color-danger);
     }
   }
 
@@ -54,22 +54,22 @@ const dateFieldCSS = css`
     padding: 0 2px;
     font-variant-numeric: tabular-nums;
     text-align: end;
-    color: var(--ac-global-text-color-900);
+    color: var(--global-text-color-900);
 
     &[data-type="literal"] {
       padding: 0;
     }
 
     &[data-placeholder] {
-      color: var(--ac-text-color-placeholder);
+      color: var(--text-color-placeholder);
       font-style: italic;
     }
 
     &:focus {
-      color: var(--ac-highlight-foreground);
-      background: var(--ac-highlight-background);
+      color: var(--highlight-foreground);
+      background: var(--highlight-background);
       outline: none;
-      border-radius: var(--ac-global-rounding-small);
+      border-radius: var(--global-rounding-small);
       caret-color: transparent;
     }
   }

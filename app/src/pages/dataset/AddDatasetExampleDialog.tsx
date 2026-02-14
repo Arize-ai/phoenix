@@ -228,7 +228,7 @@ function AddExampleDialogContent(props: AddExampleDialogContentProps) {
       <div
         css={css`
           overflow-y: auto;
-          padding: var(--ac-global-dimension-size-400);
+          padding: var(--global-dimension-size-400);
         `}
       >
         <Flex direction="row" justifyContent="center">

@@ -45,10 +45,10 @@ export function PointGroupVisibilitySettings() {
       <PointGroupCheckbox />
       <div
         css={css`
-          padding: var(--ac-global-dimension-static-size-100);
+          padding: var(--global-dimension-static-size-100);
           display: flex;
           flex-direction: column;
-          gap: var(--ac-global-dimension-static-size-50);
+          gap: var(--global-dimension-static-size-50);
         `}
       >
         {pointGroups.map((groupName) => {
@@ -104,9 +104,9 @@ function PointGroupCheckbox() {
   return (
     <div
       css={css`
-        padding: var(--ac-global-dimension-static-size-50)
-          var(--ac-global-dimension-static-size-100);
-        background-color: var(--ac-global-background-color-light);
+        padding: var(--global-dimension-static-size-50)
+          var(--global-dimension-static-size-100);
+        background-color: var(--global-background-color-light);
       `}
     >
       <Checkbox

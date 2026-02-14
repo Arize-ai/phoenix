@@ -32,8 +32,8 @@ export function ExampleExperimentsTableEmpty() {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--ac-global-dimension-size-300)
-              var(--ac-global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300)
+              var(--global-dimension-size-300) !important;
           `}
         >
           No experiments have been run for this example.
@@ -47,8 +47,8 @@ const annotationTooltipExtraCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  color: var(--ac-global-color-primary);
-  gap: var(--ac-global-dimension-size-50);
+  color: var(--global-color-primary);
+  gap: var(--global-dimension-size-50);
 `;
 
 export function ExampleExperimentRunsTable({

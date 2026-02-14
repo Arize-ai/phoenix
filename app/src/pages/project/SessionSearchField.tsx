@@ -10,7 +10,7 @@ import { useSessionSearchContext } from "./SessionSearchContext";
 const codeMirrorCSS = css`
   flex: 1 1 auto;
   .cm-content {
-    padding: var(--ac-global-dimension-static-size-100) 0;
+    padding: var(--global-dimension-static-size-100) 0;
   }
   .cm-editor {
     background-color: transparent !important;
@@ -19,30 +19,30 @@ const codeMirrorCSS = css`
     outline: none;
   }
   .cm-selectionLayer .cm-selectionBackground {
-    background: var(--ac-global-color-cyan-400) !important;
+    background: var(--global-color-cyan-400) !important;
   }
 `;
 
 const fieldCSS = css`
-  border-width: var(--ac-global-border-size-thin);
+  border-width: var(--global-border-size-thin);
   border-style: solid;
-  border-color: var(--ac-global-input-field-border-color);
-  border-radius: var(--ac-global-rounding-small);
-  background-color: var(--ac-global-input-field-background-color);
+  border-color: var(--global-input-field-border-color);
+  border-radius: var(--global-rounding-small);
+  background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
   &:hover,
   &[data-is-focused="true"] {
-    border-color: var(--ac-global-input-field-border-color-active);
-    background-color: var(--ac-global-input-field-background-color-active);
+    border-color: var(--global-input-field-border-color-active);
+    background-color: var(--global-input-field-background-color-active);
   }
   &[data-is-invalid="true"] {
-    border-color: var(--ac-global-color-danger);
+    border-color: var(--global-color-danger);
   }
   box-sizing: border-box;
   .search-icon {
-    margin-left: var(--ac-global-dimension-static-size-100);
-    margin-top: var(--ac-global-dimension-static-size-100);
+    margin-left: var(--global-dimension-static-size-100);
+    margin-top: var(--global-dimension-static-size-100);
   }
 `;
 
@@ -92,8 +92,8 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
         />
         <button
           css={css`
-            margin-right: var(--ac-global-dimension-static-size-100);
-            color: var(--ac-global-text-color-700);
+            margin-right: var(--global-dimension-static-size-100);
+            color: var(--global-text-color-700);
             visibility: ${hasSubstring ? "visible" : "hidden"};
           `}
           onClick={() => setFilterIoSubstringOrSessionId("")}

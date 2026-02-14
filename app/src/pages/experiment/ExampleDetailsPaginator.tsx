@@ -63,10 +63,10 @@ export const ExampleDetailsPaginator = ({
         <Tooltip
           offset={4}
           css={css`
-            background-color: var(--ac-global-background-color-dark);
-            border-color: var(--ac-global-border-color-dark);
-            border-radius: var(--ac-global-rounding-medium);
-            padding: var(--ac-global-dimension-static-size-100);
+            background-color: var(--global-background-color-dark);
+            border-color: var(--global-border-color-dark);
+            border-radius: var(--global-rounding-medium);
+            padding: var(--global-dimension-static-size-100);
           `}
         >
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -86,10 +86,10 @@ export const ExampleDetailsPaginator = ({
         <Tooltip
           offset={4}
           css={css`
-            background-color: var(--ac-global-background-color-dark);
-            border-color: var(--ac-global-border-color-dark);
-            border-radius: var(--ac-global-rounding-medium);
-            padding: var(--ac-global-dimension-static-size-100);
+            background-color: var(--global-background-color-dark);
+            border-color: var(--global-border-color-dark);
+            border-radius: var(--global-rounding-medium);
+            padding: var(--global-dimension-static-size-100);
           `}
         >
           <Flex direction="row" gap="size-100" alignItems="center">

@@ -6,7 +6,7 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 const tokenCostsDetailsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-static-size-100);
+  gap: var(--global-dimension-static-size-100);
   min-width: 200px;
 `;
 
@@ -15,24 +15,24 @@ const tokenCostRowCSS = css`
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  gap: var(--ac-global-dimension-static-size-200);
+  gap: var(--global-dimension-static-size-200);
 
   &[data-is-total="true"] {
-    font-weight: var(--ac-global-font-weight-heavy);
+    font-weight: var(--global-font-weight-heavy);
   }
 
   &[data-is-sub-item="true"] {
-    margin-left: var(--ac-global-dimension-static-size-200);
-    color: var(--ac-global-text-color-500);
-    font-size: var(--ac-global-font-size-xs);
+    margin-left: var(--global-dimension-static-size-200);
+    color: var(--global-text-color-500);
+    font-size: var(--global-font-size-xs);
   }
 `;
 
 const sectionHeaderCSS = css`
-  font-weight: var(--ac-global-font-weight-heavy);
-  font-size: var(--ac-global-font-size-xs);
-  color: var(--ac-global-text-color-700);
-  margin-top: var(--ac-global-dimension-static-size-100);
+  font-weight: var(--global-font-weight-heavy);
+  font-size: var(--global-font-size-xs);
+  color: var(--global-text-color-700);
+  margin-top: var(--global-dimension-static-size-100);
 `;
 
 interface TokenCostRowProps {

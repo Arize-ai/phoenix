@@ -16,18 +16,18 @@ const baseToggleButtonCSS = css(
   `
     text-wrap: nowrap;
     &[data-selected="true"] {
-      background-color: var(--ac-global-button-primary-background-color);
-      --button-border-color: var(--ac-global-button-primary-border-color);
-      color: var(--ac-global-button-primary-foreground-color);
+      background-color: var(--global-button-primary-background-color);
+      --button-border-color: var(--global-button-primary-border-color);
+      color: var(--global-button-primary-foreground-color);
       &:hover:not([data-disabled]) {
-        background-color: var(--ac-global-button-primary-background-color-hover);
+        background-color: var(--global-button-primary-background-color-hover);
       }
     }
     &[data-hovered]:not([data-disabled]):not([data-selected="true"]) {
-      background-color: var(--ac-global-input-field-border-color-hover);
+      background-color: var(--global-input-field-border-color-hover);
     }
     &[data-focus-visible] {
-      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline: 1px solid var(--global-input-field-border-color-active);
       outline-offset: -2px;
     }
 `

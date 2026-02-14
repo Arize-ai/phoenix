@@ -175,7 +175,7 @@ export function SpanToDatasetExampleDialog({
           <div
             css={css`
               overflow-y: auto;
-              padding: var(--ac-global-dimension-size-400);
+              padding: var(--global-dimension-size-400);
               /* Make widths configurable */
               .dataset-picker {
                 width: 100%;

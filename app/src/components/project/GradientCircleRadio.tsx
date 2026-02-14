@@ -13,10 +13,10 @@ const gradientCircleRadioCSS = css`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--ac-global-dimension-size-50);
-  padding: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-50);
+  padding: var(--global-dimension-size-100);
   border: 2px solid transparent;
-  border-radius: var(--ac-global-rounding-medium);
+  border-radius: var(--global-rounding-medium);
   cursor: pointer;
   transition: all 200ms ease;
   position: relative;
@@ -24,13 +24,13 @@ const gradientCircleRadioCSS = css`
 
   /* Hover state */
   &[data-hovered]:not([data-disabled]):not([data-selected]) {
-    border-color: var(--ac-global-color-grey-200);
+    border-color: var(--global-color-grey-200);
   }
 
   /* Selected state */
   &[data-selected] {
-    background-color: var(--ac-global-color-primary-50);
-    border-color: var(--ac-global-color-primary);
+    background-color: var(--global-color-primary-50);
+    border-color: var(--global-color-primary);
   }
 
   /* Pressed state */
@@ -40,7 +40,7 @@ const gradientCircleRadioCSS = css`
 
   /* Focus visible state */
   &[data-focus-visible] {
-    outline: 2px solid var(--ac-global-color-primary);
+    outline: 2px solid var(--global-color-primary);
     outline-offset: 2px;
   }
 
@@ -52,14 +52,14 @@ const gradientCircleRadioCSS = css`
 
   /* Label text styling */
   .gradient-circle-radio__label {
-    font-size: var(--ac-global-dimension-static-font-size-75);
-    color: var(--ac-global-text-color-700);
+    font-size: var(--global-dimension-static-font-size-75);
+    color: var(--global-text-color-700);
     text-align: center;
     font-weight: 500;
   }
 
   &[data-selected] .gradient-circle-radio__label {
-    color: var(--ac-global-color-primary);
+    color: var(--global-color-primary);
     font-weight: 600;
   }
 `;

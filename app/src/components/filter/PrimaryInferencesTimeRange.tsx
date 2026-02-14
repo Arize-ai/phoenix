@@ -30,15 +30,15 @@ const primaryInferencesSelectCSS = css`
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
-    font-size: var(--ac-global-dimension-static-font-size-75);
-    font-weight: var(--px-font-weight-heavy);
+    font-size: var(--global-dimension-static-font-size-75);
+    font-weight: var(--font-weight-heavy);
   }
 `;
 
 const triggerWrapCSS = css`
   /* Target the button element specifically */
   button[aria-haspopup="listbox"] {
-    border-radius: var(--ac-global-rounding-small) !important;
+    border-radius: var(--global-rounding-small) !important;
 
     &:hover {
       border-color: white !important;

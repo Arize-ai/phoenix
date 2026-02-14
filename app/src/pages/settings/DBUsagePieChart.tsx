@@ -93,7 +93,7 @@ export function DBUsagePieChart({
               key={`cell-${index}`}
               fill={
                 x.tableName === REMAINING_TEXT
-                  ? "var(--ac-global-color-grey-200)"
+                  ? "var(--global-color-grey-200)"
                   : `${schemePaired[index % schemePaired.length]}`
               }
             />
@@ -104,8 +104,8 @@ export function DBUsagePieChart({
           x="50%"
           y="50%"
           textAnchor="middle"
-          fill="var(--ac-global-text-color-900"
-          fontSize="var(--ac-global-font-size-xl)"
+          fill="var(--global-text-color-900"
+          fontSize="var(--global-font-size-xl)"
         >
           {`${typeof data.dbStorageCapacityBytes === "number" ? percentFormatter((totalUsedBytes / data.dbStorageCapacityBytes) * 100) : storageSizeFormatter(totalUsedBytes)}`}
         </text>
@@ -114,8 +114,8 @@ export function DBUsagePieChart({
           y="50%"
           dy={25}
           textAnchor="middle"
-          fill="var(--ac-global-text-color-900"
-          fontSize="var(--ac-global-font-size-s)"
+          fill="var(--global-text-color-900"
+          fontSize="var(--global-font-size-s)"
         >
           {`Used`}
         </text>
@@ -128,8 +128,8 @@ export function DBUsagePieChart({
                 dx={10}
                 dy={15}
                 textAnchor="start"
-                fill="var(--ac-global-text-color-500)"
-                fontSize="var(--ac-global-font-size-xs)"
+                fill="var(--global-text-color-500)"
+                fontSize="var(--global-font-size-xs)"
               >
                 {"Capacity:"}
               </text>
@@ -139,8 +139,8 @@ export function DBUsagePieChart({
                 dx={10}
                 dy={28}
                 textAnchor="start"
-                fill="var(--ac-global-text-color-500)"
-                fontSize="var(--ac-global-font-size-xs)"
+                fill="var(--global-text-color-500)"
+                fontSize="var(--global-font-size-xs)"
               >
                 {storageSizeFormatter(data.dbStorageCapacityBytes)}
               </text>
@@ -152,8 +152,8 @@ export function DBUsagePieChart({
             dx={-80}
             dy={-2}
             textAnchor="end"
-            fill="var(--ac-global-text-color-500)"
-            fontSize="var(--ac-global-font-size-xs)"
+            fill="var(--global-text-color-500)"
+            fontSize="var(--global-font-size-xs)"
           >
             {"* approximate"}
           </text>

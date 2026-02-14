@@ -28,10 +28,10 @@ import { isAudioUrl, isVideoUrl } from "@phoenix/utils/urlUtils";
 import { ModelEvent, RetrievalDocument } from "./types";
 
 const detailsListCSS = css`
-  margin: var(--ac-global-dimension-static-size-200);
+  margin: var(--global-dimension-static-size-200);
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-static-size-100);
+  gap: var(--global-dimension-static-size-100);
   & > div {
     display: flex;
     flex-direction: row;
@@ -57,8 +57,8 @@ function TextPre(props: PropsWithChildren) {
     >
       <pre
         css={css`
-          padding: var(--ac-global-dimension-static-size-200);
-          color: var(--ac-global-text-color-900);
+          padding: var(--global-dimension-static-size-200);
+          color: var(--global-text-color-900);
           white-space: normal;
           margin: 0;
         `}
@@ -175,9 +175,9 @@ export function EventDetails({ event }: { event: ModelEvent }) {
             <DisclosurePanel>
               <ul
                 css={css`
-                  padding: var(--ac-global-dimension-static-size-100);
+                  padding: var(--global-dimension-static-size-100);
                   li + li {
-                    margin-top: var(--ac-global-dimension-static-size-100);
+                    margin-top: var(--global-dimension-static-size-100);
                   }
                 `}
               >
@@ -213,7 +213,7 @@ function DocumentItem({ document }: { document: RetrievalDocument }) {
               <Heading level={4}>document {document.id}</Heading>
             </Flex>
             {typeof document.relevance === "number" && (
-              <Token color="var(--ac-global-color-blue-1000)">
+              <Token color="var(--global-color-blue-1000)">
                 {`relevance ${numberFormatter(document.relevance)}`}
               </Token>
             )}
@@ -221,7 +221,7 @@ function DocumentItem({ document }: { document: RetrievalDocument }) {
         </View>
         <pre
           css={css`
-            padding: var(--ac-global-dimension-static-size-200);
+            padding: var(--global-dimension-static-size-200);
             white-space: normal;
             margin: 0;
           `}
@@ -428,8 +428,8 @@ function TableEmpty() {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--ac-global-dimension-size-300)
-              var(--ac-global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300)
+              var(--global-dimension-size-300) !important;
           `}
         >
           <Empty message="This embedding has no associated dimensions" />

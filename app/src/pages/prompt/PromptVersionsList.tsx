@@ -19,12 +19,12 @@ type PromptVersion =
   PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
 
 const promptVersionItemCSS = css`
-  border-bottom: 1px solid var(--ac-global-color-grey-300);
+  border-bottom: 1px solid var(--global-color-grey-300);
   transition: background-color 0.1s ease-in;
 
   &[data-active="true"],
   &:hover {
-    background-color: var(--ac-global-color-grey-200);
+    background-color: var(--global-color-grey-200);
   }
 
   & > a {

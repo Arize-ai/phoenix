@@ -14,7 +14,7 @@ export function ExternalLink({ href, children }: ExternalLinkProps) {
       href={href}
       target="_blank"
       css={css`
-        color: var(--ac-global-link-color);
+        color: var(--global-link-color);
         text-decoration: none;
         display: inline-flex;
         align-items: center;

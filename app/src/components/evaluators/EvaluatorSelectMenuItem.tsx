@@ -57,7 +57,7 @@ export function EvaluatorSelectMenuItem({
         evaluator.annotationName ? (
           <div
             css={css`
-              color: var(--ac-global-color-grey-900);
+              color: var(--global-color-grey-900);
             `}
           >
             <AnnotationNameAndValue

@@ -126,7 +126,7 @@ export function DatasetSelect(props: DatasetSelectProps) {
                       css={css`
                         display: flex;
                         flex-direction: row;
-                        gap: var(--ac-global-dimension-size-50);
+                        gap: var(--global-dimension-size-50);
                         min-width: 0;
                         flex-wrap: wrap;
                       `}

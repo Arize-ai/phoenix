@@ -244,7 +244,7 @@ export function SavePromptForm({
               color="text-700"
               size="XS"
               css={css`
-                margin-bottom: var(--ac-global-dimension-size-50);
+                margin-bottom: var(--global-dimension-size-50);
               `}
             >
               Select tags to apply to the saved version

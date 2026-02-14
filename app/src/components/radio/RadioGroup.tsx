@@ -18,19 +18,19 @@ const baseRadioGroupCSS = css(`
   flex-direction: row;
   align-items: center;
   width: fit-content;
-  gap: var(--ac-global-dimension-size-200);
-  font-size: var(--ac-global-dimension-static-font-size-100);
+  gap: var(--global-dimension-size-200);
+  font-size: var(--global-dimension-static-font-size-100);
 
   & > .ac-radio:not(:first-of-type) {
     border-left: none;
   }
 
   & > .ac-radio:first-of-type {
-    border-radius: var(--ac-global-rounding-small) 0 0 var(--ac-global-rounding-small);
+    border-radius: var(--global-rounding-small) 0 0 var(--global-rounding-small);
   }
 
   & > .ac-radio:last-of-type {
-    border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
+    border-radius: 0 var(--global-rounding-small) var(--global-rounding-small) 0;
   }
 
   &[data-direction="row"] {
@@ -53,13 +53,13 @@ const baseRadioGroupCSS = css(`
 
   &[data-size="S"] {
     .ac-radio {
-      padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-100);
+      padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
     }
   }
 
   &[data-size="L"] {
     .ac-radio {
-      padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
+      padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
     }
   }
 
@@ -74,10 +74,10 @@ const baseRadioGroupCSS = css(`
   }
 
   &:has(.ac-radio[data-focus-visible]) {
-    border-radius: var(--ac-global-rounding-small);
-    outline: 1px solid var(--ac-global-input-field-border-color-active);
+    border-radius: var(--global-rounding-small);
+    outline: 1px solid var(--global-input-field-border-color-active);
     // display an outline offset around the radio group, accounting for the outline offset of the inner radios
-    outline-offset: var(--ac-global-dimension-size-100);
+    outline-offset: var(--global-dimension-size-100);
   }
 `);
 
