@@ -5,11 +5,15 @@ Use for exploration only. Validate before production.
 ## Python
 
 ```python
-from phoenix.evals import HallucinationEvaluator, QAEvaluator, RelevanceEvaluator, LLM
+from phoenix.evals import LLM
+from phoenix.evals.metrics import FaithfulnessEvaluator
 
 llm = LLM(provider="openai", model="gpt-4o")
-hallucination_eval = HallucinationEvaluator(llm)
+faithfulness_eval = FaithfulnessEvaluator(llm=llm)
 ```
+
+**Note**: `HallucinationEvaluator` is deprecated. Use `FaithfulnessEvaluator` instead.
+It uses "faithful"/"unfaithful" labels with score 1.0 = faithful.
 
 ## TypeScript
 
@@ -36,9 +40,16 @@ Hallucination, QA, Relevance, Toxicity, Faithfulness, Summarization.
 ## Exploration Pattern
 
 ```python
-results = run_evals(traces, [hallucination_eval])
-low_scores = results[results["score"] < 0.5]   # Review these
-high_scores = results[results["score"] > 0.9]  # Also sample
+from phoenix.evals import evaluate_dataframe
+
+results_df = evaluate_dataframe(dataframe=traces, evaluators=[faithfulness_eval])
+
+# Score columns contain dicts — extract numeric scores
+scores = results_df["faithfulness_score"].apply(
+    lambda x: x.get("score", 0.0) if isinstance(x, dict) else 0.0
+)
+low_scores = results_df[scores < 0.5]   # Review these
+high_scores = results_df[scores > 0.9]  # Also sample
 ```
 
 ## Validation Required

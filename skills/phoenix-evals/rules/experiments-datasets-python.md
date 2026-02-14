@@ -34,7 +34,7 @@ dataset = client.datasets.create_dataset(
 ## From Production Traces
 
 ```python
-spans_df = client.spans.get_spans_dataframe(project_name="my-app")
+spans_df = client.spans.get_spans_dataframe(project_identifier="my-app")
 
 dataset = client.datasets.create_dataset(
     dataframe=spans_df[["input.value", "output.value"]],

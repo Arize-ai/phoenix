@@ -1,4 +1,4 @@
-# Common Mistakes
+# Common Mistakes (Python)
 
 Patterns that LLMs frequently generate incorrectly from training data.
 
@@ -10,22 +10,22 @@ from phoenix.evals import OpenAIModel, AnthropicModel
 model = OpenAIModel(model="gpt-4")
 
 # RIGHT
-from phoenix.evals.llm import LLM
+from phoenix.evals import LLM
 llm = LLM(provider="openai", model="gpt-4o")
 ```
 
-**Why**: `OpenAIModel`, `AnthropicModel`, etc. are legacy 1.0 wrappers. The `LLM` class
-is provider-agnostic and is the current API.
+**Why**: `OpenAIModel`, `AnthropicModel`, etc. are legacy 1.0 wrappers in `phoenix.evals.legacy`.
+The `LLM` class is provider-agnostic and is the current 2.0 API.
 
 ## 2. Using run_evals Instead of evaluate_dataframe
 
 ```python
-# WRONG
+# WRONG — legacy 1.0 API
 from phoenix.evals import run_evals
 results = run_evals(dataframe=df, evaluators=[eval1], provide_explanation=True)
 # Returns list of DataFrames
 
-# RIGHT
+# RIGHT — current 2.0 API
 from phoenix.evals import evaluate_dataframe
 results_df = evaluate_dataframe(dataframe=df, evaluators=[eval1])
 # Returns single DataFrame with {name}_score dict columns
@@ -44,7 +44,9 @@ score = results_df["relevance"].mean()
 score = results_df["relevance_score"].mean()
 
 # RIGHT — extract numeric score from dict
-scores = results_df["relevance_score"].apply(lambda x: x.get("score", 0.0))
+scores = results_df["relevance_score"].apply(
+    lambda x: x.get("score", 0.0) if isinstance(x, dict) else 0.0
+)
 score = scores.mean()
 ```
 
@@ -61,7 +63,8 @@ df = client.spans.get_spans_dataframe(project_name="my-project")
 df = client.spans.get_spans_dataframe(project_identifier="my-project")
 ```
 
-**Why**: `project_name` is deprecated in favor of `project_identifier`.
+**Why**: `project_name` is deprecated in favor of `project_identifier`, which also
+accepts project IDs.
 
 ## 5. Wrong Client Constructor
 
@@ -70,12 +73,15 @@ df = client.spans.get_spans_dataframe(project_identifier="my-project")
 client = Client(endpoint="https://app.phoenix.arize.com")
 client = Client(url="https://app.phoenix.arize.com")
 
-# RIGHT
-client = Client(base_url="https://app.phoenix.arize.com/s/your-space", api_key="...")
+# RIGHT — for remote/cloud Phoenix
+client = Client(base_url="https://app.phoenix.arize.com", api_key="...")
+
+# ALSO RIGHT — for local Phoenix (falls back to env vars or localhost:6006)
+client = Client()
 ```
 
-**Why**: The parameter is `base_url`, not `endpoint` or `url`. Also, the base URL
-must NOT include `/v1/traces` (that's the OTEL collector endpoint, not the API base).
+**Why**: The parameter is `base_url`, not `endpoint` or `url`. For local instances,
+`Client()` with no args works fine. For remote instances, `base_url` and `api_key` are required.
 
 ## 6. Too-Aggressive Time Filters
 
@@ -87,10 +93,10 @@ df = client.spans.get_spans_dataframe(
     start_time=datetime.now() - timedelta(hours=1),
 )
 
-# RIGHT — either omit time filter or use generous window
+# RIGHT — use limit to control result size instead
 df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
-    limit=50,  # Use limit to control result size instead
+    limit=50,
 )
 ```
 
@@ -102,9 +108,8 @@ nothing. Use `limit=` to control result size instead.
 ```python
 # WRONG — fetches all spans including internal LLM calls, retrievers, etc.
 df = client.spans.get_spans_dataframe(project_identifier="my-project")
-root_spans = df[df["parent_id"].isna()]  # Manual filtering wastes bandwidth
 
-# RIGHT — let the API filter
+# RIGHT — let the API filter to top-level spans
 df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
     root_spans_only=True,
@@ -113,14 +118,13 @@ df = client.spans.get_spans_dataframe(
 
 **Why**: For evaluation, you typically want root spans (the top-level operation with
 user input and final output). Fetching all spans returns internal sub-operations
-(LLM calls, retriever calls, etc.) that aren't useful for output evaluation.
+that aren't useful for output evaluation.
 
 ## 8. Assuming Span Output is Plain Text
 
 ```python
 # WRONG — output may be JSON, not plain text
-df = df.rename(columns={"attributes.output.value": "output"})
-# Then passing to evaluators that expect plain text...
+df["output"] = df["attributes.output.value"]
 
 # RIGHT — parse JSON and extract the answer field
 import json
@@ -130,13 +134,15 @@ def extract_answer(output_value):
         return str(output_value) if output_value is not None else ""
     try:
         parsed = json.loads(output_value)
-        if isinstance(parsed, dict) and "answer" in parsed:
-            return parsed["answer"]
+        if isinstance(parsed, dict):
+            for key in ("answer", "result", "output", "response"):
+                if key in parsed:
+                    return str(parsed[key])
     except (json.JSONDecodeError, TypeError):
         pass
     return output_value
 
-df["attributes.output.value"] = df["attributes.output.value"].apply(extract_answer)
+df["output"] = df["attributes.output.value"].apply(extract_answer)
 ```
 
 **Why**: LangChain and other frameworks often output structured JSON from root spans,
@@ -149,14 +155,15 @@ the actual answer text, not the raw JSON.
 # WRONG — @create_evaluator doesn't call an LLM
 @create_evaluator(name="relevance", kind="llm")
 def relevance(input: str, output: str) -> str:
-    # This is just a regular function — no LLM is involved
-    pass
+    pass  # No LLM is involved
 
 # RIGHT — use create_classifier for LLM-based evaluation
+from phoenix.evals import create_classifier, LLM
+
 relevance = create_classifier(
     name="relevance",
     prompt_template="Is this relevant?\n{input}\n{output}\nAnswer:",
-    llm=LLM(provider="anthropic", model="claude-sonnet-4-20250514"),
+    llm=LLM(provider="openai", model="gpt-4o"),
     choices={"relevant": 1.0, "irrelevant": 0.0},
 )
 ```
@@ -178,13 +185,12 @@ results = llm_classify(
 )
 
 # RIGHT — current 2.0 API
-from phoenix.evals import create_classifier, evaluate_dataframe
-from phoenix.evals.llm import LLM
+from phoenix.evals import create_classifier, evaluate_dataframe, LLM
 
 classifier = create_classifier(
     name="relevance",
     prompt_template=template_str,
-    llm=LLM(provider="anthropic", model="claude-sonnet-4-20250514"),
+    llm=LLM(provider="openai", model="gpt-4o"),
     choices={"relevant": 1.0, "irrelevant": 0.0},
 )
 results_df = evaluate_dataframe(dataframe=df, evaluators=[classifier])
@@ -202,8 +208,9 @@ eval = HallucinationEvaluator(model)
 
 # RIGHT — use FaithfulnessEvaluator
 from phoenix.evals.metrics import FaithfulnessEvaluator
-from phoenix.evals.llm import LLM
+from phoenix.evals import LLM
 eval = FaithfulnessEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
 ```
 
-**Why**: `HallucinationEvaluator` is deprecated. `FaithfulnessEvaluator` is its replacement.
+**Why**: `HallucinationEvaluator` is deprecated. `FaithfulnessEvaluator` is its replacement,
+using "faithful"/"unfaithful" labels with maximized score (1.0 = faithful).

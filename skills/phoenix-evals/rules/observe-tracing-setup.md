@@ -40,10 +40,12 @@ span.set_attribute("metadata.query_category", "billing")
 ```python
 from phoenix.client import Client
 
+# Client() works for local Phoenix (falls back to env vars or localhost:6006)
+# For remote/cloud: Client(base_url="https://app.phoenix.arize.com", api_key="...")
 client = Client()
 spans_df = client.spans.get_spans_dataframe(
-    project_name="my-app",
-    filter_condition="status_code == 'ERROR'",
+    project_identifier="my-app",  # NOT project_name= (deprecated)
+    root_spans_only=True,
 )
 
 dataset = client.datasets.create_dataset(

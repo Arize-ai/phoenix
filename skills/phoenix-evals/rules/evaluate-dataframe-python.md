@@ -1,4 +1,6 @@
-# Batch Evaluation with evaluate_dataframe
+# Batch Evaluation with evaluate_dataframe (Python)
+
+Run evaluators across a DataFrame. The core 2.0 batch evaluation API.
 
 ## Function Signature
 
@@ -8,14 +10,14 @@ from phoenix.evals import evaluate_dataframe
 results_df = evaluate_dataframe(
     dataframe=df,              # pandas DataFrame with columns matching evaluator params
     evaluators=[eval1, eval2], # List of evaluators
-    exit_on_error=False,       # Optional: stop on first error
-    max_retries=3,             # Optional: retry failed LLM calls
+    exit_on_error=False,       # Optional: stop on first error (default True)
+    max_retries=3,             # Optional: retry failed LLM calls (default 10)
 )
 ```
 
-## CRITICAL: Result Column Format
+## Result Column Format
 
-`evaluate_dataframe` returns the original DataFrame with added columns.
+`evaluate_dataframe` returns a copy of the input DataFrame with added columns.
 **Result columns contain dicts, NOT raw numbers.**
 
 For each evaluator named `"foo"`, two columns are added:
@@ -23,12 +25,14 @@ For each evaluator named `"foo"`, two columns are added:
 | Column | Type | Contents |
 | ------ | ---- | -------- |
 | `foo_score` | `dict` | `{"name": "foo", "score": 1.0, "label": "True", "explanation": "...", "metadata": {...}, "kind": "code", "direction": "maximize"}` |
-| `foo_execution_details` | `dict` | `{"status": "COMPLETED", "exceptions": [], "execution_seconds": 0.001}` |
+| `foo_execution_details` | `dict` | `{"status": "success", "exceptions": [], "execution_seconds": 0.001}` |
+
+Only non-None fields appear in the score dict.
 
 ### Extracting Numeric Scores
 
 ```python
-# WRONG — this will fail or produce unexpected results
+# WRONG — these will fail or produce unexpected results
 score = results_df["relevance"].mean()                    # KeyError!
 score = results_df["relevance_score"].mean()              # Tries to average dicts!
 
@@ -65,37 +69,26 @@ failed_mask = scores < 0.5
 failures = results_df[failed_mask]
 ```
 
-## Helper Pattern
-
-To avoid repeating the extraction logic:
-
-```python
-def extract_scores(results_df, eval_name):
-    """Extract numeric scores from evaluate_dataframe results."""
-    score_col = f"{eval_name}_score"
-    if score_col not in results_df.columns:
-        return None
-    return results_df[score_col].apply(
-        lambda x: x.get("score", 0.0) if isinstance(x, dict) else 0.0
-    )
-
-# Usage
-scores = extract_scores(results_df, "relevance")
-mean = float(scores.mean()) if scores is not None else 0.0
-```
-
-## Preparing DataFrames for Evaluation
+## Input Mapping with bind_evaluator
 
 Evaluators receive each row as a dict. Column names must match the evaluator's
-expected parameter names:
+expected parameter names. If they don't match, use `bind_evaluator`:
 
 ```python
-# If your evaluator function has params (input, output):
-@create_evaluator(name="check", kind="code")
-def check(input: str, output: str) -> bool:
-    ...
+from phoenix.evals import bind_evaluator, create_evaluator, evaluate_dataframe
 
-# Your DataFrame must have 'input' and 'output' columns:
+@create_evaluator(name="check", kind="code")
+def check(response: str) -> bool:
+    return len(response.strip()) > 0
+
+# DataFrame has 'answer' column but evaluator expects 'response'
+bound = bind_evaluator(evaluator=check, input_mapping={"response": "answer"})
+results_df = evaluate_dataframe(dataframe=df, evaluators=[bound])
+```
+
+Or simply rename columns to match:
+
+```python
 df = df.rename(columns={
     "attributes.input.value": "input",
     "attributes.output.value": "output",
@@ -112,7 +105,7 @@ from phoenix.evals import async_evaluate_dataframe
 results_df = await async_evaluate_dataframe(
     dataframe=df,
     evaluators=[llm_evaluator],
-    concurrency=5,  # Max concurrent LLM calls
+    concurrency=5,  # Max concurrent LLM calls (default 3)
 )
 ```
 
@@ -122,13 +115,16 @@ results_df = await async_evaluate_dataframe(
 # WRONG — legacy 1.0 API
 from phoenix.evals import run_evals
 results = run_evals(dataframe=df, evaluators=[eval1])
+# Returns List[DataFrame] — one per evaluator
 
 # RIGHT — current 2.0 API
 from phoenix.evals import evaluate_dataframe
 results_df = evaluate_dataframe(dataframe=df, evaluators=[eval1])
+# Returns single DataFrame with {name}_score dict columns
 ```
 
 Key differences:
 - `run_evals` returns a **list** of DataFrames (one per evaluator)
 - `evaluate_dataframe` returns a **single** DataFrame with all results merged
-- `evaluate_dataframe` uses the `{name}_score` dict column format
+- `evaluate_dataframe` uses `{name}_score` dict column format
+- `evaluate_dataframe` uses `bind_evaluator` for input mapping (not `input_mapping=` param)
