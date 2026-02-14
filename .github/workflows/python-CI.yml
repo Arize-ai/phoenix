@@ -26,7 +26,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  pip-version: 24.2
   OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
 
 jobs:
@@ -113,6 +112,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
+          enable-cache: true
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -137,6 +137,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
+          enable-cache: true
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -160,6 +161,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
+          enable-cache: true
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   clean-jupyter-notebooks:
@@ -183,10 +185,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/clean-jupyter-notebooks.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
         run: uvx tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
       - run: git diff --exit-code
@@ -212,10 +210,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/build-graphql-schema.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build GraphQL schema
         run: uvx tox run -e build_graphql_schema
       - run: git diff --exit-code
@@ -241,9 +235,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
         run: uvx tox run -e build_openapi_schema
       - run: git diff --exit-code
@@ -269,10 +260,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/compile-protobuf.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
         run: uvx tox run -e compile_protobuf
       - run: git diff --exit-code
@@ -297,6 +284,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
+          enable-cache: true
       - name: Compile Prompts
         run: uvx tox run -e compile_prompts
       - name: Check for changes
@@ -345,6 +333,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
+          enable-cache: true
       - name: Run `ruff`
         run: uvx tox run -e ruff
       - run: git diff --exit-code
@@ -377,11 +366,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/type-check.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
         run: uvx tox run -e type_check
       - name: Ensure GraphQL mutations have permission classes
@@ -418,11 +402,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/unit-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on unit tests
         run: uvx tox run -e type_check_unit_tests
 
@@ -456,11 +435,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/unit-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install PostgreSQL (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
@@ -503,11 +477,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/integration-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types on integration tests
         run: uvx tox run -e type_check_integration_tests
 
@@ -560,11 +529,6 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/integration-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n auto
@@ -663,10 +627,5 @@ jobs:
         with:
           version: "0.9.18"
           enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/canary/sdk/${{ matrix.pkg }}.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
