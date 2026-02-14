@@ -1,0 +1,95 @@
+name: Python Nightly
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # Daily at 3/4 AM EST / 8 AM UTC
+  workflow_dispatch:
+
+env:
+  OPENAI_API_KEY: "sk-fake-openai-key"
+
+jobs:
+  discover-branches:
+    name: Discover Branches
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.branches.outputs.branches }}
+    steps:
+      - name: Discover main and version-* branches
+        id: branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branches=$(gh api repos/${{ github.repository }}/branches --paginate --jq '[.[] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
+          echo "branches=$branches" >> $GITHUB_OUTPUT
+
+  unit-tests-all-platforms:
+    name: Unit Tests (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.db }}, ${{ matrix.py }})
+    runs-on: ${{ matrix.os }}
+    needs: discover-branches
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        py: ["3.10", "3.13"]
+        os: [oss-4-core-runner, windows-latest, macos-latest]
+        db: [sqlite, postgresql]
+        exclude:
+          - db: postgresql
+            os: windows-latest
+          - db: postgresql
+            os: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/unit/
+            tests/conftest.py
+            tests/__generated__/
+            tests/__init__.py
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/unit-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install PostgreSQL
+        if: matrix.db == 'postgresql'
+        run: sudo apt-get -yqq install postgresql
+      - name: Run SQLite tests
+        if: matrix.db == 'sqlite'
+        timeout-minutes: 60
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 4 --dist loadscope
+      - name: Run PostgreSQL tests
+        if: matrix.db == 'postgresql'
+        timeout-minutes: 60
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
+
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [discover-branches, unit-tests-all-platforms]
+    if: failure()
+    steps:
+      - uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "FAILED Nightly All-Platforms Unit Tests: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
