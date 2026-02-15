@@ -439,9 +439,6 @@ test.describe.serial("Server Evaluators", () => {
     // Wait for the playground to load with dataset mode
     await page.waitForURL(`**/playground?datasetId=${datasetId}`);
 
-    // Wait for network to settle and page to load
-    await page.waitForLoadState("networkidle");
-
     // Check if the playground is showing the "No provider" message
     // If so, we error and fail the test
     const noProviderMessage = page.getByText(
@@ -462,7 +459,9 @@ test.describe.serial("Server Evaluators", () => {
     }
 
     // Wait for the playground title to appear first
-    await expect(page.getByRole("heading", { name: "Playground" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Playground" })
+    ).toBeVisible();
 
     // Wait for the "Experiment" text to appear, which indicates
     // the dataset section has loaded (this appears in PlaygroundExperimentToolbar)

@@ -76,9 +76,10 @@ export function ProjectActionMenu({
         variables: {
           projectId: projectId,
         },
+        onCompleted: () => {
+          onProjectDelete();
+        },
       });
-
-      onProjectDelete();
     });
   }, [commitDelete, projectId, onProjectDelete]);
 
