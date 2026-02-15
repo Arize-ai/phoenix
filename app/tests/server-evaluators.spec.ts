@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { ADMIN_USER, login } from "./utils/login";
+import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
 
 test.describe.serial("Server Evaluators", () => {
   const datasetName = `test-dataset-${randomUUID()}`;
@@ -10,9 +10,7 @@ test.describe.serial("Server Evaluators", () => {
   const customEvaluatorName = `custom-eval-${randomUUID().slice(0, 8)}`;
   const updatedDescription = "Updated description for testing";
 
-  test.beforeEach(async ({ page }) => {
-    await login(page, ADMIN_USER);
-  });
+  test.use({ storageState: ADMIN_STORAGE_STATE });
 
   test("can create a dataset with an example", async ({ page }) => {
     await page.goto("/datasets");

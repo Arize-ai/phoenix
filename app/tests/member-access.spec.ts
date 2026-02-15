@@ -1,11 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { login, MEMBER_USER } from "./utils/login";
+import { MEMBER_STORAGE_STATE } from "./utils/authPaths";
 
-test.beforeEach(async ({ page }) => {
-  await login(page, MEMBER_USER);
-});
+test.use({ storageState: MEMBER_STORAGE_STATE });
 
 test("can create user key", async ({ page }) => {
   // Navigate to profile page

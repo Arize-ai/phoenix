@@ -1,12 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { ADMIN_USER, login } from "./utils/login";
+import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
 
 test.describe("Playground", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page, ADMIN_USER);
-  });
+  test.use({ storageState: ADMIN_STORAGE_STATE });
 
   test("preserves prompt selection in the URL across page reloads", async ({
     page,

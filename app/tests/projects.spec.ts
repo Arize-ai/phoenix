@@ -1,14 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { ADMIN_USER, login } from "./utils/login";
+import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
 
 test.describe.serial("Projects", () => {
   const projectName = `test-project-${randomUUID()}`;
 
-  test.beforeEach(async ({ page }) => {
-    await login(page, ADMIN_USER);
-  });
+  test.use({ storageState: ADMIN_STORAGE_STATE });
 
   test("can create a project from scratch", async ({ page }) => {
     await page.goto("/projects");
