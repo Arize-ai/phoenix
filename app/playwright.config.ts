@@ -69,8 +69,8 @@ export default defineConfig({
     /* CI runners are slower; use one centralized expect timeout policy */
     timeout: isCI ? 30_000 : 10_000,
   },
-  // Use default workers (cpu count) locally, limit to 2 on CI
-  workers: isCI ? 2 : undefined,
+  // Use default workers (cpu count)
+  workers: undefined,
   fullyParallel: true,
   testDir: "./tests",
   /* Fail the build on CI if you accidentally left test.only in the source code. */
