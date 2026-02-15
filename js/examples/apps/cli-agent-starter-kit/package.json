@@ -8,9 +8,18 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx --env-file=.env src/index.ts",
+    "dev": "pnpm phoenix:ensure && tsx --env-file=.env src/index.ts",
+    "dev:verbose": "pnpm phoenix:ensure:verbose && tsx --env-file=.env src/index.ts",
     "start": "node --env-file=.env dist/index.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "phoenix:ensure": "./scripts/ensure-phoenix.sh",
+    "phoenix:ensure:verbose": "./scripts/ensure-phoenix.sh --verbose",
+    "phoenix:start": "docker compose up -d phoenix",
+    "phoenix:stop": "docker compose stop phoenix",
+    "phoenix:restart": "docker compose restart phoenix",
+    "phoenix:reload": "docker compose down && docker compose up -d phoenix",
+    "phoenix:logs": "docker compose logs -f phoenix",
+    "phoenix:down": "docker compose down"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +32,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.43",
+    "@arizeai/phoenix-otel": "workspace:*",
     "ai": "^6.0.84"
   }
 }

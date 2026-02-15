@@ -1,4 +1,7 @@
 /* eslint-disable no-console */
+// Initialize Phoenix tracing before any AI SDK calls
+import { flush } from "./instrumentation.js";
+
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 
@@ -9,6 +12,7 @@ async function main() {
 
   if (!apiKey) {
     console.error("Error: ANTHROPIC_API_KEY environment variable is not set");
+    await flush();
     process.exit(1);
   }
 
@@ -17,14 +21,25 @@ async function main() {
       model: anthropic("claude-sonnet-4-20250514"),
       prompt:
         "Say hello and introduce yourself as a CLI agent in one sentence.",
+      experimental_telemetry: { isEnabled: true },
     });
 
     console.log("Response from Claude:");
     console.log(text);
   } catch (error) {
     console.error("Error calling Anthropic API:", error);
+    await flush();
     process.exit(1);
   }
 }
 
-main();
+main()
+  .then(() => {
+    // Allow time for spans to be flushed before exit
+    // The beforeExit handler will ensure proper shutdown
+  })
+  .catch(async (error) => {
+    console.error("Fatal error:", error);
+    await flush();
+    process.exit(1);
+  });
