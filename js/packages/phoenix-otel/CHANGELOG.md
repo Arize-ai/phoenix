@@ -10,7 +10,7 @@
 
 ### Minor Changes
 
-- a8896db: feat: Enhance compatability with ai-sdk v6 telemetry
+- a8896db: feat: Enhance compatibility with ai-sdk v6 telemetry
 
 ## 0.3.4
 

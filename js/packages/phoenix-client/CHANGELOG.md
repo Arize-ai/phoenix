@@ -230,13 +230,13 @@
 
 ### Patch Changes
 
-- 1b71c66: make sure repetion numbers are greater than 0
+- 1b71c66: make sure repetition numbers are greater than 0
 
 ## 4.0.1
 
 ### Patch Changes
 
-- e72a9ad: don't swallow errors, allow for incomplete datasets (e.g. just imputs)
+- e72a9ad: don't swallow errors, allow for incomplete datasets (e.g. just inputs)
 
 ## 4.0.0
 
@@ -334,7 +334,7 @@
 
 ### Patch Changes
 
-- da7800a: feat(phoenix-client): Log the experiement/dataset link when calling runExperiment
+- da7800a: feat(phoenix-client): Log the experiment/dataset link when calling runExperiment
 
 ## 2.0.0
 

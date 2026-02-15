@@ -63,7 +63,7 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 
 ## Packages
 
-The `arize-phoenix` package includes the entire Phoenix platfom. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages and TypeScript packages that can be used in conjunction with the platfrom.
+The `arize-phoenix` package includes the entire Phoenix platform. However, if you have deployed the Phoenix platform, there are lightweight Python sub-packages and TypeScript packages that can be used in conjunction with the platform.
 
 ### Python Subpackages
 

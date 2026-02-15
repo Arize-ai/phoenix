@@ -65,7 +65,7 @@ Below is a typical attribute payload for an chat llm span:
       },
       {
         message: {
-          content: "Anser me the following question. Are you sentient?",
+          content: "Answer me the following question. Are you sentient?",
           role: "user",
         },
       },
