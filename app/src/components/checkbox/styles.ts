@@ -7,7 +7,7 @@ export const checkboxCSS = css`
   --border-color: var(--global-checkbox-border-color);
   --border-color-pressed: var(--global-checkbox-border-color-pressed);
   --border-color-hover: var(--global-checkbox-border-color-hover);
-  --focus-ring-color: var(--focus-ring-color);
+  --checkbox-focus-ring-color: var(--focus-ring-color);
   --checkbox-size: var(--global-dimension-static-size-200);
 
   display: flex;
@@ -54,7 +54,7 @@ export const checkboxCSS = css`
   }
 
   &[data-focus-visible] .checkbox {
-    outline: 2px solid var(--focus-ring-color);
+    outline: 2px solid var(--checkbox-focus-ring-color);
     outline-offset: 2px;
   }
 
