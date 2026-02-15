@@ -2,7 +2,7 @@
 
 Patterns that LLMs frequently generate incorrectly from training data.
 
-## 1. Legacy Model Classes
+## Legacy Model Classes
 
 ```python
 # WRONG
@@ -17,7 +17,7 @@ llm = LLM(provider="openai", model="gpt-4o")
 **Why**: `OpenAIModel`, `AnthropicModel`, etc. are legacy 1.0 wrappers in `phoenix.evals.legacy`.
 The `LLM` class is provider-agnostic and is the current 2.0 API.
 
-## 2. Using run_evals Instead of evaluate_dataframe
+## Using run_evals Instead of evaluate_dataframe
 
 ```python
 # WRONG — legacy 1.0 API
@@ -34,7 +34,7 @@ results_df = evaluate_dataframe(dataframe=df, evaluators=[eval1])
 **Why**: `run_evals` is the legacy 1.0 batch function. `evaluate_dataframe` is the current
 2.0 function with a different return format.
 
-## 3. Wrong Result Column Names
+## Wrong Result Column Names
 
 ```python
 # WRONG — column doesn't exist
@@ -53,7 +53,7 @@ score = scores.mean()
 **Why**: `evaluate_dataframe` returns columns named `{name}_score` containing Score dicts
 like `{"name": "...", "score": 1.0, "label": "...", "explanation": "..."}`.
 
-## 4. Deprecated project_name Parameter
+## Deprecated project_name Parameter
 
 ```python
 # WRONG
@@ -66,7 +66,7 @@ df = client.spans.get_spans_dataframe(project_identifier="my-project")
 **Why**: `project_name` is deprecated in favor of `project_identifier`, which also
 accepts project IDs.
 
-## 5. Wrong Client Constructor
+## Wrong Client Constructor
 
 ```python
 # WRONG
@@ -83,7 +83,7 @@ client = Client()
 **Why**: The parameter is `base_url`, not `endpoint` or `url`. For local instances,
 `Client()` with no args works fine. For remote instances, `base_url` and `api_key` are required.
 
-## 6. Too-Aggressive Time Filters
+## Too-Aggressive Time Filters
 
 ```python
 # WRONG — often returns zero spans
@@ -103,7 +103,7 @@ df = client.spans.get_spans_dataframe(
 **Why**: Traces may be from any time period. A 1-hour window frequently returns
 nothing. Use `limit=` to control result size instead.
 
-## 7. Not Filtering Spans Appropriately
+## Not Filtering Spans Appropriately
 
 ```python
 # WRONG — fetches all spans including internal LLM calls, retrievers, etc.
@@ -128,7 +128,7 @@ For RAG systems, you often need child spans separately — retriever spans for
 DocumentRelevance and LLM spans for Faithfulness. Choose the right span level
 for your evaluation target.
 
-## 8. Assuming Span Output is Plain Text
+## Assuming Span Output is Plain Text
 
 ```python
 # WRONG — output may be JSON, not plain text
@@ -157,7 +157,7 @@ df["output"] = df["attributes.output.value"].apply(extract_answer)
 like `{"context": "...", "question": "...", "answer": "..."}`. Evaluators need
 the actual answer text, not the raw JSON.
 
-## 9. Using @create_evaluator for LLM-Based Evaluation
+## Using @create_evaluator for LLM-Based Evaluation
 
 ```python
 # WRONG — @create_evaluator doesn't call an LLM
@@ -181,7 +181,7 @@ marks it as LLM-based but you must implement the LLM call yourself.
 For LLM-based evaluation, prefer `ClassificationEvaluator` which handles
 the LLM call, structured output parsing, and explanations automatically.
 
-## 10. Using llm_classify Instead of ClassificationEvaluator
+## Using llm_classify Instead of ClassificationEvaluator
 
 ```python
 # WRONG — legacy 1.0 API
@@ -208,7 +208,7 @@ results_df = await async_evaluate_dataframe(dataframe=df, evaluators=[classifier
 **Why**: `llm_classify` is the legacy 1.0 function. The current pattern is to create
 an evaluator with `ClassificationEvaluator` and run it with `async_evaluate_dataframe()`.
 
-## 11. Using HallucinationEvaluator
+## Using HallucinationEvaluator
 
 ```python
 # WRONG — deprecated

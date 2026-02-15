@@ -34,7 +34,7 @@ results_df = evaluate_dataframe(
 
 ## Result Column Format
 
-`evaluate_dataframe` returns a copy of the input DataFrame with added columns.
+`async_evaluate_dataframe` / `evaluate_dataframe` returns a copy of the input DataFrame with added columns.
 **Result columns contain dicts, NOT raw numbers.**
 
 For each evaluator named `"foo"`, two columns are added:
@@ -125,13 +125,13 @@ results = run_evals(dataframe=df, evaluators=[eval1])
 # Returns List[DataFrame] — one per evaluator
 
 # RIGHT — current 2.0 API
-from phoenix.evals import evaluate_dataframe
-results_df = evaluate_dataframe(dataframe=df, evaluators=[eval1])
+from phoenix.evals import async_evaluate_dataframe
+results_df = await async_evaluate_dataframe(dataframe=df, evaluators=[eval1])
 # Returns single DataFrame with {name}_score dict columns
 ```
 
 Key differences:
 - `run_evals` returns a **list** of DataFrames (one per evaluator)
-- `evaluate_dataframe` returns a **single** DataFrame with all results merged
-- `evaluate_dataframe` uses `{name}_score` dict column format
-- `evaluate_dataframe` uses `bind_evaluator` for input mapping (not `input_mapping=` param)
+- `async_evaluate_dataframe` returns a **single** DataFrame with all results merged
+- `async_evaluate_dataframe` uses `{name}_score` dict column format
+- `async_evaluate_dataframe` uses `bind_evaluator` for input mapping (not `input_mapping=` param)
