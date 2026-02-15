@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { MEMBER_STORAGE_STATE } from "./utils/authPaths";
+const MEMBER_STORAGE_STATE = "playwright/.auth/member.json";
 
 test.use({ storageState: MEMBER_STORAGE_STATE });
 

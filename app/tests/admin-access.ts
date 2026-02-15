@@ -1,10 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
-
-import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
-
-test.use({ storageState: ADMIN_STORAGE_STATE });
-
 test("admin can create system api key", async ({ page }) => {
   const testKeyName = `System-${randomUUID()}`;
   await page.getByRole("link", { name: "Settings" }).click();

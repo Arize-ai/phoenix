@@ -1,17 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
-
 test.describe.serial("Server Evaluators", () => {
   const datasetName = `test-dataset-${randomUUID()}`;
 
   // Store the custom evaluator name for use across multiple tests
   const customEvaluatorName = `custom-eval-${randomUUID().slice(0, 8)}`;
   const updatedDescription = "Updated description for testing";
-
-  test.use({ storageState: ADMIN_STORAGE_STATE });
-
   test("can create a dataset with an example", async ({ page }) => {
     await page.goto("/datasets");
     await page.waitForURL("**/datasets");

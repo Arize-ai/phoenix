@@ -5,7 +5,7 @@ stats.html
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-/playwright/.auth/
+playwright/.auth
 
 *storybook.log
 *mprocs.log

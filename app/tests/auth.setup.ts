@@ -1,12 +1,10 @@
 import { expect, Page, test as setup } from "@playwright/test";
 import fs from "fs/promises";
 
-import {
-  ADMIN_STORAGE_STATE,
-  AUTH_DIR,
-  MEMBER_STORAGE_STATE,
-  VIEWER_STORAGE_STATE,
-} from "./utils/authPaths";
+const AUTH_DIR = "playwright/.auth";
+const ADMIN_STORAGE_STATE = `${AUTH_DIR}/admin.json`;
+const MEMBER_STORAGE_STATE = `${AUTH_DIR}/member.json`;
+const VIEWER_STORAGE_STATE = `${AUTH_DIR}/viewer.json`;
 
 async function login({
   page,

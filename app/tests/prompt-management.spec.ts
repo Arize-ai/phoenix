@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
-
 /**
  * Helper to extract URLSearchParams from the current page URL.
  */
@@ -11,8 +9,6 @@ function searchParamsFromURL(url: string): URLSearchParams {
 }
 
 test.describe("Prompt Management", () => {
-  test.use({ storageState: ADMIN_STORAGE_STATE });
-
   test("can create a prompt", async ({ page }) => {
     await page.goto("/prompts");
     await page.waitForURL("**/prompts");

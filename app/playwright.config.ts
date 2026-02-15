@@ -18,14 +18,20 @@ const projects: Project[] = [
   },
   {
     name: "chromium",
-    use: { ...devices["Desktop Chrome"] },
+    use: {
+      ...devices["Desktop Chrome"],
+      storageState: "playwright/.auth/admin.json",
+    },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
     testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
   },
   {
     name: "firefox",
-    use: { ...devices["Desktop Firefox"] },
+    use: {
+      ...devices["Desktop Firefox"],
+      storageState: "playwright/.auth/admin.json",
+    },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
     testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
@@ -35,7 +41,10 @@ const projects: Project[] = [
 if (!skipWebKit) {
   projects.push({
     name: "webkit",
-    use: { ...devices["Desktop Safari"] },
+    use: {
+      ...devices["Desktop Safari"],
+      storageState: "playwright/.auth/admin.json",
+    },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
     testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],

@@ -1,11 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
-
 test.describe("Datasets", () => {
-  test.use({ storageState: ADMIN_STORAGE_STATE });
-
   test("can create a dataset from scratch", async ({ page }) => {
     const datasetName = `test-dataset-${randomUUID()}`;
 

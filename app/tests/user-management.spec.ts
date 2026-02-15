@@ -1,10 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
-
-import { ADMIN_STORAGE_STATE } from "./utils/authPaths";
-
-test.use({ storageState: ADMIN_STORAGE_STATE });
-
 test("can create a user", async ({ page }) => {
   await page.goto("/settings/general");
   await page.waitForURL("**/settings/general");
