@@ -9,6 +9,19 @@ GitHub
 
 
 
+<Update label="02.14.2026">
+## [02.14.2026: Phoenix 13.0](/docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0)
+**Phoenix 13.0** is a major release centered on **Dataset Evaluators**, with support for **custom model providers**, **OpenAI Responses API type selection**, and extensive **Playground** and **dataset/experiment UX** improvements.
+
+Highlights include:
+
+- Attach evaluator suites directly to datasets and run them server-side on every Playground experiment.
+- Reuse server-managed custom providers (OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, Google GenAI) across Playground, prompts, and dataset evaluators.
+- Choose OpenAI API type per configuration (`chat.completions.create` or `responses.create`) with automatic parameter compatibility handling.
+- Use new Playground workflows such as cancellation, template variable autocomplete, appended messages, improved prompt selection, and URL state for prompt IDs/versions/tags.
+- Get expanded dataset and experiment ergonomics, model/provider updates (including Claude Opus 4.6 and Azure OpenAI v1 migration), and infrastructure improvements like a session ID index for spans.
+</Update>
+
 <Update label="02.12.2026">
 ## [02.12.2026: OpenAI Responses API Type Support](/docs/phoenix/release-notes/02-2026/02-12-2026-openai-responses-api-support)
 Phoenix now supports selecting the **OpenAI API type** for OpenAI and Azure OpenAI calls in the Playground and custom providers. Choose **Chat Completions** (`chat.completions.create`) or **Responses** (`responses.create`) depending on the model and features you want to use.
