@@ -15,8 +15,10 @@ Review traces to discover failure modes before building evaluators.
 ```python
 from phoenix.client import Client
 
+# Client() works for local Phoenix (falls back to env vars or localhost:6006)
+# For remote/cloud: Client(base_url="https://app.phoenix.arize.com", api_key="...")
 client = Client()
-spans_df = client.spans.get_spans_dataframe(project_name="my-app")
+spans_df = client.spans.get_spans_dataframe(project_identifier="my-app")
 
 # Build representative sample
 sample = pd.concat([

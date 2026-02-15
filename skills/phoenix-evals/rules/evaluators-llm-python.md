@@ -38,29 +38,55 @@ Use XML tags to wrap variables for clarity:
 | `{{reference}}` | `<reference>{{reference}}</reference>` |
 | `{{context}}` | `<context>{{context}}</context>` |
 
-## Input Mapping
+## create_classifier (Factory)
 
-Map data columns to template variables:
+Shorthand factory that returns a `ClassificationEvaluator`. Prefer direct
+`ClassificationEvaluator` instantiation for more parameters/customization:
 
 ```python
-results = run_evals(
-    dataframe=df,
-    evaluators=[evaluator],
-    input_mapping={"input": "user_query", "output": "ai_response", "context": "docs"}
+from phoenix.evals import create_classifier, LLM
+
+relevance = create_classifier(
+    name="relevance",
+    prompt_template="""Is this response relevant to the question?
+<question>{{input}}</question>
+<response>{{output}}</response>
+Answer (relevant/irrelevant):""",
+    llm=LLM(provider="openai", model="gpt-4o"),
+    choices={"relevant": 1.0, "irrelevant": 0.0},
 )
+```
+
+## Input Mapping
+
+Column names must match template variables. Rename columns or use `bind_evaluator`:
+
+```python
+# Option 1: Rename columns to match template variables
+df = df.rename(columns={"user_query": "input", "ai_response": "output"})
+
+# Option 2: Use bind_evaluator
+from phoenix.evals import bind_evaluator
+
+bound = bind_evaluator(
+    evaluator=helpfulness,
+    input_mapping={"input": "user_query", "output": "ai_response"},
+)
+```
+
+## Running
+
+```python
+from phoenix.evals import evaluate_dataframe
+
+results_df = evaluate_dataframe(dataframe=df, evaluators=[helpfulness])
 ```
 
 ## Best Practices
 
 1. **Be specific** - Define exactly what pass/fail means
 2. **Include examples** - Show concrete cases for each label
-3. **Use chain of thought** - Better accuracy with `<thinking>` sections
-4. **Get explanations** - `provide_explanation=True` for debugging
-
-## Running
-
-```python
-from phoenix.evals import run_evals
-
-results_df = run_evals(dataframe=df, evaluators=[helpfulness], provide_explanation=True)
-```
+3. **Explanations by default** - `ClassificationEvaluator` includes explanations automatically
+4. **Study built-in prompts** - See
+   `phoenix.evals.__generated__.classification_evaluator_configs` for examples
+   of well-structured evaluation prompts (Faithfulness, Correctness, DocumentRelevance, etc.)

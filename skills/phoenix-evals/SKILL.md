@@ -19,11 +19,13 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Setup | `setup-python`, `setup-typescript` |
 | Build code evaluator | `evaluators-code-{python\|typescript}` |
 | Build LLM evaluator | `evaluators-llm-{python\|typescript}`, `evaluators-custom-templates` |
+| Batch evaluate DataFrame | `evaluate-dataframe-python` |
 | Run experiment | `experiments-running-{python\|typescript}` |
 | Create dataset | `experiments-datasets-{python\|typescript}` |
 | Validate evaluator | `validation`, `validation-calibration-{python\|typescript}` |
 | Analyze errors | `error-analysis`, `axial-coding` |
 | RAG evals | `evaluators-rag` |
+| Avoid common mistakes | `common-mistakes-python` |
 | Production | `production-overview`, `production-guardrails` |
 
 ## Workflows
@@ -32,7 +34,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 `observe-tracing-setup` → `error-analysis` → `axial-coding` → `evaluators-overview`
 
 **Building Evaluator:**
-`fundamentals` → `evaluators-{code\|llm}-{python\|typescript}` → `validation-calibration-{python\|typescript}`
+`fundamentals` → `common-mistakes-python` → `evaluators-{code\|llm}-{python\|typescript}` → `validation-calibration-{python\|typescript}`
 
 **RAG Systems:**
 `evaluators-rag` → `evaluators-code-*` (retrieval) → `evaluators-llm-*` (faithfulness)
