@@ -737,7 +737,6 @@
             "icon": "python",
             "pages": [
               "docs/phoenix/sdk-api-reference",
-              "docs/phoenix/sdk-api-reference/python/reference",
               "docs/phoenix/sdk-api-reference/python/arize-phoenix-client",
               "docs/phoenix/sdk-api-reference/python/arize-phoenix-evals",
               "docs/phoenix/sdk-api-reference/python/arize-phoenix-otel"
@@ -748,7 +747,6 @@
             "icon": "js",
             "pages": [
               "docs/phoenix/sdk-api-reference/typescript/overview",
-              "docs/phoenix/sdk-api-reference/typescript/reference",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
