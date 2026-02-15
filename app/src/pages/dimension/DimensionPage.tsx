@@ -115,7 +115,7 @@ export function DimensionPage() {
                 </DialogHeader>
                 <main
                   css={css`
-                    padding: var(--ac-global-dimension-static-size-100);
+                    padding: var(--global-dimension-static-size-100);
                     display: flex;
                     flex-direction: column;
                     min-height: 400px;

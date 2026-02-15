@@ -278,8 +278,8 @@ function MessageCard({ role, content }: { role: string; content: string }) {
       <pre
         css={css`
           white-space: pre-wrap;
-          padding-left: var(--ac-global-dimension-static-size-200);
-          padding-right: var(--ac-global-dimension-static-size-200);
+          padding-left: var(--global-dimension-static-size-200);
+          padding-right: var(--global-dimension-static-size-200);
         `}
       >
         {content}

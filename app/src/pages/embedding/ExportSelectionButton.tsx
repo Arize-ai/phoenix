@@ -48,7 +48,7 @@ dataframe`;
 
 const codeMirrorCSS = css`
   .cm-content {
-    padding: var(--ac-global-dimension-static-size-100);
+    padding: var(--global-dimension-static-size-100);
   }
 `;
 function CodeBlock({ value }: { value: string }) {

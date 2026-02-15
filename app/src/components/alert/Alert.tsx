@@ -46,16 +46,16 @@ export interface AlertProps {
 }
 
 const alertCSS = css`
-  --alert-base-color: var(--ac-global-color-info);
+  --alert-base-color: var(--global-color-info);
   --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.1);
   --alert-border-color: lch(from var(--alert-base-color) l c h / 0.3);
   --alert-text-color: lch(
     from var(--alert-base-color) calc((50 - l) * infinity) 0 0
   );
 
-  padding: var(--ac-global-dimension-static-size-100)
-    var(--ac-global-dimension-static-size-200);
-  border-radius: var(--ac-global-rounding-small);
+  padding: var(--global-dimension-static-size-100)
+    var(--global-dimension-static-size-200);
+  border-radius: var(--global-rounding-small);
   color: var(--alert-text-color);
   display: flex;
   flex-direction: row;
@@ -71,19 +71,19 @@ const alertCSS = css`
   }
 
   &[data-variant="warning"] {
-    --alert-base-color: var(--ac-global-color-warning);
+    --alert-base-color: var(--global-color-warning);
   }
 
   &[data-variant="info"] {
-    --alert-base-color: var(--ac-global-color-info);
+    --alert-base-color: var(--global-color-info);
   }
 
   &[data-variant="danger"] {
-    --alert-base-color: var(--ac-global-color-danger);
+    --alert-base-color: var(--global-color-danger);
   }
 
   &[data-variant="success"] {
-    --alert-base-color: var(--ac-global-color-success);
+    --alert-base-color: var(--global-color-success);
   }
 
   &[data-theme="light"] {
@@ -106,8 +106,8 @@ const alertCSS = css`
 
     .ac-icon-wrap {
       margin-top: 4px;
-      margin-right: var(--ac-global-dimension-static-size-200);
-      font-size: var(--ac-global-font-size-l);
+      margin-right: var(--global-dimension-static-size-200);
+      font-size: var(--global-font-size-l);
     }
   }
 `;
@@ -127,7 +127,7 @@ const dismissButtonCSS = css`
   cursor: pointer;
   width: 20px;
   height: 20px;
-  margin-left: var(--ac-global-dimension-static-size-200);
+  margin-left: var(--global-dimension-static-size-200);
 `;
 
 export const Alert = ({

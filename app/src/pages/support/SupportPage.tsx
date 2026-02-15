@@ -14,8 +14,8 @@ import {
 const supportItemsCSS = css`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: var(--ac-global-dimension-size-200);
-  padding: var(--ac-global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 
 export function SupportPage() {
@@ -66,21 +66,20 @@ export function SupportPage() {
 }
 
 const supportItemCSS = css`
-  padding: var(--ac-global-dimension-size-200)
-    var(--ac-global-dimension-size-200) var(--ac-global-dimension-size-200);
-  border: var(--ac-global-border-size-thin) solid
-    var(--ac-global-border-color-dark);
-  border-radius: var(--ac-global-dimension-size-100);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
+    var(--global-dimension-size-200);
+  border: var(--global-border-size-thin) solid var(--global-border-color-dark);
+  border-radius: var(--global-dimension-size-100);
   cursor: pointer;
-  background-color: var(--ac-global-background-color-dark);
+  background-color: var(--global-background-color-dark);
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-50);
-  color: var(--ac-global-color-text-700);
+  gap: var(--global-dimension-size-50);
+  color: var(--global-color-text-700);
   transition: border-color 0.2s ease-in-out;
   text-decoration: none;
   &:hover {
-    border-color: var(--ac-global-color-primary);
+    border-color: var(--global-color-primary);
   }
 `;
 

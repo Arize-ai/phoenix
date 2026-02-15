@@ -66,7 +66,7 @@ const getTextColor = (color: TextColorValue): string => {
   }
   if (color.startsWith("text-")) {
     const [, num] = color.split("-");
-    return `var(--ac-global-text-color-${num})`;
+    return `var(--global-text-color-${num})`;
   }
   return colorValue(color as ColorValue);
 };

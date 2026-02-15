@@ -10,7 +10,7 @@ export type ToolbarProps = AriaToolbarProps;
 const toolbarCSS = css`
   display: flex;
 
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
 
   &[data-orientation="vertical"] {
     flex-direction: column;

@@ -6,18 +6,17 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation/Annotatio
 import { Annotation, AnnotationDisplayPreference } from "./types";
 
 export const baseAnnotationLabelCSS = css`
-  border-radius: var(--ac-global-dimension-size-50);
-  border: 1px solid var(--ac-global-color-grey-400);
-  padding: var(--ac-global-dimension-size-50)
-    var(--ac-global-dimension-size-100);
+  border-radius: var(--global-dimension-size-50);
+  border: 1px solid var(--global-color-gray-400);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   transition: background-color 0.2s;
   display: flex;
   flex-direction: row;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
   &[data-clickable="true"] {
     cursor: pointer;
     &:hover {
-      background-color: var(--ac-global-color-grey-300);
+      background-color: var(--global-color-gray-300);
     }
   }
   .ac-icon-wrap {

@@ -26,7 +26,7 @@ type Story = StoryObj<typeof meta>;
  */
 export const Default: Story = {
   render: (args) => (
-    <List {...args} style={{ color: "var(--ac-global-text-color-900)" }}>
+    <List {...args} style={{ color: "var(--global-text-color-900)" }}>
       <ListItem>First item</ListItem>
       <ListItem>Second item</ListItem>
       <ListItem>Third item</ListItem>
@@ -42,7 +42,7 @@ export const Default: Story = {
  */
 export const Small: Story = {
   render: (args) => (
-    <List {...args} style={{ color: "var(--ac-global-text-color-900)" }}>
+    <List {...args} style={{ color: "var(--global-text-color-900)" }}>
       <ListItem>First item</ListItem>
       <ListItem>Second item</ListItem>
       <ListItem>Third item</ListItem>

@@ -92,8 +92,8 @@ export function ForgotPasswordForm({
         />
         <div
           css={css`
-            margin-top: var(--ac-global-dimension-size-200);
-            margin-bottom: var(--ac-global-dimension-size-50);
+            margin-top: var(--global-dimension-size-200);
+            margin-bottom: var(--global-dimension-size-50);
             button {
               width: 100%;
             }

@@ -590,7 +590,7 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             <li>
@@ -637,7 +637,7 @@ export function ExperimentCompareListPage({
                       </TextOverflow>
                     </ContentPreviewTooltip>
                   ) : (
-                    <Text size="S" fontFamily="mono" color="grey-500">
+                    <Text size="S" fontFamily="mono" color="gray-500">
                       not run
                     </Text>
                   )}
@@ -658,7 +658,7 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             {experiments.map((experiment) => {
@@ -669,7 +669,7 @@ export function ExperimentCompareListPage({
               return (
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <Text size="S" fontFamily="mono" color="grey-500">
+                    <Text size="S" fontFamily="mono" color="gray-500">
                       AVG
                     </Text>
                     <Text size="S" fontFamily="mono">
@@ -692,7 +692,7 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             <li>
@@ -757,13 +757,13 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             {experiments.map((experiment) => (
               <li key={experiment.id}>
                 <Flex direction="row" gap="size-100" alignItems="center">
-                  <Text size="S" fontFamily="mono" color="grey-500">
+                  <Text size="S" fontFamily="mono" color="gray-500">
                     AVG
                   </Text>
                   <Text size="S" fontFamily="mono">
@@ -785,7 +785,7 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             <li>
@@ -823,7 +823,7 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             {experiments.map((experiment) => {
@@ -834,7 +834,7 @@ export function ExperimentCompareListPage({
               return (
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <Text size="S" fontFamily="mono" color="grey-500">
+                    <Text size="S" fontFamily="mono" color="gray-500">
                       AVG
                     </Text>
                     <Text size="S" fontFamily="mono">
@@ -857,7 +857,7 @@ export function ExperimentCompareListPage({
             css={css`
               display: flex;
               flex-direction: column;
-              gap: var(--ac-global-dimension-size-50);
+              gap: var(--global-dimension-size-50);
             `}
           >
             <li>
@@ -962,7 +962,7 @@ export function ExperimentCompareListPage({
                     css={css`
                       display: flex;
                       flex-direction: column;
-                      gap: var(--ac-global-dimension-size-25);
+                      gap: var(--global-dimension-size-25);
                     `}
                   >
                     {experiments.map((experiment, index) => {
@@ -988,7 +988,7 @@ export function ExperimentCompareListPage({
                             gap="size-100"
                             alignItems="center"
                           >
-                            <Text size="S" fontFamily="mono" color="grey-500">
+                            <Text size="S" fontFamily="mono" color="gray-500">
                               AVG
                             </Text>
                             <Text size="S" fontFamily="mono">
@@ -1001,7 +1001,7 @@ export function ExperimentCompareListPage({
                           "number" ? (
                             <ProgressBar
                               width="100%"
-                              height="var(--ac-global-dimension-size-25)"
+                              height="var(--global-dimension-size-25)"
                               value={calculateAnnotationScorePercentile(
                                 experimentAnnotationSummary.meanScore,
                                 annotationSummary.minScore,
@@ -1046,7 +1046,7 @@ export function ExperimentCompareListPage({
                   css={css`
                     display: flex;
                     flex-direction: column;
-                    gap: var(--ac-global-dimension-size-25);
+                    gap: var(--global-dimension-size-25);
                   `}
                 >
                   <AnnotationValueItem
@@ -1238,7 +1238,7 @@ export function ExperimentCompareListPage({
                       style={{
                         width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
                         padding:
-                          "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                          "var(--global-dimension-size-175) var(--global-dimension-size-200)",
                       }}
                     >
                       {header.isPlaceholder ? null : (
@@ -1377,9 +1377,9 @@ function AnnotationValueItem({
 }) {
   const bgColor =
     positiveOptimization === true
-      ? "var(--ac-global-color-success-100)"
+      ? "var(--global-color-success-100)"
       : positiveOptimization === false
-        ? "var(--ac-global-color-danger-100)"
+        ? "var(--global-color-danger-100)"
         : undefined;
   const textColor =
     positiveOptimization === true
@@ -1389,9 +1389,9 @@ function AnnotationValueItem({
         : undefined;
   const optimizedBarColor =
     positiveOptimization === true
-      ? "var(--ac-global-color-success-500)"
+      ? "var(--global-color-success-500)"
       : positiveOptimization === false
-        ? "var(--ac-global-color-danger-500)"
+        ? "var(--global-color-danger-500)"
         : barColor;
 
   return (
@@ -1399,11 +1399,11 @@ function AnnotationValueItem({
       css={css`
         --mod-barloader-fill-color: ${optimizedBarColor};
         ${bgColor ? `background-color: ${bgColor};` : ""}
-        padding: var(--ac-global-dimension-size-25)
-          var(--ac-global-dimension-size-50);
-        border-radius: var(--ac-global-rounding-small);
-        margin: calc(-1 * var(--ac-global-dimension-size-25))
-          calc(-1 * var(--ac-global-dimension-size-50));
+        padding: var(--global-dimension-size-25)
+          var(--global-dimension-size-50);
+        border-radius: var(--global-rounding-small);
+        margin: calc(-1 * var(--global-dimension-size-25))
+          calc(-1 * var(--global-dimension-size-50));
       `}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
@@ -1414,7 +1414,7 @@ function AnnotationValueItem({
       {typeof numericValue === "number" ? (
         <ProgressBar
           width="100%"
-          height="var(--ac-global-dimension-size-25)"
+          height="var(--global-dimension-size-25)"
           value={calculateAnnotationScorePercentile(
             numericValue,
             minScore,
@@ -1466,7 +1466,7 @@ function TableBody<T>({
                   width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                   maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                   padding:
-                    "var(--ac-global-dimension-size-175) var(--ac-global-dimension-size-200)",
+                    "var(--global-dimension-size-175) var(--global-dimension-size-200)",
                   verticalAlign: "middle",
                 }}
               >
@@ -1560,7 +1560,7 @@ function TextOverflow({ children }: { children: React.ReactNode }) {
 
 const progressBarPlaceholderCSS = css`
   width: 100%;
-  height: var(--ac-global-dimension-size-25);
+  height: var(--global-dimension-size-25);
 `;
 
 function ProgressBarPlaceholder() {

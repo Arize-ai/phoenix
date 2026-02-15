@@ -75,8 +75,8 @@ const FIELD_CONFIG: {
 
 const editorContainerCSS = css`
   min-height: 60px;
-  border-radius: var(--ac-global-rounding-small);
-  background-color: var(--ac-global-input-field-background-color);
+  border-radius: var(--global-rounding-small);
+  background-color: var(--global-input-field-background-color);
 `;
 
 const DEFAULT_EXPANDED_KEYS = FIELD_CONFIG.map(({ field }) => field);

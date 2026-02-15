@@ -47,12 +47,12 @@ export function SpanColumnSelector(props: SpanColumnSelectorProps) {
 }
 
 const columCheckboxItemCSS = css`
-  padding: var(--ac-global-dimension-static-size-50)
-    var(--ac-global-dimension-static-size-100);
+  padding: var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-100);
   label {
     display: flex;
     align-items: center;
-    gap: var(--ac-global-dimension-static-size-100);
+    gap: var(--global-dimension-static-size-100);
   }
 `;
 

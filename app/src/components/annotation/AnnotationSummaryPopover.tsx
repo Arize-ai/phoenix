@@ -71,7 +71,7 @@ export function AnnotationSummaryPopover({
           <PopoverArrow />
           <Dialog
             css={css`
-              border-radius: var(--ac-global-radius-200);
+              border-radius: var(--global-radius-200);
             `}
           >
             <FocusScope autoFocus contain restoreFocus>

@@ -19,12 +19,12 @@ import { DateField } from "./DateField";
 const containerCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
 `;
 
 const formRowCSS = css`
   display: flex;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   align-items: start;
   justify-content: end;
   /* Move the button down to align */
@@ -37,7 +37,7 @@ const controlsRowCSS = css`
   width: 100%;
   display: flex;
   justify-content: flex-end;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 const dateFieldCSS = css`

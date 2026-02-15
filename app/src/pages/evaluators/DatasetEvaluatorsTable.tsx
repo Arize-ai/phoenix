@@ -75,24 +75,24 @@ export const convertTanstackSortToEvaluatorSort = (
 const evaluatorItemButtonCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
   height: 90px;
-  padding: var(--ac-global-dimension-size-200);
-  border-radius: var(--ac-global-rounding-small);
-  border: 1px solid var(--ac-global-border-color-default);
+  padding: var(--global-dimension-size-200);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-border-color-default);
   background-color: transparent;
   cursor: pointer;
   text-align: left;
   transition: background-color 0.2s ease;
   &:hover {
-    background-color: var(--ac-global-color-grey-200);
+    background-color: var(--global-color-gray-200);
   }
 `;
 
 const evaluatorColumnCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-125);
+  gap: var(--global-dimension-size-125);
   flex: 1;
 `;
 
@@ -121,7 +121,7 @@ const EmptyState = ({
           justifyContent="center"
           gap="size-300"
           maxWidth="700px"
-          margin="var(--ac-global-dimension-size-300) auto"
+          margin="var(--global-dimension-size-300) auto"
         >
           <Text size="S" fontStyle="italic" color="text-500">
             No evaluators found that match the given filter.
@@ -140,7 +140,7 @@ const EmptyState = ({
         justifyContent="center"
         gap="size-300"
         maxWidth="700px"
-        margin="var(--ac-global-dimension-size-300) auto"
+        margin="var(--global-dimension-size-300) auto"
       >
         <Text size="S" fontStyle="italic" color="text-500">
           No evaluators added to this dataset

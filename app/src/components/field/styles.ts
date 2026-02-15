@@ -14,9 +14,9 @@ export const fieldBaseCSS = css`
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
-    font-size: var(--ac-global-font-size-xs);
-    line-height: var(--ac-global-line-height-xs);
-    font-weight: var(--px-font-weight-heavy);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+    font-weight: var(--font-weight-heavy);
   }
 
   .react-aria-Input,
@@ -24,13 +24,13 @@ export const fieldBaseCSS = css`
     transition: all 0.2s ease-in-out;
     margin: 0;
     flex: 1 1 auto;
-    font-size: var(--ac-global-font-size-s);
-    min-width: var(--ac-global-input-field-min-width);
-    background-color: var(--ac-global-input-field-background-color);
-    color: var(--ac-global-text-color-900);
-    border: var(--ac-global-border-size-thin) solid
-      var(--ac-global-input-field-border-color);
-    border-radius: var(--ac-global-rounding-small);
+    font-size: var(--global-font-size-s);
+    min-width: var(--global-input-field-min-width);
+    background-color: var(--global-input-field-background-color);
+    color: var(--global-text-color-900);
+    border: var(--global-border-size-thin) solid
+      var(--global-input-field-border-color);
+    border-radius: var(--global-rounding-small);
     vertical-align: middle;
 
     &[data-focused] {
@@ -38,19 +38,19 @@ export const fieldBaseCSS = css`
       outline: none;
     }
     &[data-focused]:not([data-invalid]) {
-      border: 1px solid var(--ac-global-input-field-border-color-active);
+      border: 1px solid var(--global-input-field-border-color-active);
     }
     &[data-hovered]:not([data-disabled]):not([data-invalid]) {
-      border: 1px solid var(--ac-global-input-field-border-color-active);
+      border: 1px solid var(--global-input-field-border-color-active);
     }
     &[data-disabled] {
-      opacity: var(--ac-global-opacity-disabled);
+      opacity: var(--global-opacity-disabled);
     }
     &[data-invalid="true"] {
-      border: 1px solid var(--ac-global-color-danger);
+      border: 1px solid var(--global-color-danger);
     }
     &::placeholder {
-      color: var(--ac-text-color-placeholder);
+      color: var(--text-color-placeholder);
       font-style: italic;
     }
   }
@@ -58,28 +58,28 @@ export const fieldBaseCSS = css`
   [slot="errorMessage"],
   .react-aria-FieldError {
     /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
-    font-size: var(--ac-global-font-size-xs) !important;
-    padding-top: var(--ac-global-dimension-static-size-50);
+    font-size: var(--global-font-size-xs) !important;
+    padding-top: var(--global-dimension-static-size-50);
     display: inline-block;
-    line-height: var(--ac-global-dimension-static-font-size-200) !important;
+    line-height: var(--global-dimension-static-font-size-200) !important;
   }
 
   [slot="description"] {
-    color: var(--ac-global-text-color-500);
+    color: var(--global-text-color-500);
   }
 
   .react-aria-FieldError {
-    color: var(--ac-global-color-danger);
+    color: var(--global-color-danger);
   }
 `;
 
 export const fieldPopoverCSS = css`
   width: var(--trigger-width);
-  background-color: var(--ac-global-menu-background-color);
-  border-radius: var(--ac-global-rounding-small);
-  color: var(--ac-global-text-color-900);
-  box-shadow: 0px 4px 10px var(--px-overlay-shadow-color);
-  border: 1px solid var(--ac-global-menu-border-color);
+  background-color: var(--global-menu-background-color);
+  border-radius: var(--global-rounding-small);
+  color: var(--global-text-color-900);
+  box-shadow: 0px 4px 10px var(--overlay-shadow-color);
+  border: 1px solid var(--global-menu-border-color);
   max-height: inherit;
 `;
 
@@ -96,22 +96,22 @@ export const textFieldCSS = css`
   }
 
   &[data-size="S"] {
-    --textfield-input-height: var(--ac-global-input-height-s);
-    --textfield-vertical-padding: var(--ac-global-dimension-size-75);
-    --textfield-horizontal-padding: var(--ac-global-dimension-size-75);
-    --icon-size: var(--ac-global-font-size-s);
+    --textfield-input-height: var(--global-input-height-s);
+    --textfield-vertical-padding: var(--global-dimension-size-75);
+    --textfield-horizontal-padding: var(--global-dimension-size-75);
+    --icon-size: var(--global-font-size-s);
   }
   &[data-size="M"] {
-    --textfield-input-height: var(--ac-global-input-height-m);
-    --textfield-vertical-padding: var(--ac-global-dimension-size-125);
-    --textfield-horizontal-padding: var(--ac-global-dimension-size-125);
-    --icon-size: var(--ac-global-font-size-m);
+    --textfield-input-height: var(--global-input-height-m);
+    --textfield-vertical-padding: var(--global-dimension-size-125);
+    --textfield-horizontal-padding: var(--global-dimension-size-125);
+    --icon-size: var(--global-font-size-m);
   }
   &[data-size="L"] {
-    --textfield-input-height: var(--ac-global-input-height-l);
-    --textfield-vertical-padding: var(--ac-global-dimension-size-150);
-    --textfield-horizontal-padding: var(--ac-global-dimension-size-150);
-    --icon-size: var(--ac-global-font-size-l);
+    --textfield-input-height: var(--global-input-height-l);
+    --textfield-vertical-padding: var(--global-dimension-size-150);
+    --textfield-horizontal-padding: var(--global-dimension-size-150);
+    --icon-size: var(--global-font-size-l);
   }
 
   &:has(.ac-field-icon) {
@@ -134,24 +134,21 @@ export const textFieldCSS = css`
   input {
     width: 100%;
     margin: 0;
-    border: var(--ac-global-border-size-thin) solid
-      var(
-        --ac-field-border-color-override,
-        var(--ac-global-input-field-border-color)
-      );
-    border-radius: var(--ac-global-rounding-small);
-    background-color: var(--ac-global-input-field-background-color);
-    color: var(--ac-global-text-color-900);
+    border: var(--global-border-size-thin) solid
+      var(--field-border-color-override, var(--global-input-field-border-color));
+    border-radius: var(--global-rounding-small);
+    background-color: var(--global-input-field-background-color);
+    color: var(--global-text-color-900);
     padding: var(--textfield-vertical-padding)
       var(--textfield-horizontal-padding);
     box-sizing: border-box;
     outline-offset: -1px;
-    outline: var(--ac-global-border-size-thin) solid transparent;
+    outline: var(--global-border-size-thin) solid transparent;
     &[data-focused]:not([data-invalid]) {
-      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline: 1px solid var(--global-input-field-border-color-active);
     }
     &[data-focused][data-invalid] {
-      outline: 1px solid var(--ac-global-color-danger);
+      outline: 1px solid var(--global-color-danger);
     }
   }
 

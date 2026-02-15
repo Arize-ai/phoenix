@@ -118,7 +118,7 @@ export function LoginForm(props: LoginFormProps) {
                   position: absolute;
                   float: right;
                   right: 0;
-                  top: var(--ac-global-dimension-size-50);
+                  top: var(--global-dimension-size-50);
                   font-size: 12px;
                 }
               `}

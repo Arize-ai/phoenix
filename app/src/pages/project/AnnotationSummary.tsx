@@ -252,10 +252,10 @@ function useAnnotationSummaryChartColors(name: string) {
   const primaryColor = useWordColor(name);
   const colors = [
     primaryColor,
-    chartColors.grey300,
-    chartColors.grey400,
-    chartColors.grey500,
-    chartColors.grey600,
+    chartColors.gray300,
+    chartColors.gray400,
+    chartColors.gray500,
+    chartColors.gray600,
   ];
   return colors;
 }

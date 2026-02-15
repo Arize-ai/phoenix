@@ -41,16 +41,16 @@ export const AnnotationInputExplanation = ({
           top: 6px;
           right: 0;
           width: ${EXPLANATION_LABEL_WIDTH};
-          font-size: var(--ac-global-dimension-static-font-size-75);
+          font-size: var(--global-dimension-static-font-size-75);
           background: none;
           border: none;
           padding: 0 !important;
           line-height: unset;
-          color: var(--ac-global-link-color);
+          color: var(--global-link-color);
           &:disabled {
             cursor: default;
-            opacity: var(--ac-global-opacity-disabled);
-            color: var(--ac-global-text-color-900);
+            opacity: var(--global-opacity-disabled);
+            color: var(--global-text-color-900);
           }
           &:hover:not(:disabled) {
             text-decoration: underline;

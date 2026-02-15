@@ -11,7 +11,7 @@ const colorSwatchPickerCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   flex-wrap: wrap;
 
   .react-aria-ColorSwatchPickerItem {
@@ -25,7 +25,7 @@ const colorSwatchPickerCSS = css`
       content: "";
       position: absolute;
       inset: 0;
-      border: 2px solid var(--ac-global-text-color-900);
+      border: 2px solid var(--global-text-color-900);
       border-radius: inherit;
     }
   }

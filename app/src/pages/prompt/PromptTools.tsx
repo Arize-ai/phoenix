@@ -76,7 +76,7 @@ export function PromptTools({
           & {
             > .ac-disclosure:last-child {
               &[data-expanded="true"] {
-                border-bottom: 1px solid var(--ac-global-border-color-default);
+                border-bottom: 1px solid var(--global-border-color-default);
               }
             }
           }

@@ -18,14 +18,14 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       }}
       aria-label={props["aria-label"]}
       css={css`
-        color: var(--ac-global-text-color-500);
+        color: var(--global-text-color-500);
         cursor: pointer;
         .ac-icon-wrap {
           font-size: 1.2rem;
         }
 
         &:hover {
-          color: var(--ac-global-color-primary);
+          color: var(--global-color-primary);
         }
       `}
     >

@@ -35,20 +35,19 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
   return (
     <div
       css={css`
-        padding: var(--ac-global-dimension-size-100)
-          var(--ac-global-dimension-size-200) 0
-          var(--ac-global-dimension-size-200);
+        padding: var(--global-dimension-size-100)
+          var(--global-dimension-size-200) 0 var(--global-dimension-size-200);
 
         display: flex;
         flex-direction: row;
-        gap: var(--ac-global-dimension-size-100);
+        gap: var(--global-dimension-size-100);
       `}
       className="dashboard-panel-header"
     >
       <Flex direction="column">
         <Heading>{title}</Heading>
         {subtitle && (
-          <Text size="XS" color="grey-600">
+          <Text size="XS" color="gray-600">
             {subtitle}
           </Text>
         )}
@@ -68,12 +67,12 @@ export const MetricPanel = forwardRef(function MetricPanel(
   return (
     <View
       borderWidth="thin"
-      borderColor="grey-200"
+      borderColor="gray-200"
       borderRadius="medium"
       height="100%"
       width="100%"
       data-testid={`dashboard-panel`}
-      backgroundColor="grey-75"
+      backgroundColor="gray-75"
       ref={ref}
     >
       <div
@@ -87,7 +86,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
         <div
           css={css`
             flex: 1 1 auto;
-            padding: var(--ac-global-dimension-size-200);
+            padding: var(--global-dimension-size-200);
             height: 190px;
             overflow: auto;
           `}
@@ -207,8 +206,8 @@ const MetricPanels = memo(function MetricPanels({
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--ac-global-dimension-size-200);
-        padding: var(--ac-global-dimension-size-200);
+        gap: var(--global-dimension-size-200);
+        padding: var(--global-dimension-size-200);
       `}
     >
       <Flex direction="row" gap="size-200">

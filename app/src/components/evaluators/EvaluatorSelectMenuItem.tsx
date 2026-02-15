@@ -57,7 +57,7 @@ export function EvaluatorSelectMenuItem({
         evaluator.annotationName ? (
           <div
             css={css`
-              color: var(--ac-global-color-grey-900);
+              color: var(--global-color-gray-900);
             `}
           >
             <AnnotationNameAndValue
@@ -100,7 +100,7 @@ function StableWidthText({
 }) {
   return (
     <Text
-      color="grey-700"
+      color="gray-700"
       css={css`
         overflow: hidden;
         position: relative;

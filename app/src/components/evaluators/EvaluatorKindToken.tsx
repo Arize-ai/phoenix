@@ -11,11 +11,11 @@ export function EvaluatorKindToken(props: {
   const color = useMemo<TokenProps["color"]>(() => {
     switch (kind) {
       case "LLM":
-        return "var(--ac-global-color-orange-500)";
+        return "var(--global-color-orange-500)";
       case "BUILTIN":
-        return "var(--ac-global-color-blue-500)";
+        return "var(--global-color-blue-500)";
       default:
-        return "var(--ac-global-color-grey-300)";
+        return "var(--global-color-gray-300)";
     }
   }, [kind]);
   return (

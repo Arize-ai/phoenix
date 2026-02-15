@@ -32,13 +32,13 @@ export type SequentialChartColors = {
   readonly red300: string;
   readonly red400: string;
   readonly red500: string;
-  readonly grey100: string;
-  readonly grey200: string;
-  readonly grey300: string;
-  readonly grey400: string;
-  readonly grey500: string;
-  readonly grey600: string;
-  readonly grey700: string;
+  readonly gray100: string;
+  readonly gray200: string;
+  readonly gray300: string;
+  readonly gray400: string;
+  readonly gray500: string;
+  readonly gray600: string;
+  readonly gray700: string;
   readonly default: string;
   // Colors specific to the inferences role
   readonly primary: string;
@@ -53,116 +53,116 @@ const cssVar = (name: string) => `var(${name})`;
 
 const darkSequentialChartColors: SequentialChartColors = Object.freeze({
   // Blues
-  blue100: cssVar("--ac-global-color-blue-200"),
-  blue200: cssVar("--ac-global-color-blue-300"),
-  blue300: cssVar("--ac-global-color-blue-400"),
-  blue400: cssVar("--ac-global-color-blue-500"),
-  blue500: cssVar("--ac-global-color-blue-600"),
-  blue600: cssVar("--ac-global-color-blue-700"),
-  blue700: cssVar("--ac-global-color-blue-800"),
-  blue800: cssVar("--ac-global-color-blue-900"),
-  blue900: cssVar("--ac-global-color-blue-1000"),
+  blue100: cssVar("--global-color-blue-200"),
+  blue200: cssVar("--global-color-blue-300"),
+  blue300: cssVar("--global-color-blue-400"),
+  blue400: cssVar("--global-color-blue-500"),
+  blue500: cssVar("--global-color-blue-600"),
+  blue600: cssVar("--global-color-blue-700"),
+  blue700: cssVar("--global-color-blue-800"),
+  blue800: cssVar("--global-color-blue-900"),
+  blue900: cssVar("--global-color-blue-1000"),
 
   // Oranges
-  orange100: cssVar("--ac-global-color-orange-500"),
-  orange200: cssVar("--ac-global-color-orange-600"),
-  orange300: cssVar("--ac-global-color-orange-700"),
-  orange400: cssVar("--ac-global-color-orange-800"),
-  orange500: cssVar("--ac-global-color-orange-900"),
+  orange100: cssVar("--global-color-orange-500"),
+  orange200: cssVar("--global-color-orange-600"),
+  orange300: cssVar("--global-color-orange-700"),
+  orange400: cssVar("--global-color-orange-800"),
+  orange500: cssVar("--global-color-orange-900"),
 
   // Purples
-  purple100: cssVar("--ac-global-color-purple-100"),
-  purple200: cssVar("--ac-global-color-purple-200"),
-  purple300: cssVar("--ac-global-color-purple-300"),
-  purple400: cssVar("--ac-global-color-purple-400"),
-  purple500: cssVar("--ac-global-color-purple-500"),
+  purple100: cssVar("--global-color-purple-100"),
+  purple200: cssVar("--global-color-purple-200"),
+  purple300: cssVar("--global-color-purple-300"),
+  purple400: cssVar("--global-color-purple-400"),
+  purple500: cssVar("--global-color-purple-500"),
 
   // Pinks / Magentas
-  magenta100: cssVar("--ac-global-color-magenta-200"),
-  magenta200: cssVar("--ac-global-color-magenta-300"),
-  magenta300: cssVar("--ac-global-color-magenta-400"),
-  magenta400: cssVar("--ac-global-color-magenta-500"),
-  magenta500: cssVar("--ac-global-color-magenta-600"),
+  magenta100: cssVar("--global-color-magenta-200"),
+  magenta200: cssVar("--global-color-magenta-300"),
+  magenta300: cssVar("--global-color-magenta-400"),
+  magenta400: cssVar("--global-color-magenta-500"),
+  magenta500: cssVar("--global-color-magenta-600"),
 
   // Reds
-  red100: cssVar("--ac-global-color-red-200"),
-  red200: cssVar("--ac-global-color-red-300"),
-  red300: cssVar("--ac-global-color-red-400"),
-  red400: cssVar("--ac-global-color-red-500"),
-  red500: cssVar("--ac-global-color-red-600"),
+  red100: cssVar("--global-color-red-200"),
+  red200: cssVar("--global-color-red-300"),
+  red300: cssVar("--global-color-red-400"),
+  red400: cssVar("--global-color-red-500"),
+  red500: cssVar("--global-color-red-600"),
 
-  // Grays (note: CSS variable names use "grey")
-  grey100: cssVar("--ac-global-color-grey-100"),
-  grey200: cssVar("--ac-global-color-grey-200"),
-  grey300: cssVar("--ac-global-color-grey-300"),
-  grey400: cssVar("--ac-global-color-grey-400"),
-  grey500: cssVar("--ac-global-color-grey-500"),
-  grey600: cssVar("--ac-global-color-grey-600"),
-  grey700: cssVar("--ac-global-color-grey-700"),
+  // Grays (note: CSS variable names use "gray")
+  gray100: cssVar("--global-color-gray-100"),
+  gray200: cssVar("--global-color-gray-200"),
+  gray300: cssVar("--global-color-gray-300"),
+  gray400: cssVar("--global-color-gray-400"),
+  gray500: cssVar("--global-color-gray-500"),
+  gray600: cssVar("--global-color-gray-600"),
+  gray700: cssVar("--global-color-gray-700"),
 
   // Fallback / default
-  default: cssVar("--ac-global-text-color-900"),
+  default: cssVar("--global-text-color-900"),
 
   // Semantic colors for inferences
-  primary: cssVar("--px-primary-color"),
-  reference: cssVar("--px-reference-color"),
+  primary: cssVar("--primary-color"),
+  reference: cssVar("--reference-color"),
 });
 
 const lightSequentialChartColors: SequentialChartColors = Object.freeze({
   // Blues
-  blue100: cssVar("--ac-global-color-blue-200"),
-  blue200: cssVar("--ac-global-color-blue-300"),
-  blue300: cssVar("--ac-global-color-blue-400"),
-  blue400: cssVar("--ac-global-color-blue-500"),
-  blue500: cssVar("--ac-global-color-blue-600"),
-  blue600: cssVar("--ac-global-color-blue-700"),
-  blue700: cssVar("--ac-global-color-blue-800"),
-  blue800: cssVar("--ac-global-color-blue-900"),
-  blue900: cssVar("--ac-global-color-blue-1000"),
+  blue100: cssVar("--global-color-blue-200"),
+  blue200: cssVar("--global-color-blue-300"),
+  blue300: cssVar("--global-color-blue-400"),
+  blue400: cssVar("--global-color-blue-500"),
+  blue500: cssVar("--global-color-blue-600"),
+  blue600: cssVar("--global-color-blue-700"),
+  blue700: cssVar("--global-color-blue-800"),
+  blue800: cssVar("--global-color-blue-900"),
+  blue900: cssVar("--global-color-blue-1000"),
 
   // Oranges
-  orange100: cssVar("--ac-global-color-orange-500"),
-  orange200: cssVar("--ac-global-color-orange-600"),
-  orange300: cssVar("--ac-global-color-orange-700"),
-  orange400: cssVar("--ac-global-color-orange-800"),
-  orange500: cssVar("--ac-global-color-orange-900"),
+  orange100: cssVar("--global-color-orange-500"),
+  orange200: cssVar("--global-color-orange-600"),
+  orange300: cssVar("--global-color-orange-700"),
+  orange400: cssVar("--global-color-orange-800"),
+  orange500: cssVar("--global-color-orange-900"),
 
   // Purples
-  purple100: cssVar("--ac-global-color-purple-100"),
-  purple200: cssVar("--ac-global-color-purple-200"),
-  purple300: cssVar("--ac-global-color-purple-300"),
-  purple400: cssVar("--ac-global-color-purple-400"),
-  purple500: cssVar("--ac-global-color-purple-500"),
+  purple100: cssVar("--global-color-purple-100"),
+  purple200: cssVar("--global-color-purple-200"),
+  purple300: cssVar("--global-color-purple-300"),
+  purple400: cssVar("--global-color-purple-400"),
+  purple500: cssVar("--global-color-purple-500"),
 
   // Pinks / Magentas
-  magenta100: cssVar("--ac-global-color-magenta-200"),
-  magenta200: cssVar("--ac-global-color-magenta-300"),
-  magenta300: cssVar("--ac-global-color-magenta-400"),
-  magenta400: cssVar("--ac-global-color-magenta-500"),
-  magenta500: cssVar("--ac-global-color-magenta-600"),
+  magenta100: cssVar("--global-color-magenta-200"),
+  magenta200: cssVar("--global-color-magenta-300"),
+  magenta300: cssVar("--global-color-magenta-400"),
+  magenta400: cssVar("--global-color-magenta-500"),
+  magenta500: cssVar("--global-color-magenta-600"),
 
   // Reds
-  red100: cssVar("--ac-global-color-red-200"),
-  red200: cssVar("--ac-global-color-red-300"),
-  red300: cssVar("--ac-global-color-red-400"),
-  red400: cssVar("--ac-global-color-red-500"),
-  red500: cssVar("--ac-global-color-red-600"),
+  red100: cssVar("--global-color-red-200"),
+  red200: cssVar("--global-color-red-300"),
+  red300: cssVar("--global-color-red-400"),
+  red400: cssVar("--global-color-red-500"),
+  red500: cssVar("--global-color-red-600"),
 
-  // Grays (note: CSS variable names use "grey")
-  grey100: cssVar("--ac-global-color-grey-100"),
-  grey200: cssVar("--ac-global-color-grey-200"),
-  grey300: cssVar("--ac-global-color-grey-300"),
-  grey400: cssVar("--ac-global-color-grey-400"),
-  grey500: cssVar("--ac-global-color-grey-500"),
-  grey600: cssVar("--ac-global-color-grey-600"),
-  grey700: cssVar("--ac-global-color-grey-700"),
+  // Grays (note: CSS variable names use "gray")
+  gray100: cssVar("--global-color-gray-100"),
+  gray200: cssVar("--global-color-gray-200"),
+  gray300: cssVar("--global-color-gray-300"),
+  gray400: cssVar("--global-color-gray-400"),
+  gray500: cssVar("--global-color-gray-500"),
+  gray600: cssVar("--global-color-gray-600"),
+  gray700: cssVar("--global-color-gray-700"),
 
   // Fallback / default
-  default: cssVar("--ac-global-text-color-900"),
+  default: cssVar("--global-text-color-900"),
 
   // Semantic colors for inferences
-  primary: cssVar("--px-primary-color"),
-  reference: cssVar("--px-reference-color"),
+  primary: cssVar("--primary-color"),
+  reference: cssVar("--reference-color"),
 });
 
 /**
@@ -195,7 +195,7 @@ export const useSequentialChartColors = (): SequentialChartColors => {
  * getChartColor(1, ChartColors) // returns ChartColors.orange500
  * getChartColor(2, ChartColors) // returns ChartColors.purple500
  * getChartColor(3, ChartColors) // returns ChartColors.pink500
- * getChartColor(4, ChartColors) // returns ChartColors.grey500
+ * getChartColor(4, ChartColors) // returns ChartColors.gray500
  * getChartColor(5, ChartColors) // returns ChartColors.blue400
  * getChartColor(6, ChartColors) // returns ChartColors.orange400
  * // ...
@@ -225,17 +225,17 @@ export const getChartColor = (index: number, colors: SequentialChartColors) => {
 export type SemanticChartColor = "danger" | "success" | "warning" | "info";
 
 const SemanticChartLightColors: Record<SemanticChartColor, string> = {
-  danger: "var(--ac-global-color-red-700)",
-  success: "var(--ac-global-color-celery-700)",
-  warning: "var(--ac-global-color-orange-700)",
-  info: "var(--ac-global-color-blue-700)",
+  danger: "var(--global-color-red-700)",
+  success: "var(--global-color-celery-700)",
+  warning: "var(--global-color-orange-700)",
+  info: "var(--global-color-blue-700)",
 };
 
 const SemanticChartDarkColors: Record<SemanticChartColor, string> = {
-  danger: "var(--ac-global-color-red-700)",
-  success: "var(--ac-global-color-celery-700)",
-  warning: "var(--ac-global-color-orange-700)",
-  info: "var(--ac-global-color-blue-700)",
+  danger: "var(--global-color-red-700)",
+  success: "var(--global-color-celery-700)",
+  warning: "var(--global-color-orange-700)",
+  info: "var(--global-color-blue-700)",
 };
 
 export const SEMANTIC_CHART_COLORS = Object.keys(
@@ -269,33 +269,33 @@ type CategoricalChartColor =
   | "category12";
 
 const CategoryChartLightColors: Record<CategoricalChartColor, string> = {
-  category1: "var(--ac-global-color-blue-700)",
-  category2: "var(--ac-global-color-purple-900)",
-  category3: "var(--ac-global-color-magenta-600)",
-  category4: "var(--ac-global-color-indigo-600)",
-  category5: "var(--ac-global-color-blue-900)",
-  category6: "var(--ac-global-color-indigo-1100)",
-  category7: "var(--ac-global-color-orange-600)",
-  category8: "var(--ac-global-color-celery-400)",
-  category9: "var(--ac-global-color-seafoam-600)",
-  category10: "var(--ac-global-color-green-1000)",
-  category11: "var(--ac-global-color-yellow-400)",
-  category12: "var(--ac-global-color-red-1100)",
+  category1: "var(--global-color-blue-700)",
+  category2: "var(--global-color-purple-900)",
+  category3: "var(--global-color-magenta-600)",
+  category4: "var(--global-color-indigo-600)",
+  category5: "var(--global-color-blue-900)",
+  category6: "var(--global-color-indigo-1100)",
+  category7: "var(--global-color-orange-600)",
+  category8: "var(--global-color-celery-400)",
+  category9: "var(--global-color-seafoam-600)",
+  category10: "var(--global-color-green-1000)",
+  category11: "var(--global-color-yellow-400)",
+  category12: "var(--global-color-red-1100)",
 };
 
 const CategoryChartDarkColors: Record<CategoricalChartColor, string> = {
-  category1: "var(--ac-global-color-blue-700)",
-  category2: "var(--ac-global-color-purple-800)",
-  category3: "var(--ac-global-color-magenta-800)",
-  category4: "var(--ac-global-color-indigo-600)",
-  category5: "var(--ac-global-color-blue-900)",
-  category6: "var(--ac-global-color-indigo-1100)",
-  category7: "var(--ac-global-color-orange-600)",
-  category8: "var(--ac-global-color-celery-400)",
-  category9: "var(--ac-global-color-seafoam-600)",
-  category10: "var(--ac-global-color-green-1000)",
-  category11: "var(--ac-global-color-yellow-400)",
-  category12: "var(--ac-global-color-red-1100)",
+  category1: "var(--global-color-blue-700)",
+  category2: "var(--global-color-purple-800)",
+  category3: "var(--global-color-magenta-800)",
+  category4: "var(--global-color-indigo-600)",
+  category5: "var(--global-color-blue-900)",
+  category6: "var(--global-color-indigo-1100)",
+  category7: "var(--global-color-orange-600)",
+  category8: "var(--global-color-celery-400)",
+  category9: "var(--global-color-seafoam-600)",
+  category10: "var(--global-color-green-1000)",
+  category11: "var(--global-color-yellow-400)",
+  category12: "var(--global-color-red-1100)",
 };
 
 export const useCategoryChartColors = (): Record<

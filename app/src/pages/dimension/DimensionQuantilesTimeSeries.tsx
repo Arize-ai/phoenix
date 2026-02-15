@@ -63,8 +63,8 @@ function formatValue(value: number | null) {
 const useColors = () => {
   const colors = useSequentialChartColors();
   return {
-    outerColor: colors.grey500,
-    innerColor: colors.grey300,
+    outerColor: colors.gray500,
+    innerColor: colors.gray300,
     lineColor: colors.default,
   };
 };
@@ -266,22 +266,22 @@ export function DimensionQuantilesTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "Value",
             angle: -90,
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--global-text-color-900)",
             },
           }}
           tickFormatter={(x) => yTickFormatter(x)}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={TooltipContent} />

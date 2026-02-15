@@ -9,17 +9,17 @@ const switchCSS = css`
   display: flex;
   position: relative;
   align-items: center;
-  gap: var(--ac-global-dimension-size-100);
-  color: var(--ac-global-text-color-900);
-  font-size: var(--ac-global-font-size-m);
-  line-height: var(--ac-global-line-height-m);
+  gap: var(--global-dimension-size-100);
+  color: var(--global-text-color-900);
+  font-size: var(--global-font-size-m);
+  line-height: var(--global-line-height-m);
   white-space: nowrap;
 
   .indicator {
-    width: var(--ac-global-dimension-size-400);
-    height: var(--ac-global-dimension-size-150);
-    background: var(--ac-global-color-grey-300);
-    border-radius: var(--ac-global-rounding-medium);
+    width: var(--global-dimension-size-400);
+    height: var(--global-dimension-size-150);
+    background: var(--global-color-gray-300);
+    border-radius: var(--global-rounding-medium);
     transition: background 0.1s ease-in-out;
     position: relative;
 
@@ -29,9 +29,9 @@ const switchCSS = css`
       top: 50%;
       left: 0;
       transform: translateY(-50%);
-      width: var(--ac-global-dimension-size-250);
-      height: var(--ac-global-dimension-size-250);
-      background: var(--ac-global-color-grey-500);
+      width: var(--global-dimension-size-250);
+      height: var(--global-dimension-size-250);
+      background: var(--global-color-gray-500);
       border-radius: 50%;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       transition: all 0.1s ease-in-out;
@@ -41,11 +41,11 @@ const switchCSS = css`
       content: "";
       position: absolute;
       top: 50%;
-      left: calc(var(--ac-global-dimension-size-250) / 2);
+      left: calc(var(--global-dimension-size-250) / 2);
       transform: translate(-50%, -50%);
-      width: var(--ac-global-dimension-size-350);
-      height: var(--ac-global-dimension-size-350);
-      background: var(--ac-global-color-primary);
+      width: var(--global-dimension-size-350);
+      height: var(--global-dimension-size-350);
+      background: var(--global-color-primary);
       border-radius: 50%;
       opacity: 0.4;
       transition: all 0.1s ease-in-out;
@@ -54,15 +54,15 @@ const switchCSS = css`
 
   &[data-selected] {
     .indicator {
-      background: var(--ac-global-color-primary-700);
+      background: var(--global-color-primary-700);
 
       &:before {
-        background: var(--ac-global-color-primary);
+        background: var(--global-color-primary);
         transform: translateY(-50%)
           translateX(
             calc(
-              var(--ac-global-dimension-size-400) - var(
-                  --ac-global-dimension-size-250
+              var(--global-dimension-size-400) - var(
+                  --global-dimension-size-250
                 )
             )
           );
@@ -70,17 +70,15 @@ const switchCSS = css`
 
       &:hover::after {
         left: calc(
-          var(--ac-global-dimension-size-400) - var(
-              --ac-global-dimension-size-250
-            ) +
-            var(--ac-global-dimension-size-250) / 2
+          var(--global-dimension-size-400) - var(--global-dimension-size-250) +
+            var(--global-dimension-size-250) / 2
         );
       }
     }
   }
 
   &[data-focus-visible] .indicator {
-    outline: 2px solid var(--ac-focus-ring-color);
+    outline: 2px solid var(--focus-ring-color);
     outline-offset: 2px;
   }
 

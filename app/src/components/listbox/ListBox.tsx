@@ -25,41 +25,40 @@ const listBoxCSS = css`
     align-items: center;
     justify-content: center;
     font-style: italic;
-    color: var(--ac-global-text-color-700);
+    color: var(--global-text-color-700);
   }
 
   .react-aria-ListBoxItem {
-    margin: var(--ac-global-dimension-size-25);
-    padding: var(--ac-global-dimension-size-100)
-      var(--ac-global-dimension-size-150);
-    border-radius: var(--ac-global-rounding-small);
+    margin: var(--global-dimension-size-25);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+    border-radius: var(--global-rounding-small);
     outline: none;
     cursor: default;
-    color: var(--ac-global-text-color-900);
-    font-size: var(--ac-global-font-size-s);
-    line-height: var(--ac-global-line-height-s);
+    color: var(--global-text-color-900);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
 
     position: relative;
     display: flex;
     flex-direction: column;
 
     &[data-focus-visible] {
-      outline: 2px solid var(--ac-focus-ring-color);
+      outline: 2px solid var(--focus-ring-color);
       outline-offset: -2px;
     }
 
     &[data-selected] {
-      background: var(--ac-highlight-background);
-      color: var(--ac-highlight-foreground);
+      background: var(--highlight-background);
+      color: var(--highlight-foreground);
 
       &[data-focus-visible] {
-        outline-color: var(--ac-highlight-foreground);
+        outline-color: var(--highlight-foreground);
         outline-offset: -4px;
       }
     }
     &[data-hovered],
     &[data-active] {
-      background: var(--ac-global-background-color-light-hover);
+      background: var(--global-background-color-light-hover);
     }
   }
 `;

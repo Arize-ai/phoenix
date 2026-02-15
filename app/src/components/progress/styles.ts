@@ -64,7 +64,7 @@ export const progressCircleCSS = css`
     cx: var(--progress-circle-center);
     cy: var(--progress-circle-center);
     r: var(--progress-circle-radius);
-    stroke: var(--ac-global-color-grey-300);
+    stroke: var(--global-color-gray-300);
     stroke-width: var(--progress-circle-stroke-width);
   }
 
@@ -72,7 +72,7 @@ export const progressCircleCSS = css`
     cx: var(--progress-circle-center);
     cy: var(--progress-circle-center);
     r: var(--progress-circle-radius);
-    stroke: var(--ac-global-color-primary);
+    stroke: var(--global-color-primary);
     stroke-width: var(--progress-circle-stroke-width);
     transition: stroke-dashoffset 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     stroke-dasharray: var(--progress-circle-dasharray);
@@ -94,8 +94,8 @@ export const progressCircleCSS = css`
 `;
 
 export const progressBarCSS = css`
-  inline-size: var(--ac-global-dimension-size-2400);
-  height: var(--ac-global-dimension-size-75);
+  inline-size: var(--global-dimension-size-2400);
+  height: var(--global-dimension-size-75);
 
   .progress-bar__track {
     forced-color-adjust: none;
@@ -104,12 +104,12 @@ export const progressBarCSS = css`
     overflow: hidden;
     background-color: var(
       --mod-barloader-track-color,
-      var(--ac-global-color-grey-300)
+      var(--global-color-gray-300)
     );
   }
 
   .progress-bar__fill {
-    background: var(--mod-barloader-fill-color, var(--ac-global-color-primary));
+    background: var(--mod-barloader-fill-color, var(--global-color-primary));
     height: 100%;
   }
 `;

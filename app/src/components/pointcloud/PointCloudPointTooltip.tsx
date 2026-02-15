@@ -74,8 +74,8 @@ export const PointCloudPointTooltip = () => {
           --grid-item-min-width: ${TOOLTIP_SIZE}px;
           width: ${TOOLTIP_SIZE}px;
           height: ${TOOLTIP_SIZE}px;
-          background-color: var(--ac-global-background-color-dark);
-          border-radius: var(--ac-global-rounding-medium);
+          background-color: var(--global-background-color-dark);
+          border-radius: var(--global-rounding-medium);
         `}
       >
         <EventItem

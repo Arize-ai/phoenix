@@ -56,11 +56,11 @@ const listCSS = css`
   grid-template-columns:
     minmax(100px, max-content) minmax(70px, max-content)
     minmax(100px, 1fr);
-  column-gap: var(--ac-global-dimension-size-100);
+  column-gap: var(--global-dimension-size-100);
 `;
 
 const listItemCSS = css`
-  height: var(--ac-global-dimension-size-350);
+  height: var(--global-dimension-size-350);
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
@@ -174,7 +174,7 @@ function ExperimentAnnotationAggregateItem({
       {/* Column 2: AVG prefix + score value */}
       {executionState === "idle" ? (
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
           <Text size="S" fontFamily="mono" color="text-300">
@@ -183,14 +183,14 @@ function ExperimentAnnotationAggregateItem({
         </Flex>
       ) : executionState === "running" ? (
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
           <Skeleton width={40} height="1em" />
         </Flex>
       ) : (
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
           <AnnotationScoreText
@@ -211,14 +211,14 @@ function ExperimentAnnotationAggregateItem({
             --mod-barloader-fill-color: ${annotationColor};
           `}
           value={0}
-          height="var(--ac-global-dimension-size-50)"
+          height="var(--global-dimension-size-50)"
           width="100%"
           aria-label={`${config.name} average score`}
         />
       ) : executionState === "running" ? (
         <Skeleton
           width="100%"
-          height="var(--ac-global-dimension-size-50)"
+          height="var(--global-dimension-size-50)"
           css={css`
             align-self: center;
           `}
@@ -230,7 +230,7 @@ function ExperimentAnnotationAggregateItem({
             --mod-barloader-fill-color: ${annotationColor};
           `}
           value={meanScore != null ? scorePercentile : 0}
-          height="var(--ac-global-dimension-size-50)"
+          height="var(--global-dimension-size-50)"
           width="100%"
           aria-label={`${config.name} average score`}
         />

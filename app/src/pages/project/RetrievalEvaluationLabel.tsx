@@ -47,7 +47,7 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
       <TriggerWrap>
         <div css={baseAnnotationLabelCSS}>
           <Flex direction="row" gap="size-100" alignItems={"center"}>
-            <ColorSwatch color={"var(--ac-global-color-seafoam-1000)"} />
+            <ColorSwatch color={"var(--global-color-seafoam-1000)"} />
             {name ? (
               <div css={textCSS}>
                 <Text weight="heavy" size="XS" color="inherit">

@@ -57,7 +57,7 @@ const numberFormatter = new Intl.NumberFormat([], {
 const useColors = () => {
   const colors = useSequentialChartColors();
   const color = colors.blue400;
-  const barColor = colors.grey500;
+  const barColor = colors.gray500;
   return {
     color,
     barColor,
@@ -104,10 +104,10 @@ function TooltipContent({
             display: flex;
             flex-direction: row;
             align-items: center;
-            color: var(--ac-global-color-primary);
-            gap: var(--ac-global-dimension-static-size-50);
+            color: var(--global-color-primary);
+            gap: var(--global-dimension-static-size-50);
 
-            margin-top: var(--ac-global-dimension-static-size-50);
+            margin-top: var(--global-dimension-static-size-50);
           `}
         >
           <Icon svg={<Icons.InfoOutline />} />
@@ -344,14 +344,14 @@ export function MetricTimeSeries({
         flex-direction: column;
         overflow: hidden;
         h3 {
-          padding: var(--ac-global-dimension-static-size-100)
-            var(--ac-global-dimension-static-size-200) 0
-            var(--ac-global-dimension-static-size-200);
+          padding: var(--global-dimension-static-size-100)
+            var(--global-dimension-static-size-200) 0
+            var(--global-dimension-static-size-200);
           flex: none;
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: var(--ac-global-dimension-static-size-50);
+          gap: var(--global-dimension-static-size-50);
         }
         & > div {
           flex: 1 1 auto;
@@ -389,20 +389,20 @@ export function MetricTimeSeries({
             <XAxis
               {...defaultTimeXAxisProps}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
-              style={{ fill: "var(--ac-global-text-color-700)" }}
+              style={{ fill: "var(--global-text-color-700)" }}
             />
             <YAxis
-              stroke="var(--ac-global-color-grey-500)"
+              stroke="var(--global-color-gray-500)"
               label={{
                 value: metricShortName,
                 angle: -90,
                 position: "insideLeft",
                 style: {
                   textAnchor: "middle",
-                  fill: "var(--ac-global-text-color-900)",
+                  fill: "var(--global-text-color-900)",
                 },
               }}
-              style={{ fill: "var(--ac-global-text-color-700)" }}
+              style={{ fill: "var(--global-text-color-700)" }}
             />
             <YAxis
               yAxisId="right"
@@ -413,14 +413,14 @@ export function MetricTimeSeries({
                 position: "insideRight",
                 style: {
                   textAnchor: "middle",
-                  fill: "var(--ac-global-text-color-900)",
+                  fill: "var(--global-text-color-900)",
                 },
               }}
-              style={{ fill: "var(--ac-global-text-color-700)" }}
+              style={{ fill: "var(--global-text-color-700)" }}
             />
             <CartesianGrid
               strokeDasharray="4 4"
-              stroke="var(--ac-global-color-grey-500)"
+              stroke="var(--global-color-gray-500)"
               strokeOpacity={0.5}
             />
             <Tooltip content={TooltipContent} />

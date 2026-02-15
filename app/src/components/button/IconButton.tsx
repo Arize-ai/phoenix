@@ -12,7 +12,7 @@ const getIconButtonColor = (color: TextColorValue): string => {
   }
   if (color.startsWith("text-")) {
     const [, num] = color.split("-");
-    return `var(--ac-global-text-color-${num})`;
+    return `var(--global-text-color-${num})`;
   }
   return colorValue(color as ColorValue);
 };
@@ -39,15 +39,15 @@ export interface IconButtonProps extends Omit<ButtonProps, "children"> {
 }
 
 const iconButtonCSS = (color: TextColorValue) => css`
-  --icon-button-font-size-s: var(--ac-global-font-size-l);
-  --icon-button-font-size-m: var(--ac-global-font-size-xl);
-  --icon-button-font-size-l: var(--ac-global-font-size-2xl);
+  --icon-button-font-size-s: var(--global-font-size-l);
+  --icon-button-font-size-m: var(--global-font-size-xl);
+  --icon-button-font-size-l: var(--global-font-size-2xl);
 
   display: flex;
   align-items: center;
   justify-content: center;
-  border: var(--ac-global-border-size-thin) solid transparent;
-  border-radius: var(--ac-global-rounding-small);
+  border: var(--global-border-size-thin) solid transparent;
+  border-radius: var(--global-rounding-small);
   color: ${getIconButtonColor(color)};
   background-color: transparent;
   cursor: pointer;
@@ -56,20 +56,20 @@ const iconButtonCSS = (color: TextColorValue) => css`
   padding: 0;
 
   &[data-size="S"] {
-    width: var(--ac-global-button-height-s);
-    min-width: var(--ac-global-button-height-s);
-    min-height: var(--ac-global-button-height-s);
-    height: var(--ac-global-button-height-s);
+    width: var(--global-button-height-s);
+    min-width: var(--global-button-height-s);
+    min-height: var(--global-button-height-s);
+    height: var(--global-button-height-s);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-s);
     }
   }
 
   &[data-size="M"] {
-    width: var(--ac-global-button-height-m);
-    min-width: var(--ac-global-button-height-m);
-    min-height: var(--ac-global-button-height-m);
-    height: var(--ac-global-button-height-m);
+    width: var(--global-button-height-m);
+    min-width: var(--global-button-height-m);
+    min-height: var(--global-button-height-m);
+    height: var(--global-button-height-m);
     .ac-icon-wrap {
       font-size: var(--icon-button-font-size-m);
     }
@@ -81,24 +81,24 @@ const iconButtonCSS = (color: TextColorValue) => css`
   }
 
   &[data-hovered] {
-    background-color: var(--ac-hover-background);
+    background-color: var(--hover-background);
     .ac-icon-wrap {
       opacity: 1;
     }
   }
 
   &[data-pressed] {
-    background-color: var(--ac-global-color-primary-100);
-    color: var(--ac-global-text-color-900);
+    background-color: var(--global-color-primary-100);
+    color: var(--global-text-color-900);
   }
 
   &[data-focus-visible] {
-    outline: var(--ac-global-border-size-thick) solid var(--ac-focus-ring-color);
-    outline-offset: var(--ac-global-border-offset-thin);
+    outline: var(--global-border-size-thick) solid var(--focus-ring-color);
+    outline-offset: var(--global-border-offset-thin);
   }
 
   &[data-disabled] {
-    opacity: var(--ac-global-opacity-disabled);
+    opacity: var(--global-opacity-disabled);
     cursor: not-allowed;
   }
 `;

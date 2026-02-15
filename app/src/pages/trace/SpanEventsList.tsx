@@ -72,7 +72,7 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
     <DisclosureGroup
       css={css`
         .react-aria-Button[slot="trigger"] {
-          padding: var(--ac-global-dimension-static-size-200);
+          padding: var(--global-dimension-static-size-200);
         }
       `}
     >

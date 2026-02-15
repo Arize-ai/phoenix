@@ -191,9 +191,7 @@ export function ModelsTable({
                 {row.original.kind === "CUSTOM" ? (
                   <Token>custom</Token>
                 ) : (
-                  <Token color="var(--ac-global-color-blue-500)">
-                    built-in
-                  </Token>
+                  <Token color="var(--global-color-blue-500)">built-in</Token>
                 )}
               </View>
             </Flex>
@@ -234,10 +232,7 @@ export function ModelsTable({
               {provider && (
                 <TooltipTrigger delay={0}>
                   <Focusable>
-                    <Token
-                      role="button"
-                      color="var(--ac-global-color-grey-300)"
-                    >
+                    <Token role="button" color="var(--global-color-gray-300)">
                       <Flex direction="row" gap="size-100" alignItems="center">
                         {providerKey ? (
                           <>

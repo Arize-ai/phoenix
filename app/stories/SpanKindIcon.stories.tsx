@@ -59,7 +59,7 @@ function SpanKindIconList() {
           <span
             style={{
               fontSize: "13px",
-              color: "var(--ac-global-text-color-900)",
+              color: "var(--global-text-color-900)",
             }}
           >
             {spanKind}

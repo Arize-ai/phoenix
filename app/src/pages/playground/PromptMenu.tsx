@@ -224,8 +224,8 @@ const promptMenuContainerCSS = css`
  * The button uses flex: 1 1 auto so it grows/shrinks within these bounds.
  */
 const promptSelectorWidthCSS = css`
-  --button-min-width: var(--ac-global-dimension-size-1800);
-  --button-max-width-placeholder: var(--ac-global-dimension-size-2400);
+  --button-min-width: var(--global-dimension-size-1800);
+  --button-max-width-placeholder: var(--global-dimension-size-2400);
   --text-max-width: 30ch;
 `;
 
@@ -453,10 +453,7 @@ export function PromptVersionSelector({
                       <Flex alignItems="center" gap="size-100">
                         <IdTruncate id={id} textProps={{ size: "S" }} />
                         {isLatest && (
-                          <Token
-                            size="S"
-                            color="var(--ac-global-color-grey-700)"
-                          >
+                          <Token size="S" color="var(--global-color-gray-700)">
                             latest
                           </Token>
                         )}
@@ -520,7 +517,7 @@ export function PromptVersionLabel({
 }) {
   if (isLatest) {
     return (
-      <Token size="S" color="var(--ac-global-color-blue-1000)">
+      <Token size="S" color="var(--global-color-blue-1000)">
         latest
       </Token>
     );

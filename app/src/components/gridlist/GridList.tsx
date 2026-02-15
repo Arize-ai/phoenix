@@ -100,11 +100,11 @@ const GridListItemContent = ({
         )}
         <Flex
           direction="column"
-          gap="var(--ac-global-dimension-static-size-25)"
+          gap="var(--global-dimension-static-size-25)"
           minWidth={0}
           flex={1}
           css={css`
-            padding: var(--ac-global-menu-item-gap);
+            padding: var(--global-menu-item-gap);
           `}
         >
           {children}

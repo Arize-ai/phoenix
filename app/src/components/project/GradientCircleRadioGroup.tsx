@@ -14,8 +14,8 @@ const gradientCircleRadioGroupCSS = css`
   flex-direction: row;
   align-items: center;
   width: fit-content;
-  gap: var(--ac-global-dimension-size-100);
-  font-size: var(--ac-global-dimension-static-font-size-100);
+  gap: var(--global-dimension-size-100);
+  font-size: var(--global-dimension-static-font-size-100);
 
   &[data-direction="row"] {
     flex-direction: row;
@@ -23,12 +23,12 @@ const gradientCircleRadioGroupCSS = css`
 
     .react-aria-Label {
       flex-basis: 100%;
-      margin-bottom: var(--ac-global-dimension-size-100);
+      margin-bottom: var(--global-dimension-size-100);
     }
 
     [slot="description"] {
       flex-basis: 100%;
-      margin-top: var(--ac-global-dimension-size-50);
+      margin-top: var(--global-dimension-size-50);
     }
   }
 
@@ -49,9 +49,9 @@ const gradientCircleRadioGroupCSS = css`
   }
 
   &:has(.gradient-circle-radio[data-focus-visible]) {
-    border-radius: var(--ac-global-rounding-small);
-    outline: 1px solid var(--ac-global-color-primary);
-    outline-offset: var(--ac-global-dimension-size-50);
+    border-radius: var(--global-rounding-small);
+    outline: 1px solid var(--global-color-primary);
+    outline-offset: var(--global-dimension-size-50);
   }
 `;
 

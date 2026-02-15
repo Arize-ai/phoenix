@@ -15,8 +15,8 @@ export function TextErrorBoundaryFallback(_props: ErrorBoundaryFallbackProps) {
       css={css`
         text-align: center;
         display: flex;
-        color: var(--ac-global-text-color-300);
-        gap: var(--ac-global-dimension-size-50);
+        color: var(--global-text-color-300);
+        gap: var(--global-dimension-size-50);
       `}
     >
       <Icon svg={<Icons.AlertCircleOutline />} />

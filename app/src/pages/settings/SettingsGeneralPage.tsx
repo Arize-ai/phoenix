@@ -28,9 +28,9 @@ import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 const formCSS = css`
   .ac-field {
     // Hacky solution to make the text fields fill the remaining space
-    width: calc(100% - var(--ac-global-dimension-size-600));
+    width: calc(100% - var(--global-dimension-size-600));
   }
-  padding: var(--ac-global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 
 export function SettingsGeneralPage() {

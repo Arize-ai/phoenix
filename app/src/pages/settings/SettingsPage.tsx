@@ -11,7 +11,7 @@ const settingsPageCSS = css`
 `;
 
 const settingsPageInnerCSS = css`
-  padding: var(--ac-global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
   max-width: 1300px;
   min-width: 500px;
   box-sizing: border-box;

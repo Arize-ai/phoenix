@@ -36,36 +36,33 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 const listCSS = css`
   display: flex;
   flex-direction: column;
-  padding: var(--ac-global-dimension-static-size-100);
-  border-top: var(--ac-global-border-size-thin) solid
-    var(--ac-global-color-grey-100);
-  background-color: var(--ac-global-color-grey-50);
+  padding: var(--global-dimension-static-size-100);
+  border-top: var(--global-border-size-thin) solid var(--global-color-gray-100);
+  background-color: var(--global-color-gray-50);
 `;
 
 const listItemCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--ac-global-dimension-static-size-50);
+  gap: var(--global-dimension-static-size-50);
   min-height: 32px;
 `;
 
 const placeholderButtonCSS = css`
   flex: 1 1 auto;
-  padding: var(--ac-global-dimension-size-50)
-    var(--ac-global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   min-width: 0;
 `;
 
 const errorButtonCSS = css`
   flex: 1 1 auto;
-  padding: var(--ac-global-dimension-size-50)
-    var(--ac-global-dimension-size-100);
-  border-radius: var(--ac-global-rounding-small);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+  border-radius: var(--global-rounding-small);
   text-align: left;
   min-width: 0;
   &:hover {
-    background-color: var(--ac-global-color-grey-200);
+    background-color: var(--global-color-gray-200);
   }
 `;
 
@@ -288,7 +285,7 @@ export function ExperimentRunCellAnnotationsList(
                       <Text fontFamily="mono">
                         {floatFormatter(meanAnnotationScore)}
                       </Text>
-                      <Text fontFamily="mono" color="grey-500">
+                      <Text fontFamily="mono" color="gray-500">
                         AVG
                       </Text>
                     </Flex>

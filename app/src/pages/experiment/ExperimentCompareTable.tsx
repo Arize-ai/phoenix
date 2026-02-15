@@ -119,7 +119,7 @@ const tableWrapCSS = css`
  */
 const actionMenuContainerCSS = css`
   position: relative;
-  height: var(--ac-global-line-height-s);
+  height: var(--global-line-height-s);
   & > button {
     position: absolute;
   }
@@ -569,7 +569,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           paddingBottom="size-100"
           paddingStart="size-200"
           paddingEnd="size-200"
-          borderBottomColor="grey-300"
+          borderBottomColor="gray-300"
           borderBottomWidth="thin"
           flex="none"
         >
@@ -825,7 +825,7 @@ export const MemoizedTableBody = React.memo(
  */
 const outputContentCSS = css`
   flex: none;
-  padding: var(--ac-global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 
 function ExperimentRunOutput(

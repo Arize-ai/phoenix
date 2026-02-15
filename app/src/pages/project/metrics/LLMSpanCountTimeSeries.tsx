@@ -179,11 +179,11 @@ export function LLMSpanCountTimeSeries({
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
         />
         <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.grey500} />
+        <Bar dataKey="unset" stackId="a" fill={colors.gray500} />
         <Bar
           dataKey="ok"
           stackId="a"
-          fill={colors.grey300}
+          fill={colors.gray300}
           radius={[2, 2, 0, 0]}
         />
         <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />

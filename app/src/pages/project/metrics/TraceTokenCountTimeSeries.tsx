@@ -161,7 +161,7 @@ export function TraceTokenCountTimeSeries({
               fill: "var(--chart-axis-label-color)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
         />
         <Tooltip
           content={TooltipContent}

@@ -20,15 +20,15 @@ const popoverSlideKeyframes = keyframes`
 
 const popoverCSS = css`
   box-sizing: border-box;
-  --background-color: var(--ac-global-popover-background-color);
+  --background-color: var(--global-popover-background-color);
   transition:
     transform 200ms,
     opacity 200ms;
-  border: 1px solid var(--ac-global-popover-border-color);
-  box-shadow: var(--px-overlay-box-shadow);
-  border-radius: var(--ac-global-rounding-small);
+  border: 1px solid var(--global-popover-border-color);
+  box-shadow: var(--overlay-box-shadow);
+  border-radius: var(--global-rounding-small);
   background: var(--background-color);
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
   outline: none;
 
   &[data-entering],
@@ -40,7 +40,7 @@ const popoverCSS = css`
   .react-aria-OverlayArrow svg {
     display: block;
     fill: var(--background-color);
-    stroke: var(--ac-global-border-color-light);
+    stroke: var(--global-border-color-light);
     stroke-width: 1px;
   }
 
@@ -105,7 +105,7 @@ const popoverCSS = css`
   }
 
   & div[role="listbox"] {
-    padding: var(--ac-global-dimension-size-25);
+    padding: var(--global-dimension-size-25);
   }
 `;
 

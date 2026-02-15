@@ -147,7 +147,7 @@ const MAX_EXAMPLES_FOR_PATH_EXTRACTION = 10;
 
 const outputContentCSS = css`
   flex: none;
-  padding: var(--ac-global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
 `;
 
 /**
@@ -288,7 +288,7 @@ function CellRunStatus({
       gap="size-100"
       alignItems="center"
       css={css`
-        color: var(--ac-global-text-color-500);
+        color: var(--global-text-color-500);
       `}
     >
       <Icon svg={<Icons.MinusCircleOutline />} />

@@ -13,7 +13,7 @@ import { CanvasMode } from "@phoenix/store/pointCloudStore";
 const radioItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-50);
+  gap: var(--global-dimension-static-size-50);
   align-items: center;
 `;
 /**

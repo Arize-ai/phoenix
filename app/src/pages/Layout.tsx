@@ -41,11 +41,11 @@ const contentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border-left: 1px solid var(--ac-global-color-grey-200);
-  border-top: 1px solid var(--ac-global-color-grey-200);
-  border-radius: var(--ac-global-rounding-medium) 0 0 0;
+  border-left: 1px solid var(--global-color-gray-200);
+  border-top: 1px solid var(--global-color-gray-200);
+  border-radius: var(--global-rounding-medium) 0 0 0;
   /* Fill the background of the content */
-  box-shadow: 0 0 10px 10px var(--ac-global-color-grey-100);
+  box-shadow: 0 0 10px 10px var(--global-color-gray-100);
 `;
 
 const bottomLinksCSS = css`
@@ -53,14 +53,14 @@ const bottomLinksCSS = css`
   flex-direction: column;
   margin: 0;
   list-style: none;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
   padding-inline-start: 0;
 `;
 
 const sideLinksCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
 `;
 
 export function Layout() {

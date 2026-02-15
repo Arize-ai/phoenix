@@ -3,15 +3,15 @@ import { css } from "@emotion/react";
 
 export const cardCSS = (style?: CSSProperties) => css`
   --scope-border-color: ${style?.borderColor ??
-  "var(--ac-global-border-color-default)"};
+  "var(--global-border-color-default)"};
   --collapsible-card-animation-duration: 200ms;
-  --collapsible-card-icon-size: var(--ac-global-dimension-size-300);
+  --collapsible-card-icon-size: var(--global-dimension-size-300);
 
   display: flex;
   flex-direction: column;
-  background-color: var(--ac-global-background-color-dark);
-  color: var(--ac-global-text-color-900);
-  border-radius: var(--ac-global-rounding-medium);
+  background-color: var(--global-background-color-dark);
+  color: var(--global-text-color-900);
+  border-radius: var(--global-rounding-medium);
   border: 1px solid var(--scope-border-color);
   overflow: hidden;
   box-sizing: border-box;
@@ -23,8 +23,8 @@ export const cardCSS = (style?: CSSProperties) => css`
     flex: none;
     justify-content: space-between;
     align-items: center;
-    padding: 0 var(--ac-global-dimension-static-size-200);
-    height: var(--ac-global-card-header-height);
+    padding: 0 var(--global-dimension-static-size-200);
+    height: var(--global-card-header-height);
     transition: background-color 0.2s ease-in-out;
 
     & .card__collapse-toggle-icon {
@@ -33,7 +33,7 @@ export const cardCSS = (style?: CSSProperties) => css`
       font-size: 1.3em;
       color: inherit;
       display: flex;
-      margin-right: var(--ac-global-dimension-static-size-100);
+      margin-right: var(--global-dimension-static-size-100);
       transition: transform ease var(--collapsible-card-animation-duration);
 
       & svg {
@@ -43,15 +43,15 @@ export const cardCSS = (style?: CSSProperties) => css`
     }
 
     & .card__title {
-      font-size: var(--ac-global-font-size-m);
-      line-height: var(--ac-global-line-height-m);
+      font-size: var(--global-font-size-m);
+      line-height: var(--global-line-height-m);
       display: flex;
       align-items: center;
-      gap: var(--ac-global-dimension-static-size-100);
+      gap: var(--global-dimension-static-size-100);
     }
 
     & .card__sub-title {
-      color: var(--ac-global-text-color-700);
+      color: var(--global-text-color-700);
     }
 
     /* Collapsible button styles */
@@ -65,7 +65,7 @@ export const cardCSS = (style?: CSSProperties) => css`
       height: 100%;
       appearance: none;
       cursor: pointer;
-      color: var(--ac-global-text-color-900);
+      color: var(--global-text-color-900);
     }
   }
 
@@ -83,8 +83,8 @@ export const cardCSS = (style?: CSSProperties) => css`
 
   /* Compact variant styles */
   &[data-variant="compact"] .card__title {
-    font-size: var(--ac-global-font-size-m);
-    line-height: var(--ac-global-line-height-m);
+    font-size: var(--global-font-size-m);
+    line-height: var(--global-line-height-m);
   }
 
   /* Collapsible behavior */

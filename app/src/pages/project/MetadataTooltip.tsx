@@ -60,11 +60,11 @@ export function MetadataTooltip({
                 css={css`
                   display: flex;
                   flex-direction: column;
-                  gap: var(--ac-global-dimension-size-100);
+                  gap: var(--global-dimension-size-100);
                   overflow-y: auto;
                   max-height: 200px;
                   scrollbar-gutter: stable;
-                  padding-right: var(--ac-global-dimension-size-50);
+                  padding-right: var(--global-dimension-size-50);
                 `}
               >
                 {entries.map(({ key, value }) => (
@@ -111,8 +111,8 @@ export function MetadataTooltip({
                 css={css`
                   display: flex;
                   flex-direction: row;
-                  gap: var(--ac-global-dimension-size-100);
-                  padding: var(--ac-global-dimension-size-50) 0;
+                  gap: var(--global-dimension-size-100);
+                  padding: var(--global-dimension-size-50) 0;
                   flex-wrap: wrap;
                 `}
               >
@@ -126,15 +126,15 @@ export function MetadataTooltip({
                       }}
                       css={css`
                         all: unset;
-                        color: var(--ac-global-text-color-900);
-                        border: 1px solid var(--ac-global-color-grey-300);
+                        color: var(--global-text-color-900);
+                        border: 1px solid var(--global-color-gray-300);
                         border-radius: 4px;
-                        padding: var(--ac-global-dimension-size-50)
-                          var(--ac-global-dimension-size-100);
+                        padding: var(--global-dimension-size-50)
+                          var(--global-dimension-size-100);
                         cursor: pointer;
                         transition: background-color 0.2s;
                         &:hover {
-                          background-color: var(--ac-global-color-gray-300);
+                          background-color: var(--global-color-gray-300);
                         }
                       `}
                     >

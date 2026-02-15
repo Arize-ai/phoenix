@@ -18,7 +18,7 @@ export function Empty(props: EmptyProps) {
     >
       <div
         css={css`
-          margin: var(--ac-global-dimension-size-300);
+          margin: var(--global-dimension-size-300);
           display: flex;
           flex-direction: column;
           align-items: center;

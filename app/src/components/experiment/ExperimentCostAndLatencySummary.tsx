@@ -104,7 +104,7 @@ export function ExperimentCostAndLatencySummary({
     <Flex direction="row" gap="size-100" alignItems="center">
       <TooltipTrigger>
         <TriggerWrap>
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
         </TriggerWrap>
@@ -145,7 +145,7 @@ export function ExperimentCostAndLatencySummaryPlaceholder({
       alignItems="center"
       css={isPlaceholder && placeholderCSS}
     >
-      <Text size="S" fontFamily="mono" color="grey-500">
+      <Text size="S" fontFamily="mono" color="gray-500">
         AVG
       </Text>
       <LatencyText size="S" latencyMs={null} />
@@ -158,9 +158,9 @@ export function ExperimentCostAndLatencySummaryPlaceholder({
 const skeletonItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-50);
+  gap: var(--global-dimension-static-size-50);
   align-items: center;
-  font-size: var(--ac-global-font-size-s);
+  font-size: var(--global-font-size-s);
 `;
 
 /**
@@ -170,7 +170,7 @@ const skeletonItemCSS = css`
 export function ExperimentCostAndLatencySummarySkeleton() {
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
-      <Text size="S" fontFamily="mono" color="grey-500">
+      <Text size="S" fontFamily="mono" color="gray-500">
         AVG
       </Text>
       {/* Latency skeleton */}
@@ -190,7 +190,7 @@ export function ExperimentCostAndLatencySummarySkeleton() {
         <Icon
           svg={<Icons.TokensOutline />}
           css={css`
-            color: var(--ac-global-text-color-900);
+            color: var(--global-text-color-900);
           `}
         />
         <Skeleton width={35} height="1em" />
@@ -200,7 +200,7 @@ export function ExperimentCostAndLatencySummarySkeleton() {
         <Icon
           svg={<Icons.DollarSignOutline />}
           css={css`
-            color: var(--ac-global-text-color-900);
+            color: var(--global-text-color-900);
           `}
         />
         <Skeleton width={45} height="1em" />

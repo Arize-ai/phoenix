@@ -7,20 +7,20 @@ import { classNames } from "@phoenix/utils";
 
 const codeEditorFormWrapperCSS = css`
   &.is-hovered {
-    border: 1px solid var(--ac-global-input-field-border-color-active);
+    border: 1px solid var(--global-input-field-border-color-active);
   }
   &.is-focused {
-    border: 1px solid var(--ac-global-input-field-border-color-active);
+    border: 1px solid var(--global-input-field-border-color-active);
   }
   &.is-invalid {
-    border: 1px solid var(--ac-global-color-danger);
+    border: 1px solid var(--global-color-danger);
   }
-  border-radius: var(--ac-global-rounding-small);
-  border: 1px solid var(--ac-global-input-field-border-color);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-input-field-border-color);
   width: 100%;
   .cm-content,
   .cm-editor {
-    border-radius: var(--ac-global-rounding-small);
+    border-radius: var(--global-rounding-small);
   }
   box-sizing: border-box;
   .cm-focused {

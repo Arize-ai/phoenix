@@ -14,10 +14,10 @@ import {
 const evaluatorTypeCardCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-50);
-  padding: var(--ac-global-dimension-size-200);
-  border-radius: var(--ac-global-rounding-small);
-  border: 1px solid var(--ac-global-border-color-default);
+  gap: var(--global-dimension-size-50);
+  padding: var(--global-dimension-size-200);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-border-color-default);
   background-color: transparent;
   width: 220px;
 `;
@@ -39,11 +39,11 @@ const WorkflowDiagram = () => {
     evaluator: "#9c27b0", // purple
     output: "#1976d2", // darker blue
     score: "#7b1fa2", // darker purple
-    arrow: "var(--ac-global-color-grey-500)",
-    dashedArrow: "var(--ac-global-color-grey-400)",
-    text: "var(--ac-global-text-color-900)",
-    subtext: "var(--ac-global-text-color-700)",
-    bg: "var(--ac-global-color-grey-100)",
+    arrow: "var(--global-color-gray-500)",
+    dashedArrow: "var(--global-color-gray-400)",
+    text: "var(--global-text-color-900)",
+    subtext: "var(--global-text-color-700)",
+    bg: "var(--global-color-gray-100)",
   };
 
   return (
@@ -88,7 +88,7 @@ const WorkflowDiagram = () => {
           width="130"
           height="140"
           rx="4"
-          fill="var(--ac-global-color-grey-75)"
+          fill="var(--global-color-gray-75)"
           stroke={colors.dataset}
           strokeWidth="1"
           strokeOpacity="0.5"
@@ -110,7 +110,7 @@ const WorkflowDiagram = () => {
           width="110"
           height="28"
           rx="4"
-          fill="var(--ac-global-color-grey-200)"
+          fill="var(--global-color-gray-200)"
         />
         <text
           x="100"
@@ -129,7 +129,7 @@ const WorkflowDiagram = () => {
           width="110"
           height="28"
           rx="4"
-          fill="var(--ac-global-color-grey-200)"
+          fill="var(--global-color-gray-200)"
         />
         <text
           x="100"
@@ -148,7 +148,7 @@ const WorkflowDiagram = () => {
           width="110"
           height="28"
           rx="4"
-          fill="var(--ac-global-color-grey-200)"
+          fill="var(--global-color-gray-200)"
         />
         <text
           x="100"

@@ -11,7 +11,7 @@ import { PhoenixLogo } from "./PhoenixLogo";
 const oAuthLoginButtonListCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   flex-wrap: wrap;
   justify-content: center;
 `;

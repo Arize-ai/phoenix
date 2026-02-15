@@ -16,18 +16,18 @@ const cellWithControlsWrapCSS = css`
     display: flex;
     // make them stand out
     button {
-      border-color: var(--ac-global-color-primary);
+      border-color: var(--global-color-primary);
     }
   }
 `;
 
 const cellControlsCSS = css`
   position: absolute;
-  top: calc(-1 * var(--ac-global-dimension-static-size-200));
-  right: var(--ac-global-dimension-static-size-200);
+  top: calc(-1 * var(--global-dimension-static-size-200));
+  right: var(--global-dimension-static-size-200);
   display: flex;
   flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-100);
+  gap: var(--global-dimension-static-size-100);
 `;
 
 /**

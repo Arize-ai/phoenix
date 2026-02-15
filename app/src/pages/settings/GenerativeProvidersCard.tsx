@@ -401,7 +401,7 @@ function BrowserCredentials({
         onPress={clearLocalCredentials}
         css={css`
           align-self: flex-start;
-          margin-top: var(--ac-global-dimension-size-100);
+          margin-top: var(--global-dimension-size-100);
         `}
       >
         Clear Local Credentials
@@ -658,7 +658,7 @@ function ServerCredentials({
         gap="size-100"
         css={css`
           align-self: flex-start;
-          margin-top: var(--ac-global-dimension-size-100);
+          margin-top: var(--global-dimension-size-100);
         `}
       >
         <Button

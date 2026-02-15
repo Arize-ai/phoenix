@@ -53,14 +53,14 @@ export const PromptLink = ({
   // otherwise, we assume the latest version is pinned
   if (promptVersionTag) {
     specifier = (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
+      <Token size="S" color="var(--global-color-gray-700)">
         <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
       </Token>
     );
     to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
   } else {
     specifier = (
-      <Token size="S" color="var(--ac-global-color-grey-700)">
+      <Token size="S" color="var(--global-color-gray-700)">
         latest
       </Token>
     );

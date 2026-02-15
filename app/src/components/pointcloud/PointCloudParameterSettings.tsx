@@ -67,9 +67,9 @@ export function PointCloudParameterSettings() {
     <section
       css={css`
         & > .ac-form {
-          padding: var(--ac-global-dimension-static-size-100)
-            var(--ac-global-dimension-static-size-100) 0
-            var(--ac-global-dimension-static-size-100);
+          padding: var(--global-dimension-static-size-100)
+            var(--global-dimension-static-size-100) 0
+            var(--global-dimension-static-size-100);
         }
       `}
     >
@@ -185,7 +185,7 @@ export function PointCloudParameterSettings() {
             isDisabled={!isValid}
             css={css`
               width: 100%;
-              margin-top: var(--ac-global-dimension-static-size-100);
+              margin-top: var(--global-dimension-static-size-100);
             `}
           >
             Apply UMAP Parameters

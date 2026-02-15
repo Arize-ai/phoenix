@@ -825,7 +825,7 @@ function ProviderSection({
 }) {
   return (
     <View
-      borderColor="grey-200"
+      borderColor="gray-200"
       borderWidth="thin"
       borderRadius="medium"
       padding="size-200"
@@ -1250,7 +1250,7 @@ function TestConnectionButton({
   return (
     <Flex direction="column" gap="size-100">
       <View
-        borderColor="grey-200"
+        borderColor="gray-200"
         borderWidth="thin"
         borderRadius="medium"
         padding="size-200"

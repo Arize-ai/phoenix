@@ -54,8 +54,8 @@ function DatasetFromFileForm({
       <div
         css={css`
           position: absolute;
-          top: var(--ac-global-dimension-size-200);
-          right: var(--ac-global-dimension-size-200);
+          top: var(--global-dimension-size-200);
+          right: var(--global-dimension-size-200);
         `}
       >
         <ToggleButtonGroup
@@ -128,12 +128,11 @@ export function NewDatasetActionMenu({
         onPress={() => setIsOpen(true)}
         css={css`
           height: calc(
-            var(--ac-global-button-height-m) +
-              var(--ac-global-dimension-size-50)
+            var(--global-button-height-m) + var(--global-dimension-size-50)
           );
-          padding: var(--ac-global-dimension-static-size-150)
-            var(--ac-global-dimension-static-size-250);
-          font-size: var(--ac-global-dimension-static-font-size-200);
+          padding: var(--global-dimension-static-size-150)
+            var(--global-dimension-static-size-250);
+          font-size: var(--global-dimension-static-font-size-200);
         `}
         aria-label="Create a new dataset"
       >
@@ -174,7 +173,7 @@ export function NewDatasetActionMenu({
                     variant="danger"
                     banner
                     css={css`
-                      margin-bottom: var(--ac-global-dimension-size-200);
+                      margin-bottom: var(--global-dimension-size-200);
                     `}
                   >
                     {errorMessage}

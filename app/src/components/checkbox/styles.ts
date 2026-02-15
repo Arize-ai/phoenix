@@ -1,20 +1,20 @@
 import { css } from "@emotion/react";
 
 export const checkboxCSS = css`
-  --selected-color: var(--ac-global-checkbox-selected-color);
-  --selected-color-pressed: var(--ac-global-checkbox-selected-color-pressed);
-  --checkmark-color: var(--ac-global-checkbox-checkmark-color);
-  --border-color: var(--ac-global-checkbox-border-color);
-  --border-color-pressed: var(--ac-global-checkbox-border-color-pressed);
-  --border-color-hover: var(--ac-global-checkbox-border-color-hover);
-  --focus-ring-color: var(--ac-focus-ring-color);
-  --checkbox-size: var(--ac-global-dimension-static-size-200);
+  --selected-color: var(--global-checkbox-selected-color);
+  --selected-color-pressed: var(--global-checkbox-selected-color-pressed);
+  --checkmark-color: var(--global-checkbox-checkmark-color);
+  --border-color: var(--global-checkbox-border-color);
+  --border-color-pressed: var(--global-checkbox-border-color-pressed);
+  --border-color-hover: var(--global-checkbox-border-color-hover);
+  --checkbox-focus-ring-color: var(--focus-ring-color);
+  --checkbox-size: var(--global-dimension-static-size-200);
 
   display: flex;
   /* This is needed so the HiddenInput is positioned correctly */
   position: relative;
   align-items: center;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
   forced-color-adjust: none;
   cursor: pointer;
 
@@ -23,7 +23,7 @@ export const checkboxCSS = css`
     width: var(--checkbox-size);
     height: var(--checkbox-size);
     border: 2px solid var(--border-color);
-    border-radius: var(--ac-global-rounding-small);
+    border-radius: var(--global-rounding-small);
     transition: all 200ms;
     display: flex;
     align-items: center;
@@ -54,7 +54,7 @@ export const checkboxCSS = css`
   }
 
   &[data-focus-visible] .checkbox {
-    outline: 2px solid var(--focus-ring-color);
+    outline: 2px solid var(--checkbox-focus-ring-color);
     outline-offset: 2px;
   }
 

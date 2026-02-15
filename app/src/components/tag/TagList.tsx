@@ -6,7 +6,7 @@ const tagListCSS = css`
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--ac-global-dimension-size-50);
+  gap: var(--global-dimension-size-50);
   height: 28px;
 `;
 function TagList<T extends object>(

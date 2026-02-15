@@ -14,7 +14,7 @@ const breadcrumbCSS = css`
   align-items: center;
 
   a {
-    color: var(--ac-global-text-color-700);
+    color: var(--global-text-color-700);
     text-decoration: none;
     &:hover {
       text-decoration: underline;
@@ -23,7 +23,7 @@ const breadcrumbCSS = css`
 
   &[data-current],
   &[data-current] a {
-    color: var(--ac-global-text-color-900);
+    color: var(--global-text-color-900);
     font-weight: 600;
     cursor: default;
     &:hover {

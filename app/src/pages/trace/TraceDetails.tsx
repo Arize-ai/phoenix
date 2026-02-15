@@ -292,8 +292,8 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
           overflow: hidden;
           .ac-tabs__extra {
             width: 100%;
-            padding-right: var(--ac-global-dimension-size-200);
-            padding-bottom: var(--ac-global-dimension-size-50);
+            padding-right: var(--global-dimension-size-200);
+            padding-bottom: var(--global-dimension-size-50);
           }
           .ac-tabs__pane-container {
             min-height: 100%;

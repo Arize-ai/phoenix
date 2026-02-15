@@ -71,11 +71,11 @@ export const TitledPanel = forwardRef<
             css={css(
               compactResizeHandleCSS,
               css`
-                border-radius: var(--ac-global-rounding-small);
+                border-radius: var(--global-rounding-small);
                 opacity: 1;
                 background-color: unset;
                 &[data-bordered="true"] {
-                  background-color: var(--ac-global-border-color-default);
+                  background-color: var(--global-border-color-default);
                 }
                 &[data-panel-group-direction="vertical"] {
                   height: 1px;
@@ -85,7 +85,7 @@ export const TitledPanel = forwardRef<
                 &:active,
                 &:focus-visible {
                   // Make hover target bigger
-                  background-color: var(--ac-global-color-primary);
+                  background-color: var(--global-color-primary);
                 }
                 &:not([data-resize-handle-state="drag"]) ~ [data-panel] {
                   // transition: flex 0.2s ease-in-out;
@@ -130,24 +130,23 @@ const panelTitleCSS = css`
   width: 100%;
   &:hover {
     cursor: pointer;
-    background-color: var(--ac-global-input-field-background-color-active);
+    background-color: var(--global-input-field-background-color-active);
   }
   &:hover[disabled] {
     cursor: default;
     background-color: unset;
   }
   &[disabled] {
-    opacity: var(--ac-global-opacity-disabled);
+    opacity: var(--global-opacity-disabled);
   }
   display: flex;
   align-items: center;
-  gap: var(--ac-global-dimension-size-100);
-  padding: var(--ac-global-dimension-size-100)
-    var(--ac-global-dimension-size-50);
-  font-weight: var(--px-font-weight-heavy);
-  font-size: var(--ac-global-font-size-s);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-50);
+  font-weight: var(--font-weight-heavy);
+  font-size: var(--global-font-size-s);
   &[data-bordered="true"] {
-    border-bottom: 1px solid var(--ac-global-border-color-default);
+    border-bottom: 1px solid var(--global-border-color-default);
   }
   &[data-collapsed="true"] {
     border-bottom: none;

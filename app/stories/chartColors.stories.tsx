@@ -7,19 +7,19 @@ import { useSequentialChartColors } from "@phoenix/components/chart";
 const colorGridCSS = css`
   display: grid;
   grid-template-columns: repeat(auto-fill, 140px);
-  gap: var(--ac-global-dimension-size-100);
-  padding: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
   justify-content: start;
 `;
 
 const colorSwatchCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-75);
-  padding: var(--ac-global-dimension-size-100);
-  border: 1px solid var(--ac-global-color-grey-300);
-  border-radius: var(--ac-global-rounding-medium);
-  background-color: var(--ac-global-color-grey-50);
+  gap: var(--global-dimension-size-75);
+  padding: var(--global-dimension-size-100);
+  border: 1px solid var(--global-color-gray-300);
+  border-radius: var(--global-rounding-medium);
+  background-color: var(--global-color-gray-50);
   min-width: 0; /* Prevent flex items from overflowing */
 `;
 
@@ -27,7 +27,7 @@ const colorCircleCSS = css`
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid var(--ac-global-color-grey-200);
+  border: 2px solid var(--global-color-gray-200);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 `;
@@ -35,19 +35,19 @@ const colorCircleCSS = css`
 const colorInfoCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-25);
+  gap: var(--global-dimension-size-25);
   min-width: 0;
   flex: 1;
 `;
 
 const colorValueCSS = css`
-  font-family: var(--ac-global-font-family-code);
-  font-size: var(--ac-global-dimension-font-size-50);
-  color: var(--ac-global-text-color-700);
-  background-color: var(--ac-global-color-grey-100);
-  padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-50);
-  border-radius: var(--ac-global-rounding-small);
-  border: 1px solid var(--ac-global-color-grey-200);
+  font-family: var(--global-font-family-code);
+  font-size: var(--global-dimension-font-size-50);
+  color: var(--global-text-color-700);
+  background-color: var(--global-color-gray-100);
+  padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-color-gray-200);
   word-break: break-all;
   overflow-wrap: break-word;
 `;
@@ -55,14 +55,14 @@ const colorValueCSS = css`
 const colorGroupCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 const colorGroupHeaderCSS = css`
-  padding: var(--ac-global-dimension-size-75) 0
-    var(--ac-global-dimension-size-50);
-  border-bottom: 1px solid var(--ac-global-color-grey-200);
-  margin-bottom: var(--ac-global-dimension-size-75);
+  padding: var(--global-dimension-size-75) 0
+    var(--global-dimension-size-50);
+  border-bottom: 1px solid var(--global-color-gray-200);
+  margin-bottom: var(--global-dimension-size-75);
 `;
 
 interface ColorSwatchProps {

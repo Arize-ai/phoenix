@@ -27,8 +27,8 @@ const notesListCSS = css`
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
-  padding: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
   box-sizing: border-box;
   li {
     width: 100%;

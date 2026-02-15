@@ -46,7 +46,7 @@ export function ForgotPasswordPage() {
             width: 100%;
             display: block;
             text-align: center;
-            padding-top: var(--ac-global-dimension-size-200);
+            padding-top: var(--global-dimension-size-200);
           }
         `}
       >

@@ -15,26 +15,26 @@ export const selectCSS = css`
 
     &[data-pressed],
     &:hover {
-      --button-border-color: var(--ac-global-input-field-border-color-active);
+      --button-border-color: var(--global-input-field-border-color-active);
     }
   }
 
   button[data-size="S"][data-childless="false"] {
-    padding-right: var(--ac-global-dimension-size-50);
+    padding-right: var(--global-dimension-size-50);
   }
 
   button[data-size="M"][data-childless="false"] {
-    padding-right: var(--ac-global-dimension-size-100);
+    padding-right: var(--global-dimension-size-100);
   }
 
   &[data-invalid="true"] button {
-    border-color: var(--ac-global-color-danger);
+    border-color: var(--global-color-danger);
   }
 
   .react-aria-SelectValue {
     &[data-placeholder] {
       font-style: italic;
-      color: var(--ac-text-color-placeholder);
+      color: var(--text-color-placeholder);
     }
   }
 `;

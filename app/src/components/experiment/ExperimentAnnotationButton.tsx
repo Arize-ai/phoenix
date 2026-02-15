@@ -36,14 +36,14 @@ export function ExperimentAnnotationButton({
         css={css`
           container-type: inline-size;
           cursor: pointer;
-          padding: var(--ac-global-dimension-size-50)
-            var(--ac-global-dimension-size-100);
+          padding: var(--global-dimension-size-50)
+            var(--global-dimension-size-100);
           flex: 1 1 auto;
-          border-radius: var(--ac-global-rounding-small);
+          border-radius: var(--global-rounding-small);
           width: 100%;
           min-width: 0;
           &:hover {
-            background-color: var(--ac-global-color-grey-200);
+            background-color: var(--global-color-gray-200);
           }
         `}
       >

@@ -32,20 +32,20 @@ export function UserPicture({
       align-items: center;
       flex: none;
       overflow: hidden;
-      --ac-internal-avatar-color: ${wordColor};
+      --internal-avatar-color: ${wordColor};
 
       &[data-theme="light"] {
-        background: var(--ac-internal-avatar-color);
+        background: var(--internal-avatar-color);
         border: 1px solid
-          lch(from var(--ac-internal-avatar-color) calc(l * infinity) c h / 0.3);
+          lch(from var(--internal-avatar-color) calc(l * infinity) c h / 0.3);
         color: lch(
-          from var(--ac-internal-avatar-color) calc((50 - l) * infinity) 0 0
+          from var(--internal-avatar-color) calc((50 - l) * infinity) 0 0
         );
       }
 
       &[data-theme="dark"] {
         --scoped-avatar-dark-bg: lch(
-          from var(--ac-internal-avatar-color) calc(l * 0.7) c h
+          from var(--internal-avatar-color) calc(l * 0.7) c h
         );
         background: linear-gradient(
           120deg,

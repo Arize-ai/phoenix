@@ -12,7 +12,7 @@ const jsonBlockCSS = css`
 `;
 
 const textWrapCSS = css`
-  font-size: var(--ac-global-font-size-s);
+  font-size: var(--global-font-size-s);
   white-space: pre-wrap;
   word-break: break-word;
 `;

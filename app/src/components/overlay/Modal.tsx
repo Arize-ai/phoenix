@@ -35,22 +35,22 @@ const modalZoom = keyframes`
   }
   `;
 const modalCSS = css`
-  --modal-width: var(--ac-global-modal-width-M);
+  --modal-width: var(--global-modal-width-M);
 
   &[data-size="S"] {
-    --modal-width: var(--ac-global-modal-width-S);
+    --modal-width: var(--global-modal-width-S);
   }
 
   &[data-size="M"] {
-    --modal-width: var(--ac-global-modal-width-M);
+    --modal-width: var(--global-modal-width-M);
   }
 
   &[data-size="L"] {
-    --modal-width: var(--ac-global-modal-width-L);
+    --modal-width: var(--global-modal-width-L);
   }
 
   &[data-size="fullscreen"] {
-    --modal-width: var(--ac-global-modal-width-FULLSCREEN);
+    --modal-width: var(--global-modal-width-FULLSCREEN);
   }
 
   &[data-variant="slideover"] {
@@ -79,7 +79,7 @@ const modalCSS = css`
     .react-aria-Dialog {
       height: 100%;
       border-radius: 0;
-      border-left-color: var(--ac-global-border-color-dark);
+      border-left-color: var(--global-border-color-dark);
       border-top: none;
       border-bottom: none;
       border-right: none;
@@ -103,7 +103,7 @@ const modalCSS = css`
       z-index: 1001;
       // 90% gives a decent amount of padding around the dialog when it would
       // otherwise be cut off by the edges of the screen
-      max-height: calc(100% - var(--ac-global-dimension-size-800));
+      max-height: calc(100% - var(--global-dimension-size-800));
       overflow: auto;
       // prevent bounce in safari when scrolling
       overscroll-behavior: contain;
@@ -117,16 +117,16 @@ const modalCSS = css`
   .react-aria-Dialog {
     box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
     width: var(--modal-width);
-    border-radius: var(--ac-global-rounding-medium);
-    background: var(--ac-global-background-color-dark);
-    color: var(--ac-global-text-color-900);
-    border: 1px solid var(--ac-global-border-color-light);
+    border-radius: var(--global-rounding-medium);
+    background: var(--global-background-color-dark);
+    color: var(--global-text-color-900);
+    border: 1px solid var(--global-border-color-light);
     outline: none;
 
     & .ac-DialogHeader {
       position: sticky;
       top: 0;
-      background: var(--ac-global-background-color-dark);
+      background: var(--global-background-color-dark);
       z-index: 1;
     }
   }

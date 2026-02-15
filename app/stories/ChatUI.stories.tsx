@@ -18,23 +18,23 @@ interface Message {
 const chatContainerCSS = css`
   display: flex;
   flex-direction: column;
-  height: var(--ac-global-dimension-size-5000);
+  height: var(--global-dimension-size-5000);
   width: 100%;
-  max-width: var(--ac-global-dimension-size-6000);
-  border: var(--ac-global-border-size-thin) solid
-    var(--ac-global-border-color-default);
-  border-radius: var(--ac-global-rounding-medium);
+  max-width: var(--global-dimension-size-6000);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
   overflow: hidden;
-  background-color: var(--ac-global-background-color-default);
+  background-color: var(--global-background-color-default);
 `;
 
 const messagesContainerCSS = css`
   flex: 1;
   overflow-y: auto;
-  padding: var(--ac-global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--global-dimension-size-100);
 `;
 
 // Use a fixed base date for consistent storybook renders

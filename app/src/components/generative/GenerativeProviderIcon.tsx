@@ -55,7 +55,7 @@ const GoogleSVG = ({ height }: { height: number }) => (
 
 const OpenAISVG = ({ height }: { height: number }) => (
   <svg
-    fill="var(--ac-global-text-color-900)"
+    fill="var(--global-text-color-900)"
     fillRule="evenodd"
     viewBox="0 0 24 24"
     width={height}
@@ -69,7 +69,7 @@ const OpenAISVG = ({ height }: { height: number }) => (
 
 const AnthropicSVG = ({ height }: { height: number }) => (
   <svg
-    fill="var(--ac-global-text-color-900)"
+    fill="var(--global-text-color-900)"
     fillRule="evenodd"
     viewBox="0 0 24 24"
     width={height}
@@ -98,7 +98,7 @@ const DeepSeekSVG = ({ height }: { height: number }) => (
 
 const XAISVG = ({ height }: { height: number }) => (
   <svg
-    fill="var(--ac-global-text-color-900)"
+    fill="var(--global-text-color-900)"
     fillRule="evenodd"
     viewBox="0 0 24 24"
     width={height}

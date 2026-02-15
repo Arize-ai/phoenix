@@ -43,13 +43,13 @@ export function TagVersionLabel({
   const color: TokenProps["color"] = useMemo(() => {
     switch (children) {
       case "production":
-        return "var(--ac-global-color-green-1000)";
+        return "var(--global-color-green-1000)";
       case "staging":
-        return "var(--ac-global-color-yellow-1000)";
+        return "var(--global-color-yellow-1000)";
       case "development":
-        return "var(--ac-global-color-blue-1000)";
+        return "var(--global-color-blue-1000)";
       default:
-        return "var(--ac-global-color-grey-900)";
+        return "var(--global-color-gray-900)";
     }
   }, [children]);
   return (

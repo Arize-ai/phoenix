@@ -232,7 +232,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             items={datasetItems}
             renderEmptyState={() => (
               <View padding="size-100">
-                <Text color="grey-300" size="S">
+                <Text color="gray-300" size="S">
                   No datasets found
                 </Text>
               </View>
@@ -287,7 +287,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           css={css`
                             display: flex;
                             flex-direction: row;
-                            gap: var(--ac-global-dimension-size-50);
+                            gap: var(--global-dimension-size-50);
                             min-width: 0;
                             flex-wrap: wrap;
                           `}
@@ -321,7 +321,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         width="100%"
                         css={css`
                           opacity: ${isDisabled
-                            ? "var(--ac-global-opacity-disabled)"
+                            ? "var(--global-opacity-disabled)"
                             : 1};
                         `}
                       >
@@ -336,7 +336,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                           css={css`
                             display: flex;
                             flex-direction: row;
-                            gap: var(--ac-global-dimension-size-50);
+                            gap: var(--global-dimension-size-50);
                             min-width: 0;
                             flex-wrap: wrap;
                           `}

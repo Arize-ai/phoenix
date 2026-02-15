@@ -12,8 +12,8 @@ import {
  */
 export const defaultTimeXAxisProps: XAxisProps = {
   dataKey: "timestamp",
-  stroke: "var(--ac-global-colo-grey-400)",
-  style: { fill: "var(--ac-global-text-color-700)" },
+  stroke: "var(--global-color-gray-400)",
+  style: { fill: "var(--global-text-color-700)" },
   scale: "time",
   type: "number",
   domain: ["auto", "auto"],
@@ -21,7 +21,7 @@ export const defaultTimeXAxisProps: XAxisProps = {
 };
 
 export const defaultSelectedTimestampReferenceLineProps = {
-  stroke: "var(--ac-global-color-grey-900)",
+  stroke: "var(--global-color-gray-900)",
 };
 
 export const defaultSelectedTimestampReferenceLineLabelProps: LabelProps = {
@@ -29,14 +29,14 @@ export const defaultSelectedTimestampReferenceLineLabelProps: LabelProps = {
   position: "top",
   style: {
     fill: "#fabe32",
-    fontSize: "var(--ac-global-font-size-xs)",
+    fontSize: "var(--global-font-size-xs)",
   },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   cursor: {
-    fill: "var(--ac-global-color-grey-300)",
+    fill: "var(--global-color-gray-300)",
   },
 };
 

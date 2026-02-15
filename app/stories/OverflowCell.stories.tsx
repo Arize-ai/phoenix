@@ -44,9 +44,9 @@ A cell component that handles overflowing content with an expandable interface.
       <div
         css={css`
           width: 400px;
-          border: 1px solid var(--ac-global-border-color-default);
-          border-radius: var(--ac-global-rounding-small);
-          background: var(--ac-global-background-color-default);
+          border: 1px solid var(--global-border-color-default);
+          border-radius: var(--global-rounding-small);
+          background: var(--global-background-color-default);
         `}
       >
         <Story />
@@ -206,10 +206,10 @@ const TableLayoutTemplate = () => {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1px;
-        background: var(--ac-global-border-color-default);
+        background: var(--global-border-color-default);
         & > div {
-          background: var(--ac-global-background-color-default);
-          padding: var(--ac-global-dimension-size-100);
+          background: var(--global-background-color-default);
+          padding: var(--global-dimension-size-100);
         }
       `}
     >
@@ -253,8 +253,8 @@ export const TableLayout: Story = {
       <div
         css={css`
           width: 600px;
-          border: 1px solid var(--ac-global-border-color-default);
-          border-radius: var(--ac-global-rounding-small);
+          border: 1px solid var(--global-border-color-default);
+          border-radius: var(--global-rounding-small);
           overflow: hidden;
         `}
       >

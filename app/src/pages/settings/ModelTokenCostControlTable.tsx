@@ -49,17 +49,17 @@ export function ModelTokenCostControlTable({
       <table
         css={css`
           border-collapse: separate;
-          border-spacing: 0 var(--ac-global-dimension-size-100);
+          border-spacing: 0 var(--global-dimension-size-100);
           width: 100%;
 
           & th {
             text-align: left;
             font-weight: normal;
-            color: var(--ac-global-color-grey-500);
+            color: var(--global-color-gray-500);
           }
 
           & th:not(:last-child) {
-            padding-right: var(--ac-global-dimension-size-100);
+            padding-right: var(--global-dimension-size-100);
           }
 
           & td {
@@ -67,7 +67,7 @@ export function ModelTokenCostControlTable({
           }
 
           & tbody td:not(:last-child) {
-            padding-right: var(--ac-global-dimension-size-100);
+            padding-right: var(--global-dimension-size-100);
           }
         `}
       >

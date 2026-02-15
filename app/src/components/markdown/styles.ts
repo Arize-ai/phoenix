@@ -2,9 +2,9 @@ import { css } from "@emotion/react";
 
 export const markdownCSS = css`
   a {
-    color: var(--ac-global-link-color);
+    color: var(--global-link-color);
     &:visited {
-      color: var(--ac-global-link-color-visited);
+      color: var(--global-link-color-visited);
     }
   }
   /* Remove the margin on the first and last paragraph */

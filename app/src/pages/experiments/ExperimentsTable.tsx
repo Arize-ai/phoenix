@@ -693,8 +693,8 @@ function MissingAnnotationPieChart({
             key={entry.name}
             fill={
               entry.name === "missingAnnotation"
-                ? "var(--ac-global-color-warning)"
-                : "var(--ac-global-color-grey-300)"
+                ? "var(--global-color-warning)"
+                : "var(--global-color-gray-300)"
             }
             opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
           />
@@ -734,7 +734,7 @@ function AnnotationAggregationCell({
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: var(--ac-global-dimension-size-100);
+        gap: var(--global-dimension-size-100);
       `}
     >
       {unannotatedRatio > 0.0 && (

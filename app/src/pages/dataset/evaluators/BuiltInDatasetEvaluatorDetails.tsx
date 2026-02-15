@@ -19,11 +19,11 @@ import { RegexEvaluatorDetails } from "@phoenix/components/evaluators/RegexEvalu
 import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 const boxCSS = css`
-  background-color: var(--ac-global-background-color-dark);
-  border-radius: var(--ac-global-rounding-medium);
-  padding: var(--ac-global-dimension-static-size-200);
-  margin-top: var(--ac-global-dimension-static-size-50);
-  border: 1px solid var(--ac-global-border-color-default);
+  background-color: var(--global-background-color-dark);
+  border-radius: var(--global-rounding-medium);
+  padding: var(--global-dimension-static-size-200);
+  margin-top: var(--global-dimension-static-size-50);
+  border: 1px solid var(--global-border-color-default);
 `;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

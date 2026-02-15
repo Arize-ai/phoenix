@@ -42,7 +42,7 @@ export function PromptVersionSummary(props: {
           width="100%"
         >
           <Flex direction="row" gap="size-100" alignItems="center">
-            <Token color="var(--ac-global-color-blue-900)">
+            <Token color="var(--global-color-blue-900)">
               {version.sequenceNumber}
             </Token>
             <span>{`${version.id}`}</span>

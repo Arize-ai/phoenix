@@ -11,7 +11,7 @@ import { InvocationParametersFormFields } from "./InvocationParametersFormFields
 const modelParametersFormCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
   .ac-field,
   .ac-dropdown,
   .ac-dropdown-button,
@@ -19,7 +19,7 @@ const modelParametersFormCSS = css`
     width: 100%;
   }
   .ac-slider-controls > .ac-slider-track:first-child::before {
-    background: var(--ac-global-color-primary);
+    background: var(--global-color-primary);
   }
 `;
 

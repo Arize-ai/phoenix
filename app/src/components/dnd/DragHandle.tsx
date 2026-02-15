@@ -28,15 +28,15 @@ function DragHandle(
       className="button--reset drag-handle"
       css={css`
         cursor: grab;
-        background-color: var(--ac-global-input-field-background-color);
-        border: 1px solid var(--ac-global-color-grey-400);
-        color: var(--ac-global-text-color-900);
+        background-color: var(--global-input-field-background-color);
+        border: 1px solid var(--global-color-gray-400);
+        color: var(--global-text-color-900);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: var(--ac-global-dimension-size-100)
-          var(--ac-global-dimension-size-50);
-        border-radius: var(--ac-global-rounding-small);
+        padding: var(--global-dimension-size-100)
+          var(--global-dimension-size-50);
+        border-radius: var(--global-rounding-small);
         overflow: hidden;
       `}
     >

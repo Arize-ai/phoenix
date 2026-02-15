@@ -5,21 +5,20 @@ import { Flex, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 const metadataLabelCSS = css`
-  border-radius: var(--ac-global-dimension-size-50);
-  border: 1px solid var(--ac-global-color-grey-200);
-  padding: var(--ac-global-dimension-size-50)
-    var(--ac-global-dimension-size-100);
+  border-radius: var(--global-dimension-size-50);
+  border: 1px solid var(--global-color-gray-200);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   transition: background-color 0.2s;
 
   &[role="button"] {
     cursor: pointer;
     &:hover {
-      background-color: var(--ac-global-color-grey-200);
-      border-color: var(--ac-global-color-grey-400);
+      background-color: var(--global-color-gray-200);
+      border-color: var(--global-color-gray-400);
     }
   }
   max-width: 100%;
-  height: var(--ac-global-dimension-size-200);
+  height: var(--global-dimension-size-200);
 `;
 
 export function MetadataLabel({

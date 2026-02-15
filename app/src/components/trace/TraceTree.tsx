@@ -101,7 +101,7 @@ export function TraceTree(props: TraceTreeProps) {
                 width: 0;
               }
               .span-node-wrap {
-                padding-left: var(--ac-global-dimension-static-size-200);
+                padding-left: var(--global-dimension-static-size-200);
               }
             }
             @container (width < ${LARGE_BREAKPOINT}) {
@@ -152,9 +152,9 @@ function TraceTreeToolbar() {
         box-sizing: border-box;
         width: 100%;
         align-items: center;
-        padding: var(--ac-global-dimension-size-100);
-        border-bottom: 1px solid var(--ac-global-color-grey-300);
-        height: var(--ac-global-dimension-size-600);
+        padding: var(--global-dimension-size-100);
+        border-bottom: 1px solid var(--global-color-gray-300);
+        height: var(--global-dimension-size-600);
         @container (width < ${COMPACT_BREAKPOINT}) {
           button {
             display: none;
@@ -237,7 +237,7 @@ function TraceTreeToolbar() {
 
 const spanNameCSS = css`
   font-weight: 500;
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
@@ -333,7 +333,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               <SpanStatusCodeIcon
                 statusCode="ERROR"
                 css={css`
-                  font-size: var(--ac-global-font-size-m);
+                  font-size: var(--global-font-size-m);
                 `}
               />
             ) : null}
@@ -433,18 +433,18 @@ function SpanNodeWrap(
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        gap: var(--ac-global-dimension-static-size-100);
-        padding-right: var(--ac-global-dimension-static-size-100);
-        padding-top: var(--ac-global-dimension-static-size-100);
-        padding-bottom: var(--ac-global-dimension-static-size-100);
+        gap: var(--global-dimension-static-size-100);
+        padding-right: var(--global-dimension-static-size-100);
+        padding-top: var(--global-dimension-static-size-100);
+        padding-bottom: var(--global-dimension-static-size-100);
         border-left: 4px solid transparent;
         box-sizing: border-box;
         &:hover {
-          background-color: var(--ac-global-color-grey-200);
+          background-color: var(--global-color-gray-200);
         }
         &.is-selected {
-          background-color: var(--ac-global-color-primary-100);
-          border-color: var(--ac-global-color-primary-200);
+          background-color: var(--global-color-primary-100);
+          border-color: var(--global-color-primary-200);
         }
         & > *:first-of-type {
           margin-left: calc(
@@ -479,8 +479,8 @@ function SpanTreeEdgeConnector({
         position: absolute;
         border-left: 1px solid
           ${isError
-            ? "var(--ac-global-color-danger)"
-            : "var(--ac-global-color-grey-500)"};
+            ? "var(--global-color-danger)"
+            : "var(--global-color-gray-500)"};
         z-index: ${isError ? 1 : 0};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
@@ -501,8 +501,8 @@ function SpanTreeEdge({
 }) {
   const isError = statusCode === "ERROR";
   const color = isError
-    ? "var(--ac-global-color-danger)"
-    : "var(--ac-global-color-grey-500)";
+    ? "var(--global-color-danger)"
+    : "var(--global-color-gray-500)";
   const zIndex = isError ? 1 : 0;
   return (
     <div
@@ -529,7 +529,7 @@ const spanControlsCSS = css`
 `;
 
 const spanTimingCSS = css`
-  gap: var(--ac-global-dimension-static-size-100);
+  gap: var(--global-dimension-static-size-100);
   width: 150px;
   transition: all 0.2s ease-in-out;
   flex: none;
@@ -552,7 +552,7 @@ const collapseButtonCSS = css`
   border: none;
   background: none;
   cursor: pointer;
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
   border-radius: 4px;
   transition: transform 0.2s;
   transition: background-color 0.5s;

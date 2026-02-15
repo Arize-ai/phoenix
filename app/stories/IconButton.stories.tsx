@@ -75,7 +75,7 @@ export const Sizes = () => (
     css={css`
       display: flex;
       align-items: center;
-      gap: var(--ac-global-dimension-size-200);
+      gap: var(--global-dimension-size-200);
     `}
   >
     <IconButton size="S" aria-label="Small search">
@@ -95,7 +95,7 @@ export const DifferentIcons = () => (
     css={css`
       display: flex;
       align-items: center;
-      gap: var(--ac-global-dimension-size-200);
+      gap: var(--global-dimension-size-200);
       flex-wrap: wrap;
     `}
   >
@@ -143,10 +143,10 @@ CustomStyling.args = {
   children: <Icon svg={<SearchOutline />} />,
   "aria-label": "Custom search",
   css: css`
-    --ac-global-text-color-700: var(--ac-global-color-blue-600);
+    --global-text-color-700: var(--global-color-blue-600);
     &[data-hovered] {
-      background-color: var(--ac-global-color-blue-100);
-      --ac-global-text-color-900: var(--ac-global-color-blue-800);
+      background-color: var(--global-color-blue-100);
+      --global-text-color-900: var(--global-color-blue-800);
     }
   `,
 };
@@ -159,7 +159,7 @@ export const SizeVariations = () => (
     css={css`
       display: flex;
       align-items: center;
-      gap: var(--ac-global-dimension-size-300);
+      gap: var(--global-dimension-size-300);
     `}
   >
     <div
@@ -167,7 +167,7 @@ export const SizeVariations = () => (
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: var(--ac-global-dimension-size-100);
+        gap: var(--global-dimension-size-100);
       `}
     >
       <IconButton size="S" aria-label="Small add">
@@ -175,8 +175,8 @@ export const SizeVariations = () => (
       </IconButton>
       <span
         css={css`
-          font-size: var(--ac-global-font-size-xs);
-          color: var(--ac-global-text-color-500);
+          font-size: var(--global-font-size-xs);
+          color: var(--global-text-color-500);
         `}
       >
         Small
@@ -187,7 +187,7 @@ export const SizeVariations = () => (
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: var(--ac-global-dimension-size-100);
+        gap: var(--global-dimension-size-100);
       `}
     >
       <IconButton size="M" aria-label="Medium edit">
@@ -195,8 +195,8 @@ export const SizeVariations = () => (
       </IconButton>
       <span
         css={css`
-          font-size: var(--ac-global-font-size-xs);
-          color: var(--ac-global-text-color-500);
+          font-size: var(--global-font-size-xs);
+          color: var(--global-text-color-500);
         `}
       >
         Medium
@@ -224,7 +224,7 @@ export const ButtonColors = () => (
     css={css`
       display: flex;
       align-items: center;
-      gap: var(--ac-global-dimension-size-200);
+      gap: var(--global-dimension-size-200);
       flex-wrap: wrap;
     `}
   >
@@ -258,7 +258,7 @@ export const SizeComparison = () => (
     css={css`
       display: flex;
       flex-direction: column;
-      gap: var(--ac-global-dimension-size-300);
+      gap: var(--global-dimension-size-300);
     `}
   >
     {/* Small Size Comparison */}
@@ -266,13 +266,13 @@ export const SizeComparison = () => (
       css={css`
         display: flex;
         align-items: center;
-        gap: var(--ac-global-dimension-size-200);
+        gap: var(--global-dimension-size-200);
       `}
     >
       <span
         css={css`
-          font-size: var(--ac-global-font-size-xs);
-          color: var(--ac-global-text-color-500);
+          font-size: var(--global-font-size-xs);
+          color: var(--global-text-color-500);
           width: 60px;
         `}
       >
@@ -291,13 +291,13 @@ export const SizeComparison = () => (
       css={css`
         display: flex;
         align-items: center;
-        gap: var(--ac-global-dimension-size-200);
+        gap: var(--global-dimension-size-200);
       `}
     >
       <span
         css={css`
-          font-size: var(--ac-global-font-size-xs);
-          color: var(--ac-global-text-color-500);
+          font-size: var(--global-font-size-xs);
+          color: var(--global-text-color-500);
           width: 60px;
         `}
       >

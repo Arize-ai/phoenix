@@ -22,27 +22,27 @@ const menuCSS = css`
   min-width: var(--menu-min-width);
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-menu-item-gap);
+  gap: var(--global-menu-item-gap);
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--ac-global-menu-item-gap);
+  padding: var(--global-menu-item-gap);
   &:focus-visible {
-    border-radius: var(--ac-global-rounding-small);
-    outline: 2px solid var(--ac-global-color-primary);
+    border-radius: var(--global-rounding-small);
+    outline: 2px solid var(--global-color-primary);
     outline-offset: 0px;
   }
   &[data-empty] {
     align-items: center;
     justify-content: center;
     display: flex;
-    padding: var(--ac-global-dimension-static-size-100);
+    padding: var(--global-dimension-static-size-100);
   }
 
   .react-aria-MenuSection {
     display: flex;
     flex-direction: column;
-    gap: var(--ac-global-menu-item-gap);
+    gap: var(--global-menu-item-gap);
   }
 `;
 
@@ -83,11 +83,11 @@ export const Menu = <T extends object>({
 };
 
 const menuItemCss = css`
-  padding: var(--ac-global-dimension-static-size-50);
-  border-radius: var(--ac-global-rounding-small);
+  padding: var(--global-dimension-static-size-50);
+  border-radius: var(--global-rounding-small);
   outline: none;
   cursor: default;
-  color: var(--ac-global-text-color-900);
+  color: var(--global-text-color-900);
   position: relative;
   display: flex;
 
@@ -97,13 +97,13 @@ const menuItemCss = css`
   &[data-open],
   &[data-focused],
   &[data-hovered] {
-    background-color: var(--ac-global-menu-item-background-color-hover);
+    background-color: var(--global-menu-item-background-color-hover);
   }
 
   &[data-disabled] {
     cursor: not-allowed;
-    color: var(--ac-global-color-text-300);
-    opacity: var(--ac-global-opacity-disabled);
+    color: var(--global-color-text-300);
+    opacity: var(--global-opacity-disabled);
   }
 
   &[data-focus-visible] {
@@ -199,15 +199,15 @@ const MenuItemContent = ({
       direction="row"
       alignItems="center"
       justifyContent="space-between"
-      gap="var(--ac-global-menu-split-item-content-gap)"
+      gap="var(--global-menu-split-item-content-gap)"
       minWidth={0}
       flex={1}
       css={css`
-        padding: var(--ac-global-menu-item-gap);
+        padding: var(--global-menu-item-gap);
       `}
     >
       {leadingContent ? (
-        <Flex alignItems="center" gap="var(--ac-global-menu-item-gap)">
+        <Flex alignItems="center" gap="var(--global-menu-item-gap)">
           {leadingContent} {children}
         </Flex>
       ) : (
@@ -277,8 +277,8 @@ export const MenuContainer = ({
 };
 
 const menuSectionTitleCss = css`
-  padding: var(--ac-global-dimension-static-size-50)
-    var(--ac-global-dimension-static-size-100) 0;
+  padding: var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-100) 0;
 `;
 
 export const MenuSectionTitle = ({
@@ -332,7 +332,7 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
           .react-aria-Input[data-hovered]:not([data-disabled]):not(
             [data-invalid]
           ) {
-          border-bottom-color: var(--ac-global-menu-border-color);
+          border-bottom-color: var(--global-menu-border-color);
         }
         * + .ac-searchfield[data-variant="quiet"] .react-aria-Input,
         *
@@ -340,7 +340,7 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
           .react-aria-Input[data-hovered]:not([data-disabled]):not(
             [data-invalid]
           ) {
-          border-top-color: var(--ac-global-menu-border-color);
+          border-top-color: var(--global-menu-border-color);
         }
       `}
     >
@@ -380,7 +380,7 @@ export const MenuHeaderTitle = ({
       wrap="nowrap"
       minHeight={30}
       css={css`
-        padding: var(--ac-global-dimension-static-size-100);
+        padding: var(--global-dimension-static-size-100);
       `}
     >
       {leadingContent}
@@ -390,7 +390,7 @@ export const MenuHeaderTitle = ({
         css={css`
           flex: 1 1 auto;
           width: 100%;
-          padding-left: var(--ac-global-dimension-static-size-50);
+          padding-left: var(--global-dimension-static-size-50);
         `}
       >
         {children}
@@ -424,12 +424,12 @@ export const MenuFooter = ({ children }: PropsWithChildren) => {
   return (
     <div
       css={css`
-        padding: var(--ac-global-dimension-static-size-100);
-        border-top: 1px solid var(--ac-global-menu-border-color);
+        padding: var(--global-dimension-static-size-100);
+        border-top: 1px solid var(--global-menu-border-color);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        gap: var(--ac-global-dimension-static-size-50);
+        gap: var(--global-dimension-static-size-50);
       `}
     >
       {children}
@@ -457,7 +457,7 @@ export const MenuTriggerPlaceholder = ({
 }) => {
   return (
     <Text
-      color="grey-400"
+      color="gray-400"
       fontStyle="italic"
       css={css`
         overflow: hidden;

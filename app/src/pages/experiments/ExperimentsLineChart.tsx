@@ -51,7 +51,7 @@ function TooltipContent({
   payload,
   label,
 }: TooltipContentProps<number, string>) {
-  const { grey300 } = useSequentialChartColors();
+  const { gray300 } = useSequentialChartColors();
   const { theme } = useTheme();
   // Use the same color logic as the chart lines
   if (active && payload && payload.length) {
@@ -88,7 +88,7 @@ function TooltipContent({
           return (
             <ChartTooltipItem
               key="avgLatency"
-              color={grey300}
+              color={gray300}
               shape="square"
               name="avg latency"
               value={latencyFormatter(entry.value as number)}
@@ -156,7 +156,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
     return { chartData, scoreKeys: Array.from(allAnnotationNames) };
   }, [data.dataset?.chartExperiments?.edges]);
 
-  const { grey300 } = useSequentialChartColors();
+  const { gray300 } = useSequentialChartColors();
   // Memoize colors for each annotation name (scoreKey) using the same logic as useWordColor
   const lineColors = useMemo(() => {
     const colorMap: Record<string, string> = {};
@@ -192,47 +192,47 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       >
         <defs>
           <linearGradient id="latencyBarColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={grey300} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={grey300} stopOpacity={0} />
+            <stop offset="5%" stopColor={gray300} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={gray300} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <XAxis
           dataKey="iteration"
-          tick={{ fontSize: 12, fill: "var(--ac-global-text-color-700)" }}
+          tick={{ fontSize: 12, fill: "var(--global-text-color-700)" }}
         />
         <YAxis
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "Score",
             angle: -90,
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
           domain={yDomain}
         />
         <YAxis
           yAxisId="right"
           orientation="right"
-          stroke="var(--ac-global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "avg latency",
             angle: 90,
             position: "insideRight",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
+              fill: "var(--global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--global-text-color-700)" }}
           tickFormatter={latencyFormatter}
         />
 

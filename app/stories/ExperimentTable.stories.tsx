@@ -380,7 +380,7 @@ function SimpleExperimentTable({
         if (!currentExperiment) {
           return (
             <Flex direction="row" gap="size-50">
-              <Icon svg={<Icons.MinusCircleOutline />} color="grey-800" />
+              <Icon svg={<Icons.MinusCircleOutline />} color="gray-800" />
               <Text color="text-700">not run</Text>
             </Flex>
           );
@@ -452,7 +452,7 @@ function SimpleExperimentTable({
                   css={css`
                     display: flex;
                     flex-direction: row;
-                    gap: var(--ac-global-dimension-static-size-100);
+                    gap: var(--global-dimension-static-size-100);
                     align-items: center;
                     flex-wrap: wrap;
                   `}
@@ -500,7 +500,7 @@ function SimpleExperimentTable({
 
   return (
     <View
-      backgroundColor="grey-50"
+      backgroundColor="gray-50"
       borderColor="light"
       borderWidth="thin"
       borderRadius="medium"

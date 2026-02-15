@@ -65,7 +65,7 @@ export function ModelInferencesPage(_props: ModelInferencesPageProps) {
       </Toolbar>
       <section
         css={css`
-          margin: var(--ac-global-dimension-static-size-200);
+          margin: var(--global-dimension-static-size-200);
         `}
       >
         <Card title="Model Schema" titleSeparator={false}>
