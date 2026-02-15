@@ -38,7 +38,7 @@ test.describe("Playground", () => {
     expect(promptId).toBeTruthy();
 
     // Reload the page and wait for the playground to render
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload();
     await expect(
       page.getByRole("heading", { name: "Playground" })
     ).toBeVisible();
