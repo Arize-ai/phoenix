@@ -72,6 +72,25 @@ PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006  # Default
 PHOENIX_API_KEY=your_phoenix_api_key              # Phoenix Cloud only
 ```
 
+## Project Structure
+
+```
+cli-agent-starter-kit/
+├── src/
+│   ├── index.ts              # Main entry point and agent configuration
+│   └── instrumentation.ts    # Phoenix tracing setup
+├── scripts/
+│   └── ensure-phoenix.sh     # Phoenix Docker management
+├── .agents/
+│   └── skills/               # Phoenix skills (symlinked)
+│       ├── phoenix-cli
+│       ├── phoenix-evals
+│       └── phoenix-tracing
+├── docker-compose.yml        # Phoenix container configuration
+├── AGENTS.md                 # Agent configuration
+└── package.json              # Project dependencies
+```
+
 ## Customization
 
 The starter kit includes example tools (calculator, date/time) that can be extended or replaced. See `src/index.ts` for the agent configuration and available tools.
