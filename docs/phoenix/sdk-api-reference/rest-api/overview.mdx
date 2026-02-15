@@ -1,72 +1,120 @@
 ---
 title: "REST API Overview"
-description: "The Phoenix REST API allows you to access and interact with observability data programmatically. You can use it to retrieve project information, query traces and spans, access prompts, and automate analysis workflows directly from your environment."
+description: "Start here to call the Phoenix REST API: endpoint setup, authentication, and your first request."
 ---
 
+Use the REST API when you want to script Phoenix workflows: creating datasets, running experiments, querying spans, or managing prompts and projects.
 
+<Card
+  title="Full interactive endpoint list"
+  icon="arrow-up-right-from-square"
+  href="/docs/phoenix/sdk-api-reference/rest-api/api-reference"
+>
+  Browse every endpoint grouped by resource.
+</Card>
 
-<Check>
-**Reference:** [https://phoenix-demo.arize.com/apis](https://phoenix-demo.arize.com/apis)
-</Check>
+## Before You Call The API
 
-### Example Request
+<Steps>
+  <Step title="Choose your base URL">
+    - Phoenix Cloud: `https://app.phoenix.arize.com`
+    - Self-hosted Phoenix: your deployment URL (for example `http://localhost:6006`)
+  </Step>
+  <Step title="Set authentication (if enabled)">
+    Use an API key or admin secret in a bearer token header:
 
-_Get dataset by ID_
+    `Authorization: Bearer <your-token>`
+  </Step>
+  <Step title="Call a v1 endpoint">
+    All REST endpoints are under `/v1/...`.
+  </Step>
+</Steps>
+
+<Note>
+If authentication is disabled in your self-hosted deployment, you can omit the `Authorization` header.
+</Note>
+
+## First Request
+
+The example below lists projects and includes common pagination query params.
 
 <Tabs>
-<Tab title="cURL">
-```concurnas
-curl -L \
-  --url '/v1/datasets'
+  <Tab title="cURL">
+```bash
+curl --request GET \
+  --url "$PHOENIX_BASE_URL/v1/projects?limit=10" \
+  --header "Authorization: Bearer $PHOENIX_API_KEY"
 ```
-</Tab>
+  </Tab>
 
-<Tab title="JavaScript" icon="js">
+  <Tab title="JavaScript" icon="js">
 ```javascript
-// Get dataset by ID
-const response = await fetch('/v1/datasets/{id}', {
-    method: 'GET',
-});
+const baseUrl = process.env.PHOENIX_BASE_URL;
+const apiKey = process.env.PHOENIX_API_KEY;
 
-const data = await response.json();
+const response = await fetch(
+  `${baseUrl}/v1/projects?limit=10`,
+  {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  }
+);
+
+const body = await response.json();
+console.log(body.data);
 ```
-</Tab>
+  </Tab>
 
-<Tab title="Python" icon="python">
-```python highlight={2}
-# Get dataset by ID
+  <Tab title="Python" icon="python">
+```python
+import os
 import requests
+
+base_url = os.environ["PHOENIX_BASE_URL"]
+api_key = os.environ.get("PHOENIX_API_KEY")
+headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
 response = requests.get(
-    "/v1/datasets/{id}",
+    f"{base_url}/v1/projects",
+    params={"limit": 10},
+    headers=headers,
+    timeout=30,
 )
+response.raise_for_status()
 
-data = response.json()
+body = response.json()
+print(body["data"])
 ```
-</Tab>
-
-<Tab title="HTTP">
-```http
-GET /v1/datasets/{id} HTTP/1.1
-Host:
-Accept: */*
-```
-</Tab>
+  </Tab>
 </Tabs>
 
-### Example Response
+## Response Pattern
+
+Most list endpoints return a shape like:
 
 ```json
 {
-  "data": [
-    {
-      "id": "version_123",
-      "dataset_id": "your_dataset_id",
-      "created_at": "2025-04-18T21:23:18.216Z",
-      "metadata": {
-        "source": "inference-logs"
-      }
-    }
-  ],
+  "data": [],
   "next_cursor": null
 }
 ```
+
+When `next_cursor` is not `null`, pass it back as the `cursor` query param to fetch the next page.
+
+## Where To Go Next
+
+<CardGroup cols={2}>
+  <Card title="Projects" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects" icon="folder">
+    Start by listing projects and finding your project identifier.
+  </Card>
+  <Card title="Spans" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl" icon="list-ul">
+    Query spans for a project.
+  </Card>
+  <Card title="Datasets" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets" icon="database">
+    Create and manage evaluation datasets.
+  </Card>
+  <Card title="Prompts" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts" icon="file-code">
+    Manage prompt versions and tags.
+  </Card>
+</CardGroup>
