@@ -10,6 +10,7 @@ import { graphql, readInlineData } from "react-relay";
 import { Link, useNavigate } from "react-router";
 import {
   ColumnDef,
+  ColumnSizingState,
   ExpandedState,
   flexRender,
   getCoreRowModel,
@@ -235,6 +236,7 @@ export const EvaluatorsTable = ({
     [setSort]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const tableData = useMemo(() => {
     const rawData = rowReferences.map(readRow).map((evaluator) => ({
       rowType: "evaluator" as const,
@@ -437,12 +439,16 @@ export const EvaluatorsTable = ({
     state: {
       sorting,
       expanded,
+      columnSizing,
     },
+    columnResizeMode: "onChange",
     onSortingChange: setSorting,
     onExpandedChange: setExpanded,
+    onColumnSizingChange: setColumnSizing,
     getRowId: (row) => row.data.id,
   });
 
+  const { columnSizingInfo } = table.getState();
   const getFlatHeaders = table.getFlatHeaders;
   /**
    * Calculate all column sizes at once at the root table level
@@ -462,7 +468,7 @@ export const EvaluatorsTable = ({
     // Disabled lint as per tanstack docs linked above
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columns]);
+  }, [getFlatHeaders, columnSizingInfo, columnSizing]);
 
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null
@@ -533,35 +539,46 @@ export const EvaluatorsTable = ({
                   }}
                 >
                   {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort() ? "sort" : "",
-                        ["aria-role"]: header.column.getCanSort()
-                          ? "button"
-                          : null,
-                        onClick: header.column.getToggleSortingHandler(),
-                        style: {
-                          textAlign: header.column.columnDef.meta?.textAlign,
-                        },
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
-                            ) : (
-                              <Icons.ArrowDownFilled />
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>
+                    <>
+                      <div
+                        {...{
+                          className: header.column.getCanSort() ? "sort" : "",
+                          ["aria-role"]: header.column.getCanSort()
+                            ? "button"
+                            : null,
+                          onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            textAlign: header.column.columnDef.meta?.textAlign,
+                          },
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </>
                   )}
                 </th>
               ))}
