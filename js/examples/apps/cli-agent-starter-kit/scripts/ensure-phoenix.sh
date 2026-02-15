@@ -34,9 +34,10 @@ log_error() {
 
 # Check if docker is running
 if ! docker info > /dev/null 2>&1; then
-  log_error "Error: Docker is not running"
-  echo "Please start Docker Desktop and try again"
-  exit 1
+  log_warn "Warning: Docker is not available"
+  echo "Phoenix tracing will be disabled or use PHOENIX_COLLECTOR_ENDPOINT if set"
+  echo "To enable local Phoenix, start Docker and run: pnpm phoenix:start"
+  exit 0
 fi
 
 # Check if Phoenix container is running

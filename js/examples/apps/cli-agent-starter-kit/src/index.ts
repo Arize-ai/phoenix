@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 // Initialize Phoenix tracing before any AI SDK calls
-import "./instrumentation.js";
+import { shutdown as shutdownPhoenix } from "./instrumentation.js";
 
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
@@ -12,6 +12,7 @@ async function main() {
 
   if (!apiKey) {
     console.error("Error: ANTHROPIC_API_KEY environment variable is not set");
+    await shutdownPhoenix();
     process.exit(1);
   }
 
@@ -27,6 +28,7 @@ async function main() {
     console.log(text);
   } catch (error) {
     console.error("Error calling Anthropic API:", error);
+    await shutdownPhoenix();
     process.exit(1);
   }
 }
@@ -36,7 +38,8 @@ main()
     // Allow time for spans to be flushed before exit
     // The beforeExit handler will ensure proper shutdown
   })
-  .catch((error) => {
+  .catch(async (error) => {
     console.error("Fatal error:", error);
+    await shutdownPhoenix();
     process.exit(1);
   });

@@ -18,7 +18,7 @@ const provider = register({
  * Ensure spans are flushed before the process exits
  * This is critical for CLI applications that exit quickly
  */
-async function shutdown() {
+export async function shutdown() {
   try {
     await provider.shutdown();
     // Silent shutdown - spans are flushed successfully
