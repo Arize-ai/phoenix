@@ -9,7 +9,6 @@ fi
 
 # Colors for output
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 RED='\033[0;31m'
 GRAY='\033[0;90m'
 NC='\033[0m' # No Color
@@ -22,10 +21,6 @@ log_verbose() {
 
 log_info() {
   echo -e "${GREEN}$1${NC}"
-}
-
-log_warn() {
-  echo -e "${YELLOW}$1${NC}"
 }
 
 log_error() {

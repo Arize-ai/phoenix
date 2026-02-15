@@ -140,8 +140,11 @@ async function main() {
         onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
           if (verbose) {
             stepNumber++;
+            const tools = toolCalls
+              ? toolCalls.map((tc) => tc.toolName).join(", ")
+              : "no tools";
             console.log(
-              `\x1b[90m[Step ${stepNumber}] ${finishReason} - ${toolCalls?.map((tc) => tc.toolName).join(", ") || "no tools"}\x1b[0m`
+              `\x1b[90m[Step ${stepNumber}] ${finishReason} - ${tools}\x1b[0m`
             );
           }
         },
