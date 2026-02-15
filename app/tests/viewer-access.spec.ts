@@ -1,9 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-const VIEWER_STORAGE_STATE = "playwright/.auth/viewer.json";
-
-test.use({ storageState: VIEWER_STORAGE_STATE });
+test.use({ storageState: "playwright/.auth/viewer.json" });
 
 test("can create user key", async ({ page }) => {
   // Navigate to profile page
