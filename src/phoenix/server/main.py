@@ -2,7 +2,7 @@ import atexit
 import codecs
 import os
 import sys
-from argparse import SUPPRESS, ArgumentParser
+from argparse import SUPPRESS, ArgumentParser, Namespace
 from pathlib import Path
 from ssl import CERT_REQUIRED
 from threading import Thread
@@ -158,6 +158,10 @@ def _get_pid_file() -> Path:
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 
+def _resolve_grpc_port(args: Namespace) -> int:
+    return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
+
+
 def main() -> None:
     initialize_settings()
     setup_logging()
@@ -194,8 +198,15 @@ def main() -> None:
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
     parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
     subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
+    parser.set_defaults(grpc_port=None)
 
     serve_parser = subparsers.add_parser("serve")
+    serve_parser.add_argument(
+        "--grpc-port",
+        type=int,
+        required=False,
+        help="Port for the OTLP/gRPC trace ingestion server.",
+    )
     serve_parser.add_argument(
         "--with-fixture",
         type=str,
@@ -332,6 +343,7 @@ def main() -> None:
         host = None
 
     port = args.port or get_env_port()
+    grpc_port = _resolve_grpc_port(args)
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
 
@@ -401,7 +413,7 @@ def main() -> None:
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
         ui_path=display_root_path,
-        grpc_path=f"{grpc_scheme}://{display_host}:{get_env_grpc_port()}",
+        grpc_path=f"{grpc_scheme}://{display_host}:{grpc_port}",
         http_path=urljoin(display_root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
@@ -450,6 +462,7 @@ def main() -> None:
         dev_vite_port=args.dev_vite_port,
         serve_ui=not args.no_ui,
         read_only=read_only,
+        grpc_port=grpc_port,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
