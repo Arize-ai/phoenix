@@ -1,4 +1,4 @@
-import { chromium, type FullConfig } from "@playwright/test";
+import { chromium, expect, type FullConfig } from "@playwright/test";
 
 async function globalSetup(config: FullConfig) {
   const { baseURL } = config.projects[0].use;
@@ -38,6 +38,9 @@ async function globalSetup(config: FullConfig) {
     .getByRole("button", { name: "Add User" })
     .click();
 
+  // Wait for dialog to close before opening a new one
+  await expect(page.getByTestId("dialog")).not.toBeVisible();
+
   // Add viewer user
   await page.getByRole("button", { name: "Add User" }).click();
   await page.getByLabel("Email").fill("viewer@localhost.com");
@@ -51,6 +54,9 @@ async function globalSetup(config: FullConfig) {
     .getByRole("dialog")
     .getByRole("button", { name: "Add User" })
     .click();
+
+  // Wait for dialog to close before proceeding
+  await expect(page.getByTestId("dialog")).not.toBeVisible();
 
   // Log out of admin account
   await page.getByRole("button", { name: "Log Out" }).click();

@@ -26,10 +26,18 @@ test.describe.serial("Projects", () => {
       .fill("A project created manually from scratch in Playwright");
 
     await page.getByRole("button", { name: "Create Project" }).click();
-    await page.waitForURL("**/projects/*");
 
+    // Wait for SPA navigation to the project detail page.
+    // Use toHaveURL instead of waitForURL because React Router's client-side
+    // navigation doesn't trigger a full page "load" event.
+    await expect(page).toHaveURL(/\/projects\/.+/);
+
+    // Verify the project detail page loaded by checking the breadcrumb link
+    // (the project name appears in the breadcrumbs, not as a heading)
     await expect(
-      page.getByRole("heading", { name: projectName, exact: true })
+      page.getByRole("list", { name: "Breadcrumbs" }).getByRole("link", {
+        name: projectName,
+      })
     ).toBeVisible();
   });
 
@@ -66,7 +74,14 @@ test.describe.serial("Projects", () => {
 
     await page.getByRole("button", { name: "Delete Project" }).click();
 
-    await expect(page.getByRole("link", { name: projectName })).not.toBeVisible();
+    // Wait for the confirmation dialog to close (indicates delete mutation + refetch completed)
+    await expect(
+      page.getByRole("heading", { name: "Delete Project", exact: true })
+    ).not.toBeVisible();
+
+    await expect(
+      page.getByRole("link", { name: projectName })
+    ).not.toBeVisible();
     await expect(
       page.getByRole("heading", { name: projectName, exact: true })
     ).not.toBeVisible();

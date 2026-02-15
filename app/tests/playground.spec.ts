@@ -37,10 +37,8 @@ test.describe("Playground", () => {
     const promptId = savedSearchParams.get("promptId");
     expect(promptId).toBeTruthy();
 
-    // Reload the page
+    // Reload the page and wait for the playground to render
     await page.reload({ waitUntil: "networkidle" });
-
-    // Verify the playground loaded with the prompt still present
     await expect(
       page.getByRole("heading", { name: "Playground" })
     ).toBeVisible();
