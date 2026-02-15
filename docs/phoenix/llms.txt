@@ -232,36 +232,36 @@ Additional resources, FAQs, and community information. Find answers to common qu
 
 Complete API documentation for Phoenix SDKs and REST API. Reference documentation for Python and TypeScript SDKs, the REST API for programmatic access, and OpenInference SDKs for custom instrumentation across different languages.
 
-- SDK API Reference: `https://arize.com/docs/phoenix/sdk-api-reference` - Overview of all SDKs and APIs
+- SDK API Reference: `/docs/phoenix/sdk-api-reference` - Overview of all SDKs and APIs
 
 ### Python SDK
 
-- Python SDK Reference: `https://arize.com/docs/phoenix/sdk-api-reference` - Python SDK overview and package API references
-- Arize Phoenix Client: `https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client` - Python client library reference
-- Arize Phoenix Evals: `https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals` - Python evaluation library reference
-- Arize Phoenix OTEL: `https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel` - Python OpenTelemetry integration reference
+- Python SDK Reference: `/docs/phoenix/sdk-api-reference` - Python SDK overview and package API references
+- Arize Phoenix Client: `/docs/phoenix/sdk-api-reference/python/arize-phoenix-client` - Python client library reference
+- Arize Phoenix Evals: `/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals` - Python evaluation library reference
+- Arize Phoenix OTEL: `/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel` - Python OpenTelemetry integration reference
 
 ### TypeScript SDK
 
-- TypeScript Overview: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview` - TypeScript SDK overview
-- TypeScript API Reference: `https://arize-ai.github.io/phoenix/` - TypeScript API reference
-- ArizeAI Phoenix Client: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client` - TypeScript client library
-- ArizeAI Phoenix Evals: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals` - TypeScript evaluation library
-- ArizeAI Phoenix OTEL: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel` - TypeScript OpenTelemetry integration
-- ArizeAI OpenInference Core: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core` - OpenInference core library
-- MCP Server: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server` - Model Context Protocol server
-- ArizeAI Phoenix CLI: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli` - Command-line interface
+- TypeScript Overview: `/docs/phoenix/sdk-api-reference/typescript/overview` - TypeScript SDK overview
+- TypeScript SDK Reference: `https://arize-ai.github.io/phoenix/modules.html` - TypeScript API reference
+- ArizeAI Phoenix Client: `/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client` - TypeScript client library
+- ArizeAI Phoenix Evals: `/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals` - TypeScript evaluation library
+- ArizeAI Phoenix OTEL: `/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel` - TypeScript OpenTelemetry integration
+- ArizeAI OpenInference Core: `/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core` - OpenInference core library
+- MCP Server: `/docs/phoenix/sdk-api-reference/typescript/mcp-server` - Model Context Protocol server
+- ArizeAI Phoenix CLI: `/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli` - Command-line interface
 
 ### REST API
 
-- REST API Overview: `https://arize.com/docs/phoenix/sdk-api-reference/rest-api/overview` - REST API introduction
-- API Reference: `https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference` - Complete REST API documentation for annotations, datasets, experiments, traces, spans, prompts, projects, and users
+- REST API Overview: `/docs/phoenix/sdk-api-reference/rest-api/overview` - REST API introduction
+- API Reference: `/docs/phoenix/sdk-api-reference/rest-api/api-reference` - Complete REST API documentation for annotations, datasets, experiments, traces, spans, prompts, projects, and users
 
 ### OpenInference SDK
 
-- OpenInference Python: `https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python` - Python OpenInference SDK
-- OpenInference Java: `https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java` - Java OpenInference SDK
-- OpenInference JavaScript: `https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript` - JavaScript OpenInference SDK
+- OpenInference Python: `/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python` - Python OpenInference SDK
+- OpenInference Java: `/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java` - Java OpenInference SDK
+- OpenInference JavaScript: `/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript` - JavaScript OpenInference SDK
 
 ## Self-Hosting
 
