@@ -15,34 +15,34 @@ const provider = register({
 });
 
 /**
- * Ensure spans are flushed before the process exits
+ * Flush all pending spans before the process exits
  * This is critical for CLI applications that exit quickly
  */
-export async function shutdown() {
+export async function flush() {
   try {
     await provider.shutdown();
     // Silent shutdown - spans are flushed successfully
   } catch (error) {
     // Always log errors
     // eslint-disable-next-line no-console
-    console.error("Error shutting down Phoenix tracing:", error);
+    console.error("Error flushing Phoenix spans:", error);
   }
 }
 
 // Handle graceful shutdown on normal exit
 process.on("beforeExit", async () => {
-  await shutdown();
+  await flush();
 });
 
 // Handle SIGINT (Ctrl+C)
 process.on("SIGINT", async () => {
-  await shutdown();
+  await flush();
   process.exit(0);
 });
 
 // Handle SIGTERM
 process.on("SIGTERM", async () => {
-  await shutdown();
+  await flush();
   process.exit(0);
 });
 
@@ -50,7 +50,7 @@ process.on("SIGTERM", async () => {
 process.on("uncaughtException", async (error) => {
   // eslint-disable-next-line no-console
   console.error("Uncaught exception:", error);
-  await shutdown();
+  await flush();
   process.exit(1);
 });
 
@@ -58,6 +58,6 @@ process.on("uncaughtException", async (error) => {
 process.on("unhandledRejection", async (reason) => {
   // eslint-disable-next-line no-console
   console.error("Unhandled rejection:", reason);
-  await shutdown();
+  await flush();
   process.exit(1);
 });
