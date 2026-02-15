@@ -1,13 +1,17 @@
 # CLI Agent Starter Kit
 
-A TypeScript-based CLI agent starter kit integrated with the Vercel AI SDK and Anthropic's Claude, designed for building intelligent command-line applications with Phoenix observability skills.
+An interactive TypeScript CLI agent powered by AI SDK's `ToolLoopAgent`, Anthropic's Claude, and Phoenix observability. Build intelligent command-line applications with multi-step reasoning and tool calling.
 
 ## Features
 
-- 🤖 **Anthropic Claude Integration** - Built with Vercel AI SDK for seamless LLM interactions
+- 🤖 **ToolLoopAgent** - Multi-step reasoning and tool calling with AI SDK
+- 💬 **Interactive Mode** - Real-time conversation with the agent
+- 🛠️ **Tool Calling** - Extensible tool system (calculator, date/time, and more)
+- 🔄 **Conversation History** - Maintains context across multiple turns
 - 📦 **TypeScript** - Full type safety and modern JavaScript features
 - 🔧 **Phoenix Skills** - Pre-configured with Phoenix CLI, Tracing, and Evals skills
 - 📊 **OpenTelemetry Tracing** - Built-in Phoenix observability via phoenix-otel
+- 🎨 **Colored Output** - Easy-to-read color-coded responses
 
 ## Prerequisites
 
@@ -83,25 +87,132 @@ pnpm phoenix:down     # Stop and remove Phoenix container (data persists in volu
 
 The Phoenix UI is available at http://localhost:6006 when the container is running.
 
+## How It Works
+
+The CLI uses AI SDK's **ToolLoopAgent**, which implements a reasoning-and-acting loop:
+
+1. **User Input**: You type a question or request
+2. **Tool Selection**: Agent decides which tools (if any) to call based on your input
+3. **Tool Execution**: Tools are executed and results are collected
+4. **Response Generation**: Agent uses tool results to generate a final response
+5. **Repeat**: Process continues until completion or max steps (10) is reached
+
+### Available Tools
+
+- **Calculator**: Perform mathematical calculations (e.g., "What is 42 * 137?")
+- **Date/Time**: Get current date and time (e.g., "What time is it?")
+
+### Adding Custom Tools
+
+Create a new tool using the `tool()` helper:
+
+```typescript
+import { tool } from "ai";
+import { z } from "zod";
+
+const weatherTool = tool({
+  description: "Get weather information for a location",
+  inputSchema: z.object({
+    location: z.string().describe("City name or location"),
+  }),
+  execute: async ({ location }: { location: string }) => {
+    // Your tool logic here
+    return {
+      location,
+      temperature: 72,
+      conditions: "Sunny",
+    };
+  },
+});
+```
+
+Add it to the agent in `src/index.ts`:
+
+```typescript
+const agent = new ToolLoopAgent({
+  model: anthropic("claude-sonnet-4-20250514"),
+  instructions: "...",
+  tools: {
+    calculator: calculatorTool,
+    getDateTime: getDateTimeTool,
+    weather: weatherTool, // Add your tool here
+  },
+  stopWhen: stepCountIs(10),
+  // IMPORTANT: Enable telemetry for Phoenix tracing
+  experimental_telemetry: { isEnabled: true },
+});
+```
+
+**Important**: The `experimental_telemetry: { isEnabled: true }` option is required for Phoenix to capture traces from ToolLoopAgent. Without it, traces will not appear in Phoenix.
+
 ## Usage
 
-### Development Mode
+### Interactive Mode (Default)
 
-Run the agent with hot reload (automatically starts Phoenix if not running):
+Run the agent in interactive conversation mode:
 
 ```bash
-pnpm dev              # Normal mode - minimal Phoenix startup output
-pnpm dev:verbose      # Verbose mode - detailed Phoenix startup diagnostics
+pnpm dev              # Normal mode - requires Phoenix to be running
+pnpm dev:verbose      # Verbose mode - shows agent steps and detailed diagnostics
+pnpm dev:no-phoenix   # Run without Phoenix check (use remote PHOENIX_COLLECTOR_ENDPOINT)
+```
+
+**Important**: `pnpm dev` requires a local Phoenix instance. If Docker is not running or Phoenix is not available, the CLI will exit with an error. Use `pnpm dev:no-phoenix` to skip the Phoenix check (useful when using a remote Phoenix instance via `PHOENIX_COLLECTOR_ENDPOINT`).
+
+Once running, you can:
+
+- **Ask questions**: Type your question and press Enter
+- **Use commands**:
+  - `/exit` or `/quit` - Exit the CLI
+  - `/help` - Show help message
+  - `/clear` - Clear conversation history
+
+**Example conversation:**
+
+```
+You: What is 42 * 137?
+
+Agent: 42 multiplied by 137 equals 5,754
+
+You: What time is it?
+
+Agent: The current time is 2:32:17 PM on February 15, 2026
+
+You: /clear
+
+✓ Conversation history cleared
+
+You: /exit
+
+Goodbye!
 ```
 
 The `dev` command will:
 
-1. Silently check if Phoenix Docker container is running
-2. Start Phoenix automatically if needed (shows 2-line status message)
-3. Wait for Phoenix to be healthy
-4. Run your CLI agent with tracing enabled
+1. **Check Docker availability** - Exits with error if Docker is not running
+2. **Verify Phoenix is running** - Starts Phoenix automatically if needed
+3. **Wait for health check** - Ensures Phoenix is healthy before starting CLI
+4. **Start the agent** - Launches the interactive CLI with tracing enabled
 
-Phoenix startup is minimal by default to keep your CLI output clean. Use `dev:verbose` only when debugging Phoenix container issues.
+If Phoenix is not available, you'll see:
+
+```
+Error: Docker is not available
+
+Phoenix is required for this CLI agent.
+
+To fix:
+  1. Start Docker Desktop
+  2. Run: pnpm phoenix:start
+```
+
+**Verbose Mode**: Use `pnpm dev:verbose` to see:
+- Agent step-by-step execution
+- Tool calls in each step
+- Token usage per step
+- Detailed Phoenix startup diagnostics
+
+**Skip Phoenix Check**: Use `pnpm dev:no-phoenix` to run without requiring local Phoenix (useful when using remote Phoenix via `PHOENIX_COLLECTOR_ENDPOINT`)
 
 ### Build for Production
 
@@ -116,7 +227,8 @@ pnpm build
 Execute the compiled output:
 
 ```bash
-pnpm start
+pnpm start              # Normal mode
+pnpm start:verbose      # Verbose mode with step logging
 ```
 
 ### Clean Build Artifacts
@@ -162,6 +274,29 @@ This starter kit includes symlinked Phoenix skills for enhanced functionality:
 Skills are symlinked from the Phoenix monorepo root and available in both `.agents/skills/` and `.claude/skills/` directories.
 
 ## Troubleshooting
+
+### No Traces Appearing in Phoenix
+
+If traces are not showing up in Phoenix:
+
+1. **Verify telemetry is enabled** in the ToolLoopAgent constructor:
+   ```typescript
+   experimental_telemetry: { isEnabled: true }
+   ```
+
+2. **Check Phoenix is running**:
+   ```bash
+   pnpm phoenix:logs
+   ```
+
+3. **Verify traces using CLI**:
+   ```bash
+   npx @arizeai/phoenix-cli traces --endpoint http://localhost:6006 --project cli-agent-starter-kit --limit 5
+   ```
+
+4. **Check the project name** matches in both `src/instrumentation.ts` and Phoenix CLI commands.
+
+5. **Flush traces on exit**: The instrumentation.ts file handles this automatically, but ensure your program exits cleanly.
 
 ### Phoenix Container Issues
 

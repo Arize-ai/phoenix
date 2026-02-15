@@ -9,8 +9,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "pnpm phoenix:ensure && tsx --env-file=.env src/index.ts",
-    "dev:verbose": "pnpm phoenix:ensure:verbose && tsx --env-file=.env src/index.ts",
+    "dev:verbose": "pnpm phoenix:ensure && VERBOSE=true tsx --env-file=.env src/index.ts",
+    "dev:no-phoenix": "tsx --env-file=.env src/index.ts",
     "start": "node --env-file=.env dist/index.js",
+    "start:verbose": "VERBOSE=true node --env-file=.env dist/index.js",
     "clean": "rm -rf dist",
     "phoenix:ensure": "./scripts/ensure-phoenix.sh",
     "phoenix:ensure:verbose": "./scripts/ensure-phoenix.sh --verbose",
@@ -33,6 +35,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.43",
     "@arizeai/phoenix-otel": "workspace:*",
-    "ai": "^6.0.84"
+    "ai": "^6.0.84",
+    "zod": "^4.3.6"
   }
 }
