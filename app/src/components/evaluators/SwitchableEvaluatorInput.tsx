@@ -36,8 +36,9 @@ interface PathOption {
   label: string;
 }
 
-export interface SwitchableEvaluatorInputProps<TFieldValues extends FieldValues>
-  extends SizingProps {
+export interface SwitchableEvaluatorInputProps<
+  TFieldValues extends FieldValues,
+> extends SizingProps {
   /**
    * The field name used for both pathMapping and literalMapping
    * e.g. "text" results in "pathMapping.text" and "literalMapping.text"

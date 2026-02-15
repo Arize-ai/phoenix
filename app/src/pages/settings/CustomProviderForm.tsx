@@ -1132,9 +1132,9 @@ function hasRequiredCredentials(
       // azure_ad_token_provider
       return Boolean(
         hasBaseConfig &&
-          credentials.azure_tenant_id &&
-          credentials.azure_client_id &&
-          credentials.azure_client_secret
+        credentials.azure_tenant_id &&
+        credentials.azure_client_id &&
+        credentials.azure_client_secret
       );
     }
     case "ANTHROPIC":
@@ -1148,8 +1148,8 @@ function hasRequiredCredentials(
       }
       return Boolean(
         hasRegion &&
-          credentials.aws_access_key_id &&
-          credentials.aws_secret_access_key
+        credentials.aws_access_key_id &&
+        credentials.aws_secret_access_key
       );
     }
     case "GOOGLE_GENAI":

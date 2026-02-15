@@ -34,7 +34,8 @@ const baseToggleButtonCSS = css(
 );
 
 export interface ToggleButtonProps
-  extends AriaToggleButtonProps,
+  extends
+    AriaToggleButtonProps,
     // Inherit the leading and trailing visuals. Might warrent moving to an interface
     Pick<ButtonProps, "leadingVisual" | "trailingVisual" | "size"> {}
 
