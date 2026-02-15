@@ -6,9 +6,23 @@ name = "phoenix"
 script = '''
 uv sync --python 3.10
 cd app
-touch .env
-echo "PHOENIX_WORKING_DIR=../" >> .env
 pnpm install
+
+WORKTREE_PATH="$(dirname "$(pwd)")"
+PORT_OFFSET="$(printf '%s' "${WORKTREE_PATH}" | cksum | awk '{print $1 % 1000}')"
+PHOENIX_PORT="$((6006 + PORT_OFFSET))"
+VITE_PORT="$((5173 + PORT_OFFSET))"
+DEBUGPY_PORT="$((5678 + PORT_OFFSET))"
+
+touch .env
+perl -i -ne 'print unless /^(?:export\\s+)?(?:PHOENIX_WORKING_DIR|PHOENIX_PORT|VITE_PORT|DEBUGPY_PORT)=/' .env
+cat >> .env <<EOF
+# Managed by Codex environment setup.
+export PHOENIX_WORKING_DIR=../
+export PHOENIX_PORT=${PHOENIX_PORT}
+export VITE_PORT=${VITE_PORT}
+export DEBUGPY_PORT=${DEBUGPY_PORT}
+EOF
 cd ..
 '''
 
@@ -17,5 +31,6 @@ name = "run"
 icon = "tool"
 command = '''
 cd app
+[ -f ./.env ] && source ./.env
 pnpm dev
 '''
