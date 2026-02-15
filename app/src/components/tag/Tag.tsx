@@ -6,8 +6,7 @@ const tagCSS = css`
   border: 1px solid var(--global-border-color-light);
   forced-color-adjust: none;
   border-radius: var(--global-rounding-small);
-  padding: var(--global-dimension-size-50)
-    var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   font-size: var(--global-font-size-s);
   color: var(--global-text-color-900);
   outline: none;

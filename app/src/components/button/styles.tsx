@@ -96,8 +96,7 @@ export const buttonCSS = css`
   kbd {
     background-color: var(--global-color-gray-400);
     border-radius: var(--global-rounding-small);
-    padding: var(--global-dimension-size-50)
-      var(--global-dimension-size-75);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-75);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-font-size-xxs);
     display: flex;

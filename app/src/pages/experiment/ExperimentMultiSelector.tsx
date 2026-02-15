@@ -243,9 +243,7 @@ export function ExperimentMultiSelector(props: {
                               <Text
                                 css={css`
                                   white-space: nowrap;
-                                  max-width: var(
-                                    --global-dimension-size-2000
-                                  );
+                                  max-width: var(--global-dimension-size-2000);
                                   overflow: hidden;
                                   text-overflow: ellipsis;
                                 `}

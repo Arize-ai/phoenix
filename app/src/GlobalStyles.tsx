@@ -284,41 +284,23 @@ export const darkThemeCSS = css`
     --global-color-yellow-1400-rgb: 252, 243, 170;
     --global-color-yellow-1400: rgb(var(--global-color-yellow-1400-rgb));
     --global-color-chartreuse-100-rgb: 32, 43, 0;
-    --global-color-chartreuse-100: rgb(
-      var(--global-color-chartreuse-100-rgb)
-    );
+    --global-color-chartreuse-100: rgb(var(--global-color-chartreuse-100-rgb));
     --global-color-chartreuse-200-rgb: 42, 56, 0;
-    --global-color-chartreuse-200: rgb(
-      var(--global-color-chartreuse-200-rgb)
-    );
+    --global-color-chartreuse-200: rgb(var(--global-color-chartreuse-200-rgb));
     --global-color-chartreuse-300-rgb: 54, 72, 0;
-    --global-color-chartreuse-300: rgb(
-      var(--global-color-chartreuse-300-rgb)
-    );
+    --global-color-chartreuse-300: rgb(var(--global-color-chartreuse-300-rgb));
     --global-color-chartreuse-400-rgb: 66, 88, 0;
-    --global-color-chartreuse-400: rgb(
-      var(--global-color-chartreuse-400-rgb)
-    );
+    --global-color-chartreuse-400: rgb(var(--global-color-chartreuse-400-rgb));
     --global-color-chartreuse-500-rgb: 79, 105, 0;
-    --global-color-chartreuse-500: rgb(
-      var(--global-color-chartreuse-500-rgb)
-    );
+    --global-color-chartreuse-500: rgb(var(--global-color-chartreuse-500-rgb));
     --global-color-chartreuse-600-rgb: 93, 123, 0;
-    --global-color-chartreuse-600: rgb(
-      var(--global-color-chartreuse-600-rgb)
-    );
+    --global-color-chartreuse-600: rgb(var(--global-color-chartreuse-600-rgb));
     --global-color-chartreuse-700-rgb: 107, 142, 0;
-    --global-color-chartreuse-700: rgb(
-      var(--global-color-chartreuse-700-rgb)
-    );
+    --global-color-chartreuse-700: rgb(var(--global-color-chartreuse-700-rgb));
     --global-color-chartreuse-800-rgb: 122, 161, 0;
-    --global-color-chartreuse-800: rgb(
-      var(--global-color-chartreuse-800-rgb)
-    );
+    --global-color-chartreuse-800: rgb(var(--global-color-chartreuse-800-rgb));
     --global-color-chartreuse-900-rgb: 138, 180, 3;
-    --global-color-chartreuse-900: rgb(
-      var(--global-color-chartreuse-900-rgb)
-    );
+    --global-color-chartreuse-900: rgb(var(--global-color-chartreuse-900-rgb));
     --global-color-chartreuse-1000-rgb: 154, 198, 11;
     --global-color-chartreuse-1000: rgb(
       var(--global-color-chartreuse-1000-rgb)
@@ -414,25 +396,15 @@ export const darkThemeCSS = css`
     --global-color-seafoam-900-rgb: 26, 185, 178;
     --global-color-seafoam-900: rgb(var(--global-color-seafoam-900-rgb));
     --global-color-seafoam-1000-rgb: 66, 202, 195;
-    --global-color-seafoam-1000: rgb(
-      var(--global-color-seafoam-1000-rgb)
-    );
+    --global-color-seafoam-1000: rgb(var(--global-color-seafoam-1000-rgb));
     --global-color-seafoam-1100-rgb: 102, 218, 211;
-    --global-color-seafoam-1100: rgb(
-      var(--global-color-seafoam-1100-rgb)
-    );
+    --global-color-seafoam-1100: rgb(var(--global-color-seafoam-1100-rgb));
     --global-color-seafoam-1200-rgb: 139, 232, 225;
-    --global-color-seafoam-1200: rgb(
-      var(--global-color-seafoam-1200-rgb)
-    );
+    --global-color-seafoam-1200: rgb(var(--global-color-seafoam-1200-rgb));
     --global-color-seafoam-1300-rgb: 179, 242, 237;
-    --global-color-seafoam-1300: rgb(
-      var(--global-color-seafoam-1300-rgb)
-    );
+    --global-color-seafoam-1300: rgb(var(--global-color-seafoam-1300-rgb));
     --global-color-seafoam-1400-rgb: 215, 248, 244;
-    --global-color-seafoam-1400: rgb(
-      var(--global-color-seafoam-1400-rgb)
-    );
+    --global-color-seafoam-1400: rgb(var(--global-color-seafoam-1400-rgb));
     --global-color-cyan-100-rgb: 0, 41, 68;
     --global-color-cyan-100: rgb(var(--global-color-cyan-100-rgb));
     --global-color-cyan-200-rgb: 0, 54, 88;
@@ -564,25 +536,15 @@ export const darkThemeCSS = css`
     --global-color-fuchsia-900-rgb: 239, 120, 238;
     --global-color-fuchsia-900: rgb(var(--global-color-fuchsia-900-rgb));
     --global-color-fuchsia-1000-rgb: 246, 149, 243;
-    --global-color-fuchsia-1000: rgb(
-      var(--global-color-fuchsia-1000-rgb)
-    );
+    --global-color-fuchsia-1000: rgb(var(--global-color-fuchsia-1000-rgb));
     --global-color-fuchsia-1100-rgb: 251, 175, 246;
-    --global-color-fuchsia-1100: rgb(
-      var(--global-color-fuchsia-1100-rgb)
-    );
+    --global-color-fuchsia-1100: rgb(var(--global-color-fuchsia-1100-rgb));
     --global-color-fuchsia-1200-rgb: 254, 199, 248;
-    --global-color-fuchsia-1200: rgb(
-      var(--global-color-fuchsia-1200-rgb)
-    );
+    --global-color-fuchsia-1200: rgb(var(--global-color-fuchsia-1200-rgb));
     --global-color-fuchsia-1300-rgb: 255, 220, 250;
-    --global-color-fuchsia-1300: rgb(
-      var(--global-color-fuchsia-1300-rgb)
-    );
+    --global-color-fuchsia-1300: rgb(var(--global-color-fuchsia-1300-rgb));
     --global-color-fuchsia-1400-rgb: 255, 236, 243;
-    --global-color-fuchsia-1400: rgb(
-      var(--global-color-fuchsia-1400-rgb)
-    );
+    --global-color-fuchsia-1400: rgb(var(--global-color-fuchsia-1400-rgb));
     --global-color-magenta-100-rgb: 83, 3, 41;
     --global-color-magenta-100: rgb(var(--global-color-magenta-100-rgb));
     --global-color-magenta-200-rgb: 106, 0, 52;
@@ -602,25 +564,15 @@ export const darkThemeCSS = css`
     --global-color-magenta-900-rgb: 252, 124, 173;
     --global-color-magenta-900: rgb(var(--global-color-magenta-900-rgb));
     --global-color-magenta-1000-rgb: 255, 152, 191;
-    --global-color-magenta-1000: rgb(
-      var(--global-color-magenta-1000-rgb)
-    );
+    --global-color-magenta-1000: rgb(var(--global-color-magenta-1000-rgb));
     --global-color-magenta-1100-rgb: 255, 179, 207;
-    --global-color-magenta-1100: rgb(
-      var(--global-color-magenta-1100-rgb)
-    );
+    --global-color-magenta-1100: rgb(var(--global-color-magenta-1100-rgb));
     --global-color-magenta-1200-rgb: 254, 202, 221;
-    --global-color-magenta-1200: rgb(
-      var(--global-color-magenta-1200-rgb)
-    );
+    --global-color-magenta-1200: rgb(var(--global-color-magenta-1200-rgb));
     --global-color-magenta-1300-rgb: 255, 221, 233;
-    --global-color-magenta-1300: rgb(
-      var(--global-color-magenta-1300-rgb)
-    );
+    --global-color-magenta-1300: rgb(var(--global-color-magenta-1300-rgb));
     --global-color-magenta-1400-rgb: 255, 236, 243;
-    --global-color-magenta-1400: rgb(
-      var(--global-color-magenta-1400-rgb)
-    );
+    --global-color-magenta-1400: rgb(var(--global-color-magenta-1400-rgb));
 
     // Semantic colors for dark mode
     --global-color-info-rgb: 114, 217, 255;
@@ -636,36 +588,15 @@ export const darkThemeCSS = css`
     --global-color-danger-100: rgba(var(--global-color-danger-rgb), 0.1);
     --global-color-success-rgb: 126, 231, 135;
     --global-color-success: rgb(var(--global-color-success-rgb));
-    --global-color-success-900: rgba(
-      var(--global-color-success-rgb),
-      0.9
-    );
-    --global-color-success-700: rgba(
-      var(--global-color-success-rgb),
-      0.7
-    );
-    --global-color-success-500: rgba(
-      var(--global-color-success-rgb),
-      0.5
-    );
-    --global-color-success-100: rgba(
-      var(--global-color-success-rgb),
-      0.1
-    );
+    --global-color-success-900: rgba(var(--global-color-success-rgb), 0.9);
+    --global-color-success-700: rgba(var(--global-color-success-rgb), 0.7);
+    --global-color-success-500: rgba(var(--global-color-success-rgb), 0.5);
+    --global-color-success-100: rgba(var(--global-color-success-rgb), 0.1);
     --global-color-warning-rgb: 230, 153, 88;
     --global-color-warning: rgb(var(--global-color-warning-rgb));
-    --global-color-warning-900: rgba(
-      var(--global-color-warning-rgb),
-      0.9
-    );
-    --global-color-warning-700: rgba(
-      var(--global-color-warning-rgb),
-      0.7
-    );
-    --global-color-warning-500: rgba(
-      var(--global-color-warning-rgb),
-      0.5
-    );
+    --global-color-warning-900: rgba(var(--global-color-warning-rgb), 0.9);
+    --global-color-warning-700: rgba(var(--global-color-warning-rgb), 0.7);
+    --global-color-warning-500: rgba(var(--global-color-warning-rgb), 0.5);
     --global-color-severe-rgb: 188, 76, 0;
     --global-color-severe: rgb(var(--global-color-severe-rgb));
     --global-color-severe-900: rgba(var(--global-color-severe-rgb), 0.9);
@@ -686,15 +617,11 @@ export const darkThemeCSS = css`
     --floating-toolbar-border-color: var(--global-color-gray-300);
 
     // Optimization Direction Colors
-    --global-color-optimization-direction-positive: var(
-      --global-color-success
-    );
+    --global-color-optimization-direction-positive: var(--global-color-success);
     --global-color-background-optimization-direction-positive: var(
       --global-color-success-100
     );
-    --global-color-optimization-direction-negative: var(
-      --global-color-danger
-    );
+    --global-color-optimization-direction-negative: var(--global-color-danger);
     --global-color-background-optimization-direction-negative: var(
       --global-color-danger-100
     );
@@ -952,15 +879,11 @@ export const lightThemeCSS = css`
     --floating-toolbar-border-color: var(--global-color-gray-200);
 
     // Optimization Direction Colors
-    --global-color-optimization-direction-positive: var(
-      --global-color-success
-    );
+    --global-color-optimization-direction-positive: var(--global-color-success);
     --global-color-background-optimization-direction-positive: var(
       --global-color-success-100
     );
-    --global-color-optimization-direction-negative: var(
-      --global-color-danger
-    );
+    --global-color-optimization-direction-negative: var(--global-color-danger);
     --global-color-background-optimization-direction-negative: var(
       --global-color-danger-100
     );
@@ -972,46 +895,16 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   .ac-theme--${theme} {
     // The primary color tint for  the apps
     --global-color-primary: var(--global-color-gray-900);
-    --global-color-primary-900: rgba(
-      var(--global-color-gray-900-rgb),
-      0.9
-    );
-    --global-color-primary-800: rgba(
-      var(--global-color-gray-900-rgb),
-      0.8
-    );
-    --global-color-primary-700: rgba(
-      var(--global-color-gray-900-rgb),
-      0.7
-    );
-    --global-color-primary-600: rgba(
-      var(--global-color-gray-900-rgb),
-      0.6
-    );
-    --global-color-primary-500: rgba(
-      var(--global-color-gray-900-rgb),
-      0.5
-    );
-    --global-color-primary-400: rgba(
-      var(--global-color-gray-900-rgb),
-      0.4
-    );
-    --global-color-primary-300: rgba(
-      var(--global-color-gray-900-rgb),
-      0.3
-    );
-    --global-color-primary-200: rgba(
-      var(--global-color-gray-900-rgb),
-      0.2
-    );
-    --global-color-primary-100: rgba(
-      var(--global-color-gray-900-rgb),
-      0.1
-    );
-    --global-color-primary-50: rgba(
-      var(--global-color-gray-900-rgb),
-      0.05
-    );
+    --global-color-primary-900: rgba(var(--global-color-gray-900-rgb), 0.9);
+    --global-color-primary-800: rgba(var(--global-color-gray-900-rgb), 0.8);
+    --global-color-primary-700: rgba(var(--global-color-gray-900-rgb), 0.7);
+    --global-color-primary-600: rgba(var(--global-color-gray-900-rgb), 0.6);
+    --global-color-primary-500: rgba(var(--global-color-gray-900-rgb), 0.5);
+    --global-color-primary-400: rgba(var(--global-color-gray-900-rgb), 0.4);
+    --global-color-primary-300: rgba(var(--global-color-gray-900-rgb), 0.3);
+    --global-color-primary-200: rgba(var(--global-color-gray-900-rgb), 0.2);
+    --global-color-primary-100: rgba(var(--global-color-gray-900-rgb), 0.1);
+    --global-color-primary-50: rgba(var(--global-color-gray-900-rgb), 0.05);
 
     --global-background-color-default: var(--global-color-gray-100);
     --global-background-color-light: var(--global-color-gray-200);
@@ -1036,12 +929,8 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-input-field-border-color-hover: var(--global-color-gray-300);
     --global-input-field-border-color-active: var(--global-color-primary);
     --global-input-field-background-color: var(--global-color-gray-100);
-    --global-input-field-background-color-hover: var(
-      --global-color-gray-300
-    );
-    --global-input-field-background-color-active: var(
-      --global-color-gray-300
-    );
+    --global-input-field-background-color-hover: var(--global-color-gray-300);
+    --global-input-field-background-color-active: var(--global-color-gray-300);
 
     // Styles for menus
     --global-menu-border-color: var(--global-color-gray-100);
@@ -1053,26 +942,18 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-menu-item-gap: var(--global-dimension-static-size-50);
 
     // Styles for buttons
-    --global-button-primary-background-color: var(
-      --global-color-gray-900
-    );
-    --global-button-primary-foreground-color: var(
-      --global-color-gray-100
-    );
+    --global-button-primary-background-color: var(--global-color-gray-900);
+    --global-button-primary-foreground-color: var(--global-color-gray-100);
     --global-button-primary-background-color-hover: var(
       --global-color-gray-800
     );
     --global-button-primary-border-color: var(--global-color-gray-900);
-    --global-button-danger-background-color: var(
-      --global-color-danger-700
-    );
+    --global-button-danger-background-color: var(--global-color-danger-700);
     --global-button-danger-background-color-hover: var(
       --global-color-danger-900
     );
     --global-button-danger-border-color: var(--global-color-danger);
-    --global-button-success-background-color: var(
-      --global-color-success-700
-    );
+    --global-button-success-background-color: var(--global-color-success-700);
     --global-button-success-background-color-hover: var(
       --global-color-success-900
     );
@@ -1080,9 +961,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Styles for checkbox
     --global-checkbox-selected-color: var(--global-color-gray-800);
-    --global-checkbox-selected-color-pressed: var(
-      --global-color-gray-900
-    );
+    --global-checkbox-selected-color-pressed: var(--global-color-gray-900);
     --global-checkbox-checkmark-color: var(--global-color-gray-50);
     --global-checkbox-border-color: var(--global-color-gray-300);
     --global-checkbox-border-color-pressed: var(--global-color-gray-400);
@@ -1113,17 +992,11 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);
     --global-border-size-thicker: var(--global-dimension-static-size-50);
-    --global-border-size-thickest: var(
-      --global-dimension-static-size-100
-    );
+    --global-border-size-thickest: var(--global-dimension-static-size-100);
     --global-border-offset-thin: var(--global-dimension-static-size-25);
     --global-border-offset-thick: var(--global-dimension-static-size-50);
-    --global-border-offset-thicker: var(
-      --global-dimension-static-size-100
-    );
-    --global-border-offset-thickest: var(
-      --global-dimension-static-size-200
-    );
+    --global-border-offset-thicker: var(--global-dimension-static-size-100);
+    --global-border-offset-thickest: var(--global-dimension-static-size-200);
     --global-grid-baseline: var(--global-dimension-static-size-100);
     --global-grid-gutter-xsmall: var(--global-dimension-static-size-200);
     --global-grid-gutter-small: var(--global-dimension-static-size-300);
@@ -1191,8 +1064,7 @@ const appGlobalStylesCSS = css`
     /* Works on Firefox */
     * {
       scrollbar-width: thin;
-      scrollbar-color: var(--global-color-gray-300)
-        var(--global-color-gray-400);
+      scrollbar-color: var(--global-color-gray-300) var(--global-color-gray-400);
     }
 
     /* Works on Chrome, Edge, and Safari */

@@ -30,8 +30,7 @@ const listBoxCSS = css`
 
   .react-aria-ListBoxItem {
     margin: var(--global-dimension-size-25);
-    padding: var(--global-dimension-size-100)
-      var(--global-dimension-size-150);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
     border-radius: var(--global-rounding-small);
     outline: none;
     cursor: default;

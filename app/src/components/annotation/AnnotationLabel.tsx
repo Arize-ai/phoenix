@@ -8,8 +8,7 @@ import { Annotation, AnnotationDisplayPreference } from "./types";
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--global-dimension-size-50);
   border: 1px solid var(--global-color-gray-400);
-  padding: var(--global-dimension-size-50)
-    var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   transition: background-color 0.2s;
   display: flex;
   flex-direction: row;

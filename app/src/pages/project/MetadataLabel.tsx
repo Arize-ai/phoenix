@@ -7,8 +7,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 const metadataLabelCSS = css`
   border-radius: var(--global-dimension-size-50);
   border: 1px solid var(--global-color-gray-200);
-  padding: var(--global-dimension-size-50)
-    var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   transition: background-color 0.2s;
 
   &[role="button"] {

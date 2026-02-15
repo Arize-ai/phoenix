@@ -453,10 +453,7 @@ export function PromptVersionSelector({
                       <Flex alignItems="center" gap="size-100">
                         <IdTruncate id={id} textProps={{ size: "S" }} />
                         {isLatest && (
-                          <Token
-                            size="S"
-                            color="var(--global-color-gray-700)"
-                          >
+                          <Token size="S" color="var(--global-color-gray-700)">
                             latest
                           </Token>
                         )}

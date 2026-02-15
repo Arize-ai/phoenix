@@ -37,8 +37,7 @@ const listCSS = css`
   display: flex;
   flex-direction: column;
   padding: var(--global-dimension-static-size-100);
-  border-top: var(--global-border-size-thin) solid
-    var(--global-color-gray-100);
+  border-top: var(--global-border-size-thin) solid var(--global-color-gray-100);
   background-color: var(--global-color-gray-50);
 `;
 
@@ -52,15 +51,13 @@ const listItemCSS = css`
 
 const placeholderButtonCSS = css`
   flex: 1 1 auto;
-  padding: var(--global-dimension-size-50)
-    var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   min-width: 0;
 `;
 
 const errorButtonCSS = css`
   flex: 1 1 auto;
-  padding: var(--global-dimension-size-50)
-    var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   border-radius: var(--global-rounding-small);
   text-align: left;
   min-width: 0;

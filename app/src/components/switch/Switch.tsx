@@ -70,9 +70,7 @@ const switchCSS = css`
 
       &:hover::after {
         left: calc(
-          var(--global-dimension-size-400) - var(
-              --global-dimension-size-250
-            ) +
+          var(--global-dimension-size-400) - var(--global-dimension-size-250) +
             var(--global-dimension-size-250) / 2
         );
       }

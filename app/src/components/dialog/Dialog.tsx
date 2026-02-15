@@ -49,8 +49,7 @@ export const DialogContent = ({ children, ...props }: DialogContentProps) => {
 export type DialogHeaderProps = HTMLAttributes<HTMLDivElement>;
 
 export const dialogHeaderCSS = css`
-  padding: var(--global-dimension-size-100)
-    var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   border-bottom: var(--global-border-size-thin) solid
     var(--global-border-color-dark);
   flex-shrink: 0;

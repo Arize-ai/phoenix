@@ -7,9 +7,7 @@ import { useTheme } from "@phoenix/contexts";
 export function useSpanKindColor({ spanKind }: { spanKind: string }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  let color = isDark
-    ? "--global-color-gray-600"
-    : "--global-color-gray-200";
+  let color = isDark ? "--global-color-gray-600" : "--global-color-gray-200";
   switch (spanKind) {
     case "llm":
       color = isDark
@@ -22,9 +20,7 @@ export function useSpanKindColor({ spanKind }: { spanKind: string }) {
         : "--global-color-orange-400";
       break;
     case "chain":
-      color = isDark
-        ? "--global-color-blue-1000"
-        : "--global-color-blue-500";
+      color = isDark ? "--global-color-blue-1000" : "--global-color-blue-500";
       break;
     case "retriever":
       color = isDark
@@ -37,9 +33,7 @@ export function useSpanKindColor({ spanKind }: { spanKind: string }) {
         : "--global-color-indigo-500";
       break;
     case "agent":
-      color = isDark
-        ? "--global-color-gray-600"
-        : "--global-color-gray-300";
+      color = isDark ? "--global-color-gray-600" : "--global-color-gray-300";
       break;
     case "tool":
       color = isDark

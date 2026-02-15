@@ -173,9 +173,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                       )}
                       <ul
                         css={css`
-                          margin-top: var(
-                            --global-dimension-static-size-100
-                          );
+                          margin-top: var(--global-dimension-static-size-100);
                           display: flex;
                           flex-direction: column;
                           justify-content: flex-start;

@@ -88,9 +88,7 @@ const tokenBaseCSS = css`
   &[data-theme="light"] {
     background: var(--internal-token-color);
     border-color: var(--internal-token-color);
-    color: lch(
-      from var(--internal-token-color) calc((55 - l) * infinity) 0 0
-    );
+    color: lch(from var(--internal-token-color) calc((55 - l) * infinity) 0 0);
   }
 
   &[data-theme="dark"] {

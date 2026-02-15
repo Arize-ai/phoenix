@@ -66,10 +66,9 @@ export function SupportPage() {
 }
 
 const supportItemCSS = css`
-  padding: var(--global-dimension-size-200)
-    var(--global-dimension-size-200) var(--global-dimension-size-200);
-  border: var(--global-border-size-thin) solid
-    var(--global-border-color-dark);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
+    var(--global-dimension-size-200);
+  border: var(--global-border-size-thin) solid var(--global-border-color-dark);
   border-radius: var(--global-dimension-size-100);
   cursor: pointer;
   background-color: var(--global-background-color-dark);

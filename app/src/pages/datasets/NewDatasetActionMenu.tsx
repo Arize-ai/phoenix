@@ -128,8 +128,7 @@ export function NewDatasetActionMenu({
         onPress={() => setIsOpen(true)}
         css={css`
           height: calc(
-            var(--global-button-height-m) +
-              var(--global-dimension-size-50)
+            var(--global-button-height-m) + var(--global-dimension-size-50)
           );
           padding: var(--global-dimension-static-size-150)
             var(--global-dimension-static-size-250);

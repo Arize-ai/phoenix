@@ -32,10 +32,7 @@ const sliderCSS = css`
     "track track";
   gap: var(--global-dimension-size-100);
   grid-template-columns: 1fr auto;
-  width: var(
-    --alias-single-line-width,
-    var(--global-dimension-size-2400)
-  );
+  width: var(--alias-single-line-width, var(--global-dimension-size-2400));
   color: var(--text-color);
 
   .ac-slider-label {
@@ -86,10 +83,7 @@ const sliderCSS = css`
     box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25);
     forced-color-adjust: none;
     transition: border-width
-      var(
-        --slider-animation-duration,
-        var(--global-animation-duration-100)
-      )
+      var(--slider-animation-duration, var(--global-animation-duration-100))
       ease-in-out;
     position: relative;
 
@@ -154,8 +148,7 @@ const sliderCSS = css`
       &:after {
         left: calc(var(--slider-start) - var(--slider-handle-width) / 2);
         width: calc(
-          var(--slider-end) - var(--slider-start) +
-            var(--slider-handle-width)
+          var(--slider-end) - var(--slider-start) + var(--slider-handle-width)
         );
         top: 50%;
         transform: translateY(-50%);

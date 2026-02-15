@@ -17,8 +17,7 @@ type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
 const directionCSS = css`
   // only apply padding and border radius if there is a direction
   &[data-direction] {
-    padding: var(--global-dimension-size-25)
-      var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
     border-radius: var(--global-rounding-small);
   }
   &[data-direction="positive"] {

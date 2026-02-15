@@ -33,12 +33,12 @@ const skeletonContainerCSS = css`
 
 const skeletonBubbleCSS = css`
   &[data-outgoing="true"] {
-    border-radius: var(--global-rounding-large)
-      var(--global-rounding-large) 0 var(--global-rounding-large);
+    border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
+      var(--global-rounding-large);
   }
   &[data-outgoing="false"] {
-    border-radius: var(--global-rounding-large)
-      var(--global-rounding-large) var(--global-rounding-large) 0;
+    border-radius: var(--global-rounding-large) var(--global-rounding-large)
+      var(--global-rounding-large) 0;
   }
 `;
 /**

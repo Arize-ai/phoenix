@@ -135,10 +135,7 @@ export const textFieldCSS = css`
     width: 100%;
     margin: 0;
     border: var(--global-border-size-thin) solid
-      var(
-        --field-border-color-override,
-        var(--global-input-field-border-color)
-      );
+      var(--field-border-color-override, var(--global-input-field-border-color));
     border-radius: var(--global-rounding-small);
     background-color: var(--global-input-field-background-color);
     color: var(--global-text-color-900);

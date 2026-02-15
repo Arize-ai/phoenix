@@ -36,31 +36,28 @@ interface MessageBubbleProps {
 }
 
 const bubbleCSS = css`
-  padding: var(--global-dimension-size-100)
-    var(--global-dimension-size-150);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   font-size: var(--global-font-size-s);
   line-height: var(--global-line-height-s);
   word-wrap: break-word;
   &[data-outgoing="true"] {
     background-color: var(--global-color-primary);
     color: var(--global-color-gray-50);
-    border-radius: var(--global-rounding-large)
-      var(--global-rounding-large) 0 var(--global-rounding-large);
+    border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
+      var(--global-rounding-large);
   }
   &[data-outgoing="false"] {
     background-color: var(--global-background-color-light);
     color: var(--global-text-color-900);
-    border-radius: var(--global-rounding-large)
-      var(--global-rounding-large) var(--global-rounding-large) 0;
+    border-radius: var(--global-rounding-large) var(--global-rounding-large)
+      var(--global-rounding-large) 0;
   }
 `;
 
 const timestampCSS = css`
   font-size: var(--global-font-size-xs);
   color: var(--global-text-color-500);
-  padding-left: calc(
-    ${USER_PICTURE_SIZE}px + var(--global-dimension-size-100)
-  );
+  padding-left: calc(${USER_PICTURE_SIZE}px + var(--global-dimension-size-100));
   &[data-outgoing="true"] {
     text-align: right;
     padding-left: 0;

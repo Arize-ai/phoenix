@@ -36,8 +36,7 @@ export type IntegrationLinkProps = {
 const integrationLinkCSS = css`
   border-radius: var(--global-rounding-medium);
   border: 1px solid var(--global-color-gray-400);
-  padding: var(--global-dimension-size-100)
-    var(--global-dimension-size-150);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   display: flex;
   flex-direction: row;
   align-items: center;

@@ -142,8 +142,7 @@ const panelTitleCSS = css`
   display: flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-100)
-    var(--global-dimension-size-50);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-50);
   font-weight: var(--font-weight-heavy);
   font-size: var(--global-font-size-s);
   &[data-bordered="true"] {
