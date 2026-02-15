@@ -241,7 +241,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
               style={{ fill: "var(--global-text-color-700)" }}
             />
             <YAxis
-              stroke="var(--global-color-grey-500)"
+              stroke="var(--global-color-gray-500)"
               label={{
                 value: "Percent",
                 angle: -90,
@@ -255,7 +255,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
             />
             <CartesianGrid
               strokeDasharray="4 4"
-              stroke="var(--global-color-grey-500)"
+              stroke="var(--global-color-gray-500)"
             />
             <Tooltip
               {...defaultBarChartTooltipProps}

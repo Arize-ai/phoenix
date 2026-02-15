@@ -145,7 +145,7 @@ export function DimensionSegmentsBarChart(props: {
           style={{ fill: "var(--global-text-color-700)" }}
         />
         <YAxis
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "% Volume",
             angle: -90,
@@ -159,7 +159,7 @@ export function DimensionSegmentsBarChart(props: {
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />

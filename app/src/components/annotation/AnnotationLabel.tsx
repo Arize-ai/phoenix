@@ -7,7 +7,7 @@ import { Annotation, AnnotationDisplayPreference } from "./types";
 
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--global-dimension-size-50);
-  border: 1px solid var(--global-color-grey-400);
+  border: 1px solid var(--global-color-gray-400);
   padding: var(--global-dimension-size-50)
     var(--global-dimension-size-100);
   transition: background-color 0.2s;
@@ -17,7 +17,7 @@ export const baseAnnotationLabelCSS = css`
   &[data-clickable="true"] {
     cursor: pointer;
     &:hover {
-      background-color: var(--global-color-grey-300);
+      background-color: var(--global-color-gray-300);
     }
   }
   .ac-icon-wrap {

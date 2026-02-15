@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 
 export const resizeHandleCSS = css`
   transition: 250ms linear all;
-  background-color: var(--global-color-grey-200);
+  background-color: var(--global-color-gray-200);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,7 +31,7 @@ export const resizeHandleCSS = css`
   }
 
   &:hover {
-    background-color: var(--global-color-grey-300);
+    background-color: var(--global-color-gray-300);
     border-radius: 4px;
     &:before,
     &:after {
@@ -45,14 +45,14 @@ export const resizeHandleCSS = css`
     color: var(--color-solid-resize-bar);
     flex: 0 0 1rem;
     border-radius: 6px;
-    background-color: var(--global-color-grey-300);
+    background-color: var(--global-color-gray-300);
     flex: none;
   }
 `;
 
 export const compactResizeHandleCSS = css`
   transition: 250ms linear all;
-  background-color: var(--global-color-grey-200);
+  background-color: var(--global-color-gray-200);
   --resize-handle-size: 4px;
   outline: none;
   &[data-panel-group-direction="vertical"] {

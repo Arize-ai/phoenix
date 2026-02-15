@@ -232,7 +232,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             items={datasetItems}
             renderEmptyState={() => (
               <View padding="size-100">
-                <Text color="grey-300" size="S">
+                <Text color="gray-300" size="S">
                   No datasets found
                 </Text>
               </View>

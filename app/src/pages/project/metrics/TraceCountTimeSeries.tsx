@@ -169,7 +169,7 @@ export function TraceCountTimeSeries({
         <Bar
           dataKey="ok"
           stackId="a"
-          fill={colors.grey300}
+          fill={colors.gray300}
           radius={[2, 2, 0, 0]}
         />
 

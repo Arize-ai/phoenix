@@ -106,7 +106,7 @@ const searchFieldCSS = css`
 
     &:hover {
       color: var(--global-text-color-900);
-      background-color: var(--global-color-grey-300);
+      background-color: var(--global-color-gray-300);
     }
 
     &[data-empty] {

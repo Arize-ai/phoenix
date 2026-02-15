@@ -617,7 +617,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   return (
     <div
       css={css`
-        background-color: var(--global-color-grey-75);
+        background-color: var(--global-color-gray-75);
         width: 100%;
         height: 100%;
       `}

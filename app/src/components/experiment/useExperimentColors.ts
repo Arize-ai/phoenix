@@ -19,6 +19,6 @@ export function useExperimentColors() {
 
   return {
     getExperimentColor,
-    baseExperimentColor: "var(--global-color-grey-500)",
+    baseExperimentColor: "var(--global-color-gray-500)",
   };
 }

@@ -6,7 +6,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 
 const metadataLabelCSS = css`
   border-radius: var(--global-dimension-size-50);
-  border: 1px solid var(--global-color-grey-200);
+  border: 1px solid var(--global-color-gray-200);
   padding: var(--global-dimension-size-50)
     var(--global-dimension-size-100);
   transition: background-color 0.2s;
@@ -14,8 +14,8 @@ const metadataLabelCSS = css`
   &[role="button"] {
     cursor: pointer;
     &:hover {
-      background-color: var(--global-color-grey-200);
-      border-color: var(--global-color-grey-400);
+      background-color: var(--global-color-gray-200);
+      border-color: var(--global-color-gray-400);
     }
   }
   max-width: 100%;

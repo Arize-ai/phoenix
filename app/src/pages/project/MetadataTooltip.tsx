@@ -127,7 +127,7 @@ export function MetadataTooltip({
                       css={css`
                         all: unset;
                         color: var(--global-text-color-900);
-                        border: 1px solid var(--global-color-grey-300);
+                        border: 1px solid var(--global-color-gray-300);
                         border-radius: 4px;
                         padding: var(--global-dimension-size-50)
                           var(--global-dimension-size-100);

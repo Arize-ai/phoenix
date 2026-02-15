@@ -694,7 +694,7 @@ function MissingAnnotationPieChart({
             fill={
               entry.name === "missingAnnotation"
                 ? "var(--global-color-warning)"
-                : "var(--global-color-grey-300)"
+                : "var(--global-color-gray-300)"
             }
             opacity={entry.name === "missingAnnotation" ? 0.8 : 0.5}
           />

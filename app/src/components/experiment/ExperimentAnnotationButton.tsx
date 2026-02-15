@@ -43,7 +43,7 @@ export function ExperimentAnnotationButton({
           width: 100%;
           min-width: 0;
           &:hover {
-            background-color: var(--global-color-grey-200);
+            background-color: var(--global-color-gray-200);
           }
         `}
       >

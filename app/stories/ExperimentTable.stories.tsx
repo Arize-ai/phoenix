@@ -380,7 +380,7 @@ function SimpleExperimentTable({
         if (!currentExperiment) {
           return (
             <Flex direction="row" gap="size-50">
-              <Icon svg={<Icons.MinusCircleOutline />} color="grey-800" />
+              <Icon svg={<Icons.MinusCircleOutline />} color="gray-800" />
               <Text color="text-700">not run</Text>
             </Flex>
           );
@@ -500,7 +500,7 @@ function SimpleExperimentTable({
 
   return (
     <View
-      backgroundColor="grey-50"
+      backgroundColor="gray-50"
       borderColor="light"
       borderWidth="thin"
       borderRadius="medium"

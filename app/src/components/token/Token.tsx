@@ -24,7 +24,7 @@ interface TokenProps
    *
    * Can be any valid CSS color value, including CSS variables.
    *
-   * @default "var(--global-color-grey-300)"
+   * @default "var(--global-color-gray-300)"
    */
   color?: string;
   /**
@@ -173,7 +173,7 @@ function Token(
     children,
     isDisabled,
     css: cssProp,
-    color = "var(--global-color-grey-300)",
+    color = "var(--global-color-gray-300)",
     onPress,
     onRemove,
     size = "M",

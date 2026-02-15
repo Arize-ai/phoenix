@@ -57,7 +57,7 @@ const numberFormatter = new Intl.NumberFormat([], {
 const useColors = () => {
   const colors = useSequentialChartColors();
   const color = colors.blue400;
-  const barColor = colors.grey500;
+  const barColor = colors.gray500;
   return {
     color,
     barColor,
@@ -392,7 +392,7 @@ export function MetricTimeSeries({
               style={{ fill: "var(--global-text-color-700)" }}
             />
             <YAxis
-              stroke="var(--global-color-grey-500)"
+              stroke="var(--global-color-gray-500)"
               label={{
                 value: metricShortName,
                 angle: -90,
@@ -420,7 +420,7 @@ export function MetricTimeSeries({
             />
             <CartesianGrid
               strokeDasharray="4 4"
-              stroke="var(--global-color-grey-500)"
+              stroke="var(--global-color-gray-500)"
               strokeOpacity={0.5}
             />
             <Tooltip content={TooltipContent} />

@@ -35,7 +35,7 @@ export type IntegrationLinkProps = {
 
 const integrationLinkCSS = css`
   border-radius: var(--global-rounding-medium);
-  border: 1px solid var(--global-color-grey-400);
+  border: 1px solid var(--global-color-gray-400);
   padding: var(--global-dimension-size-100)
     var(--global-dimension-size-150);
   display: flex;
@@ -47,7 +47,7 @@ const integrationLinkCSS = css`
     background-color 0.2s ease-in-out,
     border-color 0.2s ease-in-out;
   &:hover {
-    background-color: var(--global-color-grey-100);
+    background-color: var(--global-color-gray-100);
     border-color: var(--global-color-primary);
   }
   min-width: 230px;
@@ -61,12 +61,12 @@ const integrationLinkCSS = css`
     gap: var(--global-dimension-size-150);
   }
   .integration__github-link {
-    color: var(--global-color-grey-500);
+    color: var(--global-color-gray-500);
     transition: color 0.2s ease-in-out;
     display: flex;
     align-items: center;
     &:hover {
-      color: var(--global-color-grey-700);
+      color: var(--global-color-gray-700);
     }
   }
 `;

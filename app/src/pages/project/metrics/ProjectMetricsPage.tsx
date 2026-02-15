@@ -48,7 +48,7 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
       <Flex direction="column">
         <Heading>{title}</Heading>
         {subtitle && (
-          <Text size="XS" color="grey-600">
+          <Text size="XS" color="gray-600">
             {subtitle}
           </Text>
         )}
@@ -68,12 +68,12 @@ export const MetricPanel = forwardRef(function MetricPanel(
   return (
     <View
       borderWidth="thin"
-      borderColor="grey-200"
+      borderColor="gray-200"
       borderRadius="medium"
       height="100%"
       width="100%"
       data-testid={`dashboard-panel`}
-      backgroundColor="grey-75"
+      backgroundColor="gray-75"
       ref={ref}
     >
       <div

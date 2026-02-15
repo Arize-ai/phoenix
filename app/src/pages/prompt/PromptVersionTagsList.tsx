@@ -49,7 +49,7 @@ export function TagVersionLabel({
       case "development":
         return "var(--global-color-blue-1000)";
       default:
-        return "var(--global-color-grey-900)";
+        return "var(--global-color-gray-900)";
     }
   }, [children]);
   return (

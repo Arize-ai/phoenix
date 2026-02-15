@@ -18,8 +18,8 @@ export function ChartTooltip(props: ChartTooltipProps) {
   return (
     <div
       css={css`
-        background-color: var(--global-color-grey-200);
-        border: 1px solid var(--global-color-grey-300);
+        background-color: var(--global-color-gray-200);
+        border: 1px solid var(--global-color-gray-300);
         padding: var(--global-dimension-static-size-100);
         border-radius: var(--global-rounding-medium);
         display: flex;
@@ -83,7 +83,7 @@ export function ChartTooltipDivider() {
     <div
       css={css`
         height: 1px;
-        background-color: var(--global-color-grey-300);
+        background-color: var(--global-color-gray-300);
         width: 100%;
       `}
     />

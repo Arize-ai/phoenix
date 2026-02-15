@@ -13,7 +13,7 @@ const counterCSS = css`
   display: inline-block;
   padding: 0 var(--global-dimension-size-50);
   border-radius: var(--global-rounding-large);
-  border: 1px solid var(--global-color-grey-300);
+  border: 1px solid var(--global-color-gray-300);
   min-width: var(--global-dimension-size-150);
   background-color: var(--global-background-color-light);
   font-size: var(--global-font-size-xs);

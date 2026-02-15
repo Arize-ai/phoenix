@@ -24,7 +24,7 @@ import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
   padding: var(--global-dimension-static-size-100);
-  background-color: var(--global-color-grey-100);
+  background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
   flex-direction: row;
@@ -36,7 +36,7 @@ const topNavCSS = css`
 const sideNavCSS = css`
   padding: var(--global-dimension-static-size-200)
     var(--global-dimension-static-size-100);
-  background-color: var(--global-color-grey-100);
+  background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -56,7 +56,7 @@ const sideNavCSS = css`
 
 const navLinkCSS = css`
   width: 100%;
-  color: var(--global-color-grey-500);
+  color: var(--global-color-gray-500);
   background-color: transparent;
   border-radius: var(--global-rounding-small);
   display: flex;
@@ -71,11 +71,11 @@ const navLinkCSS = css`
 
   &.active {
     color: var(--global-text-color-900);
-    background-color: var(--global-color-grey-200);
+    background-color: var(--global-color-gray-200);
   }
   &:hover:not(.active) {
     color: var(--global-text-color-900);
-    background-color: var(--global-color-grey-200);
+    background-color: var(--global-color-gray-200);
   }
   & > .ac-icon-wrap {
     padding: var(--global-dimension-size-100);

@@ -8,8 +8,8 @@ export function useSpanKindColor({ spanKind }: { spanKind: string }) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   let color = isDark
-    ? "--global-color-grey-600"
-    : "--global-color-grey-200";
+    ? "--global-color-gray-600"
+    : "--global-color-gray-200";
   switch (spanKind) {
     case "llm":
       color = isDark
@@ -38,8 +38,8 @@ export function useSpanKindColor({ spanKind }: { spanKind: string }) {
       break;
     case "agent":
       color = isDark
-        ? "--global-color-grey-600"
-        : "--global-color-grey-300";
+        ? "--global-color-gray-600"
+        : "--global-color-gray-300";
       break;
     case "tool":
       color = isDark

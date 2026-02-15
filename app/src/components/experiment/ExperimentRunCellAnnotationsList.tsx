@@ -38,8 +38,8 @@ const listCSS = css`
   flex-direction: column;
   padding: var(--global-dimension-static-size-100);
   border-top: var(--global-border-size-thin) solid
-    var(--global-color-grey-100);
-  background-color: var(--global-color-grey-50);
+    var(--global-color-gray-100);
+  background-color: var(--global-color-gray-50);
 `;
 
 const listItemCSS = css`
@@ -65,7 +65,7 @@ const errorButtonCSS = css`
   text-align: left;
   min-width: 0;
   &:hover {
-    background-color: var(--global-color-grey-200);
+    background-color: var(--global-color-gray-200);
   }
 `;
 
@@ -288,7 +288,7 @@ export function ExperimentRunCellAnnotationsList(
                       <Text fontFamily="mono">
                         {floatFormatter(meanAnnotationScore)}
                       </Text>
-                      <Text fontFamily="mono" color="grey-500">
+                      <Text fontFamily="mono" color="gray-500">
                         AVG
                       </Text>
                     </Flex>

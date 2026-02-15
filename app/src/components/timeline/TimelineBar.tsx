@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 const trackCSS = css`
   height: var(--global-dimension-size-75);
   border-radius: 3px;
-  background-color: var(--global-color-grey-300);
+  background-color: var(--global-color-gray-300);
   width: 100%;
   position: relative;
   overflow: hidden;

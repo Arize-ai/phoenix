@@ -29,7 +29,7 @@ const PAGE_SIZE = 50;
 
 const emailLinkCSS = css`
   text-decoration: none;
-  color: var(--global-color-grey-600);
+  color: var(--global-color-gray-600);
   font-size: 12px;
   &:hover {
     text-decoration: underline;

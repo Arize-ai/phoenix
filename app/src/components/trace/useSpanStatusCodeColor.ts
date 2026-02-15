@@ -14,7 +14,7 @@ export function useSpanStatusCodeColor(
       return "danger";
       break;
     case "UNSET":
-      return "grey-500";
+      return "gray-500";
     default:
       assertUnreachable(statusCode);
   }

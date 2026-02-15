@@ -64,7 +64,7 @@ export const progressCircleCSS = css`
     cx: var(--progress-circle-center);
     cy: var(--progress-circle-center);
     r: var(--progress-circle-radius);
-    stroke: var(--global-color-grey-300);
+    stroke: var(--global-color-gray-300);
     stroke-width: var(--progress-circle-stroke-width);
   }
 
@@ -104,7 +104,7 @@ export const progressBarCSS = css`
     overflow: hidden;
     background-color: var(
       --mod-barloader-track-color,
-      var(--global-color-grey-300)
+      var(--global-color-gray-300)
     );
   }
 

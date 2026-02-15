@@ -455,7 +455,7 @@ export function PromptVersionSelector({
                         {isLatest && (
                           <Token
                             size="S"
-                            color="var(--global-color-grey-700)"
+                            color="var(--global-color-gray-700)"
                           >
                             latest
                           </Token>

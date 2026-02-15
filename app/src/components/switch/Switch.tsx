@@ -18,7 +18,7 @@ const switchCSS = css`
   .indicator {
     width: var(--global-dimension-size-400);
     height: var(--global-dimension-size-150);
-    background: var(--global-color-grey-300);
+    background: var(--global-color-gray-300);
     border-radius: var(--global-rounding-medium);
     transition: background 0.1s ease-in-out;
     position: relative;
@@ -31,7 +31,7 @@ const switchCSS = css`
       transform: translateY(-50%);
       width: var(--global-dimension-size-250);
       height: var(--global-dimension-size-250);
-      background: var(--global-color-grey-500);
+      background: var(--global-color-gray-500);
       border-radius: 50%;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       transition: all 0.1s ease-in-out;

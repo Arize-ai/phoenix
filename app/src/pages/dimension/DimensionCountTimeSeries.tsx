@@ -31,9 +31,9 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { grey300 } = useSequentialChartColors();
+  const { gray300 } = useSequentialChartColors();
   return {
-    barColor: grey300,
+    barColor: gray300,
   };
 };
 
@@ -140,7 +140,7 @@ export function DimensionCountTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "Count",
             angle: -90,
@@ -154,7 +154,7 @@ export function DimensionCountTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />

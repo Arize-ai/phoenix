@@ -1687,8 +1687,8 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
         return (
           <li key={idx}>
             <View
-              backgroundColor="grey-100"
-              borderColor="grey-500"
+              backgroundColor="gray-100"
+              borderColor="gray-500"
               borderWidth="thin"
               borderRadius="medium"
               padding="size-100"

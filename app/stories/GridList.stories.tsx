@@ -26,7 +26,7 @@ export default meta;
 const Template: StoryFn<Omit<GridListProps<object>, "children">> = (props) => (
   <div
     css={css`
-      border: 1px solid var(--global-color-grey-300);
+      border: 1px solid var(--global-color-gray-300);
       border-radius: var(--global-rounding-small);
     `}
   >
@@ -77,7 +77,7 @@ export const WithSubtitleAndTrailingContent: StoryFn<
 > = (props) => (
   <div
     css={css`
-      border: 1px solid var(--global-color-grey-300);
+      border: 1px solid var(--global-color-gray-300);
       border-radius: var(--global-rounding-small);
     `}
   >
@@ -119,7 +119,7 @@ export const Empty: StoryFn<Omit<GridListProps<object>, "children">> = (
 ) => (
   <div
     css={css`
-      border: 1px solid var(--global-color-grey-300);
+      border: 1px solid var(--global-color-gray-300);
       border-radius: var(--global-rounding-small);
     `}
   >
@@ -127,7 +127,7 @@ export const Empty: StoryFn<Omit<GridListProps<object>, "children">> = (
       aria-label="Empty grid list"
       renderEmptyState={() => (
         <View padding="size-100">
-          <Text color="grey-300" size="S">
+          <Text color="gray-300" size="S">
             No items found
           </Text>
         </View>
@@ -145,7 +145,7 @@ export const WithSections: StoryFn<Omit<GridListProps<object>, "children">> = (
 ) => (
   <div
     css={css`
-      border: 1px solid var(--global-color-grey-300);
+      border: 1px solid var(--global-color-gray-300);
       border-radius: var(--global-rounding-small);
     `}
   >

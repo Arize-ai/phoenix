@@ -29,7 +29,7 @@ function DragHandle(
       css={css`
         cursor: grab;
         background-color: var(--global-input-field-background-color);
-        border: 1px solid var(--global-color-grey-400);
+        border: 1px solid var(--global-color-gray-400);
         color: var(--global-text-color-900);
         display: flex;
         align-items: center;

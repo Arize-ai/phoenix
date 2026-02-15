@@ -436,10 +436,10 @@ const personColumns: ColumnDef<Person>[] = [
             font-weight: 500;
             background-color: ${status === "active"
               ? "var(--global-color-success-100)"
-              : "var(--global-color-grey-100)"};
+              : "var(--global-color-gray-100)"};
             color: ${status === "active"
               ? "var(--global-color-success-900)"
-              : "var(--global-color-grey-700)"};
+              : "var(--global-color-gray-700)"};
           `}
         >
           {status}

@@ -17,9 +17,9 @@ const colorSwatchCSS = css`
   flex-direction: column;
   gap: var(--global-dimension-size-75);
   padding: var(--global-dimension-size-100);
-  border: 1px solid var(--global-color-grey-300);
+  border: 1px solid var(--global-color-gray-300);
   border-radius: var(--global-rounding-medium);
-  background-color: var(--global-color-grey-50);
+  background-color: var(--global-color-gray-50);
   min-width: 0; /* Prevent flex items from overflowing */
 `;
 
@@ -27,7 +27,7 @@ const colorCircleCSS = css`
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid var(--global-color-grey-200);
+  border: 2px solid var(--global-color-gray-200);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 `;
@@ -44,10 +44,10 @@ const colorValueCSS = css`
   font-family: var(--global-font-family-code);
   font-size: var(--global-dimension-font-size-50);
   color: var(--global-text-color-700);
-  background-color: var(--global-color-grey-100);
+  background-color: var(--global-color-gray-100);
   padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
   border-radius: var(--global-rounding-small);
-  border: 1px solid var(--global-color-grey-200);
+  border: 1px solid var(--global-color-gray-200);
   word-break: break-all;
   overflow-wrap: break-word;
 `;
@@ -61,7 +61,7 @@ const colorGroupCSS = css`
 const colorGroupHeaderCSS = css`
   padding: var(--global-dimension-size-75) 0
     var(--global-dimension-size-50);
-  border-bottom: 1px solid var(--global-color-grey-200);
+  border-bottom: 1px solid var(--global-color-gray-200);
   margin-bottom: var(--global-dimension-size-75);
 `;
 

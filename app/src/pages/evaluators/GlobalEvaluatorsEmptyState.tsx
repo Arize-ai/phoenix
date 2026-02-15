@@ -39,11 +39,11 @@ const WorkflowDiagram = () => {
     evaluator: "#9c27b0", // purple
     output: "#1976d2", // darker blue
     score: "#7b1fa2", // darker purple
-    arrow: "var(--global-color-grey-500)",
-    dashedArrow: "var(--global-color-grey-400)",
+    arrow: "var(--global-color-gray-500)",
+    dashedArrow: "var(--global-color-gray-400)",
     text: "var(--global-text-color-900)",
     subtext: "var(--global-text-color-700)",
-    bg: "var(--global-color-grey-100)",
+    bg: "var(--global-color-gray-100)",
   };
 
   return (
@@ -88,7 +88,7 @@ const WorkflowDiagram = () => {
           width="130"
           height="140"
           rx="4"
-          fill="var(--global-color-grey-75)"
+          fill="var(--global-color-gray-75)"
           stroke={colors.dataset}
           strokeWidth="1"
           strokeOpacity="0.5"
@@ -110,7 +110,7 @@ const WorkflowDiagram = () => {
           width="110"
           height="28"
           rx="4"
-          fill="var(--global-color-grey-200)"
+          fill="var(--global-color-gray-200)"
         />
         <text
           x="100"
@@ -129,7 +129,7 @@ const WorkflowDiagram = () => {
           width="110"
           height="28"
           rx="4"
-          fill="var(--global-color-grey-200)"
+          fill="var(--global-color-gray-200)"
         />
         <text
           x="100"
@@ -148,7 +148,7 @@ const WorkflowDiagram = () => {
           width="110"
           height="28"
           rx="4"
-          fill="var(--global-color-grey-200)"
+          fill="var(--global-color-gray-200)"
         />
         <text
           x="100"

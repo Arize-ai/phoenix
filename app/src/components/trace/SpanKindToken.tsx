@@ -8,7 +8,7 @@ export function SpanKindToken(props: {
 }) {
   const { spanKind, size = "M" } = props;
   const color = useMemo<TokenProps["color"]>(() => {
-    let color: TokenProps["color"] = "var(--global-color-grey-300)";
+    let color: TokenProps["color"] = "var(--global-color-gray-300)";
     switch (spanKind) {
       case "llm":
         color = "var(--global-color-orange-500)";
@@ -29,7 +29,7 @@ export function SpanKindToken(props: {
         color = "var(--global-color-indigo-500)";
         break;
       case "agent":
-        color = "var(--global-color-grey-500)";
+        color = "var(--global-color-gray-500)";
         break;
       case "tool":
         color = "var(--global-color-yellow-500)";

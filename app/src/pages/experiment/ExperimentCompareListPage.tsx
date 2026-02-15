@@ -637,7 +637,7 @@ export function ExperimentCompareListPage({
                       </TextOverflow>
                     </ContentPreviewTooltip>
                   ) : (
-                    <Text size="S" fontFamily="mono" color="grey-500">
+                    <Text size="S" fontFamily="mono" color="gray-500">
                       not run
                     </Text>
                   )}
@@ -669,7 +669,7 @@ export function ExperimentCompareListPage({
               return (
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <Text size="S" fontFamily="mono" color="grey-500">
+                    <Text size="S" fontFamily="mono" color="gray-500">
                       AVG
                     </Text>
                     <Text size="S" fontFamily="mono">
@@ -763,7 +763,7 @@ export function ExperimentCompareListPage({
             {experiments.map((experiment) => (
               <li key={experiment.id}>
                 <Flex direction="row" gap="size-100" alignItems="center">
-                  <Text size="S" fontFamily="mono" color="grey-500">
+                  <Text size="S" fontFamily="mono" color="gray-500">
                     AVG
                   </Text>
                   <Text size="S" fontFamily="mono">
@@ -834,7 +834,7 @@ export function ExperimentCompareListPage({
               return (
                 <li key={experiment.id}>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <Text size="S" fontFamily="mono" color="grey-500">
+                    <Text size="S" fontFamily="mono" color="gray-500">
                       AVG
                     </Text>
                     <Text size="S" fontFamily="mono">
@@ -988,7 +988,7 @@ export function ExperimentCompareListPage({
                             gap="size-100"
                             alignItems="center"
                           >
-                            <Text size="S" fontFamily="mono" color="grey-500">
+                            <Text size="S" fontFamily="mono" color="gray-500">
                               AVG
                             </Text>
                             <Text size="S" fontFamily="mono">

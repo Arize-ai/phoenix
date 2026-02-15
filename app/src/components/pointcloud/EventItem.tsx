@@ -335,7 +335,7 @@ function PromptResponsePreview(
       data-size={props.size}
       css={css`
         --prompt-response-preview-background-color: var(
-          --global-color-grey-200
+          --global-color-gray-200
         );
         background-color: var(--prompt-response-preview-background-color);
         &[data-size="small"] {
@@ -416,7 +416,7 @@ function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
-        --text-preview-background-color: var(--global-color-grey-100);
+        --text-preview-background-color: var(--global-color-gray-100);
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {

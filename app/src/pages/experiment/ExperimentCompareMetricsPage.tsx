@@ -43,7 +43,7 @@ const thumbIconCSS = css`
 
 const metricCardCSS = css`
   padding: var(--global-dimension-size-200);
-  border: 1px solid var(--global-color-grey-200);
+  border: 1px solid var(--global-color-gray-200);
   border-radius: var(--global-rounding-medium);
   transition: border-color 0.2s;
   display: flex;

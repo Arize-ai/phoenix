@@ -174,7 +174,7 @@ function ExperimentAnnotationAggregateItem({
       {/* Column 2: AVG prefix + score value */}
       {executionState === "idle" ? (
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
           <Text size="S" fontFamily="mono" color="text-300">
@@ -183,14 +183,14 @@ function ExperimentAnnotationAggregateItem({
         </Flex>
       ) : executionState === "running" ? (
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
           <Skeleton width={40} height="1em" />
         </Flex>
       ) : (
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="grey-500">
+          <Text size="S" fontFamily="mono" color="gray-500">
             AVG
           </Text>
           <AnnotationScoreText

@@ -24,7 +24,7 @@ const gradientCircleRadioCSS = css`
 
   /* Hover state */
   &[data-hovered]:not([data-disabled]):not([data-selected]) {
-    border-color: var(--global-color-grey-200);
+    border-color: var(--global-color-gray-200);
   }
 
   /* Selected state */

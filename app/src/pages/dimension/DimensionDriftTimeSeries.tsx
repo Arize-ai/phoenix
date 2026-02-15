@@ -39,10 +39,10 @@ import {
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 const useColors = () => {
-  const { blue500: lineColor, grey300 } = useSequentialChartColors();
+  const { blue500: lineColor, gray300 } = useSequentialChartColors();
   return {
     color: lineColor,
-    barColor: grey300,
+    barColor: gray300,
   };
 };
 
@@ -217,7 +217,7 @@ export function DimensionDriftTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "PSI",
             angle: -90,
@@ -227,7 +227,7 @@ export function DimensionDriftTimeSeries({
               fill: "var(--global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--global-color-grey-500)" }}
+          style={{ fill: "var(--global-color-gray-500)" }}
         />
         <YAxis
           yAxisId="right"
@@ -238,7 +238,7 @@ export function DimensionDriftTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={TooltipContent} />

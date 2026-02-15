@@ -32,13 +32,13 @@ export type SequentialChartColors = {
   readonly red300: string;
   readonly red400: string;
   readonly red500: string;
-  readonly grey100: string;
-  readonly grey200: string;
-  readonly grey300: string;
-  readonly grey400: string;
-  readonly grey500: string;
-  readonly grey600: string;
-  readonly grey700: string;
+  readonly gray100: string;
+  readonly gray200: string;
+  readonly gray300: string;
+  readonly gray400: string;
+  readonly gray500: string;
+  readonly gray600: string;
+  readonly gray700: string;
   readonly default: string;
   // Colors specific to the inferences role
   readonly primary: string;
@@ -91,14 +91,14 @@ const darkSequentialChartColors: SequentialChartColors = Object.freeze({
   red400: cssVar("--global-color-red-500"),
   red500: cssVar("--global-color-red-600"),
 
-  // Grays (note: CSS variable names use "grey")
-  grey100: cssVar("--global-color-grey-100"),
-  grey200: cssVar("--global-color-grey-200"),
-  grey300: cssVar("--global-color-grey-300"),
-  grey400: cssVar("--global-color-grey-400"),
-  grey500: cssVar("--global-color-grey-500"),
-  grey600: cssVar("--global-color-grey-600"),
-  grey700: cssVar("--global-color-grey-700"),
+  // Grays (note: CSS variable names use "gray")
+  gray100: cssVar("--global-color-gray-100"),
+  gray200: cssVar("--global-color-gray-200"),
+  gray300: cssVar("--global-color-gray-300"),
+  gray400: cssVar("--global-color-gray-400"),
+  gray500: cssVar("--global-color-gray-500"),
+  gray600: cssVar("--global-color-gray-600"),
+  gray700: cssVar("--global-color-gray-700"),
 
   // Fallback / default
   default: cssVar("--global-text-color-900"),
@@ -148,14 +148,14 @@ const lightSequentialChartColors: SequentialChartColors = Object.freeze({
   red400: cssVar("--global-color-red-500"),
   red500: cssVar("--global-color-red-600"),
 
-  // Grays (note: CSS variable names use "grey")
-  grey100: cssVar("--global-color-grey-100"),
-  grey200: cssVar("--global-color-grey-200"),
-  grey300: cssVar("--global-color-grey-300"),
-  grey400: cssVar("--global-color-grey-400"),
-  grey500: cssVar("--global-color-grey-500"),
-  grey600: cssVar("--global-color-grey-600"),
-  grey700: cssVar("--global-color-grey-700"),
+  // Grays (note: CSS variable names use "gray")
+  gray100: cssVar("--global-color-gray-100"),
+  gray200: cssVar("--global-color-gray-200"),
+  gray300: cssVar("--global-color-gray-300"),
+  gray400: cssVar("--global-color-gray-400"),
+  gray500: cssVar("--global-color-gray-500"),
+  gray600: cssVar("--global-color-gray-600"),
+  gray700: cssVar("--global-color-gray-700"),
 
   // Fallback / default
   default: cssVar("--global-text-color-900"),
@@ -195,7 +195,7 @@ export const useSequentialChartColors = (): SequentialChartColors => {
  * getChartColor(1, ChartColors) // returns ChartColors.orange500
  * getChartColor(2, ChartColors) // returns ChartColors.purple500
  * getChartColor(3, ChartColors) // returns ChartColors.pink500
- * getChartColor(4, ChartColors) // returns ChartColors.grey500
+ * getChartColor(4, ChartColors) // returns ChartColors.gray500
  * getChartColor(5, ChartColors) // returns ChartColors.blue400
  * getChartColor(6, ChartColors) // returns ChartColors.orange400
  * // ...

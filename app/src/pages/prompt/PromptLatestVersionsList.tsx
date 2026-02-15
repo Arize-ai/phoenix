@@ -73,12 +73,12 @@ const versionsConnectorCSS = css`
   left: 11px;
   height: calc(100% - 32px);
   width: 2px;
-  --connector-color: var(--global-color-grey-400);
+  --connector-color: var(--global-color-gray-400);
   background:
     repeating-linear-gradient(
       to bottom,
       transparent 0 4px,
-      var(--global-color-grey-50) 4px 8px
+      var(--global-color-gray-50) 4px 8px
     ),
     var(--connector-color);
   background-size: 4px 100%;
@@ -89,7 +89,7 @@ const versionsConnectorCSS = css`
       repeating-linear-gradient(
         to bottom,
         transparent 0 4px,
-        var(--global-color-grey-50) 4px 8px
+        var(--global-color-gray-50) 4px 8px
       ),
       linear-gradient(to bottom, var(--connector-color), transparent);
   }

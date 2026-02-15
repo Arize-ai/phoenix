@@ -43,7 +43,7 @@ const bubbleCSS = css`
   word-wrap: break-word;
   &[data-outgoing="true"] {
     background-color: var(--global-color-primary);
-    color: var(--global-color-grey-50);
+    color: var(--global-color-gray-50);
     border-radius: var(--global-rounding-large)
       var(--global-rounding-large) 0 var(--global-rounding-large);
   }

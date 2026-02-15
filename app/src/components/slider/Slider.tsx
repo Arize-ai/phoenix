@@ -58,7 +58,7 @@ const sliderCSS = css`
       content: "";
       display: block;
       position: absolute;
-      background: var(--global-color-grey-300);
+      background: var(--global-color-gray-300);
       height: 100%;
       border-radius: var(--global-border-size-thicker);
     }

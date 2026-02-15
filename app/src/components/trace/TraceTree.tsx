@@ -153,7 +153,7 @@ function TraceTreeToolbar() {
         width: 100%;
         align-items: center;
         padding: var(--global-dimension-size-100);
-        border-bottom: 1px solid var(--global-color-grey-300);
+        border-bottom: 1px solid var(--global-color-gray-300);
         height: var(--global-dimension-size-600);
         @container (width < ${COMPACT_BREAKPOINT}) {
           button {
@@ -440,7 +440,7 @@ function SpanNodeWrap(
         border-left: 4px solid transparent;
         box-sizing: border-box;
         &:hover {
-          background-color: var(--global-color-grey-200);
+          background-color: var(--global-color-gray-200);
         }
         &.is-selected {
           background-color: var(--global-color-primary-100);
@@ -480,7 +480,7 @@ function SpanTreeEdgeConnector({
         border-left: 1px solid
           ${isError
             ? "var(--global-color-danger)"
-            : "var(--global-color-grey-500)"};
+            : "var(--global-color-gray-500)"};
         z-index: ${isError ? 1 : 0};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
@@ -502,7 +502,7 @@ function SpanTreeEdge({
   const isError = statusCode === "ERROR";
   const color = isError
     ? "var(--global-color-danger)"
-    : "var(--global-color-grey-500)";
+    : "var(--global-color-gray-500)";
   const zIndex = isError ? 1 : 0;
   return (
     <div

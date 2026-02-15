@@ -317,7 +317,7 @@ export function ProjectsPageContent({
       <View
         padding="size-200"
         width="100%"
-        borderBottomColor="grey-200"
+        borderBottomColor="gray-200"
         borderBottomWidth="thin"
         flex="none"
       >
@@ -519,10 +519,10 @@ function ProjectItem({
     <div
       css={css`
         padding: var(--global-dimension-size-200);
-        border: 1px solid var(--global-color-grey-100);
+        border: 1px solid var(--global-color-gray-100);
         box-shadow:
-          0 0 1px 0px var(--global-color-grey-400) inset,
-          0 0 1px 0px var(--global-color-grey-400);
+          0 0 1px 0px var(--global-color-gray-400) inset,
+          0 0 1px 0px var(--global-color-gray-400);
         border-radius: var(--global-rounding-medium);
         transition: border-color 0.2s;
         &:hover {

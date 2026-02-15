@@ -55,7 +55,7 @@ export function ModelTokenCostControlTable({
           & th {
             text-align: left;
             font-weight: normal;
-            color: var(--global-color-grey-500);
+            color: var(--global-color-gray-500);
           }
 
           & th:not(:last-child) {

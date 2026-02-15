@@ -93,7 +93,7 @@ export function DBUsagePieChart({
               key={`cell-${index}`}
               fill={
                 x.tableName === REMAINING_TEXT
-                  ? "var(--global-color-grey-200)"
+                  ? "var(--global-color-gray-200)"
                   : `${schemePaired[index % schemePaired.length]}`
               }
             />

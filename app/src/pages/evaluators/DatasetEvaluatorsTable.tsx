@@ -85,7 +85,7 @@ const evaluatorItemButtonCSS = css`
   text-align: left;
   transition: background-color 0.2s ease;
   &:hover {
-    background-color: var(--global-color-grey-200);
+    background-color: var(--global-color-gray-200);
   }
 `;
 

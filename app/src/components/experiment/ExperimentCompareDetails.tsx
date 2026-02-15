@@ -537,7 +537,7 @@ function ExperimentRunOutputsSidebar() {
       css={css`
         flex: none;
         font-size: var(--global-dimension-static-font-size-100);
-        color: var(--global-color-grey-700);
+        color: var(--global-color-gray-700);
         padding: var(--global-dimension-static-size-200);
         overflow: auto;
         height: 100%;
@@ -840,7 +840,7 @@ function ExperimentRepetitionsSidebarItems({
                 css={css`
                   overflow: hidden;
                   color: ${repetitionDidNotRun
-                    ? "var(--global-color-grey-500)"
+                    ? "var(--global-color-gray-500)"
                     : "inherit"};
                 `}
               >
@@ -849,7 +849,7 @@ function ExperimentRepetitionsSidebarItems({
                   <Text
                     fontFamily="mono"
                     minWidth={0}
-                    color={repetitionDidNotRun ? "grey-500" : "inherit"}
+                    color={repetitionDidNotRun ? "gray-500" : "inherit"}
                   >
                     {repetitionDidNotRun ? (
                       "Not run"
@@ -955,7 +955,7 @@ function ExperimentItemAnnotations({
     <View
       paddingX="size-100"
       paddingBottom="size-100"
-      borderBottomColor="grey-300"
+      borderBottomColor="gray-300"
       borderBottomWidth="thin"
     >
       <ExperimentRunAnnotations experimentRun={experimentRun} />
@@ -1234,7 +1234,7 @@ function ExperimentRunAnnotationButton({
           grid-template-columns: subgrid;
           grid-column: 1 / -2;
           &:hover {
-            background-color: var(--global-color-grey-200);
+            background-color: var(--global-color-gray-200);
           }
         `,
         !annotation && ghostAnnotationCss,

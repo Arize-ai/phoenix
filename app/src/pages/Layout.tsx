@@ -41,11 +41,11 @@ const contentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border-left: 1px solid var(--global-color-grey-200);
-  border-top: 1px solid var(--global-color-grey-200);
+  border-left: 1px solid var(--global-color-gray-200);
+  border-top: 1px solid var(--global-color-gray-200);
   border-radius: var(--global-rounding-medium) 0 0 0;
   /* Fill the background of the content */
-  box-shadow: 0 0 10px 10px var(--global-color-grey-100);
+  box-shadow: 0 0 10px 10px var(--global-color-gray-100);
 `;
 
 const bottomLinksCSS = css`

@@ -62,7 +62,7 @@ const waveKeyframes = keyframes`
 
 const skeletonStyles = css`
   display: block;
-  background-color: var(--global-color-grey-200);
+  background-color: var(--global-color-gray-200);
 `;
 
 const pulseAnimation = css`
@@ -80,7 +80,7 @@ const waveAnimation = css`
     background: linear-gradient(
       90deg,
       transparent,
-      var(--global-color-grey-300),
+      var(--global-color-gray-300),
       transparent
     );
     content: "";

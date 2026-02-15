@@ -166,7 +166,7 @@ const MetadataCell = <TData extends ISpanItem, TValue>({
 
 const trCSS = css`
   &[data-is-additional-row="true"] {
-    box-shadow: inset 0 -10px 20px var(--global-color-grey-100);
+    box-shadow: inset 0 -10px 20px var(--global-color-gray-100);
   }
 `;
 
@@ -822,7 +822,7 @@ export function TracesTable(props: TracesTableProps) {
         paddingBottom="size-100"
         paddingStart="size-200"
         paddingEnd="size-200"
-        borderBottomColor="grey-300"
+        borderBottomColor="gray-300"
         borderBottomWidth="thin"
         flex="none"
       >

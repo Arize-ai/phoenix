@@ -39,11 +39,11 @@ function EnvVarRoutingInfo({
         {label}
       </Text>
       <View
-        backgroundColor="grey-100"
+        backgroundColor="gray-100"
         padding="size-100"
         borderRadius="small"
         borderWidth="thin"
-        borderColor="grey-400"
+        borderColor="gray-400"
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Icon svg={<Icons.InfoOutline />} color="info" />

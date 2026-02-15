@@ -175,29 +175,29 @@ export const darkThemeCSS = css`
     // sync system elements like the scrollbar with the theme
     color-scheme: dark;
 
-    // The newer grays (grey)
-    --global-color-grey-50-rgb: 0, 0, 0;
-    --global-color-grey-50: rgb(var(--global-color-grey-50-rgb));
-    --global-color-grey-75-rgb: 14, 14, 14;
-    --global-color-grey-75: rgb(var(--global-color-grey-75-rgb));
-    --global-color-grey-100-rgb: 29, 29, 29;
-    --global-color-grey-100: rgb(var(--global-color-grey-100-rgb));
-    --global-color-grey-200-rgb: 48, 48, 48;
-    --global-color-grey-200: rgb(var(--global-color-grey-200-rgb));
-    --global-color-grey-300-rgb: 75, 75, 75;
-    --global-color-grey-300: rgb(var(--global-color-grey-300-rgb));
-    --global-color-grey-400-rgb: 106, 106, 106;
-    --global-color-grey-400: rgb(var(--global-color-grey-400-rgb));
-    --global-color-grey-500-rgb: 141, 141, 141;
-    --global-color-grey-500: rgb(var(--global-color-grey-500-rgb));
-    --global-color-grey-600-rgb: 176, 176, 176;
-    --global-color-grey-600: rgb(var(--global-color-grey-600-rgb));
-    --global-color-grey-700-rgb: 208, 208, 208;
-    --global-color-grey-700: rgb(var(--global-color-grey-700-rgb));
-    --global-color-grey-800-rgb: 235, 235, 235;
-    --global-color-grey-800: rgb(var(--global-color-grey-800-rgb));
-    --global-color-grey-900-rgb: 255, 255, 255;
-    --global-color-grey-900: rgb(var(--global-color-grey-900-rgb));
+    // The newer grays (gray)
+    --global-color-gray-50-rgb: 0, 0, 0;
+    --global-color-gray-50: rgb(var(--global-color-gray-50-rgb));
+    --global-color-gray-75-rgb: 14, 14, 14;
+    --global-color-gray-75: rgb(var(--global-color-gray-75-rgb));
+    --global-color-gray-100-rgb: 29, 29, 29;
+    --global-color-gray-100: rgb(var(--global-color-gray-100-rgb));
+    --global-color-gray-200-rgb: 48, 48, 48;
+    --global-color-gray-200: rgb(var(--global-color-gray-200-rgb));
+    --global-color-gray-300-rgb: 75, 75, 75;
+    --global-color-gray-300: rgb(var(--global-color-gray-300-rgb));
+    --global-color-gray-400-rgb: 106, 106, 106;
+    --global-color-gray-400: rgb(var(--global-color-gray-400-rgb));
+    --global-color-gray-500-rgb: 141, 141, 141;
+    --global-color-gray-500: rgb(var(--global-color-gray-500-rgb));
+    --global-color-gray-600-rgb: 176, 176, 176;
+    --global-color-gray-600: rgb(var(--global-color-gray-600-rgb));
+    --global-color-gray-700-rgb: 208, 208, 208;
+    --global-color-gray-700: rgb(var(--global-color-gray-700-rgb));
+    --global-color-gray-800-rgb: 235, 235, 235;
+    --global-color-gray-800: rgb(var(--global-color-gray-800-rgb));
+    --global-color-gray-900-rgb: 255, 255, 255;
+    --global-color-gray-900: rgb(var(--global-color-gray-900-rgb));
 
     --global-color-red-100-rgb: 87, 0, 0;
     --global-color-red-100: rgb(var(--global-color-red-100-rgb));
@@ -682,8 +682,8 @@ export const darkThemeCSS = css`
     --global-link-color-visited: var(--global-color-purple-900);
 
     // Floating toolbar colors
-    --floating-toolbar-background-color: var(--global-color-grey-200);
-    --floating-toolbar-border-color: var(--global-color-grey-300);
+    --floating-toolbar-background-color: var(--global-color-gray-200);
+    --floating-toolbar-border-color: var(--global-color-gray-300);
 
     // Optimization Direction Colors
     --global-color-optimization-direction-positive: var(
@@ -709,29 +709,29 @@ export const lightThemeCSS = css`
     // sync system elements like the scrollbar with the theme
     color-scheme: light;
 
-    // The newer grays (grey)
-    --global-color-grey-50-rgb: 255, 255, 255;
-    --global-color-grey-50: rgb(var(--global-color-grey-50-rgb));
-    --global-color-grey-75-rgb: 253, 253, 253;
-    --global-color-grey-75: rgb(var(--global-color-grey-75-rgb));
-    --global-color-grey-100-rgb: 248, 248, 248;
-    --global-color-grey-100: rgb(var(--global-color-grey-100-rgb));
-    --global-color-grey-200-rgb: 230, 230, 230;
-    --global-color-grey-200: rgb(var(--global-color-grey-200-rgb));
-    --global-color-grey-300-rgb: 213, 213, 213;
-    --global-color-grey-300: rgb(var(--global-color-grey-300-rgb));
-    --global-color-grey-400-rgb: 177, 177, 177;
-    --global-color-grey-400: rgb(var(--global-color-grey-400-rgb));
-    --global-color-grey-500-rgb: 144, 144, 144;
-    --global-color-grey-500: rgb(var(--global-color-grey-500-rgb));
-    --global-color-grey-600-rgb: 104, 104, 104;
-    --global-color-grey-600: rgb(var(--global-color-grey-600-rgb));
-    --global-color-grey-700-rgb: 70, 70, 70;
-    --global-color-grey-700: rgb(var(--global-color-grey-700-rgb));
-    --global-color-grey-800-rgb: 34, 34, 34;
-    --global-color-grey-800: rgb(var(--global-color-grey-800-rgb));
-    --global-color-grey-900-rgb: 0, 0, 0;
-    --global-color-grey-900: rgb(var(--global-color-grey-900-rgb));
+    // The newer grays (gray)
+    --global-color-gray-50-rgb: 255, 255, 255;
+    --global-color-gray-50: rgb(var(--global-color-gray-50-rgb));
+    --global-color-gray-75-rgb: 253, 253, 253;
+    --global-color-gray-75: rgb(var(--global-color-gray-75-rgb));
+    --global-color-gray-100-rgb: 248, 248, 248;
+    --global-color-gray-100: rgb(var(--global-color-gray-100-rgb));
+    --global-color-gray-200-rgb: 230, 230, 230;
+    --global-color-gray-200: rgb(var(--global-color-gray-200-rgb));
+    --global-color-gray-300-rgb: 213, 213, 213;
+    --global-color-gray-300: rgb(var(--global-color-gray-300-rgb));
+    --global-color-gray-400-rgb: 177, 177, 177;
+    --global-color-gray-400: rgb(var(--global-color-gray-400-rgb));
+    --global-color-gray-500-rgb: 144, 144, 144;
+    --global-color-gray-500: rgb(var(--global-color-gray-500-rgb));
+    --global-color-gray-600-rgb: 104, 104, 104;
+    --global-color-gray-600: rgb(var(--global-color-gray-600-rgb));
+    --global-color-gray-700-rgb: 70, 70, 70;
+    --global-color-gray-700: rgb(var(--global-color-gray-700-rgb));
+    --global-color-gray-800-rgb: 34, 34, 34;
+    --global-color-gray-800: rgb(var(--global-color-gray-800-rgb));
+    --global-color-gray-900-rgb: 0, 0, 0;
+    --global-color-gray-900: rgb(var(--global-color-gray-900-rgb));
 
     --global-color-red-100: #ffebe7;
     --global-color-red-200: #ffddd6;
@@ -948,8 +948,8 @@ export const lightThemeCSS = css`
     --global-link-color-visited: var(--global-color-purple-900);
 
     // Floating toolbar colors
-    --floating-toolbar-background-color: var(--global-color-grey-75);
-    --floating-toolbar-border-color: var(--global-color-grey-200);
+    --floating-toolbar-background-color: var(--global-color-gray-75);
+    --floating-toolbar-border-color: var(--global-color-gray-200);
 
     // Optimization Direction Colors
     --global-color-optimization-direction-positive: var(
@@ -971,81 +971,81 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   :root,
   .ac-theme--${theme} {
     // The primary color tint for  the apps
-    --global-color-primary: var(--global-color-grey-900);
+    --global-color-primary: var(--global-color-gray-900);
     --global-color-primary-900: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.9
     );
     --global-color-primary-800: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.8
     );
     --global-color-primary-700: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.7
     );
     --global-color-primary-600: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.6
     );
     --global-color-primary-500: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.5
     );
     --global-color-primary-400: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.4
     );
     --global-color-primary-300: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.3
     );
     --global-color-primary-200: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.2
     );
     --global-color-primary-100: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.1
     );
     --global-color-primary-50: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.05
     );
 
-    --global-background-color-default: var(--global-color-grey-100);
-    --global-background-color-light: var(--global-color-grey-200);
-    --global-background-color-light-hover: var(--global-color-grey-300);
-    --global-background-color-dark: var(--global-color-grey-100);
+    --global-background-color-default: var(--global-color-gray-100);
+    --global-background-color-light: var(--global-color-gray-200);
+    --global-background-color-light-hover: var(--global-color-gray-300);
+    --global-background-color-dark: var(--global-color-gray-100);
     --global-background-color-danger: var(--global-color-danger);
 
-    --global-border-color-default: var(--global-color-grey-300);
-    --global-border-color-light: var(--global-color-grey-400);
-    --global-border-color-dark: var(--global-color-grey-300);
+    --global-border-color-default: var(--global-color-gray-300);
+    --global-border-color-light: var(--global-color-gray-400);
+    --global-border-color-dark: var(--global-color-gray-300);
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
-    --hover-background: var(--global-color-grey-200);
+    --hover-background: var(--global-color-gray-200);
     --focus-ring-color: var(--global-color-primary-500);
 
     // Text
-    --text-color-placeholder: var(--global-color-grey-400);
+    --text-color-placeholder: var(--global-color-gray-400);
 
     // Styles for text fields etc
-    --global-input-field-border-color: var(--global-color-grey-400);
-    --global-input-field-border-color-hover: var(--global-color-grey-300);
+    --global-input-field-border-color: var(--global-color-gray-400);
+    --global-input-field-border-color-hover: var(--global-color-gray-300);
     --global-input-field-border-color-active: var(--global-color-primary);
-    --global-input-field-background-color: var(--global-color-grey-100);
+    --global-input-field-background-color: var(--global-color-gray-100);
     --global-input-field-background-color-hover: var(
-      --global-color-grey-300
+      --global-color-gray-300
     );
     --global-input-field-background-color-active: var(
-      --global-color-grey-300
+      --global-color-gray-300
     );
 
     // Styles for menus
-    --global-menu-border-color: var(--global-color-grey-100);
-    --global-menu-background-color: var(--global-color-grey-50);
+    --global-menu-border-color: var(--global-color-gray-100);
+    --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
     --global-menu-split-item-content-gap: var(
       --global-dimension-static-size-300
@@ -1054,15 +1054,15 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Styles for buttons
     --global-button-primary-background-color: var(
-      --global-color-grey-900
+      --global-color-gray-900
     );
     --global-button-primary-foreground-color: var(
-      --global-color-grey-100
+      --global-color-gray-100
     );
     --global-button-primary-background-color-hover: var(
-      --global-color-grey-800
+      --global-color-gray-800
     );
-    --global-button-primary-border-color: var(--global-color-grey-900);
+    --global-button-primary-border-color: var(--global-color-gray-900);
     --global-button-danger-background-color: var(
       --global-color-danger-700
     );
@@ -1079,31 +1079,31 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-button-success-border-color: var(--global-color-success);
 
     // Styles for checkbox
-    --global-checkbox-selected-color: var(--global-color-grey-800);
+    --global-checkbox-selected-color: var(--global-color-gray-800);
     --global-checkbox-selected-color-pressed: var(
-      --global-color-grey-900
+      --global-color-gray-900
     );
-    --global-checkbox-checkmark-color: var(--global-color-grey-50);
-    --global-checkbox-border-color: var(--global-color-grey-300);
-    --global-checkbox-border-color-pressed: var(--global-color-grey-400);
-    --global-checkbox-border-color-hover: var(--global-color-grey-400);
+    --global-checkbox-checkmark-color: var(--global-color-gray-50);
+    --global-checkbox-border-color: var(--global-color-gray-300);
+    --global-checkbox-border-color-pressed: var(--global-color-gray-400);
+    --global-checkbox-border-color-hover: var(--global-color-gray-400);
 
     // Styles for disclosure
     --global-disclosure-background-color-active: rgba(
-      var(--global-color-grey-900-rgb),
+      var(--global-color-gray-900-rgb),
       0.05
     );
 
     // Style for tooltips
-    --global-tooltip-background-color: var(--global-color-grey-50);
-    --global-tooltip-border-color: var(--global-color-grey-300);
+    --global-tooltip-background-color: var(--global-color-gray-50);
+    --global-tooltip-border-color: var(--global-color-gray-300);
 
     // Style for cards
     --global-card-header-height: 46px;
 
     // Style for popovers
-    --global-popover-border-color: var(--global-color-grey-300);
-    --global-popover-background-color: var(--global-color-grey-50);
+    --global-popover-border-color: var(--global-color-gray-300);
+    --global-popover-background-color: var(--global-color-gray-50);
 
     --global-rounding-xsmall: var(--global-dimension-static-size-25);
     --global-rounding-small: var(--global-dimension-static-size-50);
@@ -1159,7 +1159,7 @@ const appGlobalStylesCSS = css`
     font-size: var(--global-font-size-s);
   }
   body {
-    background-color: var(--global-color-grey-75);
+    background-color: var(--global-color-gray-75);
 
     margin: 0;
     overflow: hidden;
@@ -1191,8 +1191,8 @@ const appGlobalStylesCSS = css`
     /* Works on Firefox */
     * {
       scrollbar-width: thin;
-      scrollbar-color: var(--global-color-grey-300)
-        var(--global-color-grey-400);
+      scrollbar-color: var(--global-color-gray-300)
+        var(--global-color-gray-400);
     }
 
     /* Works on Chrome, Edge, and Safari */
@@ -1201,13 +1201,13 @@ const appGlobalStylesCSS = css`
     }
 
     *::-webkit-scrollbar-track {
-      background: var(--global-color-grey-100);
+      background: var(--global-color-gray-100);
     }
 
     *::-webkit-scrollbar-thumb {
-      background-color: var(--global-color-grey-75);
+      background-color: var(--global-color-gray-75);
       border-radius: 8px;
-      border: 1px solid var(--global-color-grey-300);
+      border: 1px solid var(--global-color-gray-300);
     }
   }
 
@@ -1302,8 +1302,8 @@ const codeMirrorOverridesCSS = css`
 
 const chartCSS = css`
   .ac-theme {
-    --chart-cartesian-grid-stroke-color: var(--global-color-grey-300);
-    --chart-axis-stroke-color: var(--global-color-grey-300);
+    --chart-cartesian-grid-stroke-color: var(--global-color-gray-300);
+    --chart-axis-stroke-color: var(--global-color-gray-300);
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);

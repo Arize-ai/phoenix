@@ -457,7 +457,7 @@ export const MenuTriggerPlaceholder = ({
 }) => {
   return (
     <Text
-      color="grey-400"
+      color="gray-400"
       fontStyle="italic"
       css={css`
         overflow: hidden;

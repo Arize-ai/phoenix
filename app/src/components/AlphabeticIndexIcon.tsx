@@ -18,10 +18,10 @@ export type AlphabeticIndexIconProps = {
 const iconBaseCSS = css`
   border-radius: var(--global-rounding-small);
   border: 1px solid
-    var(--alphabetic-index-icon-border-color, var(--global-color-grey-300));
+    var(--alphabetic-index-icon-border-color, var(--global-color-gray-300));
   background-color: var(
     --alphabetic-index-icon-background-color,
-    var(--global-color-grey-100)
+    var(--global-color-gray-100)
   );
   color: var(--alphabetic-index-icon-color, var(--global-text-color-900));
   display: flex;

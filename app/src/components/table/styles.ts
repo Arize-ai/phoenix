@@ -18,7 +18,7 @@ export const tableCSS = css`
       th {
         padding: var(--global-dimension-size-100)
           var(--global-dimension-size-200);
-        background-color: var(--global-color-grey-100);
+        background-color: var(--global-color-gray-100);
         position: relative;
         text-align: left;
         user-select: none;
@@ -46,7 +46,7 @@ export const tableCSS = css`
           display: inline-block;
         }
         &:hover .resizer {
-          background: var(--global-color-grey-300);
+          background: var(--global-color-gray-300);
         }
         div.resizer {
           display: inline-block;
@@ -79,7 +79,7 @@ export const tableCSS = css`
       height: 100%;
       &:not(:last-of-type) {
         & > td {
-          border-bottom: 1px solid var(--global-color-grey-200);
+          border-bottom: 1px solid var(--global-color-gray-200);
         }
       }
       & > td {
@@ -97,10 +97,10 @@ export const borderedTableCSS = css`
   tbody:not(.is-empty) {
     tr {
       & > td {
-        border-bottom: 1px solid var(--global-color-grey-100);
+        border-bottom: 1px solid var(--global-color-gray-100);
       }
       & > td:not(:last-of-type) {
-        border-right: 1px solid var(--global-color-grey-100);
+        border-right: 1px solid var(--global-color-gray-100);
       }
     }
   }
@@ -134,7 +134,7 @@ export const paginationCSS = css`
   align-items: center;
   padding: var(--global-dimension-size-100);
   gap: var(--global-dimension-size-50);
-  border-top: 1px solid var(--global-color-grey-300);
+  border-top: 1px solid var(--global-color-gray-300);
 `;
 
 //These are the important styles to make sticky column pinning work!
@@ -161,6 +161,6 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
-    backgroundColor: isPinned ? "var(--global-color-grey-100)" : undefined,
+    backgroundColor: isPinned ? "var(--global-color-gray-100)" : undefined,
   };
 }

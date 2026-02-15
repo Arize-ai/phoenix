@@ -30,10 +30,10 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { grey100 } = useSequentialChartColors();
+  const { gray100 } = useSequentialChartColors();
 
   return {
-    color: grey100,
+    color: gray100,
   };
 };
 function TooltipContent({
@@ -138,7 +138,7 @@ export function DimensionPercentEmptyTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "% Empty",
             angle: -90,
@@ -152,7 +152,7 @@ export function DimensionPercentEmptyTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={TooltipContent} />

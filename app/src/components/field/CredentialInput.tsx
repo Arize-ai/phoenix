@@ -71,9 +71,9 @@ function CredentialInput(
           justify-content: center;
           border-radius: var(--global-rounding-small);
           transition: background-color 0.2s;
-          background-color: var(--global-color-grey-200);
+          background-color: var(--global-color-gray-200);
           &:hover {
-            background-color: var(--global-color-grey-300);
+            background-color: var(--global-color-gray-300);
           }
 
           &:focus-visible {

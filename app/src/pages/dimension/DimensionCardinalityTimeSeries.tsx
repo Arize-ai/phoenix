@@ -31,9 +31,9 @@ const numberFormatter = new Intl.NumberFormat([], {
 });
 
 const useColors = () => {
-  const { grey300 } = useSequentialChartColors();
+  const { gray300 } = useSequentialChartColors();
   return {
-    color: grey300,
+    color: gray300,
   };
 };
 
@@ -142,7 +142,7 @@ export function DimensionCardinalityTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           label={{
             value: "Cardinality",
             angle: -90,
@@ -156,7 +156,7 @@ export function DimensionCardinalityTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke="var(--global-color-grey-500)"
+          stroke="var(--global-color-gray-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={TooltipContent} />

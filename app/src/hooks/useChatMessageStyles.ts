@@ -10,8 +10,8 @@ export function useChatMessageStyles(
     const normalizedRole = role.toLowerCase();
     if (ChatRoleMap.user.includes(normalizedRole)) {
       return {
-        backgroundColor: "grey-200",
-        borderColor: "grey-500",
+        backgroundColor: "gray-200",
+        borderColor: "gray-500",
       };
     } else if (ChatRoleMap.ai.includes(normalizedRole)) {
       return {
@@ -30,8 +30,8 @@ export function useChatMessageStyles(
       };
     }
     return {
-      backgroundColor: "grey-100",
-      borderColor: "grey-700",
+      backgroundColor: "gray-100",
+      borderColor: "gray-700",
     };
   }, [role]);
 }
