@@ -82,7 +82,7 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: "pnpm run dev:server:test",
-    url: "http://localhost:6006",
+    url: "http://localhost:6006/readyz",
     reuseExistingServer: !isCI,
     timeout: isCI ? 240_000 : 120_000,
   },

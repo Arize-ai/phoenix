@@ -1,7 +1,38 @@
 import { chromium, expect, type FullConfig } from "@playwright/test";
 
+async function waitForReadyz({
+  baseURL,
+  timeoutMs = 120_000,
+  pollIntervalMs = 500,
+}: {
+  baseURL: string;
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}) {
+  const readyzUrl = `${baseURL}/readyz`;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(readyzUrl);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // Keep polling until timeout to tolerate startup races.
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new Error(`readyz not reachable at ${readyzUrl} within ${timeoutMs}ms`);
+}
+
 async function globalSetup(config: FullConfig) {
   const { baseURL } = config.projects[0].use;
+  if (!baseURL) {
+    throw new Error("playwright baseURL must be configured");
+  }
+  await waitForReadyz({ baseURL });
   const browser = await chromium.launch();
   const page = await browser.newPage();
   await page.goto(`${baseURL}/login`);
