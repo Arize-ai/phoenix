@@ -1058,6 +1058,12 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "02.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0"
+                ]
+              },
+              {
                 "group": "01.2026",
                 "pages": [
                   "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"

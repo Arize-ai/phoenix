@@ -1,0 +1,76 @@
+---
+title: "Phoenix 13.0"
+description: "Dataset evaluators, custom providers, OpenAI Responses API support, and major Playground/UX improvements."
+---
+
+Phoenix 13 is a major release centered around **Dataset Evaluators**, a new system that turns your datasets into reusable evaluation suites. This release also introduces **custom model providers**, **OpenAI Responses API support**, and broad **Playground** and **experiment UX** improvements.
+
+## Dataset Evaluators
+
+Dataset evaluators let you attach evaluators directly to a dataset as an evaluation suite. Evaluators run server-side whenever you execute experiments via the Playground. Instead of reconfiguring evaluators for every experiment, you define them once on the dataset and they run every time.
+
+### What you can do
+
+- **Attach once, evaluate everywhere:** Add LLM-based or built-in code evaluators to any dataset. Every Playground experiment against that dataset automatically runs your evaluators and records scores.
+- **Choose from built-in evaluators:** Phoenix ships with deterministic code evaluators out of the box: `Contains`, `Exact Match`, `Regex`, `Levenshtein Distance`, and `JSON Distance`, plus a library of pre-built LLM evaluator templates for common tasks like correctness and tool-response handling.
+- **Build custom LLM evaluators:** Write your own prompt templates using Mustache or F-string syntax, configure output schemas (categorical labels with scores), and choose your model. The prompt editor includes variable autocomplete to speed up template authoring.
+- **Flexible input mapping:** Map evaluator variables to any dataset field (`input`, `output`, `reference`, or metadata) using JSON paths for nested values.
+- **Full traceability:** Every evaluator execution is traced in its own project. Navigate from an annotation score to the exact LLM call that produced it so you can debug and refine evaluation criteria.
+
+### How to get started
+
+Open a dataset, navigate to the **Evaluators** tab, click **Add evaluator**, configure your input mapping, and run an experiment from the Playground. Scores and traces appear automatically.
+
+## Custom Model Providers
+
+Phoenix now supports server-managed provider configurations for OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI. Custom providers store credentials and routing centrally so they can be reused across the Playground, saved prompt versions, and dataset evaluators.
+
+- **Centralized credentials:** Manage provider settings in **Settings → AI Providers → Custom Providers** and reuse them everywhere.
+- **SDK-specific authentication:** Support for API keys, Azure AD token providers, and default credentials (IAM roles for AWS, Managed Identity for Azure).
+- **Model menu integration:** Custom providers appear as their own group in model selection menus, inheriting model listings from the underlying SDK.
+- **Provider lifecycle in UI:** Create, edit, test, and delete providers directly from the UI, with a built-in connection test to verify configuration.
+
+## OpenAI Responses API Support
+
+You can now select which OpenAI API to use per model configuration in the Playground and in custom providers:
+
+- **Chat Completions** (`chat.completions.create`)
+- **Responses API** (`responses.create`)
+
+Phoenix automatically maps invocation parameters to the chosen API type and filters unsupported fields, so switching between APIs is seamless.
+
+The Playground also adds support for the Responses API tool definition schema, making it easy to test tool-calling workflows with either API format.
+
+## Playground Improvements
+
+- **Cancellation:** Stop a running experiment or prompt execution mid-flight. Cancelled state is clearly shown in the UI.
+- **Template variable autocomplete:** Mustache variables (`{{variable}}`) now autocomplete in both the Playground prompt editor and the LLM evaluator prompt editor, pulling variables from your dataset schema.
+- **Append messages:** A new toggle lets you append messages to the conversation when running experiments, with the setting persisted across sessions.
+- **Prompt URL state:** Prompt ID, version, and tag information are now preserved in the URL for easy sharing and bookmarking.
+- **Prompt tagging from Playground:** Tag prompt versions directly from the Playground save modal.
+- **Dataset deep links:** After selecting a dataset in the Playground, a direct link to that dataset is shown for quick navigation.
+- **Improved prompt picker:** The prompt selection UI has been redesigned with better search and version display.
+
+## Dataset and Experiment UX
+
+- **Shift-select rows:** Hold `Shift` to select ranges of rows in the dataset examples table.
+- **Resizable columns:** The examples table now supports column resizing for easier data inspection.
+- **Create examples in a chain:** Add multiple examples sequentially without closing the creation dialog.
+- **Consolidated dataset creation flows:** The various ways to create datasets have been unified into a single streamlined flow.
+- **Dataset split in the action menu:** The split action is now accessible directly from the dataset action menu.
+- **Experiment summaries:** Experiment cost, latency, and evaluation summaries are shown in the header of experiment detail and comparison views.
+- **Experiment user attribution:** See which user ran each experiment.
+- **Markdown rendering in experiments:** Experiment output now renders Markdown for better readability.
+- **Optimization direction display:** Evaluator optimization direction (maximize/minimize) is shown on experiment run results so it is clear whether higher or lower scores are better.
+
+## Model and Provider Updates
+
+- **Claude Opus 4.6 support:** Select `claude-opus-4-6` in the Anthropic provider or `anthropic.claude-opus-4-6-v1` in AWS Bedrock, with full extended-thinking parameter support and accurate cost tracking.
+- **Gemini model deprecation handling:** Updated model configurations to reflect Google's latest model lifecycle changes.
+- **Azure OpenAI v1 API migration:** The Azure OpenAI integration has been migrated to the v1 API for improved compatibility.
+- **Async Bedrock client:** AWS Bedrock calls now use `aioboto3` for fully async execution, improving performance under load.
+
+## Infrastructure and Performance
+
+- **Session ID index for spans:** A new database index on `session_id` across SQLite and PostgreSQL improves query performance for session-based span lookups.
+- **Document annotation GraphQL API:** A new GraphQL API for document annotations enables programmatic annotation management.
