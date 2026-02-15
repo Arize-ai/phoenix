@@ -156,7 +156,7 @@ const response = await openai.chat.completions.create({
 Create custom spans using the OpenTelemetry API:
 
 ```typescript
-import { register, trace } from "@arizeai/phoenix-otel";
+import { register, trace, SpanStatusCode } from "@arizeai/phoenix-otel";
 
 register({ projectName: "my-app" });
 

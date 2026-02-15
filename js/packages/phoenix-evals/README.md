@@ -92,24 +92,24 @@ See the complete example in [`examples/classifier_example.ts`](examples/classifi
 The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
 
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 const model = openai("gpt-4o-mini");
 
-// Hallucination Detection
-const hallucinationEvaluator = createHallucinationEvaluator({
+// Faithfulness Detection
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model,
 });
 
 // Use the evaluators
-const result = await hallucinationEvaluator({
+const result = await faithfulnessEvaluator({
   input: "What is the capital of France?",
   context: "France is a country in Europe. Paris is its capital city.",
   output: "The capital of France is London.",
 });
 
 console.log(result);
-// Output: { label: "hallucinated", score: 0, explanation: "..." }
+// Output: { label: "unfaithful", score: 0, explanation: "..." }
 ```
 
 ### Data Mapping
@@ -119,7 +119,7 @@ When your data structure doesn't match what an evaluator expects, use `bindEvalu
 ```typescript
 import {
   bindEvaluator,
-  createHallucinationEvaluator,
+  createFaithfulnessEvaluator,
 } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
@@ -132,11 +132,11 @@ type ExampleType = {
 };
 
 const evaluator = bindEvaluator<ExampleType>(
-  createHallucinationEvaluator({ model }),
+  createFaithfulnessEvaluator({ model }),
   {
     inputMapping: {
       input: "question", // Map "input" from "question"
-      reference: "context", // Map "reference" from "context"
+      context: "context", // Map "context" from "context"
       output: "answer", // Map "output" from "answer"
     },
   }
@@ -167,23 +167,23 @@ npm install @arizeai/phoenix-client
 ```
 
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
-  asEvaluator,
+  asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 
 // Create your evaluator
-const hallucinationEvaluator = createHallucinationEvaluator({
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: openai("gpt-4o-mini"),
 });
 
 // Create a dataset for your experiment
 const dataset = await createDataset({
-  name: "hallucination-eval",
-  description: "Evaluate the hallucination of the model",
+  name: "faithfulness-eval",
+  description: "Evaluate the faithfulness of the model",
   examples: [
     {
       input: {
@@ -202,14 +202,14 @@ const task = async (example) => {
 };
 
 // Create a custom evaluator to validate results
-const hallucinationCheck = asEvaluator({
-  name: "hallucination",
+const faithfulnessCheck = asExperimentEvaluator({
+  name: "faithfulness",
   kind: "LLM",
   evaluate: async ({ input, output }) => {
-    // Use the hallucination evaluator from phoenix-evals
-    const result = await hallucinationEvaluator({
+    // Use the faithfulness evaluator from phoenix-evals
+    const result = await faithfulnessEvaluator({
       input: input.question,
-      context: input.context, // Note: uses 'context' not 'reference'
+      context: input.context,
       output: output,
     });
 
@@ -219,11 +219,11 @@ const hallucinationCheck = asEvaluator({
 
 // Run the experiment with automatic tracing
 runExperiment({
-  experimentName: "hallucination-eval",
-  experimentDescription: "Evaluate the hallucination of the model",
+  experimentName: "faithfulness-eval",
+  experimentDescription: "Evaluate the faithfulness of the model",
   dataset: dataset,
   task,
-  evaluators: [hallucinationCheck],
+  evaluators: [faithfulnessCheck],
 });
 ```
 
@@ -233,7 +233,7 @@ To run examples, install dependencies using `pnpm` and run:
 
 ```bash
 pnpm install
-pnpx tsx examples/experiment_evaluation_example.ts
+pnpx tsx examples/classifier_example.ts
 # change the file name to run other examples
 ```
 
