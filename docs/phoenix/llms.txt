@@ -236,7 +236,7 @@ Complete API documentation for Phoenix SDKs and REST API. Reference documentatio
 
 ### Python SDK
 
-- Python Reference: `https://arize.com/docs/phoenix/sdk-api-reference/python/reference` - Python SDK overview
+- Python SDK: `https://arize.com/docs/phoenix/sdk-api-reference` - Python SDK overview and links to generated package docs
 - Arize Phoenix Client: `https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client` - Python client library reference
 - Arize Phoenix Evals: `https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals` - Python evaluation library reference
 - Arize Phoenix OTEL: `https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel` - Python OpenTelemetry integration reference
@@ -244,7 +244,7 @@ Complete API documentation for Phoenix SDKs and REST API. Reference documentatio
 ### TypeScript SDK
 
 - TypeScript Overview: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview` - TypeScript SDK overview
-- TypeScript Reference: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/reference` - TypeScript SDK reference
+- TypeScript Generated API Docs: `https://arize-ai.github.io/phoenix/` - Generated TypeScript API reference
 - ArizeAI Phoenix Client: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client` - TypeScript client library
 - ArizeAI Phoenix Evals: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals` - TypeScript evaluation library
 - ArizeAI Phoenix OTEL: `https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel` - TypeScript OpenTelemetry integration
@@ -318,4 +318,3 @@ Example notebooks and guides for common use cases. These practical examples demo
 - Prompt Engineering Cookbooks: `https://arize.com/docs/phoenix/cookbook/prompt-engineering` - Examples for optimizing coding agent prompts, prompt learning, few-shot prompting, ReAct, chain-of-thought, and LLM-as-a-judge optimization
 - Evaluation Cookbooks: `https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks` - Examples for evaluating OpenAI agents, RAG systems, code quality, relevance classification, and integrating Ragas
 - Datasets & Experiments Cookbooks: `https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/cookbooks` - Examples for customer review evals, support agent experiments, model comparison, query engine comparison, summarization, and text2SQL
-
