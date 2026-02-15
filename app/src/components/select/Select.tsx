@@ -14,9 +14,8 @@ import { fieldBaseCSS } from "../field/styles";
 export interface SelectProps<
   T extends object = object,
   M extends "single" | "multiple" = "single",
-> extends AriaSelectProps<T, M>,
-    SizingProps,
-    StylableProps {}
+>
+  extends AriaSelectProps<T, M>, SizingProps, StylableProps {}
 
 function Select<T extends object, M extends "single" | "multiple">(
   props: SelectProps<T, M>,

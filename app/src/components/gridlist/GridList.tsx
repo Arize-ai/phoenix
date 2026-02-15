@@ -25,8 +25,7 @@ export interface GridListProps<T> extends AriaGridListProps<T>, StylableProps {
 }
 
 export interface GridListItemProps
-  extends Omit<AriaGridListItemProps, "children">,
-    StylableProps {
+  extends Omit<AriaGridListItemProps, "children">, StylableProps {
   children: ReactNode;
   subtitle?: ReactNode;
   trailingContent?: ReactNode;

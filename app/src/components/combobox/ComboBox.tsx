@@ -23,7 +23,8 @@ import { SizingProps } from "../types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>
-  extends Omit<AriaComboBoxProps<T>, "children">,
+  extends
+    Omit<AriaComboBoxProps<T>, "children">,
     SizingProps,
     Pick<ListBoxProps<T>, "renderEmptyState"> {
   label?: string;
@@ -103,8 +104,10 @@ export function ComboBox<T extends object>({
   );
 }
 
-export interface ListBoxItemProps<T = object>
-  extends Omit<AriaListBoxItemProps<T>, "textValue"> {
+export interface ListBoxItemProps<T = object> extends Omit<
+  AriaListBoxItemProps<T>,
+  "textValue"
+> {
   /**
    * A string representation of the item's contents, used for features like typeahead.
    **/

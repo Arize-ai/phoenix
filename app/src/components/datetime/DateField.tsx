@@ -10,8 +10,7 @@ import { fieldBaseCSS } from "../field/styles";
 import { StylableProps } from "../types";
 
 export interface DateFieldProps<T extends DateValue>
-  extends AriaDateFieldProps<T>,
-    StylableProps {}
+  extends AriaDateFieldProps<T>, StylableProps {}
 
 const dateFieldCSS = css`
   --date-field-vertical-padding: 6px;

@@ -6,7 +6,8 @@ import { buttonCSS } from "./styles";
 import { ButtonProps } from "./types";
 
 interface LinkButtonProps
-  extends Pick<LinkProps, "to" | "children">,
+  extends
+    Pick<LinkProps, "to" | "children">,
     Pick<
       ButtonProps,
       | "size"

@@ -13,8 +13,7 @@ import { CredentialContext } from "./CredentialContext";
 import { textFieldCSS } from "./styles";
 
 export interface CredentialFieldProps
-  extends Omit<AriaTextFieldProps, "type">,
-    SizingProps {
+  extends Omit<AriaTextFieldProps, "type">, SizingProps {
   children: ReactNode;
 }
 

@@ -7,7 +7,8 @@ import { Icon, Icons } from "../icon";
 import { SizingProps, StylableProps } from "../types";
 
 interface TokenProps
-  extends Omit<HTMLProps<HTMLDivElement>, "size" | "css" | "onClick">,
+  extends
+    Omit<HTMLProps<HTMLDivElement>, "size" | "css" | "onClick">,
     StylableProps,
     SizingProps {
   children?: React.ReactNode;
