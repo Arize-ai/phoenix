@@ -3,3 +3,4 @@ dist
 build
 __generated__
 docs
+**/.agents/skills/ai-sdk/**
