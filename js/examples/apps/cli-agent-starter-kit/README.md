@@ -72,39 +72,9 @@ PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006  # Default
 PHOENIX_API_KEY=your_phoenix_api_key              # Phoenix Cloud only
 ```
 
-## Adding Custom Tools
+## Customization
 
-Create tools using the AI SDK's `tool()` helper:
-
-```typescript
-import { tool } from "ai";
-import { z } from "zod";
-
-const weatherTool = tool({
-  description: "Get weather information",
-  inputSchema: z.object({
-    location: z.string().describe("City name"),
-  }),
-  execute: async ({ location }) => {
-    // Your logic here
-    return { temperature: 72, conditions: "Sunny" };
-  },
-});
-```
-
-Add to the agent in `src/index.ts`:
-
-```typescript
-const agent = new ToolLoopAgent({
-  model: anthropic("claude-sonnet-4-20250514"),
-  tools: {
-    calculator: calculatorTool,
-    weather: weatherTool, // Your new tool
-  },
-  // Required for Phoenix tracing
-  experimental_telemetry: { isEnabled: true },
-});
-```
+The starter kit includes example tools (calculator, date/time) that can be extended or replaced. See `src/index.ts` for the agent configuration and available tools.
 
 ## Production Build
 
@@ -117,9 +87,8 @@ pnpm start       # Run compiled output
 
 **No traces in Phoenix?**
 
-1. Verify `experimental_telemetry: { isEnabled: true }` in agent config
-2. Check Phoenix is running: `pnpm phoenix:logs`
-3. Verify traces: `npx @arizeai/phoenix-cli traces --endpoint http://localhost:6006 --project cli-agent-starter-kit`
+- Check Phoenix is running: `pnpm phoenix:logs`
+- Verify traces: `npx @arizeai/phoenix-cli traces --endpoint http://localhost:6006 --project cli-agent-starter-kit`
 
 **Phoenix won't start?**
 
