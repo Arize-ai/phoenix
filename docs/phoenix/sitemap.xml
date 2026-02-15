@@ -349,6 +349,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators</loc>
+    <lastmod>2026-02-15T00:07:42+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -737,6 +741,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/agentspec</loc>
+    <lastmod>2026-02-15T00:07:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/agentspec/agentspec-tracing</loc>
+    <lastmod>2026-02-15T00:07:42+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/agno</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -947,6 +959,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow</loc>
+    <lastmod>2026-02-15T00:07:42+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas</loc>
@@ -1487,6 +1503,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0</loc>
+    <lastmod>2026-02-15T00:07:42+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging</loc>
