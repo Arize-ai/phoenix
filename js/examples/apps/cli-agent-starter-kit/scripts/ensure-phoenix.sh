@@ -9,7 +9,6 @@ fi
 
 # Colors for output
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 RED='\033[0;31m'
 GRAY='\033[0;90m'
 NC='\033[0m' # No Color
@@ -24,20 +23,22 @@ log_info() {
   echo -e "${GREEN}$1${NC}"
 }
 
-log_warn() {
-  echo -e "${YELLOW}$1${NC}"
-}
-
 log_error() {
   echo -e "${RED}$1${NC}"
 }
 
 # Check if docker is running
 if ! docker info > /dev/null 2>&1; then
-  log_warn "Warning: Docker is not available"
-  echo "Phoenix tracing will be disabled or use PHOENIX_COLLECTOR_ENDPOINT if set"
-  echo "To enable local Phoenix, start Docker and run: pnpm phoenix:start"
-  exit 0
+  log_error "Error: Docker is not available"
+  echo ""
+  echo "Phoenix is required for this CLI agent."
+  echo ""
+  echo "To fix:"
+  echo "  1. Start Docker Desktop"
+  echo "  2. Run: pnpm phoenix:start"
+  echo ""
+  echo "Alternatively, set PHOENIX_COLLECTOR_ENDPOINT to use a remote Phoenix instance"
+  exit 1
 fi
 
 # Check if Phoenix container is running
@@ -56,9 +57,13 @@ if docker ps --format '{{.Names}}' | grep -q "^cli-agent-phoenix$"; then
     elapsed=$((elapsed + 2))
   done
 
-  log_warn "Warning: Phoenix container is running but not responding"
-  echo "Try: pnpm phoenix:restart"
-  exit 0
+  log_error "Error: Phoenix container is running but not responding"
+  echo ""
+  echo "To fix:"
+  echo "  • Restart: pnpm phoenix:restart"
+  echo "  • Check logs: pnpm phoenix:logs"
+  echo "  • Full reset: pnpm phoenix:reload"
+  exit 1
 fi
 
 # Check if Phoenix container exists but is stopped
