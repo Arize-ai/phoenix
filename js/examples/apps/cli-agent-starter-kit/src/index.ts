@@ -137,7 +137,7 @@ async function main() {
           )
           .join("\n\n"),
         // Log each step if verbose mode
-        onStepFinish: async ({ usage, finishReason, toolCalls }) => {
+        onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
           if (verbose) {
             stepNumber++;
             console.log(

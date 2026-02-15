@@ -99,7 +99,7 @@ The CLI uses AI SDK's **ToolLoopAgent**, which implements a reasoning-and-acting
 
 ### Available Tools
 
-- **Calculator**: Perform mathematical calculations (e.g., "What is 42 * 137?")
+- **Calculator**: Perform mathematical calculations (e.g., "What is 42 \* 137?")
 - **Date/Time**: Get current date and time (e.g., "What time is it?")
 
 ### Adding Custom Tools
@@ -207,6 +207,7 @@ To fix:
 ```
 
 **Verbose Mode**: Use `pnpm dev:verbose` to see:
+
 - Agent step-by-step execution
 - Tool calls in each step
 - Token usage per step
@@ -280,16 +281,21 @@ Skills are symlinked from the Phoenix monorepo root and available in both `.agen
 If traces are not showing up in Phoenix:
 
 1. **Verify telemetry is enabled** in the ToolLoopAgent constructor:
+
    ```typescript
-   experimental_telemetry: { isEnabled: true }
+   experimental_telemetry: {
+     isEnabled: true;
+   }
    ```
 
 2. **Check Phoenix is running**:
+
    ```bash
    pnpm phoenix:logs
    ```
 
 3. **Verify traces using CLI**:
+
    ```bash
    npx @arizeai/phoenix-cli traces --endpoint http://localhost:6006 --project cli-agent-starter-kit --limit 5
    ```
