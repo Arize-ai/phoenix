@@ -151,7 +151,7 @@ processor = BatchSpanProcessor(span_exporter=exporter)
 tracer_provider.add_span_processor(processor)
 ```
 
-### Manual Span Instrumentation
+### Using Decorators
 
 ```python
 from phoenix.otel import register
@@ -161,17 +161,13 @@ tracer_provider = register()
 # Get a tracer for manual instrumentation
 tracer = tracer_provider.get_tracer(__name__)
 
-def process_data(data: str) -> str:
-    with tracer.start_as_current_span("process_data") as span:
-        span.set_attribute("input.length", len(data))
-        result = f"{data} processed"
-        span.set_attribute("output.length", len(result))
-        return result
+@tracer.chain
+def process_data(data):
+    return data + " processed"
 
-def weather(location: str) -> str:
-    with tracer.start_as_current_span("weather_lookup") as span:
-        span.set_attribute("weather.location", location)
-        return "sunny"
+@tracer.tool
+def weather(location):
+    return "sunny"
 ```
 
 ## Environment Variables
