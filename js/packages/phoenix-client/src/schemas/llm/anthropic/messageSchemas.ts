@@ -26,6 +26,8 @@ export type AnthropicMessage = z.infer<typeof anthropicMessageSchema>;
 
 export const anthropicMessagesSchema = z.array(anthropicMessageSchema);
 
+// Type assertion needed due to TypeScript's deep type instantiation limits with complex recursive schemas
+// This is safe because zodToJsonSchema works correctly at runtime regardless of TypeScript's type analysis
 export const anthropicMessagesJSONSchema = zodToJsonSchema(
   anthropicMessagesSchema as any,
   {
