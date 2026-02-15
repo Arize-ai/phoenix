@@ -93,7 +93,7 @@
     "@types/react-relay": "^18.2.1",
     "@types/recharts": "^1.8.29",
     "@types/relay-runtime": "^19.0.3",
-    "@types/three": "^0.180.0",
+    "@types/three": "^0.182.0",
     "@vitejs/plugin-react": "^4.7.0",
     "babel-plugin-react-compiler": "1.0.0",
     "babel-plugin-relay": "^20.1.1",
