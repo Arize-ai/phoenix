@@ -223,8 +223,8 @@ Additional resources, FAQs, and community information. Find answers to common qu
 - Frequently Asked Questions: `https://arize.com/docs/phoenix/resources/frequently-asked-questions` - Common questions and answers
 - Contribute to Phoenix: `https://arize.com/docs/phoenix/resources/contribute-to-phoenix` - How to contribute to the open-source project
 - Phoenix to Arize AX Migration: `https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration` - Migration guide from Phoenix to Arize AX
-- TypeScript API: `https://arize.com/docs/phoenix/resources/typescript-api` - TypeScript API reference
-- Python API: `https://arize.com/docs/phoenix/resources/python-api` - Python API reference
+- TypeScript SDK: `https://arize.com/docs/phoenix/resources/typescript-api` - TypeScript SDK reference
+- Python SDK: `https://arize.com/docs/phoenix/resources/python-api` - Python SDK reference
 - GitHub: `https://arize.com/docs/phoenix/resources/github` - Phoenix GitHub repository
 - OpenInference: `https://arize.com/docs/phoenix/resources/openinference` - OpenInference specification and instrumentation
 
