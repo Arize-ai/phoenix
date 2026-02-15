@@ -53,14 +53,14 @@ Annotations capture the scores that are the result of evaluation. They are named
 
 ### Evaluator Definitions
 
-As a user of Phoenix, I want to define different evaluation metrics to be re-used across the platform. These metric definitions will have various types:
+As a user of Phoenix, I want to define different evaluation metrics to be reused across the platform. These metric definitions will have various types:
 
 - LLM-as-a-judge
 - Heuristic / Code (e.g., JSON distance, exact match, similarity, contains regex)
 - Custom Code
 - Remote (webhook-based)
 
-To make the eval definitions re-usable across various targets, the evaluators will be described as having:
+To make the eval definitions reusable across various targets, the evaluators will be described as having:
 
 - `input schema` - what data is required to perform the evaluation at a record level
 - `annotation config` - the definition of the score it produces

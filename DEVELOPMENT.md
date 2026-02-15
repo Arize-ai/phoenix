@@ -25,13 +25,13 @@ We recommend using a virtual environment to isolate your Python dependencies. Th
 
 We recommend installing the project version of `uv` (found in `pyproject.toml` under `tool.uv.required-version`) by using the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer). This will enable you to upgrade `uv` using the `uv self update` command when the project `uv` version is updated.
 
-The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibilty with all supported Python versions.
+The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibility with all supported Python versions.
 
 ```bash
 uv sync --python 3.10
 ```
 
-Some parts of Phoenix—such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client` developed as local packages located under the packages/ directory. These modules are excluded from the standard build process and are not installed automatically.
+Some parts of Phoenix, such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client`, are developed as local packages located under the `packages/` directory. These modules are excluded from the standard build process and are not installed automatically.
 
 To make these modules available when working from source, run:
 

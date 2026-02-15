@@ -89,4 +89,4 @@ src/
   - Reviewer: Reviews and sorts movies by rating
   - PreviewSummarizer: Provides movie summaries
 - **Arize Phoenix Tracing**: All agent interactions are automatically traced and sent to Phoenix
-- **Arize Phoenix Evals**: Run Tool Correctness & Agent Goal Completetion Evals using Phoenix Evals TS
+- **Arize Phoenix Evals**: Run Tool Correctness & Agent Goal Completion Evals using Phoenix Evals TS
