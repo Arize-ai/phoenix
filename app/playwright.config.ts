@@ -13,25 +13,41 @@ const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
 
 const projects: Project[] = [
   {
+    name: "setup",
+    testMatch: "**/auth.setup.ts",
+  },
+  {
     name: "chromium",
-    use: { ...devices["Desktop Chrome"] },
+    use: {
+      ...devices["Desktop Chrome"],
+      storageState: "playwright/.auth/admin.json",
+    },
+    dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: "**/*.rate-limit.spec.ts",
+    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
   },
   {
     name: "firefox",
-    use: { ...devices["Desktop Firefox"] },
+    use: {
+      ...devices["Desktop Firefox"],
+      storageState: "playwright/.auth/admin.json",
+    },
+    dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: "**/*.rate-limit.spec.ts",
+    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
   },
 ];
 
 if (!skipWebKit) {
   projects.push({
     name: "webkit",
-    use: { ...devices["Desktop Safari"] },
+    use: {
+      ...devices["Desktop Safari"],
+      storageState: "playwright/.auth/admin.json",
+    },
+    dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: "**/*.rate-limit.spec.ts",
+    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
   });
 }
 
@@ -48,14 +64,13 @@ projects.push({
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  globalSetup: require.resolve("./global-setup"),
   timeout: isCI ? 90_000 : 45_000,
   expect: {
     /* CI runners are slower; use one centralized expect timeout policy */
     timeout: isCI ? 30_000 : 10_000,
   },
-  // Use default workers (cpu count) locally, limit to 2 on CI
-  workers: isCI ? 2 : undefined,
+  // Use default workers (cpu count)
+  workers: undefined,
   fullyParallel: true,
   testDir: "./tests",
   /* Fail the build on CI if you accidentally left test.only in the source code. */

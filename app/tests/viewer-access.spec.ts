@@ -1,11 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-import { login, VIEWER_USER } from "./utils/login";
-
-test.beforeEach(async ({ page }) => {
-  await login(page, VIEWER_USER);
-});
+test.use({ storageState: "playwright/.auth/viewer.json" });
 
 test("can create user key", async ({ page }) => {
   // Navigate to profile page

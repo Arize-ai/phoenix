@@ -1,12 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
-
-import { ADMIN_USER, login } from "./utils/login";
-
-test.beforeEach(async ({ page }) => {
-  await login(page, ADMIN_USER);
-});
-
 test("can create a user", async ({ page }) => {
   await page.goto("/settings/general");
   await page.waitForURL("**/settings/general");
