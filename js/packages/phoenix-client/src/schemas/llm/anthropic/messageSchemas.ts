@@ -27,7 +27,7 @@ export type AnthropicMessage = z.infer<typeof anthropicMessageSchema>;
 export const anthropicMessagesSchema = z.array(anthropicMessageSchema);
 
 export const anthropicMessagesJSONSchema = zodToJsonSchema(
-  anthropicMessagesSchema,
+  anthropicMessagesSchema as any,
   {
     removeAdditionalStrategy: "passthrough",
   }
