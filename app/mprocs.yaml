@@ -1,6 +1,6 @@
 procs:
   api:
-    shell: "pnpm run dev:server 2>&1 | tee /tmp/phoenix.log"
+    shell: "pnpm run dev:server 2>&1 | tee /tmp/phoenix-${PHOENIX_PORT:-6006}.log"
     stop: { send-keys: ["<C-c>"] }
 
   frontend:
