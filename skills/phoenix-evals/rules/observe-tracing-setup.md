@@ -56,6 +56,26 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+## Uploading Evaluations as Annotations
+
+After running evaluations, upload results back to Phoenix as span annotations:
+
+```python
+from phoenix.evals import async_evaluate_dataframe
+from phoenix.evals.utils import to_annotation_dataframe
+
+# Run evaluations
+results_df = await async_evaluate_dataframe(dataframe=spans_df, evaluators=[my_eval])
+
+# Format results for Phoenix annotations
+annotations_df = to_annotation_dataframe(results_df)
+
+# Upload to Phoenix
+client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
+```
+
+This creates annotations visible in the Phoenix UI alongside your traces.
+
 ## Verify
 
 Required attributes: `input.value`, `output.value`, `status_code`

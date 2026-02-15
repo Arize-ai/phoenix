@@ -103,22 +103,30 @@ df = client.spans.get_spans_dataframe(
 **Why**: Traces may be from any time period. A 1-hour window frequently returns
 nothing. Use `limit=` to control result size instead.
 
-## 7. Not Using root_spans_only
+## 7. Not Filtering Spans Appropriately
 
 ```python
 # WRONG — fetches all spans including internal LLM calls, retrievers, etc.
 df = client.spans.get_spans_dataframe(project_identifier="my-project")
 
-# RIGHT — let the API filter to top-level spans
+# RIGHT for end-to-end evaluation — filter to top-level spans
 df = client.spans.get_spans_dataframe(
     project_identifier="my-project",
     root_spans_only=True,
 )
+
+# RIGHT for RAG evaluation — fetch child spans for retriever/LLM metrics
+all_spans = client.spans.get_spans_dataframe(
+    project_identifier="my-project",
+)
+retriever_spans = all_spans[all_spans["span_kind"] == "RETRIEVER"]
+llm_spans = all_spans[all_spans["span_kind"] == "LLM"]
 ```
 
-**Why**: For evaluation, you typically want root spans (the top-level operation with
-user input and final output). Fetching all spans returns internal sub-operations
-that aren't useful for output evaluation.
+**Why**: For end-to-end evaluation (e.g., overall answer quality), use `root_spans_only=True`.
+For RAG systems, you often need child spans separately — retriever spans for
+DocumentRelevance and LLM spans for Faithfulness. Choose the right span level
+for your evaluation target.
 
 ## 8. Assuming Span Output is Plain Text
 
@@ -157,22 +165,23 @@ the actual answer text, not the raw JSON.
 def relevance(input: str, output: str) -> str:
     pass  # No LLM is involved
 
-# RIGHT — use create_classifier for LLM-based evaluation
-from phoenix.evals import create_classifier, LLM
+# RIGHT — use ClassificationEvaluator for LLM-based evaluation
+from phoenix.evals import ClassificationEvaluator, LLM
 
-relevance = create_classifier(
+relevance = ClassificationEvaluator(
     name="relevance",
-    prompt_template="Is this relevant?\n{input}\n{output}\nAnswer:",
+    prompt_template="Is this relevant?\n{{input}}\n{{output}}\nAnswer:",
     llm=LLM(provider="openai", model="gpt-4o"),
     choices={"relevant": 1.0, "irrelevant": 0.0},
 )
 ```
 
 **Why**: `@create_evaluator` wraps a plain Python function. Setting `kind="llm"`
-does NOT make it call an LLM. For LLM-based evaluation, use `create_classifier()`
-or `ClassificationEvaluator`.
+marks it as LLM-based but you must implement the LLM call yourself.
+For LLM-based evaluation, prefer `ClassificationEvaluator` which handles
+the LLM call, structured output parsing, and explanations automatically.
 
-## 10. Using llm_classify Instead of create_classifier
+## 10. Using llm_classify Instead of ClassificationEvaluator
 
 ```python
 # WRONG — legacy 1.0 API
@@ -185,19 +194,19 @@ results = llm_classify(
 )
 
 # RIGHT — current 2.0 API
-from phoenix.evals import create_classifier, evaluate_dataframe, LLM
+from phoenix.evals import ClassificationEvaluator, async_evaluate_dataframe, LLM
 
-classifier = create_classifier(
+classifier = ClassificationEvaluator(
     name="relevance",
     prompt_template=template_str,
     llm=LLM(provider="openai", model="gpt-4o"),
     choices={"relevant": 1.0, "irrelevant": 0.0},
 )
-results_df = evaluate_dataframe(dataframe=df, evaluators=[classifier])
+results_df = await async_evaluate_dataframe(dataframe=df, evaluators=[classifier])
 ```
 
 **Why**: `llm_classify` is the legacy 1.0 function. The current pattern is to create
-an evaluator with `create_classifier()` and run it with `evaluate_dataframe()`.
+an evaluator with `ClassificationEvaluator` and run it with `async_evaluate_dataframe()`.
 
 ## 11. Using HallucinationEvaluator
 

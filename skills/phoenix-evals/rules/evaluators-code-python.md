@@ -56,11 +56,27 @@ def matches_expected(output: str, expected: dict) -> bool:
 | `dict` with `score`/`label`/`explanation` | Mapped to Score fields directly |
 | `Score` object | Used as-is |
 
-## Important: kind="code" Only
+## Important: Code vs LLM Evaluators
 
-The `@create_evaluator` decorator is for **code-based** evaluators only.
-Do NOT set `kind="llm"` — it won't magically call an LLM.
-For LLM-based evaluation, use `create_classifier()` or `ClassificationEvaluator`.
+The `@create_evaluator` decorator wraps a plain Python function.
+
+- `kind="code"` (default): For deterministic evaluators that don't call an LLM.
+- `kind="llm"`: Marks the evaluator as LLM-based, but **you** must implement the LLM
+  call inside the function. The decorator does not call an LLM for you.
+
+For most LLM-based evaluation, prefer `ClassificationEvaluator` which handles
+the LLM call, structured output parsing, and explanations automatically:
+
+```python
+from phoenix.evals import ClassificationEvaluator, LLM
+
+relevance = ClassificationEvaluator(
+    name="relevance",
+    prompt_template="Is this relevant?\n{{input}}\n{{output}}\nAnswer:",
+    llm=LLM(provider="openai", model="gpt-4o"),
+    choices={"relevant": 1.0, "irrelevant": 0.0},
+)
+```
 
 ## Pre-Built
 

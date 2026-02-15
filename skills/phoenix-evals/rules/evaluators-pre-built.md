@@ -24,9 +24,22 @@ import { openai } from "@ai-sdk/openai";
 const hallucinationEval = createHallucinationEvaluator({ model: openai("gpt-4o") });
 ```
 
-## Available
+## Available (2.0)
 
-Hallucination, QA, Relevance, Toxicity, Faithfulness, Summarization.
+| Evaluator | Type | Description |
+| --------- | ---- | ----------- |
+| `FaithfulnessEvaluator` | LLM | Is the response faithful to the context? |
+| `CorrectnessEvaluator` | LLM | Is the response correct? |
+| `DocumentRelevanceEvaluator` | LLM | Are retrieved documents relevant? |
+| `ToolSelectionEvaluator` | LLM | Did the agent select the right tool? |
+| `ToolInvocationEvaluator` | LLM | Did the agent invoke the tool correctly? |
+| `ToolResponseHandlingEvaluator` | LLM | Did the agent handle the tool response well? |
+| `MatchesRegex` | Code | Does output match a regex pattern? |
+| `PrecisionRecallFScore` | Code | Precision/recall/F-score metrics |
+| `exact_match` | Code | Exact string match |
+
+Legacy evaluators (`HallucinationEvaluator`, `QAEvaluator`, `RelevanceEvaluator`,
+`ToxicityEvaluator`, `SummarizationEvaluator`) are in `phoenix.evals.legacy` and deprecated.
 
 ## When to Use
 

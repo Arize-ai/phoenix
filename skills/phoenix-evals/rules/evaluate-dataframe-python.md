@@ -2,7 +2,24 @@
 
 Run evaluators across a DataFrame. The core 2.0 batch evaluation API.
 
-## Function Signature
+## Preferred: async_evaluate_dataframe
+
+For batch evaluations (especially with LLM evaluators), prefer the async version
+for better throughput:
+
+```python
+from phoenix.evals import async_evaluate_dataframe
+
+results_df = await async_evaluate_dataframe(
+    dataframe=df,              # pandas DataFrame with columns matching evaluator params
+    evaluators=[eval1, eval2], # List of evaluators
+    concurrency=5,             # Max concurrent LLM calls (default 3)
+    exit_on_error=False,       # Optional: stop on first error (default True)
+    max_retries=3,             # Optional: retry failed LLM calls (default 10)
+)
+```
+
+## Sync Version
 
 ```python
 from phoenix.evals import evaluate_dataframe
@@ -69,21 +86,25 @@ failed_mask = scores < 0.5
 failures = results_df[failed_mask]
 ```
 
-## Input Mapping with bind_evaluator
+## Input Mapping
 
 Evaluators receive each row as a dict. Column names must match the evaluator's
-expected parameter names. If they don't match, use `bind_evaluator`:
+expected parameter names. If they don't match, use `.bind()` or `bind_evaluator`:
 
 ```python
-from phoenix.evals import bind_evaluator, create_evaluator, evaluate_dataframe
+from phoenix.evals import bind_evaluator, create_evaluator, async_evaluate_dataframe
 
 @create_evaluator(name="check", kind="code")
 def check(response: str) -> bool:
     return len(response.strip()) > 0
 
-# DataFrame has 'answer' column but evaluator expects 'response'
+# Option 1: Use .bind() method on the evaluator
+check.bind(input_mapping={"response": "answer"})
+results_df = await async_evaluate_dataframe(dataframe=df, evaluators=[check])
+
+# Option 2: Use bind_evaluator function
 bound = bind_evaluator(evaluator=check, input_mapping={"response": "answer"})
-results_df = evaluate_dataframe(dataframe=df, evaluators=[bound])
+results_df = await async_evaluate_dataframe(dataframe=df, evaluators=[bound])
 ```
 
 Or simply rename columns to match:
@@ -93,20 +114,6 @@ df = df.rename(columns={
     "attributes.input.value": "input",
     "attributes.output.value": "output",
 })
-```
-
-## Async Version
-
-For better throughput with LLM evaluators:
-
-```python
-from phoenix.evals import async_evaluate_dataframe
-
-results_df = await async_evaluate_dataframe(
-    dataframe=df,
-    evaluators=[llm_evaluator],
-    concurrency=5,  # Max concurrent LLM calls (default 3)
-)
 ```
 
 ## DO NOT use run_evals

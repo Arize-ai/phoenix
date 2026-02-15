@@ -40,7 +40,8 @@ Use XML tags to wrap variables for clarity:
 
 ## create_classifier (Factory)
 
-Shorthand factory that returns a `ClassificationEvaluator`:
+Shorthand factory that returns a `ClassificationEvaluator`. Prefer direct
+`ClassificationEvaluator` instantiation for more parameters/customization:
 
 ```python
 from phoenix.evals import create_classifier, LLM
@@ -85,5 +86,7 @@ results_df = evaluate_dataframe(dataframe=df, evaluators=[helpfulness])
 
 1. **Be specific** - Define exactly what pass/fail means
 2. **Include examples** - Show concrete cases for each label
-3. **Use chain of thought** - Better accuracy with `<thinking>` sections
-4. **Explanations by default** - `ClassificationEvaluator` includes explanations automatically
+3. **Explanations by default** - `ClassificationEvaluator` includes explanations automatically
+4. **Study built-in prompts** - See
+   `phoenix.evals.__generated__.classification_evaluator_configs` for examples
+   of well-structured evaluation prompts (Faithfulness, Correctness, DocumentRelevance, etc.)
