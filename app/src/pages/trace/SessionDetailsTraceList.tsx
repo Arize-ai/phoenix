@@ -172,14 +172,8 @@ function RootSpanDetails({
 function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
   return (
     <Flex direction={"column"} gap={"size-100"}>
-      <RootSpanMessage
-        role={"HUMAN"}
-        value={rootSpan.input?.value}
-      />
-      <RootSpanMessage
-        role={"AI"}
-        value={rootSpan.output?.value}
-      />
+      <RootSpanMessage role={"HUMAN"} value={rootSpan.input?.value} />
+      <RootSpanMessage role={"AI"} value={rootSpan.output?.value} />
     </Flex>
   );
 }
