@@ -81,7 +81,7 @@ Phoenix Docs MCP URL:
 https://arizeai-433a7140.mintlify.app/mcp
 ```
 
-<Card title="Configure Phoenix Docs MCP by Editor/Agent" icon="plug">
+<Card>
   <Tabs>
     <Tab title="Claude Code">
       Project scope:
@@ -176,11 +176,17 @@ This installs skills into the project's agent directory (for example, `.claude/s
 
 ### Available Skills
 
-| Skill | Description | Recommended |
-|-------|-------------|-------------|
-| [`phoenix-cli`](https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-cli/SKILL.md) | Debug LLM applications using Phoenix CLI: fetch traces, analyze errors, review experiments, and inspect datasets. | Yes |
-| [`phoenix-evals`](https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-evals/SKILL.md) | Build and run evaluators for AI/LLM applications across code-based and LLM-as-judge workflows. | Optional |
-| [`phoenix-tracing`](https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-tracing/SKILL.md) | Implement OpenInference tracing conventions and instrumentation for Phoenix in Python and TypeScript. | Optional |
+<CardGroup cols={3}>
+  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-cli/SKILL.md">
+    Debug LLM apps using Phoenix CLI for traces, experiments, datasets, and prompts. Recommended.
+  </Card>
+  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-evals/SKILL.md">
+    Build and run evaluators for AI/LLM apps across code-based and LLM-as-judge workflows.
+  </Card>
+  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-tracing/SKILL.md">
+    Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
+  </Card>
+</CardGroup>
 
 ### `skills add` Options
 
