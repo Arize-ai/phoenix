@@ -5,7 +5,7 @@ Connect Figma designs to the Phoenix codebase using the Figma MCP server and Cod
 ## Prerequisites
 
 - A Figma account with access to the Phoenix design files
-- The Phoenix "Core" Figma file contains the design system components
+- The Phoenix ["Core" Figma file](https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=66-233) contains the design system components
 - Code Connect mappings require an Organization or Enterprise Figma plan (we have this)
 
 ## Step 1: Connect the MCP Server
