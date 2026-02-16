@@ -145,7 +145,7 @@ Phoenix integrates with popular AI frameworks, LLM providers, and tools for seam
 
 ### Developer Tools
 
-- Coding Agents: `https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents` - Integrate with Claude Code, Cursor, and other AI coding assistants
+- Coding Agents: `https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents` - Integrate with Claude Code, Cursor, and other AI coding assistants using CLI, MCP, and skills
 - Phoenix MCP Server: `https://arize.com/docs/phoenix/integrations/phoenix-mcp-server` - Connect AI assistants via Model Context Protocol
 
 ### LLM Providers

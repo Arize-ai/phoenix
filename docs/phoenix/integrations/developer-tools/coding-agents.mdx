@@ -1,67 +1,27 @@
 ---
 title: "Coding Agents"
-description: Integrate Phoenix with AI coding assistants like Claude Code, Cursor, and Windsurf for debugging LLM applications.
+description: Integrate Phoenix with AI coding assistants using CLI, MCP, and skills in a single workflow guide.
 ---
 
-Phoenix provides tools for AI coding assistants to debug and analyze your LLM applications directly from the terminal.
+Use this guide to connect coding agents (Claude Code, Cursor, VS Code, Windsurf, and others) to Phoenix for debugging, observability, and evaluation workflows.
 
-## Installation
+## Recommended Setup
 
-### Phoenix CLI
+Most users should set up all three:
 
-Install the CLI globally:
+<CardGroup cols={3}>
+  <Card title="CLI" icon="terminal" href="#cli">
+    Terminal access to traces, experiments, datasets, and prompts.
+  </Card>
+  <Card title="MCP" icon="plug" href="#mcp">
+    In-editor Phoenix documentation lookup and optional direct Phoenix instance operations.
+  </Card>
+  <Card title="Skills" icon="wand-magic-sparkles" href="#skills">
+    Reusable instructions so agents apply Phoenix best practices consistently.
+  </Card>
+</CardGroup>
 
-```bash
-npm install -g @arizeai/phoenix-cli
-```
-
-### Phoenix Skills
-
-Add Phoenix skills to your AI coding agent using [skills add](https://github.com/vercel-labs/skills):
-
-```bash
-npx skills add Arize-ai/phoenix
-```
-
-This installs the skill to your project's skills directory (`.cursor/skills/`, `.claude/skills/`, or `.github/skills/`).
-
-#### Available Skills
-
-| Skill | Description | Recommended |
-|-------|-------------|-------------|
-| `phoenix-cli` | Debug and analyze LLM applications using Phoenix CLI tools. Teaches agents to fetch traces, analyze performance, and review experiments. | Yes |
-| `phoenix-evals` | Build and run evaluators for AI/LLM applications. Teaches agents to create code and LLM evaluators, run experiments, and validate against human feedback. | Optional |
-| `phoenix-tracing` | OpenInference semantic conventions and instrumentation. Teaches agents proper span types, attributes, and production deployment patterns. | Optional |
-
-#### skills add Options
-
-| Option | Description |
-|--------|-------------|
-| `-g, --global` | Install to user directory instead of project |
-| `-a, --agent <agents...>` | Target specific agents (e.g., `claude-code`, `cursor`) |
-| `-s, --skill <skills...>` | Install specific skills by name |
-| `-l, --list` | List available skills without installing |
-| `-y, --yes` | Skip all confirmation prompts |
-
-**Examples:**
-
-```bash
-# Install the CLI skill globally for all projects
-npx skills add Arize-ai/phoenix --skill phoenix-cli -g
-
-# Install both skills for comprehensive Phoenix support
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
-
-# Install to specific agents
-npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
-
-# Non-interactive installation (CI/CD friendly)
-npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
-```
-
-**Supported agents:** Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents).
-
-## Configuration
+## Shared Environment Configuration
 
 Set environment variables to connect to your Phoenix instance:
 
@@ -71,47 +31,207 @@ export PHOENIX_PROJECT=my-project            # Project name
 export PHOENIX_API_KEY=your-api-key          # API key (if auth enabled)
 ```
 
-## Using the Skills
+<Tip>
+Keep API keys out of committed config files. Prefer environment variables and local-only config.
+</Tip>
 
-### phoenix-cli
+## CLI
 
-The CLI skill teaches your AI assistant how to:
+Install the Phoenix CLI globally:
 
-- Debug failed LLM applications using trace data
-- Analyze performance issues and token usage
-- Review experiment results and datasets
-
-**Example prompt:**
-
-```
-Debug my agent - it's failing on tool calls. Fetch recent traces and identify the issue.
+```bash
+npm install -g @arizeai/phoenix-cli
 ```
 
-### phoenix-tracing (Optional)
+Use CLI tools when your coding agent needs terminal-native access to Phoenix resources, including traces, experiments, datasets, and prompts.
 
-The tracing skill teaches your AI assistant how to:
+Common agent workflows with `px`:
 
-- Instrument LLM applications with OpenInference tracing
-- Create custom spans with proper attributes (LLM, RETRIEVER, TOOL, AGENT, etc.)
-- Follow semantic conventions for consistent observability
-- Configure production deployment patterns (batching, PII masking)
+- investigate trace failures and performance regressions
+- inspect and compare experiment runs
+- list and fetch datasets for evaluation workflows
+- inspect and retrieve prompt versions and content
 
-**Example prompt:**
+Example prompt:
 
+```text
+Debug my agent's tool-call failures. Use Phoenix CLI to inspect traces, recent experiments, and relevant prompts, then summarize root causes.
 ```
-Add Phoenix tracing to my RAG pipeline. Create spans for the retriever and LLM calls.
+
+Verify CLI installation:
+
+```bash
+px --help
+```
+
+## MCP
+
+MCP has two different Phoenix integrations, and they serve different goals.
+
+| MCP Integration | Purpose | When to use |
+|---|---|---|
+| `Phoenix Docs MCP` | Search Phoenix documentation from your coding agent | Recommended for all users |
+| `Phoenix MCP Server` | Operate directly on your Phoenix instance (prompts, datasets, experiments) | Use when you want agent-driven Phoenix data operations |
+
+### Phoenix Docs MCP (Documentation Access)
+
+Phoenix Docs MCP URL:
+
+```text
+https://arizeai-433a7140.mintlify.app/mcp
+```
+
+<Card>
+  <Tabs>
+    <Tab title="Claude Code">
+      Project scope:
+
+      ```bash
+      claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+      ```
+
+      User scope:
+
+      ```bash
+      claude mcp add --transport http phoenix-docs --scope user https://arizeai-433a7140.mintlify.app/mcp
+      ```
+
+      Verify:
+
+      ```bash
+      claude mcp list
+      ```
+    </Tab>
+    <Tab title="Cursor">
+      Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
+
+      ```json
+      {
+        "mcpServers": {
+          "phoenix-docs": {
+            "url": "https://arizeai-433a7140.mintlify.app/mcp"
+          }
+        }
+      }
+      ```
+
+      Then restart Cursor and confirm the server appears in MCP settings.
+    </Tab>
+    <Tab title="VS Code">
+      Use the Command Palette and run `MCP: Add Server`, or add the server to `.vscode/mcp.json`:
+
+      ```json
+      {
+        "servers": {
+          "phoenix-docs": {
+            "url": "https://arizeai-433a7140.mintlify.app/mcp"
+          }
+        }
+      }
+      ```
+
+      Then run `MCP: List Servers` in the Command Palette to verify.
+    </Tab>
+    <Tab title="Windsurf">
+      Add to `~/.codeium/windsurf/mcp_config.json`:
+
+      ```json
+      {
+        "mcpServers": {
+          "phoenix-docs": {
+            "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
+          }
+        }
+      }
+      ```
+
+      Then refresh MCP servers from Windsurf MCP settings.
+    </Tab>
+  </Tabs>
+</Card>
+
+<Note>
+Reference docs: [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code/mcp), [Cursor MCP](https://docs.cursor.com/context/model-context-protocol), [VS Code MCP servers](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf MCP](https://docs.windsurf.com/windsurf/mcp).
+</Note>
+
+### Phoenix MCP Server (Direct Phoenix Operations)
+
+For prompt, dataset, and experiment operations against your Phoenix instance, use the dedicated setup guide:
+
+- [/docs/phoenix/integrations/phoenix-mcp-server](/docs/phoenix/integrations/phoenix-mcp-server)
+
+<Info>
+Install both MCP integrations if you want your coding agent to both look up docs and perform direct Phoenix instance operations.
+</Info>
+
+## Skills
+
+Install Phoenix skills using [skills add](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add Arize-ai/phoenix
+```
+
+This installs skills into the project's agent directory (for example, `.claude/skills/`, `.cursor/skills/`, or `.github/skills/`).
+
+### Available Skills
+
+<CardGroup cols={3}>
+  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-cli/SKILL.md">
+    Debug LLM apps using Phoenix CLI for traces, experiments, datasets, and prompts. Recommended.
+  </Card>
+  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-evals/SKILL.md">
+    Build and run evaluators for AI/LLM apps across code-based and LLM-as-judge workflows.
+  </Card>
+  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-tracing/SKILL.md">
+    Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
+  </Card>
+</CardGroup>
+
+### `skills add` Options
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Install to user directory instead of project |
+| `-a, --agent <agents...>` | Target specific agents (for example, `claude-code`, `cursor`) |
+| `-s, --skill <skills...>` | Install specific skills by name |
+| `-l, --list` | List available skills without installing |
+| `-y, --yes` | Skip confirmation prompts |
+
+### Examples
+
+```bash
+# Install the CLI skill globally for all projects
+npx skills add Arize-ai/phoenix --skill phoenix-cli -g
+
+# Install CLI + tracing skills together
+npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+
+# Install for specific coding agents
+npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
+
+# Non-interactive installation
+npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
+```
+
+Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents).
+
+Recommended default:
+
+```bash
+npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
 ```
 
 ## Related
 
 <CardGroup cols={2}>
   <Card title="CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
-    Full CLI command reference
+    Full command reference for Phoenix CLI.
   </Card>
   <Card title="Retrieve Traces via CLI" icon="download" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli">
-    Detailed guide for fetching traces
+    Detailed guide for fetching traces from Phoenix.
   </Card>
-  <Card title="MCP Servers" icon="plug" href="/docs/phoenix/integrations/phoenix-mcp-server">
-    Connect AI assistants to Phoenix via MCP
+  <Card title="Phoenix MCP Server" icon="plug" href="/docs/phoenix/integrations/phoenix-mcp-server">
+    Manage prompts, datasets, and experiments via the Phoenix MCP Server.
   </Card>
 </CardGroup>
