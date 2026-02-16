@@ -1,6 +1,7 @@
+import { AGENT_INSTRUCTIONS } from "../prompts/agent.js";
+
 import { anthropic } from "@ai-sdk/anthropic";
 import { stepCountIs, Tool, ToolLoopAgent } from "ai";
-import { AGENT_INSTRUCTIONS } from "../prompts/agent.js";
 
 /**
  * Conversation history entry

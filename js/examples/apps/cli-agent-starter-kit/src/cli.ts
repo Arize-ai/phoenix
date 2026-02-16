@@ -2,11 +2,11 @@
 /* eslint-disable no-console */
 
 // Import instrumentation first (Phoenix must be initialized early)
-import { flush } from "./instrumentation.js";
-import { createAgent, type ConversationHistory } from "./agent/index.js";
+import { type ConversationHistory,createAgent } from "./agent/index.js";
 import { calculatorTool, getDateTimeTool } from "./agent/tools.js";
-import { printWelcome } from "./ui/welcome.js";
 import { conversationLoop } from "./ui/interaction.js";
+import { printWelcome } from "./ui/welcome.js";
+import { flush } from "./instrumentation.js";
 
 // ANSI color codes
 const RESET = "\x1b[0m";

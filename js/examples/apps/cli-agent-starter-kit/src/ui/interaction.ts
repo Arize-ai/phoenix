@@ -1,9 +1,15 @@
-/* eslint-disable no-console */
+ 
 import {
   getInputAttributes,
   getOutputAttributes,
   withSpan,
 } from "@arizeai/openinference-core";
+
+import type { ConversationHistory } from "../agent/index.js";
+import { SESSION_ID } from "../instrumentation.js";
+
+import { printWelcome } from "./welcome.js";
+
 import {
   cancel,
   isCancel,
@@ -14,10 +20,6 @@ import {
   text,
 } from "@clack/prompts";
 import { ToolLoopAgent } from "ai";
-
-import { SESSION_ID } from "../instrumentation.js";
-import type { ConversationHistory } from "../agent/index.js";
-import { printWelcome } from "./welcome.js";
 
 /**
  * Display exit message
