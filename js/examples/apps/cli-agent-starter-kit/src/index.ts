@@ -12,7 +12,9 @@ export {
   type ConversationHistory,
   type CreateAgentParams,
 } from "./agent/index.js";
-export { calculatorTool, getDateTimeTool } from "./agent/tools.js";
+
+// Tools
+export { dateTimeTool, phoenixDocsTool } from "./tools/index.js";
 
 // Prompts
 export { AGENT_INSTRUCTIONS } from "./prompts/agent.js";
