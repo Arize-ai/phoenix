@@ -112,11 +112,16 @@ phoenix/
 │   └── proto/            # Protobuf definitions
 ├── tests/                # Unit and integration tests
 ├── docs/                 # Mintlify documentation
+├── skills/               # Agent skill definitions for Phoenix features
 ├── scripts/              # Build & utility scripts
 ├── requirements/         # Python dependencies
 ├── tox.ini              # Test & lint configurations
 └── pyproject.toml       # Python package configuration
 ```
+
+## Agent Skills
+
+Phoenix includes specialized skills in the `skills/` directory that teach AI agents how to work with Phoenix features like tracing, evaluations, and CLI tools. When creating or updating skills, use the `phoenix-skill-development` skill for guidance on structure, naming conventions, and quality standards.
 
 ## Code Style & Conventions
 
