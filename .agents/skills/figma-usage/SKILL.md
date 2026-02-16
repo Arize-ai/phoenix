@@ -14,31 +14,31 @@ Translate Figma designs into Phoenix UI code using the Figma MCP server and the 
 
 ## Quick Reference
 
-| Task | Resource |
-| ---- | -------- |
-| Set up MCP, authenticate | `README.md` |
-| Implement a Figma design | `rules/implement-design.md` |
+| Task                       | Resource                      |
+| -------------------------- | ----------------------------- |
+| Set up MCP, authenticate   | `README.md`                   |
+| Implement a Figma design   | `rules/implement-design.md`   |
 | Translate values to tokens | `rules/tokens-and-styling.md` |
-| Link a story to Figma | `README.md` Step 3 |
-| Publish Code Connect mappings | `README.md` Step 4 |
+| Connect Figma ↔ code      | `rules/code-connect.md`       |
 
 ## Key Principles
 
 | Principle | Action |
 | --------- | ------ |
 | Semantic tokens first | Match by purpose (rounding, spacing, font), not raw value |
-| Reuse over recreate | Check `app/src/components/` and Code Connect before creating new components |
+| Reuse over recreate | Check `app/src/components/` and Code Connect before creating new |
 | `#000000` is an error | Pure black usually means a missing Figma token - flag it |
 | Metadata before context | Call `get_metadata` to explore, `get_design_context` for specific nodes |
 | Emotion, never Tailwind | Figma MCP outputs Tailwind - always translate to Emotion `css` |
+| Cheapest tool first | Use `add_code_connect_map` directly; avoid `get_code_connect_suggestions` |
 
 ## Workflow
 
 **Implement a design from a Figma URL:**
 `implement-design.md` steps 1-8 (parse URL → metadata → Code Connect check → design context → translate → validate)
 
-**Connect a component to Figma:**
-`README.md` Step 3 (add `parameters.design` to story) → Step 4 (publish)
+**Connect a component to Figma (Code Connect):**
+`rules/code-connect.md` — use `add_code_connect_map` directly when both sides are known; avoid expensive discovery tools
 
 ## Design System References
 
