@@ -1083,6 +1083,72 @@
       ]
     },
     {
+      "name": "gemini-2.5-flash-native-audio-latest",
+      "name_pattern": "gemini-2\\.5-flash-native-audio-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.5-flash-native-audio-preview-09-2025",
+      "name_pattern": "gemini-2\\.5-flash-native-audio-preview-09-2025",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.5-flash-native-audio-preview-12-2025",
+      "name_pattern": "gemini-2\\.5-flash-native-audio-preview-12-2025",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gemini-2.5-flash-preview-04-17",
       "name_pattern": "gemini-2\\.5-flash-preview-04-17",
       "source": "litellm",
@@ -1160,6 +1226,23 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-2.5-flash-preview-tts",
+      "name_pattern": "gemini-2\\.5-flash-preview-tts",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
@@ -1378,6 +1461,87 @@
           "base_rate": 2e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gemini-exp-1206",
+      "name_pattern": "gemini-exp-1206",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-flash-latest",
+      "name_pattern": "gemini-flash-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini-flash-lite-latest",
+      "name_pattern": "gemini-flash-lite-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "audio"
         }
       ]
     },
@@ -2405,8 +2569,96 @@
       ]
     },
     {
+      "name": "gpt-4o-mini-transcribe-2025-03-20",
+      "name_pattern": "gpt-4o-mini-transcribe-2025-03-20",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-mini-transcribe-2025-12-15",
+      "name_pattern": "gpt-4o-mini-transcribe-2025-12-15",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gpt-4o-mini-tts",
       "name_pattern": "gpt-4o-mini-tts",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-mini-tts-2025-03-20",
+      "name_pattern": "gpt-4o-mini-tts-2025-03-20",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gpt-4o-mini-tts-2025-12-15",
+      "name_pattern": "gpt-4o-mini-tts-2025-12-15",
       "source": "litellm",
       "token_prices": [
         {
@@ -2871,6 +3123,50 @@
           "base_rate": 0.00012,
           "is_prompt": false,
           "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5-search-api",
+      "name_pattern": "gpt-5-search-api",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5-search-api-2025-10-14",
+      "name_pattern": "gpt-5-search-api-2025-10-14",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -3385,6 +3681,70 @@
           "base_rate": 2.4e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gpt-realtime-mini-2025-10-06",
+      "name_pattern": "gpt-realtime-mini-2025-10-06",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gpt-realtime-mini-2025-12-15",
+      "name_pattern": "gpt-realtime-mini-2025-12-15",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         },
         {
           "base_rate": 0.00001,
