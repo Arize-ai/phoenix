@@ -118,6 +118,22 @@ Reference these guidelines when:
 
 **Production:** `production-{lang}` → Configure batching and masking
 
+**Session Tracking - Best Practice:**
+
+**TypeScript:**
+1. Generate and export `SESSION_ID` at startup: `export const SESSION_ID = randomUUID()`
+2. Import `withSpan` from `@arizeai/openinference-core` where needed
+3. Use directly: `withSpan(fn, { kind: "CHAIN", attributes: { "session.id": SESSION_ID } })`
+4. Child spans automatically group under the parent
+5. Query by `session.id` to see all interactions
+
+**Python:**
+1. Use `using_session(session_id)` context manager
+2. All nested spans inherit the session ID automatically
+3. Generate unique IDs with `str(uuid.uuid4())`
+
+See `sessions-typescript` and `sessions-python` for complete implementations.
+
 ## How to Use
 
 Read individual rule files in `rules/` for detailed explanations and examples:
