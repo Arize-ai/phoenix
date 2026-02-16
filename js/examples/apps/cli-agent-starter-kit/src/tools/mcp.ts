@@ -1,5 +1,5 @@
-import { createMCPClient } from '@ai-sdk/mcp';
-import type { Tool } from 'ai';
+import { createMCPClient } from "@ai-sdk/mcp";
+import type { Tool } from "ai";
 
 /**
  * Phoenix Documentation MCP Tool
@@ -12,8 +12,8 @@ import type { Tool } from 'ai';
  */
 const phoenixMCPClient = await createMCPClient({
   transport: {
-    type: 'http',
-    url: 'https://arizeai-433a7140.mintlify.app/mcp',
+    type: "http",
+    url: "https://arizeai-433a7140.mintlify.app/mcp",
   },
 });
 

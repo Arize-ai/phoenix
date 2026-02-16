@@ -37,34 +37,41 @@ src/
 ## Adding Tools
 
 **1. Create tool file** (`src/tools/mytool.ts`):
+
 ```typescript
 import { tool } from "ai";
 import { z } from "zod";
 
 export const myTool = tool({
   description: "What the tool does",
-  inputSchema: z.object({ /* params */ }),
-  execute: async (params) => { /* logic */ },
+  inputSchema: z.object({
+    /* params */
+  }),
+  execute: async (params) => {
+    /* logic */
+  },
 });
 ```
 
 **2. Export** (`src/tools/index.ts`):
+
 ```typescript
 export { myTool } from "./mytool.js";
 ```
 
 **3. Register** (`src/cli.ts`):
+
 ```typescript
 const tools = { my: myTool };
 ```
 
 ## Naming Convention
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| Export | `camelCaseTool` | `dateTimeTool` |
-| File | `camelcase.ts` | `datetime.ts` |
-| Agent key | `camelCase` | `dateTime` |
+| Type      | Pattern         | Example        |
+| --------- | --------------- | -------------- |
+| Export    | `camelCaseTool` | `dateTimeTool` |
+| File      | `camelcase.ts`  | `datetime.ts`  |
+| Agent key | `camelCase`     | `dateTime`     |
 
 ## Tool Types
 
