@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 
 // Import instrumentation first (Phoenix must be initialized early)
-import { type ConversationHistory,createAgent } from "./agent/index.js";
+import { type ConversationHistory, createAgent } from "./agent/index.js";
 import { calculatorTool, getDateTimeTool } from "./agent/tools.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
