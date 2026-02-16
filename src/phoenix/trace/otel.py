@@ -282,8 +282,7 @@ def _encode_attributes(attributes: Attributes) -> Iterator[KeyValue]:
         return
     for key, value in attributes.items():
         if isinstance(value, np.ndarray):
-            # Convert numpy array to list - cast to Any to avoid overload resolution
-            value = cast(AttributeValue, cast(Any, value).tolist())
+            value = _convert_ndarray_to_list(value)
         yield KeyValue(key=key, value=_encode_value(value))
 
 
@@ -301,6 +300,14 @@ def _encode_value(value: AttributeValue) -> AnyValue:
     if isinstance(value, Sequence):
         return AnyValue(array_value=ArrayValue(values=map(_encode_value, value)))
     raise ValueError(f"Unexpected attribute value {value} with type {type(value)}.")
+
+
+def _convert_ndarray_to_list(value: np.ndarray) -> Sequence[float]:
+    """
+    This helper function is used to work around a deficiency in numpy's type hints.
+    See https://github.com/numpy/numpy/blob/552c46f7b114466c760bb63fba4ae1e4842f5f53/numpy/__init__.pyi#L2244
+    """
+    return value.tolist()
 
 
 __all__ = [
