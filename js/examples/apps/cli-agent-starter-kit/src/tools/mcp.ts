@@ -23,4 +23,4 @@ const phoenixMCPTools = await phoenixMCPClient.tools();
  * Phoenix documentation search tool
  * Searches Phoenix documentation and returns relevant results
  */
-export const phoenixDocsTool: Tool = phoenixMCPTools.search_docs;
+export const phoenixDocsTool: Tool = phoenixMCPTools.SearchPhoenix;
