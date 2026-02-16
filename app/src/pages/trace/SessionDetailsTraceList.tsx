@@ -18,7 +18,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { JSONBlock } from "@phoenix/components/code";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
@@ -29,7 +29,6 @@ import {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
 } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";
-import { MimeType } from "@phoenix/pages/trace/__generated__/SpanDetailsQuery.graphql";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -52,22 +51,10 @@ const getUserFromRootSpanAttributes = (attributes: string) => {
 function RootSpanMessage({
   role,
   value,
-  mimeType,
 }: {
   role: "HUMAN" | "AI";
   value: unknown;
-  mimeType?: MimeType | null;
 }) {
-  const valueString = useMemo(() => {
-    if (mimeType !== "json") {
-      return String(value);
-    }
-    const parsed = safelyParseJSON(value as string);
-    if (parsed.json == null) {
-      return "--";
-    }
-    return JSON.stringify(parsed.json, null, 2);
-  }, [value, mimeType]);
   const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
   return (
     <View
@@ -81,11 +68,7 @@ function RootSpanMessage({
     >
       <Flex direction={"column"} gap={"size-50"}>
         <Text color="text-700">{role}</Text>
-        {mimeType === "json" ? (
-          <JSONBlock value={valueString} />
-        ) : (
-          <Text>{valueString}</Text>
-        )}
+        <DynamicContent value={value} />
       </Flex>
     </View>
   );
@@ -192,12 +175,10 @@ function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
       <RootSpanMessage
         role={"HUMAN"}
         value={rootSpan.input?.value}
-        mimeType={rootSpan.input?.mimeType}
       />
       <RootSpanMessage
         role={"AI"}
         value={rootSpan.output?.value}
-        mimeType={rootSpan.output?.mimeType}
       />
     </Flex>
   );
