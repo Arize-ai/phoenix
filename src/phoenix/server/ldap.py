@@ -112,8 +112,7 @@ from secrets import token_hex
 from typing import Any, Final, Literal, NamedTuple, cast, overload
 
 import anyio
-from anyio import CapacityLimiter
-from anyio.to_thread import run_sync
+from anyio import CapacityLimiter, to_thread
 from ldap3 import (
     AUTO_BIND_DEFAULT,
     AUTO_BIND_NO_TLS,
@@ -588,7 +587,7 @@ class LDAPAuthenticator:
         # authentication failure rather than propagating a 500 error.
         try:
             with anyio.fail_after(60):
-                return await run_sync(
+                return await to_thread.run_sync(
                     self._authenticate,
                     username,
                     password,
