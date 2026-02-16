@@ -7,6 +7,7 @@ import {
 import type { ConversationHistory } from "../agent/index.js";
 import { SESSION_ID } from "../instrumentation.js";
 
+import { renderMarkdown } from "./markdown.js";
 import { printWelcome } from "./welcome.js";
 
 import {
@@ -94,12 +95,11 @@ export async function processUserMessage(
 
     s.stop("Agent");
 
-    // Display response
-    if (result.text.includes("\n")) {
-      note(result.text, "Agent");
-    } else {
-      log.message(result.text);
-    }
+    // Display response with markdown rendering
+    // Output directly to preserve ANSI formatting from marked-terminal
+    const formattedText = renderMarkdown(result.text);
+    // eslint-disable-next-line no-console
+    console.log("\n" + formattedText + "\n");
 
     if (verbose) {
       log.info(`Completed in ${result.steps.length} steps`);
