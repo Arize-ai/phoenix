@@ -11,7 +11,6 @@ import { conversationLoop } from "./ui/interaction.js";
 // ANSI color codes
 const RESET = "\x1b[0m";
 const DIM = "\x1b[38;5;102m"; // darker gray for secondary text
-const TEXT = "\x1b[38;5;145m"; // lighter gray for primary text
 
 const LOGO_LINES = [
   " █████╗  ██████╗ ███████╗███╗   ██╗████████╗     ██████╗██╗     ██╗",
