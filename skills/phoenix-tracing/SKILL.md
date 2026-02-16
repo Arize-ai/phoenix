@@ -89,52 +89,37 @@ Reference these guidelines when:
 - `attributes-graph` - Agent workflow attributes
 - `attributes-exceptions` - Error tracking
 
-## Common Attributes
-
-| Attribute                 | Purpose              | Example                |
-| ------------------------- | -------------------- | ---------------------- |
-| `openinference.span.kind` | Span type (required) | `"LLM"`, `"RETRIEVER"` |
-| `input.value`             | Operation input      | JSON or text           |
-| `output.value`            | Operation output     | JSON or text           |
-| `user.id`                 | User identifier      | `"user_123"`           |
-| `session.id`              | Conversation ID      | `"session_abc"`        |
-| `llm.model_name`          | Model identifier     | `"gpt-4"`              |
-| `llm.token_count.total`   | Token usage          | `1500`                 |
-| `tool.name`               | Tool/function name   | `"get_weather"`        |
-
 ## Common Workflows
 
-**Quick Start:**
+- **Quick Start**: `setup-{lang}` → `instrumentation-auto-{lang}` → Check Phoenix
+- **Custom Spans**: `setup-{lang}` → `instrumentation-manual-{lang}` → `span-{type}`
+- **Session Tracking**: `sessions-{lang}` for conversation grouping patterns
+- **Production**: `production-{lang}` for batching, masking, and deployment
 
-1. `setup-{lang}` → Install and configure
-2. `instrumentation-auto-{lang}` → Enable auto-instrumentation
-3. Check Phoenix for traces
+## How to Use This Skill
 
-**Custom Spans:**
-
-1. `setup-{lang}` → Install
-2. `instrumentation-manual-{lang}` → Add decorators/wrappers
-3. `span-{type}` → Reference attributes
-
-**Production:** `production-{lang}` → Configure batching and masking
-
-## How to Use
-
-Read individual rule files in `rules/` for detailed explanations and examples:
-
-```
-rules/setup-python.md
-rules/instrumentation-manual-typescript.md
-rules/span-llm.md
-```
-
-Use file prefixes to find what you need:
+**Navigation Patterns:**
 
 ```bash
-ls rules/span-*           # Span type specifications
-ls rules/*-python.md      # Python guides
-ls rules/*-typescript.md  # TypeScript guides
+# By category prefix
+rules/setup-*              # Installation and configuration
+rules/instrumentation-*    # Auto and manual tracing
+rules/span-*               # Span type specifications
+rules/sessions-*           # Session tracking
+rules/production-*         # Production deployment
+rules/fundamentals-*       # Core concepts
+rules/attributes-*         # Attribute specifications
+
+# By language
+rules/*-python.md          # Python implementations
+rules/*-typescript.md      # TypeScript implementations
 ```
+
+**Reading Order:**
+1. Start with `setup-{lang}` for your language
+2. Choose `instrumentation-auto-{lang}` OR `instrumentation-manual-{lang}`
+3. Reference `span-{type}` files as needed for specific operations
+4. See `fundamentals-*` files for attribute specifications
 
 ## References
 
