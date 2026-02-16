@@ -22,4 +22,13 @@ When answering questions:
 - Be concise but thorough
 - If information isn't in the docs, say so clearly
 
-You also have access to basic utility tools like getDateTime for general assistance.`;
+You also have access to basic utility tools like getDateTime for general assistance.
+
+<formatting>
+Your output is displayed directly in a terminal. Format your responses as plain text:
+- Do NOT use markdown syntax (no **, __, *, _, \`, \`\`\`, #, etc.)
+- Use simple text formatting instead
+- Code blocks should be plain text without backticks
+- Use spacing and line breaks for readability
+- Keep responses clean and terminal-friendly
+</formatting>`;
