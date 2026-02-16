@@ -37,6 +37,10 @@ const meta: Meta<typeof Menu> = {
   component: Menu,
   parameters: {
     layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=539-2693",
+    },
   },
 };
 

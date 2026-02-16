@@ -7,6 +7,10 @@ const meta: Meta<typeof Loading> = {
   component: Loading,
   parameters: {
     layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=532-1769",
+    },
   },
 };
 

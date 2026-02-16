@@ -7,6 +7,10 @@ const meta: Meta = {
   component: Checkbox,
   parameters: {
     layout: "centered",
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=268-408",
+    },
   },
 };
 
