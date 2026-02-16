@@ -123,30 +123,6 @@ npx @arizeai/phoenix-cli traces \
 5. **Framework-agnostic**: Works with any LLM framework (AI SDK, LangChain, etc.)
 6. **No extra deps**: Don't need `@opentelemetry/api` or custom utilities
 
-## Advanced: Custom Input/Output Processing
-
-```typescript
-const processWithLogging = withSpan(
-  async (query: string) => {
-    const result = await llm.generate(query);
-    return result;
-  },
-  {
-    name: "query.process",
-    kind: "CHAIN",
-    attributes: { "session.id": SESSION_ID },
-    processInput: (query) => ({
-      "input.value": query,
-      "input.length": query.length,
-    }),
-    processOutput: (result) => ({
-      "output.value": result.text,
-      "output.tokens": result.usage?.totalTokens,
-    }),
-  }
-);
-```
-
 ## Adding More Attributes
 
 ```typescript

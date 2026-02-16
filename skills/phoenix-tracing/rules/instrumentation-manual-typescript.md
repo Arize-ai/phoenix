@@ -89,6 +89,82 @@ withSpan(fn, {
 });
 ```
 
+## Capturing Input/Output
+
+**Always capture I/O for evaluation-ready spans.** Use `getInputAttributes` and `getOutputAttributes` helpers for automatic MIME type detection:
+
+```typescript
+import {
+  getInputAttributes,
+  getOutputAttributes,
+  withSpan,
+} from "@arizeai/openinference-core";
+
+const handleQuery = withSpan(
+  async (userInput: string) => {
+    const result = await agent.generate({ prompt: userInput });
+    return result;
+  },
+  {
+    name: "query.handler",
+    kind: "CHAIN",
+    // Use helpers - automatic MIME type detection
+    processInput: (input) => getInputAttributes(input),
+    processOutput: (result) => getOutputAttributes(result.text),
+  }
+);
+
+await handleQuery("What is 2+2?");
+```
+
+**What gets captured:**
+
+```json
+{
+  "input.value": "What is 2+2?",
+  "input.mime_type": "text/plain",
+  "output.value": "2+2 equals 4.",
+  "output.mime_type": "text/plain"
+}
+```
+
+**Helper behavior:**
+- Strings → `text/plain`
+- Objects/Arrays → `application/json` (automatically serialized)
+- `undefined`/`null` → No attributes set
+
+**Why this matters:**
+- Phoenix evaluators require `input.value` and `output.value`
+- Phoenix UI displays I/O prominently for debugging
+- Enables exporting data for fine-tuning datasets
+
+### Custom I/O Processing
+
+Add custom metadata alongside standard I/O attributes:
+
+```typescript
+const processWithMetadata = withSpan(
+  async (query: string) => {
+    const result = await llm.generate(query);
+    return result;
+  },
+  {
+    name: "query.process",
+    kind: "CHAIN",
+    processInput: (query) => ({
+      "input.value": query,
+      "input.mime_type": "text/plain",
+      "input.length": query.length,  // Custom attribute
+    }),
+    processOutput: (result) => ({
+      "output.value": result.text,
+      "output.mime_type": "text/plain",
+      "output.tokens": result.usage?.totalTokens,  // Custom attribute
+    }),
+  }
+);
+```
+
 ## See Also
 
 - **Span attributes:** `span-chain.md`, `span-retriever.md`, `span-tool.md`, etc.
