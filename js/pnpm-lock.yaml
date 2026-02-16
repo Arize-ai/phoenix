@@ -56,6 +56,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^3.0.43
         version: 3.0.44(zod@3.25.76)
+      '@ai-sdk/mcp':
+        specifier: ^1.0.20
+        version: 1.0.21(zod@3.25.76)
       '@arizeai/openinference-core':
         specifier: ^2.0.5
         version: 2.0.5
@@ -427,6 +430,12 @@ packages:
 
   '@ai-sdk/google@2.0.53':
     resolution: {integrity: sha512-ccCxr5mrd3AC2CjLq4e1ST7+UiN5T2Pdmgi0XdWM3QohmNBwUQ/RBG7BvL+cB/ex/j6y64tkMmpYz9zBw/SEFQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/mcp@1.0.21':
+    resolution: {integrity: sha512-dRX2X6GDadZNpiylNnw0HP7zJC8ggVOOJV/JtxuF6CgtP8CKnc7a/wEzpUw1m/4AGdD3mTDhKnKFwC4y10a8FQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -3527,6 +3536,13 @@ snapshots:
       '@ai-sdk/provider': 2.0.1
       '@ai-sdk/provider-utils': 3.0.21(zod@4.3.6)
       zod: 4.3.6
+
+  '@ai-sdk/mcp@1.0.21(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@3.25.76)
+      pkce-challenge: 5.0.1
+      zod: 3.25.76
 
   '@ai-sdk/openai@2.0.91(zod@3.25.76)':
     dependencies:

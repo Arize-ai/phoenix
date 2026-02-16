@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.43",
+    "@ai-sdk/mcp": "^1.0.20",
     "@arizeai/openinference-core": "^2.0.5",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",

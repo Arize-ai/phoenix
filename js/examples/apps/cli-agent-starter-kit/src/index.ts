@@ -12,7 +12,8 @@ export {
   type ConversationHistory,
   type CreateAgentParams,
 } from "./agent/index.js";
-export { calculatorTool, getDateTimeTool } from "./agent/tools.js";
+export { getDateTimeTool } from "./agent/tools.js";
+export { initializeMCPClients, getMCPTools, cleanupMCPClients } from "./agent/mcp-clients.js";
 
 // Prompts
 export { AGENT_INSTRUCTIONS } from "./prompts/agent.js";

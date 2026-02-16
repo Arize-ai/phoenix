@@ -9,8 +9,8 @@ export function printWelcome() {
   intro("CLI Agent Starter Kit");
 
   const toolsAndCommands = `Available tools:
-  • Calculator - Perform mathematical calculations
   • Date/Time - Get current date and time
+  • Documentation - Search Phoenix and Arize-AX docs
 
 Commands:
   /exit or /quit - Exit the agent

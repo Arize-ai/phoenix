@@ -3,7 +3,8 @@
 
 // Import instrumentation first (Phoenix must be initialized early)
 import { type ConversationHistory, createAgent } from "./agent/index.js";
-import { calculatorTool, getDateTimeTool } from "./agent/tools.js";
+import { getDateTimeTool } from "./agent/tools.js";
+import { initializeMCPClients, getMCPTools, cleanupMCPClients } from "./agent/mcp-clients.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
 import { flush } from "./instrumentation.js";
@@ -53,16 +54,26 @@ async function main() {
   // Display banner
   showBanner();
 
+  // Initialize MCP clients
+  console.log("Initializing MCP documentation clients...");
+  await initializeMCPClients();
+
+  // Aggregate all tools
+  const mcpTools = await getMCPTools();
+  const tools = {
+    getDateTime: getDateTimeTool,
+    ...mcpTools,
+  };
+
+  console.log(`Loaded ${Object.keys(tools).length} tools\n`);
+
   // Display welcome
   printWelcome();
 
   // Create agent with tools and configuration
   // Note: You can override instructions via environment variable
   const agent = createAgent({
-    tools: {
-      calculator: calculatorTool,
-      getDateTime: getDateTimeTool,
-    },
+    tools,
     // Uses AGENT_INSTRUCTIONS by default
     // Uncomment to use environment variable override:
     // instructions: process.env.AGENT_INSTRUCTIONS,
@@ -75,15 +86,18 @@ async function main() {
   // Conversation ended - flush traces before exit
   console.log("Flushing traces...");
   await flush();
+  await cleanupMCPClients();
 }
 
 main()
-  .then(() => {
+  .then(async () => {
     // Clean exit after conversation loop completes
+    await cleanupMCPClients();
     process.exit(0);
   })
   .catch(async (error) => {
     console.error("Fatal error:", error);
+    await cleanupMCPClients();
     await flush();
     process.exit(1);
   });
