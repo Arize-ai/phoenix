@@ -1,6 +1,10 @@
 /* eslint-disable no-console */
 // Initialize Phoenix tracing before any AI SDK calls
-import { withSpan } from "@arizeai/openinference-core";
+import {
+  getInputAttributes,
+  getOutputAttributes,
+  withSpan,
+} from "@arizeai/openinference-core";
 
 import { flush, SESSION_ID } from "./instrumentation.js";
 
@@ -136,7 +140,7 @@ async function main() {
       // Use withSpan directly to create a parent CHAIN span with session.id
       // This groups all child spans (LLM, TOOL, etc.) under one trace
       const handleInteraction = withSpan(
-        async () => {
+        async (_input: string) => {
           return await agent.generate({
             prompt: conversationHistory
               .map(
@@ -166,10 +170,14 @@ async function main() {
           name: "cli.interaction",
           kind: "CHAIN",
           attributes: { "session.id": SESSION_ID },
+          // Capture input - automatically sets input.value and input.mime_type
+          processInput: (input: string) => getInputAttributes(input),
+          // Capture output - automatically sets output.value and output.mime_type
+          processOutput: (result) => getOutputAttributes(result.text),
         }
       );
 
-      const result = await handleInteraction();
+      const result = await handleInteraction(userInput);
 
       // Add assistant response to history
       conversationHistory.push({ role: "assistant", content: result.text });
