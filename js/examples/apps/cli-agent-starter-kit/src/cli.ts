@@ -3,8 +3,7 @@
 
 // Import instrumentation first (Phoenix must be initialized early)
 import { type ConversationHistory, createAgent } from "./agent/index.js";
-import { getDateTimeTool } from "./agent/tools.js";
-import { phoenixDocsMCPTool } from "./tools/mcp.js";
+import { dateTimeTool, phoenixDocsTool } from "./tools/index.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
 import { flush } from "./instrumentation.js";
@@ -59,8 +58,8 @@ async function main() {
 
   // Define available tools
   const tools = {
-    getDateTime: getDateTimeTool,
-    phoenixDocs: phoenixDocsMCPTool,
+    dateTime: dateTimeTool,
+    phoenixDocs: phoenixDocsTool,
   };
 
   // Create agent with tools and configuration

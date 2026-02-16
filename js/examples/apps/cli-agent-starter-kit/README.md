@@ -1,12 +1,13 @@
 # CLI Agent Starter Kit
 
-A modular, interactive TypeScript CLI agent powered by AI SDK's `ToolLoopAgent`, Anthropic's Claude, and Phoenix observability. Features a clean separation of concerns with dedicated modules for agent logic, UI, and tools.
+A modular, interactive TypeScript CLI agent powered by AI SDK's `ToolLoopAgent`, Anthropic's Claude, and Phoenix observability. This starter kit demonstrates a Phoenix documentation assistant with a clean, declarative tool architecture.
 
 ## Features
 
 - 🤖 **ToolLoopAgent** - Multi-step reasoning with automatic tool calling
 - 💬 **Interactive Mode** - Conversational CLI interface with ASCII art banner
-- 🛠️ **Extensible Tools** - Calculator, date/time, and custom tool support
+- 📚 **Phoenix Documentation** - Real-time access to Phoenix docs via MCP
+- 🛠️ **Declarative Tools** - Clean, modular tool architecture in `src/tools/`
 - 📊 **Phoenix Tracing** - Built-in observability with OpenTelemetry
 - 🔧 **Phoenix Skills** - Pre-configured CLI, tracing, and evals skills
 
@@ -79,8 +80,11 @@ cli-agent-starter-kit/
 ├── src/
 │   ├── cli.ts                # CLI entry point with banner
 │   ├── agent/
-│   │   ├── index.ts          # Agent factory and configuration
-│   │   └── tools.ts          # Tool definitions (calculator, date/time)
+│   │   └── index.ts          # Agent factory and configuration
+│   ├── tools/                # Declarative tool definitions
+│   │   ├── index.ts          # Tool exports and documentation
+│   │   ├── datetime.ts       # Date/time utility tool
+│   │   └── mcp.ts            # Phoenix docs MCP tool
 │   ├── prompts/
 │   │   └── agent.ts          # Agent system instructions
 │   ├── ui/
@@ -98,6 +102,73 @@ cli-agent-starter-kit/
 ├── docker-compose.yml        # Phoenix container configuration
 └── package.json              # Project dependencies
 ```
+
+## Tool Architecture
+
+All agent tools live in `src/tools/` with a declarative, consistent structure:
+
+### Naming Convention
+
+- **Tool exports**: camelCase with `Tool` suffix → `dateTimeTool`, `phoenixDocsTool`
+- **Tool files**: Match tool name without suffix → `datetime.ts`, `mcp.ts`
+- **Tool keys in agent**: camelCase without suffix → `dateTime`, `phoenixDocs`
+
+### Adding a New Tool
+
+1. **Create tool file** in `src/tools/mytool.ts`:
+   ```typescript
+   import { tool } from "ai";
+   import { z } from "zod";
+
+   /**
+    * Description of what your tool does
+    */
+   export const myTool = tool({
+     description: "Tool description for the AI",
+     inputSchema: z.object({
+       // Define your parameters
+     }),
+     execute: async (params) => {
+       // Implement tool logic
+       return result;
+     },
+   });
+   ```
+
+2. **Export from barrel** in `src/tools/index.ts`:
+   ```typescript
+   export { myTool } from "./mytool.js";
+   ```
+
+3. **Register in CLI** in `src/cli.ts`:
+   ```typescript
+   import { myTool } from "./tools/index.js";
+
+   const tools = {
+     my: myTool,  // Key is how AI references it
+     // ... other tools
+   };
+   ```
+
+### Tool Types
+
+**Utility Tools** (`datetime.ts`)
+- Simple, synchronous operations
+- No external dependencies
+- Quick helper functions
+
+**MCP Tools** (`mcp.ts`)
+- Model Context Protocol integrations
+- Real-time external data access
+- Loaded at module import (top-level await)
+
+### Best Practices
+
+- ✅ **Declarative**: Tools are simple exports, not classes or factories
+- ✅ **Self-documenting**: Clear JSDoc comments and type annotations
+- ✅ **Modular**: One tool per file, imported via barrel export
+- ✅ **Consistent**: Follow naming conventions for easy discovery
+- ✅ **Type-safe**: Use Zod schemas for input validation
 
 ## Production Build
 

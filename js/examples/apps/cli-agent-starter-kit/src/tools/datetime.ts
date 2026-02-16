@@ -2,9 +2,10 @@ import { tool } from "ai";
 import { z } from "zod";
 
 /**
- * Date/Time tool for getting the current date and time
+ * Date and time utility tool
+ * Provides current date and time in multiple formats
  */
-export const getDateTimeTool = tool({
+export const dateTimeTool = tool({
   description: "Get the current date and time",
   inputSchema: z.object({}),
   execute: async () => {

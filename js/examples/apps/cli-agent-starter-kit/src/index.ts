@@ -12,8 +12,9 @@ export {
   type ConversationHistory,
   type CreateAgentParams,
 } from "./agent/index.js";
-export { getDateTimeTool } from "./agent/tools.js";
-export { phoenixDocsMCPTool } from "./tools/mcp.js";
+
+// Tools
+export { dateTimeTool, phoenixDocsTool } from "./tools/index.js";
 
 // Prompts
 export { AGENT_INSTRUCTIONS } from "./prompts/agent.js";
