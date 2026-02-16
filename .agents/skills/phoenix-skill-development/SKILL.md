@@ -1,5 +1,5 @@
 ---
-name: skill-development
+name: phoenix-skill-development
 description: Develop, refine, and maintain skills in the skills/ directory. Use when creating a new skill, updating an existing skill, adding rule files, or improving skill quality and consistency.
 license: Apache-2.0
 metadata:
