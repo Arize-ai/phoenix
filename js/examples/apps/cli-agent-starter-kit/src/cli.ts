@@ -4,7 +4,7 @@
 // Import instrumentation first (Phoenix must be initialized early)
 import { type ConversationHistory, createAgent } from "./agent/index.js";
 import { getDateTimeTool } from "./agent/tools.js";
-import { initializeMCPClients, getMCPTools, cleanupMCPClients } from "./agent/mcp-clients.js";
+import { loadMCPTools } from "./tools/mcp.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
 import { flush } from "./instrumentation.js";
@@ -54,18 +54,14 @@ async function main() {
   // Display banner
   showBanner();
 
-  // Initialize MCP clients
-  console.log("Initializing MCP documentation clients...");
-  await initializeMCPClients();
-
-  // Aggregate all tools
-  const mcpTools = await getMCPTools();
+  // Load MCP documentation tools
+  const mcpTools = await loadMCPTools();
   const tools = {
     getDateTime: getDateTimeTool,
     ...mcpTools,
   };
 
-  console.log(`Loaded ${Object.keys(tools).length} tools\n`);
+  console.log(`\nReady with ${Object.keys(tools).length} tools\n`);
 
   // Display welcome
   printWelcome();
@@ -86,18 +82,15 @@ async function main() {
   // Conversation ended - flush traces before exit
   console.log("Flushing traces...");
   await flush();
-  await cleanupMCPClients();
 }
 
 main()
-  .then(async () => {
+  .then(() => {
     // Clean exit after conversation loop completes
-    await cleanupMCPClients();
     process.exit(0);
   })
   .catch(async (error) => {
     console.error("Fatal error:", error);
-    await cleanupMCPClients();
     await flush();
     process.exit(1);
   });

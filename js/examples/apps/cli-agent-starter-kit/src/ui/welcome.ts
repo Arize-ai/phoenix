@@ -6,11 +6,15 @@ import { intro, log, note } from "@clack/prompts";
  * Display welcome message and available commands
  */
 export function printWelcome() {
-  intro("CLI Agent Starter Kit");
+  intro("Phoenix Documentation Assistant");
 
-  const toolsAndCommands = `Available tools:
-  • Date/Time - Get current date and time
-  • Documentation - Search Phoenix and Arize-AX docs
+  const toolsAndCommands = `Ask me anything about Phoenix!
+
+Available capabilities:
+  • Phoenix documentation search
+  • Code examples and usage patterns
+  • API reference and guides
+  • Best practices and troubleshooting
 
 Commands:
   /exit or /quit - Exit the agent

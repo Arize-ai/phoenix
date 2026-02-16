@@ -7,13 +7,13 @@ import {
 import type { ConversationHistory } from "../agent/index.js";
 import { SESSION_ID } from "../instrumentation.js";
 
-import { renderMarkdown } from "./markdown.js";
 import { printWelcome } from "./welcome.js";
 
 import {
   cancel,
   isCancel,
   log,
+  note,
   outro,
   spinner,
   text,
@@ -94,9 +94,12 @@ export async function processUserMessage(
 
     s.stop("Agent");
 
-    // Display response with markdown rendering using @clack's log.message
-    const formattedText = renderMarkdown(result.text);
-    log.message(formattedText);
+    // Display response
+    if (result.text.includes("\n")) {
+      note(result.text, "Agent");
+    } else {
+      log.message(result.text);
+    }
 
     if (verbose) {
       log.info(`Completed in ${result.steps.length} steps`);
