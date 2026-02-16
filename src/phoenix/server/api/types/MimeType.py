@@ -12,5 +12,5 @@ class MimeType(Enum):
     json = trace_schemas.MimeType.JSON.value
 
     @classmethod
-    def _missing_(cls, value: Any) -> Any:
+    def _missing_(cls, value: Any) -> "MimeType" | None:
         return None if value else cls.text
