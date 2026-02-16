@@ -13,7 +13,7 @@ export {
   type CreateAgentParams,
 } from "./agent/index.js";
 export { getDateTimeTool } from "./agent/tools.js";
-export { loadMCPTools } from "./tools/mcp.js";
+export { phoenixDocsMCPTool } from "./tools/mcp.js";
 
 // Prompts
 export { AGENT_INSTRUCTIONS } from "./prompts/agent.js";

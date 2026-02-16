@@ -4,7 +4,7 @@
 // Import instrumentation first (Phoenix must be initialized early)
 import { type ConversationHistory, createAgent } from "./agent/index.js";
 import { getDateTimeTool } from "./agent/tools.js";
-import { loadMCPTools } from "./tools/mcp.js";
+import { phoenixDocsMCPTool } from "./tools/mcp.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
 import { flush } from "./instrumentation.js";
@@ -54,17 +54,14 @@ async function main() {
   // Display banner
   showBanner();
 
-  // Load MCP documentation tools
-  const mcpTools = await loadMCPTools();
-  const tools = {
-    getDateTime: getDateTimeTool,
-    ...mcpTools,
-  };
-
-  console.log(`\nReady with ${Object.keys(tools).length} tools\n`);
-
   // Display welcome
   printWelcome();
+
+  // Define available tools
+  const tools = {
+    getDateTime: getDateTimeTool,
+    phoenixDocs: phoenixDocsMCPTool,
+  };
 
   // Create agent with tools and configuration
   // Note: You can override instructions via environment variable
