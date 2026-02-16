@@ -14,7 +14,6 @@ import {
   cancel,
   isCancel,
   log,
-  note,
   outro,
   spinner,
   text,
@@ -95,11 +94,9 @@ export async function processUserMessage(
 
     s.stop("Agent");
 
-    // Display response with markdown rendering
-    // Output directly to preserve ANSI formatting from marked-terminal
+    // Display response with markdown rendering using @clack's log.message
     const formattedText = renderMarkdown(result.text);
-    // eslint-disable-next-line no-console
-    console.log("\n" + formattedText + "\n");
+    log.message(formattedText);
 
     if (verbose) {
       log.info(`Completed in ${result.steps.length} steps`);
