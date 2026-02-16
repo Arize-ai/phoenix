@@ -110,8 +110,19 @@ http://localhost:6007/?path=/story/button--default
 
 ## Step 5 (optional): Publish Code Connect Mappings
 
-The Storybook embed works without publishing - only the Figma Dev Mode
-integration requires publishing.
+The Storybook embed works without publishing — only the Figma Dev Mode
+integration requires publishing. To publish, you need a Figma access token:
+
+1. Go to https://www.figma.com/settings → **Personal access tokens**
+2. Click **Generate new token**, give it a name, and copy the token
+3. Add the token to your shell config (e.g., `~/.zshrc`):
+
+```bash
+export FIGMA_ACCESS_TOKEN=your_token_here
+```
+
+4. Reload your shell (`source ~/.zshrc`) or open a new terminal
+5. Run the publish command:
 
 ```bash
 npx figma connect publish
