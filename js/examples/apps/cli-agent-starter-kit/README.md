@@ -5,11 +5,10 @@ A modular, interactive TypeScript CLI agent powered by AI SDK's `ToolLoopAgent`,
 ## Features
 
 - 🤖 **ToolLoopAgent** - Multi-step reasoning with automatic tool calling
-- 💬 **Interactive Mode** - Conversational CLI interface with beautiful ASCII art banner
+- 💬 **Interactive Mode** - Conversational CLI interface with ASCII art banner
 - 🛠️ **Extensible Tools** - Calculator, date/time, and custom tool support
 - 📊 **Phoenix Tracing** - Built-in observability with OpenTelemetry
 - 🔧 **Phoenix Skills** - Pre-configured CLI, tracing, and evals skills
-- 🎨 **Turquoise Gradient** - Eye-catching sky-to-ocean gradient banner
 
 ## Prerequisites
 
