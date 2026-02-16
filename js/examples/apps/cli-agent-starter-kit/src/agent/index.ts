@@ -1,6 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { stepCountIs, Tool, ToolLoopAgent } from "ai";
-import { DEFAULT_AGENT_INSTRUCTIONS } from "../prompts/agent.js";
+import { AGENT_INSTRUCTIONS } from "../prompts/agent.js";
 
 /**
  * Conversation history entry
@@ -11,10 +11,12 @@ export type ConversationHistory = Array<{
 }>;
 
 /**
- * Agent configuration options
+ * Parameters for creating an agent
  */
-export interface AgentConfig {
-  /** System instructions for the agent (default: DEFAULT_AGENT_INSTRUCTIONS) */
+export interface CreateAgentParams {
+  /** Record of tool names to tool instances */
+  tools: Record<string, Tool>;
+  /** System instructions for the agent (default: AGENT_INSTRUCTIONS) */
   instructions?: string;
   /** Maximum number of steps before stopping (default: 10) */
   maxSteps?: number;
@@ -23,19 +25,14 @@ export interface AgentConfig {
 /**
  * Create a new agent instance with the provided tools
  *
- * @param tools - Record of tool names to tool instances
- * @param config - Optional configuration for the agent
+ * @param params - Agent configuration parameters
  * @returns Configured ToolLoopAgent
  */
-export function createAgent(
-  tools: Record<string, Tool>,
-  config: AgentConfig = {}
-) {
-  const {
-    instructions = DEFAULT_AGENT_INSTRUCTIONS,
-    maxSteps = 10,
-  } = config;
-
+export function createAgent({
+  tools,
+  instructions = AGENT_INSTRUCTIONS,
+  maxSteps = 10,
+}: CreateAgentParams) {
   return new ToolLoopAgent({
     model: anthropic("claude-sonnet-4-20250514"),
     instructions,

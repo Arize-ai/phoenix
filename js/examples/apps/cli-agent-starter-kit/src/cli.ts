@@ -58,20 +58,16 @@ async function main() {
   printWelcome();
 
   // Create agent with tools and configuration
-  // Note: You can override instructions via environment variable or pass custom config
-  const agent = createAgent(
-    {
+  // Note: You can override instructions via environment variable
+  const agent = createAgent({
+    tools: {
       calculator: calculatorTool,
       getDateTime: getDateTimeTool,
     },
-    {
-      // Uses DEFAULT_AGENT_INSTRUCTIONS by default
-      // Uncomment to use environment variable override:
-      // instructions: process.env.AGENT_INSTRUCTIONS,
-      // Or use a different instruction style:
-      // instructions: VERBOSE_AGENT_INSTRUCTIONS,
-    }
-  );
+    // Uses AGENT_INSTRUCTIONS by default
+    // Uncomment to use environment variable override:
+    // instructions: process.env.AGENT_INSTRUCTIONS,
+  });
 
   // Start conversation loop
   const conversationHistory: ConversationHistory = [];

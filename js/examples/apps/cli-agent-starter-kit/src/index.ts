@@ -9,16 +9,12 @@
 export {
   createAgent,
   type ConversationHistory,
-  type AgentConfig,
+  type CreateAgentParams,
 } from "./agent/index.js";
 export { calculatorTool, getDateTimeTool } from "./agent/tools.js";
 
 // Prompts
-export {
-  DEFAULT_AGENT_INSTRUCTIONS,
-  VERBOSE_AGENT_INSTRUCTIONS,
-  MINIMAL_AGENT_INSTRUCTIONS,
-} from "./prompts/agent.js";
+export { AGENT_INSTRUCTIONS } from "./prompts/agent.js";
 
 // UI components
 export { conversationLoop, processUserMessage } from "./ui/interaction.js";
