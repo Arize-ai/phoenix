@@ -9,8 +9,17 @@ import {
 import { flush, SESSION_ID } from "./instrumentation.js";
 
 import { anthropic } from "@ai-sdk/anthropic";
+import {
+  cancel,
+  intro,
+  isCancel,
+  log,
+  note,
+  outro,
+  spinner,
+  text,
+} from "@clack/prompts";
 import { stepCountIs, tool, ToolLoopAgent } from "ai";
-import * as readline from "node:readline";
 import { z } from "zod";
 
 // Define tools for the agent
@@ -44,17 +53,147 @@ const getDateTimeTool = tool({
 });
 
 function printWelcome() {
-  console.log("╔═══════════════════════════════════════════════════════════╗");
-  console.log("║         CLI Agent Starter Kit - Interactive Mode         ║");
-  console.log("╚═══════════════════════════════════════════════════════════╝");
-  console.log("\nAvailable tools:");
-  console.log("  • Calculator - Perform mathematical calculations");
-  console.log("  • Date/Time - Get current date and time");
-  console.log("\nCommands:");
-  console.log("  /exit or /quit - Exit the agent");
-  console.log("  /help - Show this help message");
-  console.log("  /clear - Clear conversation history");
-  console.log("\n");
+  intro("CLI Agent Starter Kit");
+
+  const toolsAndCommands = `Available tools:
+  • Calculator - Perform mathematical calculations
+  • Date/Time - Get current date and time
+
+Commands:
+  /exit or /quit - Exit the agent
+  /help - Show this help message
+  /clear - Clear conversation history`;
+
+  note(toolsAndCommands, "Interactive Mode");
+  log.info(`Session ID: ${SESSION_ID}`);
+}
+
+async function handleExit(cancelled = false) {
+  if (cancelled) {
+    cancel("Operation cancelled");
+  } else {
+    outro("Thanks for using CLI Agent Starter Kit!");
+  }
+
+  console.log("Flushing traces...");
+  await flush();
+  process.exit(0);
+}
+
+async function processUserMessage(
+  input: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  agent: ToolLoopAgent<any, any>,
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
+) {
+  conversationHistory.push({ role: "user", content: input });
+
+  const s = spinner();
+  s.start("Agent is thinking...");
+
+  try {
+    const verbose = process.env.VERBOSE === "true";
+    let stepNumber = 0;
+
+    const handleInteraction = withSpan(
+      async (_input: string) => {
+        return await agent.generate({
+          options: {},
+          prompt: conversationHistory
+            .map(
+              (msg) =>
+                `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
+            )
+            .join("\n\n"),
+          onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
+            if (verbose) {
+              stepNumber++;
+              const tools = toolCalls
+                ? toolCalls.map((tc) => tc.toolName).join(", ")
+                : "no tools";
+              s.message(`Step ${stepNumber}: ${finishReason} - ${tools}`);
+            } else if (toolCalls && toolCalls.length > 0) {
+              const toolNames = toolCalls.map((tc) => tc.toolName).join(", ");
+              s.message(`Using tools: ${toolNames}`);
+            }
+          },
+        });
+      },
+      {
+        name: "cli.interaction",
+        kind: "CHAIN",
+        attributes: { "session.id": SESSION_ID },
+        // Capture input - automatically sets input.value and input.mime_type
+        processInput: (input: string) => getInputAttributes(input),
+        // Capture output - automatically sets output.value and output.mime_type
+        processOutput: (result) => getOutputAttributes(result.text),
+      }
+    );
+
+    const result = await handleInteraction(input);
+
+    s.stop("Agent");
+
+    // Display response
+    if (result.text.includes("\n")) {
+      note(result.text, "Agent");
+    } else {
+      log.message(result.text);
+    }
+
+    if (verbose) {
+      log.info(`Completed in ${result.steps.length} steps`);
+    }
+
+    conversationHistory.push({ role: "assistant", content: result.text });
+  } catch (error) {
+    s.stop("Agent encountered an error");
+    log.error(String(error));
+  }
+}
+
+async function conversationLoop(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  agent: ToolLoopAgent<any, any>,
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
+) {
+  while (true) {
+    const userInput = await text({
+      message: "You",
+      placeholder: "Ask a question or use /help for commands",
+    });
+
+    if (isCancel(userInput)) {
+      await handleExit(true);
+      break;
+    }
+
+    const input = (userInput as string).trim();
+
+    // Command handling
+    if (input === "/exit" || input === "/quit") {
+      await handleExit();
+      break;
+    }
+
+    if (input === "/help") {
+      printWelcome();
+      continue;
+    }
+
+    if (input === "/clear") {
+      conversationHistory.length = 0;
+      log.success("Conversation history cleared");
+      continue;
+    }
+
+    if (!input) {
+      continue;
+    }
+
+    // Process message with spinner
+    await processUserMessage(input, agent, conversationHistory);
+  }
 }
 
 async function main() {
@@ -67,9 +206,6 @@ async function main() {
   }
 
   printWelcome();
-
-  // Display session ID for tracking
-  console.log(`\x1b[90mSession ID: ${SESSION_ID}\x1b[0m\n`);
 
   // Create a ToolLoopAgent with tools
   const agent = new ToolLoopAgent({
@@ -86,119 +222,13 @@ async function main() {
     experimental_telemetry: { isEnabled: true },
   });
 
-  // Create readline interface for user input
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: "\n\x1b[36mYou:\x1b[0m ",
-  });
-
-  let conversationHistory: Array<{
+  const conversationHistory: Array<{
     role: "user" | "assistant";
     content: string;
   }> = [];
 
-  rl.prompt();
-
-  rl.on("line", async (input) => {
-    const userInput = input.trim();
-
-    // Handle commands
-    if (userInput === "/exit" || userInput === "/quit") {
-      console.log("\n\x1b[33mGoodbye!\x1b[0m\n");
-      rl.close();
-      return;
-    }
-
-    if (userInput === "/help") {
-      printWelcome();
-      rl.prompt();
-      return;
-    }
-
-    if (userInput === "/clear") {
-      conversationHistory = [];
-      console.log("\n\x1b[33m✓ Conversation history cleared\x1b[0m");
-      rl.prompt();
-      return;
-    }
-
-    if (!userInput) {
-      rl.prompt();
-      return;
-    }
-
-    // Add user message to history
-    conversationHistory.push({ role: "user", content: userInput });
-
-    try {
-      let stepNumber = 0;
-      const verbose = process.env.VERBOSE === "true";
-
-      console.log("\x1b[35mAgent:\x1b[0m");
-
-      // Use withSpan directly to create a parent CHAIN span with session.id
-      // This groups all child spans (LLM, TOOL, etc.) under one trace
-      const handleInteraction = withSpan(
-        async (_input: string) => {
-          return await agent.generate({
-            prompt: conversationHistory
-              .map(
-                (msg) =>
-                  `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
-              )
-              .join("\n\n"),
-            // Log each step if verbose mode
-            onStepFinish: async ({
-              usage: _usage,
-              finishReason,
-              toolCalls,
-            }) => {
-              if (verbose) {
-                stepNumber++;
-                const tools = toolCalls
-                  ? toolCalls.map((tc) => tc.toolName).join(", ")
-                  : "no tools";
-                console.log(
-                  `\x1b[90m[Step ${stepNumber}] ${finishReason} - ${tools}\x1b[0m`
-                );
-              }
-            },
-          });
-        },
-        {
-          name: "cli.interaction",
-          kind: "CHAIN",
-          attributes: { "session.id": SESSION_ID },
-          // Capture input - automatically sets input.value and input.mime_type
-          processInput: (input: string) => getInputAttributes(input),
-          // Capture output - automatically sets output.value and output.mime_type
-          processOutput: (result) => getOutputAttributes(result.text),
-        }
-      );
-
-      const result = await handleInteraction(userInput);
-
-      // Add assistant response to history
-      conversationHistory.push({ role: "assistant", content: result.text });
-
-      console.log(result.text);
-
-      if (verbose) {
-        console.log(`\x1b[90m(${result.steps.length} steps)\x1b[0m`);
-      }
-    } catch (error) {
-      console.error("\n\x1b[31mError:\x1b[0m", error);
-    }
-
-    rl.prompt();
-  });
-
-  rl.on("close", async () => {
-    console.log("\nFlushing traces...");
-    await flush();
-    process.exit(0);
-  });
+  // Start conversation loop
+  await conversationLoop(agent, conversationHistory);
 }
 
 main()

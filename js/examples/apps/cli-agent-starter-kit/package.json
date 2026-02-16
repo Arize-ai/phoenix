@@ -36,6 +36,7 @@
     "@ai-sdk/anthropic": "^3.0.43",
     "@arizeai/openinference-core": "^2.0.5",
     "@arizeai/phoenix-otel": "workspace:*",
+    "@clack/prompts": "^1.0.1",
     "ai": "^6.0.84",
     "zod": "^3.25.76"
   }
