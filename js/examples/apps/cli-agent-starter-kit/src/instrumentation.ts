@@ -1,4 +1,5 @@
 import { register } from "@arizeai/phoenix-otel";
+
 import { randomUUID } from "node:crypto";
 
 /**

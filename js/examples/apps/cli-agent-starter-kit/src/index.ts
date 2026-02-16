@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 // Initialize Phoenix tracing before any AI SDK calls
-import { flush, SESSION_ID } from "./instrumentation.js";
-
 import { withSpan } from "@arizeai/openinference-core";
+
+import { flush, SESSION_ID } from "./instrumentation.js";
 
 import { anthropic } from "@ai-sdk/anthropic";
 import { stepCountIs, tool, ToolLoopAgent } from "ai";
