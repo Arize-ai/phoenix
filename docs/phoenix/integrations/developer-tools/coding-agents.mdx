@@ -5,31 +5,18 @@ description: Integrate Phoenix with AI coding assistants using CLI, MCP, and ski
 
 Use this guide to connect coding agents (Claude Code, Cursor, VS Code, Windsurf, and others) to Phoenix for debugging, observability, and evaluation workflows.
 
-## Choose Your Integration
+## Recommended Setup
 
-<CardGroup cols={3}>
-  <Card title="CLI" icon="terminal" href="#cli">
-    Terminal-native Phoenix workflows for traces, experiments, datasets, and prompts.
-  </Card>
-  <Card title="MCP" icon="plug" href="#mcp">
-    Tool-based access in assistants like Claude Code.
-  </Card>
-  <Card title="Skills" icon="wand-magic-sparkles" href="#skills">
-    Reusable agent instructions and workflows.
-  </Card>
-</CardGroup>
+Most users should set up all three:
 
-| Integration | Best for | Outcome |
-|------------|----------|---------|
-| `CLI` | Terminal-first debugging and scripting | Use `px` for traces, experiments, datasets, prompts, and troubleshooting workflows |
-| `MCP` | In-editor assistant workflows | Let coding agents search Phoenix docs in real time |
-| `Skills` | Repeatable agent behavior | Teach agents Phoenix-specific debugging, eval, and tracing patterns |
+1. `CLI`: terminal access to traces, experiments, datasets, and prompts.
+2. `MCP`: in-editor Phoenix documentation lookup and (optionally) direct Phoenix instance operations.
+3. `Skills`: reusable instructions so agents apply Phoenix best practices consistently.
 
-## Quick Start
-
-1. Configure environment variables (for CLI and Phoenix API operations).
-2. Add Phoenix Docs MCP in your editor/agent (optional but recommended).
-3. Install Phoenix skills so your coding agent follows Phoenix best practices.
+Jump to:
+- [CLI](#cli)
+- [MCP](#mcp)
+- [Skills](#skills)
 
 ## Shared Environment Configuration
 
@@ -76,7 +63,14 @@ px --help
 
 ## MCP
 
-Use MCP to give coding agents live access to Phoenix documentation while they work.
+MCP has two different Phoenix integrations, and they serve different goals.
+
+| MCP Integration | Purpose | When to use |
+|---|---|---|
+| `Phoenix Docs MCP` | Search Phoenix documentation from your coding agent | Recommended for all users |
+| `Phoenix MCP Server` | Operate directly on your Phoenix instance (prompts, datasets, experiments) | Use when you want agent-driven Phoenix data operations |
+
+### Phoenix Docs MCP (Documentation Access)
 
 Phoenix Docs MCP URL:
 
@@ -155,12 +149,14 @@ https://arizeai-433a7140.mintlify.app/mcp
 Reference docs: [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code/mcp), [Cursor MCP](https://docs.cursor.com/context/model-context-protocol), [VS Code MCP servers](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf MCP](https://docs.windsurf.com/windsurf/mcp).
 </Note>
 
-For prompt, dataset, and experiment operations against your Phoenix instance, use:
+### Phoenix MCP Server (Direct Phoenix Operations)
+
+For prompt, dataset, and experiment operations against your Phoenix instance, use the dedicated setup guide:
 
 - [/docs/phoenix/integrations/phoenix-mcp-server](/docs/phoenix/integrations/phoenix-mcp-server)
 
 <Info>
-Phoenix Docs MCP (this section) is for documentation lookup. Phoenix MCP Server is for direct operations on your Phoenix instance (prompts, datasets, experiments).
+Install both MCP integrations if you want your coding agent to both look up docs and perform direct Phoenix instance operations.
 </Info>
 
 ## Skills
