@@ -1,6 +1,8 @@
 /* eslint-disable no-console */
 // Initialize Phoenix tracing before any AI SDK calls
-import { flush } from "./instrumentation.js";
+import { withSpan } from "@arizeai/openinference-core";
+
+import { flush, SESSION_ID } from "./instrumentation.js";
 
 import { anthropic } from "@ai-sdk/anthropic";
 import { stepCountIs, tool, ToolLoopAgent } from "ai";
@@ -61,6 +63,9 @@ async function main() {
   }
 
   printWelcome();
+
+  // Display session ID for tracking
+  console.log(`\x1b[90mSession ID: ${SESSION_ID}\x1b[0m\n`);
 
   // Create a ToolLoopAgent with tools
   const agent = new ToolLoopAgent({
@@ -128,27 +133,43 @@ async function main() {
 
       console.log("\x1b[35mAgent:\x1b[0m");
 
-      // Run the agent with conversation history
-      const result = await agent.generate({
-        prompt: conversationHistory
-          .map(
-            (msg) =>
-              `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
-          )
-          .join("\n\n"),
-        // Log each step if verbose mode
-        onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
-          if (verbose) {
-            stepNumber++;
-            const tools = toolCalls
-              ? toolCalls.map((tc) => tc.toolName).join(", ")
-              : "no tools";
-            console.log(
-              `\x1b[90m[Step ${stepNumber}] ${finishReason} - ${tools}\x1b[0m`
-            );
-          }
+      // Use withSpan directly to create a parent CHAIN span with session.id
+      // This groups all child spans (LLM, TOOL, etc.) under one trace
+      const handleInteraction = withSpan(
+        async () => {
+          return await agent.generate({
+            prompt: conversationHistory
+              .map(
+                (msg) =>
+                  `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
+              )
+              .join("\n\n"),
+            // Log each step if verbose mode
+            onStepFinish: async ({
+              usage: _usage,
+              finishReason,
+              toolCalls,
+            }) => {
+              if (verbose) {
+                stepNumber++;
+                const tools = toolCalls
+                  ? toolCalls.map((tc) => tc.toolName).join(", ")
+                  : "no tools";
+                console.log(
+                  `\x1b[90m[Step ${stepNumber}] ${finishReason} - ${tools}\x1b[0m`
+                );
+              }
+            },
+          });
         },
-      });
+        {
+          name: "cli.interaction",
+          kind: "CHAIN",
+          attributes: { "session.id": SESSION_ID },
+        }
+      );
+
+      const result = await handleInteraction();
 
       // Add assistant response to history
       conversationHistory.push({ role: "assistant", content: result.text });

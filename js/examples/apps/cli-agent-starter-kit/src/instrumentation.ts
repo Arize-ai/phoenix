@@ -1,5 +1,7 @@
 import { register } from "@arizeai/phoenix-otel";
 
+import { randomUUID } from "node:crypto";
+
 /**
  * Initialize Phoenix tracing for the CLI agent
  * This should be imported before any AI SDK calls
@@ -13,6 +15,19 @@ const provider = register({
   // Use batch processing for better performance
   batch: true,
 });
+
+/**
+ * Generate a unique session ID for this CLI session
+ * All traces created during this session will share this ID
+ *
+ * Use with withSpan from @arizeai/openinference-core:
+ * const handler = withSpan(async () => {...}, {
+ *   name: "interaction",
+ *   kind: "CHAIN",
+ *   attributes: { "session.id": SESSION_ID }
+ * });
+ */
+export const SESSION_ID = randomUUID();
 
 /**
  * Flush all pending spans before the process exits
