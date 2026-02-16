@@ -4,7 +4,7 @@
   "description": "",
   "private": true,
   "type": "module",
-  "main": "dist/cli.js",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "cli-agent": "./dist/cli.js"
