@@ -78,10 +78,12 @@ PHOENIX_API_KEY=your_phoenix_api_key              # Phoenix Cloud only
 ```
 cli-agent-starter-kit/
 ├── src/
-│   ├── cli.ts                # CLI entry point with banner and shebang
+│   ├── cli.ts                # CLI entry point with banner
 │   ├── agent/
 │   │   ├── index.ts          # Agent factory and configuration
 │   │   └── tools.ts          # Tool definitions (calculator, date/time)
+│   ├── prompts/
+│   │   └── agent.ts          # Agent system instructions
 │   ├── ui/
 │   │   ├── welcome.ts        # Welcome banner and help display
 │   │   └── interaction.ts    # Conversation loop and user interaction
@@ -95,16 +97,8 @@ cli-agent-starter-kit/
 │       ├── phoenix-evals
 │       └── phoenix-tracing
 ├── docker-compose.yml        # Phoenix container configuration
-├── AGENTS.md                 # Agent configuration
 └── package.json              # Project dependencies
 ```
-
-### Architecture
-
-- **`cli.ts`** - Entry point with banner
-- **`agent/`** - Agent logic and tools
-- **`ui/`** - User interface components
-- **`index.ts`** - Programmatic API exports
 
 ## Production Build
 
