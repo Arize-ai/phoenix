@@ -9,14 +9,17 @@ Use this guide to connect coding agents (Claude Code, Cursor, VS Code, Windsurf,
 
 Most users should set up all three:
 
-1. `CLI`: terminal access to traces, experiments, datasets, and prompts.
-2. `MCP`: in-editor Phoenix documentation lookup and (optionally) direct Phoenix instance operations.
-3. `Skills`: reusable instructions so agents apply Phoenix best practices consistently.
-
-Jump to:
-- [CLI](#cli)
-- [MCP](#mcp)
-- [Skills](#skills)
+<CardGroup cols={3}>
+  <Card title="CLI" icon="terminal" href="#cli">
+    Terminal access to traces, experiments, datasets, and prompts.
+  </Card>
+  <Card title="MCP" icon="plug" href="#mcp">
+    In-editor Phoenix documentation lookup and optional direct Phoenix instance operations.
+  </Card>
+  <Card title="Skills" icon="wand-magic-sparkles" href="#skills">
+    Reusable instructions so agents apply Phoenix best practices consistently.
+  </Card>
+</CardGroup>
 
 ## Shared Environment Configuration
 
@@ -78,72 +81,74 @@ Phoenix Docs MCP URL:
 https://arizeai-433a7140.mintlify.app/mcp
 ```
 
-<Tabs>
-  <Tab title="Claude Code">
-    Project scope:
+<Card title="Configure Phoenix Docs MCP by Editor/Agent" icon="plug">
+  <Tabs>
+    <Tab title="Claude Code">
+      Project scope:
 
-    ```bash
-    claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
-    ```
+      ```bash
+      claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+      ```
 
-    User scope:
+      User scope:
 
-    ```bash
-    claude mcp add --transport http phoenix-docs --scope user https://arizeai-433a7140.mintlify.app/mcp
-    ```
+      ```bash
+      claude mcp add --transport http phoenix-docs --scope user https://arizeai-433a7140.mintlify.app/mcp
+      ```
 
-    Verify:
+      Verify:
 
-    ```bash
-    claude mcp list
-    ```
-  </Tab>
-  <Tab title="Cursor">
-    Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
+      ```bash
+      claude mcp list
+      ```
+    </Tab>
+    <Tab title="Cursor">
+      Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
 
-    ```json
-    {
-      "mcpServers": {
-        "phoenix-docs": {
-          "url": "https://arizeai-433a7140.mintlify.app/mcp"
+      ```json
+      {
+        "mcpServers": {
+          "phoenix-docs": {
+            "url": "https://arizeai-433a7140.mintlify.app/mcp"
+          }
         }
       }
-    }
-    ```
+      ```
 
-    Then restart Cursor and confirm the server appears in MCP settings.
-  </Tab>
-  <Tab title="VS Code">
-    Use the Command Palette and run `MCP: Add Server`, or add the server to `.vscode/mcp.json`:
+      Then restart Cursor and confirm the server appears in MCP settings.
+    </Tab>
+    <Tab title="VS Code">
+      Use the Command Palette and run `MCP: Add Server`, or add the server to `.vscode/mcp.json`:
 
-    ```json
-    {
-      "servers": {
-        "phoenix-docs": {
-          "url": "https://arizeai-433a7140.mintlify.app/mcp"
+      ```json
+      {
+        "servers": {
+          "phoenix-docs": {
+            "url": "https://arizeai-433a7140.mintlify.app/mcp"
+          }
         }
       }
-    }
-    ```
+      ```
 
-    Then run `MCP: List Servers` in the Command Palette to verify.
-  </Tab>
-  <Tab title="Windsurf">
-    Add to `~/.codeium/windsurf/mcp_config.json`:
+      Then run `MCP: List Servers` in the Command Palette to verify.
+    </Tab>
+    <Tab title="Windsurf">
+      Add to `~/.codeium/windsurf/mcp_config.json`:
 
-    ```json
-    {
-      "mcpServers": {
-        "phoenix-docs": {
-          "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
+      ```json
+      {
+        "mcpServers": {
+          "phoenix-docs": {
+            "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
+          }
         }
       }
-    }
-    ```
+      ```
 
-    Then refresh MCP servers from Windsurf MCP settings.
-  </Tab>
-</Tabs>
+      Then refresh MCP servers from Windsurf MCP settings.
+    </Tab>
+  </Tabs>
+</Card>
 
 <Note>
 Reference docs: [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code/mcp), [Cursor MCP](https://docs.cursor.com/context/model-context-protocol), [VS Code MCP servers](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf MCP](https://docs.windsurf.com/windsurf/mcp).
