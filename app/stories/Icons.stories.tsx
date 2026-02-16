@@ -6,6 +6,12 @@ import { Icon, Icons } from "@phoenix/components";
 const meta: Meta = {
   title: "Icons",
   component: Icon,
+  parameters: {
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=6-455",
+    },
+  },
 };
 
 export default meta;

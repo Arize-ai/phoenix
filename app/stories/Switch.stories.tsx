@@ -8,6 +8,10 @@ const meta: Meta<SwitchProps> = {
   component: Switch,
   parameters: {
     controls: { expanded: true },
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=467-75",
+    },
   },
   argTypes: {
     isSelected: {
