@@ -24,11 +24,11 @@ const LOGO_LINES = [
 // 256-color turquoise gradient (sky to ocean)
 const GRADIENT = [
   "\x1b[38;5;122m", // sky cyan
-  "\x1b[38;5;86m",  // bright aqua
-  "\x1b[38;5;50m",  // turquoise
-  "\x1b[38;5;44m",  // ocean teal
-  "\x1b[38;5;37m",  // deep sea
-  "\x1b[38;5;30m",  // abyss
+  "\x1b[38;5;86m", // bright aqua
+  "\x1b[38;5;50m", // turquoise
+  "\x1b[38;5;44m", // ocean teal
+  "\x1b[38;5;37m", // deep sea
+  "\x1b[38;5;30m", // abyss
 ];
 
 function showBanner(): void {
