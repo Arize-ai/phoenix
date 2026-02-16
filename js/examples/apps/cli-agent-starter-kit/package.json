@@ -6,13 +6,16 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "cli-agent": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
-    "dev": "pnpm phoenix:ensure && tsx --env-file=.env src/index.ts",
-    "dev:verbose": "pnpm phoenix:ensure && VERBOSE=true tsx --env-file=.env src/index.ts",
-    "dev:no-phoenix": "tsx --env-file=.env src/index.ts",
-    "start": "node --env-file=.env dist/index.js",
-    "start:verbose": "VERBOSE=true node --env-file=.env dist/index.js",
+    "dev": "pnpm phoenix:ensure && tsx --env-file=.env src/cli.ts",
+    "dev:verbose": "pnpm phoenix:ensure && VERBOSE=true tsx --env-file=.env src/cli.ts",
+    "dev:no-phoenix": "tsx --env-file=.env src/cli.ts",
+    "start": "node --env-file=.env dist/cli.js",
+    "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js",
     "clean": "rm -rf dist",
     "phoenix:ensure": "./scripts/ensure-phoenix.sh",
     "phoenix:ensure:verbose": "./scripts/ensure-phoenix.sh --verbose",
@@ -36,6 +39,7 @@
     "@ai-sdk/anthropic": "^3.0.43",
     "@arizeai/openinference-core": "^2.0.5",
     "@arizeai/phoenix-otel": "workspace:*",
+    "@clack/prompts": "^1.0.1",
     "ai": "^6.0.84",
     "zod": "^3.25.76"
   }

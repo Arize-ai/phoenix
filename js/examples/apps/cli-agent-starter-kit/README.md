@@ -1,11 +1,11 @@
 # CLI Agent Starter Kit
 
-An interactive TypeScript CLI agent powered by AI SDK's `ToolLoopAgent`, Anthropic's Claude, and Phoenix observability.
+A modular, interactive TypeScript CLI agent powered by AI SDK's `ToolLoopAgent`, Anthropic's Claude, and Phoenix observability. Features a clean separation of concerns with dedicated modules for agent logic, UI, and tools.
 
 ## Features
 
 - 🤖 **ToolLoopAgent** - Multi-step reasoning with automatic tool calling
-- 💬 **Interactive Mode** - Conversational CLI interface
+- 💬 **Interactive Mode** - Conversational CLI interface with ASCII art banner
 - 🛠️ **Extensible Tools** - Calculator, date/time, and custom tool support
 - 📊 **Phoenix Tracing** - Built-in observability with OpenTelemetry
 - 🔧 **Phoenix Skills** - Pre-configured CLI, tracing, and evals skills
@@ -77,7 +77,16 @@ PHOENIX_API_KEY=your_phoenix_api_key              # Phoenix Cloud only
 ```
 cli-agent-starter-kit/
 ├── src/
-│   ├── index.ts              # Main entry point and agent configuration
+│   ├── cli.ts                # CLI entry point with banner
+│   ├── agent/
+│   │   ├── index.ts          # Agent factory and configuration
+│   │   └── tools.ts          # Tool definitions (calculator, date/time)
+│   ├── prompts/
+│   │   └── agent.ts          # Agent system instructions
+│   ├── ui/
+│   │   ├── welcome.ts        # Welcome banner and help display
+│   │   └── interaction.ts    # Conversation loop and user interaction
+│   ├── index.ts              # Programmatic API exports
 │   └── instrumentation.ts    # Phoenix tracing setup
 ├── scripts/
 │   └── ensure-phoenix.sh     # Phoenix Docker management
@@ -87,19 +96,17 @@ cli-agent-starter-kit/
 │       ├── phoenix-evals
 │       └── phoenix-tracing
 ├── docker-compose.yml        # Phoenix container configuration
-├── AGENTS.md                 # Agent configuration
 └── package.json              # Project dependencies
 ```
-
-## Customization
-
-The starter kit includes example tools (calculator, date/time) that can be extended or replaced. See `src/index.ts` for the agent configuration and available tools.
 
 ## Production Build
 
 ```bash
 pnpm build       # Compile TypeScript
 pnpm start       # Run compiled output
+
+# Optional: Install globally
+npm link         # Use as 'cli-agent' command
 ```
 
 ## Troubleshooting

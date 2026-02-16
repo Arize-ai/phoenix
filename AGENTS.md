@@ -161,3 +161,5 @@ Phoenix includes specialized skills in the `skills/` directory that teach AI age
 5. **Lint Fix Required Before Handoff**: After making changes, run the relevant lint command with auto-fix and then re-run validation for touched areas.
    - `js/`: `pnpm --dir js lint --fix`
    - `app/`: `pnpm --dir app run lint:fix`
+
+6. **README Guidelines**: When writing or updating README files, focus on the key functionality and features that matter to users (e.g., tracing, evaluations, observability). DO NOT include random implementation details like color schemes, gradients, styling choices, or other superficial aspects. READMEs should communicate what the tool does and how to use it, not aesthetic implementation details.
