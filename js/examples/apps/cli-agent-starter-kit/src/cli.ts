@@ -72,12 +72,16 @@ async function main() {
   // Start conversation loop
   const conversationHistory: ConversationHistory = [];
   await conversationLoop(agent, conversationHistory);
+
+  // Conversation ended - flush traces before exit
+  console.log("Flushing traces...");
+  await flush();
 }
 
 main()
   .then(() => {
-    // Allow time for spans to be flushed before exit
-    // The beforeExit handler will ensure proper shutdown
+    // Clean exit after conversation loop completes
+    process.exit(0);
   })
   .catch(async (error) => {
     console.error("Fatal error:", error);

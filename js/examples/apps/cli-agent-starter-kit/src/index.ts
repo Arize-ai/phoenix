@@ -1,8 +1,9 @@
 /**
  * CLI Agent Starter Kit - Programmatic API
  *
- * This module exports the core components for building CLI agents
- * with AI SDK and Phoenix tracing.
+ * This module exports core components for building agents with AI SDK.
+ * Note: This does NOT include CLI-specific UI components or Phoenix instrumentation.
+ * Those are designed for the CLI entry point and have global side effects.
  */
 
 // Agent components
@@ -15,10 +16,3 @@ export { calculatorTool, getDateTimeTool } from "./agent/tools.js";
 
 // Prompts
 export { AGENT_INSTRUCTIONS } from "./prompts/agent.js";
-
-// UI components
-export { conversationLoop, processUserMessage } from "./ui/interaction.js";
-export { printWelcome } from "./ui/welcome.js";
-
-// Instrumentation
-export { flush, SESSION_ID } from "./instrumentation.js";

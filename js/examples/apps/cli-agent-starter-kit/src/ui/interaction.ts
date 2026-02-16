@@ -15,25 +15,21 @@ import {
 } from "@clack/prompts";
 import { ToolLoopAgent } from "ai";
 
-import { flush, SESSION_ID } from "../instrumentation.js";
+import { SESSION_ID } from "../instrumentation.js";
 import type { ConversationHistory } from "../agent/index.js";
 import { printWelcome } from "./welcome.js";
 
 /**
- * Handle graceful exit
+ * Display exit message
  *
  * @param cancelled - Whether the exit was triggered by user cancellation (Ctrl+C)
  */
-export async function handleExit(cancelled = false) {
+function displayExitMessage(cancelled = false) {
   if (cancelled) {
     cancel("Operation cancelled");
   } else {
     outro("Thanks for using CLI Agent Starter Kit!");
   }
-
-  console.log("Flushing traces...");
-  await flush();
-  process.exit(0);
 }
 
 /**
@@ -120,12 +116,13 @@ export async function processUserMessage(
  *
  * @param agent - The ToolLoopAgent instance
  * @param conversationHistory - The conversation history array
+ * @returns Promise that resolves when the conversation ends
  */
 export async function conversationLoop(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agent: ToolLoopAgent<any, any>,
   conversationHistory: ConversationHistory
-) {
+): Promise<void> {
   while (true) {
     const userInput = await text({
       message: "You",
@@ -133,16 +130,16 @@ export async function conversationLoop(
     });
 
     if (isCancel(userInput)) {
-      await handleExit(true);
-      break;
+      displayExitMessage(true);
+      return;
     }
 
     const input = (userInput as string).trim();
 
     // Command handling
     if (input === "/exit" || input === "/quit") {
-      await handleExit();
-      break;
+      displayExitMessage();
+      return;
     }
 
     if (input === "/help") {
