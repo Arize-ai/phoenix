@@ -29,7 +29,7 @@ class ExperimentRunAnnotation(Node):
         annotation_id = data.get("id", randint(1, 1000000))
         return cls(id=annotation_id, _raw_annotation=data)
 
-    @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")  # type: ignore
+    @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")
     async def name(
         self,
         info: Info[Context, None],
@@ -44,7 +44,7 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="The kind of annotator that produced the annotation.")  # type: ignore
+    @strawberry.field(description="The kind of annotator that produced the annotation.")
     async def annotator_kind(
         self,
         info: Info[Context, None],
@@ -61,7 +61,7 @@ class ExperimentRunAnnotation(Node):
 
     @strawberry.field(
         description="Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary."  # noqa: E501
-    )  # type: ignore
+    )
     async def label(
         self,
         info: Info[Context, None],
@@ -76,7 +76,7 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="Value of the annotation in the form of a numeric score.")  # type: ignore
+    @strawberry.field(description="Value of the annotation in the form of a numeric score.")
     async def score(
         self,
         info: Info[Context, None],
@@ -93,7 +93,7 @@ class ExperimentRunAnnotation(Node):
 
     @strawberry.field(
         description="The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject."  # noqa: E501
-    )  # type: ignore
+    )
     async def explanation(
         self,
         info: Info[Context, None],
@@ -108,7 +108,7 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="Error message if the annotation failed to produce a result.")  # type: ignore
+    @strawberry.field(description="Error message if the annotation failed to produce a result.")
     async def error(
         self,
         info: Info[Context, None],
@@ -123,11 +123,11 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
+    @strawberry.field(description="Metadata about the annotation.")
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self._raw_annotation is not None:
             val = self._raw_annotation.get("metadata", {})
         elif self.db_record:
@@ -138,7 +138,7 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
+    @strawberry.field(description="The date and time when the annotation was created.")
     async def start_time(
         self,
         info: Info[Context, None],
@@ -154,7 +154,7 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="The date and time when the annotation was last updated.")  # type: ignore
+    @strawberry.field(description="The date and time when the annotation was last updated.")
     async def end_time(
         self,
         info: Info[Context, None],
@@ -170,7 +170,7 @@ class ExperimentRunAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="The identifier of the trace associated with the annotation.")  # type: ignore
+    @strawberry.field(description="The identifier of the trace associated with the annotation.")
     async def trace_id(
         self,
         info: Info[Context, None],
@@ -185,7 +185,7 @@ class ExperimentRunAnnotation(Node):
             )
         return None if val is None else GlobalID(type_name=Trace.__name__, node_id=val)
 
-    @strawberry.field(description="The trace associated with the annotation.")  # type: ignore
+    @strawberry.field(description="The trace associated with the annotation.")
     async def trace(
         self,
         info: Info[Context, None],
