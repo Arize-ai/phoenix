@@ -34,6 +34,9 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "@types/node": "^25.2.3",
     "glob": "^11.0.0",

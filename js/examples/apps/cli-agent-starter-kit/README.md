@@ -14,7 +14,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-**Requirements:** Node.js 22+, pnpm, Docker Desktop, Anthropic API key
+**Requirements:** Node.js 22+ (see `.nvmrc`), pnpm, Docker Desktop, Anthropic API key
 
 **Commands:** `/help`, `/clear`, `/exit`
 
