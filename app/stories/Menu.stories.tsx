@@ -32,6 +32,15 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
+/**
+ * Related Figma components:
+ * - Menu: https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=492-1718
+ * - MenuTrigger: https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=492-1934
+ * - MenuItem: https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=492-3341
+ * - MenuSectionTitle: https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=502-1375
+ * - MenuHeaderTitle: https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=502-1365
+ * - MenuContainer: https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=321-585
+ */
 const meta: Meta<typeof Menu> = {
   title: "Menu",
   component: Menu,
@@ -39,7 +48,7 @@ const meta: Meta<typeof Menu> = {
     layout: "centered",
     design: {
       type: "figma",
-      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=539-2693",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=492-1718",
     },
   },
 };

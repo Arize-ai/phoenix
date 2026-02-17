@@ -12,7 +12,7 @@ const meta: Meta = {
     layout: "centered",
     design: {
       type: "figma",
-      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=569-584",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=569-583",
     },
   },
   argTypes: {
