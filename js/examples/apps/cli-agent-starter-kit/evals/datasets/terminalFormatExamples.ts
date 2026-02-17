@@ -208,5 +208,8 @@ export const terminalFormatExamples: Example[] = [
 export const terminalFormatDataset = {
   name: "cli-agent-terminal-format",
   description: "Test dataset for terminal-safe formatting evaluation of the Phoenix Documentation Assistant",
-  examples: terminalFormatExamples,
+  examples: terminalFormatExamples.map((example) => ({
+    ...example,
+    splits: example.metadata?.category ? [example.metadata.category as string] : null,
+  })),
 };
