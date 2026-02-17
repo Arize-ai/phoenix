@@ -25,7 +25,7 @@ jobs:
           branches=$(gh api repos/${{ github.repository }}/branches --paginate | jq -c -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
-  unit-tests-all-platforms:
+  unit-tests-non-linux:
     name: Unit Tests (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.db }}, ${{ matrix.py }})
     runs-on: ${{ matrix.os }}
     needs: discover-branches
@@ -73,10 +73,51 @@ jobs:
         timeout-minutes: 60
         run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
 
+  integration-tests-non-linux:
+    name: Integration Tests (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
+    runs-on: ${{ matrix.os }}
+    needs: discover-branches
+    if: ${{ needs.discover-branches.outputs.branches != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        py: ["3.10", "3.13"]
+        os: [windows-latest, macos-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            packages/phoenix-client/
+            tests/integration/
+            tests/__generated__/
+            tests/__init__.py
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run integration tests
+        timeout-minutes: 30
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
+  
   slack-notification:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [discover-branches, unit-tests-all-platforms]
+    needs: [discover-branches, unit-tests-non-linux, integration-tests-non-linux]
     if: failure()
     steps:
       - uses: slackapi/slack-github-action@v1

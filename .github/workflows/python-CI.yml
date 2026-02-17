@@ -521,10 +521,7 @@ jobs:
       matrix:
         py: ["3.10", "3.13"]
         db: [sqlite, postgresql]
-        os: [oss-4-core-runner, windows-latest]
-        exclude:
-          - db: postgresql
-            os: windows-latest
+        os: [oss-4-core-runner]
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:
@@ -567,7 +564,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n auto
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }})
