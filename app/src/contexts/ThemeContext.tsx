@@ -84,6 +84,12 @@ export function ThemeProvider(
      * If provided, the theme mode will become controlled and the theme will not update automatically.
      */
     themeMode?: ProviderThemeMode;
+    /**
+     * If true, skip adding theme classes to document.body.
+     * Used in Storybook's "both" mode where multiple ThemeProviders coexist
+     * and theme scoping is handled via container class names instead.
+     */
+    disableBodyTheme?: boolean;
   }>
 ) {
   const [themeMode, _setThemeMode] = useState<ProviderThemeMode>(
@@ -123,6 +129,7 @@ export function ThemeProvider(
   }, [props.themeMode, setThemeMode]);
 
   useEffect(() => {
+    if (props.disableBodyTheme) return;
     // When the theme changes, set a class on the body to override the default theme
     document.body.classList.add(`ac-theme--${theme}`);
     document.body.classList.add(`ac-theme`);
@@ -130,7 +137,7 @@ export function ThemeProvider(
       document.body.classList.remove(`ac-theme--${theme}`);
       document.body.classList.remove(`ac-theme`);
     };
-  }, [theme]);
+  }, [theme, props.disableBodyTheme]);
 
   return (
     <ThemeContext.Provider
