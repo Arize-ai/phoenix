@@ -3,7 +3,16 @@ import { createEvaluator } from "@arizeai/phoenix-evals";
 import { detectMarkdownViolations } from "../utils/index.js";
 
 export const terminalSafeFormatEvaluator = createEvaluator(
-  ({ output }: { output: string }) => {
+  ({ output }: { output: string | null | undefined }) => {
+    // Handle null/empty output
+    if (!output || typeof output !== "string") {
+      return {
+        score: 0,
+        label: "error",
+        explanation: "No output or invalid output type",
+      };
+    }
+
     const { hasViolations, violations } = detectMarkdownViolations(output);
 
     const score = hasViolations ? 0 : 1;

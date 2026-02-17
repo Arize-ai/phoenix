@@ -17,7 +17,7 @@ pnpm eval:terminal-format
 
 ## Available Evaluations
 
-- **Terminal Safe Format**: Verifies outputs don't contain markdown syntax (bold, italic, code blocks, links, etc.)
+- **Terminal Safe Format**: Calls the real agent and verifies outputs don't contain markdown syntax (bold, italic, code blocks, links, etc.)
 
 ## Project Structure
 

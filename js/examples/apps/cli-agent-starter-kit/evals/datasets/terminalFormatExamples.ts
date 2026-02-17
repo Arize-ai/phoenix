@@ -205,9 +205,22 @@ export const terminalFormatExamples: Example[] = [
   },
 ];
 
+// Small subset for live agent testing (to avoid costs/time)
+const testExamples = terminalFormatExamples.slice(0, 5);
+
 export const terminalFormatDataset = {
-  name: "cli-agent-terminal-format",
-  description: "Test dataset for terminal-safe formatting evaluation of the Phoenix Documentation Assistant",
+  name: "cli-agent-terminal-format-live",
+  description: "Live agent test dataset for terminal-safe formatting evaluation",
+  examples: testExamples.map((example) => ({
+    ...example,
+    splits: example.metadata?.category ? [example.metadata.category as string] : null,
+  })),
+};
+
+// Full dataset for comprehensive testing (use mock responses)
+export const terminalFormatDatasetFull = {
+  name: "cli-agent-terminal-format-full",
+  description: "Full test dataset with all examples",
   examples: terminalFormatExamples.map((example) => ({
     ...example,
     splits: example.metadata?.category ? [example.metadata.category as string] : null,

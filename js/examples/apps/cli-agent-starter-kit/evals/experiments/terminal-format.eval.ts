@@ -10,6 +10,7 @@ import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
 import { terminalFormatDataset } from "../datasets/index.js";
 import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
+import { runAgent } from "../utils/index.js";
 
 async function main() {
   const client = createClient();
@@ -22,12 +23,14 @@ async function main() {
     examples: terminalFormatDataset.examples,
   });
 
-  // Define task (returns pre-defined response from dataset)
+  // Define task (calls the real agent with the prompt)
   const task: RunExperimentParams["task"] = async (example: Example) => {
-    if (typeof example.output?.response !== "string") {
-      throw new Error("Invalid dataset: output.response must be a string");
+    const prompt = example.input?.prompt;
+    if (typeof prompt !== "string") {
+      throw new Error("Invalid dataset: input.prompt must be a string");
     }
-    return example.output.response;
+    // Call the real agent
+    return await runAgent(prompt);
   };
 
   // Run experiment with quiet logger
