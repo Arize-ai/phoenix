@@ -11,7 +11,7 @@ export {
   createAgent,
   type ConversationHistory,
   type CreateAgentParams,
-} from "./agent/index.js";
+} from "./agents/index.js";
 
 // Tools
 export { dateTimeTool, phoenixDocsTool } from "./tools/index.js";
