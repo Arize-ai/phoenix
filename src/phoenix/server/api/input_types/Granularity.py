@@ -46,9 +46,11 @@ def to_timestamps(
     yield from takewhile(
         lambda t: time_range.start < t,  # type: ignore
         accumulate(
-            repeat(
-                -timedelta(
-                    minutes=granularity.sampling_interval_minutes,
+            iter(
+                repeat(
+                    -timedelta(
+                        minutes=granularity.sampling_interval_minutes,
+                    )
                 )
             ),
             initial=time_range.stop,
