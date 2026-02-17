@@ -53,7 +53,7 @@ def _(*args: Any, **kwargs: Any) -> str:
 JSON_ = (
     JSON()
     .with_variant(
-        postgresql.JSONB(),  # type: ignore
+        postgresql.JSONB(),
         "postgresql",
     )
     .with_variant(
@@ -174,7 +174,7 @@ if __name__ == "__main__":
         file = sql_database_url.database
         engine = create_engine(
             url=sql_database_url.set(drivername="sqlite"),
-            creator=lambda: sqlean.connect(f"file:///{file}", uri=True),
+            creator=lambda: sqlean.connect(f"file:///{file}", uri=True),  # ty: ignore[unresolved-attribute]
             poolclass=NullPool,
             echo=True,
         )
