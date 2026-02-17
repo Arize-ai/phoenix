@@ -1,4 +1,6 @@
-import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
+#!/usr/bin/env tsx
+/* eslint-disable no-console */
+import { createClient } from "@arizeai/phoenix-client";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import {
   runExperiment,
@@ -9,37 +11,21 @@ import type { Example } from "@arizeai/phoenix-client/types/datasets";
 import { terminalFormatDataset } from "../datasets/index.js";
 import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
 
-export type RunTerminalFormatEvalParams = {
-  client?: PhoenixClient;
-  logger?: Pick<Console, "log" | "error">;
-};
-
-// Metadata for CLI auto-discovery
-export const metadata = {
-  name: "Terminal Safe Format",
-  description: "Verify outputs don't contain markdown syntax",
-  hint: "Checks for bold, italic, code blocks, links, and headings",
-};
-
-export async function runTerminalFormatEval({
-  client: _client,
-  logger = console,
-}: RunTerminalFormatEvalParams = {}) {
-  const client = _client || createClient();
+async function main() {
+  const client = createClient();
 
   // Create or get existing dataset
-  logger.log("Creating or retrieving dataset...");
+  console.log("Creating or retrieving dataset...");
   const { datasetId } = await createOrGetDataset({
     client,
     name: terminalFormatDataset.name,
     description: terminalFormatDataset.description,
     examples: terminalFormatDataset.examples,
   });
-  logger.log(`Dataset ID: ${datasetId}`);
+  console.log(`Dataset ID: ${datasetId}`);
 
   // Define task (returns pre-defined response from dataset)
   const task: RunExperimentParams["task"] = async (example: Example) => {
-    // Return the output from the dataset
     if (typeof example.output?.response !== "string") {
       throw new Error("Invalid dataset: output.response must be a string");
     }
@@ -47,7 +33,7 @@ export async function runTerminalFormatEval({
   };
 
   // Run experiment
-  logger.log("Running experiment...");
+  console.log("Running experiment...");
   const experimentName = `terminal-format-eval-${Date.now()}`;
   const experiment = await runExperiment({
     client,
@@ -56,13 +42,13 @@ export async function runTerminalFormatEval({
     dataset: { datasetId },
     task,
     evaluators: [terminalSafeFormatEvaluator],
-    logger,
+    logger: console,
   });
 
-  logger.log("\nExperiment completed!");
-  logger.log(`Experiment ID: ${experiment.id}`);
-  logger.log(`Dataset ID: ${datasetId}`);
-  logger.log(
+  console.log("\nExperiment completed!");
+  console.log(`Experiment ID: ${experiment.id}`);
+  console.log(`Dataset ID: ${datasetId}`);
+  console.log(
     `\nView results: http://localhost:6006/datasets/${datasetId}/compare?selectedExperiments=${experiment.id}`
   );
 
@@ -72,21 +58,13 @@ export async function runTerminalFormatEval({
   const passCount = evaluationResults.filter((r) => r.result.score === 1).length;
   const failCount = evaluationResults.filter((r) => r.result.score === 0).length;
 
-  logger.log("\n--- Summary ---");
-  logger.log(`Total examples: ${runs.length}`);
-  logger.log(`Passed: ${passCount} (${((passCount / runs.length) * 100).toFixed(1)}%)`);
-  logger.log(`Failed: ${failCount} (${((failCount / runs.length) * 100).toFixed(1)}%)`);
-
-  return experiment;
+  console.log("\n--- Summary ---");
+  console.log(`Total examples: ${runs.length}`);
+  console.log(`Passed: ${passCount} (${((passCount / runs.length) * 100).toFixed(1)}%)`);
+  console.log(`Failed: ${failCount} (${((failCount / runs.length) * 100).toFixed(1)}%)`);
 }
 
-// Allow direct invocation
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runTerminalFormatEval()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      // eslint-disable-next-line no-console
-      console.error("Evaluation failed:", error);
-      process.exit(1);
-    });
-}
+main().catch((error) => {
+  console.error("Evaluation failed:", error);
+  process.exit(1);
+});

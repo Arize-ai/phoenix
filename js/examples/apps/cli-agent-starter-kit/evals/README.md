@@ -58,34 +58,38 @@ export const myExamples = [
 
 3. **Create experiment** in `evals/experiments/my-eval.eval.ts`:
 ```typescript
+#!/usr/bin/env tsx
 import { createClient } from "@arizeai/phoenix-client";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
-export const metadata = {
-  name: "My Evaluator",
-  description: "What this evaluates",
-};
+async function main() {
+  const client = createClient();
 
-export async function runMyEval({ client = createClient(), logger = console } = {}) {
   const { datasetId } = await createOrGetDataset({
     client,
     name: "my-dataset",
+    description: "My dataset description",
     examples: myExamples,
   });
 
-  return await runExperiment({
+  await runExperiment({
     client,
     experimentName: "my-eval",
     dataset: { datasetId },
     task: async (example) => example.output.response,
     evaluators: [myEvaluator],
-    logger,
+    logger: console,
   });
 }
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 ```
 
-4. **Run it**: `pnpm eval my-eval`
+4. **Run it**: `pnpm eval my-eval` or `tsx evals/experiments/my-eval.eval.ts`
 
 ## View Results
 
