@@ -51,9 +51,9 @@ class EvaluatorKind(Enum):
 
 @strawberry.type
 class EvaluatorInputMapping:
-    literal_mapping: JSON = strawberry.field(default_factory=dict)
+    literal_mapping: JSON = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
     """Direct key-value mappings to evaluator inputs."""
-    path_mapping: JSON = strawberry.field(default_factory=dict)
+    path_mapping: JSON = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
     """JSONPath expressions to extract values from the evaluation context."""
 
 
@@ -68,7 +68,7 @@ class Evaluator(Node):
     id: NodeID[int]
 
     @strawberry.field
-    async def name(self) -> Identifier:
+    async def name(self) -> Identifier:  # ty: ignore[invalid-type-form]
         raise NotImplementedError
 
     @strawberry.field
@@ -76,7 +76,7 @@ class Evaluator(Node):
         raise NotImplementedError
 
     @strawberry.field
-    async def metadata(self) -> JSON:
+    async def metadata(self) -> JSON:  # ty: ignore[invalid-type-form]
         raise NotImplementedError
 
     @strawberry.field
@@ -92,7 +92,7 @@ class Evaluator(Node):
         raise NotImplementedError
 
     @strawberry.field
-    async def input_schema(self) -> Optional[JSON]:
+    async def input_schema(self) -> Optional[JSON]:  # ty: ignore[invalid-type-form]
         raise NotImplementedError
 
     @strawberry.field
@@ -137,7 +137,7 @@ class CodeEvaluator(Evaluator, Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> Identifier:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.name
         else:
@@ -163,7 +163,7 @@ class CodeEvaluator(Evaluator, Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
@@ -209,7 +209,8 @@ class CodeEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]: ...  # TODO: Implement
+    ) -> Optional[JSON]:  # ty: ignore[invalid-type-form]
+        ...
 
     @strawberry.field
     async def user(
@@ -241,7 +242,7 @@ class LLMEvaluator(Evaluator, Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> Identifier:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.name
         else:
@@ -267,7 +268,7 @@ class LLMEvaluator(Evaluator, Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
@@ -373,7 +374,8 @@ class LLMEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]: ...  # TODO: Implement
+    ) -> Optional[JSON]:  # ty: ignore[invalid-type-form]
+        ...
 
     @strawberry.field
     async def user(
@@ -472,7 +474,7 @@ class BuiltInEvaluator(Evaluator, Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> Identifier:  # ty: ignore[invalid-type-form]
         evaluator_class = await self._get_evaluator_class(info)
         return evaluator_class.name  # type: ignore[attr-defined]
 
@@ -488,7 +490,7 @@ class BuiltInEvaluator(Evaluator, Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         evaluator_class = await self._get_evaluator_class(info)
         return evaluator_class.metadata  # type: ignore[attr-defined]
 
@@ -519,7 +521,7 @@ class BuiltInEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
+    ) -> Optional[JSON]:  # ty: ignore[invalid-type-form]
         evaluator_class = await self._get_evaluator_class(info)
         return evaluator_class().input_schema  # type: ignore[operator]
 
@@ -630,7 +632,7 @@ class DatasetEvaluator(Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> Identifier:  # ty: ignore[invalid-type-form]
         record = await self._get_record(info)
         return record.name.root
 
