@@ -8,9 +8,9 @@ import {
 } from "@arizeai/phoenix-client/experiments";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
+import { agent } from "../../src/agents/index.js";
 import { terminalFormatDataset } from "../datasets/index.js";
 import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
-import { runAgent } from "../utils/index.js";
 
 async function main() {
   const client = createClient();
@@ -29,8 +29,9 @@ async function main() {
     if (typeof prompt !== "string") {
       throw new Error("Invalid dataset: input.prompt must be a string");
     }
-    // Call the real agent
-    return await runAgent(prompt);
+    // Call the agent
+    const result = await agent.generate({ prompt });
+    return result.text || "";
   };
 
   // Run experiment with quiet logger

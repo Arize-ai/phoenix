@@ -2,8 +2,8 @@
 /* eslint-disable no-console */
 
 // Import instrumentation first (Phoenix must be initialized early)
-import { type ConversationHistory, createAgent } from "./agent/index.js";
-import { dateTimeTool, phoenixDocsTool } from "./tools/index.js";
+import { type ConversationHistory } from "./agent/index.js";
+import { agent } from "./agents/index.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
 import { flush } from "./instrumentation.js";
@@ -56,22 +56,7 @@ async function main() {
   // Display welcome
   printWelcome();
 
-  // Define available tools
-  const tools = {
-    dateTime: dateTimeTool,
-    phoenixDocs: phoenixDocsTool,
-  };
-
-  // Create agent with tools and configuration
-  // Note: You can override instructions via environment variable
-  const agent = createAgent({
-    tools,
-    // Uses AGENT_INSTRUCTIONS by default
-    // Uncomment to use environment variable override:
-    // instructions: process.env.AGENT_INSTRUCTIONS,
-  });
-
-  // Start conversation loop
+  // Start conversation loop (uses pre-configured agent from src/agents)
   const conversationHistory: ConversationHistory = [];
   await conversationLoop(agent, conversationHistory);
 
