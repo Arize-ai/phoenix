@@ -15,12 +15,17 @@ import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
 async function main() {
   const client = createClient();
 
-  console.log("\n🔍 Terminal Safe Format Evaluation");
-  console.log(
-    `   Testing ${terminalFormatDataset.examples.length} examples with live agent\n`
+  // Use compliant examples for live testing (to avoid API costs)
+  const testSplits = ["compliant"];
+  const testExamples = terminalFormatDataset.examples.filter((ex) =>
+    ex.splits?.some((split) => testSplits.includes(split))
   );
 
-  // Create or get existing dataset (silent)
+  console.log("\n🔍 Terminal Safe Format Evaluation");
+  console.log(`   Testing ${testExamples.length} examples with live agent`);
+  console.log(`   Splits: ${testSplits.join(", ")}\n`);
+
+  // Create or get existing dataset
   const { datasetId } = await createOrGetDataset({
     client,
     name: terminalFormatDataset.name,
@@ -30,7 +35,7 @@ async function main() {
 
   // Track progress
   let completed = 0;
-  const total = terminalFormatDataset.examples.length;
+  const total = testExamples.length;
 
   // Define task (calls the real agent with the prompt)
   const task: RunExperimentParams["task"] = async (example: Example) => {
@@ -51,12 +56,16 @@ async function main() {
   };
 
   // Run experiment with quiet logger
-  const experimentName = `terminal-format-eval-${Date.now()}`;
+  const experimentName = `terminal-format-${Date.now()}`;
   const experiment = await runExperiment({
     client,
     experimentName,
-    experimentDescription: "Evaluate terminal-safe formatting compliance",
-    dataset: { datasetId },
+    experimentDescription: `Terminal-safe formatting (splits: ${testSplits.join(", ")})`,
+    dataset: {
+      datasetId,
+      // Filter to only test examples with specific splits
+      splits: testSplits,
+    },
     task,
     evaluators: [terminalSafeFormatEvaluator],
     logger: {
