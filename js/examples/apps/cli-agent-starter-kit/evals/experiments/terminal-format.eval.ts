@@ -11,26 +11,18 @@ import type { Example } from "@arizeai/phoenix-client/types/datasets";
 import { agent } from "../../src/agents/index.js";
 import { terminalFormatDataset } from "../datasets/index.js";
 import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
+import { printExperimentSummary } from "../utils/index.js";
 
 async function main() {
   const client = createClient();
 
-  console.log("\n🔍 Terminal Safe Format Evaluation");
-  console.log(
-    `   Testing ${terminalFormatDataset.examples.length} examples with live agent\n`
-  );
-
-  // Create or get existing dataset (silent)
+  // Create or get existing dataset
   const { datasetId } = await createOrGetDataset({
     client,
     name: terminalFormatDataset.name,
     description: terminalFormatDataset.description,
     examples: terminalFormatDataset.examples,
   });
-
-  // Track progress
-  let completed = 0;
-  const total = terminalFormatDataset.examples.length;
 
   // Define task (calls the real agent with the prompt)
   const task: RunExperimentParams["task"] = async (example: Example) => {
@@ -39,15 +31,9 @@ async function main() {
       throw new Error("Invalid dataset: input.prompt must be a string");
     }
 
-    // Show progress
-    completed++;
-    console.log(
-      `  [${completed}/${total}] Evaluating: "${prompt.substring(0, 50)}..."`
-    );
-
     // Call the agent
     const result = await agent.generate({ prompt });
-    return result.text || "";
+    return result.text;
   };
 
   // Run experiment with quiet logger
@@ -59,36 +45,10 @@ async function main() {
     dataset: { datasetId },
     task,
     evaluators: [terminalSafeFormatEvaluator],
-    logger: {
-      log: () => {}, // Suppress verbose output
-      info: () => {},
-      error: console.error,
-    },
   });
 
-  // Print summary
-  const runs = Object.values(experiment.runs);
-  const evaluationResults = experiment.evaluationRuns || [];
-  const passCount = evaluationResults.filter(
-    (r) => r.result?.score === 1
-  ).length;
-  const failCount = evaluationResults.filter(
-    (r) => r.result?.score === 0
-  ).length;
-
-  console.log(`\n✓ Evaluated ${runs.length} examples`);
-  console.log(
-    `  ${passCount} passed (${((passCount / runs.length) * 100).toFixed(1)}%)`
-  );
-  console.log(
-    `  ${failCount} failed (${((failCount / runs.length) * 100).toFixed(1)}%)`
-  );
-
-  // Get base URL from client config
-  const baseUrl = client.config.baseUrl || "http://localhost:6006";
-  console.log(
-    `\n→ View details: ${baseUrl}/datasets/${datasetId}/compare?experimentId=${experiment.id}\n`
-  );
+  // Print detailed experiment stats
+  printExperimentSummary({ experiment, experimentName });
 }
 
 main().catch((error) => {

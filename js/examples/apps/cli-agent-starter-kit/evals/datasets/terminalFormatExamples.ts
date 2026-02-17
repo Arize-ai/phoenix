@@ -205,29 +205,14 @@ export const terminalFormatExamples: Example[] = [
   },
 ];
 
-// Small subset for live agent testing (to avoid costs/time)
-const testExamples = terminalFormatExamples.slice(0, 5);
-
+// Full dataset with splits for filtering
 export const terminalFormatDataset = {
-  name: "cli-agent-terminal-format-live",
-  description:
-    "Live agent test dataset for terminal-safe formatting evaluation",
-  examples: testExamples.map((example) => ({
-    ...example,
-    splits: example.metadata?.category
-      ? [example.metadata.category as string]
-      : null,
-  })),
-};
-
-// Full dataset for comprehensive testing (use mock responses)
-export const terminalFormatDatasetFull = {
-  name: "cli-agent-terminal-format-full",
-  description: "Full test dataset with all examples",
+  name: "cli-agent-terminal-format",
+  description: "Terminal-safe formatting evaluation dataset with splits",
   examples: terminalFormatExamples.map((example) => ({
     ...example,
     splits: example.metadata?.category
       ? [example.metadata.category as string]
-      : null,
+      : [],
   })),
 };

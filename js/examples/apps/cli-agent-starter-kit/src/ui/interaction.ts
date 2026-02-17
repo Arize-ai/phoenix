@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import {
   getInputAttributes,
   getOutputAttributes,
@@ -18,6 +19,14 @@ import {
   spinner,
   text,
 } from "@clack/prompts";
+
+/**
+ * Convert literal ANSI escape sequences to actual escape codes
+ * Transforms text like "\\x1b[1m" into actual ANSI codes that terminals interpret
+ */
+function unescapeAnsi(text: string): string {
+  return text.replace(/\\x1b/g, "\x1b");
+}
 
 /**
  * Display exit message
@@ -83,12 +92,10 @@ export async function processUserMessage({
 
     s.stop("Agent");
 
-    // Display response
-    if (result.text.includes("\n")) {
-      note(result.text, "Agent");
-    } else {
-      log.message(result.text);
-    }
+    // Display response with ANSI color support
+    // Convert literal escape sequences (e.g., "\x1b[1m") to actual ANSI codes
+    // Use note() for consistent clack formatting with the gray sidebar
+    note(unescapeAnsi(result.text), "Agent");
 
     if (verbose) {
       log.info(`Completed in ${result.steps.length} steps`);
