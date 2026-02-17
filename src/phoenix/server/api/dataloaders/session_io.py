@@ -20,7 +20,7 @@ class SessionIODataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory, kind: Kind) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
-        self._kind = kind
+        self._kind: Kind = kind
 
     @cached_property
     def _subq(self) -> Select[tuple[Optional[int], str, str, int]]:

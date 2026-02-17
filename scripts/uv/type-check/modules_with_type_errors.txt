@@ -4,7 +4,6 @@ src/phoenix/server/api/dataloaders/annotation_summaries.py
 src/phoenix/server/api/dataloaders/latency_ms_quantile.py
 src/phoenix/server/api/dataloaders/min_start_or_max_end_times.py
 src/phoenix/server/api/dataloaders/record_counts.py
-src/phoenix/server/api/dataloaders/session_io.py
 src/phoenix/server/api/dataloaders/token_counts.py
 src/phoenix/server/api/routers/v1/spans.py
 src/phoenix/server/api/types/Annotation.py
