@@ -1,9 +1,7 @@
 import js from "@eslint/js";
-import { defineConfig } from "eslint/config";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
-// @ts-expect-error - No types available for this plugin
-import pluginSimpleImportSort from "eslint-plugin-simple-import-sort";
+import { defineConfig } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
@@ -16,7 +14,6 @@ export default defineConfig([
     plugins: {
       js,
       react: pluginReact,
-      "simple-import-sort": pluginSimpleImportSort,
     },
     languageOptions: {
       globals: globals.browser,
@@ -40,28 +37,7 @@ export default defineConfig([
       "no-console": "error",
       "no-duplicate-imports": "error",
 
-      // Import sorting rules
-      "simple-import-sort/imports": [
-        "error",
-        {
-          groups: [
-            // Packages `react` related packages come first.
-            ["^react", "^@?\\w", "^@emotion"],
-            // Arize packages.
-            ["^(@arizeai)(/.*|$)"],
-            // internal packages.
-            ["^(@phoenix)(/.*|$)"],
-            // Side effect imports.
-            ["^\\u0000"],
-            // Parent imports. Put `..` last.
-            ["^\\.\\.(?!/?$)", "^\\.\\./?$"],
-            // Other relative imports. Put same-folder imports and `.` last.
-            ["^\\./(?=.*/)(?!/?$)", "^\\.(?!/?$)", "^\\./?$"],
-            // Style imports.
-            ["^.+\\.?(css)$"],
-          ],
-        },
-      ],
+      // Import sorting handled by oxfmt
     },
   },
   pluginReactHooks.configs.flat["recommended-latest"],

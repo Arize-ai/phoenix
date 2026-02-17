@@ -248,12 +248,12 @@ format-python: ## Format Python code with ruff
 
 format-frontend: ## Format frontend (app/)
 	@echo -e "$(CYAN)Formatting frontend...$(NC)"
-	@cd $(APP_DIR) && $(PNPM) run --silent lint:fix
+	@cd $(APP_DIR) && $(PNPM) run --silent fmt
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 format-ts: ## Format TypeScript packages (js/)
 	@echo -e "$(CYAN)Formatting TypeScript packages...$(NC)"
-	@cd $(JS_DIR) && $(PNPM) run --silent prettier:write
+	@cd $(JS_DIR) && $(PNPM) run --silent fmt
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 format: format-python format-frontend format-ts ## Format all code (Python + frontend + TypeScript)

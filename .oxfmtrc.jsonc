@@ -1,0 +1,40 @@
+{
+  "$schema": "./app/node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "trailingComma": "es5",
+  "ignorePatterns": [
+    "docs/**",
+    "**/pnpm-lock.yaml",
+    "app/schema.graphql",
+    "**/__generated__/**",
+    "**/*.grammar",
+    "js/**/dist/**",
+    "js/**/build/**",
+    "js/docs/**",
+  ],
+  "experimentalSortImports": {
+    "newlinesBetween": false,
+    "groups": [
+      ["value-builtin", "type-builtin"],
+      ["value-external", "type-external"],
+      { "newlinesBetween": true },
+      ["value-internal", "type-internal"],
+      { "newlinesBetween": true },
+      ["type-parent", "value-parent"],
+      ["type-sibling", "value-sibling"],
+      ["type-index", "value-index"],
+      { "newlinesBetween": true },
+      "side_effect",
+      "style",
+      "unknown",
+    ],
+    "internalPattern": ["@phoenix/"],
+  },
+  "experimentalTailwindcss": {
+    "attributes": ["class", "className"],
+    "functions": ["clsx", "cn", "cva"],
+  },
+  "experimentalSortPackageJson": {
+    "sortScripts": true,
+  },
+}

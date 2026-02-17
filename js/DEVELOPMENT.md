@@ -44,13 +44,13 @@ This will install dependencies for all packages in the monorepo.
 
 ### 3. Run scripts across all packages
 
-You can run scripts (like build, lint, test, prettier) across all packages using pnpm's recursive mode:
+You can run scripts (like build, lint, test, formatting) across all packages using pnpm's recursive mode:
 
 ```sh
 pnpm run -r build      # Build all packages
 pnpm run -r lint       # Lint all packages
 pnpm run -r test       # Run tests for all packages (if defined)
-pnpm run -r prettier:check # Check formatting for all packages
+pnpm run -r fmt:check  # Check formatting for all packages
 ```
 
 ### Changesets
