@@ -6,4 +6,4 @@ from strawberry.scalars import JSON
 class ToolDefinition:
     """The definition of a tool that a generative tool can invoke."""
 
-    definition: JSON
+    definition: JSON  # ty: ignore[invalid-type-form]

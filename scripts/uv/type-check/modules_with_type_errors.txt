@@ -5,6 +5,5 @@ src/phoenix/server/api/dataloaders/latency_ms_quantile.py
 src/phoenix/server/api/dataloaders/min_start_or_max_end_times.py
 src/phoenix/server/api/dataloaders/record_counts.py
 src/phoenix/server/api/dataloaders/token_counts.py
-src/phoenix/server/api/types/ToolDefinition.py
 src/phoenix/session/session.py
 src/phoenix/utilities/error_handling.py
