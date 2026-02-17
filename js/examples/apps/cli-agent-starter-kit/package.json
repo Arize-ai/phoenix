@@ -17,6 +17,10 @@
     "start": "node --env-file=.env dist/cli.js",
     "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js",
     "clean": "rm -rf dist",
+    "eval": "pnpm phoenix:ensure && tsx scripts/run-evals.ts",
+    "eval:terminal-format": "pnpm phoenix:ensure && tsx evals/experiments/terminal-format.eval.ts",
+    "eval:verbose": "VERBOSE=true pnpm eval",
+    "eval:no-phoenix": "tsx scripts/run-evals.ts",
     "phoenix:ensure": "./scripts/ensure-phoenix.sh",
     "phoenix:ensure:verbose": "./scripts/ensure-phoenix.sh --verbose",
     "phoenix:start": "docker compose up -d phoenix",
@@ -30,8 +34,12 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "@types/node": "^25.2.3",
+    "glob": "^11.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   },

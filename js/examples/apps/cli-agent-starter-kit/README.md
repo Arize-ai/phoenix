@@ -14,9 +14,9 @@ cp .env.example .env
 pnpm dev
 ```
 
-**Requirements:** Node.js 22+, pnpm, Docker Desktop, Anthropic API key
+**Requirements:** Node.js 22+ (see `.nvmrc`), pnpm, Docker Desktop, Anthropic API key
 
-**Commands:** `/help`, `/clear`, `/exit`
+**Commands:** `/help`, `/exit`
 
 **Phoenix UI:** http://localhost:6006
 
@@ -85,7 +85,19 @@ pnpm dev              # Run in development
 pnpm build            # Compile TypeScript
 pnpm start            # Run production build
 pnpm phoenix:logs     # View Phoenix logs
+pnpm eval             # Run all evaluations
 ```
+
+## Evaluations
+
+Built-in evaluation harness for testing agent quality. Create evaluators, datasets, and experiments in `evals/`:
+
+```bash
+pnpm eval                      # Run all evaluations
+pnpm eval:terminal-format      # Run specific eval
+```
+
+See `evals/README.md` for creating custom evaluators and experiments.
 
 ## Troubleshooting
 

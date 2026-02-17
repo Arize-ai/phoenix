@@ -4,7 +4,7 @@ import {
   withSpan,
 } from "@arizeai/openinference-core";
 
-import type { ConversationHistory } from "../agent/index.js";
+import { Agent } from "../agents/index.js";
 import { SESSION_ID } from "../instrumentation.js";
 
 import { printWelcome } from "./welcome.js";
@@ -18,7 +18,6 @@ import {
   spinner,
   text,
 } from "@clack/prompts";
-import { ToolLoopAgent } from "ai";
 
 /**
  * Display exit message
@@ -35,19 +34,14 @@ function displayExitMessage(cancelled = false) {
 
 /**
  * Process a user message through the agent and display the response
- *
- * @param input - The user's input message
- * @param agent - The ToolLoopAgent instance
- * @param conversationHistory - The conversation history array
  */
-export async function processUserMessage(
-  input: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any>,
-  conversationHistory: ConversationHistory
-) {
-  conversationHistory.push({ role: "user", content: input });
-
+export async function processUserMessage({
+  input,
+  agent,
+}: {
+  input: string;
+  agent: Agent;
+}) {
   const s = spinner();
   s.start("Agent is thinking...");
 
@@ -56,15 +50,10 @@ export async function processUserMessage(
     let stepNumber = 0;
 
     const handleInteraction = withSpan(
-      async (_input: string) => {
+      async (input: string) => {
         return await agent.generate({
-          options: {},
-          prompt: conversationHistory
-            .map(
-              (msg) =>
-                `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
-            )
-            .join("\n\n"),
+          options: undefined,
+          prompt: input,
           onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
             if (verbose) {
               stepNumber++;
@@ -104,8 +93,6 @@ export async function processUserMessage(
     if (verbose) {
       log.info(`Completed in ${result.steps.length} steps`);
     }
-
-    conversationHistory.push({ role: "assistant", content: result.text });
   } catch (error) {
     s.stop("Agent encountered an error");
     log.error(String(error));
@@ -114,16 +101,12 @@ export async function processUserMessage(
 
 /**
  * Main conversation loop - handles user input and commands
- *
- * @param agent - The ToolLoopAgent instance
- * @param conversationHistory - The conversation history array
- * @returns Promise that resolves when the conversation ends
  */
-export async function conversationLoop(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any>,
-  conversationHistory: ConversationHistory
-): Promise<void> {
+export async function conversationLoop({
+  agent,
+}: {
+  agent: Agent;
+}): Promise<void> {
   while (true) {
     const userInput = await text({
       message: "You",
@@ -148,17 +131,11 @@ export async function conversationLoop(
       continue;
     }
 
-    if (input === "/clear") {
-      conversationHistory.length = 0;
-      log.success("Conversation history cleared");
-      continue;
-    }
-
     if (!input) {
       continue;
     }
 
     // Process message with spinner
-    await processUserMessage(input, agent, conversationHistory);
+    await processUserMessage({ input, agent });
   }
 }
