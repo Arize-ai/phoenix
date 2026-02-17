@@ -1,6 +1,5 @@
 src/phoenix/server/app.py
 src/phoenix/experiments/functions.py
-src/phoenix/server/api/dataloaders/annotation_summaries.py
 src/phoenix/server/api/dataloaders/latency_ms_quantile.py
 src/phoenix/server/api/dataloaders/min_start_or_max_end_times.py
 src/phoenix/server/api/dataloaders/record_counts.py

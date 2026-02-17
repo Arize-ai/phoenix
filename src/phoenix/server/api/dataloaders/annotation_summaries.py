@@ -112,7 +112,8 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
             Segment,
             defaultdict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
-        for position, key in enumerate(keys):
+        for position in range(len(keys)):
+            key = keys[position]
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
