@@ -37,7 +37,7 @@ evals/
 │   ├── terminalFormatExamples.ts
 │   └── index.ts
 ├── experiments/         # Experiment runners (*.eval.ts pattern)
-│   ├── runTerminalFormatEval.eval.ts
+│   ├── terminal-format.eval.ts
 │   └── index.ts
 ├── utils/              # Shared utilities
 │   ├── markdownPatterns.ts

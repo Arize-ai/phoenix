@@ -28,7 +28,7 @@ Successfully implemented a comprehensive evaluation harness for the CLI Agent St
   - Each example includes metadata with category and description
 
 ### 4. Experiment Runner (`evals/experiments/`)
-- **runTerminalFormatEval.eval.ts**: Main orchestration using `runExperiment`
+- **terminal-format.eval.ts**: Main orchestration using `runExperiment`
   - Uses `createOrGetDataset` for idempotent runs
   - Mock task function returns pre-defined dataset outputs
   - Displays summary with pass/fail counts
@@ -93,7 +93,7 @@ Failed: 10 (62.5%)
 4. `evals/evaluators/index.ts` - Evaluator exports
 5. `evals/datasets/terminalFormatExamples.ts` - Curated dataset (16 examples)
 6. `evals/datasets/index.ts` - Dataset exports
-7. `evals/experiments/runTerminalFormatEval.eval.ts` - Experiment runner
+7. `evals/experiments/terminal-format.eval.ts` - Experiment runner
 8. `evals/experiments/index.ts` - Experiment exports
 9. `scripts/run-evals.ts` - Interactive CLI
 10. `evals/README.md` - Documentation

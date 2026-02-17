@@ -18,7 +18,7 @@
     "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js",
     "clean": "rm -rf dist",
     "eval": "pnpm phoenix:ensure && tsx scripts/run-evals.ts",
-    "eval:terminal-format": "pnpm phoenix:ensure && tsx evals/experiments/runTerminalFormatEval.eval.ts",
+    "eval:terminal-format": "pnpm phoenix:ensure && tsx evals/experiments/terminal-format.eval.ts",
     "eval:verbose": "VERBOSE=true pnpm eval",
     "eval:no-phoenix": "tsx scripts/run-evals.ts",
     "phoenix:ensure": "./scripts/ensure-phoenix.sh",
