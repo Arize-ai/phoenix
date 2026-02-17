@@ -44,7 +44,7 @@ def to_timestamps(
     if not granularity.sampling_interval_minutes:
         return
     yield from takewhile(
-        lambda t: time_range.start < t,  # type: ignore
+        lambda t: time_range.start < t,
         accumulate(
             iter(
                 repeat(
