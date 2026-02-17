@@ -28,14 +28,14 @@ class DeletePromptVersionTagInput:
 
 @strawberry.input
 class CreatePromptVersionTagInput:
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     description: Optional[str] = None
 
 
 @strawberry.input
 class SetPromptVersionTagInput:
     prompt_version_id: GlobalID
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     description: Optional[str] = None
 
 
@@ -48,7 +48,7 @@ class PromptVersionTagMutationPayload:
 
 @strawberry.type
 class PromptVersionTagMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_prompt_version_tag(
         self, info: Info[Context, None], input: DeletePromptVersionTagInput
     ) -> PromptVersionTagMutationPayload:
@@ -86,7 +86,7 @@ class PromptVersionTagMutationMixin:
                 prompt=Prompt(id=prompt.id, db_record=prompt),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def set_prompt_version_tag(
         self, info: Info[Context, None], input: SetPromptVersionTagInput
     ) -> PromptVersionTagMutationPayload:
