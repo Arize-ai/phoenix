@@ -879,7 +879,7 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
     if isinstance(mapping := obj, Mapping):
         for name, value in mapping.items():
             evaluator = (
-                create_evaluator(name=name)(value) if not isinstance(value, Evaluator) else value
+                create_evaluator(name=name)(value) if not isinstance(value, Evaluator) else value  # ty: ignore[invalid-argument-type]
             )
             name = evaluator.name
             if name in evaluators_by_name:
@@ -887,7 +887,7 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
             evaluators_by_name[name] = evaluator
     elif isinstance(seq := obj, Sequence):
         for value in seq:
-            evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
+            evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value  # ty: ignore[invalid-argument-type]
             name = evaluator.name
             if name in evaluators_by_name:
                 raise ValueError(f"Two evaluators have the same name: {name}")
