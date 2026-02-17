@@ -6,7 +6,7 @@ import strawberry
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Self, TypeAlias
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -40,13 +40,13 @@ class ExperimentRepeatedRunGroup(Node):
     @classmethod
     def resolve_id(
         cls,
-        root: Self,
+        root: Node,
         *,
         info: Info,
     ) -> str:
-        return (
-            f"experiment_id={root.experiment_rowid}:dataset_example_id={root.dataset_example_rowid}"
-        )
+        experiment_rowid = getattr(root, "experiment_rowid")
+        dataset_example_rowid = getattr(root, "dataset_example_rowid")
+        return f"experiment_id={experiment_rowid}:dataset_example_id={dataset_example_rowid}"
 
     @strawberry.field
     def experiment_id(self) -> strawberry.ID:
