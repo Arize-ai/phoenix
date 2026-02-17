@@ -10,6 +10,6 @@ def parse_value(value: str) -> str:
 
 
 Identifier = strawberry.scalar(
-    NewType("Identifier", str),
+    NewType("Identifier", str),  # ty: ignore[invalid-newtype]
     parse_value=parse_value,
 )
