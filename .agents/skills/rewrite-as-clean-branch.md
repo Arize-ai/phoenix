@@ -1,3 +1,10 @@
+---
+name: rewrite-as-clean-branch
+description: Rewrite current branch with clean, narrative-quality git commit history suitable for code review. Use when asked to clean up commit history, create a review-ready branch, or rewrite git history.
+metadata:
+  internal: true
+---
+
 # /rewrite-as-clean-branch
 
 Reimplement the current branch with a clean, narrative-quality git commit history suitable for reviewer comprehension.
