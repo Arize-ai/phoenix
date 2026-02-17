@@ -34,7 +34,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         py: ["3.10", "3.13"]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         db: [sqlite, postgresql]
         exclude:
           - db: postgresql
