@@ -1,0 +1,15 @@
+[
+  {
+    "version": "latest",
+    "url": "https://arize-phoenix.readthedocs.io/en/latest/",
+    "preferred": true
+  },
+  {
+    "version": "v10.7.0",
+    "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v10.7.0/"
+  },
+  {
+    "version": "v9.6.1",
+    "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v9.6.1/"
+  }
+]
