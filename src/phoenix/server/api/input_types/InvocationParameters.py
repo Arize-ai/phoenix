@@ -38,7 +38,7 @@ class InvocationParameterInput:
     value_float: Optional[float] = UNSET
     value_bool: Optional[bool] = UNSET
     value_string: Optional[str] = UNSET
-    value_json: Optional[JSON] = UNSET  # type: ignore[valid-type]
+    value_json: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
     value_string_list: Optional[list[str]] = UNSET
     value_boolean: Optional[bool] = UNSET
 
@@ -80,7 +80,7 @@ class StringInvocationParameter(InvocationParameterBase):
 @strawberry.type
 class JSONInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_json
-    default_value: Optional[JSON] = None  # type: ignore[valid-type]
+    default_value: Optional[JSON] = None  # ty: ignore[invalid-type-form]
 
 
 @strawberry.type
