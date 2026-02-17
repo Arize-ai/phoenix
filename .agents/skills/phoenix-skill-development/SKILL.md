@@ -64,6 +64,7 @@ metadata:
 - `metadata.author`: Use `oss@arize.com` for Phoenix skills
 - `metadata.version`: Semver string (e.g., `"1.0.0"`)
 - `metadata.languages`: Only include if skill has language-specific content
+- `metadata.internal`: Set to `true` for skills not intended for public listing (e.g., skills in `.agents/skills/`). Omit for public skills in `skills/`.
 
 ### 3. Structure the SKILL.md Body
 
@@ -199,6 +200,7 @@ Common issues to fix when refining:
 ### SKILL.md
 
 - [ ] Frontmatter has all required fields (`name`, `description`, `license`, `metadata`)
+- [ ] `metadata.internal: true` is set for skills in `.agents/skills/`; omitted for skills in `skills/`
 - [ ] Description is third person, specific, includes trigger terms
 - [ ] Quick Reference table maps tasks to rule files
 - [ ] Rule Categories table lists all prefixes used
