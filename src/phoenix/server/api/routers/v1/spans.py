@@ -818,6 +818,7 @@ async def span_search(
                         parsed_time = datetime.now(timezone.utc)  # fallback
             else:
                 parsed_time = datetime.now(timezone.utc)  # fallback
+            assert parsed_time is not None
 
             events.append(
                 SpanEvent(
