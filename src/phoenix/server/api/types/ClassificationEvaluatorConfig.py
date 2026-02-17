@@ -13,4 +13,4 @@ class ClassificationEvaluatorConfig:
     description: Optional[str] = None
     optimization_direction: OptimizationDirection
     messages: list[PromptMessage]
-    choices: JSON
+    choices: JSON  # ty: ignore[invalid-type-form]
