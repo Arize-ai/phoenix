@@ -117,7 +117,7 @@ class Experiment(Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
@@ -152,7 +152,7 @@ class Experiment(Node):
             )
         return val
 
-    @strawberry.field(description="The user that created the experiment.")  # type: ignore
+    @strawberry.field(description="The user that created the experiment.")
     async def user(
         self,
         info: Info[Context, None],
@@ -171,7 +171,7 @@ class Experiment(Node):
 
     @strawberry.field(
         description="Sequence number (1-based) of experiments belonging to the same dataset"
-    )  # type: ignore
+    )
     async def sequence_number(
         self,
         info: Info[Context, None],
