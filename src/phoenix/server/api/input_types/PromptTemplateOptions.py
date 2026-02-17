@@ -6,5 +6,5 @@ from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 
 @strawberry.input
 class PromptTemplateOptions:
-    variables: JSON
+    variables: JSON  # ty: ignore[invalid-type-form]
     format: PromptTemplateFormat
