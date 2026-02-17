@@ -70,7 +70,7 @@ class ProjectTraceRetentionRuleInput:
 @strawberry.input
 class CreateProjectTraceRetentionPolicyInput:
     name: str
-    cron_expression: CronExpression
+    cron_expression: CronExpression  # ty: ignore[invalid-type-form]
     rule: ProjectTraceRetentionRuleInput
     add_projects: Optional[list[GlobalID]] = UNSET
 
@@ -85,7 +85,7 @@ class CreateProjectTraceRetentionPolicyInput:
 class PatchProjectTraceRetentionPolicyInput:
     id: GlobalID
     name: Optional[str] = UNSET
-    cron_expression: Optional[CronExpression] = UNSET
+    cron_expression: Optional[CronExpression] = UNSET  # ty: ignore[invalid-type-form]
     rule: Optional[ProjectTraceRetentionRuleInput] = UNSET
     add_projects: Optional[list[GlobalID]] = UNSET
     remove_projects: Optional[list[GlobalID]] = UNSET
@@ -115,7 +115,7 @@ class ProjectTraceRetentionPolicyMutationPayload:
 class ProjectTraceRetentionPolicyMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
-    )  # type: ignore
+    )
     async def create_project_trace_retention_policy(
         self,
         info: Info[Context, None],
@@ -150,7 +150,7 @@ class ProjectTraceRetentionPolicyMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
-    )  # type: ignore
+    )
     async def patch_project_trace_retention_policy(
         self,
         info: Info[Context, None],
@@ -208,7 +208,7 @@ class ProjectTraceRetentionPolicyMutationMixin:
             node=ProjectTraceRetentionPolicy(id=policy.id, db_policy=policy),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled])
     async def delete_project_trace_retention_policy(
         self,
         info: Info[Context, None],
