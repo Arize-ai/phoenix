@@ -7,18 +7,18 @@ Successfully implemented a comprehensive evaluation harness for the CLI Agent St
 ## What Was Built
 
 ### 1. Core Utilities (`evals/utils/`)
-- **markdown-patterns.ts**: Pattern detection engine with 11 markdown syntax patterns
+- **markdownPatterns.ts**: Pattern detection engine with 11 markdown syntax patterns
   - Bold, italic, inline code, code blocks, headings, links, lists, blockquotes
   - `detectMarkdownViolations()` function finds violations with line numbers
 
 ### 2. Evaluator (`evals/evaluators/`)
-- **terminal-safe-format.ts**: Code-based evaluator using `createEvaluator`
+- **terminalSafeFormatEvaluator.ts**: Code-based evaluator using `createEvaluator`
   - Returns binary score (0 = unsafe, 1 = safe)
   - Provides detailed explanations with pattern names and line numbers
   - Deterministic and fast (regex-based, no LLM calls)
 
 ### 3. Dataset (`evals/datasets/`)
-- **terminal-format-examples.ts**: 16 curated test examples
+- **terminalFormatExamples.ts**: 16 curated test examples
   - 5 compliant examples (plain text)
   - 3 bold violations
   - 3 code block violations
@@ -28,7 +28,7 @@ Successfully implemented a comprehensive evaluation harness for the CLI Agent St
   - Each example includes metadata with category and description
 
 ### 4. Experiment Runner (`evals/experiments/`)
-- **terminal-format.eval.ts**: Main orchestration using `runExperiment`
+- **runTerminalFormatEval.eval.ts**: Main orchestration using `runExperiment`
   - Uses `createOrGetDataset` for idempotent runs
   - Mock task function returns pre-defined dataset outputs
   - Displays summary with pass/fail counts
@@ -87,13 +87,13 @@ Failed: 10 (62.5%)
 
 ## Files Created (10)
 
-1. `evals/utils/markdown-patterns.ts` - Pattern detection logic
+1. `evals/utils/markdownPatterns.ts` - Pattern detection logic
 2. `evals/utils/index.ts` - Utility exports
-3. `evals/evaluators/terminal-safe-format.ts` - Terminal format evaluator
+3. `evals/evaluators/terminalSafeFormatEvaluator.ts` - Terminal format evaluator
 4. `evals/evaluators/index.ts` - Evaluator exports
-5. `evals/datasets/terminal-format-examples.ts` - Curated dataset (16 examples)
+5. `evals/datasets/terminalFormatExamples.ts` - Curated dataset (16 examples)
 6. `evals/datasets/index.ts` - Dataset exports
-7. `evals/experiments/terminal-format.eval.ts` - Experiment runner
+7. `evals/experiments/runTerminalFormatEval.eval.ts` - Experiment runner
 8. `evals/experiments/index.ts` - Experiment exports
 9. `scripts/run-evals.ts` - Interactive CLI
 10. `evals/README.md` - Documentation

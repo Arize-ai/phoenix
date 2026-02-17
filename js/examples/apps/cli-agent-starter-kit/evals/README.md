@@ -24,23 +24,23 @@ Verifies agent outputs don't contain markdown syntax (bold, italic, code blocks,
 - **Type**: Code-based (regex pattern matching)
 - **Dataset**: 16 curated examples
 - **Metric**: Binary (pass/fail)
-- **Location**: `evals/evaluators/terminal-safe-format.ts`
+- **Location**: `evals/evaluators/terminalSafeFormatEvaluator.ts`
 
 ## Project Structure
 
 ```
 evals/
 ├── evaluators/          # Evaluator definitions
-│   ├── terminal-safe-format.ts
+│   ├── terminalSafeFormatEvaluator.ts
 │   └── index.ts
 ├── datasets/            # Test datasets
-│   ├── terminal-format-examples.ts
+│   ├── terminalFormatExamples.ts
 │   └── index.ts
 ├── experiments/         # Experiment runners (*.eval.ts pattern)
-│   ├── terminal-format.eval.ts
+│   ├── runTerminalFormatEval.eval.ts
 │   └── index.ts
 ├── utils/              # Shared utilities
-│   ├── markdown-patterns.ts
+│   ├── markdownPatterns.ts
 │   └── index.ts
 └── README.md           # This file
 ```
