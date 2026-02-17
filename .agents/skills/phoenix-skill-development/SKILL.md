@@ -5,6 +5,7 @@ license: Apache-2.0
 metadata:
   author: oss@arize.com
   version: "1.0.0"
+  internal: true
 ---
 
 # Skill Development

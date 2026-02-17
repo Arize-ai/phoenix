@@ -9,6 +9,7 @@ metadata:
   author: mintlify
   version: "1.0"
   mintlify-proj: mintlify
+  internal: true
 ---
 
 # Mintlify best practices
