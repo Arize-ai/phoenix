@@ -30,12 +30,12 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 @strawberry.input
 class ToolDefinitionInput:
-    definition: JSON
+    definition: JSON  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input
 class ResponseFormatInput:
-    definition: JSON
+    definition: JSON  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input
@@ -46,7 +46,7 @@ class TextContentValueInput:
 @strawberry.input
 class ToolResultContentValueInput:
     tool_call_id: str
-    result: JSON
+    result: JSON  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input
@@ -85,7 +85,7 @@ class ChatPromptVersionInput:
     description: Optional[str] = None
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
-    invocation_parameters: JSON = strawberry.field(default_factory=dict)
+    invocation_parameters: JSON = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
     tools: list[ToolDefinitionInput] = strawberry.field(default_factory=list)
     response_format: Optional[ResponseFormatInput] = None
     model_provider: ModelProvider
