@@ -13,4 +13,4 @@ class AddExamplesToDatasetInput:
     dataset_id: GlobalID
     examples: list[DatasetExampleInput]
     dataset_version_description: Optional[str] = UNSET
-    dataset_version_metadata: Optional[JSON] = UNSET
+    dataset_version_metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
