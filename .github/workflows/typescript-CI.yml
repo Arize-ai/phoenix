@@ -43,7 +43,7 @@ jobs:
       - name: Formatting
         working-directory: ./app
         run: |
-          pnpm run prettier:check
+          pnpm run fmt:check
       - name: Lint
         working-directory: ./app
         run: |

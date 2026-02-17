@@ -47,7 +47,7 @@ jobs:
       - name: Formatting
         working-directory: ./js
         run: |
-          pnpm run prettier:check
+          pnpm run fmt:check
       - name: Type Checking
         working-directory: ./js
         run: |

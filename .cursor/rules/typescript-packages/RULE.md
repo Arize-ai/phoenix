@@ -8,8 +8,8 @@
 - `pnpm run -r build` - Build all packages recursively
 - `pnpm run -r test` - Test all packages recursively
 - `pnpm run lint` - Lint all packages
-- `pnpm run prettier:check .` - Check formatting
-- `pnpm run prettier:write .` - Fix formatting
+- `pnpm run fmt:check .` - Check formatting
+- `pnpm run fmt .` - Fix formatting
 
 ### Release
 
@@ -20,7 +20,7 @@
 Before completing any TypeScript package changes, ALWAYS run these checks from the `js/` directory:
 
 1. **ESLint**: `pnpm run lint -- packages/<package-name>/src/` or `npx eslint --fix packages/<package-name>/src/`
-2. **Prettier**: `pnpm run prettier:check packages/<package-name>/` or `pnpm run prettier:write packages/<package-name>/`
+2. **Formatting**: `pnpm run fmt:check packages/<package-name>/` or `pnpm run fmt packages/<package-name>/`
 3. **Tests**: `cd packages/<package-name> && pnpm test`
 4. **Type check**: `cd packages/<package-name> && pnpm typecheck`
 

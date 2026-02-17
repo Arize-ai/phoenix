@@ -2,44 +2,44 @@
   "name": "pglite-json-jsonb-demo",
   "version": "1.0.0",
   "description": "Demonstration of PostgreSQL JSON vs JSONB storage behavior using PGlite or PostgreSQL",
-  "main": "src/index.ts",
-  "type": "module",
-  "scripts": {
-    "start": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/index.ts",
-    "compare": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/compare.ts",
-    "performance": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/performance.ts",
-    "query": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/query-examples.ts",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "lint": "eslint \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "keywords": [
-    "postgresql",
+    "database",
     "json",
     "jsonb",
     "pglite",
-    "database"
+    "postgresql"
   ],
-  "author": "",
   "license": "MIT",
+  "author": "",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "compare": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/compare.ts",
+    "format": "oxfmt --config ../../../.oxfmtrc.jsonc",
+    "lint": "eslint \"src/**/*.ts\"",
+    "performance": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/performance.ts",
+    "query": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/query-examples.ts",
+    "start": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --no-warnings src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@electric-sql/pglite": "latest"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/node": "^22.5.4",
     "@types/pg": "^8.11.14",
-    "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
     "globals": "^16.0.0",
-    "typescript-eslint": "^8.0.0",
+    "oxfmt": "^0.33.0",
     "pg": "^8.11.3",
-    "prettier": "^3.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "~5.4.5"
+    "typescript": "~5.4.5",
+    "typescript-eslint": "^8.0.0"
   },
-  "packageManager": "pnpm@10.29.3",
   "optionalDependencies": {
     "pg": "^8.11.3"
-  }
+  },
+  "packageManager": "pnpm@10.29.3"
 }

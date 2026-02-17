@@ -84,7 +84,7 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. 
+Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more.
 
 `tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
 
@@ -298,8 +298,10 @@ After doing so, consider pasting the following settings into your workspace sett
   "mypy-type-checker.ignorePatterns": [".tox,.venv,app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",
-  "prettier.configPath": "app/.prettierrc.json",
-  "prettier.prettierPath": "app/node_modules/prettier",
+  "oxc.fmt.configPath": ".oxfmtrc.jsonc",
+  "oxc.path.oxfmt": "app/node_modules/oxfmt/bin/oxfmt",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
   "typescript.tsdk": "app/node_modules/typescript/lib",
   "relay.rootDirectory": "app",
   "relay.pathToConfig": "app/relay.config.js",
@@ -354,6 +356,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
    > ```
    >
    > Or add to `app/.env`:
+   >
    > ```
    > VITE_PORT=3000
    > DEBUGPY_PORT=5679

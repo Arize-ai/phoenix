@@ -73,17 +73,17 @@ The web build ensures that the UI as well as the data-fetching layer is fully ty
 
 ## Test
 
-The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `prettier` code formatter. For unit testing, the app leverages [vitest](https://vitest.dev/) as a unit testing framework. Lastly, for integration tests (e.g. end-to-end or e2e), [playwright](playwright.dev) is used. The following `pnpm` commands correspond to the above safeguards.
+The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `oxfmt` code formatter. For unit testing, the app leverages [vitest](https://vitest.dev/) as a unit testing framework. Lastly, for integration tests (e.g. end-to-end or e2e), [playwright](playwright.dev) is used. The following `pnpm` commands correspond to the above safeguards.
 
 ```shell
 pnpm run typecheck
 pnpm run lint
-pnpm run prettier:check
+pnpm run fmt:check
 pnpm test
 pnpm run test:e2e
 ```
 
-NB: [prettier](https://prettier.io/) is also enforced via [pre-commit](https://pre-commit.com/) hooks.
+NB: Formatting is also enforced via [pre-commit](https://pre-commit.com/) hooks.
 
 ### Integration Tests
 
