@@ -14,9 +14,9 @@ from phoenix.server.api.types.Identifier import Identifier
 
 @strawberry.input
 class EvaluatorInputMappingInput:
-    literal_mapping: JSON = strawberry.field(default_factory=dict)
+    literal_mapping: JSON = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
     """Direct key-value mappings to evaluator inputs."""
-    path_mapping: JSON = strawberry.field(default_factory=dict)
+    path_mapping: JSON = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
     """JSONPath expressions to extract values from the evaluation context."""
 
     def __post_init__(self) -> None:
@@ -43,7 +43,7 @@ class EvaluatorInputMappingInput:
 @strawberry.input
 class PlaygroundEvaluatorInput:
     id: GlobalID
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     description: Optional[str] = None
     input_mapping: EvaluatorInputMappingInput = strawberry.field(
         default_factory=EvaluatorInputMappingInput
