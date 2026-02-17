@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Mapping, Sequence
+from typing import Sequence
 
 import sqlalchemy as sa
 import strawberry
@@ -53,7 +53,7 @@ def _get_sdk_from_config(
 
 # openai and azure_openai use the same underlying SDK, so switching between them is safe.
 # All other SDKs have different invocation parameters and are incompatible.
-_COMPATIBLE_SDKS: Mapping[models.GenerativeModelSDK, Sequence[models.GenerativeModelSDK]] = {
+_COMPATIBLE_SDKS: dict[models.GenerativeModelSDK, Sequence[models.GenerativeModelSDK]] = {
     "openai": ("azure_openai",),
     "azure_openai": ("openai",),
 }
@@ -153,7 +153,7 @@ class DeleteGenerativeModelCustomProviderMutationPayload:
 class GenerativeModelCustomProviderMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
-    )  # type: ignore
+    )
     async def create_generative_model_custom_provider(
         self,
         info: Info[Context, None],
@@ -195,7 +195,7 @@ class GenerativeModelCustomProviderMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
-    )  # type: ignore
+    )
     async def patch_generative_model_custom_provider(
         self,
         info: Info[Context, None],
@@ -263,7 +263,7 @@ class GenerativeModelCustomProviderMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
-    )  # type: ignore
+    )
     async def delete_generative_model_custom_provider(
         self,
         info: Info[Context, None],
