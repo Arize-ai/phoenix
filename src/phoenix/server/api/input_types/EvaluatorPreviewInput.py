@@ -47,7 +47,7 @@ class EvaluatorPreviewItemInput:
     """A single evaluator preview request with one or more contexts."""
 
     evaluator: EvaluatorPreviewInput
-    context: JSON
+    context: JSON  # ty: ignore[invalid-type-form]
     input_mapping: EvaluatorInputMappingInput = strawberry.field(
         default_factory=EvaluatorInputMappingInput
     )
