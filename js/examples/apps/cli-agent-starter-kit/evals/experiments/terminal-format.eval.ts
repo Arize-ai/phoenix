@@ -15,6 +15,9 @@ import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
 async function main() {
   const client = createClient();
 
+  console.log("\n🔍 Terminal Safe Format Evaluation");
+  console.log(`   Testing ${terminalFormatDataset.examples.length} examples with live agent\n`);
+
   // Create or get existing dataset (silent)
   const { datasetId } = await createOrGetDataset({
     client,
@@ -23,12 +26,21 @@ async function main() {
     examples: terminalFormatDataset.examples,
   });
 
+  // Track progress
+  let completed = 0;
+  const total = terminalFormatDataset.examples.length;
+
   // Define task (calls the real agent with the prompt)
   const task: RunExperimentParams["task"] = async (example: Example) => {
     const prompt = example.input?.prompt;
     if (typeof prompt !== "string") {
       throw new Error("Invalid dataset: input.prompt must be a string");
     }
+
+    // Show progress
+    completed++;
+    console.log(`  [${completed}/${total}] Evaluating: "${prompt.substring(0, 50)}..."`);
+
     // Call the agent
     const result = await agent.generate({ prompt });
     return result.text || "";
@@ -53,14 +65,25 @@ async function main() {
   // Print summary
   const runs = Object.values(experiment.runs);
   const evaluationResults = experiment.evaluationRuns || [];
-  const passCount = evaluationResults.filter((r) => r.result.score === 1).length;
-  const failCount = evaluationResults.filter((r) => r.result.score === 0).length;
+  const passCount = evaluationResults.filter(
+    (r) => r.result?.score === 1
+  ).length;
+  const failCount = evaluationResults.filter(
+    (r) => r.result?.score === 0
+  ).length;
 
   console.log(`\n✓ Evaluated ${runs.length} examples`);
-  console.log(`  ${passCount} passed (${((passCount / runs.length) * 100).toFixed(1)}%)`);
-  console.log(`  ${failCount} failed (${((failCount / runs.length) * 100).toFixed(1)}%)`);
   console.log(
-    `\n→ View details: http://localhost:6006/datasets/${datasetId}/compare?experimentId=${experiment.id}\n`
+    `  ${passCount} passed (${((passCount / runs.length) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `  ${failCount} failed (${((failCount / runs.length) * 100).toFixed(1)}%)`
+  );
+
+  // Get base URL from client config
+  const baseUrl = client.config.baseUrl || "http://localhost:6006";
+  console.log(
+    `\n→ View details: ${baseUrl}/datasets/${datasetId}/compare?experimentId=${experiment.id}\n`
   );
 }
 

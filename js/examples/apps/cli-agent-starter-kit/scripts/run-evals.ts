@@ -1,5 +1,7 @@
 #!/usr/bin/env tsx
 /* eslint-disable no-console */
+import { createClient } from "@arizeai/phoenix-client";
+
 import { flush } from "../src/instrumentation.js";
 
 import { glob } from "glob";
@@ -23,7 +25,9 @@ async function discoverEvaluations(pattern?: string) {
   }));
 }
 
-function runEvaluation(file: string): Promise<{ success: boolean; output: string }> {
+function runEvaluation(
+  file: string
+): Promise<{ success: boolean; output: string }> {
   return new Promise((resolve) => {
     const child = spawn("tsx", [file], {
       stdio: "inherit",
@@ -83,18 +87,22 @@ async function main() {
 
     if (result.success) {
       passed++;
-      console.log(`\n✓ ${evaluation.name} passed\n`);
+      console.log(`\n✓ ${evaluation.name} completed\n`);
     } else {
       failed++;
-      console.log(`\n✗ ${evaluation.name} failed\n`);
+      console.log(`\n✗ ${evaluation.name} failed (script error)\n`);
     }
   }
 
   await flush();
 
+  // Get base URL from client
+  const client = createClient();
+  const baseUrl = client.config.baseUrl || "http://localhost:6006";
+
   console.log("\n" + "=".repeat(50));
-  console.log(`\nEvaluations: ${passed} passed, ${failed} failed`);
-  console.log(`View results: http://localhost:6006/datasets\n`);
+  console.log(`\nCompleted: ${passed} successful, ${failed} failed`);
+  console.log(`\n→ View evaluation results: ${baseUrl}/datasets\n`);
 
   if (failed > 0) {
     process.exit(1);
