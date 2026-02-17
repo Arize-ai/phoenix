@@ -433,7 +433,7 @@ def run_experiment(
             repetition_number=repetition_number,
             output=output,
             error=repr(error) if error else None,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_str_trace_id(span.get_span_context().trace_id),
         )
         if not dry_run:
             try:
@@ -547,7 +547,7 @@ def run_experiment(
             repetition_number=repetition_number,
             output=output,
             error=repr(error) if error else None,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_str_trace_id(span.get_span_context().trace_id),
         )
         if not dry_run:
             try:
@@ -622,7 +622,7 @@ def run_experiment(
     )
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
-    ran_experiment.__init__(  # type: ignore[misc]
+    ran_experiment.__init__(
         params=params,
         dataset=normalized_dataset,
         runs={r.id: r for r in task_runs if r is not None},
@@ -678,7 +678,7 @@ def evaluate_experiment(
         params = ExperimentParameters(n_examples=len(dataset.examples))
         task_summary = TaskSummary.from_task_runs(params, experiment_runs.values())
         ran_experiment = object.__new__(RanExperiment)
-        ran_experiment.__init__(  # type: ignore[misc]
+        ran_experiment.__init__(
             dataset=dataset,
             params=params,
             runs=experiment_runs,
@@ -762,7 +762,7 @@ def evaluate_experiment(
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_str_trace_id(span.get_span_context().trace_id),
         )
         if not dry_run:
             resp = sync_client.post("v1/experiment_evaluations", json=jsonify(eval_run))
@@ -817,7 +817,7 @@ def evaluate_experiment(
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_str_trace_id(span.get_span_context().trace_id),
         )
         if not dry_run:
             # Below is a workaround to avoid timeout errors sometimes
