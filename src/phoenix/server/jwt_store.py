@@ -132,27 +132,27 @@ class JwtStore:
 
     async def create_password_reset_token(
         self,
-        claim: PasswordResetTokenClaims,
+        claims: PasswordResetTokenClaims,
     ) -> tuple[PasswordResetToken, PasswordResetTokenId]:
-        return await self._password_reset_token_store.create(claim)
+        return await self._password_reset_token_store.create(claims)
 
     async def create_access_token(
         self,
-        claim: AccessTokenClaims,
+        claims: AccessTokenClaims,
     ) -> tuple[AccessToken, AccessTokenId]:
-        return await self._access_token_store.create(claim)
+        return await self._access_token_store.create(claims)
 
     async def create_refresh_token(
         self,
-        claim: RefreshTokenClaims,
+        claims: RefreshTokenClaims,
     ) -> tuple[RefreshToken, RefreshTokenId]:
-        return await self._refresh_token_store.create(claim)
+        return await self._refresh_token_store.create(claims)
 
     async def create_api_key(
         self,
-        claim: ApiKeyClaims,
+        claims: ApiKeyClaims,
     ) -> tuple[ApiKey, ApiKeyId]:
-        return await self._api_key_store.create(claim)
+        return await self._api_key_store.create(claims)
 
     async def revoke(self, *token_ids: TokenId) -> None:
         if not token_ids:
