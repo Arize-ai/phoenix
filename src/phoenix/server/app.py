@@ -1075,13 +1075,15 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares: list[Middleware] = [
+        Middleware(HeadersMiddleware)  # ty: ignore[invalid-argument-type]
+    ]
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
         middlewares.append(
             Middleware(
-                RequestOriginHostnameValidator,
+                RequestOriginHostnameValidator,  # ty: ignore[invalid-argument-type]
                 trusted_hostnames=trusted_hostnames,
             )
         )
@@ -1096,7 +1098,7 @@ def create_app(
         token_store = JwtStore(db, secret)
         middlewares.append(
             Middleware(
-                AuthenticationMiddleware,
+                AuthenticationMiddleware,  # ty: ignore[invalid-argument-type]
                 backend=BearerTokenAuthBackend(token_store),
             )
         )
@@ -1127,7 +1129,6 @@ def create_app(
 
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        from opentelemetry.trace import TracerProvider
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
         if TYPE_CHECKING:
@@ -1140,7 +1141,7 @@ def create_app(
                 # Monkey-patch its private tracer to eliminate usage of the global
                 # TracerProvider, which in a notebook setting could be the one
                 # used by OpenInference.
-                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
+                self._tracer = tracer_provider.get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
@@ -1165,7 +1166,9 @@ def create_app(
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
 
-        middlewares.append(Middleware(PrometheusMiddleware))
+        middlewares.append(
+            Middleware(PrometheusMiddleware)  # ty: ignore[invalid-argument-type]
+        )
     grpc_interceptors: list[AsyncServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     app = FastAPI(
@@ -1205,7 +1208,9 @@ def create_app(
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
-    app.add_middleware(GZipMiddleware)
+    app.add_middleware(
+        GZipMiddleware,  # ty: ignore[invalid-argument-type]
+    )
     web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
     if serve_ui and web_manifest_path.is_file():
         oauth2_idps = [
@@ -1279,7 +1284,7 @@ def create_app(
         shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
     if allowed_origins:
         app.add_middleware(
-            CORSMiddleware,
+            CORSMiddleware,  # ty: ignore[invalid-argument-type]
             allow_origins=allowed_origins,
             allow_credentials=True,
             allow_methods=["*"],
