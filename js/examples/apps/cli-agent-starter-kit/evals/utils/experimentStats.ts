@@ -251,9 +251,7 @@ export function printExperimentSummary({
     );
     for (const [score, count] of sortedScores) {
       const pct = ((count / evaluator.total) * 100).toFixed(1);
-      console.log(
-        `  Score=${score}: ${count} / ${evaluator.total} (${pct}%)`
-      );
+      console.log(`  Score=${score}: ${count} / ${evaluator.total} (${pct}%)`);
     }
 
     // Label distribution
@@ -289,11 +287,26 @@ export function printExperimentSummary({
     };
   });
 
-  const colNum = maxLen(rows.map((r) => r.num), "#".length);
-  const colId = maxLen(rows.map((r) => r.id), "Example ID".length);
-  const colScore = maxLen(rows.map((r) => r.score), "Score".length);
-  const colLabel = maxLen(rows.map((r) => r.label), "Label".length);
-  const colLatency = maxLen(rows.map((r) => r.latency), "Latency".length);
+  const colNum = maxLen(
+    rows.map((r) => r.num),
+    "#".length
+  );
+  const colId = maxLen(
+    rows.map((r) => r.id),
+    "Example ID".length
+  );
+  const colScore = maxLen(
+    rows.map((r) => r.score),
+    "Score".length
+  );
+  const colLabel = maxLen(
+    rows.map((r) => r.label),
+    "Label".length
+  );
+  const colLatency = maxLen(
+    rows.map((r) => r.latency),
+    "Latency".length
+  );
   const colExplanation = maxLen(
     rows.map((r) => r.explanation),
     "Explanation".length
@@ -336,9 +349,7 @@ export function printExperimentSummary({
       console.log(`  [Run] Example=${err.exampleId}: ${err.error}`);
     }
     for (const err of stats.evalErrors) {
-      console.log(
-        `  [Eval] ${err.evalName} on run=${err.runId}: ${err.error}`
-      );
+      console.log(`  [Eval] ${err.evalName} on run=${err.runId}: ${err.error}`);
     }
   }
 
