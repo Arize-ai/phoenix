@@ -22,6 +22,7 @@ from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
@@ -93,7 +94,7 @@ class EvaluationResult(TypedDict):
     end_time: datetime
 
 
-EvaluatorOutputConfig: TypeAlias = CategoricalAnnotationConfig | ContinuousAnnotationConfig
+EvaluatorOutputConfig: TypeAlias = AnnotationConfigType
 
 
 class BaseEvaluator(ABC):
