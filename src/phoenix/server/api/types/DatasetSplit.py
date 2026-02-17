@@ -49,7 +49,7 @@ class DatasetSplit(Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
