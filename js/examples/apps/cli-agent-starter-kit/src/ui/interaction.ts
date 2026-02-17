@@ -56,15 +56,10 @@ export async function processUserMessage(
     let stepNumber = 0;
 
     const handleInteraction = withSpan(
-      async (_input: string) => {
+      async (input: string) => {
         return await agent.generate({
           options: {},
-          prompt: conversationHistory
-            .map(
-              (msg) =>
-                `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
-            )
-            .join("\n\n"),
+          prompt: input,
           onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
             if (verbose) {
               stepNumber++;
