@@ -1,14 +1,5 @@
-from typing import TYPE_CHECKING
-
 import strawberry
 from strawberry.scalars import JSON
-
-if TYPE_CHECKING:
-    # For type checkers: JSON is a wrapper around object
-    JSONType = object
-else:
-    # At runtime: use the actual strawberry JSON scalar for GraphQL
-    JSONType = JSON
 
 
 @strawberry.interface
@@ -18,6 +9,6 @@ class ExampleRevision:
     For example, you might have text -> text, text -> labels, etc.
     """
 
-    input: JSONType
-    output: JSONType
-    metadata: JSONType
+    input: JSON  # ty: ignore[invalid-type-form]
+    output: JSON  # ty: ignore[invalid-type-form]
+    metadata: JSON  # ty: ignore[invalid-type-form]
