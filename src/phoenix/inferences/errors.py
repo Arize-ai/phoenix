@@ -36,10 +36,11 @@ class MissingColumns(ValidationError):
         self.missing_cols = cols
 
     def error_message(self) -> str:
+        missing_cols_str = ", ".join(str(col) for col in self.missing_cols)
         return (
             "The following columns are declared in the Schema "
             "but are not found in the dataframe: "
-            f"{', '.join(map(str, self.missing_cols))}."
+            f"{missing_cols_str}."
         )
 
 
@@ -51,8 +52,8 @@ class InvalidSchemaError(ValidationError):
         self.invalid_props = invalid_props
 
     def error_message(self) -> str:
-        errors_string = ", ".join(map(str, self.invalid_props))
-        return f"The schema is invalid: {errors_string}."
+        invalid_props_str = ", ".join(str(prop) for prop in self.invalid_props)
+        return f"The schema is invalid: {invalid_props_str}."
 
 
 class DatasetError(Exception):
