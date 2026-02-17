@@ -35,12 +35,6 @@ jobs:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         py: ["3.10", "3.13"]
         os: [windows-latest, macos-latest]
-        db: [sqlite, postgresql]
-        exclude:
-          - db: postgresql
-            os: windows-latest
-          - db: postgresql
-            os: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
