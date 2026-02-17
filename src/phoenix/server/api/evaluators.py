@@ -216,7 +216,7 @@ class LLMEvaluator(BaseEvaluator):
                         section_vars.update(parsed.section_variables())
                         string_vars.update(parsed.string_variables())
             else:
-                assert_never(msg.content)
+                assert_never(msg.content)  # ty: ignore[type-assertion-failure]
 
         # Section vars get empty schema (accepts any type), string vars get type: string
         # Sort iteration order for deterministic key ordering in the resulting dict
