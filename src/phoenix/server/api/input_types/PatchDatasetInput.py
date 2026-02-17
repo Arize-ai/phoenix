@@ -11,4 +11,4 @@ class PatchDatasetInput:
     dataset_id: GlobalID
     name: Optional[str] = UNSET
     description: Optional[str] = UNSET
-    metadata: Optional[JSON] = UNSET
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
