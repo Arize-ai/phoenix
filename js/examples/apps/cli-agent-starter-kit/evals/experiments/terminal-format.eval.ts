@@ -16,7 +16,9 @@ async function main() {
   const client = createClient();
 
   console.log("\n🔍 Terminal Safe Format Evaluation");
-  console.log(`   Testing ${terminalFormatDataset.examples.length} examples with live agent\n`);
+  console.log(
+    `   Testing ${terminalFormatDataset.examples.length} examples with live agent\n`
+  );
 
   // Create or get existing dataset (silent)
   const { datasetId } = await createOrGetDataset({
@@ -39,7 +41,9 @@ async function main() {
 
     // Show progress
     completed++;
-    console.log(`  [${completed}/${total}] Evaluating: "${prompt.substring(0, 50)}..."`);
+    console.log(
+      `  [${completed}/${total}] Evaluating: "${prompt.substring(0, 50)}..."`
+    );
 
     // Call the agent
     const result = await agent.generate({ prompt });

@@ -32,6 +32,7 @@ evals/
 ## Creating New Evaluators
 
 1. **Create evaluator** in `evals/evaluators/myEvaluator.ts`:
+
 ```typescript
 import { createEvaluator } from "@arizeai/phoenix-evals";
 
@@ -46,6 +47,7 @@ export const myEvaluator = createEvaluator(
 ```
 
 2. **Create dataset** in `evals/datasets/myExamples.ts`:
+
 ```typescript
 export const myExamples = [
   {
@@ -57,6 +59,7 @@ export const myExamples = [
 ```
 
 3. **Create experiment** in `evals/experiments/my-eval.eval.ts`:
+
 ```typescript
 #!/usr/bin/env tsx
 import { createClient } from "@arizeai/phoenix-client";
