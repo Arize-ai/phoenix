@@ -41,7 +41,7 @@ class PromptVersionTag(Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> Identifier:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.name
         else:
