@@ -1561,6 +1561,12 @@ class AzureOpenAIReasoningNonStreamingClient(
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
         from openai.types import chat
+        from openai.types.chat.chat_completion_message_custom_tool_call import (
+            ChatCompletionMessageCustomToolCall,
+        )
+        from openai.types.chat.chat_completion_message_function_tool_call import (
+            ChatCompletionMessageFunctionToolCall,
+        )
 
         # Convert standard messages to OpenAI messages
         openai_messages = []
@@ -1592,13 +1598,6 @@ class AzureOpenAIReasoningNonStreamingClient(
             yield TextChunk(content=choice.message.content)
 
         if choice.message.tool_calls:
-            from openai.types.chat.chat_completion_message_custom_tool_call import (
-                ChatCompletionMessageCustomToolCall,
-            )
-            from openai.types.chat.chat_completion_message_function_tool_call import (
-                ChatCompletionMessageFunctionToolCall,
-            )
-
             for tool_call in choice.message.tool_calls:
                 if isinstance(tool_call, ChatCompletionMessageFunctionToolCall):
                     yield ToolCallChunk(
@@ -2008,19 +2007,18 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             async for event in stream:
                 # Update token counts if usage_metadata is present
                 if event.usage_metadata:
-                    usage_attrs: dict[str, int] = {}
                     if event.usage_metadata.prompt_token_count is not None:
-                        usage_attrs[LLM_TOKEN_COUNT_PROMPT] = (
-                            event.usage_metadata.prompt_token_count
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_PROMPT, event.usage_metadata.prompt_token_count
                         )
                     if event.usage_metadata.candidates_token_count is not None:
-                        usage_attrs[LLM_TOKEN_COUNT_COMPLETION] = (
-                            event.usage_metadata.candidates_token_count
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_COMPLETION, event.usage_metadata.candidates_token_count
                         )
                     if event.usage_metadata.total_token_count is not None:
-                        usage_attrs[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
-                    if usage_attrs:
-                        span.set_attributes(usage_attrs)
+                        span.set_attribute(
+                            LLM_TOKEN_COUNT_TOTAL, event.usage_metadata.total_token_count
+                        )
 
                 if event.candidates:
                     candidate = event.candidates[0]
