@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any, TypeGuard
 
 import strawberry
 from sqlalchemy import delete
@@ -24,7 +25,7 @@ class ExperimentMutationPayload:
 
 @strawberry.type
 class ExperimentMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_experiments(
         self,
         info: Info[Context, None],
@@ -62,6 +63,8 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
+        assert _is_list_of_strings(project_names)
+        assert _is_list_of_strings(eval_trace_ids)
         await asyncio.gather(
             delete_projects(info.context.db, *project_names),
             delete_traces(info.context.db, *eval_trace_ids),
@@ -73,3 +76,9 @@ class ExperimentMutationMixin:
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids
             ]
         )
+
+
+def _is_list_of_strings(maybe_list_of_strings: Any) -> TypeGuard[list[str]]:
+    return isinstance(maybe_list_of_strings, list) and all(
+        isinstance(item, str) for item in maybe_list_of_strings
+    )
