@@ -76,9 +76,9 @@ class SpanKind(Enum):
     unknown = "UNKNOWN"
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        if v and isinstance(v, str) and v.isascii() and not v.isupper():
-            return cls(v.upper())
+    def _missing_(cls, value: Any) -> Optional["SpanKind"]:
+        if value and isinstance(value, str) and value.isascii() and not value.isupper():
+            return cls(value.upper())
         return cls.unknown
 
 
@@ -95,8 +95,8 @@ class SpanStatusCode(Enum):
     UNSET = "UNSET"
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
-        return None if v else cls.UNSET
+    def _missing_(cls, value: Any) -> Optional["SpanStatusCode"]:
+        return None if value else cls.UNSET
 
 
 @strawberry.type
@@ -104,7 +104,7 @@ class SpanEvent:
     name: str
     message: str
     timestamp: datetime
-    attributes: JSON
+    attributes: JSON  # ty:ignore[invalid-type-form]
 
     @staticmethod
     def from_dict(
@@ -114,7 +114,7 @@ class SpanEvent:
             name=event["name"],
             message=cast(str, event["attributes"].get(trace_schema.EXCEPTION_MESSAGE) or ""),
             timestamp=datetime.fromisoformat(event["timestamp"]),
-            attributes=cast(JSON, event["attributes"]),
+            attributes=cast(JSON, event["attributes"]),  # ty: ignore[invalid-type-form]
         )
 
 
@@ -209,7 +209,7 @@ class Span(Node):
 
     @strawberry.field(
         description="the parent span ID. If null, it is a root span",
-    )  # type: ignore
+    )
     async def parent_id(
         self,
         info: Info[Context, None],
@@ -284,7 +284,7 @@ class Span(Node):
 
     @strawberry.field(
         description="Span attributes as a JSON string",
-    )  # type: ignore
+    )
     async def attributes(
         self,
         info: Info[Context, None],
@@ -299,7 +299,7 @@ class Span(Node):
 
     @strawberry.field(
         description="Metadata as a JSON string",
-    )  # type: ignore
+    )
     async def metadata(
         self,
         info: Info[Context, None],
@@ -481,7 +481,7 @@ class Span(Node):
     @strawberry.field(
         description="Cumulative (prompt plus completion) token count from self "
         "and all descendant spans (children, grandchildren, etc.)",
-    )  # type: ignore
+    )
     async def cumulative_token_count_total(
         self,
         info: Info[Context, None],
@@ -496,7 +496,7 @@ class Span(Node):
     @strawberry.field(
         description="Cumulative (prompt) token count from self and all descendant "
         "spans (children, grandchildren, etc.)",
-    )  # type: ignore
+    )
     async def cumulative_token_count_prompt(
         self,
         info: Info[Context, None],
@@ -511,7 +511,7 @@ class Span(Node):
     @strawberry.field(
         description="Cumulative (completion) token count from self and all descendant "
         "spans (children, grandchildren, etc.)",
-    )  # type: ignore
+    )
     async def cumulative_token_count_completion(
         self,
         info: Info[Context, None],
@@ -526,7 +526,7 @@ class Span(Node):
     @strawberry.field(
         description="Propagated status code that percolates up error status codes from "
         "descendant spans (children, grandchildren, etc.)",
-    )  # type: ignore
+    )
     async def propagated_status_code(
         self,
         info: Info[Context, None],
@@ -543,7 +543,7 @@ class Span(Node):
         description=(
             "Annotations associated with the span. This encompasses both LLM and human annotations."
         )
-    )  # type: ignore
+    )
     async def span_annotations(
         self,
         info: Info[Context, None],
@@ -568,7 +568,7 @@ class Span(Node):
             SpanAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
         ]
 
-    @strawberry.field(description=("Notes associated with the span."))  # type: ignore
+    @strawberry.field(description=("Notes associated with the span."))
     async def span_notes(
         self,
         info: Info[Context, None],
@@ -581,7 +581,7 @@ class Span(Node):
             SpanAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
         ]
 
-    @strawberry.field(description="Summarizes each annotation (by name) associated with the span")  # type: ignore
+    @strawberry.field(description="Summarizes each annotation (by name) associated with the span")
     async def span_annotation_summaries(
         self,
         info: Info[Context, None],
@@ -642,7 +642,7 @@ class Span(Node):
         "respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is "
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
-    )  # type: ignore
+    )
     async def document_evaluations(
         self,
         info: Info[Context, None],
@@ -654,7 +654,7 @@ class Span(Node):
 
     @strawberry.field(
         description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",
-    )  # type: ignore
+    )
     async def document_retrieval_metrics(
         self,
         info: Info[Context, None],
@@ -679,7 +679,7 @@ class Span(Node):
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
-    )  # type: ignore
+    )
     async def descendants(
         self,
         info: Info[Context, None],
@@ -711,7 +711,7 @@ class Span(Node):
 
     @strawberry.field(
         description="The span's attributes translated into an example revision for a dataset",
-    )  # type: ignore
+    )
     async def as_example_revision(
         self,
         info: Info[Context, None],
@@ -748,7 +748,7 @@ class Span(Node):
             metadata=metadata,
         )
 
-    @strawberry.field(description="The project that this span belongs to.")  # type: ignore
+    @strawberry.field(description="The project that this span belongs to.")
     async def project(
         self,
         info: Info[Context, None],
@@ -761,7 +761,7 @@ class Span(Node):
         project = await info.context.data_loaders.span_projects.load(span_id)
         return Project(id=project.id, db_record=project)
 
-    @strawberry.field(description="Indicates if the span is contained in any dataset")  # type: ignore
+    @strawberry.field(description="Indicates if the span is contained in any dataset")
     async def contained_in_dataset(
         self,
         info: Info[Context, None],
@@ -769,7 +769,7 @@ class Span(Node):
         examples = await info.context.data_loaders.span_dataset_examples.load(self.id)
         return bool(examples)
 
-    @strawberry.field(description="Invocation parameters for the span")  # type: ignore
+    @strawberry.field(description="Invocation parameters for the span")
     async def invocation_parameters(
         self,
         info: Info[Context, None],
@@ -866,18 +866,18 @@ def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 class _JSONEncoder(json.JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if isinstance(obj, Enum):
-            return obj.value
-        if isinstance(obj, np.ndarray):
-            return list(obj)
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        return super().default(obj)
+    def default(self, o: Any) -> Any:
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, Enum):
+            return o.value
+        if isinstance(o, np.ndarray):
+            return list(o)
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.floating):
+            return float(o)
+        return super().default(o)
 
 
 def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
