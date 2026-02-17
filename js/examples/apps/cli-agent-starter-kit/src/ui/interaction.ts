@@ -34,15 +34,14 @@ function displayExitMessage(cancelled = false) {
 
 /**
  * Process a user message through the agent and display the response
- *
- * @param input - The user's input message
- * @param agent - The ToolLoopAgent instance
  */
-export async function processUserMessage(
-  input: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any>
-) {
+export async function processUserMessage({
+  input,
+  agent,
+}: {
+  input: string;
+  agent: ToolLoopAgent;
+}) {
   const s = spinner();
   s.start("Agent is thinking...");
 
@@ -102,14 +101,12 @@ export async function processUserMessage(
 
 /**
  * Main conversation loop - handles user input and commands
- *
- * @param agent - The ToolLoopAgent instance
- * @returns Promise that resolves when the conversation ends
  */
-export async function conversationLoop(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any>
-): Promise<void> {
+export async function conversationLoop({
+  agent,
+}: {
+  agent: ToolLoopAgent;
+}): Promise<void> {
   while (true) {
     const userInput = await text({
       message: "You",
@@ -139,6 +136,6 @@ export async function conversationLoop(
     }
 
     // Process message with spinner
-    await processUserMessage(input, agent);
+    await processUserMessage({ input, agent });
   }
 }

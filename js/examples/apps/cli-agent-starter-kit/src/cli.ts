@@ -58,7 +58,7 @@ async function main() {
   printWelcome();
 
   // Start conversation loop (uses pre-configured agent from src/agents)
-  await conversationLoop(agent);
+  await conversationLoop({ agent });
 
   // Conversation ended - flush traces before exit
   console.log("Flushing traces...");
