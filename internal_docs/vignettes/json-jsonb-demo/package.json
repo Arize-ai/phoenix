@@ -38,7 +38,7 @@
     "ts-node": "^10.9.2",
     "typescript": "~5.4.5"
   },
-  "packageManager": "pnpm@10.2.0",
+  "packageManager": "pnpm@10.29.3",
   "optionalDependencies": {
     "pg": "^8.11.3"
   }

@@ -15,7 +15,6 @@
     "dotenv": "^16.4.7",
     "openai": "^6.9.1"
   },
-  "packageManager": "pnpm@10.13.1",
   "devDependencies": {
     "tsx": "^4.21.0"
   }
