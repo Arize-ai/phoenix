@@ -121,13 +121,15 @@ def _groupers(
         #         ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐    combine into
         #         └─┴─┴─┴─┴─┴─┴─┴─┴─┴2┴1┘0   final time series
         #
-        grouper = pd.Grouper(  # type: ignore  # mypy finds the wrong Grouper
+        # ty currently struggles when the __new__ signature does not match the __init__ signature,
+        # hence the ty ignores
+        grouper = pd.Grouper(
             freq=evaluation_window,
-            origin=end_time,
-            offset=-offset,
+            origin=end_time,  # ty: ignore[unknown-argument]
+            offset=-offset,  # ty: ignore[unknown-argument]
             # Each point in timeseries will be labeled by the end instant of
             # its evaluation window.
-            label="right",
+            label="right",  # ty: ignore[unknown-argument]
             sort=False,
         )
         time_stop = end_time - offset
