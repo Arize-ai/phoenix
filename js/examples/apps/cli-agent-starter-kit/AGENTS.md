@@ -2,6 +2,13 @@
 
 This is a TypeScript CLI agent starter kit with AI SDK and Anthropic integration.
 
+## Important: Private Package
+
+This package is marked as `"private": true` in package.json and is NOT published to npm. Therefore:
+- **NO changesets are required** for changes to this package
+- This is an example/starter kit, not a published library
+- Changes here do not need versioning or changelog entries
+
 ## Available Skills
 
 This project has access to Phoenix skills: `phoenix-cli`, `phoenix-tracing`, and `phoenix-evals`.
