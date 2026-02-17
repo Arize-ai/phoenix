@@ -38,7 +38,7 @@ class OpenAIClientKwargsInput:
     base_url: str | None = UNSET
     organization: str | None = UNSET
     project: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     def to_orm(self) -> OpenAIClientKwargs:
         return OpenAIClientKwargs(
@@ -115,7 +115,7 @@ class AzureOpenAIAuthenticationMethodInput:
 @strawberry.input
 class AzureOpenAIClientKwargsInput:
     azure_endpoint: str
-    default_headers: JSON | None = UNSET
+    default_headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     def to_orm(self) -> AzureOpenAIClientKwargs:
         return AzureOpenAIClientKwargs(
@@ -153,7 +153,7 @@ class AnthropicAuthenticationMethodInput:
 @strawberry.input
 class AnthropicClientKwargsInput:
     base_url: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     def to_orm(self) -> AnthropicClientKwargs:
         return AnthropicClientKwargs(
@@ -185,7 +185,7 @@ class GoogleGenAIHttpOptionsInput:
     base_url: str | None = UNSET
     """The base URL for the AI platform service endpoint."""
 
-    headers: JSON | None = UNSET
+    headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
     """Additional HTTP headers to be sent with the request."""
 
     def to_orm(self) -> GoogleGenAIHttpOptions:
