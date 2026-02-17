@@ -64,7 +64,7 @@ else:
 
 # Temporary directory for the duration of the session
 global _session_working_dir
-_session_working_dir: Optional["TemporaryDirectory[str]"] = None
+_session_working_dir = None
 
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -269,7 +269,7 @@ class Session(TraceDataExtractor, ABC):
             IFrame: the iFrame will be rendered in the notebook
         """
         try:
-            from IPython.display import IFrame
+            from IPython.display import IFrame  # ty: ignore[unresolved-import]
         except ImportError as e:
             raise ImportError(
                 "IPython is required to use the view() method. "
@@ -677,7 +677,7 @@ def close_app(delete_data: bool = False) -> None:
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path: str) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if notebook_env == NotebookEnvironment.COLAB:
-        from google.colab.output import eval_js
+        from google.colab.output import eval_js  # ty: ignore[unresolved-import]
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
     if notebook_env == NotebookEnvironment.SAGEMAKER:
@@ -697,11 +697,11 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path:
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
-        import google.colab  # noqa: F401
+        import google.colab  # ty: ignore[unresolved-import]
     except ImportError:
         return False
     try:
-        from IPython.core.getipython import get_ipython  # type: ignore
+        from IPython.core.getipython import get_ipython  # ty: ignore[unresolved-import]
     except ImportError:
         return False
     return get_ipython() is not None
@@ -716,7 +716,7 @@ def _is_sagemaker() -> bool:
     except Exception:
         return False
     try:
-        from IPython.core.getipython import get_ipython
+        from IPython.core.getipython import get_ipython  # ty: ignore[unresolved-import]
     except ImportError:
         return False
     return get_ipython() is not None
@@ -763,7 +763,7 @@ def _get_sagemaker_notebook_base_url() -> str:
     log_path = "/opt/ml/metadata/resource-metadata.json"
     with open(log_path, "r") as logs:
         logs = json.load(logs)
-    arn = logs["ResourceArn"]  # type: ignore
+    arn = logs["ResourceArn"]
 
     # Parse the ARN to get the region and notebook instance name
     # E.x. arn:aws:sagemaker:us-east-2:802164118598:notebook-instance/my-notebook-instance
@@ -797,7 +797,7 @@ def _get_databricks_context() -> DatabricksContext:
     Returns the databricks context for constructing the base url
     and the root_path for the app
     """
-    import IPython
+    import IPython  # ty: ignore[unresolved-import]
 
     shell = IPython.get_ipython()
     dbutils = shell.user_ns["dbutils"]
