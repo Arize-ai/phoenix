@@ -136,6 +136,15 @@ function StoryWithTheme({
   // Pass true to emit system theme changes to the manager
   const systemTheme = useSystemTheme(true);
 
+  // Emit theme mode to the channel so DocsContainer can pick it up
+  useEffect(() => {
+    try {
+      previewAddons.getChannel().emit(THEME_MODE_CHANGE_EVENT, themeMode);
+    } catch {
+      // Channel may not be ready yet
+    }
+  }, [themeMode]);
+
   let resolvedThemes: ProviderTheme[];
   if (themeMode === "both") {
     resolvedThemes = ["light", "dark"];
@@ -212,14 +221,6 @@ const preview: Preview = {
   decorators: [
     (Story, { globals }) => {
       const themeMode = globals.theme ?? "auto";
-      // Emit theme mode to the channel so DocsContainer can pick it up
-      useEffect(() => {
-        try {
-          previewAddons.getChannel().emit(THEME_MODE_CHANGE_EVENT, themeMode);
-        } catch {
-          // Channel may not be ready yet
-        }
-      }, [themeMode]);
       return <StoryWithTheme Story={Story} themeMode={themeMode} />;
     },
   ],
