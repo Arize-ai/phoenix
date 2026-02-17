@@ -4,6 +4,7 @@ import {
   withSpan,
 } from "@arizeai/openinference-core";
 
+import { Agent } from "../agents/index.js";
 import { SESSION_ID } from "../instrumentation.js";
 
 import { printWelcome } from "./welcome.js";
@@ -17,7 +18,6 @@ import {
   spinner,
   text,
 } from "@clack/prompts";
-import { ToolLoopAgent } from "ai";
 
 /**
  * Display exit message
@@ -40,8 +40,7 @@ export async function processUserMessage({
   agent,
 }: {
   input: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any, any>;
+  agent: Agent;
 }) {
   const s = spinner();
   s.start("Agent is thinking...");
@@ -106,8 +105,7 @@ export async function processUserMessage({
 export async function conversationLoop({
   agent,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any, any>;
+  agent: Agent;
 }): Promise<void> {
   while (true) {
     const userInput = await text({

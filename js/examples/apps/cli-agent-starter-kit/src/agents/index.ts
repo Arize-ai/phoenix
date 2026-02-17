@@ -18,3 +18,5 @@ export const agent = new ToolLoopAgent({
   // Enable telemetry for Phoenix tracing
   experimental_telemetry: { isEnabled: true },
 });
+
+export type Agent = typeof agent;
