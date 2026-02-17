@@ -33,7 +33,6 @@ src/phoenix/server/api/input_types/ChatCompletionInput.py
 src/phoenix/server/api/input_types/EvaluatorPreviewInput.py
 src/phoenix/server/api/mutations/evaluator_mutations.py
 src/phoenix/server/api/subscriptions.py
-src/phoenix/server/api/mutations/chat_mutations.py
 src/phoenix/server/api/input_types/AddExamplesToDatasetInput.py
 src/phoenix/server/api/input_types/AddSpansToDatasetInput.py
 src/phoenix/server/api/input_types/CreateDatasetInput.py
