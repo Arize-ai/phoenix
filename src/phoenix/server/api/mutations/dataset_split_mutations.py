@@ -26,7 +26,7 @@ class CreateDatasetSplitInput:
     name: str
     description: Optional[str] = UNSET
     color: str
-    metadata: Optional[JSON] = UNSET
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input
@@ -35,7 +35,7 @@ class PatchDatasetSplitInput:
     name: Optional[str] = UNSET
     description: Optional[str] = UNSET
     color: Optional[str] = UNSET
-    metadata: Optional[JSON] = UNSET
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input
@@ -54,7 +54,7 @@ class CreateDatasetSplitWithExamplesInput:
     name: str
     description: Optional[str] = UNSET
     color: str
-    metadata: Optional[JSON] = UNSET
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
     example_ids: list[GlobalID]
 
 
@@ -85,7 +85,7 @@ class SetDatasetExampleSplitsMutationPayload:
 
 @strawberry.type
 class DatasetSplitMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_dataset_split(
         self, info: Info[Context, None], input: CreateDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
@@ -109,7 +109,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_dataset_split(
         self, info: Info[Context, None], input: PatchDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
@@ -142,7 +142,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_dataset_splits(
         self, info: Info[Context, None], input: DeleteDatasetSplitInput
     ) -> DeleteDatasetSplitsMutationPayload:
@@ -184,7 +184,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def set_dataset_example_splits(
         self, info: Info[Context, None], input: SetDatasetExampleSplitsInput
     ) -> SetDatasetExampleSplitsMutationPayload:
@@ -273,7 +273,7 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_dataset_split_with_examples(
         self, info: Info[Context, None], input: CreateDatasetSplitWithExamplesInput
     ) -> DatasetSplitMutationPayloadWithExamples:
