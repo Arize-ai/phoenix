@@ -40,7 +40,7 @@ exact_match.evaluate({"input": "hello world", "output": "hello world"})
     name="contains-link", kind="code", direction="maximize"
 )
 async def contains_link(output: str) -> Score:
-    link = "https://arize-phoenix.readthedocs.io/projects/evals"
+    link = "https://arize-phoenix.readthedocs.io/projects/evals/"
     return link in output
 ```
 </Tab>
@@ -67,7 +67,7 @@ const result = await exactMatch.evaluate({
 
 const containsLink = createEvaluator<{ output: string }>(
   async ({ output }) => {
-    const link = "https://arize-phoenix.readthedocs.io/projects/evals";
+    const link = "https://arize-phoenix.readthedocs.io/projects/evals/";
     return output.includes(link) ? 1 : 0;
   },
   {
@@ -90,7 +90,7 @@ exact_match("hello", "world")
 
 await contains_link(
     "read the documentation here: "
-    "https://arize-phoenix.readthedocs.io/projects/evals"
+    "https://arize-phoenix.readthedocs.io/projects/evals/"
 )
 # True
 ```
@@ -103,12 +103,12 @@ exactMatchFn("hello", "world");
 // false
 
 const containsLinkFn = async (output: string) => {
-  const link = "https://arize-phoenix.readthedocs.io/projects/evals";
+  const link = "https://arize-phoenix.readthedocs.io/projects/evals/";
   return output.includes(link);
 };
 await containsLinkFn(
   "read the documentation here: " +
-  "https://arize-phoenix.readthedocs.io/projects/evals"
+  "https://arize-phoenix.readthedocs.io/projects/evals/"
 );
 // true
 ```
