@@ -239,10 +239,10 @@ def import_object_from_file(file_path: str, object_name: str) -> Any:
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File '{file_path}' does not exist.")
         module_name = f"custom_module_{hash(file_path)}"
-        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        spec = importlib.util.spec_from_file_location(module_name, file_path)  # ty: ignore[possibly-missing-attribute]
         if spec is None:
             raise ImportError(f"Could not load spec for '{file_path}'")
-        module = importlib.util.module_from_spec(spec)
+        module = importlib.util.module_from_spec(spec)  # ty: ignore[possibly-missing-attribute]
         loader = spec.loader
         if loader is None:
             raise ImportError(f"No loader found for '{file_path}'")
@@ -585,9 +585,12 @@ class CapacityInterceptor(AsyncServerInterceptor):
     @override
     async def intercept(
         self,
-        method: Callable[[Any, grpc.aio.ServicerContext], Awaitable[Any]],
+        method: Callable[
+            [Any, grpc.aio.ServicerContext],  # ty: ignore[possibly-missing-attribute]
+            Awaitable[Any],
+        ],
         request_or_iterator: Any,
-        context: grpc.aio.ServicerContext,
+        context: grpc.aio.ServicerContext,  # ty: ignore[possibly-missing-attribute]
         method_name: str,
     ) -> Any:
         if self._indicator.is_full:
@@ -996,9 +999,12 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
     @override
     async def intercept(
         self,
-        method: Callable[[Any, grpc.aio.ServicerContext], Awaitable[Any]],
+        method: Callable[
+            [Any, grpc.aio.ServicerContext],  # ty: ignore[possibly-missing-attribute]
+            Awaitable[Any],
+        ],
         request_or_iterator: Any,
-        context: grpc.aio.ServicerContext,
+        context: grpc.aio.ServicerContext,  # ty: ignore[possibly-missing-attribute]
         method_name: str,
     ) -> Any:
         if (
@@ -1329,12 +1335,12 @@ def _warn_if_missing_aioboto3() -> None:
     """
 
     try:
-        import aioboto3  # type: ignore[import-untyped] # noqa: F401
+        import aioboto3
 
         return
     except ImportError:
         try:
-            import boto3  # type: ignore[import-untyped] # noqa: F401
+            import boto3
 
             logger.warning(
                 "boto3 is installed but aioboto3 is not. To use AWS Bedrock models "
