@@ -148,7 +148,7 @@ def log_evaluations(
     .. deprecated::
         This function is deprecated. Use ``client.spans.log_span_annotations()`` via
         arize-phoenix-client instead.
-        See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+        See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
     """
     host = host or get_env_host()
     if host == "0.0.0.0":

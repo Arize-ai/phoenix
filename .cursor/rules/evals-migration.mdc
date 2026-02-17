@@ -17,7 +17,7 @@ The following interfaces are **DEPRECATED** and should no longer be used:
 - `phoenix.evals.templates.PromptTemplate` class
 - All legacy evaluator classes in `phoenix.evals` root module
 
-**Legacy documentation**: https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/legacy.html
+**Legacy documentation**: https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals
 
 ## Migration Overview
 
@@ -313,5 +313,5 @@ When migrating your code:
 
 ## Getting Help
 
-- **New API Documentation**: https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html
-- **Legacy API Reference**: https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/legacy.html
+- **New API Documentation**: https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals
+- **Legacy API Reference**: https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals

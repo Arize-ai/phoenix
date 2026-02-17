@@ -128,7 +128,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.spans.get_spans_dataframe()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Queries spans from the Phoenix server or active session based on specified criteria.
 
@@ -239,7 +239,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.spans.get_span_annotations()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Retrieves evaluations for a given project from the Phoenix server or active session.
 
@@ -299,7 +299,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.spans.log_span_annotations()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Logs evaluation data to the Phoenix server.
 
@@ -333,7 +333,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.spans.log_spans()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Logs traces from a TraceDataset to the Phoenix server.
 
@@ -415,7 +415,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.datasets.get_dataset()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Gets the dataset for a specific version, or gets the latest version of
         the dataset if no version is specified.
@@ -474,7 +474,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.datasets.get_dataset_versions()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Get dataset versions as pandas DataFrame.
 
@@ -514,7 +514,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.datasets.create_dataset()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Upload examples as dataset to the Phoenix server. If `dataframe` or
         `csv_file_path` are provided, must also provide `input_keys` (and
@@ -595,7 +595,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.datasets.add_examples_to_dataset()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Append examples to dataset on the Phoenix server. If `dataframe` or
         `csv_file_path` are provided, must also provide `input_keys` (and
@@ -663,7 +663,7 @@ class Client(TraceDataExtractor):
         .. deprecated::
             This method is deprecated. Use ``client.experiments.get_experiment()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Get an experiment by ID.
 

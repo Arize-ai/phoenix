@@ -163,7 +163,7 @@ class Session(TraceDataExtractor, ABC):
         .. deprecated::
             This method is deprecated. Use ``client.spans.get_spans_dataframe()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Queries the spans in the project based on the provided parameters.
 
@@ -215,7 +215,7 @@ class Session(TraceDataExtractor, ABC):
         .. deprecated::
             This method is deprecated. Use ``client.spans.get_span_annotations()`` via
             arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
+            See https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client
 
         Get the evaluations for a project.
 

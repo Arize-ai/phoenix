@@ -116,7 +116,7 @@ html_theme_options = {
     ],
     "external_links": [
         {"name": "Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
-        {"name": "Python Reference", "url": "https://arize-phoenix.readthedocs.io/"},
+        {"name": "Python Reference", "url": "https://arize.com/docs/phoenix/sdk-api-reference"},
     ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo"],

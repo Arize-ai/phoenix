@@ -16,7 +16,7 @@
     <a href="https://pypi.org/project/arize-phoenix-otel/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix-otel" alt="PyPI Version">
     </a>
-    <a href="https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html">
+    <a href="https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-otel/README.md" />
@@ -182,7 +182,7 @@ def weather(location):
 
 ## Documentation
 
-- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html)** - Complete API reference and guides
+- **[Full Documentation](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel)** - Complete API reference and guides
 - **[Phoenix Docs](https://arize.com/docs/phoenix)** - Detailed tracing examples and patterns
 - **[OpenInference](https://github.com/Arize-ai/openinference)** - Auto-instrumentation libraries for frameworks
 

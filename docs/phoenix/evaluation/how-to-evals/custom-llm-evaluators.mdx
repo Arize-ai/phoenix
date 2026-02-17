@@ -6,8 +6,8 @@ title: "Custom LLM Evaluators"
 
 While pre-built evals offer convenience, the best evals are ones you custom build for your specific use case. In this guide, we show how to build two types of custom "LLM-as-a-judge" style evaluators:
 
-1. A custom [`ClassificationEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#classificationevaluator) that returns categorical labels.
-2. A custom [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) that scores data on a numeric scale.
+1. A custom [`ClassificationEvaluator`](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals#classificationevaluator) that returns categorical labels.
+2. A custom [`LLMEvaluator`](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals#llmevaluator) that scores data on a numeric scale.
 
 ### Classification Evals
 
@@ -121,7 +121,7 @@ spelling_classifier.evaluate({"context": "This is a test. There are is some typo
 
 ### Alternative: Fully Custom LLM Evaluator
 
-Alternatively, for LLM-as-a-judge tasks that don't fit the classification paradigm, it is also possible to create a custom evaluator that implements the base [`LLMEvaluator`](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#llmevaluator) class. We can implement our own `LLMEvaluator` for almost any complex eval that doesn't fit into the classification type.
+Alternatively, for LLM-as-a-judge tasks that don't fit the classification paradigm, it is also possible to create a custom evaluator that implements the base [`LLMEvaluator`](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals#llmevaluator) class. We can implement our own `LLMEvaluator` for almost any complex eval that doesn't fit into the classification type.
 
 In this example, we implement the same spelling evaluator from above as a fully custom `LLMEvaluator.`
 

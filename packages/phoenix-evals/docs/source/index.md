@@ -103,7 +103,7 @@ print(results_df.head())
 ## External Links
 
 - [Main Phoenix Documentation](https://arize.com/docs/phoenix)
-- [Python Reference](https://arize-phoenix.readthedocs.io/)
+- [Python Reference](https://arize.com/docs/phoenix/sdk-api-reference)
 - [GitHub Repository](https://github.com/Arize-ai/phoenix)
 
 ## API Reference
