@@ -6,6 +6,7 @@ import strawberry
 from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
+import phoenix.server.api.helpers.prompts.models as prompt_models
 from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate as PromptChatTemplateModel,
@@ -51,7 +52,7 @@ class ToolCallContentPart:
 @strawberry.type
 class ToolResultContentValue:
     tool_call_id: str
-    result: JSON
+    result: JSON  # ty: ignore[invalid-type-form]
 
 
 @strawberry.type
@@ -71,7 +72,7 @@ class PromptMessage:
     content: list[ContentPart]
 
 
-@strawberry.experimental.pydantic.type(PromptChatTemplateModel)
+@strawberry.experimental.pydantic.type(PromptChatTemplateModel)  # ty: ignore[possibly-missing-attribute]
 class PromptChatTemplate:
     messages: list[PromptMessage]
 
@@ -92,9 +93,9 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
                 continue
             content: list[ContentPart] = []
             for part in msg.content:
-                if part.type == "text":
+                if isinstance(part, prompt_models.TextContentPart):
                     content.append(TextContentPart(text=TextContentValue(text=part.text)))
-                elif part.type == "tool_call":
+                elif isinstance(part, prompt_models.ToolCallContentPart):
                     content.append(
                         ToolCallContentPart(
                             tool_call=ToolCallContentValue(
@@ -106,7 +107,7 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
                             )
                         )
                     )
-                elif part.type == "tool_result":
+                elif isinstance(part, prompt_models.ToolResultContentPart):
                     content.append(
                         ToolResultContentPart(
                             tool_result=ToolResultContentValue(
@@ -120,17 +121,17 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
             messages.append(PromptMessage(role=role, content=content))
         else:
             assert_never(msg)
-    return PromptChatTemplate(messages=messages)
+    return PromptChatTemplate(messages=messages)  # ty: ignore[unknown-argument]
 
 
-@strawberry.experimental.pydantic.type(PromptStringTemplateModel)
+@strawberry.experimental.pydantic.type(PromptStringTemplateModel)  # ty: ignore[possibly-missing-attribute]
 class PromptStringTemplate:
     template: strawberry.auto
 
 
 def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptStringTemplate":
     model = PromptStringTemplateModel.model_validate(orm_model.template)
-    return PromptStringTemplate(template=model.template)
+    return PromptStringTemplate(template=model.template)  # ty: ignore[unknown-argument]
 
 
 def to_gql_template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
