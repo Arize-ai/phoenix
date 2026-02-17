@@ -1,12 +1,3 @@
-src/phoenix/server/api/helpers/playground_clients.py
-src/phoenix/server/api/input_types/PlaygroundEvaluatorInput.py
-src/phoenix/server/api/input_types/PromptVersionInput.py
-src/phoenix/server/api/evaluators.py
-src/phoenix/server/api/helpers/substitutions.py
-src/phoenix/server/api/helpers/experiment_run_filters.py
-src/phoenix/server/api/input_types/GenerativeModelCustomerProviderConfigInput.py
-src/phoenix/server/api/input_types/PromptTemplateOptions.py
-src/phoenix/server/api/types/ClassificationEvaluatorConfig.py
 src/phoenix/server/api/types/CronExpression.py
 src/phoenix/server/api/types/ProjectTraceRetentionPolicy.py
 src/phoenix/server/api/types/PromptLabel.py

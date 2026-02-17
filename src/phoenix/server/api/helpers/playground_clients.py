@@ -62,7 +62,12 @@ from typing_extensions import TypeAlias, assert_never, override
 from phoenix.config import getenv
 from phoenix.db import models
 from phoenix.db.types.model_provider import (
+    AnthropicCustomProviderConfig,
+    AWSBedrockCustomProviderConfig,
+    AzureOpenAICustomProviderConfig,
     GenerativeModelCustomerProviderConfig,
+    GoogleGenAICustomProviderConfig,
+    OpenAICustomProviderConfig,
 )
 from phoenix.evals.models.rate_limiters import (
     AsyncCallable,
@@ -112,7 +117,7 @@ if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.generativeai.types import ContentType
+    from google.genai.types import ContentDict
     from openai import AsyncOpenAI, AsyncStream
     from openai.types import CompletionUsage
     from openai.types.chat import (
@@ -139,7 +144,7 @@ ToolCallID: TypeAlias = str
 
 
 def _tools_chat_completions_to_responses_api(
-    tools: list[JSONScalarType],
+    tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
 ) -> list[FunctionToolParam]:
     """
     Convert tools from Chat Completions format (name/description/parameters under
@@ -392,7 +397,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     async def chat_completion_create(
         self,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -461,7 +466,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
@@ -593,7 +598,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -723,7 +728,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -731,6 +736,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         OpenAI Responses API (responses.create) streaming. Yields TextChunk and
         ToolCallChunk; sets span attributes from the completed response at the end.
         """
+        import openai.types.responses as openai_response_types
         from openai import omit
 
         input_item_param = self._to_openai_response_input_item_param(messages)
@@ -750,17 +756,13 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             )
             stream = cast("AsyncStream[ResponseStreamEvent]", create_result)
             async for event in stream:
-                if event.type == "response.output_text.delta":
+                if isinstance(event, openai_response_types.ResponseTextDeltaEvent):
                     delta = event.delta
                     if delta and isinstance(delta, str):
                         yield TextChunk(content=delta)
-                elif event.type == "response.output_text.done":
-                    pass
-                elif event.type == "response.output_item.added":
-                    pass
-                elif event.type == "response.output_item.done":
+                elif isinstance(event, openai_response_types.ResponseOutputItemDoneEvent):
                     item = event.item
-                    if item.type == "function_call":
+                    if isinstance(item, openai_response_types.ResponseFunctionToolCall):
                         yield ToolCallChunk(
                             id=item.call_id,
                             function=FunctionCallChunk(
@@ -768,7 +770,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                                 arguments=item.arguments,
                             ),
                         )
-                    elif item.type == "custom_tool_call":
+                    elif isinstance(item, openai_response_types.ResponseCustomToolCall):
                         yield ToolCallChunk(
                             id=item.call_id,
                             function=FunctionCallChunk(
@@ -776,43 +778,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                                 arguments=item.input,
                             ),
                         )
-                    elif item.type == "message":
-                        pass
-                    elif item.type == "file_search_call":
-                        pass
-                    elif item.type == "web_search_call":
-                        pass
-                    elif item.type == "computer_call":
-                        pass
-                    elif item.type == "reasoning":
-                        pass
-                    elif item.type == "compaction":
-                        pass
-                    elif item.type == "image_generation_call":
-                        pass
-                    elif item.type == "code_interpreter_call":
-                        pass
-                    elif item.type == "local_shell_call":
-                        pass
-                    elif item.type == "shell_call":
-                        pass
-                    elif item.type == "shell_call_output":
-                        pass
-                    elif item.type == "apply_patch_call":
-                        pass
-                    elif item.type == "apply_patch_call_output":
-                        pass
-                    elif item.type == "mcp_call":
-                        pass
-                    elif item.type == "mcp_list_tools":
-                        pass
-                    elif item.type == "mcp_approval_request":
-                        pass
-                    elif TYPE_CHECKING:
-                        assert_never(item.type)
-                elif event.type == "response.completed":
+                elif isinstance(event, openai_response_types.ResponseCompletedEvent):
                     completed_response = event.response
-                elif event.type == "response.failed":
+                elif isinstance(event, openai_response_types.ResponseFailedEvent):
                     resp = event.response
                     msg = "OpenAI Responses API request failed"
                     if (err := resp.error) is not None:
@@ -820,111 +788,19 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                         if err.code:
                             msg = f"{msg} (code: {err.code})"
                     raise RuntimeError(msg)
-                elif event.type == "response.incomplete":
+                elif isinstance(event, openai_response_types.ResponseIncompleteEvent):
                     resp = event.response
                     msg = "OpenAI Responses API request incomplete"
                     if (err := resp.error) is not None:
                         msg = err.message
                     raise RuntimeError(msg)
-                elif event.type == "error":
+                elif isinstance(event, openai_response_types.ResponseErrorEvent):
                     msg = event.message
                     if event.code:
                         msg = f"{msg} (code: {event.code})"
                     if event.param:
                         msg = f"{msg} (param: {event.param})"
                     raise RuntimeError(msg)
-                elif event.type == "response.audio.delta":
-                    pass
-                elif event.type == "response.audio.done":
-                    pass
-                elif event.type == "response.audio.transcript.delta":
-                    pass
-                elif event.type == "response.audio.transcript.done":
-                    pass
-                elif event.type == "response.code_interpreter_call_code.delta":
-                    pass
-                elif event.type == "response.code_interpreter_call_code.done":
-                    pass
-                elif event.type == "response.code_interpreter_call.completed":
-                    pass
-                elif event.type == "response.code_interpreter_call.in_progress":
-                    pass
-                elif event.type == "response.code_interpreter_call.interpreting":
-                    pass
-                elif event.type == "response.content_part.added":
-                    pass
-                elif event.type == "response.content_part.done":
-                    pass
-                elif event.type == "response.created":
-                    pass
-                elif event.type == "response.file_search_call.completed":
-                    pass
-                elif event.type == "response.file_search_call.in_progress":
-                    pass
-                elif event.type == "response.file_search_call.searching":
-                    pass
-                elif event.type == "response.function_call_arguments.delta":
-                    pass
-                elif event.type == "response.function_call_arguments.done":
-                    pass
-                elif event.type == "response.custom_tool_call_input.done":
-                    pass
-                elif event.type == "response.in_progress":
-                    pass
-                elif event.type == "response.reasoning_summary_part.added":
-                    pass
-                elif event.type == "response.reasoning_summary_part.done":
-                    pass
-                elif event.type == "response.reasoning_summary_text.delta":
-                    pass
-                elif event.type == "response.reasoning_summary_text.done":
-                    pass
-                elif event.type == "response.reasoning_text.delta":
-                    pass
-                elif event.type == "response.reasoning_text.done":
-                    pass
-                elif event.type == "response.refusal.delta":
-                    pass
-                elif event.type == "response.refusal.done":
-                    pass
-                elif event.type == "response.web_search_call.completed":
-                    pass
-                elif event.type == "response.web_search_call.in_progress":
-                    pass
-                elif event.type == "response.web_search_call.searching":
-                    pass
-                elif event.type == "response.image_generation_call.completed":
-                    pass
-                elif event.type == "response.image_generation_call.generating":
-                    pass
-                elif event.type == "response.image_generation_call.in_progress":
-                    pass
-                elif event.type == "response.image_generation_call.partial_image":
-                    pass
-                elif event.type == "response.mcp_call_arguments.delta":
-                    pass
-                elif event.type == "response.mcp_call_arguments.done":
-                    pass
-                elif event.type == "response.mcp_call.completed":
-                    pass
-                elif event.type == "response.mcp_call.failed":
-                    pass
-                elif event.type == "response.mcp_call.in_progress":
-                    pass
-                elif event.type == "response.mcp_list_tools.completed":
-                    pass
-                elif event.type == "response.mcp_list_tools.failed":
-                    pass
-                elif event.type == "response.mcp_list_tools.in_progress":
-                    pass
-                elif event.type == "response.output_text.annotation.added":
-                    pass
-                elif event.type == "response.queued":
-                    pass
-                elif event.type == "response.custom_tool_call_input.delta":
-                    pass
-                elif TYPE_CHECKING:
-                    assert_never(event.type)
 
         if completed_response is not None:
             span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
@@ -991,7 +867,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
     def to_openai_tool_call_param(
         self,
-        tool_call: JSONScalarType,
+        tool_call: JSONScalarType,  # ty: ignore[invalid-type-form]
     ) -> "ChatCompletionMessageToolCallParam":
         from openai.types.chat import ChatCompletionMessageToolCallParam
 
@@ -1183,7 +1059,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -1199,7 +1075,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         invocation_parameters: dict[str, Any],
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -1540,7 +1416,7 @@ class OpenAIResponsesAPIStreamingClient(
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -1653,7 +1529,7 @@ class AzureOpenAIResponsesAPIStreamingClient(
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -1679,7 +1555,7 @@ class AzureOpenAIReasoningNonStreamingClient(
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -1716,8 +1592,15 @@ class AzureOpenAIReasoningNonStreamingClient(
             yield TextChunk(content=choice.message.content)
 
         if choice.message.tool_calls:
+            from openai.types.chat.chat_completion_message_custom_tool_call import (
+                ChatCompletionMessageCustomToolCall,
+            )
+            from openai.types.chat.chat_completion_message_function_tool_call import (
+                ChatCompletionMessageFunctionToolCall,
+            )
+
             for tool_call in choice.message.tool_calls:
-                if tool_call.type == "function":
+                if isinstance(tool_call, ChatCompletionMessageFunctionToolCall):
                     yield ToolCallChunk(
                         id=tool_call.id,
                         function=FunctionCallChunk(
@@ -1725,10 +1608,10 @@ class AzureOpenAIReasoningNonStreamingClient(
                             arguments=tool_call.function.arguments,
                         ),
                     )
-                elif tool_call.type == "custom":
+                elif isinstance(tool_call, ChatCompletionMessageCustomToolCall):
                     raise NotImplementedError("custom tool calls are not supported")
                 else:
-                    assert_never(tool_call.type)
+                    assert_never(tool_call)
 
     def to_openai_chat_completion_param(
         self,
@@ -1859,10 +1742,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        import anthropic.lib.streaming._types as anthropic_streaming_types
+        import anthropic.types as anthropic_types
+
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
             "messages": anthropic_messages,
@@ -1876,9 +1762,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             # Wrap httpx client for instrumentation (fresh client each request)
             client._client = _HttpxClient(client._client, span=span)
             throttled_stream = self.rate_limiter._alimit(client.messages.stream)
-            async with await throttled_stream(**anthropic_params) as stream:
+            async with await throttled_stream(**cast(Any, anthropic_params)) as stream:
                 async for event in stream:
-                    if event.type == "message_start":
+                    if isinstance(event, anthropic_streaming_types.RawMessageStartEvent):
                         usage = event.message.usage
                         token_counts: dict[str, Any] = {}
                         if prompt_tokens := (
@@ -1896,9 +1782,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 )
                         if token_counts:
                             span.set_attributes(token_counts)
-                    elif event.type == "text":
+                    elif isinstance(event, anthropic_streaming_types.TextEvent):
                         yield TextChunk(content=event.text)
-                    elif event.type == "message_stop":
+                    elif isinstance(event, anthropic_streaming_types.MessageStopEvent):
                         usage = event.message.usage
                         output_token_counts: dict[str, Any] = {}
                         if usage.output_tokens:
@@ -1910,38 +1796,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 )
                         if output_token_counts:
                             span.set_attributes(output_token_counts)
-                    elif (
-                        event.type == "content_block_stop"
-                        and event.content_block.type == "tool_use"
-                    ):
-                        tool_call_chunk = ToolCallChunk(
-                            id=event.content_block.id,
-                            function=FunctionCallChunk(
-                                name=event.content_block.name,
-                                arguments=json.dumps(event.content_block.input),
-                            ),
-                        )
-                        yield tool_call_chunk
-                    elif event.type == "content_block_start":
-                        pass
-                    elif event.type == "content_block_delta":
-                        pass
-                    elif event.type == "message_delta":
-                        pass
-                    elif event.type == "content_block_stop":
-                        # non-tool_use case; tool_use already yielded above
-                        pass
-                    elif event.type == "input_json":
-                        # Incremental tool-call JSON; uses the complete block at content_block_stop
-                        pass
-                    elif event.type == "citation":
-                        pass
-                    elif event.type == "thinking":
-                        pass
-                    elif event.type == "signature":
-                        pass
-                    elif TYPE_CHECKING:
-                        assert_never(event)
+                    elif isinstance(event, anthropic_streaming_types.ContentBlockStopEvent):
+                        if isinstance(event.content_block, anthropic_types.ToolUseBlock):
+                            tool_call_chunk = ToolCallChunk(
+                                id=event.content_block.id,
+                                function=FunctionCallChunk(
+                                    name=event.content_block.name,
+                                    arguments=json.dumps(event.content_block.input),
+                                ),
+                            )
+                            yield tool_call_chunk
 
     def _build_anthropic_messages(
         self,
@@ -1980,7 +1844,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return anthropic_messages, system_prompt
 
     def _anthropic_message_content(
-        self, content: str, tool_calls: Optional[Sequence[JSONScalarType]]
+        self,
+        content: str,
+        tool_calls: Optional[Sequence[JSONScalarType]],  # ty: ignore[invalid-type-form]
     ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
         if tool_calls:
             # Anthropic combines tool calls and the reasoning text into a single message object
@@ -2112,7 +1978,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         self,
         *,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         span: OTelSpan,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -2140,13 +2006,19 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             async for event in stream:
                 # Update token counts if usage_metadata is present
                 if event.usage_metadata:
-                    span.set_attributes(
-                        {
-                            LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                            LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                            LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                        }
-                    )
+                    usage_attrs: dict[str, int] = {}
+                    if event.usage_metadata.prompt_token_count is not None:
+                        usage_attrs[LLM_TOKEN_COUNT_PROMPT] = (
+                            event.usage_metadata.prompt_token_count
+                        )
+                    if event.usage_metadata.candidates_token_count is not None:
+                        usage_attrs[LLM_TOKEN_COUNT_COMPLETION] = (
+                            event.usage_metadata.candidates_token_count
+                        )
+                    if event.usage_metadata.total_token_count is not None:
+                        usage_attrs[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
+                    if usage_attrs:
+                        span.set_attributes(usage_attrs)
 
                 if event.candidates:
                     candidate = event.candidates[0]
@@ -2209,9 +2081,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     def _build_google_messages(
         self,
         messages: list[PlaygroundMessage],
-    ) -> tuple[list["ContentType"], str]:
+    ) -> tuple[list["ContentDict"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
-        google_messages: list["ContentType"] = []
+        google_messages: list["ContentDict"] = []
         system_prompts = []
         for msg in messages:
             role = msg["role"]
@@ -2308,7 +2180,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
     async def chat_completion_create(
         self,
         messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        tools: list[JSONScalarType],  # ty: ignore[invalid-type-form]
         tracer: Tracer | None = None,
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -2364,7 +2236,7 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
-class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+class _HttpxClient(wrapt.ObjectProxy):
     def __init__(
         self,
         wrapped: httpx.AsyncClient,
@@ -2671,8 +2543,11 @@ async def _get_builtin_provider_client(
 
         # Create factory that returns fresh Google GenAI async client (native async context manager)
         # Note: Client(api_key).aio returns the AsyncClient which is an async context manager
-        def create_google_client() -> "GoogleAsyncClient":
-            return GoogleGenAIClient(api_key=api_key).aio
+        def create_google_client() -> AbstractAsyncContextManager["GoogleAsyncClient"]:
+            return cast(
+                AbstractAsyncContextManager["GoogleAsyncClient"],
+                GoogleGenAIClient(api_key=api_key).aio,
+            )
 
         client_factory = create_google_client
         if model_name in GEMINI_2_0_MODELS:
@@ -2695,7 +2570,7 @@ async def _get_builtin_provider_client(
 
     elif provider_key == GenerativeProviderKey.AWS:
         try:
-            import aioboto3  # type: ignore[import-untyped]
+            import aioboto3
         except ImportError:
             raise BadRequest("aioboto3 package not installed. Run: pip install aioboto3")
 
@@ -2729,7 +2604,7 @@ async def _get_builtin_provider_client(
 
         # Create factory that returns aioboto3's ClientCreatorContext (async context manager)
         def create_bedrock_client() -> AbstractAsyncContextManager["BedrockRuntimeClient"]:
-            return aioboto3_session.client(service_name="bedrock-runtime")  # type: ignore[no-any-return]
+            return aioboto3_session.client(service_name="bedrock-runtime")
 
         client_factory = create_bedrock_client
 
@@ -2891,7 +2766,7 @@ async def _get_custom_provider_client(
     headers = dict(obj.extra_headers) if obj.extra_headers else None
     cfg = config.root
 
-    if cfg.type == "openai":
+    if isinstance(cfg, OpenAICustomProviderConfig):
         try:
             openai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
@@ -2907,7 +2782,7 @@ async def _get_custom_provider_client(
             model_name=model_name,
             provider=provider,
         )
-    elif cfg.type == "azure_openai":
+    elif isinstance(cfg, AzureOpenAICustomProviderConfig):
         try:
             azure_openai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
@@ -2923,7 +2798,7 @@ async def _get_custom_provider_client(
             model_name=model_name,
             provider=provider,
         )
-    elif cfg.type == "anthropic":
+    elif isinstance(cfg, AnthropicCustomProviderConfig):
         try:
             anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
@@ -2939,7 +2814,7 @@ async def _get_custom_provider_client(
             model_name=model_name,
             provider=provider,
         )
-    elif cfg.type == "aws_bedrock":
+    elif isinstance(cfg, AWSBedrockCustomProviderConfig):
         try:
             aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
@@ -2949,7 +2824,7 @@ async def _get_custom_provider_client(
             model_name=model_name,
             provider=provider,
         )
-    elif cfg.type == "google_genai":
+    elif isinstance(cfg, GoogleGenAICustomProviderConfig):
         try:
             google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
@@ -3014,7 +2889,9 @@ def llm_invocation_parameters(
             yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(filtered)
 
 
-def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
+def llm_tools(
+    tools: list[JSONScalarType],  #  ty: ignore[invalid-type-form]
+) -> Iterator[tuple[str, Any]]:
     for tool_index, tool in enumerate(tools):
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
