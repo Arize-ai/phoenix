@@ -105,7 +105,7 @@ class DbDiskUsageMonitor(DaemonTask):
             async with self._db() as session:
                 current_usage_bytes = await session.scalar(stmt)
         else:
-            assert_never(self._db.dialect)
+            assert_never(self._db.dialect)  # ty: ignore[type-assertion-failure]
         return float(current_usage_bytes)
 
     async def _check_thresholds(self, current_usage_gibibytes: float) -> None:
