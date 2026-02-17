@@ -1,14 +1,14 @@
 services:
   phoenix:
-    image: arizephoenix/phoenix:latest
+    image: arizephoenix/phoenix:version-13.0.3
     container_name: cli-agent-phoenix
     ports:
       - "6006:6006"
     environment:
-      - PHOENIX_WORKING_DIR=/phoenix
+      - PHOENIX_WORKING_DIR=/data
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
-      - phoenix-data:/phoenix
+      - phoenix-data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6006/healthz"]
