@@ -2806,15 +2806,6 @@ def get_env_database_schema() -> Optional[str]:
     return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
 
 
-def get_env_migrate_index_concurrently() -> bool:
-    """
-    Gets the value of the PHOENIX_MIGRATE_INDEX_CONCURRENTLY environment variable.
-    When True, index migrations on PostgreSQL use CREATE INDEX CONCURRENTLY to avoid
-    table locks during builds. Defaults to False.
-    """
-    return _bool_val(ENV_PHOENIX_MIGRATE_INDEX_CONCURRENTLY, False)
-
-
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
     ans = _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
     if ans is not None and ans <= 0:

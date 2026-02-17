@@ -643,6 +643,11 @@ jobs:
         run: |
           alembic downgrade base
           alembic current
+      - name: Test up migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic upgrade head
+          alembic current
 
   phoenix-client-canary-tests-sdk:
     name: Phoenix Client Canary Tests for Third-Party SDKs
