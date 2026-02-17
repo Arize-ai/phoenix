@@ -56,7 +56,9 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
+    def process_bind_param(
+        self, value: Optional[dict[str, Any]], dialect: Dialect
+    ) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
 
@@ -65,7 +67,7 @@ class JsonList(TypeDecorator[list[Any]]):
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
+    def process_bind_param(self, value: Optional[list[Any]], dialect: Dialect) -> list[Any]:
         return value if isinstance(value, list) else []
 
 
