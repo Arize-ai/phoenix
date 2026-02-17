@@ -212,7 +212,7 @@ def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
 @strawberry.input
 class CreateDatasetLLMEvaluatorInput:
     dataset_id: GlobalID
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     description: Optional[str] = UNSET
     prompt_version_id: Optional[GlobalID] = UNSET
     prompt_version: ChatPromptVersionInput
@@ -224,7 +224,7 @@ class CreateDatasetLLMEvaluatorInput:
 class UpdateDatasetLLMEvaluatorInput:
     dataset_evaluator_id: GlobalID
     dataset_id: GlobalID
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     description: Optional[str] = None
     prompt_version_id: Optional[GlobalID] = UNSET
     prompt_version: ChatPromptVersionInput
@@ -242,7 +242,7 @@ class DatasetEvaluatorMutationPayload:
 class CreateDatasetBuiltinEvaluatorInput:
     dataset_id: GlobalID
     evaluator_id: GlobalID
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     description: Optional[str] = None
@@ -251,7 +251,7 @@ class CreateDatasetBuiltinEvaluatorInput:
 @strawberry.input
 class UpdateDatasetBuiltinEvaluatorInput:
     dataset_evaluator_id: GlobalID
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
     description: Optional[str] = UNSET
@@ -282,7 +282,7 @@ class DeleteDatasetEvaluatorsPayload:
 
 @strawberry.type
 class EvaluatorMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
@@ -431,7 +431,7 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def update_dataset_llm_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetLLMEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
@@ -614,7 +614,7 @@ class EvaluatorMutationMixin:
     # TODO: should this always just get called instead of unlink for DatasetEvaluators?
     # TODO: this should accept dataset evaluator ids in addition to evaluator ids, or create a new
     # delete_dataset_evaluators mutation
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def delete_evaluators(
         self, info: Info[Context, None], input: DeleteEvaluatorsInput
     ) -> DeleteEvaluatorsPayload:
@@ -651,7 +651,7 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def delete_dataset_evaluators(
         self, info: Info[Context, None], input: DeleteDatasetEvaluatorsInput
     ) -> DeleteDatasetEvaluatorsPayload:
@@ -737,7 +737,7 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_dataset_builtin_evaluator(
         self, info: Info[Context, None], input: CreateDatasetBuiltinEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
@@ -834,7 +834,7 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def update_dataset_builtin_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetBuiltinEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
