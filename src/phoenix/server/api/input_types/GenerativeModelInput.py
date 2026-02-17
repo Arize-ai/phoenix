@@ -28,7 +28,7 @@ class GenerativeModelBuiltinProviderInput:
     """ The endpoint to use for the model. Only required for Azure OpenAI models. """
     region: Optional[str] = UNSET
     """ The region to use for the model. """
-    custom_headers: Optional[JSON] = UNSET
+    custom_headers: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
     """ Custom headers to use for the model. """
     openai_api_type: Optional[OpenAIApiType] = UNSET
     """ For OpenAI/Azure: chat_completions or responses. Required for OpenAI/Azure. """
@@ -38,7 +38,7 @@ class GenerativeModelBuiltinProviderInput:
 class GenerativeModelCustomProviderInput:
     provider_id: GlobalID
     model_name: str
-    extra_headers: Optional[JSON] = UNSET
+    extra_headers: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input(one_of=True)
