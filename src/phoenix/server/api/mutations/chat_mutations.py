@@ -196,7 +196,7 @@ def _to_evaluation_result(
 
 @strawberry.type
 class ChatCompletionMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     @classmethod
     async def chat_completion_over_dataset(
         cls,
@@ -477,7 +477,7 @@ class ChatCompletionMutationMixin:
             payload.examples.append(example_payload)
         return payload
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     @classmethod
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
@@ -568,7 +568,7 @@ class ChatCompletionMutationMixin:
 
         return ChatCompletionMutationPayload(repetitions=repetitions)
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     @classmethod
     async def evaluator_previews(
         cls, info: Info[Context, None], input: EvaluatorPreviewsInput
@@ -786,6 +786,7 @@ class ChatCompletionMutationMixin:
                         description=project_description,
                     )
                 )
+                assert project_id is not None
             db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
 
         db_trace = db_traces[0]
