@@ -6,11 +6,7 @@ import {
 } from "@arizeai/phoenix-client/experiments";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
-import {
-  DATASET_DESCRIPTION,
-  DATASET_NAME,
-  terminalFormatExamples,
-} from "../datasets/index.js";
+import { terminalFormatDataset } from "../datasets/index.js";
 import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
 
 export type RunTerminalFormatEvalParams = {
@@ -35,9 +31,9 @@ export async function runTerminalFormatEval({
   logger.log("Creating or retrieving dataset...");
   const { datasetId } = await createOrGetDataset({
     client,
-    name: DATASET_NAME,
-    description: DATASET_DESCRIPTION,
-    examples: terminalFormatExamples,
+    name: terminalFormatDataset.name,
+    description: terminalFormatDataset.description,
+    examples: terminalFormatDataset.examples,
   });
   logger.log(`Dataset ID: ${datasetId}`);
 

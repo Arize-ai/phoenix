@@ -205,6 +205,8 @@ export const terminalFormatExamples: Example[] = [
   },
 ];
 
-export const DATASET_NAME = "cli-agent-terminal-format";
-export const DATASET_DESCRIPTION =
-  "Test dataset for terminal-safe formatting evaluation of the Phoenix Documentation Assistant";
+export const terminalFormatDataset = {
+  name: "cli-agent-terminal-format",
+  description: "Test dataset for terminal-safe formatting evaluation of the Phoenix Documentation Assistant",
+  examples: terminalFormatExamples,
+};

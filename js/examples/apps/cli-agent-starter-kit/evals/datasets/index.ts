@@ -1,5 +1,1 @@
-export {
-  terminalFormatExamples,
-  DATASET_NAME,
-  DATASET_DESCRIPTION,
-} from "./terminalFormatExamples.js";
+export { terminalFormatDataset } from "./terminalFormatExamples.js";
