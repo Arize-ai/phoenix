@@ -26,7 +26,7 @@ In Phoenix, you can view the drift of a particular embedding in a time series gr
 
 ## Clusters
 
-Phoenix automatically breaks up your embeddings into groups of inferences using a clustering algorithm called [HDBSCAN](https://hdbscan.readthedocs.io/en/latest/index.html). This is particularly useful if you are trying to identify areas of your embeddings that are drifting or performing badly.
+Phoenix automatically breaks up your embeddings into groups of inferences using a clustering algorithm called [HDBSCAN](https://hdbscan.readthedocs.io/). This is particularly useful if you are trying to identify areas of your embeddings that are drifting or performing badly.
 
 When two inference sets are used to initialize Phoenix, the clusters are automatically ordered by drift. This means that clusters with the highest amount of under-sampling (more in the primary inferences than the reference) are bubbled to the top. You can click on these clusters to view the details of the points contained in each cluster.
 
