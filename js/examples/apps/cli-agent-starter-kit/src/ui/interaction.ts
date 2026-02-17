@@ -40,7 +40,8 @@ export async function processUserMessage({
   agent,
 }: {
   input: string;
-  agent: ToolLoopAgent;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  agent: ToolLoopAgent<any, any, any>;
 }) {
   const s = spinner();
   s.start("Agent is thinking...");
@@ -52,7 +53,7 @@ export async function processUserMessage({
     const handleInteraction = withSpan(
       async (input: string) => {
         return await agent.generate({
-          options: {},
+          options: undefined,
           prompt: input,
           onStepFinish: async ({ usage: _usage, finishReason, toolCalls }) => {
             if (verbose) {
@@ -105,7 +106,8 @@ export async function processUserMessage({
 export async function conversationLoop({
   agent,
 }: {
-  agent: ToolLoopAgent;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  agent: ToolLoopAgent<any, any, any>;
 }): Promise<void> {
   while (true) {
     const userInput = await text({
