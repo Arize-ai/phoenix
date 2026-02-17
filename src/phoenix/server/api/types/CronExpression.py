@@ -10,6 +10,6 @@ def parse_value(value: str) -> str:
 
 
 CronExpression = strawberry.scalar(
-    NewType("CronExpression", str),
+    NewType("CronExpression", str),  # ty: ignore[invalid-newtype]
     parse_value=parse_value,
 )
