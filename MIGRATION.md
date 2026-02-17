@@ -4,7 +4,25 @@
 
 ### DB Index for Session ID
 
-A partial index on `spans.attributes` for session id is added by migration. No action required. Migration run time is estimated at approximately 200 seconds per 100 GiB on a MacBook Pro. Cloud environments may take longer depending on instance size and I/O throughput.
+A partial index on `spans.attributes` for session id is added by migration. Migration run time is estimated at approximately 200 seconds per 100 GiB on a MacBook Pro. Cloud environments may take longer depending on instance size and I/O throughput.
+
+**Large PostgreSQL databases:** The index is created inside a transaction, so it acquires a table lock for the duration of the build. On very large `spans` tables (hundreds of GiB+), this can block reads and writes for an extended period. To avoid this, pre-create the index concurrently before running the migration:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_spans_session_id
+ON spans ((attributes #>> '{session,id}'))
+WHERE false;
+```
+
+The `WHERE false` creates an empty index instantly (no table scan). The migration's `IF NOT EXISTS` will then see the index name and skip creation. You can backfill the real index at your convenience:
+
+```sql
+DROP INDEX CONCURRENTLY IF EXISTS ix_spans_session_id;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_spans_session_id
+ON spans (((attributes #>> '{session,id}')::varchar))
+WHERE ((attributes #>> '{session,id}')::varchar) IS NOT NULL;
+```
 
 Note: On PostgreSQL, the index uses the `#>>` path operator (e.g., `attributes #>> '{session,id}'`). Queries using chained arrow operators (`attributes -> 'session' ->> 'id'`) will not match the index. Phoenix's built-in query layer always uses the `#>>` form, so this only affects custom SQL queries run directly against the database.
 
