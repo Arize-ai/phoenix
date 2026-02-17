@@ -6,12 +6,8 @@
  * Those are designed for the CLI entry point and have global side effects.
  */
 
-// Agent components
-export {
-  createAgent,
-  type ConversationHistory,
-  type CreateAgentParams,
-} from "./agents/index.js";
+// Agent
+export { agent } from "./agents/index.js";
 
 // Tools
 export { dateTimeTool, phoenixDocsTool } from "./tools/index.js";
