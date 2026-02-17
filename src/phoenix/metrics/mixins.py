@@ -146,11 +146,11 @@ class EvaluationMetric(Metric, ABC):
     def operands(self) -> list[Column]:
         return [self.actual, self.predicted] + self.parameters.columns
 
-    def calc(self, df: pd.DataFrame) -> float:
+    def calc(self, dataframe: pd.DataFrame) -> float:
         return self.eval(
-            self.actual(df),
-            self.predicted(df),
-            **self.parameters(df),
+            self.actual(dataframe),
+            self.predicted(dataframe),
+            **self.parameters(dataframe),
         )
 
 
