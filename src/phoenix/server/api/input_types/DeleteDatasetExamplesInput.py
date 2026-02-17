@@ -10,4 +10,4 @@ from strawberry.scalars import JSON
 class DeleteDatasetExamplesInput:
     example_ids: list[GlobalID]
     dataset_version_description: Optional[str] = UNSET
-    dataset_version_metadata: Optional[JSON] = UNSET
+    dataset_version_metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]

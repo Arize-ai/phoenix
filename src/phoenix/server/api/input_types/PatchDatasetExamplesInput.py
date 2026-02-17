@@ -13,9 +13,9 @@ class DatasetExamplePatch:
     """
 
     example_id: GlobalID
-    input: Optional[JSON] = UNSET
-    output: Optional[JSON] = UNSET
-    metadata: Optional[JSON] = UNSET
+    input: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
+    output: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
 
     def is_empty(self) -> bool:
         """
@@ -32,4 +32,4 @@ class PatchDatasetExamplesInput:
 
     patches: list[DatasetExamplePatch]
     version_description: Optional[str] = UNSET
-    version_metadata: Optional[JSON] = UNSET
+    version_metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]

@@ -9,4 +9,4 @@ from strawberry.scalars import JSON
 class CreateDatasetInput:
     name: str
     description: Optional[str] = UNSET
-    metadata: Optional[JSON] = UNSET
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
