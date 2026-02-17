@@ -249,13 +249,13 @@ class DmlEventHandler:
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         await gather(*(h.stop() for h in self._all_handlers))
 
-    def put(self, event: DmlEvent) -> None:
-        if not (isinstance(event, DmlEvent) and event):
+    def put(self, item: DmlEvent) -> None:
+        if not (isinstance(item, DmlEvent) and item):
             return
-        for cls in getmro(type(event)):
+        for cls in getmro(type(item)):
             if not (issubclass(cls, DmlEvent) and (handlers := self._handlers.get(cls))):
                 continue
             for h in handlers:
-                h.put(event)
+                h.put(item)
             if cls is DmlEvent:
                 break
