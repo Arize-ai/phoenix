@@ -1058,13 +1058,22 @@
               {
                 "group": "02.2026",
                 "pages": [
-                  "docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0"
+                  "docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0",
+                  "docs/phoenix/release-notes/02-2026/02-12-2026-openai-responses-api-support",
+                  "docs/phoenix/release-notes/02-2026/02-12-2026-dataset-evaluators",
+                  "docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers",
+                  "docs/phoenix/release-notes/02-2026/02-10-2026-claude-opus-4-6-model-support",
+                  "docs/phoenix/release-notes/02-2026/02-01-2026-tool-selection-and-tool-invocation-evaluators"
                 ]
               },
               {
                 "group": "01.2026",
                 "pages": [
-                  "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"
+                  "docs/phoenix/release-notes/01-2026/01-22-2026-cli-prompt-commands",
+                  "docs/phoenix/release-notes/01-2026/01-21-2026-cli-datasets-experiments-annotations",
+                  "docs/phoenix/release-notes/01-2026/01-21-2026-create-datasets-from-traces",
+                  "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging",
+                  "docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments"
                 ]
               },
               {
