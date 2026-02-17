@@ -76,7 +76,7 @@ def add_errors_to_responses(
             status_code = error["status_code"]
             description = error["description"]
         else:
-            assert_never(error)
+            assert_never(error)  # ty: ignore[type-assertion-failure]
         if status_code not in output_responses:
             output_responses[status_code] = {
                 "content": {"text/plain": {"schema": {"type": "string"}}}
