@@ -31,7 +31,7 @@ class BinningMethod(ABC):
     @abstractmethod
     def segmented_summary(
         self,
-        group_by: Column,
+        segment_column: Column,
         dataframe: pd.DataFrame,
         metrics: Iterable[Metric],
     ) -> pd.DataFrame: ...
@@ -72,7 +72,7 @@ class IntervalBinning(BinningMethod):
 
     bins: Optional[NumericBins] = None
 
-    def numeric_bins(self, _: "pd.Series[Any]") -> NumericBins:
+    def numeric_bins(self, data: "pd.Series[Any]") -> NumericBins:
         return (
             self.bins
             if self.bins is not None
