@@ -69,7 +69,7 @@ class ExperimentRun(Node):
         return val
 
     @strawberry.field
-    async def output(self, info: Info[Context, None]) -> Optional[JSON]:
+    async def output(self, info: Info[Context, None]) -> Optional[JSON]:  # ty: ignore[invalid-type-form]
         if self.db_record:
             output_dict = self.db_record.output
         else:
