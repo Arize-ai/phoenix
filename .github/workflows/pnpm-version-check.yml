@@ -1,0 +1,42 @@
+name: pnpm Version Check
+
+on:
+  pull_request:
+    paths:
+      - "app/package.json"
+      - "js/package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: Check pnpm version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check pnpm version consistency
+        run: |
+          APP_VERSION=$(jq -r '.packageManager // empty' app/package.json | sed 's/pnpm@//')
+          JS_VERSION=$(jq -r '.packageManager // empty' js/package.json | sed 's/pnpm@//')
+
+          echo "app/package.json: pnpm@$APP_VERSION"
+          echo "js/package.json: pnpm@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing packageManager field"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing packageManager field"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::pnpm versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "pnpm versions are consistent: $APP_VERSION"

@@ -25,9 +25,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Install PNPM
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
-          version: 10.13.1
+          package_json_file: app/package.json
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
