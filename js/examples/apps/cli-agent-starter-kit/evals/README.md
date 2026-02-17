@@ -5,14 +5,19 @@ Automated evaluation framework for the Phoenix Documentation Assistant CLI agent
 ## Quick Start
 
 ```bash
-# Interactive mode (select experiment)
+# Run all evaluations
 pnpm eval
 
-# Run specific evaluation
+# Run evaluations matching a pattern
+pnpm eval terminal          # Matches terminal-format.eval.ts
+pnpm eval terminal-format   # Matches terminal-format.eval.ts
+
+# Run specific evaluation directly
 pnpm eval:terminal-format
 
 # Without Phoenix UI check
 pnpm eval:no-phoenix
+pnpm eval:no-phoenix terminal
 ```
 
 ## Available Evaluations
@@ -127,12 +132,17 @@ export async function runMyEval() {
 
 ### 4. Auto-Discovery
 
-No need to update `scripts/run-evals.ts`! The CLI automatically discovers and lists all `.eval.ts` files.
+No need to update `scripts/run-evals.ts`! The runner automatically discovers all `.eval.ts` files.
 
 Just ensure your eval file:
 - Has a `.eval.ts` extension
-- Exports a `metadata` object with `name`, `description`, and optional `hint`
 - Exports an evaluation function that accepts `{ client, logger }`
+- Optionally exports a `metadata` object with `name`, `description`, and `hint`
+
+Run with a pattern to match specific files:
+```bash
+pnpm eval my-eval  # Matches my-eval.eval.ts
+```
 
 ## Viewing Results
 

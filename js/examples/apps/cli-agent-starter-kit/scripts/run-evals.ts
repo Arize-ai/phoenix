@@ -3,23 +3,25 @@ import { createClient } from "@arizeai/phoenix-client";
 
 import { flush } from "../src/instrumentation.js";
 
-import { cancel,intro, outro, select, spinner } from "@clack/prompts";
 import { glob } from "glob";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 interface EvalModule {
-  metadata: {
+  metadata?: {
     name: string;
     description: string;
     hint?: string;
   };
-  [key: string]: unknown; // The evaluation function (e.g., runTerminalFormatEval)
+  [key: string]: unknown;
 }
 
-async function discoverEvaluations() {
-  // Find all .eval.ts files in evals/experiments/
-  const evalFiles = await glob("evals/experiments/*.eval.ts", {
+async function discoverEvaluations(pattern?: string) {
+  const searchPattern = pattern
+    ? `evals/experiments/*${pattern}*.eval.ts`
+    : "evals/experiments/*.eval.ts";
+
+  const evalFiles = await glob(searchPattern, {
     cwd: process.cwd(),
     absolute: true,
   });
@@ -29,25 +31,17 @@ async function discoverEvaluations() {
       const fileUrl = pathToFileURL(file).href;
       const module = (await import(fileUrl)) as EvalModule;
 
-      if (!module.metadata) {
-        // eslint-disable-next-line no-console
-        console.warn(`Warning: ${file} missing metadata export, skipping`);
-        return null;
-      }
-
-      // Find the evaluation function (assumes it's the first non-metadata export)
-      const evalFnName = Object.keys(module).find((key) => key !== "metadata");
+      const evalFnName = Object.keys(module).find(
+        (key) => key !== "metadata" && key !== "default"
+      );
       if (!evalFnName) {
-        // eslint-disable-next-line no-console
-        console.warn(`Warning: ${file} missing evaluation function, skipping`);
         return null;
       }
 
       return {
         id: path.basename(file, ".eval.ts"),
-        name: module.metadata.name,
-        description: module.metadata.description,
-        hint: module.metadata.hint,
+        file,
+        name: module.metadata?.name || path.basename(file),
         evalFn: module[evalFnName] as (params: {
           client: ReturnType<typeof createClient>;
           logger: Pick<Console, "log" | "error">;
@@ -62,62 +56,74 @@ async function discoverEvaluations() {
 }
 
 async function main() {
-  intro("Phoenix Agent Evaluations");
+  const pattern = process.argv[2];
 
-  // Discover evaluations
-  const evaluations = await discoverEvaluations();
+  // eslint-disable-next-line no-console
+  console.log(
+    pattern
+      ? `\nRunning evaluations matching: ${pattern}\n`
+      : "\nRunning all evaluations\n"
+  );
+
+  const evaluations = await discoverEvaluations(pattern);
 
   if (evaluations.length === 0) {
-    cancel("No evaluations found in evals/experiments/");
-    return;
-  }
-
-  const experiment = await select({
-    message: "Select an experiment to run:",
-    options: [
-      ...evaluations.map((e) => ({
-        value: e.id,
-        label: e.name,
-        hint: e.hint || e.description,
-      })),
-      { value: "cancel", label: "Cancel" },
-    ],
-  });
-
-  if (experiment === "cancel" || !experiment) {
-    cancel("Evaluation cancelled");
-    return;
-  }
-
-  const selectedEval = evaluations.find((e) => e.id === experiment);
-  if (!selectedEval) {
-    cancel(`Evaluation not found: ${experiment}`);
-    return;
-  }
-
-  const s = spinner();
-  s.start(`Running ${selectedEval.name}...`);
-
-  try {
-    const client = createClient();
-
-    await selectedEval.evalFn({
-      client,
-      logger: {
-        log: (message: string) => s.message(message),
-        error: (message: string) => s.message(message),
-      },
-    });
-
-    s.stop("Evaluation complete");
-    outro("View results in Phoenix UI at http://localhost:6006");
-  } catch (error) {
-    s.stop("Evaluation failed");
     // eslint-disable-next-line no-console
-    console.error(error);
+    console.error(
+      pattern
+        ? `No evaluations found matching: ${pattern}`
+        : "No evaluations found in evals/experiments/"
+    );
     process.exit(1);
-  } finally {
-    await flush();
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`Found ${evaluations.length} evaluation(s):\n`);
+  for (const evaluation of evaluations) {
+    // eslint-disable-next-line no-console
+    console.log(`  • ${evaluation.name} (${evaluation.id}.eval.ts)`);
+  }
+  // eslint-disable-next-line no-console
+  console.log();
+
+  const client = createClient();
+  let passed = 0;
+  let failed = 0;
+
+  for (const evaluation of evaluations) {
+    // eslint-disable-next-line no-console
+    console.log(`\n▶ Running: ${evaluation.name}\n`);
+
+    try {
+      await evaluation.evalFn({
+        client,
+        logger: console,
+      });
+      passed++;
+      // eslint-disable-next-line no-console
+      console.log(`\n✓ ${evaluation.name} passed\n`);
+    } catch (error) {
+      failed++;
+      // eslint-disable-next-line no-console
+      console.error(`\n✗ ${evaluation.name} failed:`);
+      // eslint-disable-next-line no-console
+      console.error(error);
+      // eslint-disable-next-line no-console
+      console.log();
+    }
+  }
+
+  await flush();
+
+  // eslint-disable-next-line no-console
+  console.log("\n" + "=".repeat(50));
+  // eslint-disable-next-line no-console
+  console.log(`\nEvaluations: ${passed} passed, ${failed} failed`);
+  // eslint-disable-next-line no-console
+  console.log(`View results: http://localhost:6006/datasets\n`);
+
+  if (failed > 0) {
+    process.exit(1);
   }
 }
 
