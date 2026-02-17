@@ -18,6 +18,7 @@ from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias, assert_never
 
+import phoenix.db.types.model_provider as model_provider_types
 from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
@@ -198,7 +199,7 @@ class ExperimentRunMetricComparison:
             "the base experiment run was missing a value or because all compare experiment runs "
             "were missing values."
         )
-    )  # type: ignore[misc]
+    )
     def num_runs_without_comparison(self) -> int:
         return (
             self.num_total_runs
@@ -336,7 +337,7 @@ class Query:
         """
         config = input.to_orm()
 
-        if config.root.type == "openai":
+        if isinstance(config.root, model_provider_types.OpenAICustomProviderConfig):
             try:
                 with anyio.move_on_after(10) as scope:
                     async with config.root.get_client_factory()() as openai_client:
@@ -347,7 +348,7 @@ class Query:
                     )
             except Exception as e:
                 return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "azure_openai":
+        elif isinstance(config.root, model_provider_types.AzureOpenAICustomProviderConfig):
             try:
                 with anyio.move_on_after(10) as scope:
                     async with config.root.get_client_factory()() as azure_openai_client:
@@ -358,7 +359,7 @@ class Query:
                     )
             except Exception as e:
                 return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "anthropic":
+        elif isinstance(config.root, model_provider_types.AnthropicCustomProviderConfig):
             try:
                 from anthropic import NotFoundError as AnthropicNotFoundError
 
@@ -379,9 +380,9 @@ class Query:
                 pass  # Fall through to return VALID
             except Exception as e:
                 return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "aws_bedrock":
+        elif isinstance(config.root, model_provider_types.AWSBedrockCustomProviderConfig):
             try:
-                from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+                from botocore.exceptions import ClientError
 
                 # Use dummy model - ValidationException means credentials are valid
                 # Use async aioboto3 client
@@ -406,7 +407,7 @@ class Query:
                     return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
             except Exception as e:
                 return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "google_genai":
+        elif isinstance(config.root, model_provider_types.GoogleGenAICustomProviderConfig):
             try:
                 from google.genai.types import HttpOptions, ListModelsConfig
 
@@ -422,7 +423,7 @@ class Query:
             except Exception as e:
                 return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
         else:
-            raise BadRequest("Invalid input")
+            assert_never(config.root)
         return TestGenerativeModelCustomProviderCredentialsResult(error=None)
 
     @strawberry.field
@@ -489,7 +490,7 @@ class Query:
         else:
             return []
 
-    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    @strawberry.field(permission_classes=[IsAdmin])
     async def users(
         self,
         info: Info[Context, None],
@@ -533,7 +534,7 @@ class Query:
             for role in roles
         ]
 
-    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    @strawberry.field(permission_classes=[IsAdmin])
     async def user_api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
         stmt = (
             select(models.ApiKey)
@@ -545,7 +546,7 @@ class Query:
             api_keys = await session.scalars(stmt)
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
-    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    @strawberry.field(permission_classes=[IsAdmin])
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
         stmt = (
             select(models.ApiKey)
@@ -1682,7 +1683,7 @@ class Query:
     @strawberry.field(
         description="The allocated storage capacity of the database in bytes. "
         "Return None if this information is unavailable.",
-    )  # type: ignore
+    )
     async def db_storage_capacity_bytes(self) -> Optional[float]:
         if gibibytes := get_env_database_allocated_storage_capacity_gibibytes():
             return gibibytes * 2**30
@@ -1878,7 +1879,7 @@ class Query:
                     )
             messages.append(PromptMessage(role=PromptMessageRole(msg.role), content=content_parts))
 
-        return PromptChatTemplate(messages=messages)
+        return PromptChatTemplate(messages=messages)  # ty: ignore[unknown-argument]
 
 
 def _consolidate_sqlite_db_table_stats(
