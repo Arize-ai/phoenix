@@ -1,6 +1,4 @@
-src/phoenix/server/api/types/Project.py
 src/phoenix/server/api/routers/v1/utils.py
-src/phoenix/server/api/types/ProjectSessionAnnotation.py
 src/phoenix/server/api/types/DatasetSplit.py
 src/phoenix/server/api/types/DatasetVersion.py
 src/phoenix/server/api/types/ExperimentRunAnnotation.py

@@ -34,7 +34,7 @@ class DbSessionFactory:
         dialect: str,
     ):
         self._db = db
-        self.dialect = SupportedSQLDialect(dialect)
+        self.dialect: SupportedSQLDialect = SupportedSQLDialect(dialect)
         self.lock: Optional[asyncio.Lock] = None
         self.should_not_insert_or_update = False
         """An informational flag that allows different tasks to coordinate whether insert
@@ -229,31 +229,31 @@ class UserId(_DbId):
 
 
 @dataclass(frozen=True)
-class UserClaimSet(ClaimSet):  # type: ignore[override,unused-ignore]
+class UserClaimSet(ClaimSet):
     subject: Optional[UserId] = None
     attributes: Optional[UserTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class PasswordResetTokenClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
+class PasswordResetTokenClaims(UserClaimSet):
     token_id: Optional[PasswordResetTokenId] = None
     attributes: Optional[PasswordResetTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class AccessTokenClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
+class AccessTokenClaims(UserClaimSet):
     token_id: Optional[AccessTokenId] = None
     attributes: Optional[AccessTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class RefreshTokenClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
+class RefreshTokenClaims(UserClaimSet):
     token_id: Optional[RefreshTokenId] = None
     attributes: Optional[RefreshTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class ApiKeyClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
+class ApiKeyClaims(UserClaimSet):
     token_id: Optional[ApiKeyId] = None
     attributes: Optional[ApiKeyAttributes] = None
 

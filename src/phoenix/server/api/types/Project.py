@@ -515,7 +515,7 @@ class Project(Node):
     @strawberry.field(
         description="Names of all available annotations for traces. "
         "(The list contains no duplicates.)"
-    )  # type: ignore
+    )
     async def trace_annotations_names(
         self,
         info: Info[Context, None],
@@ -531,7 +531,7 @@ class Project(Node):
     @strawberry.field(
         description="Names of all available annotations for spans. "
         "(The list contains no duplicates.)"
-    )  # type: ignore
+    )
     async def span_annotation_names(
         self,
         info: Info[Context, None],
@@ -548,7 +548,7 @@ class Project(Node):
     @strawberry.field(
         description="Names of all available annotations for sessions. "
         "(The list contains no duplicates.)"
-    )  # type: ignore
+    )
     async def session_annotation_names(
         self,
         info: Info[Context, None],
@@ -563,7 +563,7 @@ class Project(Node):
 
     @strawberry.field(
         description="Names of available document evaluations.",
-    )  # type: ignore
+    )
     async def document_evaluation_names(
         self,
         info: Info[Context, None],
@@ -683,7 +683,7 @@ class Project(Node):
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 str(stmt.compile(dialect=sqlite.dialect()))
             elif dialect is SupportedSQLDialect.SQLITE:
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+                str(stmt.compile(dialect=postgresql.dialect()))
             else:
                 assert_never(dialect)
             return ValidationResult(is_valid=True, error_message=None)
