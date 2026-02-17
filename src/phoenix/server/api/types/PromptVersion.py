@@ -44,12 +44,12 @@ class PromptVersion(Node):
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     template: PromptTemplate
-    invocation_parameters: Optional[JSON] = None
+    invocation_parameters: Optional[JSON] = None  # ty: ignore[invalid-type-form]
     tools: list[ToolDefinition]
     response_format: Optional[ResponseFormat] = None
     model_name: str
     model_provider: ModelProvider
-    metadata: JSON
+    metadata: JSON  # ty: ignore[invalid-type-form]
     created_at: datetime
     cached_sequence_number: Private[Optional[int]] = None
 
@@ -102,7 +102,7 @@ class PromptVersion(Node):
 
     @strawberry.field(
         description="Sequence number (1-based) of prompt versions belonging to the same prompt"
-    )  # type: ignore
+    )
     async def sequence_number(
         self,
         info: Info[Context, None],
