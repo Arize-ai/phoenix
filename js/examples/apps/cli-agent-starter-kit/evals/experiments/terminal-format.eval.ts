@@ -14,15 +14,13 @@ import { terminalSafeFormatEvaluator } from "../evaluators/index.js";
 async function main() {
   const client = createClient();
 
-  // Create or get existing dataset
-  console.log("Creating or retrieving dataset...");
+  // Create or get existing dataset (silent)
   const { datasetId } = await createOrGetDataset({
     client,
     name: terminalFormatDataset.name,
     description: terminalFormatDataset.description,
     examples: terminalFormatDataset.examples,
   });
-  console.log(`Dataset ID: ${datasetId}`);
 
   // Define task (returns pre-defined response from dataset)
   const task: RunExperimentParams["task"] = async (example: Example) => {
@@ -32,8 +30,7 @@ async function main() {
     return example.output.response;
   };
 
-  // Run experiment
-  console.log("Running experiment...");
+  // Run experiment with quiet logger
   const experimentName = `terminal-format-eval-${Date.now()}`;
   const experiment = await runExperiment({
     client,
@@ -42,15 +39,12 @@ async function main() {
     dataset: { datasetId },
     task,
     evaluators: [terminalSafeFormatEvaluator],
-    logger: console,
+    logger: {
+      log: () => {}, // Suppress verbose output
+      info: () => {},
+      error: console.error,
+    },
   });
-
-  console.log("\nExperiment completed!");
-  console.log(`Experiment ID: ${experiment.id}`);
-  console.log(`Dataset ID: ${datasetId}`);
-  console.log(
-    `\nView results: http://localhost:6006/datasets/${datasetId}/compare?selectedExperiments=${experiment.id}`
-  );
 
   // Print summary
   const runs = Object.values(experiment.runs);
@@ -58,10 +52,12 @@ async function main() {
   const passCount = evaluationResults.filter((r) => r.result.score === 1).length;
   const failCount = evaluationResults.filter((r) => r.result.score === 0).length;
 
-  console.log("\n--- Summary ---");
-  console.log(`Total examples: ${runs.length}`);
-  console.log(`Passed: ${passCount} (${((passCount / runs.length) * 100).toFixed(1)}%)`);
-  console.log(`Failed: ${failCount} (${((failCount / runs.length) * 100).toFixed(1)}%)`);
+  console.log(`\n✓ Evaluated ${runs.length} examples`);
+  console.log(`  ${passCount} passed (${((passCount / runs.length) * 100).toFixed(1)}%)`);
+  console.log(`  ${failCount} failed (${((failCount / runs.length) * 100).toFixed(1)}%)`);
+  console.log(
+    `\n→ View details: http://localhost:6006/datasets/${datasetId}/compare?experimentId=${experiment.id}\n`
+  );
 }
 
 main().catch((error) => {
