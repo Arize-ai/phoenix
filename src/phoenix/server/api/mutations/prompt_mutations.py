@@ -33,10 +33,10 @@ from phoenix.server.bearer_auth import PhoenixUser
 
 @strawberry.input
 class CreateChatPromptInput:
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
-    metadata: Optional[strawberry.scalars.JSON] = None
+    metadata: Optional[strawberry.scalars.JSON] = None  # ty: ignore[invalid-type-form]
     tags: Optional[list[CreatePromptVersionTagInput]] = None
 
 
@@ -54,17 +54,17 @@ class DeletePromptInput:
 
 @strawberry.input
 class ClonePromptInput:
-    name: Identifier
+    name: Identifier  # ty: ignore[invalid-type-form]
     prompt_id: GlobalID
     description: Optional[str] = UNSET
-    metadata: Optional[strawberry.scalars.JSON] = UNSET
+    metadata: Optional[strawberry.scalars.JSON] = UNSET  # ty: ignore[invalid-type-form]
 
 
 @strawberry.input
 class PatchPromptInput:
     prompt_id: GlobalID
     description: Optional[str] = UNSET
-    metadata: Optional[strawberry.scalars.JSON] = UNSET
+    metadata: Optional[strawberry.scalars.JSON] = UNSET  # ty: ignore[invalid-type-form]
 
 
 @strawberry.type
@@ -74,7 +74,7 @@ class DeletePromptMutationPayload:
 
 @strawberry.type
 class PromptMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_chat_prompt(
         self, info: Info[Context, None], input: CreateChatPromptInput
     ) -> Prompt:
@@ -107,7 +107,7 @@ class PromptMutationMixin:
                     )
         return Prompt(id=prompt.id, db_record=prompt)
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_chat_prompt_version(
         self,
         info: Info[Context, None],
@@ -155,7 +155,7 @@ class PromptMutationMixin:
                     )
         return Prompt(id=prompt_id)
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_prompt(
         self, info: Info[Context, None], input: DeletePromptInput
     ) -> DeletePromptMutationPayload:
@@ -172,7 +172,7 @@ class PromptMutationMixin:
             await session.commit()
         return DeletePromptMutationPayload(query=Query())
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def clone_prompt(self, info: Info[Context, None], input: ClonePromptInput) -> Prompt:
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
@@ -239,7 +239,7 @@ class PromptMutationMixin:
                 raise Conflict(f"A prompt named '{input.name}' already exists")
         return Prompt(id=new_prompt.id, db_record=new_prompt)
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_prompt(self, info: Info[Context, None], input: PatchPromptInput) -> Prompt:
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
