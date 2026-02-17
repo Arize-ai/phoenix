@@ -15,14 +15,8 @@ from .AnnotationSource import AnnotationSource
 from .AnnotatorKind import AnnotatorKind
 
 if TYPE_CHECKING:
-    # For type checkers: JSON is a wrapper around object
-    JSONType = object
-
     from .Span import Span
     from .User import User
-else:
-    # At runtime: use the actual strawberry JSON scalar for GraphQL
-    JSONType = JSON
 
 
 @strawberry.type
@@ -111,7 +105,7 @@ class DocumentAnnotation(Node, Annotation):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSONType:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
