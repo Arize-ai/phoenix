@@ -65,7 +65,7 @@ class OpenAIClientKwargs:
     base_url: str | None = UNSET
     organization: str | None = UNSET
     project: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     @classmethod
     def from_orm(cls, kwargs: mp.OpenAIClientKwargs | None) -> Self | None:
@@ -107,19 +107,19 @@ class AzureOpenAIAuthenticationMethod:
 
     @classmethod
     def from_orm(cls, method: mp.AzureOpenAIAuthenticationMethod) -> Self:
-        if method.type == "api_key":
+        if isinstance(method, mp.AuthenticationMethodApiKey):
             return cls(
                 api_key=method.api_key,
                 azure_ad_token_provider=None,
                 default_credentials=None,
             )
-        if method.type == "azure_ad_token_provider":
+        if isinstance(method, mp.AuthenticationMethodAzureADTokenProvider):
             return cls(
                 api_key=None,
                 azure_ad_token_provider=AzureADTokenProvider.from_orm(method),
                 default_credentials=None,
             )
-        if method.type == "default_credentials":
+        if isinstance(method, mp.AuthenticationMethodDefaultCredentials):
             return cls(
                 api_key=None,
                 azure_ad_token_provider=None,
@@ -131,7 +131,7 @@ class AzureOpenAIAuthenticationMethod:
 @strawberry.type
 class AzureOpenAIClientKwargs:
     azure_endpoint: str
-    default_headers: JSON | None = UNSET
+    default_headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     @classmethod
     def from_orm(cls, kwargs: mp.AzureOpenAIClientKwargs) -> Self:
@@ -172,7 +172,7 @@ class AnthropicAuthenticationMethod:
 @strawberry.type
 class AnthropicClientKwargs:
     base_url: str | None = UNSET
-    default_headers: JSON | None = UNSET
+    default_headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     @classmethod
     def from_orm(cls, kwargs: mp.AnthropicClientKwargs | None) -> Self | None:
@@ -229,12 +229,12 @@ class AWSBedrockAuthenticationMethod:
 
     @classmethod
     def from_orm(cls, method: mp.AWSBedrockAuthenticationMethod) -> Self:
-        if method.type == "access_keys":
+        if isinstance(method, mp.AWSBedrockAuthenticationMethodAccessKeys):
             return cls(
                 access_keys=AWSBedrockAccessKeys.from_orm(method),
                 default_credentials=None,
             )
-        if method.type == "default_credentials":
+        if isinstance(method, mp.AuthenticationMethodDefaultCredentials):
             return cls(
                 access_keys=None,
                 default_credentials=True,
@@ -284,7 +284,7 @@ class GoogleGenAIAuthenticationMethod:
 @strawberry.type
 class GoogleGenAIHttpOptions:
     base_url: str | None = UNSET
-    headers: JSON | None = UNSET
+    headers: JSON | None = UNSET  # ty: ignore[invalid-type-form]
 
     @classmethod
     def from_orm(cls, http_options: mp.GoogleGenAIHttpOptions | None) -> Self | None:
@@ -383,7 +383,7 @@ class GenerativeModelCustomProvider(Node):
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("GenerativeModelCustomProvider ID mismatch")
 
-    @strawberry.field(description="The name of this provider.")  # type: ignore
+    @strawberry.field(description="The name of this provider.")
     async def name(self, info: Info[Context, None]) -> str:
         if self.db_record:
             val = self.db_record.name
@@ -393,7 +393,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return val
 
-    @strawberry.field(description="The description of this provider.")  # type: ignore
+    @strawberry.field(description="The description of this provider.")
     async def description(self, info: Info[Context, None]) -> str | None:
         if self.db_record:
             val = self.db_record.description
@@ -403,7 +403,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return val
 
-    @strawberry.field(description="The provider of this provider.")  # type: ignore
+    @strawberry.field(description="The provider of this provider.")
     async def provider(self, info: Info[Context, None]) -> str:
         if self.db_record:
             val = self.db_record.provider
@@ -413,7 +413,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return val
 
-    @strawberry.field(description="The creation timestamp of this provider.")  # type: ignore
+    @strawberry.field(description="The creation timestamp of this provider.")
     async def created_at(self, info: Info[Context, None]) -> datetime:
         if self.db_record:
             val = self.db_record.created_at
@@ -423,7 +423,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return val
 
-    @strawberry.field(description="The last updated timestamp of this provider.")  # type: ignore
+    @strawberry.field(description="The last updated timestamp of this provider.")
     async def updated_at(self, info: Info[Context, None]) -> datetime:
         if self.db_record:
             val = self.db_record.updated_at
@@ -433,7 +433,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return val
 
-    @strawberry.field(description="The SDK of this provider.")  # type: ignore
+    @strawberry.field(description="The SDK of this provider.")
     async def sdk(self, info: Info[Context, None]) -> GenerativeModelSDK:
         if self.db_record:
             sdk = self.db_record.sdk
@@ -443,7 +443,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return GenerativeModelSDK(sdk)
 
-    @strawberry.field(description="The config of this provider.")  # type: ignore
+    @strawberry.field(description="The config of this provider.")
     async def config(self, info: Info[Context, None]) -> CustomProviderConfig:
         if self.db_record:
             sdk = self.db_record.sdk
@@ -460,7 +460,7 @@ class GenerativeModelCustomProvider(Node):
             )
         return _parse_config(sdk, encrypted_config, info.context.decrypt)
 
-    @strawberry.field(description="The user that created this provider.")  # type: ignore
+    @strawberry.field(description="The user that created this provider.")
     async def user(
         self, info: Info[Context, None]
     ) -> Annotated["User", strawberry.lazy(".User")] | None:
@@ -476,8 +476,9 @@ class GenerativeModelCustomProvider(Node):
 
         return User(id=user_id)
 
-    @strawberry.field(description="The model names available for this provider.")  # type: ignore
+    @strawberry.field(description="The model names available for this provider.")
     async def model_names(self, info: Info[Context, None]) -> list[str]:
+        sdk: models.GenerativeModelSDK
         if self.db_record:
             sdk = self.db_record.sdk
         else:
@@ -496,6 +497,6 @@ class GenerativeModelCustomProvider(Node):
         elif sdk == "google_genai":
             provider_key = GenerativeProviderKey.GOOGLE
         else:
-            assert_never(sdk)
+            assert_never(sdk)  # ty: ignore[type-assertion-failure]
 
         return PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
