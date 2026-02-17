@@ -28,6 +28,7 @@ def graceful_fallback(
     """
 
     exceptions = (BaseException,) if exceptions is None else tuple(exceptions)
+    fallback_method_name = getattr(fallback_method, "__name__")
 
     def decorator(func: F) -> F:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -43,7 +44,7 @@ def graceful_fallback(
                     f"{'*' * 50}\n"
                     f"{traceback.format_exc()}\n"
                     f"{'*' * 50}\n"
-                    f"Rerouting to fallback method '{fallback_method.__name__}'"
+                    f"Rerouting to fallback method '{fallback_method_name}'"
                 )
                 logging.error(msg)
             return fallback_method(*args, **kwargs)
