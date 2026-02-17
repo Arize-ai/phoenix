@@ -76,7 +76,7 @@ class Dataset(Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
@@ -145,7 +145,7 @@ class Dataset(Node):
     @strawberry.field(
         description="Number of examples in a specific version if version is specified, or in the "
         "latest version if version is not specified."
-    )  # type: ignore
+    )
     async def example_count(
         self,
         info: Info[Context, None],
@@ -341,7 +341,7 @@ class Dataset(Node):
     @strawberry.field(
         description="Number of experiments for a specific version if version is specified, "
         "or for all versions if version is not specified."
-    )  # type: ignore
+    )
     async def experiment_count(
         self,
         info: Info[Context, None],
@@ -460,7 +460,7 @@ class Dataset(Node):
             for label in await info.context.data_loaders.dataset_labels.load(self.id)
         ]
 
-    @strawberry.field(description="Number of evaluators associated with this dataset.")  # type: ignore
+    @strawberry.field(description="Number of evaluators associated with this dataset.")
     async def evaluator_count(
         self,
         info: Info[Context, None],
