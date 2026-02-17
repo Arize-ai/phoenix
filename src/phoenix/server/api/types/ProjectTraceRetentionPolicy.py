@@ -8,8 +8,8 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+import phoenix.db.types.trace_retention as trace_retention_types
 from phoenix.db import models
-from phoenix.db.types.trace_retention import MaxCountRule, MaxDaysOrCountRule, MaxDaysRule
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.CronExpression import CronExpression
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
@@ -58,7 +58,7 @@ class ProjectTraceRetentionPolicy(Node):
     async def cron_expression(
         self,
         info: Info[Context, None],
-    ) -> CronExpression:
+    ) -> CronExpression:  # ty: ignore[invalid-type-form]
         if self.db_policy:
             value = self.db_policy.cron_expression
         else:
@@ -72,17 +72,20 @@ class ProjectTraceRetentionPolicy(Node):
         self,
         info: Info[Context, None],
     ) -> TraceRetentionRule:
+        value: trace_retention_types.TraceRetentionRule
         if self.db_policy:
             value = self.db_policy.rule
         else:
-            value = await info.context.data_loaders.project_trace_retention_policy_fields.load(
+            value_ = await info.context.data_loaders.project_trace_retention_policy_fields.load(
                 (self.id, models.ProjectTraceRetentionPolicy.rule),
             )
-        if isinstance(value.root, MaxDaysRule):
+            assert isinstance(value_, trace_retention_types.TraceRetentionRule)
+            value = value_
+        if isinstance(value.root, trace_retention_types.MaxDaysRule):
             return TraceRetentionRuleMaxDays(max_days=value.root.max_days)
-        if isinstance(value.root, MaxCountRule):
+        if isinstance(value.root, trace_retention_types.MaxCountRule):
             return TraceRetentionRuleMaxCount(max_count=value.root.max_count)
-        if isinstance(value.root, MaxDaysOrCountRule):
+        if isinstance(value.root, trace_retention_types.MaxDaysOrCountRule):
             return TraceRetentionRuleMaxDaysOrCount(
                 max_days=value.root.max_days, max_count=value.root.max_count
             )
