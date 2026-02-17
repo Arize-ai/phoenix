@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 def _get_substitutions_path() -> Any:
     """Get the packaged substitutions YAML resource."""
     # Chain joinpath calls for Python 3.10 compatibility (single argument only)
+    assert __package__ is not None
     return resources.files(__package__).joinpath("substitutions").joinpath("server.yaml")
 
 
