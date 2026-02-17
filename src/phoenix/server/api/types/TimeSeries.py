@@ -169,9 +169,19 @@ def ensure_timeseries_parameters(
     time_range_input: Optional[TimeRange] = UNSET,
     granularity: Optional[Granularity] = UNSET,
 ) -> tuple[model_schema.TimeRange, Granularity]:
+    start = (
+        time_range_input.start
+        if time_range_input and time_range_input.start
+        else inferences.time_range.start
+    )
+    stop = (
+        time_range_input.end
+        if time_range_input and time_range_input.end
+        else inferences.time_range.stop
+    )
     time_range = model_schema.TimeRange(
-        start=(time_range_input and time_range_input.start) or inferences.time_range.start,
-        stop=(time_range_input and time_range_input.end) or inferences.time_range.stop,
+        start=start,
+        stop=stop,
     )
     if not isinstance(granularity, Granularity):
         total_minutes = int((time_range.stop - time_range.start).total_seconds()) // 60
