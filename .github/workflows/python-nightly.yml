@@ -22,7 +22,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          branches=$(gh api repos/${{ github.repository }}/branches --paginate | jq -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
+          branches=$(gh api repos/${{ github.repository }}/branches --paginate | jq -c -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
   unit-tests-all-platforms:
