@@ -1,10 +1,10 @@
-name: Python Nightly
+name: Python All Platforms
 permissions:
   contents: read
 
 on:
   schedule:
-    - cron: "0 8 * * *" # Daily at 3/4 AM EST / 8 AM UTC
+    - cron: "0 19 * * 1-5" # Weekdays at 2/3 PM EST / 7 PM UTC
   workflow_dispatch:
 
 env:
@@ -34,13 +34,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         py: ["3.10", "3.13"]
-        os: [oss-4-core-runner, windows-latest, macos-latest]
-        db: [sqlite, postgresql]
-        exclude:
-          - db: postgresql
-            os: windows-latest
-          - db: postgresql
-            os: macos-latest
+        os: [windows-latest, macos-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
