@@ -17,6 +17,6 @@ class CreateDocumentAnnotationInput:
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None
-    metadata: JSON = strawberry.field(default_factory=dict)
+    metadata: JSON = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
     source: AnnotationSource
     identifier: Optional[str] = strawberry.UNSET

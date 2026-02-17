@@ -10,11 +10,11 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 @strawberry.input
 class ChatCompletionMessageInput:
     role: ChatCompletionMessageRole
-    content: JSON = strawberry.field(
+    content: JSON = strawberry.field(  # ty: ignore[invalid-type-form]
         default="",
         description="The content of the message as JSON to support various kinds of text",
     )
-    tool_calls: Optional[list[JSON]] = strawberry.field(
+    tool_calls: Optional[list[JSON]] = strawberry.field(  # ty: ignore[invalid-type-form]
         description="The tool calls that were made in the message",
         default=UNSET,
     )

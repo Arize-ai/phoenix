@@ -17,6 +17,6 @@ class PatchAnnotationInput:
     label: Optional[str] = UNSET
     score: Optional[float] = UNSET
     explanation: Optional[str] = UNSET
-    metadata: Optional[JSON] = UNSET
+    metadata: Optional[JSON] = UNSET  # ty: ignore[invalid-type-form]
     identifier: Optional[str] = UNSET
     source: Optional[AnnotationSource] = UNSET

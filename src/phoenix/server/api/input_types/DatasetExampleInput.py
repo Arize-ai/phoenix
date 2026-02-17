@@ -8,7 +8,7 @@ from strawberry.scalars import JSON
 
 @strawberry.input
 class DatasetExampleInput:
-    input: JSON
-    output: JSON
-    metadata: JSON
+    input: JSON  # ty: ignore[invalid-type-form]
+    output: JSON  # ty: ignore[invalid-type-form]
+    metadata: JSON  # ty: ignore[invalid-type-form]
     span_id: Optional[GlobalID] = UNSET
