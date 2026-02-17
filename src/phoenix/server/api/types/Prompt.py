@@ -57,7 +57,7 @@ class Prompt(Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> Identifier:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.name
         else:
@@ -83,7 +83,7 @@ class Prompt(Node):
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         if self.db_record:
             val = self.db_record.metadata_
         else:
@@ -110,7 +110,7 @@ class Prompt(Node):
         self,
         info: Info[Context, None],
         version_id: Optional[GlobalID] = None,
-        tag_name: Optional[Identifier] = None,
+        tag_name: Optional[Identifier] = None,  # ty: ignore[invalid-type-form]
     ) -> PromptVersion:
         async with info.context.db() as session:
             if version_id:
