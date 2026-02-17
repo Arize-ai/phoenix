@@ -16,14 +16,14 @@ if TYPE_CHECKING:
 
 @strawberry.interface
 class Annotation:
-    @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")  # type: ignore
+    @strawberry.field(description="Name of the annotation, e.g. 'helpfulness' or 'relevance'.")
     async def name(
         self,
         info: Info[Context, None],
     ) -> str:
         raise NotImplementedError
 
-    @strawberry.field(description="The kind of annotator that produced the annotation.")  # type: ignore
+    @strawberry.field(description="The kind of annotator that produced the annotation.")
     async def annotator_kind(
         self,
         info: Info[Context, None],
@@ -32,14 +32,14 @@ class Annotation:
 
     @strawberry.field(
         description="Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary."  # noqa: E501
-    )  # type: ignore
+    )
     async def label(
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
         raise NotImplementedError
 
-    @strawberry.field(description="Value of the annotation in the form of a numeric score.")  # type: ignore
+    @strawberry.field(description="Value of the annotation in the form of a numeric score.")
     async def score(
         self,
         info: Info[Context, None],
@@ -48,49 +48,49 @@ class Annotation:
 
     @strawberry.field(
         description="The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject."  # noqa: E501
-    )  # type: ignore
+    )
     async def explanation(
         self,
         info: Info[Context, None],
     ) -> Optional[str]:
         raise NotImplementedError
 
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
+    @strawberry.field(description="Metadata about the annotation.")
     async def metadata(
         self,
         info: Info[Context, None],
-    ) -> JSON:
+    ) -> JSON:  # ty: ignore[invalid-type-form]
         raise NotImplementedError
 
-    @strawberry.field(description="The source of the annotation.")  # type: ignore
+    @strawberry.field(description="The source of the annotation.")
     async def source(
         self,
         info: Info[Context, None],
     ) -> AnnotationSource:
         raise NotImplementedError
 
-    @strawberry.field(description="The identifier of the annotation.")  # type: ignore
+    @strawberry.field(description="The identifier of the annotation.")
     async def identifier(
         self,
         info: Info[Context, None],
     ) -> str:
         raise NotImplementedError
 
-    @strawberry.field(description="The date and time the annotation was created.")  # type: ignore
+    @strawberry.field(description="The date and time the annotation was created.")
     async def created_at(
         self,
         info: Info[Context, None],
     ) -> datetime:
         raise NotImplementedError
 
-    @strawberry.field(description="The date and time the annotation was last updated.")  # type: ignore
+    @strawberry.field(description="The date and time the annotation was last updated.")
     async def updated_at(
         self,
         info: Info[Context, None],
     ) -> datetime:
         raise NotImplementedError
 
-    @strawberry.field(description="The user that produced the annotation.")  # type: ignore
+    @strawberry.field(description="The user that produced the annotation.")
     async def user(
         self,
         info: Info[Context, None],
