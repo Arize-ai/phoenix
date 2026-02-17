@@ -49,7 +49,7 @@ def get_experiment_run_cursor(
                     value=run.latency_ms,
                 )
             else:
-                assert_never(metric)
+                assert_never(metric)  # ty: ignore[type-assertion-failure]
         elif sort.col.annotation_name:
             data_type = (
                 CursorSortColumnDataType.FLOAT
@@ -115,7 +115,7 @@ def _get_order_by_columns(
             else:
                 return (models.ExperimentRun.latency_ms.desc(), models.ExperimentRun.id.desc())
         else:
-            assert_never(metric)
+            assert_never(metric)  # ty: ignore[type-assertion-failure]
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
@@ -161,7 +161,7 @@ def _add_after_expression(
                 )
             )
         else:
-            assert_never(metric)
+            assert_never(metric)  # ty: ignore[type-assertion-failure]
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
@@ -220,7 +220,7 @@ def _add_joins_and_selects_to_query(
         if metric is ExperimentRunMetric.latencyMs:
             return query
         else:
-            assert_never(metric)
+            assert_never(metric)  # ty: ignore[type-assertion-failure]
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
