@@ -9,180 +9,84 @@ Automated evaluation framework for the Phoenix Documentation Assistant CLI agent
 pnpm eval
 
 # Run evaluations matching a pattern
-pnpm eval terminal          # Matches terminal-format.eval.ts
-pnpm eval terminal-format   # Matches terminal-format.eval.ts
+pnpm eval terminal
 
 # Run specific evaluation directly
 pnpm eval:terminal-format
-
-# Without Phoenix UI check
-pnpm eval:no-phoenix
-pnpm eval:no-phoenix terminal
 ```
 
 ## Available Evaluations
 
-### Terminal Safe Format
-
-Verifies agent outputs don't contain markdown syntax (bold, italic, code blocks, links, etc.).
-
-- **Type**: Code-based (regex pattern matching)
-- **Dataset**: 16 curated examples
-- **Metric**: Binary (pass/fail)
-- **Location**: `evals/evaluators/terminalSafeFormatEvaluator.ts`
+- **Terminal Safe Format**: Verifies outputs don't contain markdown syntax (bold, italic, code blocks, links, etc.)
 
 ## Project Structure
 
 ```
 evals/
-├── evaluators/          # Evaluator definitions
-│   ├── terminalSafeFormatEvaluator.ts
-│   └── index.ts
-├── datasets/            # Test datasets
-│   ├── terminalFormatExamples.ts
-│   └── index.ts
-├── experiments/         # Experiment runners (*.eval.ts pattern)
-│   ├── terminal-format.eval.ts
-│   └── index.ts
-├── utils/              # Shared utilities
-│   ├── markdownPatterns.ts
-│   └── index.ts
-└── README.md           # This file
+├── evaluators/          # Evaluator definitions (camelCase)
+├── datasets/            # Test datasets (camelCase)
+├── experiments/         # Experiment runners (kebab-case.eval.ts)
+└── utils/              # Shared utilities (camelCase)
 ```
 
 ## Creating New Evaluators
 
-### 1. Create Evaluator
-
+1. **Create evaluator** in `evals/evaluators/myEvaluator.ts`:
 ```typescript
-// evals/evaluators/my-evaluator.ts
 import { createEvaluator } from "@arizeai/phoenix-evals";
 
 export const myEvaluator = createEvaluator(
   ({ output }: { output: string }) => {
     const score = /* compute score */;
     const label = /* determine label */;
-    const explanation = /* provide explanation */;
-
-    return { score, label, explanation };
+    return { score, label, explanation: "..." };
   },
-  {
-    name: "my-evaluator",
-    kind: "CODE", // or "LLM"
-    optimizationDirection: "MAXIMIZE",
-  }
+  { name: "my-evaluator", kind: "CODE", optimizationDirection: "MAXIMIZE" }
 );
 ```
 
-### 2. Create Dataset
-
+2. **Create dataset** in `evals/datasets/myExamples.ts`:
 ```typescript
-// evals/datasets/my-examples.ts
-import type { Example } from "@arizeai/phoenix-client/types/datasets";
-
-export const myExamples: Example[] = [
+export const myExamples = [
   {
-    input: { prompt: "test prompt" },
-    output: { response: "expected response" },
+    input: { prompt: "test" },
+    output: { response: "expected" },
     metadata: { category: "test" },
   },
-  // ... more examples
 ];
 ```
 
-### 3. Create Experiment
-
+3. **Create experiment** in `evals/experiments/my-eval.eval.ts`:
 ```typescript
-// evals/experiments/my-eval.eval.ts
 import { createClient } from "@arizeai/phoenix-client";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
+import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
-// Metadata for CLI auto-discovery
 export const metadata = {
   name: "My Evaluator",
-  description: "Description of what this evaluates",
-  hint: "Additional context or usage hint",
+  description: "What this evaluates",
 };
 
-export async function runMyEval() {
-  const client = createClient();
-
-  const { id: datasetId } = await createDataset({
+export async function runMyEval({ client = createClient(), logger = console } = {}) {
+  const { datasetId } = await createOrGetDataset({
     client,
     name: "my-dataset",
     examples: myExamples,
   });
 
-  const experiment = await runExperiment({
+  return await runExperiment({
     client,
     experimentName: "my-eval",
     dataset: { datasetId },
-    task: async (example) => {
-      // Return output to evaluate
-      return example.output.response;
-    },
+    task: async (example) => example.output.response,
     evaluators: [myEvaluator],
-    logger: console,
+    logger,
   });
-
-  return experiment;
 }
 ```
 
-### 4. Auto-Discovery
+4. **Run it**: `pnpm eval my-eval`
 
-No need to update `scripts/run-evals.ts`! The runner automatically discovers all `.eval.ts` files.
+## View Results
 
-Just ensure your eval file:
-- Has a `.eval.ts` extension
-- Exports an evaluation function that accepts `{ client, logger }`
-- Optionally exports a `metadata` object with `name`, `description`, and `hint`
-
-Run with a pattern to match specific files:
-```bash
-pnpm eval my-eval  # Matches my-eval.eval.ts
-```
-
-## Viewing Results
-
-Results are stored in Phoenix and visible at http://localhost:6006
-
-1. Navigate to **Datasets** section
-2. Find your dataset (e.g., "cli-agent-terminal-format")
-3. Click **Compare** to view experiment results
-4. See pass/fail status, scores, and explanations
-
-## Testing Tips
-
-- **Use mock responses**: Return dataset outputs for deterministic testing
-- **Categorize examples**: Use metadata to organize test cases
-- **Document edge cases**: Add descriptions explaining what each example tests
-- **Start small**: Begin with 10-15 examples, expand as needed
-- **Validate evaluators**: Manually review results to ensure accuracy
-
-## Troubleshooting
-
-### Phoenix not running
-
-```bash
-# Start Phoenix (docker-based)
-pnpm phoenix:ensure
-
-# Or run without Phoenix check
-pnpm eval:no-phoenix
-```
-
-### API connection errors
-
-Verify Phoenix is accessible:
-```bash
-curl http://localhost:6006/api/health
-```
-
-### Evaluation failures
-
-Run with verbose logging:
-```bash
-VERBOSE=true pnpm eval
-```
+http://localhost:6006/datasets
