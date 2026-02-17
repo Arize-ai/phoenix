@@ -4,7 +4,6 @@ import {
   withSpan,
 } from "@arizeai/openinference-core";
 
-import type { ConversationHistory } from "../agent/index.js";
 import { SESSION_ID } from "../instrumentation.js";
 
 import { printWelcome } from "./welcome.js";
@@ -38,16 +37,12 @@ function displayExitMessage(cancelled = false) {
  *
  * @param input - The user's input message
  * @param agent - The ToolLoopAgent instance
- * @param conversationHistory - The conversation history array
  */
 export async function processUserMessage(
   input: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any>,
-  conversationHistory: ConversationHistory
+  agent: ToolLoopAgent<any, any>
 ) {
-  conversationHistory.push({ role: "user", content: input });
-
   const s = spinner();
   s.start("Agent is thinking...");
 
@@ -99,8 +94,6 @@ export async function processUserMessage(
     if (verbose) {
       log.info(`Completed in ${result.steps.length} steps`);
     }
-
-    conversationHistory.push({ role: "assistant", content: result.text });
   } catch (error) {
     s.stop("Agent encountered an error");
     log.error(String(error));
@@ -111,13 +104,11 @@ export async function processUserMessage(
  * Main conversation loop - handles user input and commands
  *
  * @param agent - The ToolLoopAgent instance
- * @param conversationHistory - The conversation history array
  * @returns Promise that resolves when the conversation ends
  */
 export async function conversationLoop(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agent: ToolLoopAgent<any, any>,
-  conversationHistory: ConversationHistory
+  agent: ToolLoopAgent<any, any>
 ): Promise<void> {
   while (true) {
     const userInput = await text({
@@ -143,17 +134,11 @@ export async function conversationLoop(
       continue;
     }
 
-    if (input === "/clear") {
-      conversationHistory.length = 0;
-      log.success("Conversation history cleared");
-      continue;
-    }
-
     if (!input) {
       continue;
     }
 
     // Process message with spinner
-    await processUserMessage(input, agent, conversationHistory);
+    await processUserMessage(input, agent);
   }
 }

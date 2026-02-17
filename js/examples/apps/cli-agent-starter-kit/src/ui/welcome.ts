@@ -18,8 +18,7 @@ Available capabilities:
 
 Commands:
   /exit or /quit - Exit the agent
-  /help - Show this help message
-  /clear - Clear conversation history`;
+  /help - Show this help message`;
 
   note(toolsAndCommands, "Interactive Mode");
   log.info(`Session ID: ${SESSION_ID}`);

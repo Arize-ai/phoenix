@@ -16,7 +16,7 @@ pnpm dev
 
 **Requirements:** Node.js 22+ (see `.nvmrc`), pnpm, Docker Desktop, Anthropic API key
 
-**Commands:** `/help`, `/clear`, `/exit`
+**Commands:** `/help`, `/exit`
 
 **Phoenix UI:** http://localhost:6006
 

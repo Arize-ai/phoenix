@@ -2,11 +2,12 @@
 /* eslint-disable no-console */
 
 // Import instrumentation first (Phoenix must be initialized early)
-import { type ConversationHistory } from "./agent/index.js";
+// eslint-disable-next-line simple-import-sort/imports
+import { flush } from "./instrumentation.js";
+
 import { agent } from "./agents/index.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
-import { flush } from "./instrumentation.js";
 
 // ANSI color codes
 const RESET = "\x1b[0m";
@@ -57,8 +58,7 @@ async function main() {
   printWelcome();
 
   // Start conversation loop (uses pre-configured agent from src/agents)
-  const conversationHistory: ConversationHistory = [];
-  await conversationLoop(agent, conversationHistory);
+  await conversationLoop(agent);
 
   // Conversation ended - flush traces before exit
   console.log("Flushing traces...");
