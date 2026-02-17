@@ -1,8 +1,5 @@
 src/phoenix/server/app.py
-src/phoenix/db/migrations/data_migration_scripts/populate_project_sessions.py
-src/phoenix/db/migrations/versions/3be8647b87d8_add_token_columns_to_spans_table.py
 src/phoenix/experiments/functions.py
-src/phoenix/inferences/errors.py
 src/phoenix/server/api/dataloaders/annotation_summaries.py
 src/phoenix/server/api/dataloaders/latency_ms_quantile.py
 src/phoenix/server/api/dataloaders/min_start_or_max_end_times.py
