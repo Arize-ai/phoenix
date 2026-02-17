@@ -66,6 +66,7 @@ from phoenix.config import (
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
+    get_env_grpc_port,
     get_env_host,
     get_env_max_spans_queue_size,
     get_env_port,
@@ -613,11 +614,13 @@ def _lifespan(
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
+    grpc_port: Optional[int] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
@@ -636,6 +639,7 @@ def _lifespan(
             ]
             grpc_server = GrpcServer(
                 enqueue_span,
+                port=resolved_grpc_port,
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
@@ -1022,6 +1026,7 @@ def create_app(
     dev: bool = False,
     dev_vite_port: int = 5173,
     read_only: bool = False,
+    grpc_port: Optional[int] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
@@ -1168,6 +1173,7 @@ def create_app(
         lifespan=_lifespan(
             db=db,
             read_only=read_only,
+            grpc_port=grpc_port,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
