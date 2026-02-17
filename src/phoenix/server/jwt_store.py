@@ -277,7 +277,9 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             await session.execute(stmt)
 
     @abstractmethod
-    def _from_db(self, record: _RecordT, role: UserRoleName) -> tuple[_TokenIdT, _ClaimSetT]: ...
+    def _from_db(
+        self, record: _RecordT, user_role: UserRoleName
+    ) -> tuple[_TokenIdT, _ClaimSetT]: ...
 
     @abstractmethod
     def _to_db(self, claims: _ClaimSetT) -> _RecordT: ...
@@ -356,14 +358,14 @@ class _PasswordResetTokenStore(
             ),
         )
 
-    def _to_db(self, claim: PasswordResetTokenClaims) -> models.PasswordResetToken:
-        assert claim.expiration_time
-        assert claim.subject
-        user_id = int(claim.subject)
+    def _to_db(self, claims: PasswordResetTokenClaims) -> models.PasswordResetToken:
+        assert claims.expiration_time
+        assert claims.subject
+        user_id = int(claims.subject)
         return models.PasswordResetToken(
             user_id=user_id,
-            created_at=claim.issued_at,
-            expires_at=claim.expiration_time,
+            created_at=claims.issued_at,
+            expires_at=claims.expiration_time,
         )
 
 
@@ -397,16 +399,16 @@ class _AccessTokenStore(
             ),
         )
 
-    def _to_db(self, claim: AccessTokenClaims) -> models.AccessToken:
-        assert claim.expiration_time
-        assert claim.subject
-        user_id = int(claim.subject)
-        assert claim.attributes
-        refresh_token_id = int(claim.attributes.refresh_token_id)
+    def _to_db(self, claims: AccessTokenClaims) -> models.AccessToken:
+        assert claims.expiration_time
+        assert claims.subject
+        user_id = int(claims.subject)
+        assert claims.attributes
+        refresh_token_id = int(claims.attributes.refresh_token_id)
         return models.AccessToken(
             user_id=user_id,
-            created_at=claim.issued_at,
-            expires_at=claim.expiration_time,
+            created_at=claims.issued_at,
+            expires_at=claims.expiration_time,
             refresh_token_id=refresh_token_id,
         )
 
