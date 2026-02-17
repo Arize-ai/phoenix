@@ -16,6 +16,10 @@ const breadcrumbCSS = css`
   a {
     color: var(--global-text-color-700);
     text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40ch;
     &:hover {
       text-decoration: underline;
     }

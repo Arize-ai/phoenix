@@ -7,6 +7,7 @@ import { css } from "@emotion/react";
 import {
   Button,
   Flex,
+  Heading,
   Icon,
   Icons,
   LazyTabPanel,
@@ -17,6 +18,7 @@ import {
   Tabs,
   View,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import {
@@ -75,7 +77,14 @@ function DatasetEvaluatorDetailsPageContent({
   return (
     <main css={mainCSS}>
       <PageHeader
-        title={`Evaluator: ${datasetEvaluator.name}`}
+        title={
+          <Heading level={1}>
+            <Truncate
+              maxWidth="100%"
+              title={`Evaluator: ${datasetEvaluator.name}`}
+            >{`Evaluator: ${datasetEvaluator.name}`}</Truncate>
+          </Heading>
+        }
         subTitle={datasetEvaluator.description}
         extra={
           <Button
