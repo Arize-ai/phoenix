@@ -11,7 +11,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, S
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from typing import Any, Optional, Union, cast
+from typing import Any, Hashable, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -574,10 +574,10 @@ class FileContentType(Enum):
     JSONL = "application/jsonl"
 
     @classmethod
-    def _missing_(cls, v: Any) -> "FileContentType":
-        if isinstance(v, str) and v and v.isascii() and not v.islower():
-            return cls(v.lower())
-        raise ValueError(f"Invalid file content type: {v}")
+    def _missing_(cls, value: Any) -> "FileContentType":
+        if isinstance(value, str) and value and value.isascii() and not value.islower():
+            return cls(value.lower())
+        raise ValueError(f"Invalid file content type: {value}")
 
 
 class FileContentEncoding(Enum):
@@ -586,12 +586,12 @@ class FileContentEncoding(Enum):
     DEFLATE = "deflate"
 
     @classmethod
-    def _missing_(cls, v: Any) -> "FileContentEncoding":
-        if v is None:
+    def _missing_(cls, value: Any) -> "FileContentEncoding":
+        if value is None:
             return cls("none")
-        if isinstance(v, str) and v and v.isascii() and not v.islower():
-            return cls(v.lower())
-        raise ValueError(f"Invalid file content encoding: {v}")
+        if isinstance(value, str) and value and value.isascii() and not value.islower():
+            return cls(value.lower())
+        raise ValueError(f"Invalid file content encoding: {value}")
 
 
 Name: TypeAlias = str
@@ -834,7 +834,7 @@ def _check_keys_exist(
         raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
 
 
-def _get_span_id(row: Mapping[str, Any], span_id_key: SpanIdKey) -> Optional[str]:
+def _get_span_id(row: Mapping[Hashable, Any], span_id_key: SpanIdKey) -> Optional[str]:
     """Extract span_id from a row, returning None if not present or empty."""
     if not span_id_key:
         return None
@@ -1397,9 +1397,10 @@ async def _resolve_split_identifiers(
         found_ids = set(split_ids[-len(requested_ids) :] if requested_ids else [])
         missing_ids = [sid for sid in requested_ids if sid not in found_ids]
         if missing_ids:
+            missing_ids_str = ", ".join([str(id_) for id_ in missing_ids])
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail=f"Dataset splits not found for IDs: {', '.join(map(str, missing_ids))}",
+                detail=f"Dataset splits not found for IDs: {missing_ids_str}",
             )
 
     # Query for splits by name
