@@ -361,7 +361,7 @@ async def _cleanup_chat_completion_over_dataset_resources(
 
 @strawberry.type
 class Subscription:
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -385,6 +385,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+                assert playground_project_id is not None
 
         results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
         not_started: deque[tuple[int, ChatStream]] = deque(
@@ -493,7 +494,7 @@ class Subscription:
                 ),
             )
 
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -593,6 +594,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+                assert playground_project_id is not None
             user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
