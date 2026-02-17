@@ -6,4 +6,4 @@ from strawberry.scalars import JSON
 class ResponseFormat:
     """A JSON schema definition used to guide an LLM's output"""
 
-    definition: JSON
+    definition: JSON  # ty: ignore[invalid-type-form]
