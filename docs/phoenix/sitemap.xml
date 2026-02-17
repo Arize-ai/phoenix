@@ -1501,8 +1501,44 @@
     <lastmod>2026-02-15T00:07:42+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/02-2026/02-12-2026-openai-responses-api-support</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/02-2026/02-12-2026-dataset-evaluators</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/02-2026/02-10-2026-claude-opus-4-6-model-support</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/02-2026/02-01-2026-tool-selection-and-tool-invocation-evaluators</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/01-2026/01-22-2026-cli-prompt-commands</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/01-2026/01-21-2026-cli-datasets-experiments-annotations</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/01-2026/01-21-2026-create-datasets-from-traces</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments</loc>
+    <lastmod>2026-02-17T18:26:10+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/12-2025/12-20-2025-improved-user-preferences</loc>
