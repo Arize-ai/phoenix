@@ -48,6 +48,12 @@ SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanati
 EvalName: TypeAlias = str
 
 
+def _is_supported_constant_type(
+    value: Any,
+) -> TypeGuard[SupportedConstantType]:
+    return isinstance(value, get_args(SupportedConstantType))
+
+
 def update_examples_query_with_filter_condition(
     query: Select[Any], filter_condition: str, experiment_ids: list[int]
 ) -> Select[Any]:
@@ -500,7 +506,9 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
         self._aliased_experiment_run_annotations: dict[ExperimentID, dict[EvalName, Any]] = {}
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
-        return Constant(value=node.value, ast_node=node)
+        node_value = node.value
+        assert _is_supported_constant_type(node_value)
+        return Constant(value=node_value, ast_node=node)
 
     def visit_Name(self, node: ast.Name) -> ExperimentRunFilterConditionNode:
         name = node.id
