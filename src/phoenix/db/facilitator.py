@@ -110,9 +110,7 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
                 sa.select(models.UserRole.name, models.UserRole.id)
             )
         }
-        # ty cannot infer that stream_scalars returns UserRoleName literals
-        # since the query result type is not sufficiently narrow
-        existing_roles: list[models.UserRoleName] = [  # type: ignore[assignment]
+        existing_roles = [
             name
             async for name in await session.stream_scalars(
                 sa.select(sa.distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
@@ -266,20 +264,20 @@ def _stmt_to_delete_expired_childless_records(
     Returns:
         A DELETE statement that removes childless records marked for deletion more than
         _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS days ago
-    """  # noqa: E501
-    if not hasattr(table, "deleted_at"):
+    """
+    if hasattr(table, "deleted_at"):
+        deleted_at_col: InstrumentedAttribute[Optional[datetime]] = table.deleted_at  # ty: ignore[invalid-assignment]
+    else:
         raise TypeError("Table must have a 'deleted_at' column")
     cutoff_time = datetime.now(timezone.utc) - timedelta(
         days=_CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS
     )
-    deleted_at_col: InstrumentedAttribute[Optional[datetime]] = table.deleted_at  # type: ignore[attr-defined]
-    id_col: InstrumentedAttribute[int] = table.id
     return (
         sa.delete(table)
         .where(deleted_at_col.isnot(None))
         .where(deleted_at_col < cutoff_time)
-        .where(~sa.exists().where(id_col == foreign_key))
-        .returning(id_col)
+        .where(~sa.exists().where(table.id == foreign_key))
+        .returning(table.id)
     )
 
 
