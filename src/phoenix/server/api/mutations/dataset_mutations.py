@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeGuard
 
 import strawberry
 from openinference.semconv.trace import (
@@ -50,7 +50,7 @@ class DatasetMutationPayload:
 
 @strawberry.type
 class DatasetMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_dataset(
         self,
         info: Info[Context, None],
@@ -74,7 +74,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_dataset(
         self,
         info: Info[Context, None],
@@ -103,7 +103,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def add_spans_to_dataset(
         self,
         info: Info[Context, None],
@@ -223,7 +223,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def add_examples_to_dataset(
         self, info: Info[Context, None], input: AddExamplesToDatasetInput
     ) -> DatasetMutationPayload:
@@ -350,7 +350,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_dataset(
         self,
         info: Info[Context, None],
@@ -373,6 +373,8 @@ class DatasetMutationMixin:
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             if not (dataset := await session.scalar(stmt)):
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
+        assert _is_list_of_strings(project_names)
+        assert _is_list_of_strings(eval_trace_ids)
         await asyncio.gather(
             delete_projects(info.context.db, *project_names),
             delete_traces(info.context.db, *eval_trace_ids),
@@ -381,7 +383,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_dataset_examples(
         self,
         info: Info[Context, None],
@@ -474,7 +476,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
@@ -628,6 +630,12 @@ def _to_span_annotation_dict(span_annotation: models.SpanAnnotation) -> dict[str
         "username": user.username if (user := span_annotation.user) is not None else None,
         "email": user.email if user is not None else None,
     }
+
+
+def _is_list_of_strings(maybe_list_of_strings: Any) -> TypeGuard[list[str]]:
+    return isinstance(maybe_list_of_strings, list) and all(
+        isinstance(item, str) for item in maybe_list_of_strings
+    )
 
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
