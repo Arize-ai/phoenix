@@ -24,9 +24,9 @@ class ChatCompletionInput:
     model: GenerativeModelInput
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
-    tools: Optional[list[JSON]] = UNSET
+    tools: Optional[list[JSON]] = UNSET  # ty: ignore[invalid-type-form]
     template: Optional[PromptTemplateOptions] = UNSET
-    prompt_name: Optional[Identifier] = None
+    prompt_name: Optional[Identifier] = None  # ty: ignore[invalid-type-form]
     repetitions: int
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
 
@@ -37,7 +37,7 @@ class ChatCompletionOverDatasetInput:
     model: GenerativeModelInput
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
-    tools: Optional[list[JSON]] = UNSET
+    tools: Optional[list[JSON]] = UNSET  # ty: ignore[invalid-type-form]
     template_format: PromptTemplateFormat = PromptTemplateFormat.MUSTACHE
     repetitions: int
     dataset_id: GlobalID
@@ -45,8 +45,8 @@ class ChatCompletionOverDatasetInput:
     split_ids: Optional[list[GlobalID]] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
-    experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
-    prompt_name: Optional[Identifier] = None
+    experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)  # ty: ignore[invalid-type-form]
+    prompt_name: Optional[Identifier] = None  # ty: ignore[invalid-type-form]
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
     appended_messages_path: Optional[str] = strawberry.field(
         default=None,
