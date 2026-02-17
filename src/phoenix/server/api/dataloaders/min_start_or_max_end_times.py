@@ -57,8 +57,8 @@ class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
             Segment,
             defaultdict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
-        for position, key in enumerate(keys):
-            segment, param = key
+        for position in range(len(keys)):
+            segment, param = keys[position]
             arguments[segment][param].append(position)
         pid = models.Trace.project_rowid
         stmt = (
