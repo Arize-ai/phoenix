@@ -570,7 +570,7 @@ jobs:
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n auto
 
   test-migrations:
-    name: DB Migration Continuity (${{ matrix.db }})
+    name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.migrations == 'true' }}
@@ -578,6 +578,10 @@ jobs:
       fail-fast: false
       matrix:
         db: [sqlite, postgresql]
+        concurrently: [false]
+        include:
+          - db: postgresql
+            concurrently: true
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
@@ -611,6 +615,9 @@ jobs:
             echo "PHOENIX_SQL_DATABASE_URL=postgresql://postgres:phoenix@localhost:5432/postgres" >> $GITHUB_ENV
           else
             echo "PHOENIX_SQL_DATABASE_URL=sqlite:///phoenix_test.db" >> $GITHUB_ENV
+          fi
+          if [ "${{ matrix.concurrently }}" = "true" ]; then
+            echo "PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true" >> $GITHUB_ENV
           fi
       - name: Run migrations on installed Phoenix
         working-directory: ${{ env.PHOENIX_PATH }}
