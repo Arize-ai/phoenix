@@ -383,7 +383,8 @@ jobs:
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
-        run: uv run --python ${{ matrix.py }} ty check src/
+        # run: uv run --python ${{ matrix.py }} ty check src/
+        run: make typecheck-python
       - name: Ensure GraphQL mutations have permission classes
         run: uvx tox run -e ensure_graphql_mutations_have_permission_classes
 
