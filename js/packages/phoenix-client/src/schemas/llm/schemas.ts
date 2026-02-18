@@ -1,3 +1,5 @@
+import z from "zod";
+
 import { anthropicMessageSchema } from "./anthropic/messageSchemas";
 import { anthropicToolCallSchema } from "./anthropic/toolCallSchemas";
 import { anthropicToolChoiceSchema } from "./anthropic/toolChoiceSchemas";
@@ -13,8 +15,6 @@ import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
 import { vercelAIChatPartToolCallSchema } from "./vercel/messagePartSchemas";
 import { vercelAIMessageSchema } from "./vercel/messageSchemas";
 import { vercelAIToolChoiceSchema } from "./vercel/toolChoiceSchemas";
-
-import z from "zod";
 
 /**
  * Union of all message formats

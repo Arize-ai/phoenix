@@ -1,8 +1,7 @@
-import { PromptTemplate, RenderedPrompt } from "../types/templating";
-
-import { createTemplateVariablesProxy } from "./createTemplateVariablesProxy";
-
 import Mustache from "mustache";
+
+import { PromptTemplate, RenderedPrompt } from "../types/templating";
+import { createTemplateVariablesProxy } from "./createTemplateVariablesProxy";
 
 /**
  * A function that applies a set of variables to a template (e.g. a prompt)

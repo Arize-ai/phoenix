@@ -1,7 +1,7 @@
+import { describe, expect, test } from "vitest";
+
 import { DiagLogLevel } from "../src";
 import { ensureCollectorEndpoint, register } from "../src/register";
-
-import { describe, expect, test } from "vitest";
 
 describe("register", () => {
   test("should register a provider", () => {

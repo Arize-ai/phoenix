@@ -1,6 +1,3 @@
-import { createEvaluator } from "../../src/helpers/createEvaluator";
-import { EvaluationResult } from "../../src/types";
-
 import { SpanKind } from "@opentelemetry/api";
 import {
   InMemorySpanExporter,
@@ -8,6 +5,9 @@ import {
   SimpleSpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { createEvaluator } from "../../src/helpers/createEvaluator";
+import { EvaluationResult } from "../../src/types";
 
 type TestRecord = {
   input: string;

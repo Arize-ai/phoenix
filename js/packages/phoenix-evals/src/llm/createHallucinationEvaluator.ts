@@ -7,7 +7,6 @@
 
 import { HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG } from "../__generated__/default_templates";
 import { CreateClassificationEvaluatorArgs } from "../types/evals";
-
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 

@@ -1,12 +1,10 @@
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
-
 import { formatDatasetsOutput, type OutputFormat } from "./formatDatasets";
-
-import { Command } from "commander";
 
 type Dataset = componentsV1["schemas"]["Dataset"];
 

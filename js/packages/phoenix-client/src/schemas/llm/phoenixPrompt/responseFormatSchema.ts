@@ -1,7 +1,7 @@
+import z from "zod";
+
 import { PromptResponseFormat } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
-
-import z from "zod";
 
 /**
  * Phoenix response format schema

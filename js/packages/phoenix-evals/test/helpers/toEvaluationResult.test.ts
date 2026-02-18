@@ -1,6 +1,6 @@
-import { toEvaluationResult } from "../../src/helpers/toEvaluationResult";
-
 import { describe, expect, it } from "vitest";
+
+import { toEvaluationResult } from "../../src/helpers/toEvaluationResult";
 
 describe("toEvaluationResult", () => {
   it("should convert a number to EvaluationResult with score", () => {

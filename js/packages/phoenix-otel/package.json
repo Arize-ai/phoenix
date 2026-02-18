@@ -2,6 +2,28 @@
   "name": "@arizeai/phoenix-otel",
   "version": "0.4.1",
   "description": "Otel registration and convenience methods",
+  "keywords": [
+    "arize",
+    "llm",
+    "otel",
+    "phoenix",
+    "tracing"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/src/index.d.ts",
@@ -12,35 +34,13 @@
     }
   },
   "scripts": {
-    "clean": "rimraf dist",
-    "prebuild": "pnpm run clean",
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "clean": "rimraf dist",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
-    "type:check": "tsc --noEmit",
+    "prebuild": "pnpm run clean",
     "test": "vitest run",
-    "test:watch": "vitest watch"
-  },
-  "files": [
-    "dist",
-    "src",
-    "package.json"
-  ],
-  "keywords": [
-    "otel",
-    "arize",
-    "phoenix",
-    "llm",
-    "tracing"
-  ],
-  "author": "oss@arize.com",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Arize-ai/phoenix.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Arize-ai/phoenix/issues"
+    "test:watch": "vitest watch",
+    "type:check": "tsc --noEmit"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",

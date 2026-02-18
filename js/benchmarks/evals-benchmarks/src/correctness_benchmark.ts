@@ -1,3 +1,4 @@
+import { openai } from "@ai-sdk/openai";
 /* eslint-disable no-console */
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
@@ -7,8 +8,6 @@ import {
 } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
-
-import { openai } from "@ai-sdk/openai";
 
 const correctnessEvaluator = createCorrectnessEvaluator({
   model: openai("gpt-4o-mini"),

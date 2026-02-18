@@ -1,7 +1,7 @@
+import { openai } from "@ai-sdk/openai";
+
 /* eslint-disable no-console */
 import { bindEvaluator, createHallucinationEvaluator } from "../src";
-
-import { openai } from "@ai-sdk/openai";
 
 const model = openai("gpt-4o-mini");
 

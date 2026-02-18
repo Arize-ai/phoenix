@@ -1,7 +1,7 @@
-import { createClassificationEvaluator } from "../../src";
-
 import { MockLanguageModelV2 } from "ai/test";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
+
+import { createClassificationEvaluator } from "../../src";
 describe("createClassificationEvaluator", () => {
   it("should support the passed in type signature", () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({

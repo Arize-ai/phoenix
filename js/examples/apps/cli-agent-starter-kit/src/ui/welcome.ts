@@ -1,6 +1,6 @@
-import { SESSION_ID } from "../instrumentation.js";
-
 import { intro, log, note } from "@clack/prompts";
+
+import { SESSION_ID } from "../instrumentation.js";
 
 /**
  * Display welcome message and available commands

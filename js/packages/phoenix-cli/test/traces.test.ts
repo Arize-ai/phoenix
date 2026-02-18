@@ -1,8 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
+import { describe, expect, it } from "vitest";
 
 import { buildTrace, groupSpansByTrace } from "../src/trace";
-
-import { describe, expect, it } from "vitest";
 
 type Span = componentsV1["schemas"]["Span"];
 

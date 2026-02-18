@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { Command } from "commander";
+
 import {
   createAuthCommand,
   createDatasetCommand,
@@ -12,8 +14,6 @@ import {
   createTraceCommand,
   createTracesCommand,
 } from "./commands";
-
-import { Command } from "commander";
 
 // Phoenix CLI Main Logic
 export function main() {

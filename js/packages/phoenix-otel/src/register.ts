@@ -3,9 +3,6 @@ import {
   OpenInferenceBatchSpanProcessor,
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
-
-import { getEnvApiKey, getEnvCollectorURL } from "./config";
-
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import {
@@ -17,6 +14,8 @@ import {
   NodeTracerProvider,
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
+
+import { getEnvApiKey, getEnvCollectorURL } from "./config";
 
 /**
  * Type definition for HTTP headers used in OTLP communication

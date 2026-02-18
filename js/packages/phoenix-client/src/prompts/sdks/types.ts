@@ -1,5 +1,4 @@
 import type { PromptVersion } from "../../types/prompts";
-
 import type { SUPPORTED_SDKS } from "./constants";
 
 /**

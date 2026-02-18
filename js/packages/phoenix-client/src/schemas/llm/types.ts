@@ -1,5 +1,6 @@
-import { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
+import { ZodType, ZodTypeAny, ZodTypeDef } from "zod";
 
+import { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
 import type { AnthropicMessagePart } from "./anthropic/messagePartSchemas";
 import { AnthropicMessage } from "./anthropic/messageSchemas";
 import { AnthropicToolCall } from "./anthropic/toolCallSchemas";
@@ -22,8 +23,6 @@ import type {
 import { VercelAIMessage } from "./vercel/messageSchemas";
 import { VercelAIToolChoice } from "./vercel/toolChoiceSchemas";
 import { VercelAIToolDefinition } from "./vercel/toolSchemas";
-
-import { ZodType, ZodTypeAny, ZodTypeDef } from "zod";
 
 export type PromptSDKFormat = PromptProviderSDKs | null;
 

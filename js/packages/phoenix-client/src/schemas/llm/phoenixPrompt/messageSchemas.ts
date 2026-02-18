@@ -1,9 +1,8 @@
+import z from "zod";
+
 import type { PromptChatMessage } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
-
 import { phoenixContentPartSchema } from "./messagePartSchemas";
-
-import z from "zod";
 
 /**
  *

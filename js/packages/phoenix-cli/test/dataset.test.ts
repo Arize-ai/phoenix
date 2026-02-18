@@ -1,9 +1,9 @@
+import { describe, expect, it } from "vitest";
+
 import {
   type DatasetExamplesData,
   formatDatasetExamplesOutput,
 } from "../src/commands/formatDataset";
-
-import { describe, expect, it } from "vitest";
 
 // Mock dataset examples data
 const mockDatasetExamples: DatasetExamplesData = {

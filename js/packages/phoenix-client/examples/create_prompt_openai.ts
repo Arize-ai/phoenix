@@ -1,8 +1,8 @@
+import OpenAI from "openai";
+
 /* eslint-disable no-console */
 import { createClient } from "../src";
 import { createPrompt, promptVersion, toSDK } from "../src/prompts";
-
-import OpenAI from "openai";
 
 // Optional: create a phoenix client to explicitly set the credentials
 const client = createClient({

@@ -13,6 +13,8 @@ import {
   trace,
   Tracer,
 } from "@arizeai/phoenix-otel";
+import { queue } from "async";
+import invariant from "tiny-invariant";
 
 import { createClient, type PhoenixClient } from "../client";
 import { getDataset } from "../datasets/getDataset";
@@ -44,12 +46,8 @@ import {
   getDatasetUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
-
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
-
-import { queue } from "async";
-import invariant from "tiny-invariant";
 
 /**
  * Validate that a repetition is valid

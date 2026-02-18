@@ -1,3 +1,5 @@
+import { LanguageModel } from "ai";
+
 import { getTemplateVariables } from "../template";
 import {
   ClassificationChoicesMap,
@@ -8,11 +10,8 @@ import {
 } from "../types";
 import { ObjectMapping } from "../types/data";
 import { remapObject } from "../utils/objectMappingUtils";
-
 import { createClassifierFn } from "./createClassifierFn";
 import { LLMEvaluator } from "./LLMEvaluator";
-
-import { LanguageModel } from "ai";
 
 /**
  * An LLM evaluator that performs evaluation via classification

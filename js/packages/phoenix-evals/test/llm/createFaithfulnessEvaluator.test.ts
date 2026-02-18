@@ -1,8 +1,8 @@
-import { createFaithfulnessEvaluator } from "../../src/llm/createFaithfulnessEvaluator";
-import * as generateClassificationModule from "../../src/llm/generateClassification";
-
 import { openai } from "@ai-sdk/openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createFaithfulnessEvaluator } from "../../src/llm/createFaithfulnessEvaluator";
+import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 describe("createFaithfulnessEvaluator", () => {
   beforeEach(() => {

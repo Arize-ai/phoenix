@@ -1,13 +1,13 @@
+import fs from "fs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import path from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import fs from "fs";
 import { glob } from "glob";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import path from "path";
 import z from "zod";
 
 const _dirname =

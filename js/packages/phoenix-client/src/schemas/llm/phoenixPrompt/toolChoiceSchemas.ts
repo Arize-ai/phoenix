@@ -1,7 +1,7 @@
+import z from "zod";
+
 import { PromptToolChoice } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
-
-import z from "zod";
 
 /**
  * Phoenix's tool choice schema

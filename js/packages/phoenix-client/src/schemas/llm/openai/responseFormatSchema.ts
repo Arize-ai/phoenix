@@ -1,6 +1,6 @@
-import { jsonSchemaZodSchema } from "../../jsonSchema";
-
 import z from "zod";
+
+import { jsonSchemaZodSchema } from "../../jsonSchema";
 
 /*
  *

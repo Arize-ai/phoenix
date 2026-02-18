@@ -1,16 +1,14 @@
+import * as fs from "fs";
 import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
-
 import {
   formatExperimentJsonOutput,
   type OutputFormat,
 } from "./formatExperiment";
-
-import { Command } from "commander";
-import * as fs from "fs";
 
 interface ExperimentOptions {
   endpoint?: string;

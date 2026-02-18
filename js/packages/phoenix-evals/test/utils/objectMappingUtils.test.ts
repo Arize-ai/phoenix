@@ -1,7 +1,7 @@
+import { describe, expect, it } from "vitest";
+
 import { ObjectMapping } from "../../src/types/data";
 import { remapObject } from "../../src/utils/objectMappingUtils";
-
-import { describe, expect, it } from "vitest";
 
 describe("objectMappingUtils", () => {
   describe("remapObject", () => {

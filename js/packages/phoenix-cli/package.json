@@ -2,9 +2,22 @@
   "name": "@arizeai/phoenix-cli",
   "version": "0.5.2",
   "description": "A command-line interface for Phoenix",
-  "type": "module",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
+  "keywords": [
+    "arize",
+    "cli",
+    "llmops",
+    "phoenix"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
   "bin": {
     "phoenix-cli": "build/index.js",
     "px": "build/index.js"
@@ -13,35 +26,22 @@
     "build",
     "package.json"
   ],
+  "type": "module",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
   "scripts": {
-    "clean": "rimraf build",
-    "prebuild": "pnpm run clean",
     "build": "tsc && tsc-alias && chmod 755 build/index.js",
+    "clean": "rimraf build",
     "dev": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit",
+    "prebuild": "pnpm run clean",
     "test": "vitest run",
-    "test:watch": "vitest watch"
-  },
-  "keywords": [
-    "phoenix",
-    "cli",
-    "arize",
-    "llmops"
-  ],
-  "author": "oss@arize.com",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Arize-ai/phoenix.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Arize-ai/phoenix/issues"
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
-    "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "commander": "^12.1.0"
   },
   "devDependencies": {
