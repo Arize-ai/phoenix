@@ -367,7 +367,7 @@ jobs:
             scripts/ci/
             requirements/
             src/phoenix/
-            packages/phoenix-client/
+            packages/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -383,7 +383,7 @@ jobs:
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
-        run: uv run --python ${{ matrix.py }} --no-sources python scripts/uv/type-check/type_check.py
+        run: uv run --python ${{ matrix.py }} python scripts/uv/type-check/type_check.py
       - name: Ensure GraphQL mutations have permission classes
         run: uvx tox run -e ensure_graphql_mutations_have_permission_classes
 
