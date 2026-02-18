@@ -652,7 +652,7 @@ def _as_attribute(
         value=ast.Name(id="attributes", ctx=ast.Load()),
         slice=ast.List(elts=keys, ctx=ast.Load())  # type: ignore[arg-type]
         if sys.version_info >= (3, 9)
-        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),  # type: ignore
+        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),
         ctx=ast.Load(),
     )
 

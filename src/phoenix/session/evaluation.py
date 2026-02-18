@@ -155,4 +155,4 @@ def log_evaluations(
         host = "127.0.0.1"
     port = port or get_env_port()
     endpoint = endpoint or get_env_collector_endpoint() or f"http://{host}:{port}"
-    Client(endpoint=endpoint).log_evaluations(*evals)
+    Client(endpoint=endpoint).log_evaluations(*evals)  # ty: ignore[deprecated]

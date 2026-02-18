@@ -25,7 +25,7 @@ class ExportEventsMutationMixin:
             " File name is optional, but if specified, should be without file extension. By default"
             " the exported file name is current timestamp."
         ),
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     async def export_events(
         self,
         info: Info[Context, None],

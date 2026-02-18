@@ -120,7 +120,7 @@ class SecretMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
-    )  # type: ignore
+    )
     async def upsert_or_delete_secrets(
         self,
         info: Info[Context, None],

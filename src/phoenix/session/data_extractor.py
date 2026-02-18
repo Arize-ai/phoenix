@@ -46,7 +46,7 @@ class TraceDataExtractor(ABC):
     ) -> Optional[pd.DataFrame]:
         return cast(
             Optional[pd.DataFrame],
-            self.query_spans(
+            self.query_spans(  # ty: ignore[deprecated]
                 SpanQuery().where(filter_condition or ""),
                 start_time=start_time,
                 end_time=end_time,
@@ -76,7 +76,7 @@ class TraceDataExtractor(ABC):
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[TraceDataset]:
         if (
-            dataframe := self.get_spans_dataframe(
+            dataframe := self.get_spans_dataframe(  # ty: ignore[deprecated]
                 project_name=project_name,
                 start_time=start_time,
                 end_time=end_time,
@@ -86,5 +86,5 @@ class TraceDataExtractor(ABC):
             )
         ) is None:
             return None
-        evaluations = self.get_evaluations(project_name=project_name)
+        evaluations = self.get_evaluations(project_name=project_name)  # ty: ignore[deprecated]
         return TraceDataset(dataframe=dataframe, evaluations=evaluations)

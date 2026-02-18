@@ -123,7 +123,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
 def criteria_evaluator_factory(
     class_name: str, criteria: str, description: str, default_name: str
 ) -> type[ExperimentEvaluator]:
-    def _init(self, model: LLMBaseModel, name: str = default_name) -> None:  # type: ignore
+    def _init(self, model: LLMBaseModel, name: str = default_name) -> None:
         LLMCriteriaEvaluator.__init__(self, model, criteria, description, name=name)
 
     return type(

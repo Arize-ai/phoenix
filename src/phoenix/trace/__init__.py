@@ -1,6 +1,6 @@
 from openinference.instrumentation import suppress_tracing
 
-from .projects import using_project
+from .projects import using_project  # type: ignore[deprecated]
 from .span_evaluations import DocumentEvaluations, Evaluations, SpanEvaluations, TraceEvaluations
 from .trace_dataset import TraceDataset
 

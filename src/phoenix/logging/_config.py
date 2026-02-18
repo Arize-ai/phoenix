@@ -55,7 +55,7 @@ def _setup_application_logging() -> None:
     sql_logger.setLevel(Settings.db_logging_level)
     sql_logger.propagate = False  # Do not pass records to the root logger
 
-    log_queue = queue.Queue()  # type:ignore
+    log_queue = queue.Queue()
     queue_handler = logging.handlers.QueueHandler(log_queue)
     phoenix_logger.addHandler(queue_handler)
     sql_logger.addHandler(queue_handler)

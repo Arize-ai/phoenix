@@ -412,7 +412,7 @@ def send_dataset_fixtures(
     for i, fixture in enumerate(fixtures):
         try:
             if i % 2:
-                client.upload_dataset(
+                client.upload_dataset(  # ty: ignore[deprecrated]
                     dataset_name=fixture.name,
                     dataframe=fixture.dataframe,
                     input_keys=fixture.input_keys,
@@ -425,7 +425,7 @@ def send_dataset_fixtures(
                     with open(tf.name, "w") as f:
                         shutil.copyfileobj(fixture.csv, f)
                         f.flush()
-                    client.upload_dataset(
+                    client.upload_dataset(  # ty: ignore[deprecrated]
                         dataset_name=fixture.name,
                         csv_file_path=tf.name,
                         input_keys=fixture.input_keys,
