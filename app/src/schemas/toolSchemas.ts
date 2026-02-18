@@ -155,11 +155,16 @@ export const openAIWebSearchToolDefinitionSchema = z
   .object({
     type: z.literal("web_search"),
     filters: z
-      .object({ allowed_domains: z.array(z.string()) })
+      .object({
+        allowed_domains: z.array(z.string()).optional(),
+        blocked_domains: z.array(z.string()).optional(),
+      })
       .passthrough()
       .nullable()
       .optional()
-      .describe("Domain allow-list (omit protocol, e.g. openai.com)."),
+      .describe(
+        "Domain allow-list and/or block-list (omit protocol, e.g. openai.com)."
+      ),
     user_location: z
       .object({
         type: z.enum(["approximate", "precise"]).optional(),
