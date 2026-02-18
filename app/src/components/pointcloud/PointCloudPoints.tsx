@@ -1,5 +1,5 @@
 import { startTransition, useCallback, useMemo } from "react";
-import debounce from "lodash/debounce";
+import debounce from "lodash-es/debounce";
 import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";

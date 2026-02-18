@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import debounce from "lodash/debounce";
+import debounce from "lodash-es/debounce";
 
 import { Input, Label, TextField } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";

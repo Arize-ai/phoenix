@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { isNumber, isString, throttle } from "lodash";
+import { isNumber, isString, throttle } from "lodash-es";
 import { css } from "@emotion/react";
 
 import {

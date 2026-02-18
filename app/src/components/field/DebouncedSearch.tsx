@@ -1,6 +1,6 @@
 import { startTransition, useCallback, useMemo } from "react";
 import { Input } from "react-aria-components";
-import debounce from "lodash/debounce";
+import debounce from "lodash-es/debounce";
 
 import { SearchField, SearchFieldProps, SearchIcon } from "./SearchField";
 
