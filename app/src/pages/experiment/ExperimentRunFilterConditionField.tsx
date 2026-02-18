@@ -1,4 +1,13 @@
 import {
+  autocompletion,
+  CompletionContext,
+  CompletionResult,
+} from "@codemirror/autocomplete";
+import { python } from "@codemirror/lang-python";
+import { css } from "@emotion/react";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
+import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import {
   startTransition,
   useDeferredValue,
   useEffect,
@@ -6,16 +15,7 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "react-router";
-import {
-  autocompletion,
-  CompletionContext,
-  CompletionResult,
-} from "@codemirror/autocomplete";
-import { python } from "@codemirror/lang-python";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
-import { css } from "@emotion/react";
 
 import {
   Button,

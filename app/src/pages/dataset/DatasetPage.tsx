@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import { Suspense, useCallback, useMemo } from "react";
 import { graphql, usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import {
   Counter,
@@ -44,10 +44,7 @@ export const DatasetPageQueryNode = graphql`
           name
           color
         }
-        latestVersions: versions(
-          first: 1
-          sort: { col: createdAt, dir: desc }
-        ) {
+        latestVersions: versions(first: 1, sort: { col: createdAt, dir: desc }) {
           edges {
             version: node {
               id

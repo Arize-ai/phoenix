@@ -1,9 +1,9 @@
-import { Suspense, useCallback, useState } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { python } from "@codemirror/lang-python";
+import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
-import { css } from "@emotion/react";
+import { Suspense, useCallback, useState } from "react";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
   Alert,

@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
 import { css } from "@emotion/react";
+import { ReactNode } from "react";
 
 /**
  * A component that renders a row at the top of a table cell
@@ -25,8 +25,7 @@ export function CellTop({
 const cellTopCSS = css`
   padding: 0 var(--global-dimension-static-size-100) 0
     var(--global-dimension-static-size-200);
-  border-bottom: var(--global-border-size-thin) solid
-    var(--global-color-gray-100);
+  border-bottom: var(--global-border-size-thin) solid var(--global-color-gray-100);
   background-color: var(--global-color-gray-50);
   min-height: 39px;
   display: flex;

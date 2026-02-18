@@ -1,24 +1,24 @@
 import {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import {
   autocompletion,
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {
   type BasicSetupOptions,
   EditorView,
   keymap,
 } from "@uiw/react-codemirror";
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { fetchQuery, graphql } from "relay-runtime";
-import { css } from "@emotion/react";
 
 import {
   Button,
@@ -220,10 +220,7 @@ async function isConditionValid(condition: string, projectId: string) {
     await fetchQuery<SpanFilterConditionFieldValidationQuery>(
       environment,
       graphql`
-        query SpanFilterConditionFieldValidationQuery(
-          $condition: String!
-          $id: ID!
-        ) {
+        query SpanFilterConditionFieldValidationQuery($condition: String!, $id: ID!) {
           project: node(id: $id) {
             ... on Project {
               validateSpanFilterCondition(condition: $condition) {

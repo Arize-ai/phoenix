@@ -1,5 +1,5 @@
-import { forwardRef, HTMLAttributes, Ref } from "react";
 import { css } from "@emotion/react";
+import { forwardRef, HTMLAttributes, Ref } from "react";
 
 import { Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";

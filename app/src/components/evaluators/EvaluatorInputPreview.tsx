@@ -1,7 +1,7 @@
+import { css } from "@emotion/react";
 import { Suspense, useEffect, useEffectEvent, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useShallow } from "zustand/react/shallow";
-import { css } from "@emotion/react";
 
 import { Loading } from "@phoenix/components";
 import { EvaluatorInputPreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputPreviewContentQuery.graphql";

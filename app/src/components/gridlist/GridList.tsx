@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { ComponentProps, ReactNode, Ref, useState } from "react";
 import {
   GridList as AriaGridList,
@@ -7,7 +8,6 @@ import {
   GridListProps as AriaGridListProps,
   GridListSection as AriaGridListSection,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { Checkbox } from "@phoenix/components/checkbox";
 import { Text } from "@phoenix/components/content";

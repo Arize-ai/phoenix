@@ -1,6 +1,5 @@
 import { Flex } from "../layout";
 import { StylableProps } from "../types/style";
-
 import { Skeleton } from "./Skeleton";
 
 interface ContentSkeletonProps extends StylableProps {}

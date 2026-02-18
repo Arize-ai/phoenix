@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { Suspense, useCallback, useMemo } from "react";
 import { Outlet } from "react-router";
-import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {

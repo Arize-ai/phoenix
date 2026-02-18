@@ -1,7 +1,7 @@
+import { ColumnDef } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { ColumnDef } from "@tanstack/react-table";
 
 import { Link } from "@phoenix/components/Link";
 import {

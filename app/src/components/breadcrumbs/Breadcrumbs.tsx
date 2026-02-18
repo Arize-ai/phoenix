@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import {
   Breadcrumbs as AriaBreadcrumbs,
   BreadcrumbsProps as AriaBreadcrumbsProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { ComponentSize } from "@phoenix/components/types";
 

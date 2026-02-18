@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { PropsWithChildren, ReactNode } from "react";
 import {
   Header,
@@ -8,7 +9,6 @@ import {
   MenuTrigger as AriaMenuTrigger,
   PopoverProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { classNames } from "@phoenix/utils";
 
@@ -175,7 +175,7 @@ export const MenuItem = <T extends object>({
                 ? props.children(renderProps)
                 : props.children}
             </MenuItemContent>
-            {/* TODO: this doesn't have a good way to reserve space for the chevron 
+            {/* TODO: this doesn't have a good way to reserve space for the chevron
             in menus where only some items are nestable */}
             {hasSubmenu && <Icon svg={<Icons.ChevronRight />} />}
           </>
@@ -329,17 +329,13 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
         /* Add vertical padding to quiet SearchFields in header */
         .ac-searchfield[data-variant="quiet"] .react-aria-Input,
         .ac-searchfield[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+          .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
           border-bottom-color: var(--global-menu-border-color);
         }
         * + .ac-searchfield[data-variant="quiet"] .react-aria-Input,
         *
           + .ac-searchfield[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not(
-            [data-invalid]
-          ) {
+          .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
           border-top-color: var(--global-menu-border-color);
         }
       `}

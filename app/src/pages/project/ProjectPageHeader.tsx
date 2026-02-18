@@ -1,7 +1,7 @@
+import { css } from "@emotion/react";
 import { ReactNode, startTransition, useEffect } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   ErrorBoundary,
@@ -52,14 +52,8 @@ export function ProjectPageHeader(props: {
             cost
           }
         }
-        latencyMsP50: latencyMsQuantile(
-          probability: 0.50
-          timeRange: $timeRange
-        )
-        latencyMsP99: latencyMsQuantile(
-          probability: 0.99
-          timeRange: $timeRange
-        )
+        latencyMsP50: latencyMsQuantile(probability: 0.50, timeRange: $timeRange)
+        latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)
         spanAnnotationNames
         documentEvaluationNames
       }

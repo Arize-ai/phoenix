@@ -1,10 +1,10 @@
+import { css } from "@emotion/react";
 import { PropsWithChildren, Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import {
   Flex,
@@ -24,7 +24,6 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
-
 import {
   TraceDetailsQuery,
   TraceDetailsQuery$data,

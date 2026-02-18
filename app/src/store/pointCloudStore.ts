@@ -1,9 +1,8 @@
-import { fetchQuery, graphql } from "react-relay";
+import { ColorSchemes } from "@arizeai/point-cloud";
 import { interpolateCool, schemeCategory10 } from "d3-scale-chromatic";
+import { fetchQuery, graphql } from "react-relay";
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
-
-import { ColorSchemes } from "@arizeai/point-cloud";
 
 import {
   ColoringStrategy,
@@ -1167,10 +1166,8 @@ async function fetchDimensionMetadata(
         dimension: node(id: $id) @required(action: THROW) {
           ... on Dimension {
             id
-            min: dataQualityMetric(metric: min)
-              @include(if: $getDimensionMinMax)
-            max: dataQualityMetric(metric: max)
-              @include(if: $getDimensionMinMax)
+            min: dataQualityMetric(metric: min) @include(if: $getDimensionMinMax)
+            max: dataQualityMetric(metric: max) @include(if: $getDimensionMinMax)
             categories @include(if: $getDimensionCategories)
           }
         }

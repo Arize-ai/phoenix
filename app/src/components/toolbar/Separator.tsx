@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef } from "react";
 import {
   Separator as AriaSeparator,
   SeparatorProps as AriaSeparatorProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 export type SeparatorProps = AriaSeparatorProps;
 

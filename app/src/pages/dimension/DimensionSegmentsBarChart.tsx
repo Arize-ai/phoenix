@@ -1,6 +1,6 @@
+import { format } from "d3-format";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import { format } from "d3-format";
 import {
   Bar,
   BarChart,

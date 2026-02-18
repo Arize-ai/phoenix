@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { ComponentProps, useCallback, useMemo, useState } from "react";
 import {
   Autocomplete,
@@ -6,7 +7,6 @@ import {
   useFilter,
 } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Button,
@@ -271,9 +271,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         justifyContent="space-between"
                         width="100%"
                         css={css`
-                          padding-right: ${atLeastOneDatasetHasSplits
-                            ? "28px"
-                            : undefined}; // right align the examples text if a submenu chevron is present
+                          padding-right: ${
+                            atLeastOneDatasetHasSplits ? "28px" : undefined
+                          }; // right align the examples text if a submenu chevron is present
                         `}
                       >
                         <Text>{name}</Text>
@@ -320,9 +320,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
                         justifyContent="space-between"
                         width="100%"
                         css={css`
-                          opacity: ${isDisabled
-                            ? "var(--global-opacity-disabled)"
-                            : 1};
+                          opacity: ${
+                            isDisabled ? "var(--global-opacity-disabled)" : 1
+                          };
                         `}
                       >
                         <Text>{name}</Text>

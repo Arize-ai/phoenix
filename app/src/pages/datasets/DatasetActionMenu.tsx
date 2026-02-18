@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { SubmenuTrigger } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import {
   Button,

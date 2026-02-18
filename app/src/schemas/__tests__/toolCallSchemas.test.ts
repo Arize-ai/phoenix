@@ -7,7 +7,6 @@ import {
   openAIToolCallSchema,
   toOpenAIToolCall,
 } from "../toolCallSchemas";
-
 import { getTestAnthropicToolCall, getTestOpenAIToolCall } from "./fixtures";
 
 describe("toolCallSchemas", () => {

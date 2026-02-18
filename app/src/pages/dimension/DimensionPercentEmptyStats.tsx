@@ -16,10 +16,7 @@ export function DimensionPercentEmptyStats(props: {
         hasReference: { type: "Boolean!" }
       ) {
         id
-        percentEmpty: dataQualityMetric(
-          metric: percentEmpty
-          timeRange: $timeRange
-        )
+        percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)
         referencePercentEmpty: dataQualityMetric(
           metric: percentEmpty
           inferencesRole: reference

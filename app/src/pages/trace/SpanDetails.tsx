@@ -1,15 +1,3 @@
-import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  type ImperativePanelHandle,
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-} from "react-resizable-panels";
-import { useNavigate } from "react-router";
-import { css } from "@emotion/react";
-
 import {
   DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
@@ -20,6 +8,17 @@ import {
   SemanticAttributePrefixes,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
+import { css } from "@emotion/react";
+import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  type ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
+import { useNavigate } from "react-router";
 
 import {
   Alert,
@@ -92,7 +91,6 @@ import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
-
 import {
   MimeType,
   SpanDetailsQuery,
@@ -1387,9 +1385,7 @@ function DocumentItem({
                           {documentEvaluation.explanation ? (
                             <p
                               css={css`
-                                margin-top: var(
-                                  --global-dimension-static-size-100
-                                );
+                                margin-top: var(--global-dimension-static-size-100);
                                 margin-bottom: 0;
                               `}
                             >
@@ -1529,8 +1525,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       css={
                         idx === 0
                           ? css`
-                              border-top: 1px solid
-                                var(--global-border-color-default);
+                              border-top: 1px solid var(--global-border-color-default);
                             `
                           : null
                       }

@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -7,6 +5,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
@@ -193,9 +193,7 @@ export function CustomProvidersCard({
         first: { type: "Int", defaultValue: 50 }
       ) {
         generativeModelCustomProviders(first: $first, after: $after)
-          @connection(
-            key: "CustomProvidersCard_generativeModelCustomProviders"
-          ) {
+          @connection(key: "CustomProvidersCard_generativeModelCustomProviders") {
           edges {
             node {
               id

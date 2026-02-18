@@ -16,10 +16,7 @@ export function DimensionCardinalityStats(props: {
         hasReference: { type: "Boolean!" }
       ) {
         id
-        cardinality: dataQualityMetric(
-          metric: cardinality
-          timeRange: $timeRange
-        )
+        cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)
         referenceCardinality: dataQualityMetric(
           metric: cardinality
           inferencesRole: reference

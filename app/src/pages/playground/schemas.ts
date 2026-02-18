@@ -1,12 +1,11 @@
-import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
-
 import {
   LLMAttributePostfixes,
   MessageAttributePostfixes,
   SemanticAttributePrefixes,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
+import { z } from "zod";
+import zodToJsonSchema from "zod-to-json-schema";
 
 import {
   jsonSchemaZodSchema,

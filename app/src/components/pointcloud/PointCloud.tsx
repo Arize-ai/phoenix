@@ -1,7 +1,3 @@
-import { memo, ReactNode, useCallback, useMemo, useState } from "react";
-import { useContextBridge } from "@react-three/drei";
-import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
-
 import {
   Axes,
   getThreeDimensionalBounds,
@@ -11,6 +7,9 @@ import {
   ThreeDimensionalCanvas,
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
+import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
+import { useContextBridge } from "@react-three/drei";
+import { memo, ReactNode, useCallback, useMemo, useState } from "react";
 
 import {
   Button,
@@ -206,10 +205,7 @@ function CanvasWrap({ children }: { children: ReactNode }) {
         height: 100%;
         position: relative;
         &[data-theme="dark"] {
-          background: linear-gradient(
-            rgb(21, 25, 31) 11.4%,
-            rgb(11, 12, 14) 70.2%
-          );
+          background: linear-gradient(rgb(21, 25, 31) 11.4%, rgb(11, 12, 14) 70.2%);
         }
         &[data-theme="light"] {
           background: linear-gradient(#f2f6fd 0%, #dbe6fc 74%);

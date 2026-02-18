@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
@@ -17,6 +16,7 @@ import {
   stateExtensions,
 } from "codemirror-json-schema";
 import { JSONSchema7 } from "json-schema";
+import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 

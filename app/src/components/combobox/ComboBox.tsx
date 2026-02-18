@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import React from "react";
 import {
   Button,
@@ -14,12 +15,10 @@ import {
   Text,
   ValidationResult,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { fieldBaseCSS } from "../field/styles";
 import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
 import { SizingProps } from "../types";
-
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>

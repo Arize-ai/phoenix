@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -14,7 +15,6 @@ import {
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/types";
-import { css } from "@emotion/react";
 
 import {
   ContextualHelp,

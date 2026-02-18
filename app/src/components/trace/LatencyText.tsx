@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { TextColorValue } from "@phoenix/components/types/style";

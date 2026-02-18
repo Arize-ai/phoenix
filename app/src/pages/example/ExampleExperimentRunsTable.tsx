@@ -1,13 +1,13 @@
-import { useCallback, useMemo, useRef } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useCallback, useMemo, useRef } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 
 import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import {
@@ -32,8 +32,7 @@ export function ExampleExperimentsTableEmpty() {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--global-dimension-size-300)
-              var(--global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
           `}
         >
           No experiments have been run for this example.

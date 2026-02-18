@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
+import { expect, test } from "@playwright/test";
 test("can create a user", async ({ page }) => {
   await page.goto("/settings/general");
   await page.waitForURL("**/settings/general");

@@ -4,8 +4,7 @@ export const tooltipCSS = css`
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
   border-radius: var(--global-rounding-small);
   background: var(--global-tooltip-background-color);
-  border: var(--global-border-size-thin) solid
-    var(--global-tooltip-border-color);
+  border: var(--global-border-size-thin) solid var(--global-tooltip-border-color);
   color: var(--global-text-color-900);
   forced-color-adjust: none;
   outline: none;
@@ -69,8 +68,7 @@ export const richTooltipCSS = css`
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
   border-radius: var(--global-rounding-medium);
   background: var(--global-tooltip-background-color);
-  border: var(--global-border-size-thin) solid
-    var(--global-tooltip-border-color);
+  border: var(--global-border-size-thin) solid var(--global-tooltip-border-color);
   color: var(--global-text-color-900);
   forced-color-adjust: none;
   outline: none;

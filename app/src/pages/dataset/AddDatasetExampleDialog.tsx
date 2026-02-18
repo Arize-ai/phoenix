@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
 import {
   Control,
@@ -7,7 +8,6 @@ import {
 } from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useMutation } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Alert,
@@ -70,9 +70,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddDatasetExampleDialogMutation>(
     graphql`
-      mutation AddDatasetExampleDialogMutation(
-        $input: AddExamplesToDatasetInput!
-      ) {
+      mutation AddDatasetExampleDialogMutation($input: AddExamplesToDatasetInput!) {
         addExamplesToDataset(input: $input) {
           __typename
         }

@@ -16,7 +16,6 @@ import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCop
 import { BASE_URL } from "@phoenix/config";
 
 import { GenerateAPIKeyButton, IsAdmin, IsAuthenticated } from "../auth";
-
 import { HOSTED_PHOENIX_URL, IS_HOSTED_DEPLOYMENT } from "./hosting";
 import { PythonIntegrations } from "./Integrations";
 

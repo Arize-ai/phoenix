@@ -1,5 +1,4 @@
 import { mapPromptToSDKSnippet } from "../promptCodeSnippets";
-
 import {
   BASE_MOCK_PROMPT_VERSION,
   FixturePromptVersion,

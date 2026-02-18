@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import {
   memo,
   PropsWithChildren,
@@ -7,7 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
 

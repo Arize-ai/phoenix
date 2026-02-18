@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useMemo } from "react";
 import {
   graphql,
@@ -6,7 +7,6 @@ import {
   usePreloadedQuery,
 } from "react-relay";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import {
   Button,
@@ -87,8 +87,7 @@ export function ExperimentMultiSelector(props: {
             }
           }
         }
-        baseExperiment: node(id: $baseExperimentId)
-          @include(if: $hasBaseExperiment) {
+        baseExperiment: node(id: $baseExperimentId) @include(if: $hasBaseExperiment) {
           ... on Experiment {
             id
             name

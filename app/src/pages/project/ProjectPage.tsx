@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import {
   startTransition,
   Suspense,
@@ -7,7 +8,6 @@ import {
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useNavigate, useParams } from "react-router";
-import { css } from "@emotion/react";
 
 import {
   Flex,

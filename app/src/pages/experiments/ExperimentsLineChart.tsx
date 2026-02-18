@@ -1,10 +1,10 @@
+import { format } from "d3-format";
 /**
  * A line chart of the experiments for a given dataset.
  * This in the future might be extended for more use cases.
  */
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { format } from "d3-format";
 import {
   Bar,
   CartesianGrid,

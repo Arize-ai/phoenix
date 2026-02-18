@@ -1,6 +1,6 @@
-import { useMemo } from "react";
-import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
+import type { BasicSetupOptions } from "@uiw/react-codemirror";
+import { useMemo } from "react";
 
 import { ContextualHelp, Flex, Text } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";

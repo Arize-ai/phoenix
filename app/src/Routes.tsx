@@ -30,23 +30,6 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
-import type { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { Layout } from "./pages/Layout";
-import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
-import { ProjectRoot } from "./pages/project/ProjectRoot";
-import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
-import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
-import { PromptLayout } from "./pages/prompt/PromptLayout";
-import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
-import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
-import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
-import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
-import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
-import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
-import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
-import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
-import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
-import { sessionLoader } from "./pages/trace/sessionLoader";
 import {
   APIsPage,
   AuthenticatedRoot,
@@ -99,6 +82,23 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+import type { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { Layout } from "./pages/Layout";
+import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
+import { ProjectRoot } from "./pages/project/ProjectRoot";
+import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
+import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
+import { PromptLayout } from "./pages/prompt/PromptLayout";
+import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
+import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
+import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
+import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
+import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
+import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
+import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
+import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
+import { sessionLoader } from "./pages/trace/sessionLoader";
 
 const router = createBrowserRouter(
   createRoutesFromElements(

@@ -46,7 +46,6 @@ import {
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
-
 import {
   basePlaygroundSpan,
   expectedAnthropicToolCall,

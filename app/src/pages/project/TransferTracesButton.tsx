@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense, useMemo, useTransition } from "react";
 import {
   graphql,
@@ -5,7 +6,6 @@ import {
   useMutation,
   useRefetchableFragment,
 } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Autocomplete,

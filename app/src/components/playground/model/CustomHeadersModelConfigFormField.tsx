@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { JSONSchema7 } from "json-schema";
 import { css } from "@emotion/react";
+import { JSONSchema7 } from "json-schema";
+import { useCallback, useEffect, useState } from "react";
 
 import { Label, Text } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";

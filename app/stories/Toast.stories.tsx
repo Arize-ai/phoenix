@@ -1,6 +1,6 @@
+import { Meta, StoryFn } from "@storybook/react";
 import { ComponentProps } from "react";
 import { QueuedToast } from "react-aria-components";
-import { Meta, StoryFn } from "@storybook/react";
 
 import { Toast } from "@phoenix/components";
 import { NotificationParams } from "@phoenix/contexts";

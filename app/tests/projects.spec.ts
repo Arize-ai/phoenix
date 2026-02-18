@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
+import { expect, test } from "@playwright/test";
 
 test.describe.serial("Projects", () => {
   const projectName = `test-project-${randomUUID()}`;

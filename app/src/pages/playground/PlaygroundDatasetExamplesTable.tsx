@@ -1,3 +1,12 @@
+import { css } from "@emotion/react";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  Table,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   memo,
   type ReactNode,
@@ -20,19 +29,10 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  Table,
-  useReactTable,
-} from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import {
   GraphQLSubscriptionConfig,
   PayloadError,
   requestSubscription,
 } from "relay-runtime";
-import { css } from "@emotion/react";
 
 import {
   Flex,
@@ -99,7 +99,6 @@ import {
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
-
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import {
   PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
@@ -809,19 +808,12 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery(
-        $datasetId: ID!
-        $splitIds: [ID!]
-      ) {
+      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!, $splitIds: [ID!]) {
         dataset: node(id: $datasetId) {
-          ...PlaygroundDatasetExamplesTableFragment
-            @arguments(splitIds: $splitIds)
+          ...PlaygroundDatasetExamplesTableFragment @arguments(splitIds: $splitIds)
           ... on Dataset {
             exampleCount(splitIds: $splitIds)
-            latestVersions: versions(
-              first: 1
-              sort: { col: createdAt, dir: desc }
-            ) {
+            latestVersions: versions(first: 1, sort: { col: createdAt, dir: desc }) {
               edges {
                 version: node {
                   id

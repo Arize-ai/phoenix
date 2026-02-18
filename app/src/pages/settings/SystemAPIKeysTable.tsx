@@ -1,11 +1,11 @@
-import { startTransition, useCallback, useMemo } from "react";
-import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { startTransition, useCallback, useMemo } from "react";
+import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
 import { DeleteAPIKeyButton } from "@phoenix/components/auth";
@@ -50,9 +50,7 @@ export function SystemAPIKeysTable({
   const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
-    mutation SystemAPIKeysTableDeleteAPIKeyMutation(
-      $input: DeleteApiKeyInput!
-    ) {
+    mutation SystemAPIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
       deleteSystemApiKey(input: $input) {
         __typename
         apiKeyId

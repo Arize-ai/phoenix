@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
-import { css } from "@emotion/react";
 
 import { Flex, View } from "@phoenix/components";
 import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
@@ -127,8 +127,7 @@ export const EvaluatorForm = () => {
         css={css`
           display: flex;
           flex-direction: column;
-          padding: var(--global-dimension-size-100)
-            var(--global-dimension-size-200);
+          padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
           box-sizing: border-box;
         `}
       >

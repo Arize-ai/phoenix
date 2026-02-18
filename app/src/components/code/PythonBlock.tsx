@@ -1,10 +1,10 @@
-import { useMemo } from "react";
 import { python } from "@codemirror/lang-python";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {
   BasicSetupOptions,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
+import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 

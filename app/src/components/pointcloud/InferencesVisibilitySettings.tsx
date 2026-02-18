@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
+import { useCallback, useMemo } from "react";
 
 import {
   ColoringStrategy,

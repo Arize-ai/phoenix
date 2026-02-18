@@ -1,5 +1,5 @@
-import { Suspense } from "react";
 import { css } from "@emotion/react";
+import { Suspense } from "react";
 
 import { StorageAlert } from "./StorageAlert";
 

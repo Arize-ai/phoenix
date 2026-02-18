@@ -1,5 +1,5 @@
-import { LabelProps } from "react-aria-components";
 import { css } from "@emotion/react";
+import { LabelProps } from "react-aria-components";
 
 import { Label } from "@phoenix/components";
 import { ANNOTATION_INPUT_LABEL_WIDTH } from "@phoenix/components/annotation/constants";

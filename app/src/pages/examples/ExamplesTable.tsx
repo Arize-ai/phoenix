@@ -1,3 +1,11 @@
+import { css } from "@emotion/react";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  Updater,
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   type MouseEvent,
   startTransition,
@@ -9,14 +17,6 @@ import {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  Updater,
-  useReactTable,
-} from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { Link } from "@phoenix/components/Link";

@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { CellContext } from "@tanstack/react-table";
+import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";

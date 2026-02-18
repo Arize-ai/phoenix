@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
-import { css } from "@emotion/react";
 
 import {
   Card,
@@ -34,10 +34,7 @@ export function ModelInferencesPage(_props: ModelInferencesPageProps) {
   const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<ModelInferencesPageQuery>(
     graphql`
-      query ModelInferencesPageQuery(
-        $startTime: DateTime!
-        $endTime: DateTime!
-      ) {
+      query ModelInferencesPageQuery($startTime: DateTime!, $endTime: DateTime!) {
         ...ModelSchemaTable_dimensions
           @arguments(startTime: $startTime, endTime: $endTime)
         ...ModelEmbeddingsTable_embeddingDimensions

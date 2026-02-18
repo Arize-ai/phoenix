@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import { css } from "@emotion/react";
 
 import { Flex } from "@phoenix/components";
 import { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";

@@ -1,6 +1,4 @@
-import { useMemo } from "react";
-import { Focusable } from "react-aria";
-import { graphql, useFragment } from "react-relay";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   flexRender,
@@ -10,7 +8,9 @@ import {
   SortingFn,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useMemo } from "react";
+import { Focusable } from "react-aria";
+import { graphql, useFragment } from "react-relay";
 
 import {
   Flex,

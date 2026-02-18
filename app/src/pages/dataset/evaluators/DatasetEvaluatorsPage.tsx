@@ -1,10 +1,10 @@
+import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 import { useFragment, usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 import z from "zod";
-import { css } from "@emotion/react";
 
 import { Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
@@ -54,9 +54,7 @@ export function DatasetEvaluatorsPageContent() {
             name
             description
           }
-          classificationEvaluatorConfigs(
-            labels: ["promoted_dataset_evaluator"]
-          ) {
+          classificationEvaluatorConfigs(labels: ["promoted_dataset_evaluator"]) {
             name
             description
             choices

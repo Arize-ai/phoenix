@@ -1,3 +1,11 @@
+import { css } from "@emotion/react";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   startTransition,
   useCallback,
@@ -7,14 +15,6 @@ import {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import {
   Flex,
@@ -69,12 +69,8 @@ export function PromptsTable(props: PromptsTableProps) {
           filter: { type: "PromptFilter", defaultValue: null }
           labelIds: { type: "[ID!]", defaultValue: null }
         ) {
-          prompts(
-            first: $first
-            after: $after
-            filter: $filter
-            labelIds: $labelIds
-          ) @connection(key: "PromptsTable_prompts") {
+          prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds)
+            @connection(key: "PromptsTable_prompts") {
             edges {
               prompt: node {
                 id

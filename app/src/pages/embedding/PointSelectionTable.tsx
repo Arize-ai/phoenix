@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -7,6 +6,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
 
 import { Button, ExternalLink, Flex, Icon, Icons } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";

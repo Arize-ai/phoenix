@@ -1,5 +1,5 @@
-import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
+import { PropsWithChildren } from "react";
 
 export function TableEmptyWrap(props: PropsWithChildren) {
   const { children } = props;
@@ -10,8 +10,7 @@ export function TableEmptyWrap(props: PropsWithChildren) {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--global-dimension-size-300)
-              var(--global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
           `}
         >
           {children}

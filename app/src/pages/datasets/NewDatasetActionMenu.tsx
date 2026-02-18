@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { css } from "@emotion/react";
 
 import {
   Alert,
@@ -127,9 +127,7 @@ export function NewDatasetActionMenu({
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={() => setIsOpen(true)}
         css={css`
-          height: calc(
-            var(--global-button-height-m) + var(--global-dimension-size-50)
-          );
+          height: calc(var(--global-button-height-m) + var(--global-dimension-size-50));
           padding: var(--global-dimension-static-size-150)
             var(--global-dimension-static-size-250);
           font-size: var(--global-dimension-static-font-size-200);

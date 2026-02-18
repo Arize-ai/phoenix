@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
 import { Meta, StoryFn } from "@storybook/react";
+import { useRef, useState } from "react";
 
 import {
   Button,
@@ -81,7 +81,6 @@ const Template: StoryFn<StoryArgs> = ({ placement = "bottom", ...args }) => (
 
 export const Default = Template.bind({});
 
- 
 const ControlledTemplate: StoryFn<StoryArgs> = ({
   placement = "bottom",
   ...args

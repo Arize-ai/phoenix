@@ -1,10 +1,9 @@
+import { css } from "@emotion/react";
 import { PropsWithChildren } from "react";
 import { TooltipTrigger } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { Button } from "../button";
 import { Icon, Icons } from "../icon";
-
 import { Tooltip } from "./Tooltip";
 import { TooltipProps } from "./types";
 

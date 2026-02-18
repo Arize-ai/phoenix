@@ -1,6 +1,6 @@
-import { RefObject, useCallback, useState } from "react";
-import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
+import copy from "copy-to-clipboard";
+import { RefObject, useCallback, useState } from "react";
 
 import { Button, ButtonProps } from "./button";
 import { Icon, Icons } from "./icon";

@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import {
   TextField as AriaTextField,
   TextFieldProps as AriaTextFieldProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps } from "@phoenix/components/types";

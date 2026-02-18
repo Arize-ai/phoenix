@@ -1,10 +1,9 @@
+import { css } from "@emotion/react";
 import { CSSProperties, forwardRef, ReactNode, Ref } from "react";
 import { Tooltip as AriaTooltip } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { Heading, Text } from "../content";
 import { View } from "../view";
-
 import { richTooltipCSS } from "./styles";
 import { TooltipProps } from "./types";
 export interface RichTooltipProps extends TooltipProps {

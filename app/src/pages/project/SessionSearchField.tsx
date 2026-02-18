@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, { type BasicSetupOptions } from "@uiw/react-codemirror";
-import { css } from "@emotion/react";
+import { useState } from "react";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";

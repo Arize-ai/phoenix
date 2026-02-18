@@ -1,6 +1,6 @@
-import { forwardRef, JSXElementConstructor, ReactNode, Ref } from "react";
-import { filterDOMProps } from "@react-aria/utils";
 import { css } from "@emotion/react";
+import { filterDOMProps } from "@react-aria/utils";
+import { forwardRef, JSXElementConstructor, ReactNode, Ref } from "react";
 
 import { DOMProps, ViewStyleProps } from "@phoenix/components/types";
 

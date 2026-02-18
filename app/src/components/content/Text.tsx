@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { CSSProperties, forwardRef, ReactNode, Ref } from "react";
 import {
   Text as AriaText,
   TextProps as AriaTextProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import {
   ColorValue,
@@ -15,7 +15,6 @@ import {
 import { classNames } from "@phoenix/utils";
 
 import { colorValue, useStyleProps } from "../utils";
-
 import { textBaseCSS } from "./styles";
 import { TextElementType, Weight } from "./types";
 

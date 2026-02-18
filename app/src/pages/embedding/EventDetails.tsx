@@ -1,11 +1,11 @@
-import { PropsWithChildren, useMemo } from "react";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { PropsWithChildren, useMemo } from "react";
 
 import {
   Counter,
@@ -428,8 +428,7 @@ function TableEmpty() {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--global-dimension-size-300)
-              var(--global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
           `}
         >
           <Empty message="This embedding has no associated dimensions" />

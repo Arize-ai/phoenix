@@ -1,10 +1,10 @@
+import { css, keyframes } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import {
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
   ModalOverlayProps as AriaModalOverlayProps,
 } from "react-aria-components";
-import { css, keyframes } from "@emotion/react";
 
 import { classNames } from "@phoenix/utils";
 

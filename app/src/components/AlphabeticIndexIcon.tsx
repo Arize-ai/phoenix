@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { css } from "@emotion/react";
 import { schemeSet2 } from "d3-scale-chromatic";
 import { transparentize } from "polished";
-import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import { Size } from "@phoenix/components/types/sizing";
 function indexToChar(index: number) {
