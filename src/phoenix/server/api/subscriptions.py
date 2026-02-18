@@ -728,7 +728,7 @@ class Subscription:
                 example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
                 for repetition_number in range(1, input.repetitions + 1):
                     async with info.context.db() as session:
-                        run = await session.scalar(  # pyright: ignore
+                        run = await session.scalar(
                             select(models.ExperimentRun).where(
                                 models.ExperimentRun.experiment_id == experiment.id,
                                 models.ExperimentRun.dataset_example_id

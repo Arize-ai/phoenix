@@ -35,7 +35,7 @@ class ExperimentRunAnnotation(Node):
         info: Info[Context, None],
     ) -> str:
         if self._raw_annotation is not None:
-            val: str = self._raw_annotation.get("name", "")  # pyright: ignore
+            val: str = self._raw_annotation.get("name", "")
         elif self.db_record:
             val = self.db_record.name
         else:
@@ -145,7 +145,7 @@ class ExperimentRunAnnotation(Node):
     ) -> datetime:
         val: datetime
         if self._raw_annotation is not None:
-            val = self._raw_annotation.get("start_time", datetime.now())  # pyright: ignore
+            val = self._raw_annotation.get("start_time", datetime.now())
         elif self.db_record:
             val = self.db_record.start_time
         else:
@@ -161,7 +161,7 @@ class ExperimentRunAnnotation(Node):
     ) -> datetime:
         val: datetime
         if self._raw_annotation is not None:
-            val = self._raw_annotation.get("end_time", datetime.now())  # pyright: ignore
+            val = self._raw_annotation.get("end_time", datetime.now())
         elif self.db_record:
             val = self.db_record.end_time
         else:
