@@ -1,6 +1,3 @@
-# ty migration
-ty.log
-
 # Generated dirs
 .vscode
 !.vscode/extensions.json

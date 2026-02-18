@@ -368,7 +368,6 @@ jobs:
             requirements/
             src/phoenix/
             packages/
-            Makefile
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
