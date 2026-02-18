@@ -1,8 +1,8 @@
-import { AGENT_INSTRUCTIONS } from "../prompts/agent.js";
-import { dateTimeTool, phoenixDocsTool } from "../tools/index.js";
-
 import { anthropic } from "@ai-sdk/anthropic";
 import { stepCountIs, ToolLoopAgent } from "ai";
+
+import { AGENT_INSTRUCTIONS } from "../prompts/agent.js";
+import { dateTimeTool, phoenixDocsTool } from "../tools/index.js";
 
 /**
  * Default agent instance with Phoenix documentation tools

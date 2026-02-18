@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
 import {
   getConfigErrorMessage,
   loadConfigFromEnvironment,
@@ -5,8 +7,6 @@ import {
   resolveConfig,
   validateConfig,
 } from "../src/config";
-
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 describe("Configuration", () => {
   let originalEnv: NodeJS.ProcessEnv;

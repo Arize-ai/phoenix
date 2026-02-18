@@ -1,3 +1,4 @@
+import { openai } from "@ai-sdk/openai";
 import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
   asExperimentEvaluator,
@@ -5,8 +6,6 @@ import {
 } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
-
-import { openai } from "@ai-sdk/openai";
 
 const relevanceEvaluator = createDocumentRelevanceEvaluator({
   model: openai("gpt-4o-mini"),

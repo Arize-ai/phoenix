@@ -1,12 +1,10 @@
 import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput } from "../io";
-
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
-
-import { Command } from "commander";
 
 interface ProjectsOptions {
   endpoint?: string;

@@ -1,11 +1,10 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
+import { describe, expect, it } from "vitest";
 
 import {
   formatDatasetOutput,
   formatDatasetsOutput,
 } from "../src/commands/formatDatasets";
-
-import { describe, expect, it } from "vitest";
 
 type Dataset = componentsV1["schemas"]["Dataset"];
 

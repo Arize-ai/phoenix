@@ -1,9 +1,9 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { createClient, type PhoenixClient } from "../../src/client";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import { resumeExperiment } from "../../src/experiments/resumeExperiment";
 import type { Example } from "../../src/types/datasets";
-
-import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/client");
 vi.mock("@arizeai/phoenix-otel", () => ({

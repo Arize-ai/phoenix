@@ -1,8 +1,8 @@
-import { createClassifierFn } from "../../src/llm/createClassifierFn";
-import * as generateClassificationModule from "../../src/llm/generateClassification";
-
 import { MockLanguageModelV2 } from "ai/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createClassifierFn } from "../../src/llm/createClassifierFn";
+import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 describe("createClassifier", () => {
   beforeEach(() => {

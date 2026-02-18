@@ -1,4 +1,5 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
+import { describe, expect, it } from "vitest";
 
 import {
   type ExperimentWithRuns,
@@ -6,8 +7,6 @@ import {
   formatExperimentOutput,
 } from "../src/commands/formatExperiment";
 import { formatExperimentsOutput } from "../src/commands/formatExperiments";
-
-import { describe, expect, it } from "vitest";
 
 type Experiment = componentsV1["schemas"]["Experiment"];
 type ExperimentRun = componentsV1["schemas"]["ExperimentRun"];

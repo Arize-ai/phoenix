@@ -1,11 +1,11 @@
+import { describe, expect, it } from "vitest";
+
 import { formatProjectsOutput } from "../src/commands/formatProjects";
 import {
   formatTraceOutput,
   formatTracesOutput,
 } from "../src/commands/formatTraces";
 import type { Trace } from "../src/trace";
-
-import { describe, expect, it } from "vitest";
 
 type MockSpan = Trace["spans"][number];
 

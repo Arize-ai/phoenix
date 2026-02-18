@@ -1,6 +1,6 @@
-import { obscureApiKey } from "../src/commands/auth";
-
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { obscureApiKey } from "../src/commands/auth";
 
 describe("Auth Commands", () => {
   describe("obscureApiKey", () => {

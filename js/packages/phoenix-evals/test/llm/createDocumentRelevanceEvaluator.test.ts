@@ -1,8 +1,8 @@
-import { createDocumentRelevanceEvaluator } from "../../src/llm/createDocumentRelevanceEvaluator";
-import * as generateClassificationModule from "../../src/llm/generateClassification";
-
 import { openai } from "@ai-sdk/openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createDocumentRelevanceEvaluator } from "../../src/llm/createDocumentRelevanceEvaluator";
+import * as generateClassificationModule from "../../src/llm/generateClassification";
 
 describe("createDocumentRelevanceEvaluator", () => {
   beforeEach(() => {

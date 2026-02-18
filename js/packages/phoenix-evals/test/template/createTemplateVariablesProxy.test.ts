@@ -1,6 +1,6 @@
-import { createTemplateVariablesProxy } from "../../src/template/createTemplateVariablesProxy";
-
 import { describe, expect, it } from "vitest";
+
+import { createTemplateVariablesProxy } from "../../src/template/createTemplateVariablesProxy";
 
 describe("createTemplateVariablesProxy", () => {
   it("should return null as-is", () => {

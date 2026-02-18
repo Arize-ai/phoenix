@@ -1,6 +1,6 @@
-import { appendDatasetExamples } from "../../src/datasets/appendDatasetExamples";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { appendDatasetExamples } from "../../src/datasets/appendDatasetExamples";
 
 // Mock the fetch module
 const mockPost = vi.fn();

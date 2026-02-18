@@ -2,32 +2,32 @@
   "name": "@arizeai/phoenix-mcp",
   "version": "2.3.6",
   "description": "A MCP server for Arize Phoenix",
-  "bin": {
-    "@arizeai/phoenix-mcp": "./build/index.js"
-  },
-  "type": "module",
-  "scripts": {
-    "build": "tsc && chmod 755 build/index.js",
-    "dev": "source ./.env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
-    "typecheck": "tsc --noEmit",
-    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js"
-  },
-  "files": [
-    "build"
-  ],
   "keywords": [
-    "mcp",
-    "arize-phoenix"
+    "arize-phoenix",
+    "mcp"
   ],
-  "author": "oss@arize.com",
-  "license": "Apache-2.0",
   "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
-  "bugs": {
-    "url": "https://github.com/Arize-ai/phoenix/issues"
+  "bin": {
+    "@arizeai/phoenix-mcp": "./build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js",
+    "dev": "source ./.env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
+    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",

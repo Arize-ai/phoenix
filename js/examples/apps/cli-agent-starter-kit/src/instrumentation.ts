@@ -1,6 +1,5 @@
-import { register } from "@arizeai/phoenix-otel";
-
 import { randomUUID } from "node:crypto";
+import { register } from "@arizeai/phoenix-otel";
 
 /**
  * Initialize Phoenix tracing for the CLI agent

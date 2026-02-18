@@ -1,9 +1,3 @@
-import { type PartialAIParams, toAI } from "../../../src/prompts/sdks/toAI";
-import { toSDK } from "../../../src/prompts/sdks/toSDK";
-import { PromptVersion } from "../../../src/types/prompts";
-
-import { BASE_MOCK_PROMPT_VERSION } from "./data";
-
 import { openai } from "@ai-sdk/openai";
 import { generateText, streamText } from "ai";
 import invariant from "tiny-invariant";
@@ -16,6 +10,11 @@ import {
   it,
   vi,
 } from "vitest";
+
+import { type PartialAIParams, toAI } from "../../../src/prompts/sdks/toAI";
+import { toSDK } from "../../../src/prompts/sdks/toSDK";
+import { PromptVersion } from "../../../src/types/prompts";
+import { BASE_MOCK_PROMPT_VERSION } from "./data";
 
 describe("toAI type compatibility", () => {
   beforeEach(() => {

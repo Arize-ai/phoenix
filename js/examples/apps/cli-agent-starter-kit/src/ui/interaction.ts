@@ -1,15 +1,8 @@
-/* eslint-disable no-console */
 import {
   getInputAttributes,
   getOutputAttributes,
   withSpan,
 } from "@arizeai/openinference-core";
-
-import { Agent } from "../agents/index.js";
-import { SESSION_ID } from "../instrumentation.js";
-
-import { printWelcome } from "./welcome.js";
-
 import {
   cancel,
   isCancel,
@@ -19,6 +12,10 @@ import {
   spinner,
   text,
 } from "@clack/prompts";
+
+import { Agent } from "../agents/index.js";
+import { SESSION_ID } from "../instrumentation.js";
+import { printWelcome } from "./welcome.js";
 
 /**
  * Convert literal ANSI escape sequences to actual escape codes

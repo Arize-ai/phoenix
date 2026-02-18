@@ -1,8 +1,8 @@
+import assert from "assert";
+import { openai } from "@ai-sdk/openai";
+
 /* eslint-disable no-console */
 import { createFaithfulnessEvaluator } from "../src/llm";
-
-import { openai } from "@ai-sdk/openai";
-import assert from "assert";
 
 const model = openai("gpt-4o-mini");
 

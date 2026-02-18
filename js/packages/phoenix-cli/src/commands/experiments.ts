@@ -1,17 +1,15 @@
+import * as fs from "fs";
+import * as path from "path";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
-
 import {
   formatExperimentsOutput,
   type OutputFormat,
 } from "./formatExperiments";
-
-import { Command } from "commander";
-import * as fs from "fs";
-import * as path from "path";
 
 type Experiment = componentsV1["schemas"]["Experiment"];
 

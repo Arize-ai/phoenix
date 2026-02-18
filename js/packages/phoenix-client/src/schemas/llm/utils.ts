@@ -1,5 +1,6 @@
-import { isObject } from "../../utils/isObject";
+import type { ZodTypeAny } from "zod";
 
+import { isObject } from "../../utils/isObject";
 import { anthropicMessagePartSchema } from "./anthropic/messagePartSchemas";
 import { anthropicMessageSchema } from "./anthropic/messageSchemas";
 import { anthropicToolCallSchema } from "./anthropic/toolCallSchemas";
@@ -15,8 +16,6 @@ import { phoenixMessageSchema } from "./phoenixPrompt/messageSchemas";
 import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
 import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
-import { vercelAIMessageSchema } from "./vercel/messageSchemas";
-import { vercelAIToolDefinitionSchema } from "./vercel/toolSchemas";
 import { llmProviderToolDefinitionSchema } from "./schemas";
 import type {
   LLMMessagePart,
@@ -27,8 +26,8 @@ import type {
   ToolChoiceWithProvider,
   ToolDefinitionWithProvider,
 } from "./types";
-
-import type { ZodTypeAny } from "zod";
+import { vercelAIMessageSchema } from "./vercel/messageSchemas";
+import { vercelAIToolDefinitionSchema } from "./vercel/toolSchemas";
 
 export const makeSDKConverters = <
   MessageSchema extends ZodTypeAny,

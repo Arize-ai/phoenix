@@ -7,7 +7,6 @@ import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
 import { OpenAIToolCall } from "../openai/toolCallSchemas";
 import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
 import { OpenAIToolDefinition } from "../openai/toolSchemas";
-
 import {
   asToolResultPart,
   phoenixContentPartSchema,

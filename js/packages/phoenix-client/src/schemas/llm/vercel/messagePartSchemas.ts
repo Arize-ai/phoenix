@@ -1,6 +1,6 @@
-import { jsonLiteralSchema } from "../../jsonLiteralSchema";
-
 import z from "zod";
+
+import { jsonLiteralSchema } from "../../jsonLiteralSchema";
 
 /*
  *

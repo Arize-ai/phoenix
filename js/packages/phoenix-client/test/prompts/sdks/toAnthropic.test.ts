@@ -1,16 +1,15 @@
+import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/index";
+import invariant from "tiny-invariant";
+import { assertType, describe, expect, it } from "vitest";
+
 import { toAnthropic } from "../../../src/prompts/sdks/toAnthropic";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
 import { PromptVersion } from "../../../src/types/prompts";
-
 import {
   BASE_MOCK_PROMPT_VERSION,
   BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
   BASE_MOCK_PROMPT_VERSION_TOOLS,
 } from "./data";
-
-import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/index";
-import invariant from "tiny-invariant";
-import { assertType, describe, expect, it } from "vitest";
 
 describe("toAnthropic type compatibility", () => {
   it("toAnthropic output should be assignable to Anthropic message params", () => {

@@ -3,7 +3,6 @@ import {
   EnvironmentConfig,
   getEnvironmentConfig,
 } from "@arizeai/phoenix-config";
-
 import type { ClientOptions } from "openapi-fetch";
 
 /**

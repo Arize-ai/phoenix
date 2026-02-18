@@ -1,6 +1,6 @@
-import { addSpanNote } from "../../src/spans/addSpanNote";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { addSpanNote } from "../../src/spans/addSpanNote";
 
 // Create mock POST function
 const mockPOST = vi.fn();

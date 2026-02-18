@@ -1,4 +1,6 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { MockLanguageModelV2 } from "ai/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as getDatasetModule from "../../src/datasets/getDataset";
 import {
@@ -7,9 +9,6 @@ import {
 } from "../../src/experiments/runExperiment";
 import type { Example } from "../../src/types/datasets";
 import type { EvaluatorParams } from "../../src/types/experiments";
-
-import { MockLanguageModelV2 } from "ai/test";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDataset = {
   id: "dataset-1",

@@ -1,12 +1,10 @@
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
-
 import { formatPromptsOutput, type OutputFormat } from "./formatPrompts";
-
-import { Command } from "commander";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
 

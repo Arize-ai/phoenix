@@ -1,6 +1,6 @@
-import { Channel, CLOSED, isClosed } from "../../src/utils/channel";
-
 import { describe, expect, it } from "vitest";
+
+import { Channel, CLOSED, isClosed } from "../../src/utils/channel";
 
 /**
  * Test utilities and constants

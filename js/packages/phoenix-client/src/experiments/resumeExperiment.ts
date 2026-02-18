@@ -11,6 +11,7 @@ import {
   SpanStatusCode,
   Tracer,
 } from "@arizeai/phoenix-otel";
+import invariant from "tiny-invariant";
 
 import { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
@@ -26,11 +27,8 @@ import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
-
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { resumeEvaluation } from "./resumeEvaluation";
-
-import invariant from "tiny-invariant";
 
 /**
  * Error thrown when task is aborted due to a failure in stopOnFirstError mode.

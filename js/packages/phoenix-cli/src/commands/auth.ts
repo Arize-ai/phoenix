@@ -1,7 +1,7 @@
+import { Command } from "commander";
+
 import { resolveConfig } from "../config";
 import { writeError, writeOutput } from "../io";
-
-import { Command } from "commander";
 
 interface AuthStatusOptions {
   endpoint?: string;

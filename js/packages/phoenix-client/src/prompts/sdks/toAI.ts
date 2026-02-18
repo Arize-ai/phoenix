@@ -1,14 +1,13 @@
+import { type ModelMessage, type ToolChoice, type ToolSet } from "ai";
+import invariant from "tiny-invariant";
+
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,
 } from "../../schemas/llm/converters";
 import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
-
 import { toSDKParamsBase, Variables } from "./types";
-
-import { type ModelMessage, type ToolChoice, type ToolSet } from "ai";
-import invariant from "tiny-invariant";
 
 export type PartialAIParams = {
   messages: ModelMessage[];

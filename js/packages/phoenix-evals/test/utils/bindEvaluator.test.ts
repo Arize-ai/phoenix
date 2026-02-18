@@ -1,9 +1,9 @@
+import { MockLanguageModelV2 } from "ai/test";
+import { describe, expect, it } from "vitest";
+
 import { createClassificationEvaluator } from "../../src";
 import { ObjectMapping } from "../../src/types/data";
 import { bindEvaluator } from "../../src/utils/bindEvaluator";
-
-import { MockLanguageModelV2 } from "ai/test";
-import { describe, expect, it } from "vitest";
 
 // Helper function to create a classification evaluator for testing
 function createTestEvaluator<RecordType extends Record<string, unknown>>(

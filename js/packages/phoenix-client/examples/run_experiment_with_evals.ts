@@ -1,9 +1,8 @@
+import { openai } from "@ai-sdk/openai";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-
-import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const model = openai("gpt-4o-mini");

@@ -1,10 +1,10 @@
+import { generateObject } from "ai";
+import { z } from "zod";
+
 import { tracer } from "../telemetry";
 import { ClassificationResult, WithLLM } from "../types/evals";
 import { WithTelemetry } from "../types/otel";
 import type { WithPrompt } from "../types/prompts";
-
-import { generateObject } from "ai";
-import { z } from "zod";
 export type ClassifyArgs = WithLLM &
   WithTelemetry &
   WithPrompt & {

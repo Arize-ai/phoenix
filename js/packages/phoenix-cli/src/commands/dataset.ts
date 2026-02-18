@@ -1,17 +1,15 @@
+import * as fs from "fs";
 import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
-
 import {
   type DatasetExamplesData,
   formatDatasetExamplesOutput,
   type OutputFormat,
 } from "./formatDataset";
-
-import { Command } from "commander";
-import * as fs from "fs";
 
 interface DatasetOptions {
   endpoint?: string;

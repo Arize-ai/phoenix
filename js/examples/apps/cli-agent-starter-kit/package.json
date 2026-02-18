@@ -1,46 +1,37 @@
 {
   "name": "cli-agent-starter-kit",
   "version": "1.0.0",
-  "description": "",
   "private": true,
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
   "bin": {
     "cli-agent": "./dist/cli.js"
   },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "pnpm phoenix:ensure && tsx --env-file=.env src/cli.ts",
-    "dev:verbose": "pnpm phoenix:ensure && VERBOSE=true tsx --env-file=.env src/cli.ts",
-    "dev:no-phoenix": "tsx --env-file=.env src/cli.ts",
-    "start": "node --env-file=.env dist/cli.js",
-    "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js",
     "clean": "rm -rf dist",
+    "dev": "pnpm phoenix:ensure && tsx --env-file=.env src/cli.ts",
+    "dev:no-phoenix": "tsx --env-file=.env src/cli.ts",
+    "dev:verbose": "pnpm phoenix:ensure && VERBOSE=true tsx --env-file=.env src/cli.ts",
     "eval": "pnpm phoenix:ensure && tsx scripts/run-evals.ts",
+    "eval:no-phoenix": "tsx scripts/run-evals.ts",
     "eval:terminal-format": "pnpm phoenix:ensure && tsx evals/experiments/terminal-format.eval.ts",
     "eval:verbose": "VERBOSE=true pnpm eval",
-    "eval:no-phoenix": "tsx scripts/run-evals.ts",
+    "phoenix:down": "docker compose down",
     "phoenix:ensure": "./scripts/ensure-phoenix.sh",
     "phoenix:ensure:verbose": "./scripts/ensure-phoenix.sh --verbose",
+    "phoenix:logs": "docker compose logs -f phoenix",
+    "phoenix:reload": "docker compose down && docker compose up -d phoenix",
+    "phoenix:restart": "docker compose restart phoenix",
     "phoenix:start": "docker compose up -d phoenix",
     "phoenix:stop": "docker compose stop phoenix",
-    "phoenix:restart": "docker compose restart phoenix",
-    "phoenix:reload": "docker compose down && docker compose up -d phoenix",
-    "phoenix:logs": "docker compose logs -f phoenix",
-    "phoenix:down": "docker compose down"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "engines": {
-    "node": ">=22"
-  },
-  "devDependencies": {
-    "@types/node": "^25.2.3",
-    "glob": "^11.0.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "start": "node --env-file=.env dist/cli.js",
+    "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.43",
@@ -52,5 +43,14 @@
     "@clack/prompts": "^1.0.1",
     "ai": "^6.0.84",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "glob": "^11.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -1,6 +1,6 @@
-import { PromptTemplate } from "../types/templating";
-
 import Mustache from "mustache";
+
+import { PromptTemplate } from "../types/templating";
 
 type GetTemplateVariableArgs = {
   template: PromptTemplate;

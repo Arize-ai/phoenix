@@ -1,10 +1,10 @@
+import { describe, expect, it } from "vitest";
+
 import {
   getDatasetExperimentsUrl,
   getDatasetUrl,
   getExperimentUrl,
 } from "../../src/utils/urlUtils";
-
-import { describe, expect, it } from "vitest";
 
 describe("urlUtils", () => {
   it("should append trailing slash when baseUrl has no trailing slash", () => {

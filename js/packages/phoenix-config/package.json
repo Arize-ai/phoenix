@@ -2,6 +2,25 @@
   "name": "@arizeai/phoenix-config",
   "version": "0.1.0",
   "description": "central configuration for Phoenix",
+  "keywords": [
+    "arize",
+    "phoenix"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-config",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
   "main": "dist/src/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/src/index.d.ts",
@@ -11,39 +30,20 @@
       "require": "./dist/src/index.js"
     }
   },
-  "files": [
-    "dist",
-    "src",
-    "package.json"
-  ],
   "scripts": {
-    "clean": "rimraf dist",
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "clean": "rimraf dist",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
-    "type:check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest watch"
+    "test:watch": "vitest watch",
+    "type:check": "tsc --noEmit"
   },
-  "keywords": [
-    "phoenix",
-    "arize"
-  ],
-  "author": "oss@arize.com",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-config",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Arize-ai/phoenix.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Arize-ai/phoenix/issues"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.17.22",
     "typescript": "^5.8.2",
     "vitest": "^4.0.10"
   },
-  "dependencies": {},
   "engines": {
     "node": ">=18"
   }

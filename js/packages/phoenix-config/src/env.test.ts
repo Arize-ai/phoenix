@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
 import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
@@ -12,8 +14,6 @@ import {
   getStrFromEnvironment,
 } from "./env";
 import type { Headers } from "./types";
-
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 /**
  * Type assertion helpers to ensure no `any` types leak through.

@@ -11,6 +11,7 @@ import {
   SpanStatusCode,
   Tracer,
 } from "@arizeai/phoenix-otel";
+import invariant from "tiny-invariant";
 
 import { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
@@ -26,11 +27,8 @@ import { type Logger } from "../types/logger";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
-
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
-
-import invariant from "tiny-invariant";
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.

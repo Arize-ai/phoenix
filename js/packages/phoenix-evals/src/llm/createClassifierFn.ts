@@ -5,7 +5,6 @@ import {
   EvaluationResult,
   EvaluatorFn,
 } from "../types/evals";
-
 import { generateClassification } from "./generateClassification";
 
 /**

@@ -1,3 +1,5 @@
+import invariant from "tiny-invariant";
+
 import { assertUnreachable } from "../../../utils/assertUnreachable";
 import { isObject } from "../../../utils/isObject";
 import {
@@ -23,14 +25,11 @@ import {
 import { VercelAIMessage } from "../vercel/messageSchemas";
 import { VercelAIToolChoice } from "../vercel/toolChoiceSchemas";
 import { VercelAIToolDefinition } from "../vercel/toolSchemas";
-
 import { openaiChatPartSchema } from "./messagePartSchemas";
 import { openAIMessageSchema } from "./messageSchemas";
 import { openAIToolCallSchema } from "./toolCallSchemas";
 import { openAIToolChoiceSchema } from "./toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./toolSchemas";
-
-import invariant from "tiny-invariant";
 
 export const openAIChatPartToAnthropic = openaiChatPartSchema.transform(
   (openai) => {

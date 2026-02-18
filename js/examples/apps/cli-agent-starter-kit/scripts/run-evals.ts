@@ -1,12 +1,11 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console */
-import { createClient } from "@arizeai/phoenix-client";
-
-import { flush } from "../src/instrumentation.js";
-
-import { glob } from "glob";
 import { spawn } from "node:child_process";
 import path from "node:path";
+/* eslint-disable no-console */
+import { createClient } from "@arizeai/phoenix-client";
+import { glob } from "glob";
+
+import { flush } from "../src/instrumentation.js";
 
 async function discoverEvaluations(pattern?: string) {
   const searchPattern = pattern

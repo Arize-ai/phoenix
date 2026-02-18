@@ -1,13 +1,15 @@
+import invariant from "tiny-invariant";
+import z from "zod";
+
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import { safelyParseJSON } from "../../utils/safelyParseJSON";
 import { JSONLiteral } from "../jsonLiteralSchema";
-
+import { SDKProviderConverterMap } from "./constants";
 import { OpenAIChatPart } from "./openai/messagePartSchemas";
 import { OpenAIMessage } from "./openai/messageSchemas";
 import { OpenAIToolCall } from "./openai/toolCallSchemas";
 import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
 import { OpenAIToolDefinition } from "./openai/toolSchemas";
-import { SDKProviderConverterMap } from "./constants";
 import { toolCallHeuristicSchema } from "./schemas";
 import { LLMMessagePart, PromptSDKFormat } from "./types";
 import {
@@ -17,9 +19,6 @@ import {
   detectToolChoiceProvider,
   detectToolDefinitionProvider,
 } from "./utils";
-
-import invariant from "tiny-invariant";
-import z from "zod";
 
 export const safelyConvertMessageToProvider = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,

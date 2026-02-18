@@ -1,4 +1,7 @@
+import * as fs from "fs";
+import * as path from "path";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
 import {
@@ -8,13 +11,8 @@ import {
 } from "../config";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
-
 import { formatTracesOutput, type OutputFormat } from "./formatTraces";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
-
-import { Command } from "commander";
-import * as fs from "fs";
-import * as path from "path";
 
 type Span = componentsV1["schemas"]["Span"];
 

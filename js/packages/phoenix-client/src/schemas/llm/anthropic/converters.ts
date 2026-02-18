@@ -1,3 +1,5 @@
+import invariant from "tiny-invariant";
+
 import { assertUnreachable } from "../../../utils/assertUnreachable";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
 import {
@@ -12,7 +14,6 @@ import {
 import { OpenAIToolCall } from "../openai/toolCallSchemas";
 import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
 import { OpenAIToolDefinition } from "../openai/toolSchemas";
-
 import {
   AnthropicMessagePart,
   anthropicMessagePartSchema,
@@ -22,8 +23,6 @@ import { anthropicMessageSchema } from "./messageSchemas";
 import { anthropicToolCallSchema } from "./toolCallSchemas";
 import { anthropicToolChoiceSchema } from "./toolChoiceSchemas";
 import { anthropicToolDefinitionSchema } from "./toolSchemas";
-
-import invariant from "tiny-invariant";
 
 /*
  * Conversion Functions

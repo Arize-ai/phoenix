@@ -1,9 +1,9 @@
+import assert from "assert";
+import { google } from "@ai-sdk/google";
+
 /* eslint-disable no-console */
 import { PromptTemplate } from "../src";
 import { createClassificationEvaluator } from "../src/llm";
-
-import { google } from "@ai-sdk/google";
-import assert from "assert";
 
 const model = google("gemini-2.5-flash");
 
