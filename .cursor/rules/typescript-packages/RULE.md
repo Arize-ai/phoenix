@@ -19,12 +19,10 @@
 
 Before completing any TypeScript package changes, ALWAYS run these checks from the `js/` directory:
 
-1. **ESLint**: `pnpm run lint -- packages/<package-name>/src/` or `npx eslint --fix packages/<package-name>/src/`
-2. **Formatting**: `pnpm run fmt:check packages/<package-name>/` or `pnpm run fmt packages/<package-name>/`
+1. **Lint**: `pnpm run lint` or `pnpm run lint:fix`
+2. **Formatting**: `pnpm run fmt:check` or `pnpm run fmt`
 3. **Tests**: `cd packages/<package-name> && pnpm test`
 4. **Type check**: `cd packages/<package-name> && pnpm typecheck`
-
-If ESLint reports import sorting issues, run: `npx eslint --fix <path>`
 
 ## Packages
 
