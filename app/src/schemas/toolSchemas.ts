@@ -167,7 +167,7 @@ export const openAIWebSearchToolDefinitionSchema = z
       ),
     user_location: z
       .object({
-        type: z.enum(["approximate", "precise"]).optional(),
+        type: z.literal("approximate").optional(),
         country: z.string().optional(),
         city: z.string().optional(),
         region: z.string().optional(),
