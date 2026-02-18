@@ -59,3 +59,9 @@ repos:
         files: (pyproject\.toml$|^uv\.lock$)
         pass_filenames: false
         stages: [pre-commit]
+      - id: typecheck-python
+        name: make typecheck-python
+        entry: make typecheck-python
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
