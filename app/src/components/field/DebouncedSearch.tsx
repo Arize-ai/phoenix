@@ -4,8 +4,10 @@ import debounce from "lodash-es/debounce";
 
 import { SearchField, SearchFieldProps, SearchIcon } from "./SearchField";
 
-export interface DebouncedSearchProps
-  extends Omit<SearchFieldProps, "value" | "onChange"> {
+export interface DebouncedSearchProps extends Omit<
+  SearchFieldProps,
+  "value" | "onChange"
+> {
   onChange: (value: string) => void;
   /**
    * Text to show the user before typing
