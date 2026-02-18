@@ -16,6 +16,10 @@ const meta: Meta = {
   component: TextField,
   parameters: {
     controls: { expanded: true },
+    design: {
+      type: "figma",
+      url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=32-95",
+    },
   },
   argTypes: {
     size: {
