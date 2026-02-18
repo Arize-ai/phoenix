@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-import { agent } from "./agents/index.js";
 // Import instrumentation first (Phoenix must be initialized early)
+/* prettier-ignore */
 import { flush } from "./instrumentation.js";
+import { agent } from "./agents/index.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
 
