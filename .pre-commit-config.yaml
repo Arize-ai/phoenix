@@ -63,5 +63,6 @@ repos:
         name: make typecheck-python
         entry: make typecheck-python
         language: system
+        files: \.py$
         pass_filenames: false
         stages: [pre-commit]
