@@ -59,58 +59,70 @@ print(f"  Found {len(import_order)} modules", file=sys.stderr)
 # Step 2: Run ty check
 print("\nStep 2: Running ty check...", file=sys.stderr)
 result = subprocess.run(
-    ["uv", "run", "ty", "check", "--output-format", "concise", "src/"],
+    ["ty", "check", "--output-format", "concise", "src/"],
     capture_output=True,
     text=True,
 )
 ty_output = result.stdout + result.stderr
 
-# Step 3: Parse ty output to find files with errors
-print("Step 3: Parsing ty errors...", file=sys.stderr)
-error_pattern = re.compile(r"^(src/[^:]+):\d+:\d+: (error|warning)\[([^\]]+)\]", re.MULTILINE)
+# Step 3: Parse ty output to find files with errors and warnings
+print("Step 3: Parsing ty errors and warnings...", file=sys.stderr)
+diagnostic_pattern = re.compile(r"^(src/[^:]+):\d+:\d+: (error|warning)\[([^\]]+)\]", re.MULTILINE)
 files_with_errors: dict[str, list[str]] = {}
+files_with_warnings: dict[str, list[str]] = {}
 
-for match in error_pattern.finditer(ty_output):
+for match in diagnostic_pattern.finditer(ty_output):
     file_path = match.group(1)
-    level = match.group(2)  # error or warning
-    error_code = match.group(3)
+    level = match.group(2)
+    code = match.group(3)
 
-    # Only track errors, not warnings
-    if level == "error":
-        if file_path not in files_with_errors:
-            files_with_errors[file_path] = []
-        if error_code not in files_with_errors[file_path]:
-            files_with_errors[file_path].append(error_code)
+    target = files_with_errors if level == "error" else files_with_warnings
+    if file_path not in target:
+        target[file_path] = []
+    if code not in target[file_path]:
+        target[file_path].append(code)
 
 print(f"  Found {len(files_with_errors)} files with errors", file=sys.stderr)
+print(f"  Found {len(files_with_warnings)} files with warnings", file=sys.stderr)
+
+
+def order_by_import_order(file_set: dict[str, list[str]]) -> list[str]:
+    """Return file paths ordered by import order, with remaining files sorted at the end."""
+    ordered: list[str] = []
+    for file_path in import_order:
+        if file_path in file_set:
+            ordered.append(file_path)
+    for file_path in sorted(file_set.keys()):
+        if file_path not in ordered:
+            ordered.append(file_path)
+    return ordered
+
 
 # Step 4: Order files by import order
 print("\nStep 4: Ordering files by import order...", file=sys.stderr)
-ordered_files_with_errors: list[str] = []
+ordered_files_with_errors = order_by_import_order(files_with_errors)
+ordered_files_with_warnings = order_by_import_order(files_with_warnings)
 
-# Create a mapping of file paths to their import order index
-import_order_map = {path: idx for idx, path in enumerate(import_order)}
-
-# Add files that are in import order
-for file_path in import_order:
-    if file_path in files_with_errors:
-        ordered_files_with_errors.append(file_path)
-
-# Add remaining files (not in import order) at the end
-for file_path in sorted(files_with_errors.keys()):
-    if file_path not in ordered_files_with_errors:
-        ordered_files_with_errors.append(file_path)
-
-# Step 5: Write to file
+# Step 5: Write to files
 script_dir = Path(__file__).parent
-output_file = script_dir / "modules_with_type_errors.txt"
-print(f"\nStep 5: Writing results to {output_file}...", file=sys.stderr)
+errors_output_file = script_dir / "modules_with_type_errors.txt"
+warnings_output_file = script_dir / "modules_with_type_warnings.txt"
+print("\nStep 5: Writing results...", file=sys.stderr)
 
-with open(output_file, "w") as f:
+with open(errors_output_file, "w") as f:
     for file_path in ordered_files_with_errors:
         f.write(f"{file_path}\n")
 
+with open(warnings_output_file, "w") as f:
+    for file_path in ordered_files_with_warnings:
+        f.write(f"{file_path}\n")
+
 print(
-    f"\nDone! {len(ordered_files_with_errors)} files with errors written to {output_file}",
+    f"\nDone! {len(ordered_files_with_errors)} files with errors written to {errors_output_file}",
+    file=sys.stderr,
+)
+print(
+    f"      {len(ordered_files_with_warnings)} files with warnings written to"
+    f" {warnings_output_file}",
     file=sys.stderr,
 )
