@@ -180,7 +180,8 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
         }
       }
     `,
-    {}
+    {},
+    { fetchPolicy: "store-and-network" }
   );
 
   // Group models by provider
