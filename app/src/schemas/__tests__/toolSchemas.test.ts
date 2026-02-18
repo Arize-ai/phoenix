@@ -154,17 +154,6 @@ describe("toolSchemas", () => {
       expect(parsed.success).toBe(true);
     });
 
-    it("should accept web_search with filters.blocked_domains only (OpenAI API alternative)", () => {
-      const parsed = openAIWebSearchToolDefinitionSchema.safeParse({
-        type: "web_search",
-        filters: { blocked_domains: ["example.com"] },
-      });
-      expect(parsed.success).toBe(true);
-      if (parsed.success) {
-        expect(parsed.data.filters?.blocked_domains).toEqual(["example.com"]);
-      }
-    });
-
     it("should accept web_search with user_location (docs example)", () => {
       const parsed = openAIWebSearchToolDefinitionSchema.safeParse({
         type: "web_search",

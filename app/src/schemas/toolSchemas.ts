@@ -157,7 +157,6 @@ export const openAIWebSearchToolDefinitionSchema = z
     filters: z
       .object({
         allowed_domains: z.array(z.string()).optional(),
-        blocked_domains: z.array(z.string()).optional(),
       })
       .passthrough()
       .nullable()
