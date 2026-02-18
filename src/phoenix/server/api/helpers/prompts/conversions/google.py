@@ -38,13 +38,13 @@ class GoogleToolChoiceConversion:
             "PromptToolChoiceSpecificFunctionTool",
         ],
     ) -> GoogleToolChoice:
-        if obj.type == "none":
+        if isinstance(obj, PromptToolChoiceNone):
             return {"function_calling_config": {"mode": "none"}}
-        if obj.type == "zero_or_more":
+        if isinstance(obj, PromptToolChoiceZeroOrMore):
             return {"function_calling_config": {"mode": "auto"}}
-        if obj.type == "one_or_more":
+        if isinstance(obj, PromptToolChoiceOneOrMore):
             return {"function_calling_config": {"mode": "any"}}
-        if obj.type == "specific_function":
+        if isinstance(obj, PromptToolChoiceSpecificFunctionTool):
             return {
                 "function_calling_config": {
                     "mode": "any",

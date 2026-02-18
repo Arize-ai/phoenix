@@ -29,13 +29,13 @@ class OpenAIToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
         ],
     ) -> ChatCompletionToolChoiceOptionParam:
-        if obj.type == "none":
+        if isinstance(obj, PromptToolChoiceNone):
             return "none"
-        if obj.type == "zero_or_more":
+        if isinstance(obj, PromptToolChoiceZeroOrMore):
             return "auto"
-        if obj.type == "one_or_more":
+        if isinstance(obj, PromptToolChoiceOneOrMore):
             return "required"
-        if obj.type == "specific_function":
+        if isinstance(obj, PromptToolChoiceSpecificFunctionTool):
             choice_tool: ChatCompletionNamedToolChoiceParam = {
                 "type": "function",
                 "function": {"name": obj.function_name},

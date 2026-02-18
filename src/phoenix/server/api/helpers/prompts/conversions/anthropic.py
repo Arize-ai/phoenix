@@ -31,22 +31,22 @@ class AnthropicToolChoiceConversion:
         ],
         disable_parallel_tool_use: Optional[bool] = None,
     ) -> ToolChoiceParam:
-        if obj.type == "zero_or_more":
+        if isinstance(obj, PromptToolChoiceZeroOrMore):
             choice_auto: ToolChoiceAutoParam = {"type": "auto"}
             if disable_parallel_tool_use is not None:
                 choice_auto["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_auto
-        if obj.type == "one_or_more":
+        if isinstance(obj, PromptToolChoiceOneOrMore):
             choice_any: ToolChoiceAnyParam = {"type": "any"}
             if disable_parallel_tool_use is not None:
                 choice_any["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_any
-        if obj.type == "specific_function":
+        if isinstance(obj, PromptToolChoiceSpecificFunctionTool):
             choice_tool: ToolChoiceToolParam = {"type": "tool", "name": obj.function_name}
             if disable_parallel_tool_use is not None:
                 choice_tool["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_tool
-        if obj.type == "none":
+        if isinstance(obj, PromptToolChoiceNone):
             return {"type": "none"}
         assert_never(obj.type)
 
