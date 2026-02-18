@@ -1,1 +1,1 @@
-export { terminalSafeFormatEvaluator } from "./terminalSafeFormatEvaluator.js";
+export { createTerminalSafeFormatEvaluator } from "./terminalSafeFormatEvaluator.js";

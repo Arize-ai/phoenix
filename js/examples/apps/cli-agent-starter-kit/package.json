@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.43",
+    "@ai-sdk/anthropic-v5": "npm:@ai-sdk/anthropic@2.0.65",
     "@ai-sdk/mcp": "^1.0.20",
     "@arizeai/openinference-core": "^2.0.5",
     "@arizeai/phoenix-client": "workspace:*",
