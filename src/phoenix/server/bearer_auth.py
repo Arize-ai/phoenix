@@ -5,6 +5,7 @@ from functools import cached_property
 from typing import Any, Optional, cast
 
 import grpc
+import grpc.aio
 from fastapi import HTTPException, Request, WebSocket, WebSocketException
 from grpc_interceptor import AsyncServerInterceptor
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser

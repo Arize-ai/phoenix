@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import urllib
+import urllib.parse
 import zlib
 from asyncio import QueueFull
 from collections import Counter

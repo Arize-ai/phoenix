@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import importlib
+import importlib.util
 import json
 import logging
 import mimetypes
@@ -1339,7 +1340,7 @@ def _warn_if_missing_aioboto3() -> None:
     aioboto3 for Phoenix's AWS Bedrock integration in Playground.
     """
 
-    if importlib.util.find_spec("aioboto3") is not None:  # ty: ignore[possibly-missing-attribute]
+    if importlib.util.find_spec("aioboto3") is not None:
         return
 
     if importlib.util.find_spec("boto3") is not None:

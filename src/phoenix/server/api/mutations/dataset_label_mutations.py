@@ -1,6 +1,7 @@
 from typing import Optional
 
 import sqlalchemy
+import sqlalchemy.exc
 import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -59,7 +60,7 @@ class SetDatasetLabelsMutationPayload:
 
 @strawberry.type
 class DatasetLabelMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_dataset_label(
         self,
         info: Info[Context, None],
@@ -120,7 +121,7 @@ class DatasetLabelMutationMixin:
             ],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def delete_dataset_labels(
         self, info: Info[Context, None], input: DeleteDatasetLabelsInput
     ) -> DeleteDatasetLabelsMutationPayload:
@@ -156,7 +157,7 @@ class DatasetLabelMutationMixin:
             ]
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def set_dataset_labels(
         self, info: Info[Context, None], input: SetDatasetLabelsInput
     ) -> SetDatasetLabelsMutationPayload:

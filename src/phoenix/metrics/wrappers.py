@@ -30,7 +30,7 @@ from wrapt import PartialCallableObjectProxy
 from phoenix.config import SKLEARN_VERSION
 
 
-class Eval(PartialCallableObjectProxy, ABC):  # type: ignore
+class Eval(PartialCallableObjectProxy, ABC):
     def __call__(
         self,
         *args: Any,
@@ -193,20 +193,11 @@ def _binarize(
     otherwise. Series is assumed to contain no missing values."""
     if is_categorical_dtype(series):
         try:
-            return cast(
-                "pd.Series[bool]",
-                series.cat.codes == series.cat.categories.get_loc(pos_label),
-            )
+            return series.cat.codes == series.cat.categories.get_loc(pos_label)
         except KeyError:
-            return cast(
-                "pd.Series[bool]",
-                pd.Series(np.full(len(series), False, dtype=bool)),
-            )
+            return pd.Series(np.full(len(series), False, dtype=bool))
     else:
-        return cast(
-            "pd.Series[bool]",
-            series == pos_label,
-        )
+        return series == pos_label
 
 
 class SkEval(Enum):

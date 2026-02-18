@@ -154,12 +154,9 @@ class EuclideanDistance(DriftOperator, VectorOperator):
         ):
             return np.nan
         data = self.operand(dataframe)
-        return cast(
-            float,
-            euclidean(
-                np.mean(data.dropna()),
-                self.reference_value,
-            ),
+        return euclidean(
+            np.mean(data.dropna()),
+            self.reference_value,
         )
 
 

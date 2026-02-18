@@ -1,6 +1,5 @@
 import logging
 import secrets
-from typing import cast
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -196,14 +195,11 @@ async def _lookup_by_unique_id(session: AsyncSession, unique_id: str) -> models.
 
     This ensures users aren't locked out due to case differences.
     """
-    return cast(
-        models.User | None,
-        await session.scalar(
-            select(models.User)
-            .where(models.User.auth_method == "LDAP")
-            .where(func.lower(models.User.ldap_unique_id) == unique_id.lower())
-            .options(joinedload(models.User.role))
-        ),
+    return await session.scalar(
+        select(models.User)
+        .where(models.User.auth_method == "LDAP")
+        .where(func.lower(models.User.ldap_unique_id) == unique_id.lower())
+        .options(joinedload(models.User.role))
     )
 
 
@@ -213,12 +209,9 @@ async def _lookup_by_email(session: AsyncSession, email: str) -> models.User | N
     Note: Both sides of the comparison are lowercased to ensure consistent
     matching regardless of what sanitize_email() does to the input.
     """
-    return cast(
-        models.User | None,
-        await session.scalar(
-            select(models.User)
-            .where(models.User.auth_method == "LDAP")
-            .where(func.lower(models.User.email) == email.lower())
-            .options(joinedload(models.User.role))
-        ),
+    return await session.scalar(
+        select(models.User)
+        .where(models.User.auth_method == "LDAP")
+        .where(func.lower(models.User.email) == email.lower())
+        .options(joinedload(models.User.role))
     )

@@ -70,7 +70,6 @@ help: ## Show this help message
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
-	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
 	@echo -e "  typecheck-frontend     - Type check frontend only (app/)"
 	@echo -e "  typecheck-ts           - Type check TypeScript packages only (js/)"
 	@echo -e ""
@@ -219,7 +218,7 @@ test: test-python test-frontend test-ts ## Run all tests (Python + frontend + Ty
 
 typecheck-python: ## Type check Python
 	@echo -e "$(CYAN)Type checking Python with ty...$(NC)"
-	@$(UV) run ty check src/
+	@$(UV) run ty check --error-on-warning src/
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 typecheck-frontend: ## Type check frontend (app/)

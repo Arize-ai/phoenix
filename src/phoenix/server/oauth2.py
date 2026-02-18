@@ -4,6 +4,7 @@ from functools import cached_property
 from typing import Any, Iterator, Optional, get_args
 
 import jmespath
+import jmespath.exceptions
 from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_EMAIL_PATH = jmespath.compile("email")
 
 
-class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
+class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):
     """
     An OAuth2 client class that supports OpenID Connect. Adapted from authlib's
     `StarletteOAuth2App` to be useable without integration with Starlette.
