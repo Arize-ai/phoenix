@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable, Optional
 
 import grpc
+import grpc.aio
 from grpc.aio import RpcContext, Server, ServerInterceptor
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -88,7 +89,7 @@ class GrpcServer:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
             GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)
-        server = grpc.aio.server(  # ty: ignore[possibly-missing-attribute]
+        server = grpc.aio.server(
             options=(("grpc.so_reuseport", 0),),
             interceptors=interceptors,
         )

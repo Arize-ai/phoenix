@@ -38,6 +38,13 @@ class GoogleToolChoiceConversion:
             "PromptToolChoiceSpecificFunctionTool",
         ],
     ) -> GoogleToolChoice:
+        from phoenix.server.api.helpers.prompts.models import (
+            PromptToolChoiceNone,
+            PromptToolChoiceOneOrMore,
+            PromptToolChoiceSpecificFunctionTool,
+            PromptToolChoiceZeroOrMore,
+        )
+
         if isinstance(obj, PromptToolChoiceNone):
             return {"function_calling_config": {"mode": "none"}}
         if isinstance(obj, PromptToolChoiceZeroOrMore):

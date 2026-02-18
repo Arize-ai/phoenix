@@ -29,6 +29,13 @@ class OpenAIToolChoiceConversion:
             PromptToolChoiceSpecificFunctionTool,
         ],
     ) -> ChatCompletionToolChoiceOptionParam:
+        from phoenix.server.api.helpers.prompts.models import (
+            PromptToolChoiceNone,
+            PromptToolChoiceOneOrMore,
+            PromptToolChoiceSpecificFunctionTool,
+            PromptToolChoiceZeroOrMore,
+        )
+
         if isinstance(obj, PromptToolChoiceNone):
             return "none"
         if isinstance(obj, PromptToolChoiceZeroOrMore):

@@ -3,6 +3,7 @@ import json
 from typing import Annotated, Union
 
 import strawberry
+import strawberry.experimental.pydantic
 from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
@@ -72,7 +73,7 @@ class PromptMessage:
     content: list[ContentPart]
 
 
-@strawberry.experimental.pydantic.type(PromptChatTemplateModel)  # ty: ignore[possibly-missing-attribute]
+@strawberry.experimental.pydantic.type(PromptChatTemplateModel)
 class PromptChatTemplate:
     messages: list[PromptMessage]
 
@@ -124,7 +125,7 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
     return PromptChatTemplate(messages=messages)  # ty: ignore[unknown-argument]
 
 
-@strawberry.experimental.pydantic.type(PromptStringTemplateModel)  # ty: ignore[possibly-missing-attribute]
+@strawberry.experimental.pydantic.type(PromptStringTemplateModel)
 class PromptStringTemplate:
     template: strawberry.auto
 

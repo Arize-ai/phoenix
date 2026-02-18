@@ -31,6 +31,13 @@ class AwsToolChoiceConversion:
         ],
         disable_parallel_tool_use: Optional[bool] = None,
     ) -> ToolChoiceParam:
+        from phoenix.server.api.helpers.prompts.models import (
+            PromptToolChoiceNone,
+            PromptToolChoiceOneOrMore,
+            PromptToolChoiceSpecificFunctionTool,
+            PromptToolChoiceZeroOrMore,
+        )
+
         if isinstance(obj, PromptToolChoiceZeroOrMore):
             choice_auto: ToolChoiceAutoParam = {"type": "auto"}
             if disable_parallel_tool_use is not None:

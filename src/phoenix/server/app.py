@@ -30,6 +30,7 @@ from typing import (
 from urllib.parse import urlparse
 
 import grpc
+import grpc.aio
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -587,11 +588,11 @@ class CapacityInterceptor(AsyncServerInterceptor):
     async def intercept(
         self,
         method: Callable[
-            [Any, grpc.aio.ServicerContext],  # ty: ignore[possibly-missing-attribute]
+            [Any, grpc.aio.ServicerContext],
             Awaitable[Any],
         ],
         request_or_iterator: Any,
-        context: grpc.aio.ServicerContext,  # ty: ignore[possibly-missing-attribute]
+        context: grpc.aio.ServicerContext,
         method_name: str,
     ) -> Any:
         if self._indicator.is_full:
@@ -1001,11 +1002,11 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
     async def intercept(
         self,
         method: Callable[
-            [Any, grpc.aio.ServicerContext],  # ty: ignore[possibly-missing-attribute]
+            [Any, grpc.aio.ServicerContext],
             Awaitable[Any],
         ],
         request_or_iterator: Any,
-        context: grpc.aio.ServicerContext,  # ty: ignore[possibly-missing-attribute]
+        context: grpc.aio.ServicerContext,
         method_name: str,
     ) -> Any:
         if (
