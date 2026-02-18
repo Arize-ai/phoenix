@@ -3,7 +3,6 @@
 
 import { agent } from "./agents/index.js";
 // Import instrumentation first (Phoenix must be initialized early)
-// eslint-disable-next-line simple-import-sort/imports
 import { flush } from "./instrumentation.js";
 import { conversationLoop } from "./ui/interaction.js";
 import { printWelcome } from "./ui/welcome.js";
