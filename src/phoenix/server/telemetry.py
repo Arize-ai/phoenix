@@ -43,7 +43,7 @@ def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
     from opentelemetry.semconv.resource import ResourceAttributes  # ty: ignore[deprecated]
 
     tracer_provider = trace_sdk.TracerProvider(
-        resource=Resource(attributes={ResourceAttributes.SERVICE_NAME: "arize-phoenix-server"})
+        resource=Resource(attributes={ResourceAttributes.SERVICE_NAME: "arize-phoenix-server"})  # ty: ignore[deprecated]
     )
     if http_endpoint := os.getenv(
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT

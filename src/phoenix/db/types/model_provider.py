@@ -540,7 +540,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         # Capture extra_headers in closure for use in factory
         headers = extra_headers
 
-        if method.type == "access_keys":
+        if isinstance(method, AWSBedrockAuthenticationMethodAccessKeys):
             # Explicit credentials provided
             aws_access_key_id = method.aws_access_key_id
             aws_secret_access_key = method.aws_secret_access_key
@@ -566,7 +566,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
 
             return create_client_with_keys
 
-        elif method.type == "default_credentials":
+        elif isinstance(method, AuthenticationMethodDefaultCredentials):
             # Use boto3 default credential chain (IAM role, env vars, ~/.aws/credentials)
             session = aioboto3.Session(region_name=region_name)
 
@@ -580,7 +580,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
             return create_client_with_env
 
         else:
-            assert_never(method.type)
+            assert_never(method)
 
 
 GoogleGenAIAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -653,10 +653,10 @@ class GoogleGenAICustomProviderConfig(BaseModel):
             default_headers = ho.headers
 
         method = self.google_genai_authentication_method
-        if method.type == "api_key":
+        if isinstance(method, AuthenticationMethodApiKey):
             api_key = method.api_key
         else:
-            assert_never(method.type)
+            assert_never(method)
 
         headers = dict(default_headers) if default_headers else {}
         if extra_headers:
