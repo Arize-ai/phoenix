@@ -97,6 +97,7 @@ from phoenix.server.api.input_types.InvocationParameters import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
+    ImageChunk,
     TextChunk,
     ToolCallChunk,
 )
@@ -133,7 +134,7 @@ if TYPE_CHECKING:
 ClientT = TypeVar("ClientT")
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
-ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
+ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk, ImageChunk]
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
 ToolCallID: TypeAlias = str
 
@@ -430,6 +431,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         )
         text_chunks: list[TextChunk] = []
         tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        image_chunks: list[ImageChunk] = []
         auto_accumulating = self.response_attributes_are_auto_accumulating
         try:
             async for chunk in self._chat_completion_create(
@@ -442,6 +444,10 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
                 elif isinstance(chunk, ToolCallChunk):
                     if not auto_accumulating:
                         tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
+                elif isinstance(chunk, ImageChunk):
+                    if not auto_accumulating:
+                        image_chunks.append(chunk)
                     yield chunk
 
             span.set_status(Status(StatusCode.OK))
@@ -2343,6 +2349,232 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             messages, tools, tracer=tracer, **invocation_parameters
         ):
             yield chunk
+
+
+GEMINI_IMAGE_MODELS = [
+    "gemini-2.5-flash-image",
+    "gemini-3-pro-image-preview",
+]
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GOOGLE,
+    model_names=GEMINI_IMAGE_MODELS,
+)
+class GeminiImageStreamingClient(GoogleStreamingClient):
+    """
+    Streaming client for Gemini image generation models.
+
+    These models can generate images from text prompts using the native
+    image generation capabilities of Gemini (Nano Banana).
+    """
+
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=1.0,
+                min_value=0.0,
+                max_value=2.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_output_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Output Tokens",
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop_sequences",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="top_k",
+                label="Top K",
+            ),
+            StringInvocationParameter(
+                invocation_name="aspect_ratio",
+                label="Aspect Ratio",
+            ),
+            StringInvocationParameter(
+                invocation_name="image_size",
+                label="Image Size",
+            ),
+        ]
+
+    async def _chat_completion_create(
+        self,
+        *,
+        messages: list[PlaygroundMessage],
+        tools: list[JSONScalarType],
+        span: OTelSpan,
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        import base64
+
+        from google.genai import types
+
+        contents, system_prompt = self._build_google_messages(messages)
+
+        config_dict = {}
+
+        # Extract image-specific parameters
+        aspect_ratio = invocation_parameters.pop("aspect_ratio", None)
+        image_size = invocation_parameters.pop("image_size", None)
+
+        # Copy remaining invocation parameters
+        config_dict.update(invocation_parameters)
+
+        if system_prompt:
+            config_dict["system_instruction"] = system_prompt
+
+        # Enable image generation by setting response modalities
+        config_dict["response_modalities"] = ["TEXT", "IMAGE"]
+
+        # Configure image generation settings if provided
+        if aspect_ratio or image_size:
+            image_config: dict[str, Any] = {}
+            if aspect_ratio:
+                image_config["aspect_ratio"] = aspect_ratio
+            if image_size:
+                image_config["image_size"] = image_size
+            config_dict["image_config"] = types.ImageConfig.model_validate(image_config)
+
+        # Note: Tools are not typically used with image generation models,
+        # but we include them for completeness
+        if tools:
+            function_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
+            config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
+
+        config = types.GenerateContentConfig.model_validate(config_dict)
+
+        async with self._client_factory() as client:
+            stream = await client.models.generate_content_stream(
+                model=f"models/{self.model_name}",
+                contents=contents,
+                config=config,
+            )
+            async for event in stream:
+                # Update token counts if usage_metadata is present
+                if event.usage_metadata:
+                    span.set_attributes(
+                        {
+                            LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                            LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                            LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                        }
+                    )
+
+                if event.candidates:
+                    candidate = event.candidates[0]
+                    # Check if images are returned directly on the candidate or event
+                    # (some APIs might structure responses differently)
+                    if hasattr(candidate, "images") and candidate.images:
+                        for img in candidate.images:
+                            if hasattr(img, "data") or isinstance(img, (bytes, str)):
+                                image_data = None
+                                if isinstance(img, bytes):
+                                    image_data = base64.b64encode(img).decode("utf-8")
+                                elif isinstance(img, str):
+                                    image_data = (
+                                        img.replace("data:", "").split("base64,")[-1]
+                                        if "base64," in img
+                                        else img
+                                    )
+                                elif hasattr(img, "data"):
+                                    data = img.data
+                                    image_data = (
+                                        base64.b64encode(data).decode("utf-8")
+                                        if isinstance(data, bytes)
+                                        else data
+                                    )
+                                if image_data:
+                                    mime_type = (
+                                        getattr(img, "mime_type", None)
+                                        or getattr(img, "mimeType", None)
+                                        or "image/png"
+                                    )
+                                    yield ImageChunk(data=image_data, mime_type=mime_type)
+
+                    if candidate.content and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            # Check for text content
+                            if hasattr(part, "text") and part.text:
+                                yield TextChunk(content=part.text)
+
+                            # Check for image data (images arrive as complete base64-encoded data)
+                            # Images don't stream pixel-by-pixel; they arrive in full chunks
+                            # Try multiple possible attribute names for image data
+                            inline_data = None
+                            if hasattr(part, "inline_data") and part.inline_data:
+                                inline_data = part.inline_data
+                            elif hasattr(part, "image") and part.image:
+                                # Some models might return images directly
+                                inline_data = part.image
+                            elif hasattr(part, "data") and part.data:
+                                # Some models might have data directly on the part
+                                inline_data = part
+                            # Also check for Blob type which Google GenAI might use
+                            elif hasattr(part, "blob") and part.blob:
+                                inline_data = part.blob
+
+                            if inline_data:
+                                # Handle different data formats
+                                image_data = None
+                                if hasattr(inline_data, "data"):
+                                    data = inline_data.data
+                                    if isinstance(data, bytes):
+                                        # Convert bytes to base64 string
+                                        image_data = base64.b64encode(data).decode("utf-8")
+                                    elif isinstance(data, str):
+                                        # Already base64 encoded
+                                        image_data = data
+                                elif isinstance(inline_data, bytes):
+                                    # Data might be directly bytes
+                                    image_data = base64.b64encode(inline_data).decode("utf-8")
+                                elif isinstance(inline_data, str):
+                                    # Data might be directly a base64 string
+                                    # Remove data URI prefix if present
+                                    image_data = (
+                                        inline_data.replace("data:", "").split("base64,")[-1]
+                                        if "base64," in inline_data
+                                        else inline_data
+                                    )
+                                # Check if inline_data itself is a dict-like object with data
+                                elif isinstance(inline_data, dict):
+                                    if "data" in inline_data:
+                                        data = inline_data["data"]
+                                        if isinstance(data, bytes):
+                                            image_data = base64.b64encode(data).decode("utf-8")
+                                        elif isinstance(data, str):
+                                            image_data = data
+
+                                if image_data:
+                                    mime_type = "image/png"  # Default
+                                    if hasattr(inline_data, "mime_type") and inline_data.mime_type:
+                                        mime_type = inline_data.mime_type
+                                    elif hasattr(inline_data, "mimeType") and inline_data.mimeType:
+                                        mime_type = inline_data.mimeType
+                                    elif hasattr(part, "mime_type") and part.mime_type:
+                                        mime_type = part.mime_type
+                                    elif (
+                                        isinstance(inline_data, dict) and "mime_type" in inline_data
+                                    ):
+                                        mime_type = inline_data["mime_type"]
+                                    elif (
+                                        isinstance(inline_data, dict) and "mimeType" in inline_data
+                                    ):
+                                        mime_type = inline_data["mimeType"]
+                                    yield ImageChunk(data=image_data, mime_type=mime_type)
 
 
 def initialize_playground_clients() -> None:

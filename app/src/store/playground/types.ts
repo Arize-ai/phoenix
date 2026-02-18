@@ -138,9 +138,15 @@ export type PlaygroundRepetitionStatus =
 
 type ToolCallId = string;
 
+export type ImageData = {
+  data: string; // base64-encoded image data
+  mimeType: string; // e.g., "image/png", "image/jpeg"
+};
+
 export type PlaygroundRepetition = {
   output: ChatMessage[] | string | null;
   toolCalls: Record<ToolCallId, PartialOutputToolCall>;
+  images: ImageData[];
   spanId: string | null;
   error: PlaygroundError | null;
   status: PlaygroundRepetitionStatus;
@@ -532,6 +538,14 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     instanceId: number,
     repetitionNumber: number,
     content: string
+  ) => void;
+  /**
+   * Append an image to the output of an instance
+   */
+  appendRepetitionImage: (
+    instanceId: number,
+    repetitionNumber: number,
+    imageData: ImageData
   ) => void;
   /**
    * Set the error for a repetition

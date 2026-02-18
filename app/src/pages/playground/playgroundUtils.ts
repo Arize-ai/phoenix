@@ -677,6 +677,7 @@ export function transformSpanAttributesToPlaygroundInstance(
             spanId: span.id,
             error: null,
             toolCalls: {},
+            images: [],
             status: "notStarted",
           },
         },
@@ -768,6 +769,7 @@ export function transformSpanAttributesToPlaygroundInstance(
             spanId: span.id,
             error: null,
             toolCalls: {}, // when parsed from span attributes, tool calls are contained in the output
+            images: [],
             status: "finished",
           },
         },

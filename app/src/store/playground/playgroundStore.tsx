@@ -149,6 +149,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
         error: null,
         status: "notStarted",
         toolCalls: {},
+        images: [],
       },
     },
     activeRunId: null,
@@ -823,6 +824,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   error: null,
                   status: "pending",
                   toolCalls: {},
+                  images: [],
                 },
               ])
             ),
@@ -1161,6 +1163,41 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "appendRepetitionOutput" }
+      );
+    },
+    appendRepetitionImage: (
+      instanceId: number,
+      repetitionNumber: number,
+      imageData: { data: string; mimeType: string }
+    ) => {
+      const instances = get().instances;
+      const instance = instances.find((instance) => instance.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set(
+        {
+          instances: instances.map((instance) => {
+            if (instance.id === instanceId) {
+              const repetition = instance.repetitions[repetitionNumber];
+              return {
+                ...instance,
+                repetitions: {
+                  ...instance.repetitions,
+                  [repetitionNumber]: repetition
+                    ? {
+                        ...repetition,
+                        images: [...(repetition.images || []), imageData],
+                      }
+                    : undefined,
+                },
+              };
+            }
+            return instance;
+          }),
+        },
+        false,
+        { type: "appendRepetitionImage" }
       );
     },
     setRepetitionError: (

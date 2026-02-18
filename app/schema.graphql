@@ -2209,6 +2209,13 @@ input Granularity {
 
 scalar Identifier
 
+type ImageChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: ID
+  repetitionNumber: Int
+  data: String!
+  mimeType: String!
+}
+
 type InferenceModel {
   dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryInferences: Inferences!
