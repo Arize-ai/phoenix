@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.1.0...arize-phoenix-v13.1.1) (2026-02-18)
+
+
+### Bug Fixes
+
+* use store-and-network fetch policy for ModelMenu query ([#11570](https://github.com/Arize-ai/phoenix/issues/11570)) ([a331f48](https://github.com/Arize-ai/phoenix/commit/a331f484140fa5ea2539e2453bf66e09341dec19))
+
 ## [13.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.3...arize-phoenix-v13.1.0) (2026-02-18)
 
 
