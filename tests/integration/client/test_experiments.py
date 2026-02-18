@@ -1893,6 +1893,80 @@ class TestExperimentsIntegration:
         assert experiment["example_count"] == 2  # Only 2 examples in the split
         assert experiment["metadata"] == {"model": "test"}
 
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_experiment_keeps_project_by_default(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from .._helpers import _gql, _httpx_client
+
+        api_key = _app.admin_secret
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=api_key)
+        http = _httpx_client(_app, api_key)
+
+        unique_name = f"test_keep_proj_{token_hex(4)}"
+        dataset = await _await_or_return(
+            client.datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"q": "test"}],
+                outputs=[{"a": "test"}],
+            )
+        )
+        try:
+            experiment = await _await_or_return(client.experiments.create(dataset_id=dataset.id))
+            project_name = experiment["project_name"]
+            assert project_name is not None
+
+            # Delete without delete_project flag (default False) — project should persist
+            await _await_or_return(client.experiments.delete(experiment_id=experiment["id"]))
+
+            # The orphaned project should now appear in the projects resolver
+            data, _ = _gql(_app, api_key, query="{ projects { edges { node { name } } } }")
+            project_names = [e["node"]["name"] for e in data["data"]["projects"]["edges"]]
+            assert project_name in project_names
+        finally:
+            http.delete(f"v1/datasets/{dataset.id}")
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_experiment_with_delete_project_flag_also_deletes_project(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from .._helpers import _gql, _httpx_client
+
+        api_key = _app.admin_secret
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=api_key)
+        http = _httpx_client(_app, api_key)
+
+        unique_name = f"test_del_proj_{token_hex(4)}"
+        dataset = await _await_or_return(
+            client.datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"q": "test"}],
+                outputs=[{"a": "test"}],
+            )
+        )
+        try:
+            experiment = await _await_or_return(client.experiments.create(dataset_id=dataset.id))
+            project_name = experiment["project_name"]
+            assert project_name is not None
+
+            # Delete with delete_project=True — project should be removed
+            await _await_or_return(
+                client.experiments.delete(experiment_id=experiment["id"], delete_project=True)
+            )
+
+            # The project should no longer appear in the projects resolver
+            data, _ = _gql(_app, api_key, query="{ projects { edges { node { name } } } }")
+            project_names = [e["node"]["name"] for e in data["data"]["projects"]["edges"]]
+            assert project_name not in project_names
+        finally:
+            http.delete(f"v1/datasets/{dataset.id}")
+
 
 class TestResumeOperations:
     """

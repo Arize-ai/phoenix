@@ -414,7 +414,7 @@ async def delete_experiment(
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.id, models.Experiment.project_name)
+        .returning(models.Experiment.project_name)
     )
     async with request.app.state.db() as session:
         result = (await session.execute(stmt)).first()
