@@ -1795,7 +1795,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                                 )
                         if output_token_counts:
                             span.set_attributes(output_token_counts)
-                    elif isinstance(event, anthropic_streaming_types.ContentBlockStopEvent):
+                    elif isinstance(event, anthropic_streaming_types.ParsedContentBlockStopEvent):
                         if isinstance(event.content_block, anthropic_types.ToolUseBlock):
                             tool_call_chunk = ToolCallChunk(
                                 id=event.content_block.id,

@@ -55,13 +55,9 @@ subscription ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) 
                 label
                 score
             }
+            error
         }
-        ... on EvaluationErrorChunk {
-            datasetExampleId
-            repetitionNumber
-            evaluatorName
-            message
-        }
+
     }
 }
 """
@@ -235,7 +231,7 @@ async def _run_subscription_with_evaluators(
         """Execute the subscription and return the experiment ID."""
         experiment_id: str | None = None
         errors_seen: list[dict[str, Any]] = []
-        eval_errors_seen: list[dict[str, Any]] = []
+        eval_errors_seen: list[str] = []
 
         # Apollo multipart subscription protocol
         async with client.stream(
@@ -262,8 +258,9 @@ async def _run_subscription_with_evaluators(
                         typename = subscription_data.get("__typename")
                         if typename == "ChatCompletionSubscriptionExperiment":
                             experiment_id = str(subscription_data["experiment"]["id"])
-                        elif typename == "EvaluationErrorChunk":
-                            eval_errors_seen.append(subscription_data)
+                        elif typename == "EvaluationChunk":
+                            if subscription_data["error"] is not None:
+                                eval_errors_seen.append(subscription_data["error"])
 
             # Log any evaluation errors for debugging
             if eval_errors_seen:
