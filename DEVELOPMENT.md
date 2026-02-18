@@ -300,6 +300,7 @@ After doing so, consider pasting the following settings into your workspace sett
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "oxc.fmt.configPath": ".oxfmtrc.jsonc",
   "oxc.path.oxfmt": "app/node_modules/oxfmt/bin/oxfmt",
+  "oxc.path.oxlint": "app/node_modules/oxlint/bin/oxlint",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "typescript.tsdk": "app/node_modules/typescript/lib",

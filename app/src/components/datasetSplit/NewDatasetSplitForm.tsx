@@ -59,7 +59,6 @@ export function NewDatasetSplitForm({
             justifyContent="center"
             width="100%"
           >
-            {/* eslint-disable-next-line react-hooks/incompatible-library */}
             <Token color={watch("color")}>
               {watch("name") || "split preview"}
             </Token>

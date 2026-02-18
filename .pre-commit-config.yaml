@@ -36,20 +36,18 @@ repos:
         language: system
         files: ^js/.*\.(jsx?|tsx?|md|json|ya?ml)$
         pass_filenames: false
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: "8ddcbd412c0b348841f0f82c837702f432539652"
-    hooks:
-      - id: eslint
-        files: \.[jt]sx?$
-        types: [file]
-        args: ["-c", "app/eslint.config.mts"]
-        additional_dependencies:
-          - eslint@9.39.1
-          - eslint-plugin-react@7.37.5
-          - eslint-plugin-react-hooks@7.0.1
-          - typescript-eslint@8.46.3
-          - typescript@5.4.5
-          - jiti@2.6.1
+      - id: oxlint-app
+        name: oxlint (app)
+        entry: pnpm --dir app run lint
+        language: system
+        files: ^app/.*\.[jt]sx?$
+        pass_filenames: false
+      - id: oxlint-js
+        name: oxlint (js)
+        entry: pnpm --dir js run lint
+        language: system
+        files: ^js/.*\.[jt]sx?$
+        pass_filenames: false
   - repo: local
     hooks:
       - id: forbid-commit-to-local-main-branch

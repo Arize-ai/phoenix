@@ -211,7 +211,6 @@ export function PromptsTable(props: PromptsTableProps) {
     return cols;
   }, [refetch, queryArgs, canModify]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

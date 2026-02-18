@@ -181,7 +181,6 @@ export function PointSelectionTable({
     return { columns, tableData };
   }, [data, onPointSelected, primaryInferences, referenceInferences, metric]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableDataItem>({
     columns,
     data: tableData,

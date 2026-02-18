@@ -67,7 +67,6 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns: [
       {

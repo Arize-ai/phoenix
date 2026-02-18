@@ -304,7 +304,6 @@ export const AnnotationConfigDialog = ({
                       name="upperBound"
                       rules={{
                         validate: (value) => {
-                          // eslint-disable-next-line react-hooks/incompatible-library
                           const lowerBound = watch("lowerBound");
                           if (
                             lowerBound != null &&
