@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, TypeGuard, cast, get_args
 
 import orjson
 import sqlalchemy as sa
@@ -171,6 +171,10 @@ GenerativeModelSDK: TypeAlias = Literal[
     "google_genai",
     "aws_bedrock",
 ]
+
+
+def is_generative_model_sdk(sdk: str) -> TypeGuard[GenerativeModelSDK]:
+    return sdk in get_args(GenerativeModelSDK)
 
 
 class JSONB(JSON):

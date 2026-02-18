@@ -42,14 +42,14 @@ def get_experiment_run_cursor(
     if sort:
         if sort.col.metric:
             metric = sort.col.metric.value
-            assert metric is not None
+            assert isinstance(metric, ExperimentRunMetric)
             if metric is ExperimentRunMetric.latencyMs:
                 sort_column = CursorSortColumn(
                     type=CursorSortColumnDataType.FLOAT,
                     value=run.latency_ms,
                 )
             else:
-                assert_never(metric)  # ty: ignore[type-assertion-failure]
+                assert_never(metric)
         elif sort.col.annotation_name:
             data_type = (
                 CursorSortColumnDataType.FLOAT
@@ -108,14 +108,14 @@ def _get_order_by_columns(
     sort_direction = sort.dir
     if sort.col.metric:
         metric = sort.col.metric.value
-        assert metric is not None
+        assert isinstance(metric, ExperimentRunMetric)
         if metric is ExperimentRunMetric.latencyMs:
             if sort_direction is SortDir.asc:
                 return (models.ExperimentRun.latency_ms.asc(), models.ExperimentRun.id.asc())
             else:
                 return (models.ExperimentRun.latency_ms.desc(), models.ExperimentRun.id.desc())
         else:
-            assert_never(metric)  # ty: ignore[type-assertion-failure]
+            assert_never(metric)
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
@@ -148,7 +148,7 @@ def _add_after_expression(
     compare_fn = operator.gt if sort_direction is SortDir.asc else operator.lt
     if sort.col.metric:
         metric = sort.col.metric.value
-        assert metric is not None
+        assert isinstance(metric, ExperimentRunMetric)
         if metric is ExperimentRunMetric.latencyMs:
             assert after_sort_column_value is not None
             return query.where(
@@ -161,7 +161,7 @@ def _add_after_expression(
                 )
             )
         else:
-            assert_never(metric)  # ty: ignore[type-assertion-failure]
+            assert_never(metric)
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None
@@ -216,11 +216,12 @@ def _add_joins_and_selects_to_query(
         return query
     if sort.col.metric:
         metric = sort.col.metric.value
+        assert isinstance(metric, ExperimentRunMetric)
         assert metric is not None
         if metric is ExperimentRunMetric.latencyMs:
             return query
         else:
-            assert_never(metric)  # ty: ignore[type-assertion-failure]
+            assert_never(metric)
     elif sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
         assert annotation_name is not None

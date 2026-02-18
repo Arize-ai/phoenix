@@ -87,6 +87,7 @@ class DbDiskUsageMonitor(DaemonTask):
             await sleep(_SLEEP_SECONDS)
 
     async def _check_disk_usage_bytes(self) -> float:
+        assert isinstance(self._db.dialect, SupportedSQLDialect)
         if self._db.dialect is SupportedSQLDialect.SQLITE:
             async with self._db() as session:
                 page_count = await session.scalar(text("PRAGMA page_count;"))
@@ -105,7 +106,7 @@ class DbDiskUsageMonitor(DaemonTask):
             async with self._db() as session:
                 current_usage_bytes = await session.scalar(stmt)
         else:
-            assert_never(self._db.dialect)  # ty: ignore[type-assertion-failure]
+            assert_never(self._db.dialect)
         return float(current_usage_bytes)
 
     async def _check_thresholds(self, current_usage_gibibytes: float) -> None:

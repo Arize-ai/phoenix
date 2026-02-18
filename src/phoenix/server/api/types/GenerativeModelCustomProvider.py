@@ -478,14 +478,13 @@ class GenerativeModelCustomProvider(Node):
 
     @strawberry.field(description="The model names available for this provider.")
     async def model_names(self, info: Info[Context, None]) -> list[str]:
-        sdk: models.GenerativeModelSDK
         if self.db_record:
             sdk = self.db_record.sdk
         else:
             sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
                 (self.id, models.GenerativeModelCustomProvider.sdk),
             )
-
+            assert models.is_generative_model_sdk(sdk)
         if sdk == "openai":
             provider_key = GenerativeProviderKey.OPENAI
         elif sdk == "azure_openai":
@@ -497,6 +496,6 @@ class GenerativeModelCustomProvider(Node):
         elif sdk == "google_genai":
             provider_key = GenerativeProviderKey.GOOGLE
         else:
-            assert_never(sdk)  # ty: ignore[type-assertion-failure]
+            assert_never(sdk)
 
         return PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
