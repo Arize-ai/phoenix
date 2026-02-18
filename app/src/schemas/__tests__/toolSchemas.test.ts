@@ -4,7 +4,9 @@ import {
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
   fromOpenAIToolDefinition,
+  llmProviderToolDefinitionSchema,
   openAIToolDefinitionSchema,
+  openAIWebSearchToolDefinitionSchema,
   toOpenAIToolDefinition,
 } from "../toolSchemas";
 
@@ -133,6 +135,46 @@ describe("toolSchemas", () => {
       const parsed = anthropicToolDefinitionSchema.safeParse(anthropicTool);
       expect(parsed.success).toBe(true);
       expect(anthropicTool.name).toBe(`new_function_${toolNumber}`);
+    });
+  });
+
+  describe("openAIWebSearchToolDefinitionSchema", () => {
+    it("should accept minimal web_search tool (docs example)", () => {
+      const parsed = openAIWebSearchToolDefinitionSchema.safeParse({
+        type: "web_search",
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("should accept web_search with filters.allowed_domains (docs example)", () => {
+      const parsed = openAIWebSearchToolDefinitionSchema.safeParse({
+        type: "web_search",
+        filters: { allowed_domains: ["pubmed.ncbi.nlm.nih.gov", "who.int"] },
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("should accept web_search with user_location (docs example)", () => {
+      const parsed = openAIWebSearchToolDefinitionSchema.safeParse({
+        type: "web_search",
+        user_location: {
+          type: "approximate",
+          country: "GB",
+          city: "London",
+          region: "London",
+        },
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.user_location?.country).toBe("GB");
+      }
+    });
+
+    it("should be accepted by llmProviderToolDefinitionSchema union", () => {
+      expect(
+        llmProviderToolDefinitionSchema.safeParse({ type: "web_search" })
+          .success
+      ).toBe(true);
     });
   });
 });

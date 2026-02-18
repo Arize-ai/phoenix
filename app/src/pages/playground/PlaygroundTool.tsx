@@ -18,9 +18,11 @@ import {
   awsToolDefinitionJSONSchema,
   geminiToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
+  openAIWebSearchToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
+import { isObject } from "@phoenix/typeUtils";
 
 import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
@@ -136,7 +138,16 @@ export function PlaygroundTool({
   const toolDefinitionJSONSchema = useMemo((): JSONSchema7 | null => {
     switch (instanceProvider) {
       case "OPENAI":
-      case "AZURE_OPENAI":
+      case "AZURE_OPENAI": {
+        const isWebSearch =
+          isObject(tool.definition) &&
+          (tool.definition as { type?: string }).type === "web_search";
+        return (
+          isWebSearch
+            ? openAIWebSearchToolDefinitionJSONSchema
+            : openAIToolDefinitionJSONSchema
+        ) as JSONSchema7;
+      }
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
@@ -148,7 +159,7 @@ export function PlaygroundTool({
       case "GOOGLE":
         return geminiToolDefinitionJSONSchema as JSONSchema7;
     }
-  }, [instanceProvider]);
+  }, [instanceProvider, tool.definition]);
 
   return (
     <Card
