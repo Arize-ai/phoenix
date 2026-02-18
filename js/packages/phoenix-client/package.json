@@ -86,12 +86,12 @@
     "zod-to-json-schema": "^3.24.3"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^2.0.27",
+    "@ai-sdk/openai": "^3.0.29",
     "@anthropic-ai/sdk": "^0.35.0",
     "@arizeai/phoenix-evals": "workspace:*",
     "@types/async": "^3.2.24",
     "@types/node": "^20.17.22",
-    "ai": "^5.0.38",
+    "ai": "^6.0.90",
     "openai": "^6.10.0",
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
@@ -99,7 +99,7 @@
   },
   "optionalDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "ai": "^5.0.76",
+    "ai": "^6.0.90",
     "openai": "^6.10.0"
   },
   "engines": {
