@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import isObject from "lodash/isObject";
+import isObject from "lodash-es/isObject";
 
 import { Flex, List, ListItem, Text, View } from "@phoenix/components";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";

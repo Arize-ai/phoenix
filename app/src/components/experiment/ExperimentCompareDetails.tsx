@@ -7,7 +7,7 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { range } from "lodash";
+import { range } from "lodash-es";
 import { css } from "@emotion/react";
 
 import {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 
 import {
   FieldError,

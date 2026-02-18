@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { orderBy, range } from "lodash";
+import { orderBy, range } from "lodash-es";
 
 import { type AnnotationConfig } from "@phoenix/components/annotation";
 import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
