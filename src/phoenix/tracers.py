@@ -17,7 +17,7 @@ from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.trace.attributes import get_attribute_value, unflatten
 
 
-class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
+class Tracer(wrapt.ObjectProxy):
     """
     An in-memory tracer that captures spans and persists them to the database.
 
@@ -82,7 +82,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         db_span_costs_by_trace_id: defaultdict[int, list[models.SpanCost]] = defaultdict(list)
 
         for otel_span in otel_spans:
-            trace_id = otel_span.get_span_context().trace_id  # type: ignore[no-untyped-call]
+            trace_id = otel_span.get_span_context().trace_id
             db_span = _get_db_span(otel_span=otel_span)
             db_span_cost = _get_db_span_cost(
                 db_span=db_span,
@@ -143,7 +143,7 @@ def _get_db_span(
     *,
     otel_span: ReadableSpan,
 ) -> models.Span:
-    span_id = format_span_id(otel_span.get_span_context().span_id)  # type: ignore[no-untyped-call]
+    span_id = format_span_id(otel_span.get_span_context().span_id)
     parent_id: str | None = None
     if otel_span.parent is not None:
         parent_id = format_span_id(otel_span.parent.span_id)
