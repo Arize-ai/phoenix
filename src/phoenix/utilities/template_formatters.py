@@ -8,7 +8,7 @@ from string import Formatter
 from typing import Any, Literal, cast
 
 import pystache
-from pystache.parser import (  # type: ignore[import-untyped]
+from pystache.parser import (
     ParsingError,
     _EscapeNode,
     _InvertedNode,
