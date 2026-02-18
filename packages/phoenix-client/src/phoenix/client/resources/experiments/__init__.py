@@ -2057,11 +2057,14 @@ class Experiments:
         self,
         *,
         experiment_id: str,
+        delete_project: bool = False,
     ) -> None:
         """Delete an experiment by ID.
 
         Args:
             experiment_id (str): The ID of the experiment to delete.
+            delete_project (bool): If True, also delete the project associated with the experiment.
+                Defaults to False.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -2075,7 +2078,10 @@ class Experiments:
             client.experiments.delete(experiment_id="exp_123")
         """
         try:
-            response = self._client.delete(f"v1/experiments/{experiment_id}")
+            response = self._client.delete(
+                f"v1/experiments/{experiment_id}",
+                params={"delete_project": delete_project},
+            )
             response.raise_for_status()
         except HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -3799,11 +3805,14 @@ class AsyncExperiments:
         self,
         *,
         experiment_id: str,
+        delete_project: bool = False,
     ) -> None:
         """Delete an experiment by ID.
 
         Args:
             experiment_id (str): The ID of the experiment to delete.
+            delete_project (bool): If True, also delete the project associated with the experiment.
+                Defaults to False.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -3817,7 +3826,10 @@ class AsyncExperiments:
             await async_client.experiments.delete(experiment_id="exp_123")
         """
         try:
-            response = await self._client.delete(f"v1/experiments/{experiment_id}")
+            response = await self._client.delete(
+                f"v1/experiments/{experiment_id}",
+                params={"delete_project": delete_project},
+            )
             response.raise_for_status()
         except HTTPStatusError as e:
             if e.response.status_code == 404:

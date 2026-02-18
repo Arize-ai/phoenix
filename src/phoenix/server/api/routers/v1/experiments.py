@@ -23,6 +23,7 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.utils import delete_projects
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
@@ -390,6 +391,10 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
 async def delete_experiment(
     request: Request,
     experiment_id: str,
+    delete_project: bool = Query(
+        default=False,
+        description="If true, also delete the project associated with the experiment.",
+    ),
 ) -> None:
     try:
         experiment_globalid = GlobalID.from_id(experiment_id)
@@ -409,11 +414,16 @@ async def delete_experiment(
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.id)
+        .returning(models.Experiment.id, models.Experiment.project_name)
     )
     async with request.app.state.db() as session:
-        if (await session.scalar(stmt)) is None:
+        result = (await session.execute(stmt)).first()
+        if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
+        project_name = result.project_name
+
+    if delete_project and project_name:
+        await delete_projects(request.app.state.db, project_name)
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):

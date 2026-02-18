@@ -1662,3 +1662,62 @@ class TestIncompleteEvaluations:
         assert normal_result["status_code"] == 200, (
             "Database should still be functional after SQL injection attempts"
         )
+
+
+async def test_delete_experiment_keeps_project_by_default(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    dataset_gid = GlobalID("Dataset", "0")
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = created["id"]
+    project_name = created["project_name"]
+    assert project_name is not None
+
+    # Delete without delete_project flag (default False)
+    response = await httpx_client.delete(f"v1/experiments/{experiment_gid}")
+    assert response.status_code == 204
+
+    # The associated project should still exist
+    async with db() as session:
+        project = await session.scalar(
+            select(models.Project).where(models.Project.name == project_name)
+        )
+    assert project is not None
+
+
+async def test_delete_experiment_with_delete_project_flag_also_deletes_project(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    dataset_gid = GlobalID("Dataset", "0")
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = created["id"]
+    project_name = created["project_name"]
+    assert project_name is not None
+
+    # Delete with delete_project=true
+    response = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}",
+        params={"delete_project": "true"},
+    )
+    assert response.status_code == 204
+
+    # The associated project should be deleted
+    async with db() as session:
+        project = await session.scalar(
+            select(models.Project).where(models.Project.name == project_name)
+        )
+    assert project is None
