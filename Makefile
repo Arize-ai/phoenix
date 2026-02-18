@@ -33,7 +33,7 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi codegen-python-client codegen-ts-client \
 	dev dev-backend dev-frontend \
-	test test-python test-frontend test-ts typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-frontend test-ts typecheck typecheck-python typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	clean clean-all
@@ -217,13 +217,9 @@ test-ts: ## Run TypeScript package tests (js/)
 test: test-python test-frontend test-ts ## Run all tests (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ All tests complete$(NC)"
 
-typecheck-python: ## Type check Python code
-	@echo -e "$(CYAN)Type checking Python...$(NC)"
-	@$(TOX) run -q -e remove_symlinks,type_check,add_symlinks
-
-typecheck-python-ty: ## Type check Python with ty (verify expected errors only)
+typecheck-python: ## Type check Python
 	@echo -e "$(CYAN)Type checking Python with ty...$(NC)"
-	@$(UV) run python scripts/uv/type-check/type_check.py
+	@$(UV) run ty check src/
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 typecheck-frontend: ## Type check frontend (app/)
