@@ -2584,7 +2584,7 @@ def _no_local_storage() -> bool:
     return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
 
 
-class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+class RestrictedPath(wrapt.ObjectProxy):
     """
     This wraps pathlib.Path and will raise a DirectoryError if no local storage is configured.
 
@@ -3269,7 +3269,7 @@ def _validate_iam_auth_config() -> None:
         return
 
     try:
-        import boto3  # type: ignore  # noqa: F401
+        import boto3  # noqa: F401
     except ImportError:
         raise ImportError(
             f"boto3 is required when {ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH} is enabled. "
@@ -3282,8 +3282,8 @@ def _validate_iam_auth_config() -> None:
         )
 
     try:
-        client = boto3.client("sts")  # pyright: ignore
-        client.get_caller_identity()  # pyright: ignore
+        client = boto3.client("sts")
+        client.get_caller_identity()
         logger.info("✓ AWS credentials validated for RDS IAM authentication")
     except Exception as e:
         raise ValueError(
