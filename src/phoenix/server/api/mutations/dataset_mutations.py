@@ -369,8 +369,8 @@ class DatasetMutationMixin:
             delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
         )
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
-            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+            project_names = (await session.scalars(project_names_stmt)).all()
+            eval_trace_ids = (await session.scalars(eval_trace_ids_stmt)).all()
             if not (dataset := await session.scalar(stmt)):
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
         assert _is_list_of_strings(project_names)

@@ -1783,7 +1783,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                             span.set_attributes(token_counts)
                     elif isinstance(event, anthropic_streaming_types.TextEvent):
                         yield TextChunk(content=event.text)
-                    elif isinstance(event, anthropic_streaming_types.MessageStopEvent):
+                    elif isinstance(event, anthropic_streaming_types.ParsedMessageStopEvent):
                         usage = event.message.usage
                         output_token_counts: dict[str, Any] = {}
                         if usage.output_tokens:

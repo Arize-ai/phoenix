@@ -38,8 +38,8 @@ class ExperimentMutationMixin:
         project_names_stmt = get_project_names_for_experiments(*experiment_ids)
         eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(*experiment_ids)
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
-            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+            project_names = (await session.scalars(project_names_stmt)).all()
+            eval_trace_ids = (await session.scalars(eval_trace_ids_stmt)).all()
             savepoint = await session.begin_nested()
             experiments = {
                 experiment.id: experiment
