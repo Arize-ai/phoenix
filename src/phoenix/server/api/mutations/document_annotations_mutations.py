@@ -33,7 +33,7 @@ class DocumentAnnotationMutationPayload:
 
 @strawberry.type
 class DocumentAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_document_annotations(
         self, info: Info[Context, None], input: list[CreateDocumentAnnotationInput]
     ) -> DocumentAnnotationMutationPayload:
@@ -165,7 +165,7 @@ class DocumentAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_document_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> DocumentAnnotationMutationPayload:
@@ -248,7 +248,7 @@ class DocumentAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_document_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> DocumentAnnotationMutationPayload:

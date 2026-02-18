@@ -189,7 +189,7 @@ class GenerativeProvider:
             return default_client.dependencies_are_installed()
         return False
 
-    @strawberry.field(description="The credential requirements for the provider")  # type: ignore
+    @strawberry.field(description="The credential requirements for the provider")
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:
         # Handle providers that don't require credentials
         credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
@@ -197,7 +197,7 @@ class GenerativeProvider:
             return []
         return self.model_provider_to_credential_requirements_map[self.key]
 
-    @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
+    @strawberry.field(description="Whether the credentials are set on the server for the provider")
     async def credentials_set(self, info: Info[Context, None]) -> bool:
         credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
         if credential_requirements is None:

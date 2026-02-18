@@ -26,22 +26,22 @@ class DocumentRetrievalMetrics:
     evaluation_name: str
     metrics: Private[RetrievalMetrics]
 
-    @strawberry.field(description=_ndcg_docstring)  # type: ignore
+    @strawberry.field(description=_ndcg_docstring)
     def ndcg(self, k: Optional[int] = UNSET) -> Optional[float]:
         value = self.metrics.ndcg(None if k is UNSET else k)
         return value if math.isfinite(value) else None
 
-    @strawberry.field(description=_precision_docstring)  # type: ignore
+    @strawberry.field(description=_precision_docstring)
     def precision(self, k: Optional[int] = UNSET) -> Optional[float]:
         value = self.metrics.precision(None if k is UNSET else k)
         return value if math.isfinite(value) else None
 
-    @strawberry.field(description=_reciprocal_rank_docstring)  # type: ignore
+    @strawberry.field(description=_reciprocal_rank_docstring)
     def reciprocal_rank(self) -> Optional[float]:
         value = self.metrics.reciprocal_rank()
         return value if math.isfinite(value) else None
 
-    @strawberry.field(description=_hit_docstring)  # type: ignore
+    @strawberry.field(description=_hit_docstring)
     def hit(self) -> Optional[float]:
         value = self.metrics.hit()
         return value if math.isfinite(value) else None

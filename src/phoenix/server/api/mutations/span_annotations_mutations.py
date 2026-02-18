@@ -34,7 +34,7 @@ class SpanAnnotationMutationPayload:
 
 @strawberry.type
 class SpanAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_span_annotations(
         self, info: Info[Context, None], input: list[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
@@ -148,7 +148,7 @@ class SpanAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_span_note(
         self, info: Info[Context, None], annotation_input: CreateSpanNoteInput
     ) -> SpanAnnotationMutationPayload:
@@ -193,7 +193,7 @@ class SpanAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_span_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
@@ -270,7 +270,7 @@ class SpanAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_span_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> SpanAnnotationMutationPayload:

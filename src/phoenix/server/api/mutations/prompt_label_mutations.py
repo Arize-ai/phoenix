@@ -69,7 +69,7 @@ class PromptLabelAssociationMutationPayload:
 
 @strawberry.type
 class PromptLabelMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_prompt_label(
         self, info: Info[Context, None], input: CreatePromptLabelInput
     ) -> PromptLabelMutationPayload:
@@ -89,7 +89,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def patch_prompt_label(
         self, info: Info[Context, None], input: PatchPromptLabelInput
     ) -> PromptLabelMutationPayload:
@@ -117,7 +117,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_prompt_labels(
         self, info: Info[Context, None], input: DeletePromptLabelsInput
     ) -> PromptLabelDeleteMutationPayload:
@@ -139,7 +139,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def set_prompt_labels(
         self, info: Info[Context, None], input: SetPromptLabelsInput
     ) -> PromptLabelAssociationMutationPayload:
@@ -168,7 +168,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def unset_prompt_labels(
         self, info: Info[Context, None], input: UnsetPromptLabelsInput
     ) -> PromptLabelAssociationMutationPayload:

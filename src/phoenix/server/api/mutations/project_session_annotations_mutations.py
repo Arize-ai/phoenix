@@ -35,7 +35,7 @@ class ProjectSessionAnnotationMutationPayload:
 
 @strawberry.type
 class ProjectSessionAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def create_project_session_annotations(
         self, info: Info[Context, None], input: CreateProjectSessionAnnotationInput
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -82,7 +82,7 @@ class ProjectSessionAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])
     async def update_project_session_annotations(
         self, info: Info[Context, None], input: UpdateAnnotationInput
     ) -> ProjectSessionAnnotationMutationPayload:
@@ -123,7 +123,7 @@ class ProjectSessionAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_project_session_annotation(
         self, info: Info[Context, None], id: GlobalID
     ) -> ProjectSessionAnnotationMutationPayload:

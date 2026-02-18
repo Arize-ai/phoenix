@@ -285,7 +285,7 @@ class Trace(Node):
             has_next_page=has_next_page,
         )
 
-    @strawberry.field(description="Annotations associated with the trace.")  # type: ignore
+    @strawberry.field(description="Annotations associated with the trace.")
     async def trace_annotations(
         self,
         info: Info[Context, None],
@@ -306,7 +306,7 @@ class Trace(Node):
             TraceAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
         ]
 
-    @strawberry.field(description="Summarizes each annotation (by name) associated with the trace")  # type: ignore
+    @strawberry.field(description="Summarizes each annotation (by name) associated with the trace")
     async def trace_annotation_summaries(
         self,
         info: Info[Context, None],

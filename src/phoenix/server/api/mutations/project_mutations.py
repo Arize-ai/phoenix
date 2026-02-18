@@ -27,7 +27,7 @@ class ProjectMutationPayload:
 
 @strawberry.type
 class ProjectMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def create_project(
         self,
         info: Info[Context, None],
@@ -52,7 +52,7 @@ class ProjectMutationMixin:
         info.context.event_queue.put(ProjectInsertEvent((project.id,)))
         return ProjectMutationPayload(project=to_gql_project(project), query=Query())
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         async with info.context.db() as session:
@@ -69,7 +69,7 @@ class ProjectMutationMixin:
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
         return Query()
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def clear_project(self, info: Info[Context, None], input: ClearProjectInput) -> Query:
         project_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name="Project"

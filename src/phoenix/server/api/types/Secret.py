@@ -44,7 +44,7 @@ class Secret(Node):
     async def key(self) -> str:
         return self.id
 
-    @strawberry.field(permission_classes=[IsAdminIfAuthEnabled])  # type: ignore
+    @strawberry.field(permission_classes=[IsAdminIfAuthEnabled])
     async def value(self, info: Info[Context, None]) -> ResolvedSecret:
         if self.db_record:
             raw_bytes = self.db_record.value

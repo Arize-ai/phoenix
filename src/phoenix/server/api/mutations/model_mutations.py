@@ -81,7 +81,7 @@ class DeleteModelMutationPayload:
 
 @strawberry.type
 class ModelMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def create_model(
         self,
         info: Info[Context, None],
@@ -114,7 +114,7 @@ class ModelMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def update_model(
         self,
         info: Info[Context, None],
@@ -169,7 +169,7 @@ class ModelMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_model(
         self,
         info: Info[Context, None],

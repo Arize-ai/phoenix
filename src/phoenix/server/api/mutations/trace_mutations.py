@@ -16,7 +16,7 @@ from phoenix.server.dml_event import SpanDeleteEvent
 
 @strawberry.type
 class TraceMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def delete_traces(
         self,
         info: Info[Context, None],
@@ -73,7 +73,7 @@ class TraceMutationMixin:
             info.context.event_queue.put(SpanDeleteEvent(project_ids))
         return Query()
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])
     async def transfer_traces_to_project(
         self,
         info: Info[Context, None],

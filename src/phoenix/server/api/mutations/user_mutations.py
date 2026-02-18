@@ -118,7 +118,7 @@ class UserMutationPayload:
 
 @strawberry.type
 class UserMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])
     async def create_user(
         self,
         info: Info[Context, None],
@@ -170,7 +170,7 @@ class UserMutationMixin:
                 logger.error(f"Failed to send welcome email: {error}")
         return UserMutationPayload(user=User(id=user.id, db_record=user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])
     async def patch_user(
         self,
         info: Info[Context, None],
@@ -219,7 +219,7 @@ class UserMutationMixin:
             await info.context.log_out(user.id)
         return UserMutationPayload(user=User(id=user.id, db_record=user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])
     async def patch_viewer(
         self,
         info: Info[Context, None],
@@ -261,7 +261,7 @@ class UserMutationMixin:
             response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
         return UserMutationPayload(user=User(id=user.id, db_record=user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])
     async def delete_users(
         self,
         info: Info[Context, None],

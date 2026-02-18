@@ -24,7 +24,7 @@ class Inferences:
     model: strawberry.Private[ms.Model]
 
     # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
-    @strawberry.field(description="Returns a human friendly name for the inferences.")  # type: ignore
+    @strawberry.field(description="Returns a human friendly name for the inferences.")
     def name(self) -> str:
         return self.inferences.display_name
 
