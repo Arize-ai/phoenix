@@ -24,7 +24,7 @@ class UserApiKey(ApiKey, Node):
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("UserApiKey ID mismatch")
 
-    @strawberry.field(description="Name of the API key.")  # type: ignore
+    @strawberry.field(description="Name of the API key.")
     async def name(
         self,
         info: Info[Context, None],
@@ -37,7 +37,7 @@ class UserApiKey(ApiKey, Node):
             )
         return val
 
-    @strawberry.field(description="Description of the API key.")  # type: ignore
+    @strawberry.field(description="Description of the API key.")
     async def description(
         self,
         info: Info[Context, None],
@@ -50,7 +50,7 @@ class UserApiKey(ApiKey, Node):
             )
         return val
 
-    @strawberry.field(description="The date and time the API key was created.")  # type: ignore
+    @strawberry.field(description="The date and time the API key was created.")
     async def created_at(
         self,
         info: Info[Context, None],
@@ -63,7 +63,7 @@ class UserApiKey(ApiKey, Node):
             )
         return val
 
-    @strawberry.field(description="The date and time the API key will expire.")  # type: ignore
+    @strawberry.field(description="The date and time the API key will expire.")
     async def expires_at(
         self,
         info: Info[Context, None],
