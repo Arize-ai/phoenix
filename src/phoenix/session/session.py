@@ -1,3 +1,4 @@
+import importlib
 import json
 import logging
 import os
@@ -696,9 +697,8 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path:
 
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
-    try:
-        import google.colab  # ty: ignore[unresolved-import]
-    except ImportError:
+
+    if importlib.util.find_spec("google.colab") is None:  # ty: ignore[possibly-missing-attribute]
         return False
     try:
         from IPython.core.getipython import get_ipython  # ty: ignore[unresolved-import]

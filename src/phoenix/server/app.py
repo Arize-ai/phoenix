@@ -1339,17 +1339,11 @@ def _warn_if_missing_aioboto3() -> None:
     aioboto3 for Phoenix's AWS Bedrock integration in Playground.
     """
 
-    try:
-        import aioboto3
-
+    if importlib.util.find_spec("aioboto3") is not None:  # ty: ignore[possibly-missing-attribute]
         return
-    except ImportError:
-        try:
-            import boto3
 
-            logger.warning(
-                "boto3 is installed but aioboto3 is not. To use AWS Bedrock models "
-                "in Playground, install aioboto3: pip install aioboto3"
-            )
-        except ImportError:
-            pass
+    if importlib.util.find_spec("boto3") is not None:
+        logger.warning(
+            "boto3 is installed but aioboto3 is not. To use AWS Bedrock models "
+            "in Playground, install aioboto3: pip install aioboto3"
+        )
