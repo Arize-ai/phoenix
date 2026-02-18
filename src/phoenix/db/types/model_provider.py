@@ -309,7 +309,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
 
         method = self.azure_openai_authentication_method
 
-        if method.type == "api_key":
+        if isinstance(method, AuthenticationMethodApiKey):
             api_key = method.api_key
 
             def create_client_with_api_key() -> AsyncOpenAI:
@@ -322,7 +322,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
 
             return create_client_with_api_key
 
-        elif method.type == "azure_ad_token_provider":
+        elif isinstance(method, AuthenticationMethodAzureADTokenProvider):
             try:
                 from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
             except ImportError:
@@ -351,7 +351,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
 
             return create_client_with_token
 
-        elif method.type == "default_credentials":
+        elif isinstance(method, AuthenticationMethodDefaultCredentials):
             # Use DefaultAzureCredential for Managed Identity, Azure CLI, env vars, etc.
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
@@ -374,7 +374,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
             return create_client_with_default_cred
 
         else:
-            assert_never(method.type)
+            assert_never(method)
 
 
 AnthropicAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
@@ -526,7 +526,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
                 response = await client.converse_stream(...)
         """
         try:
-            import aioboto3  # type: ignore[import-untyped]
+            import aioboto3
         except ImportError:
             raise ImportError("aioboto3 package not installed. Run: pip install aioboto3")
 

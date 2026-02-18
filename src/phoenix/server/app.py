@@ -240,10 +240,10 @@ def import_object_from_file(file_path: str, object_name: str) -> Any:
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File '{file_path}' does not exist.")
         module_name = f"custom_module_{hash(file_path)}"
-        spec = importlib.util.spec_from_file_location(module_name, file_path)  # ty: ignore[possibly-missing-attribute]
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None:
             raise ImportError(f"Could not load spec for '{file_path}'")
-        module = importlib.util.module_from_spec(spec)  # ty: ignore[possibly-missing-attribute]
+        module = importlib.util.module_from_spec(spec)
         loader = spec.loader
         if loader is None:
             raise ImportError(f"No loader found for '{file_path}'")

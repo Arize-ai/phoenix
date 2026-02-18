@@ -405,7 +405,10 @@ class PromptAnthropicInvocationParametersContent(DBBaseModel):
     def check_thinking_budget_tokens_lt_max_tokens(self) -> Self:
         if self.thinking is UNDEFINED:
             return self
-        if self.thinking.type == "enabled" and self.thinking.budget_tokens >= self.max_tokens:
+        if (
+            isinstance(self.thinking, PromptAnthropicThinkingConfigEnabled)
+            and self.thinking.budget_tokens >= self.max_tokens
+        ):
             raise ValueError("The thinking budget must be less than max tokens.")
         return self
 

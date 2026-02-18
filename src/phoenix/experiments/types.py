@@ -396,7 +396,7 @@ class EvaluationSummary(_HasStats):
         ).set_index("evaluator")
         stats = pd.concat([eval_names, stats], axis=1).reset_index()
         summary: EvaluationSummary = object.__new__(cls)
-        summary.__init__(stats=stats)  # type: ignore[misc]
+        summary.__init__(stats=stats)
         return summary
 
     @classmethod
@@ -446,7 +446,7 @@ class TaskSummary(_HasStats):
         }
         stats = pd.DataFrame.from_records([record])
         summary: TaskSummary = object.__new__(cls)
-        summary.__init__(stats=stats)  # type: ignore[misc]
+        summary.__init__(stats=stats)
         return summary
 
     @classmethod
@@ -599,7 +599,7 @@ T = TypeVar("T")
 
 def _replace(obj: T, **kwargs: Any) -> T:
     new_obj = object.__new__(obj.__class__)
-    new_obj.__init__(**{**_asdict(obj), **kwargs})  # type: ignore[misc]
+    new_obj.__init__(**{**_asdict(obj), **kwargs})
     return new_obj
 
 
@@ -625,7 +625,7 @@ def _make_read_only(obj: Any) -> Any:
     return obj
 
 
-class _ReadOnly(ObjectProxy):  # type: ignore[misc]
+class _ReadOnly(ObjectProxy):
     def __setitem__(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
@@ -654,7 +654,7 @@ class _ReadOnly(ObjectProxy):  # type: ignore[misc]
         return str(self.__wrapped__)
 
 
-class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
+class _ExperimentRunWithExample(ObjectProxy):
     def __init__(self, wrapped: ExperimentRun, example: Example) -> None:
         super().__init__(wrapped)
         self._self_example = example

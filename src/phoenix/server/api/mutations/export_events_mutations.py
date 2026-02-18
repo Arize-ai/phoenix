@@ -57,7 +57,7 @@ class ExportEventsMutationMixin:
             " File name is optional, but if specified, should be without file extension. By default"
             " the exported file name is current timestamp."
         ),
-    )  # type: ignore
+    )
     async def export_clusters(
         self,
         info: Info[Context, None],

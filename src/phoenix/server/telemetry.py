@@ -40,7 +40,7 @@ def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
     from opentelemetry.sdk import trace as trace_sdk
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.semconv.resource import ResourceAttributes
+    from opentelemetry.semconv.resource import ResourceAttributes  # ty: ignore[deprecated]
 
     tracer_provider = trace_sdk.TracerProvider(
         resource=Resource(attributes={ResourceAttributes.SERVICE_NAME: "arize-phoenix-server"})

@@ -165,7 +165,7 @@ class AnnotationConfigMutationMixin:
             name = categorical_input.name
             config = _to_pydantic_categorical_annotation_config(categorical_input)
         elif continuous_input := input_annotation_config.continuous:
-            name = input_annotation_config.continuous.name
+            name = continuous_input.name
             config = _to_pydantic_continuous_annotation_config(continuous_input)
         elif freeform_input := input_annotation_config.freeform:
             name = freeform_input.name
@@ -212,7 +212,7 @@ class AnnotationConfigMutationMixin:
             name = categorical_input.name
             config = _to_pydantic_categorical_annotation_config(categorical_input)
         elif continuous_input := input_annotation_config.continuous:
-            name = input_annotation_config.continuous.name
+            name = continuous_input.name
             config = _to_pydantic_continuous_annotation_config(continuous_input)
         elif freeform_input := input_annotation_config.freeform:
             name = freeform_input.name
