@@ -29,7 +29,7 @@ class Cluster:
 
     @strawberry.field(
         description="Ratio of primary points over reference points",
-    )  # type: ignore
+    )
     def drift_ratio(
         self,
         info: Info[Context, None],
@@ -58,7 +58,7 @@ class Cluster:
 
     @strawberry.field(
         description="Ratio of primary points over corpus points",
-    )  # type: ignore
+    )
     def primary_to_corpus_ratio(
         self,
         info: Info[Context, None],
@@ -88,7 +88,7 @@ class Cluster:
     @strawberry.field(
         description="Data quality metric summarized by the respective "
         "datasets of the clustered events",
-    )  # type: ignore
+    )
     def data_quality_metric(
         self,
         info: Info[Context, None],
@@ -114,7 +114,7 @@ class Cluster:
     @strawberry.field(
         description="Performance metric summarized by the respective "
         "datasets of the clustered events",
-    )  # type: ignore
+    )
     def performance_metric(
         self,
         info: Info[Context, None],

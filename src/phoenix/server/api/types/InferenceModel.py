@@ -131,7 +131,7 @@ class InferenceModel:
 
     @strawberry.field(
         description="Returns exported file names sorted by descending modification time.",
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     async def exported_files(
         self,
         info: Info[Context, None],
@@ -187,7 +187,7 @@ class InferenceModel:
             " interval. Each data point is labeled by the end instant and contains data from their"
             " respective evaluation windows."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def performance_time_series(
         self,
         info: Info[Context, None],

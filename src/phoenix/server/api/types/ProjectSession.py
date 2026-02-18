@@ -238,7 +238,7 @@ class ProjectSession(Node):
 
     @strawberry.field(
         description="Summarizes each annotation (by name) associated with the session"
-    )  # type: ignore
+    )
     async def session_annotation_summaries(
         self,
         info: Info[Context, None],

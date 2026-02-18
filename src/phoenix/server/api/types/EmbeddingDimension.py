@@ -83,7 +83,7 @@ class EmbeddingDimension(Node):
             " range end). Returns None if no reference dataset exists, if no primary data exists in"
             " the input time range, or if the input time range is invalid."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_metric(
         self,
         info: Info[Context, None],
@@ -117,7 +117,7 @@ class EmbeddingDimension(Node):
             " range end). Returns None if no reference dataset exists, if no primary data exists in"
             " the input time range, or if the input time range is invalid."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def retrieval_metric(
         self,
         info: Info[Context, None],
@@ -151,7 +151,7 @@ class EmbeddingDimension(Node):
             " data point is labeled by the end instant of and contains data from their respective"
             " evaluation window."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def data_quality_time_series(
         self,
         info: Info[Context, None],
@@ -192,7 +192,7 @@ class EmbeddingDimension(Node):
             " within the evaluation window ending at the corresponding time. Returns None if no"
             " reference dataset exists or if the input time range is invalid.           "
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
         self,
         info: Info[Context, None],
@@ -231,7 +231,7 @@ class EmbeddingDimension(Node):
             " within the evaluation window ending at the corresponding time. Returns None if no"
             " corpus dataset exists or if the input time range is invalid.           "
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def retrieval_metric_time_series(
         self,
         info: Info[Context, None],
@@ -482,7 +482,7 @@ def _row_indices(
         return
     shuffled_indices = np.arange(start, stop)
     np.random.shuffle(shuffled_indices)
-    yield from shuffled_indices  # type: ignore[misc,unused-ignore]
+    yield from shuffled_indices
 
 
 def to_gql_embedding_dimension(

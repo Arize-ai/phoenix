@@ -123,7 +123,7 @@ class Dimension(Node):
             " string values) as a list of unique string labels sorted in lexicographical order."
             " Missing values are excluded. Non-categorical dimensions return an empty list."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def categories(self) -> list[str]:
         return list(self.dimension.categories)
 
@@ -134,7 +134,7 @@ class Dimension(Node):
             " interval. Each data point is labeled by the end instant and contains data from their"
             " respective evaluation windows."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def data_quality_time_series(
         self,
         info: Info[Context, None],
@@ -173,7 +173,7 @@ class Dimension(Node):
             " interval. Each data point is labeled by the end instant and contains data from their"
             " respective evaluation windows."
         )
-    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    )  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
         self,
         info: Info[Context, None],
@@ -205,7 +205,7 @@ class Dimension(Node):
 
     @strawberry.field(
         description="The segments across both inference sets and returns the counts per segment",
-    )  # type: ignore
+    )
     def segments_comparison(
         self,
         info: Info[Context, None],
