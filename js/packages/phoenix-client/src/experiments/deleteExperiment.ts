@@ -54,9 +54,9 @@ export async function deleteExperiment({
       path: {
         experiment_id: experimentId,
       },
-      query: {
-        delete_project: deleteProject,
-      },
+      ...(deleteProject !== undefined && {
+        query: { delete_project: deleteProject },
+      }),
     },
   });
 
