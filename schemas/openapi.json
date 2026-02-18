@@ -1821,6 +1821,18 @@
               "type": "string",
               "title": "Experiment Id"
             }
+          },
+          {
+            "name": "delete_project",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, also delete the project associated with the experiment.",
+              "default": false,
+              "title": "Delete Project"
+            },
+            "description": "If true, also delete the project associated with the experiment."
           }
         ],
         "responses": {
