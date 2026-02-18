@@ -4015,7 +4015,10 @@ export interface operations {
     };
     deleteExperiment: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description If true, also delete the project associated with the experiment. */
+                delete_project?: boolean;
+            };
             header?: never;
             path: {
                 experiment_id: string;

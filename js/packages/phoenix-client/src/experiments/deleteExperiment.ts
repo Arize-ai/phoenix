@@ -10,6 +10,11 @@ export interface DeleteExperimentParams extends ClientFn {
    * The ID of the experiment to delete
    */
   experimentId: string;
+  /**
+   * If true, also delete the project associated with the experiment.
+   * Defaults to false.
+   */
+  deleteProject?: boolean;
 }
 
 /**
@@ -33,12 +38,14 @@ export interface DeleteExperimentParams extends ClientFn {
  *
  * await deleteExperiment({
  *   experimentId: "exp_123",
+ *   deleteProject: true,
  * });
  * ```
  */
 export async function deleteExperiment({
   client: _client,
   experimentId,
+  deleteProject,
 }: DeleteExperimentParams): Promise<void> {
   const client = _client ?? createClient();
 
@@ -46,6 +53,9 @@ export async function deleteExperiment({
     params: {
       path: {
         experiment_id: experimentId,
+      },
+      query: {
+        delete_project: deleteProject,
       },
     },
   });
