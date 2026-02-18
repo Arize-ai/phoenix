@@ -7,7 +7,7 @@ import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from pydantic import Field
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import Float, and_, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
@@ -60,7 +60,9 @@ async def _fetch_annotation_summaries(
         select(
             models.ExperimentRun.experiment_id.label("experiment_id"),
             models.ExperimentRunAnnotation.name.label("annotation_name"),
-            func.avg(models.ExperimentRunAnnotation.score).label("mean_repetition_score"),
+            cast(func.avg(models.ExperimentRunAnnotation.score), Float).label(
+                "mean_repetition_score"
+            ),
         )
         .select_from(models.ExperimentRunAnnotation)
         .join(
@@ -81,7 +83,9 @@ async def _fetch_annotation_summaries(
         select(
             repetition_mean_scores_by_example.c.experiment_id.label("experiment_id"),
             repetition_mean_scores_by_example.c.annotation_name.label("annotation_name"),
-            func.avg(repetition_mean_scores_by_example.c.mean_repetition_score).label("mean_score"),
+            cast(
+                func.avg(repetition_mean_scores_by_example.c.mean_repetition_score), Float
+            ).label("mean_score"),
         )
         .select_from(repetition_mean_scores_by_example)
         .group_by(
@@ -138,11 +142,11 @@ async def _fetch_annotation_summaries(
         result.setdefault(row.experiment_id, []).append(
             AnnotationSummary(
                 annotation_name=row.annotation_name,
-                min_score=row.min_score,
-                max_score=row.max_score,
-                mean_score=row.mean_score,
-                count=row.count_,
-                error_count=row.error_count,
+                min_score=float(row.min_score) if row.min_score is not None else None,
+                max_score=float(row.max_score) if row.max_score is not None else None,
+                mean_score=float(row.mean_score) if row.mean_score is not None else None,
+                count=int(row.count_),
+                error_count=int(row.error_count),
             )
         )
     return result
