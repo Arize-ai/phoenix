@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 ProjectName: TypeAlias = str
 
 
-class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
+class Servicer(TraceServiceServicer):
     def __init__(
         self,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
@@ -87,8 +87,8 @@ class GrpcServer:
         if self._tracer_provider is not None:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
-            GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)  # type: ignore
-        server = grpc.aio.server(
+            GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)
+        server = grpc.aio.server(  # ty: ignore[possibly-missing-attribute]
             options=(("grpc.so_reuseport", 0),),
             interceptors=interceptors,
         )
@@ -107,7 +107,8 @@ class GrpcServer:
             server.add_secure_port(f"[::]:{self._port}", server_credentials)
         else:
             server.add_insecure_port(f"[::]:{self._port}")
-        add_TraceServiceServicer_to_server(Servicer(self._enqueue_span), server)  # type: ignore[no-untyped-call,unused-ignore]
+        add_TraceServiceServicer_to_server(Servicer(self._enqueue_span), server)
+
         await server.start()
         self._server = server
 
@@ -119,4 +120,4 @@ class GrpcServer:
         if self._tracer_provider is not None:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
-            GrpcAioInstrumentorServer().uninstrument()  # type: ignore
+            GrpcAioInstrumentorServer().uninstrument()
