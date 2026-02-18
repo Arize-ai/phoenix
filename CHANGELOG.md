@@ -1,5 +1,41 @@
 # Changelog
 
+## [13.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.3...arize-phoenix-v13.1.0) (2026-02-18)
+
+
+### Features
+
+* add model to evaluator details ([#11443](https://github.com/Arize-ai/phoenix/issues/11443)) ([cf48501](https://github.com/Arize-ai/phoenix/commit/cf48501f1cf719e1b1a2544dab5c5f91c661ca17))
+* **cli-starter-kit:** use clack ([#11504](https://github.com/Arize-ai/phoenix/issues/11504)) ([e732d3e](https://github.com/Arize-ai/phoenix/commit/e732d3e714a614d773e92de8ec6621ed569063f1))
+* Enhance table functionality with column resizing support in EvaluatorsTable and DatasetEvaluatorsTable ([#11486](https://github.com/Arize-ai/phoenix/issues/11486)) ([9264198](https://github.com/Arize-ai/phoenix/commit/92641983ba08e48eb5989dbc41fc89086975e85b))
+* Implement column resizing in EvaluatorsTable and DatasetEvaluatorsTable ([#11485](https://github.com/Arize-ai/phoenix/issues/11485)) ([e7749ff](https://github.com/Arize-ai/phoenix/commit/e7749ffd281239bc6e51347a9f0ca1853ce02ee8))
+* merge phoenix-sdk-python skill into phoenix-evals ([#11469](https://github.com/Arize-ai/phoenix/issues/11469)) ([767af9c](https://github.com/Arize-ai/phoenix/commit/767af9c246bdcd2683d941b0483c4b0b581aa2f4))
+* Render session chat using dynamic markdown content ([#11506](https://github.com/Arize-ai/phoenix/issues/11506)) ([167d532](https://github.com/Arize-ai/phoenix/commit/167d5325f14b143d306d6c8ddcc0272a316896a0))
+* skill building skill ([#11501](https://github.com/Arize-ai/phoenix/issues/11501)) ([4ef11a1](https://github.com/Arize-ai/phoenix/commit/4ef11a1d5f8a3988488eac125f6241b18c46aecb))
+* skill update for IO ([#11503](https://github.com/Arize-ai/phoenix/issues/11503)) ([b417237](https://github.com/Arize-ai/phoenix/commit/b41723723f907c4c84e99b22ae5ba4533140ca30))
+* **skills:** add session skills ([#11500](https://github.com/Arize-ai/phoenix/issues/11500)) ([2ba749b](https://github.com/Arize-ai/phoenix/commit/2ba749be7eb4f35dc36996b4b7473d415239b5c7))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#11498](https://github.com/Arize-ai/phoenix/issues/11498)) ([c43c652](https://github.com/Arize-ai/phoenix/commit/c43c652ae6e7e694a7801069644de224a38162ff))
+* Revert "docs: Remove API reference docs and link to subpackage guides" ([#11511](https://github.com/Arize-ai/phoenix/issues/11511)) ([57d9e45](https://github.com/Arize-ai/phoenix/commit/57d9e4590508b78ac3ae95bb1ad60ef2228a62ce))
+* storybook theming ([#11515](https://github.com/Arize-ai/phoenix/issues/11515)) ([beeda19](https://github.com/Arize-ai/phoenix/commit/beeda194142a38ad7c783da9a1660d2d9d1e1d22))
+* update anthropic model names for drop down ([#11529](https://github.com/Arize-ai/phoenix/issues/11529)) ([205ff28](https://github.com/Arize-ai/phoenix/commit/205ff287de27866da3d0be7c1479715cf902b01e))
+* Update app dependencies and lockfile ([#11490](https://github.com/Arize-ai/phoenix/issues/11490)) ([07b722d](https://github.com/Arize-ai/phoenix/commit/07b722dba804b989025aeab70a57cd6261aa0cce))
+
+
+### Performance Improvements
+
+* replace lodash with lodash-es ([#11550](https://github.com/Arize-ai/phoenix/issues/11550)) ([72ed784](https://github.com/Arize-ai/phoenix/commit/72ed784701296c66cba4b8ecdb487c65abf2e6f9))
+
+
+### Documentation
+
+* Add Phoenix 13 release notes ([#11473](https://github.com/Arize-ai/phoenix/issues/11473)) ([8fe0ff5](https://github.com/Arize-ai/phoenix/commit/8fe0ff509127f32454f13b5d4c9b9ba69a97b41a))
+* add workaround for large tables in session ID index migration ([#11526](https://github.com/Arize-ai/phoenix/issues/11526)) ([2ddf0ca](https://github.com/Arize-ai/phoenix/commit/2ddf0ca8c3f567b9b0abe01ecabc7deeee9096a5))
+* Remove API reference docs and link to subpackage guides ([#11483](https://github.com/Arize-ai/phoenix/issues/11483)) ([55fc1e0](https://github.com/Arize-ai/phoenix/commit/55fc1e0bdf1bcf578ef6023e7bb59bfaf6de53e8))
+
 ## [13.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.0.2...arize-phoenix-v13.0.3) (2026-02-13)
 
 
