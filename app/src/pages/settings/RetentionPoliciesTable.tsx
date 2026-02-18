@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { graphql, readInlineData, usePaginationFragment } from "react-relay";
+import { css } from "@emotion/react";
 import {
   type ColumnDef,
   flexRender,
@@ -7,7 +6,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useMemo } from "react";
+import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 
 import { Link } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -70,9 +70,7 @@ export const RetentionPoliciesTable = ({
         first: { type: "Int", defaultValue: 1000 }
       ) {
         projectTraceRetentionPolicies(first: $first, after: $after)
-          @connection(
-            key: "RetentionPoliciesTable_projectTraceRetentionPolicies"
-          ) {
+          @connection(key: "RetentionPoliciesTable_projectTraceRetentionPolicies") {
           edges {
             node {
               ...RetentionPoliciesTable_retentionPolicy

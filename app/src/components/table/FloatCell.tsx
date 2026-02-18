@@ -1,5 +1,5 @@
-import { CellContext } from "@tanstack/react-table";
 import { css } from "@emotion/react";
+import { CellContext } from "@tanstack/react-table";
 
 import { isNumberOrNull } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";

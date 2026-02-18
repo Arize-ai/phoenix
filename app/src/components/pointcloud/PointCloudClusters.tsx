@@ -1,7 +1,6 @@
-import { useMemo } from "react";
-import { interpolateSinebow } from "d3-scale-chromatic";
-
 import { Cluster, ThreeDimensionalPoint } from "@arizeai/point-cloud";
+import { interpolateSinebow } from "d3-scale-chromatic";
+import { useMemo } from "react";
 
 import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 import { useTheme } from "@phoenix/contexts/ThemeContext";

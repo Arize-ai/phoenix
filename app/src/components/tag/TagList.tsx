@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { forwardRef, type JSX, Ref } from "react";
 import { TagList as AriaTagList, TagListProps } from "react-aria-components";
-import { css } from "@emotion/react";
 
 const tagListCSS = css`
   display: flex;

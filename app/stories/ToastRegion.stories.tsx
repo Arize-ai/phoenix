@@ -1,5 +1,5 @@
-import { ComponentProps } from "react";
 import { Meta, StoryFn } from "@storybook/react";
+import { ComponentProps } from "react";
 
 import { Button, Flex } from "@phoenix/components";
 import { ToastRegion } from "@phoenix/components/toast/ToastRegion";

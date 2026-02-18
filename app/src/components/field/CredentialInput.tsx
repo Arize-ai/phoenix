@@ -1,15 +1,14 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import {
   Button,
   Input as AriaInput,
   InputProps as AriaInputProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { useSize } from "@phoenix/contexts/SizeContext";
 
 import { Icon, Icons } from "../icon";
-
 import { useCredentialContext } from "./CredentialContext";
 
 export type CredentialInputProps = Omit<AriaInputProps, "type">;

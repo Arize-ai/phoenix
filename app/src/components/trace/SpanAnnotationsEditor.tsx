@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import React, {
   startTransition,
   Suspense,
@@ -12,7 +13,6 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Autocomplete,
@@ -159,10 +159,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             query {
               node(id: $spanId) {

@@ -1,7 +1,7 @@
+import copy from "copy-to-clipboard";
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
-import copy from "copy-to-clipboard";
 
 import {
   Button,

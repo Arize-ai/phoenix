@@ -1,5 +1,5 @@
-import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
+import { PropsWithChildren } from "react";
 
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 

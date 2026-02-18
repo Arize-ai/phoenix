@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useRef } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { css } from "@emotion/react";
 import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useCallback, useMemo, useRef } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
 
 import { Icon, Icons } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";

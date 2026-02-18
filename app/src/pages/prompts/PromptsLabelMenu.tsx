@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Autocomplete,

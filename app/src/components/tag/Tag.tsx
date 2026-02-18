@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import { Tag as AriaTag, TagProps } from "react-aria-components";
-import { css } from "@emotion/react";
 
 const tagCSS = css`
   border: 1px solid var(--global-border-color-light);

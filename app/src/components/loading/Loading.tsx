@@ -1,5 +1,5 @@
-import { ComponentProps } from "react";
 import { css } from "@emotion/react";
+import { ComponentProps } from "react";
 
 import { Text } from "../content";
 import { ProgressCircle } from "../progress";

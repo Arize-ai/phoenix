@@ -1,5 +1,4 @@
 import { mapPromptToSDKSnippet } from "../promptCodeSnippets";
-
 import {
   ANTHROPIC_TOOL,
   BASE_MOCK_PROMPT_VERSION,

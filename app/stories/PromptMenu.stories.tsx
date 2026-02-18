@@ -1,7 +1,7 @@
-import React from "react";
+import { css } from "@emotion/react";
 import { Meta, StoryObj } from "@storybook/react";
 import { userEvent, within } from "@storybook/test";
-import { css } from "@emotion/react";
+import React from "react";
 
 import { CompositeField } from "@phoenix/components";
 import {

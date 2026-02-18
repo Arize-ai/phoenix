@@ -1,12 +1,4 @@
-import React, {
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { graphql, readInlineData } from "react-relay";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   ColumnSizingState,
@@ -17,7 +9,15 @@ import {
   Updater,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import React, {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";

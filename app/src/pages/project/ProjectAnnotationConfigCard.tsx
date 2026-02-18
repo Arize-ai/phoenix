@@ -1,3 +1,11 @@
+import { css } from "@emotion/react";
+import {
+  CellContext,
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   startTransition,
   Suspense,
@@ -11,14 +19,6 @@ import {
   useMutation,
   useRefetchableFragment,
 } from "react-relay";
-import {
-  CellContext,
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import {
   Alert,
@@ -213,10 +213,7 @@ const ProjectAnnotationConfigCardContent = (
           $annotationConfigId: ID!
         ) {
           addAnnotationConfigToProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             project {
               ...ProjectAnnotationConfigCardContent_project_annotations
@@ -234,10 +231,7 @@ const ProjectAnnotationConfigCardContent = (
           $annotationConfigId: ID!
         ) {
           removeAnnotationConfigFromProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             project {
               ...ProjectAnnotationConfigCardContent_project_annotations

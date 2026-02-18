@@ -10,7 +10,6 @@ import {
 } from "@phoenix/components";
 
 import { TokenCount } from "../trace/TokenCount";
-
 import { ExperimentRunTokenCountDetails } from "./ExperimentRunTokenCountDetails";
 
 type ExperimentRunTokenCountProps = {

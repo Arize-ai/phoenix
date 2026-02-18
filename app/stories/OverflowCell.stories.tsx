@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
 import { css } from "@emotion/react";
+import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
 
 import { Text, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";

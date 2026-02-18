@@ -1,6 +1,6 @@
+import { getLocalTimeZone } from "@internationalized/date";
 import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
-import { getLocalTimeZone } from "@internationalized/date";
 
 import {
   Button,
@@ -73,11 +73,7 @@ export function APIKeysCard() {
         $expiresAt: DateTime = null
       ) {
         createSystemApiKey(
-          input: {
-            name: $name
-            description: $description
-            expiresAt: $expiresAt
-          }
+          input: { name: $name, description: $description, expiresAt: $expiresAt }
         ) {
           jwt
           query {

@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import {
   Dialog,
@@ -64,16 +64,14 @@ export function DimensionPage() {
         dimension: node(id: $dimensionId) {
           ... on Dimension {
             id
-            ...DimensionSegmentsBarChart_dimension
-              @arguments(timeRange: $timeRange)
+            ...DimensionSegmentsBarChart_dimension @arguments(timeRange: $timeRange)
             ...DimensionCountStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionDriftStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionCardinalityStats_dimension
               @arguments(timeRange: $timeRange, hasReference: $hasReference)
             ...DimensionPercentEmptyStats_dimension
               @arguments(timeRange: $timeRange, hasReference: $hasReference)
-            ...DimensionQuantilesStats_dimension
-              @arguments(timeRange: $timeRange)
+            ...DimensionQuantilesStats_dimension @arguments(timeRange: $timeRange)
           }
         }
       }

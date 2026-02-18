@@ -1,3 +1,13 @@
+import { css } from "@emotion/react";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  Table,
+  useReactTable,
+} from "@tanstack/react-table";
 import React, {
   startTransition,
   useCallback,
@@ -8,16 +18,6 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  SortingState,
-  Table,
-  useReactTable,
-} from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import {
   Flex,
@@ -174,10 +174,7 @@ export function SpansTable(props: SpansTableProps) {
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
           rootSpansOnly: { type: "Boolean", defaultValue: true }
-          sort: {
-            type: "SpanSort"
-            defaultValue: { col: startTime, dir: desc }
-          }
+          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name

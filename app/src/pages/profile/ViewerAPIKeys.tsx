@@ -1,6 +1,6 @@
+import { getLocalTimeZone } from "@internationalized/date";
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { getLocalTimeZone } from "@internationalized/date";
 
 import {
   Button,
@@ -36,9 +36,7 @@ export function ViewerAPIKeys({
 
   const [commit, isCommitting] =
     useMutation<ViewerAPIKeysCreateUserAPIKeyMutation>(graphql`
-      mutation ViewerAPIKeysCreateUserAPIKeyMutation(
-        $input: CreateUserApiKeyInput!
-      ) {
+      mutation ViewerAPIKeysCreateUserAPIKeyMutation($input: CreateUserApiKeyInput!) {
         createUserApiKey(input: $input) {
           jwt
           apiKey {

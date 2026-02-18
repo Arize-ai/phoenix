@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef } from "react";
 import {
   ColorSwatchPicker as AriaColorSwatchPicker,
   type ColorSwatchPickerProps as AriaColorSwatchPickerProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 export interface ColorSwatchPickerProps extends AriaColorSwatchPickerProps {}
 

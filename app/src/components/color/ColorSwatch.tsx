@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef } from "react";
 import {
   ColorSwatch as AriaColorSwatch,
   ColorSwatchProps as AriaColorSwatchProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { SizingProps } from "@phoenix/components/types";
 

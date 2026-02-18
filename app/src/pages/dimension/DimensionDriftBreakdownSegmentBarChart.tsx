@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
 import { format } from "d3-format";
 import { subDays } from "date-fns";
+import { useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
   BarChart,

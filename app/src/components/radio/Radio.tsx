@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import {
   Radio as AriaRadio,
   type RadioProps as AriaRadioProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { StylableProps } from "@phoenix/components/types";
 import { classNames } from "@phoenix/utils";

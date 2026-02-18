@@ -116,9 +116,7 @@ export const textFieldCSS = css`
 
   &:has(.ac-field-icon) {
     .react-aria-Input {
-      padding-right: calc(
-        var(--textfield-horizontal-padding) + var(--icon-size)
-      );
+      padding-right: calc(var(--textfield-horizontal-padding) + var(--icon-size));
     }
   }
 
@@ -139,8 +137,7 @@ export const textFieldCSS = css`
     border-radius: var(--global-rounding-small);
     background-color: var(--global-input-field-background-color);
     color: var(--global-text-color-900);
-    padding: var(--textfield-vertical-padding)
-      var(--textfield-horizontal-padding);
+    padding: var(--textfield-vertical-padding) var(--textfield-horizontal-padding);
     box-sizing: border-box;
     outline-offset: -1px;
     outline: var(--global-border-size-thin) solid transparent;

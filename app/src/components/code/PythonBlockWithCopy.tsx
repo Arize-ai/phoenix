@@ -1,5 +1,4 @@
 import { CopyToClipboardButton } from "../CopyToClipboardButton";
-
 import { PythonBlock } from "./PythonBlock";
 import { codeBlockWithCopyCSS } from "./styles";
 

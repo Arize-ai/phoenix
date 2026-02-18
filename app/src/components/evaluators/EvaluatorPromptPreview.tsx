@@ -2,11 +2,11 @@
  * A component that shows a preview of the prompt that will be used for the llm evals
  **/
 
+import { css } from "@emotion/react";
 import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
-import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import {

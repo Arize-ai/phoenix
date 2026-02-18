@@ -1,5 +1,4 @@
 import { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
-
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 
 /**

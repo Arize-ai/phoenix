@@ -1,7 +1,7 @@
+import { debounce } from "lodash-es";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FieldError, Input, Label } from "react-aria-components";
 import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
-import { debounce } from "lodash-es";
 
 import { RegexFieldQuery } from "@phoenix/components/__generated__/RegexFieldQuery.graphql";
 import { Text } from "@phoenix/components/content";

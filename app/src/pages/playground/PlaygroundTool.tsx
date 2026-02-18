@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from "react";
 import { JSONSchema7 } from "json-schema";
+import { useCallback, useMemo } from "react";
 
 import {
   Button,

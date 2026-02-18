@@ -1,5 +1,5 @@
-import { Panel, PanelGroup } from "react-resizable-panels";
 import { Meta, StoryFn } from "@storybook/react";
+import { Panel, PanelGroup } from "react-resizable-panels";
 
 import { Card, Text, Token, View } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";

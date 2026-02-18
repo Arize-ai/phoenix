@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import React, { ComponentProps } from "react";
 import {
   Tab as AriaTab,
@@ -9,7 +10,6 @@ import {
   Tabs as AriaTabs,
   type TabsProps as AriaTabsProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { StylableProps } from "@phoenix/components/types";
 import { classNames } from "@phoenix/utils";

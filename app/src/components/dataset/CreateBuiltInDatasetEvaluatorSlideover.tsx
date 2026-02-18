@@ -94,9 +94,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
   const { evaluator } =
     useLazyLoadQuery<CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery>(
       graphql`
-        query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(
-          $evaluatorId: ID!
-        ) {
+        query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery($evaluatorId: ID!) {
           evaluator: node(id: $evaluatorId) {
             id
             ... on Evaluator {

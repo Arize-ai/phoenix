@@ -7,7 +7,6 @@ import { useInferences } from "@phoenix/contexts/InferencesContext";
 import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
 
 import { Loading } from "../loading/Loading";
-
 import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { InferencesVisibilitySettings } from "./InferencesVisibilitySettings";
 import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";

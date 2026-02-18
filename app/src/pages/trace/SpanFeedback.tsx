@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { graphql, useFragment } from "react-relay";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   flexRender,
@@ -8,7 +7,8 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useMemo, useState } from "react";
+import { graphql, useFragment } from "react-relay";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { Icons } from "@phoenix/components/icon";

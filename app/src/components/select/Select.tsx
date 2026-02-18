@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import {
   Select as AriaSelect,
   SelectProps as AriaSelectProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { selectCSS } from "@phoenix/components/select/styles";
 import { SizingProps, StylableProps } from "@phoenix/components/types";

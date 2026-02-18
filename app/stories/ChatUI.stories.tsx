@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
 import { css } from "@emotion/react";
+import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
 
 import { Card, Flex, View } from "@phoenix/components";
 import { MessageBar } from "@phoenix/components/chat/MessageBar";
@@ -21,8 +21,7 @@ const chatContainerCSS = css`
   height: var(--global-dimension-size-5000);
   width: 100%;
   max-width: var(--global-dimension-size-6000);
-  border: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   overflow: hidden;
   background-color: var(--global-background-color-default);

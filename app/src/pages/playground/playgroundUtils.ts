@@ -52,7 +52,6 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
-
 import {
   ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,

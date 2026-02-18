@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import {
   RadioGroup as AriaRadioGroup,
   type RadioGroupProps as AriaRadioGroupProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { StylableProps } from "@phoenix/components/types";

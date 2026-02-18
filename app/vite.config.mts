@@ -1,6 +1,6 @@
+import { resolve } from "path";
 import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
-import { resolve } from "path";
 // Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />

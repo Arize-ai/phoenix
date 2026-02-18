@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import { Flex, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";

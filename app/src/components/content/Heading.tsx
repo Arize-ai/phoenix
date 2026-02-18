@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import {
   Heading as AriaHeading,
   HeadingProps as AriaHeadingProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { classNames } from "@phoenix/utils";
 

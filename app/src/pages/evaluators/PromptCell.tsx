@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Flex, Link, Text, Token } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
@@ -72,10 +72,12 @@ export const PromptLink = ({
       to={to}
       css={css`
         text-decoration: none;
-        ${wrapWidth != null &&
-        css`
+        ${
+          wrapWidth != null &&
+          css`
           max-width: ${wrapWidth}px;
-        `}
+        `
+        }
       `}
     >
       <Flex

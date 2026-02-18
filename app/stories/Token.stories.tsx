@@ -177,11 +177,7 @@ const TruncatedTemplate: StoryFn<TokenProps> = (args) => (
         <Token {...args} maxWidth="100px">
           Custom maxWidth=`&quot;`100px`&quot;` for narrower spaces
         </Token>
-        <Token
-          {...args}
-          maxWidth="300px"
-          color="var(--global-color-primary)"
-        >
+        <Token {...args} maxWidth="300px" color="var(--global-color-primary)">
           Custom maxWidth=`&quot;`300px`&quot;` allows more text before
           truncation happens
         </Token>

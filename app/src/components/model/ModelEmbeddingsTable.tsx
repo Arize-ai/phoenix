@@ -1,6 +1,6 @@
+import { ColumnDef } from "@tanstack/react-table";
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { ColumnDef } from "@tanstack/react-table";
 
 import { Link } from "@phoenix/components";
 import { FloatCell } from "@phoenix/components/table";

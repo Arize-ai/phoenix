@@ -1,5 +1,5 @@
-import { ReactNode, useId, useState } from "react";
 import { css } from "@emotion/react";
+import { ReactNode, useId, useState } from "react";
 
 import { Label, Text } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";

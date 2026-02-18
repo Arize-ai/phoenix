@@ -2,7 +2,6 @@ import { LanguageSupport, LRLanguage } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
 
 import { extractVariables, format } from "../languageUtils";
-
 import { parser } from "./fStringTemplating.syntax.grammar";
 
 /**

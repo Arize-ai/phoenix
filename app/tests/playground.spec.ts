@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
+import { expect, test } from "@playwright/test";
 
 test.describe("Playground", () => {
   test("preserves prompt selection in the URL across page reloads", async ({

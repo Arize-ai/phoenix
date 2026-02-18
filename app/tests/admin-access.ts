@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
+import { expect, test } from "@playwright/test";
 test("admin can create system api key", async ({ page }) => {
   const testKeyName = `System-${randomUUID()}`;
   await page.getByRole("link", { name: "Settings" }).click();

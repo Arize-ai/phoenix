@@ -1,5 +1,5 @@
-import { CSSProperties } from "react";
 import { css } from "@emotion/react";
+import { CSSProperties } from "react";
 
 import { Flex, Text } from "@phoenix/components";
 import { TextSize } from "@phoenix/components/types";

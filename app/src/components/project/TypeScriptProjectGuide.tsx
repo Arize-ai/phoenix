@@ -21,7 +21,6 @@ import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCop
 import { BASE_URL } from "@phoenix/config";
 
 import { TypeScriptBlockWithCopy } from "../code/TypeScriptBlockWithCopy";
-
 import {
   TypeScriptIntegrations,
   TypeScriptPlatformIntegrations,

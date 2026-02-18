@@ -10,7 +10,6 @@ import {
 } from "@phoenix/components";
 
 import { TokenCount } from "../trace/TokenCount";
-
 import { ExperimentAverageRunTokenCountDetails } from "./ExperimentAverageRunTokenCountDetails";
 
 type ExperimentAverageRunTokenCountProps = {

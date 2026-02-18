@@ -1,3 +1,16 @@
+import { css } from "@emotion/react";
+import {
+  CellContext,
+  ColumnDef,
+  ExpandedState,
+  flexRender,
+  getCoreRowModel,
+  getExpandedRowModel,
+  getSortedRowModel,
+  SortingState,
+  Table,
+  useReactTable,
+} from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
 import React, {
   ComponentProps,
@@ -11,19 +24,6 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
-import {
-  CellContext,
-  ColumnDef,
-  ExpandedState,
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  SortingState,
-  Table,
-  useReactTable,
-} from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import {
   Flex,
@@ -207,10 +207,7 @@ export function TracesTable(props: TracesTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
-          sort: {
-            type: "SpanSort"
-            defaultValue: { col: startTime, dir: desc }
-          }
+          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name

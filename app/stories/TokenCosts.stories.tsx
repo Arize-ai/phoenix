@@ -1,6 +1,6 @@
+import type { Meta, StoryObj } from "@storybook/react";
 import { Suspense } from "react";
 import { Pressable } from "react-aria";
-import type { Meta, StoryObj } from "@storybook/react";
 
 import { Loading, RichTooltip, TooltipTrigger } from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";

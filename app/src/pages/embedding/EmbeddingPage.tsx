@@ -1,3 +1,6 @@
+import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
+import { css } from "@emotion/react";
+import { subDays } from "date-fns";
 import {
   memo,
   ReactNode,
@@ -15,11 +18,7 @@ import {
   useQueryLoader,
 } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
-import { css } from "@emotion/react";
-
-import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import {
   Counter,

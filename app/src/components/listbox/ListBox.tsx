@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { Ref } from "react";
 import {
   ListBox as AriaListBox,
   ListBoxProps as AriaListBoxProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { StylableProps } from "../types";
 

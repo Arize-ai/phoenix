@@ -1,3 +1,4 @@
+import { Meta } from "@storybook/react";
 import { useMemo, useState } from "react";
 import {
   Autocomplete,
@@ -7,7 +8,6 @@ import {
   SubmenuTrigger,
   useFilter,
 } from "react-aria-components";
-import { Meta } from "@storybook/react";
 
 import {
   Button,

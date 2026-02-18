@@ -1,5 +1,5 @@
-import { useFragment } from "react-relay";
 import { formatRelative } from "date-fns/formatRelative";
+import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Flex, Text, Token, View } from "@phoenix/components";

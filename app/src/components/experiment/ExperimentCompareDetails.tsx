@@ -1,3 +1,5 @@
+import { css } from "@emotion/react";
+import { range } from "lodash-es";
 import { useMemo, useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -7,8 +9,6 @@ import {
   PanelGroup,
   PanelResizeHandle,
 } from "react-resizable-panels";
-import { range } from "lodash-es";
-import { css } from "@emotion/react";
 
 import {
   Button,
@@ -839,9 +839,11 @@ function ExperimentRepetitionsSidebarItems({
                 minHeight={30}
                 css={css`
                   overflow: hidden;
-                  color: ${repetitionDidNotRun
-                    ? "var(--global-color-gray-500)"
-                    : "inherit"};
+                  color: ${
+                    repetitionDidNotRun
+                      ? "var(--global-color-gray-500)"
+                      : "inherit"
+                  };
                 `}
               >
                 <Text>repetition&nbsp;{repetition.repetitionNumber}</Text>
@@ -1226,8 +1228,7 @@ function ExperimentRunAnnotationButton({
       css={[
         css`
           cursor: pointer;
-          padding: var(--global-dimension-size-50)
-            var(--global-dimension-size-100);
+          padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
           border-radius: var(--global-rounding-small);
           width: 100%;
           display: grid;

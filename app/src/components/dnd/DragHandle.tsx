@@ -1,6 +1,6 @@
-import React from "react";
 import { DraggableAttributes } from "@dnd-kit/core";
 import { css } from "@emotion/react";
+import React from "react";
 
 // This is the type of the listeners object from useSortable
 // However it is not exported from @dnd-kit/core so we have to redefine it here
@@ -34,8 +34,7 @@ function DragHandle(
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: var(--global-dimension-size-100)
-          var(--global-dimension-size-50);
+        padding: var(--global-dimension-size-100) var(--global-dimension-size-50);
         border-radius: var(--global-rounding-small);
         overflow: hidden;
       `}

@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 import { useWordColor } from "@phoenix/hooks/useWordColor";

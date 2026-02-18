@@ -1,5 +1,5 @@
-import { Suspense } from "react";
 import { css } from "@emotion/react";
+import { Suspense } from "react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";

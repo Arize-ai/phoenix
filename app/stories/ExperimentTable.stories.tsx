@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   ColumnDef,
@@ -6,7 +6,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useMemo, useState } from "react";
 
 import { Flex, Icon, IconButton, Icons, Text, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";

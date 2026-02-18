@@ -1,5 +1,5 @@
-import { Meta } from "@storybook/react";
 import { css } from "@emotion/react";
+import { Meta } from "@storybook/react";
 
 import { Flex, Text, TextProps } from "@phoenix/components";
 

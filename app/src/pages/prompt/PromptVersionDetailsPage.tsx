@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import {
   CopyToClipboardButton,
@@ -20,7 +20,6 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 import { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
 
 import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersionButton";
-
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";

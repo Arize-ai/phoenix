@@ -1,5 +1,5 @@
-import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
+import { graphql, useFragment } from "react-relay";
 
 import { Text } from "@phoenix/components";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";

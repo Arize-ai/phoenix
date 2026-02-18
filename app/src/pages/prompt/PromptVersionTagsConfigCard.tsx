@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -7,6 +5,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 
 import { Card, Flex, Icon, Icons, Link } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";

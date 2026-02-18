@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   ColumnDef,
@@ -10,7 +10,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { useMemo, useState } from "react";
 
 import {
   Button,
@@ -434,12 +434,16 @@ const personColumns: ColumnDef<Person>[] = [
             border-radius: 12px;
             font-size: 12px;
             font-weight: 500;
-            background-color: ${status === "active"
-              ? "var(--global-color-success-100)"
-              : "var(--global-color-gray-100)"};
-            color: ${status === "active"
-              ? "var(--global-color-success-900)"
-              : "var(--global-color-gray-700)"};
+            background-color: ${
+              status === "active"
+                ? "var(--global-color-success-100)"
+                : "var(--global-color-gray-100)"
+            };
+            color: ${
+              status === "active"
+                ? "var(--global-color-success-900)"
+                : "var(--global-color-gray-700)"
+            };
           `}
         >
           {status}

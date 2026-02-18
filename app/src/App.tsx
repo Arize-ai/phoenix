@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 
+import { ThemeProvider } from "./contexts";
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
-import { ThemeProvider } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";

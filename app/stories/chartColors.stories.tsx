@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react";
 import { css } from "@emotion/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
 import { Text, View } from "@phoenix/components";
 import { useSequentialChartColors } from "@phoenix/components/chart";
@@ -59,8 +59,7 @@ const colorGroupCSS = css`
 `;
 
 const colorGroupHeaderCSS = css`
-  padding: var(--global-dimension-size-75) 0
-    var(--global-dimension-size-50);
+  padding: var(--global-dimension-size-75) 0 var(--global-dimension-size-50);
   border-bottom: 1px solid var(--global-color-gray-200);
   margin-bottom: var(--global-dimension-size-75);
 `;

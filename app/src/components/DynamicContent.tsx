@@ -1,5 +1,5 @@
-import { memo } from "react";
 import { css } from "@emotion/react";
+import { memo } from "react";
 
 import { JSONBlock } from "@phoenix/components/code";
 import { MarkdownBlock } from "@phoenix/components/markdown";

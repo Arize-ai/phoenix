@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef } from "react";
 import {
   Group as AriaGroup,
   GroupProps as AriaGroupProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { ComponentSize } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts";

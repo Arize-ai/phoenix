@@ -1,3 +1,4 @@
+import { debounce } from "lodash-es";
 import {
   PropsWithChildren,
   useCallback,
@@ -6,7 +7,6 @@ import {
   useRef,
 } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
-import { debounce } from "lodash-es";
 import invariant from "tiny-invariant";
 
 import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";

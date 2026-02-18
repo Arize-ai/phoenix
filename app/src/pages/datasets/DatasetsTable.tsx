@@ -1,3 +1,13 @@
+import { css } from "@emotion/react";
+import {
+  CellContext,
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   startTransition,
   useCallback,
@@ -8,16 +18,6 @@ import {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
-import {
-  CellContext,
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  SortingState,
-  useReactTable,
-} from "@tanstack/react-table";
-import { css } from "@emotion/react";
 
 import {
   Flex,
@@ -95,10 +95,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
-          sort: {
-            type: "DatasetSort"
-            defaultValue: { col: createdAt, dir: desc }
-          }
+          sort: { type: "DatasetSort", defaultValue: { col: createdAt, dir: desc } }
           filter: { type: "DatasetFilter", defaultValue: null }
         ) {
           datasets(first: $first, after: $after, sort: $sort, filter: $filter)

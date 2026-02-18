@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router";
-import { css } from "@emotion/react";
 
 import { Flex, View } from "@phoenix/components";
 

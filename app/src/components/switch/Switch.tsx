@@ -1,9 +1,9 @@
+import { css } from "@emotion/react";
 import { forwardRef, ReactNode, Ref } from "react";
 import {
   Switch as AriaSwitch,
   SwitchProps as AriaSwitchProps,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 const switchCSS = css`
   display: flex;
@@ -61,9 +61,7 @@ const switchCSS = css`
         transform: translateY(-50%)
           translateX(
             calc(
-              var(--global-dimension-size-400) - var(
-                  --global-dimension-size-250
-                )
+              var(--global-dimension-size-400) - var(--global-dimension-size-250)
             )
           );
       }

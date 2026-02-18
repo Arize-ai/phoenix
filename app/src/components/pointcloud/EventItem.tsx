@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
-import { transparentize } from "polished";
 import { css } from "@emotion/react";
+import { transparentize } from "polished";
+import { ReactNode } from "react";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isAudioUrl, isVideoUrl } from "@phoenix/utils/urlUtils";
@@ -334,9 +334,7 @@ function PromptResponsePreview(
     <div
       data-size={props.size}
       css={css`
-        --prompt-response-preview-background-color: var(
-          --global-color-gray-200
-        );
+        --prompt-response-preview-background-color: var(--global-color-gray-200);
         background-color: var(--prompt-response-preview-background-color);
         &[data-size="small"] {
           display: flex;
@@ -535,8 +533,8 @@ function EventItemFooter({
         flex-direction: row;
         justify-content: space-between;
         padding: var(--global-dimension-static-size-50)
-          var(--global-dimension-static-size-100)
-          var(--global-dimension-static-size-50) 7px;
+          var(--global-dimension-static-size-100) var(--global-dimension-static-size-50)
+          7px;
         border-top: 1px solid var(--global-border-color-dark);
       `}
     >

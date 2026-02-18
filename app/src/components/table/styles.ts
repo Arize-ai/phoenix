@@ -1,6 +1,6 @@
-import { CSSProperties } from "react";
-import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
+import { Column } from "@tanstack/react-table";
+import { CSSProperties } from "react";
 
 export const tableCSS = css`
   // fixes table row sizing issues with full height cell children

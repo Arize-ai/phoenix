@@ -1,11 +1,11 @@
-import { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 
 import { Flex, Token } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";

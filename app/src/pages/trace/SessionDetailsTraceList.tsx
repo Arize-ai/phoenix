@@ -1,12 +1,11 @@
-import { useCallback, useMemo } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
-import { isNumber, isString, throttle } from "lodash-es";
-import { css } from "@emotion/react";
-
 import {
   SemanticAttributePrefixes,
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
+import { css } from "@emotion/react";
+import { isNumber, isString, throttle } from "lodash-es";
+import { useCallback, useMemo } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
 
 import {
   Flex,

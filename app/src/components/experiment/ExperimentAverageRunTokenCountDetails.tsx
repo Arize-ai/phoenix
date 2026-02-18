@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { TokenCountDetails } from "../trace/TokenCountDetails";
-
 import { ExperimentAverageRunTokenCountDetailsQuery } from "./__generated__/ExperimentAverageRunTokenCountDetailsQuery.graphql";
 
 export function ExperimentAverageRunTokenCountDetails({

@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { ReactNode } from "react";
 import { Pressable } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { Flex } from "@phoenix/components";
 import {
@@ -36,8 +36,7 @@ export function ExperimentAnnotationButton({
         css={css`
           container-type: inline-size;
           cursor: pointer;
-          padding: var(--global-dimension-size-50)
-            var(--global-dimension-size-100);
+          padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
           flex: 1 1 auto;
           border-radius: var(--global-rounding-small);
           width: 100%;

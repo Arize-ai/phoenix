@@ -1,12 +1,4 @@
-import React, {
-  startTransition,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   ExpandedState,
@@ -18,7 +10,15 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 
 import {
   ContextualHelp,
@@ -42,7 +42,6 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 
 import { IntCell, TextCell } from "../../components/table";
-
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";

@@ -10,7 +10,6 @@ import {
 import { Heading } from "../content";
 import { Icon, Icons } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
-
 import { cardCSS } from "./styles";
 import { CardProps } from "./types";
 

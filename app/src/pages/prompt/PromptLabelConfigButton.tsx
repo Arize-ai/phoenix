@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { ModalOverlay } from "react-aria-components";
 import {
@@ -6,7 +7,6 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
-import { css } from "@emotion/react";
 
 import {
   Autocomplete,

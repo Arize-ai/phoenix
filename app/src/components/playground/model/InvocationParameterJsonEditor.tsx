@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
 import { css } from "@emotion/react";
+import { useCallback, useState } from "react";
 
 import { Label, Text } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";

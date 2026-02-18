@@ -1,5 +1,5 @@
-import { Link as RouterLink, LinkProps } from "react-router";
 import { css } from "@emotion/react";
+import { Link as RouterLink, LinkProps } from "react-router";
 export function Link(props: LinkProps) {
   return (
     // Stop propagation to prevent the click from being handled by the parent

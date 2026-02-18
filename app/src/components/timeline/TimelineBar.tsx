@@ -1,5 +1,5 @@
-import { HTMLProps, useMemo } from "react";
 import { css } from "@emotion/react";
+import { HTMLProps, useMemo } from "react";
 
 const trackCSS = css`
   height: var(--global-dimension-size-75);

@@ -1,5 +1,4 @@
-import { ReactNode, useCallback, useMemo, useRef, useState } from "react";
-import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
+import { css } from "@emotion/react";
 import {
   ColumnDef,
   flexRender,
@@ -7,7 +6,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css } from "@emotion/react";
+import { ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
 
 import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
 import { RoleSelect } from "@phoenix/components/settings/RoleSelect";
@@ -77,8 +77,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 50 }
       ) {
-        users(first: $first, after: $after)
-          @connection(key: "UsersTable_users") {
+        users(first: $first, after: $after) @connection(key: "UsersTable_users") {
           edges {
             user: node {
               id

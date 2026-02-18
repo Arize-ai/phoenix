@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { forwardRef, Ref } from "react";
 import { Tooltip as AriaTooltip } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { tooltipCSS } from "./styles";
 import { TooltipProps } from "./types";

@@ -1,7 +1,7 @@
+import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { css } from "@emotion/react";
 
 import {
   Button,

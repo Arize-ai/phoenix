@@ -1,7 +1,7 @@
+import { css } from "@emotion/react";
 import { Suspense, useCallback } from "react";
 import { Collection, Key } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
-import { css } from "@emotion/react";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 

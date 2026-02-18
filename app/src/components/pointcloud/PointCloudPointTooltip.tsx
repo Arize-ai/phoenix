@@ -1,6 +1,6 @@
+import { css } from "@emotion/react";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { css } from "@emotion/react";
 
 import { useInferences } from "@phoenix/contexts/InferencesContext";
 import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
