@@ -139,7 +139,6 @@ export function SystemAPIKeysTable({
     ];
     return cols;
   }, [handleDelete]);
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

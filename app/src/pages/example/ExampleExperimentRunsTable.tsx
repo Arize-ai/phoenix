@@ -218,7 +218,6 @@ export function ExampleExperimentRunsTable({
       },
     },
   ];
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

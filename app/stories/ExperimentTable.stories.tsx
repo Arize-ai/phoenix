@@ -475,7 +475,6 @@ function SimpleExperimentTable({
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<MockExperiment>({
     columns,
     data: experiments,

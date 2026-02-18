@@ -130,7 +130,6 @@ export function NewProjectForm({
   });
 
   // Watch form values for preview
-  // eslint-disable-next-line react-hooks/incompatible-library
   const currentPreset = watch("gradientPreset");
 
   // Get current gradient colors based on selection

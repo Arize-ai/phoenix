@@ -29,23 +29,20 @@
     "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o",
     "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
-    "lint": "eslint",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "test": "pnpm run -r test run",
     "type:check": "pnpm run -r type:check"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
-    "@eslint/js": "^9.39.2",
-    "eslint": "^9.39.2",
-    "globals": "^16.5.0",
-    "jiti": "^2.6.1",
     "oxfmt": "^0.33.0",
+    "oxlint": "^1.48.0",
     "pkg-pr-new": "^0.0.39",
     "rimraf": "^5.0.10",
     "tsc-alias": "1.8.11",
     "typedoc": "^0.27.9",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.1",
     "vitest": "^4.0.17"
   },
   "engines": {

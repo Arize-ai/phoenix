@@ -655,7 +655,6 @@ function TableBody<T>({
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
-  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,

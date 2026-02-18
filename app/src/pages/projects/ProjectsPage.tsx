@@ -829,7 +829,6 @@ function ProjectsTable({
     },
     [setProjectSortOrder, sortingRowModel, onSort]
   );
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: projects,
     columns,

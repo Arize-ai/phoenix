@@ -1,0 +1,15 @@
+{
+  "$schema": "../app/node_modules/oxlint/configuration_schema.json",
+
+  "extends": ["../.oxlintrc.json"],
+
+  "env": {
+    "node": true
+  },
+
+  "rules": {
+    "eqeqeq": ["error", "smart"]
+  },
+
+  "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
+}

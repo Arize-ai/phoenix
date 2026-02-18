@@ -10,7 +10,7 @@
     "ms-python.mypy-type-checker",
     "ms-python.python",
     "graphql.vscode-graphql-syntax",
-    "dbaeumer.vscode-eslint",
+
     "oxc.oxc-vscode",
     "meta.relay",
     "github.vscode-pull-request-github",

@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "extends": ["../.oxlintrc.json"],
+
+  "plugins": ["react", "typescript"],
+
+  // NOTE: We intentionally do NOT use jsPlugins for eslint-plugin-react-hooks here.
+  // The React Compiler rules (incompatible-library, set-state-in-effect) would catch
+  // usages of TanStack Table, TanStack Virtual, and React Hook Form - libraries we
+  // use extensively. Since these rules only enforce adding suppression comments
+  // (React Compiler already skips memoization for affected components), and JS plugins
+  // add ~10s to lint time (vs ~45ms without), the cost/benefit doesn't justify it.
+
+  "env": {
+    "browser": true
+  },
+
+  "settings": {
+    "react": {
+      "version": "19.2.0"
+    }
+  },
+
+  "rules": {
+    "react/exhaustive-deps": "warn",
+    "react/rules-of-hooks": "error",
+    "react/no-unknown-property": ["error", { "ignore": ["css"] }],
+    "react/jsx-uses-react": "off",
+    "react/react-in-jsx-scope": "off",
+
+    "typescript/no-empty-object-type": [
+      "error",
+      {
+        "allowInterfaces": "with-single-extends"
+      }
+    ]
+  },
+
+  "ignorePatterns": ["playwright-report/**", "test-results/**"]
+}

@@ -437,7 +437,6 @@ export function ModelsTable({
     ];
   }, [kindFilter]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

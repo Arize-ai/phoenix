@@ -1,0 +1,25 @@
+{
+  "$schema": "./app/node_modules/oxlint/configuration_schema.json",
+
+  "plugins": ["typescript"],
+
+  "rules": {
+    "no-console": "error",
+    "no-duplicate-imports": "error",
+
+    "typescript/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ]
+  },
+
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/build/**",
+    "**/node_modules/**"
+  ]
+}
