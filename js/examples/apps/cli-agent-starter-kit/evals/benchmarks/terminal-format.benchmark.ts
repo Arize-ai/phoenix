@@ -73,7 +73,9 @@ async function main() {
     name: "exact-match",
     kind: "CODE",
     evaluate: ({ output, metadata }) => {
-      const expectedLabel = metadata?.expectedSafe ? "compliant" : "non_compliant";
+      const expectedLabel = metadata?.expectedSafe
+        ? "compliant"
+        : "non_compliant";
       const predictedLabel = typeof output === "string" ? output : "unknown";
       const match = predictedLabel === expectedLabel;
       return {
