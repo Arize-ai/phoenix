@@ -1,5 +1,26 @@
 # Changelog
 
+## [13.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.1.1...arize-phoenix-v13.2.0) (2026-02-19)
+
+
+### Features
+
+* add AWS Bedrock cross-region inference model prefix preference ([#11576](https://github.com/Arize-ai/phoenix/issues/11576)) ([affea10](https://github.com/Arize-ai/phoenix/commit/affea108268c523f092c0a734e2395a069e5b020))
+
+
+### Bug Fixes
+
+* add parameter for deleting project after deleting experiment ([#11569](https://github.com/Arize-ai/phoenix/issues/11569)) ([57b7576](https://github.com/Arize-ai/phoenix/commit/57b7576408bc21b46ea03009f741c9ebb0a55ca1))
+* add sonnet 4.6 for aws bedrock model names ([#11574](https://github.com/Arize-ai/phoenix/issues/11574)) ([53ed96c](https://github.com/Arize-ai/phoenix/commit/53ed96c41b0efee6628b3db35841fc509bf8b622))
+* Revert lodash-es as it breaks production builds ([#11590](https://github.com/Arize-ai/phoenix/issues/11590)) ([e2574ca](https://github.com/Arize-ai/phoenix/commit/e2574ca454207bd22d22d04f20e73b59787f4257))
+
+
+### Documentation
+
+* add GTM tag to Mintlify config ([#11577](https://github.com/Arize-ai/phoenix/issues/11577)) ([83c9dda](https://github.com/Arize-ai/phoenix/commit/83c9ddaf64d6502b930f663c7283d624370cf5eb))
+* document evaluator benchmarking strategy and add meta-evaluation skill rule ([#11582](https://github.com/Arize-ai/phoenix/issues/11582)) ([e98034c](https://github.com/Arize-ai/phoenix/commit/e98034c572cd268a10501e476c32e8cf225dccb3))
+* update AGENTS.md to reference oxlint ([85d5b1e](https://github.com/Arize-ai/phoenix/commit/85d5b1e8c4e338a9d21bd387b4ab4a1af938d22f))
+
 ## [13.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.1.0...arize-phoenix-v13.1.1) (2026-02-18)
 
 
