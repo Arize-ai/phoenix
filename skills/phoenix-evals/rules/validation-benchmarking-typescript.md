@@ -173,6 +173,6 @@ Re-run the benchmark after any of these changes:
 ## See Also
 
 - `validation.md` — Metric definitions and golden dataset construction
-- `validation-calibration-typescript.md` — Manual metric calculation utilities
+- `validation-metrics-typescript.md` — Manual metric calculation utilities
 - `experiments-running-typescript.md` — `runExperiment` API reference
 - `experiments-datasets-typescript.md` — `createOrGetDataset` / `getDatasetExamples` usage

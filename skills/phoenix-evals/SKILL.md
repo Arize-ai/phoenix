@@ -22,7 +22,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Batch evaluate DataFrame | `evaluate-dataframe-python` |
 | Run experiment | `experiments-running-{python\|typescript}` |
 | Create dataset | `experiments-datasets-{python\|typescript}` |
-| Validate evaluator | `validation`, `validation-calibration-{python\|typescript}` |
+| Validate evaluator | `validation`, `validation-metrics-{python\|typescript}` |
 | Benchmark evaluator accuracy | `validation-benchmarking-typescript` |
 | Analyze errors | `error-analysis`, `axial-coding` |
 | RAG evals | `evaluators-rag` |
@@ -35,7 +35,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 `observe-tracing-setup` → `error-analysis` → `axial-coding` → `evaluators-overview`
 
 **Building Evaluator:**
-`fundamentals` → `common-mistakes-python` → `evaluators-{code\|llm}-{python\|typescript}` → `validation-calibration-{python\|typescript}`
+`fundamentals` → `common-mistakes-python` → `evaluators-{code\|llm}-{python\|typescript}` → `validation-metrics-{python\|typescript}`
 
 **Benchmarking an Evaluator (TypeScript):**
 `validation.md` → build golden dataset → `validation-benchmarking-typescript` → confirm >80% TPR/TNR
