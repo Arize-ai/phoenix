@@ -97,8 +97,34 @@ experiment = await AsyncClient().experiments.run_experiment(
 
 ### Evaluators as the task (meta evaluation)
 
-To validate an evaluator against human annotations, use it as the experiment task and
-score with exact-match against ground truth labels. See `validation-evaluators-python.md`.
+Use an LLM evaluator as the experiment **task** to test the evaluator itself
+against human annotations:
+
+```python
+from phoenix.evals import create_evaluator
+
+# The evaluator IS the task being tested
+def run_refusal_eval(input, evaluator):
+    result = evaluator.evaluate(input)
+    return result[0]
+
+# A simple heuristic checks judge vs human agreement
+@create_evaluator(name="exact_match")
+def exact_match(output, expected):
+    return float(output["score"]) == float(expected["refusal_score"])
+
+# Run: evaluator is the task, exact_match evaluates it
+experiment = await AsyncClient().experiments.run_experiment(
+    dataset=annotated_dataset,
+    task=partial(run_refusal_eval, evaluator=refusal),
+    experiment_name="judge-v1",
+    evaluators=[exact_match],
+    concurrency=10,
+)
+```
+
+This pattern lets you iterate on evaluator prompts until they align with human judgments.
+See `tutorials/evals/evals-2/evals_2.0_rag_demo.ipynb` for a full worked example.
 
 ## Best Practices
 
