@@ -95,3 +95,6 @@ helm/charts/*.tgz
 # mypy
 .mypy_cache
 .hypothesis
+
+# TypeScript build info
+*.tsbuildinfo

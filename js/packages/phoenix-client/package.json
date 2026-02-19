@@ -65,14 +65,14 @@
     }
   },
   "scripts": {
-    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "build": "tsgo --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "clean": "rimraf dist",
     "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "prebuild": "pnpm run clean && pnpm run generate",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",

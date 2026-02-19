@@ -31,12 +31,12 @@
     }
   },
   "scripts": {
-    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "build": "tsgo --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "clean": "rimraf dist",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {},
   "devDependencies": {

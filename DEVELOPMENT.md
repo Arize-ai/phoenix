@@ -309,7 +309,7 @@ After doing so, consider pasting the following settings into your workspace sett
   "oxc.path.oxlint": "app/node_modules/oxlint/bin/oxlint",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
-  "typescript.tsdk": "app/node_modules/typescript/lib",
+  "typescript.experimental.useTsgo": true,
   "relay.rootDirectory": "app",
   "relay.pathToConfig": "app/relay.config.js",
   "relay.autoStartCompiler": true

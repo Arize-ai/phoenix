@@ -54,7 +54,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "build": "tsgo --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "clean": "rimraf dist",
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o",
@@ -62,7 +62,7 @@
     "prebuild": "pnpm run clean",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@arizeai/openinference-core": "^2.0.0",

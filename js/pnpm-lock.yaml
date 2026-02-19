@@ -11,6 +11,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.8
         version: 2.29.8(@types/node@25.2.3)
+      '@typescript/native-preview':
+        specifier: ^7.0.0-dev
+        version: 7.0.0-dev.20260219.1
       oxfmt:
         specifier: ^0.33.0
         version: 0.33.0
@@ -29,9 +32,6 @@ importers:
       typedoc:
         specifier: ^0.27.9
         version: 0.27.9(typescript@5.9.3)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
       vitest:
         specifier: ^4.0.17
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(jiti@2.6.1)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
@@ -1663,6 +1663,45 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-h8gG6gE0YcxJZwxFc+JHjqCoFf/EBZ0k6znspV6+NwkyyJHMIqYiawZ7Lzu2Ka8lJDO3QxXcIdw2jKaktwW2wQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-/tSFdSD76V4X3bX+iXecaa41KRuPMl1LQD3nsE45zZFdmDUIhvCwFRXDP+whkcdaJy8RJTALC0wWhIJ6FUmnwA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-9MXFr+T5LQlXuDsKTtwFdN1lbaKSMmZzabT8Gr1C74ueun91IiJVhNNISwCWY48c28Ka6O6fwxeHjU44ee/G9Q==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-pmTGfe3VGoCmjyy9r68wurGBsoaqwYRZ8/i7cIxAJNnq1huKuXRnLnVoZm6uOzZ2GtjWFjwmXXCvcdfmy9+PvQ==}
+    cpu: [arm]
+    os: [linux]
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-EMLKx9koxTbdWFg+jaqy5MwZQ19usFug6Cw+evkCaFlDEfF5sgJ/npSRhNJLbZ451FR0eqNIKmIEA9cXlHSDuA==}
+    cpu: [x64]
+    os: [linux]
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-vILjYS1EnTZoiD1SfWBtk92qpDrFP9Ln38olonMjtO7mJO6SmN78GHhGR+dyGgNTHQ7PZAxGFiQwZJgrIMWNhw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-wwjOQCSViLi+mqJycnRek7GeLZXmJClcZaVYFkLRVbmIMWvWSJkafasFjnQHDinXcLiXxZYdJ+oRR/86FOt2Xw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@typescript/native-preview@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-Y/mfpmpZwfwyNzBgki/wUm/pWLQM2gaL5cum6lbOv8QNZUtzcIy0wTPaS08sb4yhUSGC1jGaJEPR2FNctfeC2Q==}
+    hasBin: true
 
   '@vercel/oidc@3.1.0':
     resolution: {integrity: sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w==}
@@ -4622,6 +4661,37 @@ snapshots:
   '@types/statuses@2.0.6': {}
 
   '@types/unist@3.0.3': {}
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview@7.0.0-dev.20260219.1':
+    optionalDependencies:
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260219.1
 
   '@vercel/oidc@3.1.0': {}
 

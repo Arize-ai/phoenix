@@ -253,6 +253,9 @@ importers:
       '@types/relay-runtime':
         specifier: ^19.0.3
         version: 19.0.3
+      '@typescript/native-preview':
+        specifier: ^7.0.0-dev
+        version: 7.0.0-dev.20260219.1
       '@vitejs/plugin-react':
         specifier: ^4.7.0
         version: 4.7.0(vite@6.4.1(@types/node@22.17.0)(jiti@2.6.1)(yaml@2.8.2))
@@ -298,9 +301,6 @@ importers:
       ts-plugin-sort-import-suggestions:
         specifier: ^1.0.4
         version: 1.0.4
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
       vite:
         specifier: ^6.4.1
         version: 6.4.1(@types/node@22.17.0)(jiti@2.6.1)(yaml@2.8.2)
@@ -2427,6 +2427,45 @@ packages:
 
   '@types/uuid@9.0.8':
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-h8gG6gE0YcxJZwxFc+JHjqCoFf/EBZ0k6znspV6+NwkyyJHMIqYiawZ7Lzu2Ka8lJDO3QxXcIdw2jKaktwW2wQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-/tSFdSD76V4X3bX+iXecaa41KRuPMl1LQD3nsE45zZFdmDUIhvCwFRXDP+whkcdaJy8RJTALC0wWhIJ6FUmnwA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-9MXFr+T5LQlXuDsKTtwFdN1lbaKSMmZzabT8Gr1C74ueun91IiJVhNNISwCWY48c28Ka6O6fwxeHjU44ee/G9Q==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-pmTGfe3VGoCmjyy9r68wurGBsoaqwYRZ8/i7cIxAJNnq1huKuXRnLnVoZm6uOzZ2GtjWFjwmXXCvcdfmy9+PvQ==}
+    cpu: [arm]
+    os: [linux]
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-EMLKx9koxTbdWFg+jaqy5MwZQ19usFug6Cw+evkCaFlDEfF5sgJ/npSRhNJLbZ451FR0eqNIKmIEA9cXlHSDuA==}
+    cpu: [x64]
+    os: [linux]
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-vILjYS1EnTZoiD1SfWBtk92qpDrFP9Ln38olonMjtO7mJO6SmN78GHhGR+dyGgNTHQ7PZAxGFiQwZJgrIMWNhw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-wwjOQCSViLi+mqJycnRek7GeLZXmJClcZaVYFkLRVbmIMWvWSJkafasFjnQHDinXcLiXxZYdJ+oRR/86FOt2Xw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@typescript/native-preview@7.0.0-dev.20260219.1':
+    resolution: {integrity: sha512-Y/mfpmpZwfwyNzBgki/wUm/pWLQM2gaL5cum6lbOv8QNZUtzcIy0wTPaS08sb4yhUSGC1jGaJEPR2FNctfeC2Q==}
+    hasBin: true
 
   '@uiw/codemirror-extensions-basic-setup@4.25.4':
     resolution: {integrity: sha512-YzNwkm0AbPv1EXhCHYR5v0nqfemG2jEB0Z3Att4rBYqKrlG7AA9Rhjc3IyBaOzsBu18wtrp9/+uhTyu7TXSRng==}
@@ -7129,6 +7168,37 @@ snapshots:
   '@types/use-sync-external-store@0.0.6': {}
 
   '@types/uuid@9.0.8': {}
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260219.1':
+    optional: true
+
+  '@typescript/native-preview@7.0.0-dev.20260219.1':
+    optionalDependencies:
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260219.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260219.1
 
   '@uiw/codemirror-extensions-basic-setup@4.25.4(@codemirror/autocomplete@6.20.0)(@codemirror/commands@6.10.2)(@codemirror/language@6.12.1)(@codemirror/lint@6.9.4)(@codemirror/search@6.5.6)(@codemirror/state@6.5.4)(@codemirror/view@6.39.14)':
     dependencies:

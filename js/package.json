@@ -36,13 +36,13 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
+    "@typescript/native-preview": "^7.0.0-dev",
     "oxfmt": "^0.33.0",
     "oxlint": "^1.48.0",
     "pkg-pr-new": "^0.0.39",
     "rimraf": "^5.0.10",
     "tsc-alias": "1.8.11",
     "typedoc": "^0.27.9",
-    "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   },
   "engines": {

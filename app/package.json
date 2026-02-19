@@ -33,7 +33,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@apollo/client": "^4.1.4",
@@ -117,6 +117,7 @@
     "@types/react-relay": "^18.2.1",
     "@types/recharts": "^1.8.29",
     "@types/relay-runtime": "^19.0.3",
+    "@typescript/native-preview": "^7.0.0-dev",
     "@vitejs/plugin-react": "^4.7.0",
     "babel-plugin-react-compiler": "1.0.0",
     "babel-plugin-relay": "^20.1.1",
@@ -132,7 +133,6 @@
     "rollup-plugin-visualizer": "^5.14.0",
     "storybook": "^8.6.15",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
-    "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vite-plugin-circular-dependency": "^0.5.0",
     "vite-plugin-react-fallback-throttle": "^0.1.3",
