@@ -491,7 +491,7 @@ requires-dist = [
     { name = "jsonpath-ng" },
     { name = "jsonschema" },
     { name = "ldap3" },
-    { name = "numpy", specifier = "!=2.0.0" },
+    { name = "numpy" },
     { name = "openai", marker = "extra == 'container'", specifier = ">=2.14.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.44" },
     { name = "openinference-instrumentation-openai", specifier = ">=0.1.41" },

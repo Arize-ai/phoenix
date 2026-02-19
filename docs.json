@@ -1039,14 +1039,6 @@
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
             ]
-          },
-          {
-            "group": "Retrieval & Inferences",
-            "icon": "magnifying-glass",
-            "pages": [
-              "docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
-              "docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
-            ]
           }
         ]
       },
@@ -1473,7 +1465,7 @@
     },
     {
       "source": "/docs/phoenix/inferences/use-cases-inferences/embeddings-analysis",
-      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis"
+      "destination": "/docs/phoenix/cookbook"
     },
     {
       "source": "/docs/phoenix/self-hosting/environments",
@@ -1602,10 +1594,6 @@
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/manual-instrumentation",
       "destination": "/docs/phoenix/tracing/how-to-tracing"
-    },
-    {
-      "source": "/docs/phoenix/inferences/use-cases-inferences",
-      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
     },
     {
       "source": "/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
