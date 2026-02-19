@@ -3,7 +3,7 @@ import {
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
-import { isNumber, isString, throttle } from "lodash-es";
+import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 

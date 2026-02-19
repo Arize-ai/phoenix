@@ -1,4 +1,4 @@
-import { debounce } from "lodash-es";
+import { debounce } from "lodash";
 import { useMemo } from "react";
 
 const DEFAULT_DEBOUNCE_DELAY = 500;

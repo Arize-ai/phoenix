@@ -1,4 +1,4 @@
-import debounce from "lodash-es/debounce";
+import debounce from "lodash/debounce";
 import { useMemo } from "react";
 
 import { Input, Label, TextField } from "@phoenix/components";

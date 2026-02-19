@@ -1,4 +1,4 @@
-import mergeWith from "lodash-es/mergeWith";
+import mergeWith from "lodash/mergeWith";
 import invariant from "tiny-invariant";
 import { createStore } from "zustand";
 import { devtools } from "zustand/middleware";

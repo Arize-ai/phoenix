@@ -1,4 +1,4 @@
-import isObject from "lodash-es/isObject";
+import isObject from "lodash/isObject";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 

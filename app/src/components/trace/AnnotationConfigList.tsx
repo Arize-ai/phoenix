@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { isString } from "lodash-es";
+import { isString } from "lodash";
 import { startTransition, useCallback, useMemo, useState } from "react";
 import { FocusScope } from "react-aria";
 import {
