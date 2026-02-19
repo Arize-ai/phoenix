@@ -17,7 +17,7 @@ from collections.abc import Mapping, Sequence
 from enum import Enum
 from string import Formatter
 from textwrap import dedent
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union, cast
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
@@ -504,7 +504,7 @@ class MessageTemplate:
         """
         # For simple string content, return as string
         if self._is_string_content:
-            rendered_part = cast(TextContentPart, self._content_templates[0].render(variables))
+            rendered_part = self._content_templates[0].render(variables)
             return Message(role=self.role, content=rendered_part["text"])
 
         # For multiple content parts, return as list
