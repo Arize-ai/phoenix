@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -25,6 +25,7 @@ import {
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -148,6 +149,17 @@ function decodeMenuKey(key: string): ModelInfo | null {
   }
 }
 
+/**
+ * Prepends an AWS Bedrock cross-region inference prefix to a model name.
+ * Idempotent: returns the name unchanged if it already starts with "{prefix}.".
+ */
+function applyBedrockPrefix(modelName: string, prefix: string): string {
+  const prefixDot = `${prefix}.`;
+  return modelName.startsWith(prefixDot)
+    ? modelName
+    : `${prefixDot}${modelName}`;
+}
+
 export type ModelMenuProps = {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
@@ -156,6 +168,23 @@ export type ModelMenuProps = {
 export function ModelMenu({ value, onChange }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+
+  const handleModelChange = useCallback(
+    (model: ModelMenuValue) => {
+      if (model.provider === "AWS" && awsBedrockModelPrefix) {
+        onChange?.({
+          ...model,
+          modelName: applyBedrockPrefix(model.modelName, awsBedrockModelPrefix),
+        });
+      } else {
+        onChange?.(model);
+      }
+    },
+    [onChange, awsBedrockModelPrefix]
+  );
   const data = useLazyLoadQuery<ModelMenuQuery>(
     graphql`
       query ModelMenuQuery {
@@ -298,14 +327,14 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
             modelsByProvider={filteredModelsByProvider}
             providerInfoMap={providerInfoMap}
             customProviders={filteredCustomProviders}
-            onChange={onChange}
+            onChange={handleModelChange}
           />
         ) : (
           <ProviderMenu
             providers={data.modelProviders}
             modelsByProvider={modelsByProvider}
             customProviders={customProviders}
-            onChange={onChange}
+            onChange={handleModelChange}
           />
         )}
         <MenuFooter>
@@ -343,6 +372,14 @@ function ModelsByProviderMenu({
   customProviders,
   onChange,
 }: ModelsByProviderMenuProps) {
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+  const displayModelName = (providerKey: string, modelName: string) =>
+    providerKey === "AWS" && awsBedrockModelPrefix
+      ? applyBedrockPrefix(modelName, awsBedrockModelPrefix)
+      : modelName;
+
   const handleModelSelect = (
     providerKey: string,
     modelName: string,
@@ -408,13 +445,17 @@ function ModelsByProviderMenu({
                     modelName,
                   });
                   return (
-                    <MenuItem key={itemKey} id={itemKey} textValue={modelName}>
+                    <MenuItem
+                      key={itemKey}
+                      id={itemKey}
+                      textValue={displayModelName(providerKey, modelName)}
+                    >
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <GenerativeProviderIcon
                           provider={providerKey}
                           height={16}
                         />
-                        <Text>{modelName}</Text>
+                        <Text>{displayModelName(providerKey, modelName)}</Text>
                       </Flex>
                     </MenuItem>
                   );
@@ -439,7 +480,7 @@ function ModelsByProviderMenu({
                       <MenuItem
                         key={itemKey}
                         id={itemKey}
-                        textValue={modelName}
+                        textValue={displayModelName(providerKey, modelName)}
                       >
                         <Flex
                           direction="row"
@@ -452,7 +493,9 @@ function ModelsByProviderMenu({
                               height={16}
                             />
                           )}
-                          <Text>{modelName}</Text>
+                          <Text>
+                            {displayModelName(providerKey, modelName)}
+                          </Text>
                         </Flex>
                       </MenuItem>
                     );
@@ -576,6 +619,13 @@ function ProviderModelsSubmenu({
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const isValidProvider = isModelProvider(providerKey);
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+  const displayModelName = (name: string) =>
+    providerKey === "AWS" && awsBedrockModelPrefix
+      ? applyBedrockPrefix(name, awsBedrockModelPrefix)
+      : name;
 
   // Build the list of models, adding the search value as a custom option if needed
   const modelItems = useMemo(() => {
@@ -608,13 +658,13 @@ function ProviderModelsSubmenu({
     return baseItems;
   }, [models, searchValue, contains]);
 
-  // Custom filter that always shows the custom option
+  // Custom filter that always shows the custom option and matches against the display name
   const customFilter = (textValue: string, inputValue: string) => {
-    // Always show the custom option (it starts with "custom:")
+    // Always show the custom option (id starts with "custom:")
     if (textValue.startsWith("custom:")) {
       return true;
     }
-    return contains(textValue, inputValue);
+    return contains(displayModelName(textValue), inputValue);
   };
 
   return (
@@ -653,7 +703,7 @@ function ProviderModelsSubmenu({
                 {isValidProvider && (
                   <GenerativeProviderIcon provider={providerKey} height={16} />
                 )}
-                <Text>{name}</Text>
+                <Text>{displayModelName(name)}</Text>
                 {isCustom && (
                   <Text color="text-700" size="XS">
                     (custom)

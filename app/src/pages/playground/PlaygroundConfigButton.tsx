@@ -1,5 +1,7 @@
 import {
   Button,
+  ComboBox,
+  ComboBoxItem,
   Dialog,
   DialogTrigger,
   Flex,
@@ -16,6 +18,10 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  AwsBedrockModelPrefix,
+  awsBedrockModelPrefixes,
+} from "@phoenix/store/preferencesStore";
 
 export function PlaygroundConfigButton() {
   const streaming = usePlaygroundContext((state) => state.streaming);
@@ -24,6 +30,12 @@ export function PlaygroundConfigButton() {
   const setRepetitions = usePlaygroundContext((state) => state.setRepetitions);
   const setPlaygroundStreamingEnabled = usePreferencesContext(
     (state) => state.setPlaygroundStreamingEnabled
+  );
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+  const setAwsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.setAwsBedrockModelPrefix
   );
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
@@ -80,6 +92,27 @@ export function PlaygroundConfigButton() {
                   Enable streaming to view experiment task output as it is
                   generated in real time.
                 </Text>
+                <ComboBox
+                  aria-label="AWS Bedrock Model Prefix"
+                  label="AWS Bedrock Model Prefix"
+                  description="Cross-region inference prefix for AWS Bedrock models"
+                  selectedKey={awsBedrockModelPrefix}
+                  onSelectionChange={(value) => {
+                    if (value != null) {
+                      setAwsBedrockModelPrefix(value as AwsBedrockModelPrefix);
+                    }
+                  }}
+                >
+                  {awsBedrockModelPrefixes.map((prefix) => (
+                    <ComboBoxItem
+                      key={prefix === "" ? "__none__" : prefix}
+                      id={prefix}
+                      textValue={prefix === "" ? "None (no prefix)" : prefix}
+                    >
+                      <Text>{prefix === "" ? "None (no prefix)" : prefix}</Text>
+                    </ComboBoxItem>
+                  ))}
+                </ComboBox>
               </Flex>
             </View>
           </View>
