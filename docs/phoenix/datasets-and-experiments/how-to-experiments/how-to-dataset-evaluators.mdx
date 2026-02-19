@@ -43,13 +43,13 @@ Built-in evaluators are designed for fast, deterministic checks and are configur
 
 | Evaluator | What it checks | Key settings |
 | --- | --- | --- |
-| `contains` | Whether a text contains one or more words | Case sensitivity, require all words |
-| `exact_match` | Whether two values match exactly | Case sensitivity |
-| `regex` | Whether a text matches a regex pattern | Pattern validation, full match vs. partial |
-| `levenshtein_distance` | Edit distance between expected and actual text | Case sensitivity |
-| `json_distance` | Structural differences between two JSON values | Parse strings as JSON toggle |
+| [`contains`](/docs/phoenix/evaluation/playground-evaluators#contains) | Whether a text contains one or more words | Case sensitivity, require all words |
+| [`exact_match`](/docs/phoenix/evaluation/playground-evaluators#exact_match) | Whether two values match exactly | Case sensitivity |
+| [`regex`](/docs/phoenix/evaluation/playground-evaluators#regex) | Whether a text matches a regex pattern | Pattern validation, full match vs. partial |
+| [`levenshtein_distance`](/docs/phoenix/evaluation/playground-evaluators#levenshtein_distance) | Edit distance between expected and actual text | Case sensitivity |
+| [`json_distance`](/docs/phoenix/evaluation/playground-evaluators#json_distance) | Structural differences between two JSON values | Parse strings as JSON toggle |
 
-You can map evaluator inputs from dataset fields or supply literal values (for example, a fixed regex pattern).
+You can map evaluator inputs from dataset fields or supply literal values (for example, a fixed regex pattern). For full parameter details, defaults, and behavior notes, see [Playground Evaluators](/docs/phoenix/evaluation/playground-evaluators).
 
 ## Evaluator Traces
 

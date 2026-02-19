@@ -6,6 +6,10 @@ Evaluations do not all require LLMs, and often it's useful to create Evaluators 
 
 These evaluations that don't use an LLM are indicated by a `kind="code"` flag on the scores.
 
+<Info>
+This page covers **programmatic code evaluators** — functions you write in Python or TypeScript and run via the `arize-phoenix-evals` SDK. If you want deterministic checks that run automatically in the Phoenix UI without any code, see [Playground Evaluators](/docs/phoenix/evaluation/playground-evaluators).
+</Info>
+
 ### Using `create_evaluator`
 
 For convenience, a simple (sync or async) function can be converted into an Evaluator using the `create_evaluator` decorator. This function can either directly return a `Score` object or a value that can be converted into a score.
