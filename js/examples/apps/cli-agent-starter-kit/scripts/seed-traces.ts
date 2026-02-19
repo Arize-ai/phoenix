@@ -19,66 +19,94 @@ const DATASETS: Record<string, { name: string; examples: Example[] }> = {
   "phoenix-topic": phoenixTopicDataset,
 };
 
-function parseArgs(): { datasetName: string | null } {
+function parseArgs(): { datasetName: string | null; concurrency: number } {
   const args = process.argv.slice(2);
+
   const datasetIndex = args.indexOf("--dataset");
-  if (datasetIndex !== -1 && args[datasetIndex + 1]) {
-    return { datasetName: args[datasetIndex + 1] };
+  const datasetName =
+    datasetIndex !== -1 && args[datasetIndex + 1]
+      ? args[datasetIndex + 1]
+      : null;
+
+  const concurrencyIndex = args.indexOf("--concurrency");
+  const concurrency =
+    concurrencyIndex !== -1 && args[concurrencyIndex + 1]
+      ? parseInt(args[concurrencyIndex + 1], 10)
+      : 3;
+
+  return { datasetName, concurrency };
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
   }
-  return { datasetName: null };
+  return result;
 }
 
 async function seedDataset({
   name,
   examples,
+  concurrency,
 }: {
   name: string;
   examples: Example[];
+  concurrency: number;
 }): Promise<void> {
-  const total = examples.length;
-  console.log(`\nSeeding dataset: ${name} (${total} examples)\n`);
+  const shuffled = shuffle(examples);
+  const total = shuffled.length;
+  console.log(
+    `\nSeeding dataset: ${name} (${total} examples, concurrency=${concurrency})\n`
+  );
 
-  for (let i = 0; i < examples.length; i++) {
-    const example = examples[i];
-    const prompt = example.input?.prompt;
-    if (typeof prompt !== "string") {
-      console.warn(`  [${i + 1}/${total}] Skipping example with no prompt`);
-      continue;
-    }
+  let completed = 0;
+  const queue = [...shuffled];
 
-    const preview = prompt.length > 60 ? prompt.slice(0, 60) + "..." : prompt;
-    console.log(`  [${i + 1}/${total}] Running: "${preview}"`);
+  async function worker() {
+    while (queue.length > 0) {
+      const example = queue.shift();
+      if (!example) break;
 
-    try {
-      await runInteraction({ input: prompt, agent });
-    } catch (error) {
-      console.error(`  [${i + 1}/${total}] Error:`, error);
+      const prompt = example.input?.prompt;
+      const slot = ++completed;
+
+      if (typeof prompt !== "string") {
+        console.warn(`  [${slot}/${total}] Skipping example with no prompt`);
+        continue;
+      }
+
+      const preview = prompt.length > 60 ? prompt.slice(0, 60) + "..." : prompt;
+      console.log(`  [${slot}/${total}] Running: "${preview}"`);
+
+      try {
+        await runInteraction({ input: prompt, agent });
+      } catch (error) {
+        console.error(`  [${slot}/${total}] Error:`, error);
+      }
     }
   }
+
+  await Promise.all(Array.from({ length: concurrency }, worker));
 }
 
 async function main() {
-  const { datasetName } = parseArgs();
+  const { datasetName, concurrency } = parseArgs();
 
   let datasetsToRun: Array<{
     key: string;
     dataset: { name: string; examples: Example[] };
   }>;
 
-  if (datasetName) {
-    const dataset = DATASETS[datasetName];
-    if (!dataset) {
-      console.error(`Unknown dataset: "${datasetName}"`);
-      console.error(`Available datasets: ${Object.keys(DATASETS).join(", ")}`);
-      process.exit(1);
-    }
-    datasetsToRun = [{ key: datasetName, dataset }];
-  } else {
-    datasetsToRun = Object.entries(DATASETS).map(([key, dataset]) => ({
-      key,
-      dataset,
-    }));
+  const resolvedDatasetName = datasetName ?? "phoenix-topic";
+  const dataset = DATASETS[resolvedDatasetName];
+  if (!dataset) {
+    console.error(`Unknown dataset: "${resolvedDatasetName}"`);
+    console.error(`Available datasets: ${Object.keys(DATASETS).join(", ")}`);
+    process.exit(1);
   }
+  datasetsToRun = [{ key: resolvedDatasetName, dataset }];
 
   const totalExamples = datasetsToRun.reduce(
     (sum, { dataset }) => sum + dataset.examples.length,
@@ -90,9 +118,10 @@ async function main() {
   console.log("=".repeat(50));
   console.log(`Datasets: ${datasetsToRun.map(({ key }) => key).join(", ")}`);
   console.log(`Total examples: ${totalExamples}`);
+  console.log(`Concurrency: ${concurrency}`);
 
   for (const { dataset } of datasetsToRun) {
-    await seedDataset(dataset);
+    await seedDataset({ ...dataset, concurrency });
   }
 
   await flush();

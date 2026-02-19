@@ -1,7 +1,7 @@
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
 export const phoenixTopicExamples: Example[] = [
-  // On-topic: Phoenix OSS observability questions (10)
+  // On-topic: Phoenix OSS observability questions (18)
   {
     input: {
       prompt:
@@ -112,15 +112,102 @@ export const phoenixTopicExamples: Example[] = [
       description: "Prompt comparison using Phoenix experiments",
     },
   },
+  {
+    input: {
+      prompt:
+        "How do I instrument a LlamaIndex pipeline with Phoenix for RAG tracing?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "LlamaIndex RAG tracing with Phoenix",
+    },
+  },
+  {
+    input: {
+      prompt: "Can I run Phoenix locally without an internet connection?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Running Phoenix locally / offline setup",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "How do I filter and search through my traces in the Phoenix UI by project or time range?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Filtering and searching traces in Phoenix UI",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "What's the best way to trace nested LLM calls when I have an agent calling sub-agents?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Tracing nested agent/LLM calls in Phoenix",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "How do I programmatically query my Phoenix trace data using the Python client?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Querying traces with the Phoenix Python client",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "I'm using Vertex AI — does Phoenix support tracing for Google's models?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Vertex AI / Google model tracing with Phoenix",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "How do I export my Phoenix experiment results to share with my team?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Exporting Phoenix experiment results",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "Can I run Phoenix evals against a batch of historical traces, not just new ones?",
+    },
+    metadata: {
+      category: "on_topic",
+      expectedOnTopic: true,
+      description: "Batch evaluation of historical traces in Phoenix",
+    },
+  },
 
-  // Off-topic: Elixir Phoenix web framework (5)
+  // Off-topic: Wrong platform — other software also named "Phoenix" (8)
   {
     input: {
       prompt:
         "I'm getting a NoRouteError in Phoenix for a path I've definitely defined in my router. How do I debug this?",
     },
     metadata: {
-      category: "off_topic_elixir_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Elixir Phoenix router debugging",
     },
@@ -131,7 +218,7 @@ export const phoenixTopicExamples: Example[] = [
         "How do I handle file uploads in Phoenix LiveView? I need to show a progress indicator.",
     },
     metadata: {
-      category: "off_topic_elixir_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Phoenix LiveView file uploads",
     },
@@ -142,7 +229,7 @@ export const phoenixTopicExamples: Example[] = [
         "I want to set up real-time presence tracking with Phoenix Channels and PubSub.",
     },
     metadata: {
-      category: "off_topic_elixir_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Phoenix Channels and PubSub presence tracking",
     },
@@ -153,7 +240,7 @@ export const phoenixTopicExamples: Example[] = [
         "My Phoenix app is throwing a 'socket was closed' error in production. Could this be related to my LiveView configuration?",
     },
     metadata: {
-      category: "off_topic_elixir_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Elixir Phoenix LiveView socket error",
     },
@@ -163,7 +250,7 @@ export const phoenixTopicExamples: Example[] = [
       prompt: "How do I write Ecto migrations for a new Phoenix project?",
     },
     metadata: {
-      category: "off_topic_elixir_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Ecto migrations in Elixir Phoenix",
     },
@@ -226,14 +313,14 @@ export const phoenixTopicExamples: Example[] = [
     },
   },
 
-  // Off-topic: Apache Phoenix (HBase SQL) (3)
+  // Off-topic: Wrong platform — Apache Phoenix / HBase SQL (3)
   {
     input: {
       prompt:
         "How do I create a secondary index in Apache Phoenix for better query performance?",
     },
     metadata: {
-      category: "off_topic_apache_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Apache Phoenix secondary index creation",
     },
@@ -244,7 +331,7 @@ export const phoenixTopicExamples: Example[] = [
         "I'm getting a SQLTimeoutException when querying Phoenix - is this a connection pool issue?",
     },
     metadata: {
-      category: "off_topic_apache_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Apache Phoenix SQLTimeoutException debugging",
     },
@@ -255,13 +342,13 @@ export const phoenixTopicExamples: Example[] = [
         "How do I map an existing HBase table to an Apache Phoenix schema?",
     },
     metadata: {
-      category: "off_topic_apache_phoenix",
+      category: "off_topic_wrong_platform",
       expectedOnTopic: false,
       description: "Mapping HBase tables to Apache Phoenix schema",
     },
   },
 
-  // Off-topic: Adjacent AI/LLM dev questions (7)
+  // Off-topic: Adjacent AI/LLM dev questions (8)
   {
     input: {
       prompt:
@@ -339,27 +426,106 @@ export const phoenixTopicExamples: Example[] = [
       description: "Chroma vs Pinecone vector store comparison",
     },
   },
-
-  // Off-topic: Other (2)
   {
     input: {
       prompt:
         "Does Phoenix support model fine-tuning? I want to improve my model's performance on specific tasks.",
     },
     metadata: {
-      category: "off_topic_other",
+      category: "off_topic_adjacent",
       expectedOnTopic: false,
-      description: "Model fine-tuning confusion with Phoenix",
+      description: "Model fine-tuning — Phoenix is observability, not training",
     },
   },
+
+  // Off-topic: General knowledge / unrelated use (4)
+  {
+    input: {
+      prompt: "What's the capital of France?",
+    },
+    metadata: {
+      category: "off_topic_general",
+      expectedOnTopic: false,
+      description: "Basic geography question",
+    },
+  },
+  {
+    input: {
+      prompt: "Can you write me a recipe for chocolate chip cookies?",
+    },
+    metadata: {
+      category: "off_topic_general",
+      expectedOnTopic: false,
+      description: "Cooking recipe request",
+    },
+  },
+  {
+    input: {
+      prompt: "Can you recommend some good Netflix shows to watch this weekend?",
+    },
+    metadata: {
+      category: "off_topic_general",
+      expectedOnTopic: false,
+      description: "Entertainment recommendation",
+    },
+  },
+  {
+    input: {
+      prompt: "What are the symptoms of a common cold versus the flu?",
+    },
+    metadata: {
+      category: "off_topic_general",
+      expectedOnTopic: false,
+      description: "General health/medical question",
+    },
+  },
+
+  // Ambiguous / borderline (4)
   {
     input: {
       prompt: "How do I monitor my Phoenix app's performance in production?",
     },
     metadata: {
-      category: "off_topic_other",
+      category: "ambiguous",
       expectedOnTopic: false,
-      description: "Ambiguous — could be Elixir Phoenix or AI Phoenix",
+      description:
+        "Ambiguous — 'Phoenix app' most likely means Elixir Phoenix, not Phoenix AI observability",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "My Phoenix application is slow under load — where do I start debugging?",
+    },
+    metadata: {
+      category: "ambiguous",
+      expectedOnTopic: false,
+      description:
+        "Ambiguous — application performance debugging could be Elixir Phoenix or AI Phoenix",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "Does Phoenix have built-in alerting so I get notified when my model's performance drops?",
+    },
+    metadata: {
+      category: "ambiguous",
+      expectedOnTopic: false,
+      description:
+        "Borderline — asks about Phoenix AI but for a feature (native alerting) it does not have",
+    },
+  },
+  {
+    input: {
+      prompt:
+        "Can Phoenix replace Datadog or New Relic for monitoring my AI application?",
+    },
+    metadata: {
+      category: "ambiguous",
+      expectedOnTopic: false,
+      description:
+        "Borderline — Phoenix is LLM-specific observability, not a general APM replacement",
     },
   },
 ];
