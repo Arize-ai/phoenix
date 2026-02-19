@@ -83,9 +83,9 @@ async def _fetch_annotation_summaries(
         select(
             repetition_mean_scores_by_example.c.experiment_id.label("experiment_id"),
             repetition_mean_scores_by_example.c.annotation_name.label("annotation_name"),
-            cast(
-                func.avg(repetition_mean_scores_by_example.c.mean_repetition_score), Float
-            ).label("mean_score"),
+            cast(func.avg(repetition_mean_scores_by_example.c.mean_repetition_score), Float).label(
+                "mean_score"
+            ),
         )
         .select_from(repetition_mean_scores_by_example)
         .group_by(
