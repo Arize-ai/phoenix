@@ -23,7 +23,6 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.utils import delete_projects
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
@@ -424,9 +423,11 @@ async def delete_experiment(
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
         project_name = result.project_name
-
-    if delete_project and project_name:
-        await delete_projects(request.app.state.db, project_name)
+        if delete_project and project_name:
+            delete_project_stmt = sa.delete(models.Project).where(
+                models.Project.name == project_name
+            )
+            await session.execute(delete_project_stmt)
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):
