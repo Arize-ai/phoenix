@@ -24,6 +24,9 @@
   "integrations": {
     "ga4": {
       "measurementId": "G-V9Z9MCPE84"
+    },
+    "gtm": {
+      "tagId": "GTM-W96XM35"
     }
   },
   "favicon": "/docs/favicon.png",
