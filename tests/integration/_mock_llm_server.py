@@ -488,7 +488,7 @@ class _MockLLMServer:
         server_instance = self
 
         class Handler(_LLMRequestHandler):
-            server_ref = server_instance
+            server_ref = server_instance  # type: ignore[assignment]
 
         # Use ThreadingHTTPServer for concurrent connection handling
         self._server = ThreadingHTTPServer((self.host, self.port), Handler)

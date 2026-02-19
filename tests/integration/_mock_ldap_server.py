@@ -241,7 +241,7 @@ class _LDAPServer:
 
         # Create request handler with access to this server's state
         class Handler(_LDAPRequestHandler):
-            ldap_server = self
+            ldap_server = self  # type: ignore[assignment]
 
         # Use ThreadingTCPServer for concurrent connection handling
         # This allows multiple LDAP clients to connect simultaneously
