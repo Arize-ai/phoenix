@@ -95,14 +95,14 @@ class Evaluator(ABC):
                     evaluate = evaluate.__func__
                 assert callable(evaluate), "`evaluate()` method should be callable"
                 # need to remove the first param, i.e. `self`
-                _validate_sig(functools.partial(evaluate, None), "evaluate")
+                _validate_sig(functools.partial(evaluate, None), "evaluate")  # type: ignore[arg-type]
                 return
             if async_evaluate := super_cls.__dict__.get(Evaluator.async_evaluate.__name__):
                 if isinstance(async_evaluate, classmethod):
                     async_evaluate = async_evaluate.__func__
                 assert callable(async_evaluate), "`async_evaluate()` method should be callable"
                 # need to remove the first param, i.e. `self`
-                _validate_sig(functools.partial(async_evaluate, None), "async_evaluate")
+                _validate_sig(functools.partial(async_evaluate, None), "async_evaluate")  # type: ignore[arg-type]
                 return
         raise ValueError(
             f"Evaluator must implement either "

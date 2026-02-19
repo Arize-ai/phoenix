@@ -1,4 +1,4 @@
-mypy==1.15.0
+mypy==1.19.1
 pytest
 pytest-xdist
 pytest-asyncio

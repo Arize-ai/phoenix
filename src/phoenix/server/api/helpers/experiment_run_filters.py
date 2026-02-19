@@ -500,7 +500,7 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
         self._aliased_experiment_run_annotations: dict[ExperimentID, dict[EvalName, Any]] = {}
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
-        return Constant(value=node.value, ast_node=node)
+        return Constant(value=node.value, ast_node=node)  # type: ignore[arg-type]
 
     def visit_Name(self, node: ast.Name) -> ExperimentRunFilterConditionNode:
         name = node.id

@@ -763,7 +763,7 @@ def _get_sagemaker_notebook_base_url() -> str:
     log_path = "/opt/ml/metadata/resource-metadata.json"
     with open(log_path, "r") as logs:
         logs = json.load(logs)
-    arn = logs["ResourceArn"]  # type: ignore
+    arn = logs["ResourceArn"]
 
     # Parse the ARN to get the region and notebook instance name
     # E.x. arn:aws:sagemaker:us-east-2:802164118598:notebook-instance/my-notebook-instance
