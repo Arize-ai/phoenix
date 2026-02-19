@@ -1,4 +1,4 @@
-name: pnpm Version Check
+name: Package Version Check
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   check-version:
-    name: Check pnpm version consistency
+    name: Check package version consistency
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,3 +40,53 @@ jobs:
           fi
 
           echo "pnpm versions are consistent: $APP_VERSION"
+
+      - name: Check oxlint version consistency
+        run: |
+          APP_VERSION=$(jq -r '.devDependencies.oxlint // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies.oxlint // empty' js/package.json)
+
+          echo "app/package.json: oxlint@$APP_VERSION"
+          echo "js/package.json: oxlint@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing oxlint in devDependencies"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing oxlint in devDependencies"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::oxlint versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "oxlint versions are consistent: $APP_VERSION"
+
+      - name: Check oxfmt version consistency
+        run: |
+          APP_VERSION=$(jq -r '.devDependencies.oxfmt // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies.oxfmt // empty' js/package.json)
+
+          echo "app/package.json: oxfmt@$APP_VERSION"
+          echo "js/package.json: oxfmt@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing oxfmt in devDependencies"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing oxfmt in devDependencies"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::oxfmt versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "oxfmt versions are consistent: $APP_VERSION"
