@@ -1828,11 +1828,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "If true, also delete the project associated with the experiment.",
+              "description": "If true, also delete the project associated with the experiment that contains traces and spans for the experiment tasks.",
               "default": false,
               "title": "Delete Project"
             },
-            "description": "If true, also delete the project associated with the experiment."
+            "description": "If true, also delete the project associated with the experiment that contains traces and spans for the experiment tasks."
           }
         ],
         "responses": {

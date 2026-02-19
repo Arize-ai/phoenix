@@ -4016,7 +4016,7 @@ export interface operations {
     deleteExperiment: {
         parameters: {
             query?: {
-                /** @description If true, also delete the project associated with the experiment. */
+                /** @description If true, also delete the project associated with the experiment that contains traces and spans for the experiment tasks. */
                 delete_project?: boolean;
             };
             header?: never;

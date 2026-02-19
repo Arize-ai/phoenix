@@ -393,7 +393,10 @@ async def delete_experiment(
     experiment_id: str,
     delete_project: bool = Query(
         default=False,
-        description="If true, also delete the project associated with the experiment.",
+        description=(
+            "If true, also delete the project associated with the experiment "
+            "that contains traces and spans for the experiment tasks."
+        ),
     ),
 ) -> None:
     try:

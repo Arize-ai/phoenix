@@ -38,6 +38,27 @@ describe("deleteExperiment", () => {
     });
   });
 
+  it("should not pass delete_project query param when deleteProject is not supplied", async () => {
+    mockDelete.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    await expect(
+      deleteExperiment({
+        experimentId: "exp-123",
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mockDelete).toHaveBeenCalledWith("/v1/experiments/{experiment_id}", {
+      params: {
+        path: {
+          experiment_id: "exp-123",
+        },
+      },
+    });
+  });
+
   it("should pass delete_project query param when deleteProject is true", async () => {
     mockDelete.mockResolvedValue({
       data: null,
