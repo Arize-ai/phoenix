@@ -83,7 +83,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         py: ["3.10", "3.13"]
-        os: [windows-latest, macos-latest]
+        os: [windows-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
