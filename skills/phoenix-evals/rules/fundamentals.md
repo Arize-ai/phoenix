@@ -30,47 +30,12 @@ Use pass/fail, not 1-5 scales. Clearer criteria, easier calibration.
 
 ```python
 # Multiple binary checks instead of one Likert scale
-evaluators = [
-    AnswersQuestion(),    # Yes/No
-    UsesContext(),        # Yes/No
-    NoHallucination(),    # Yes/No
-]
+evaluators = [AnswersQuestion(), UsesContext(), NoHallucination()]
 ```
 
-## Quick Patterns
+## Patterns
 
-### Code Evaluator
-
-```python
-from phoenix.evals import create_evaluator
-
-@create_evaluator(name="has_citation", kind="code")
-def has_citation(output: str) -> bool:
-    return bool(re.search(r'\[\d+\]', output))
-```
-
-### LLM Evaluator
-
-```python
-from phoenix.evals import ClassificationEvaluator, LLM
-
-evaluator = ClassificationEvaluator(
-    name="helpfulness",
-    prompt_template="...",
-    llm=LLM(provider="openai", model="gpt-4o"),
-    choices={"not_helpful": 0, "helpful": 1}
-)
-```
-
-### Run Experiment
-
-```python
-from phoenix.client.experiments import run_experiment
-
-experiment = run_experiment(
-    dataset=dataset,
-    task=my_task,
-    evaluators=[evaluator1, evaluator2],
-)
-print(experiment.aggregate_scores)
-```
+See dedicated rules for working code examples:
+- Code evaluators → `evaluators-code-python.md` / `evaluators-code-typescript.md`
+- LLM evaluators → `evaluators-llm-python.md` / `evaluators-llm-typescript.md`
+- Running experiments → `experiments-running-python.md` / `experiments-running-typescript.md`
