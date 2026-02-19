@@ -16,7 +16,11 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
-import { DisplayTimezone } from "@phoenix/store/preferencesStore";
+import {
+  AwsBedrockModelPrefix,
+  awsBedrockModelPrefixes,
+  DisplayTimezone,
+} from "@phoenix/store/preferencesStore";
 import {
   isProgrammingLanguage,
   programmingLanguages,
@@ -31,11 +35,15 @@ export function ViewerPreferences() {
     setDisplayTimezone,
     programmingLanguage,
     setProgrammingLanguage,
+    awsBedrockModelPrefix,
+    setAwsBedrockModelPrefix,
   } = usePreferencesContext((state) => ({
     displayTimezone: state.displayTimezone,
     setDisplayTimezone: state.setDisplayTimezone,
     programmingLanguage: state.programmingLanguage,
     setProgrammingLanguage: state.setProgrammingLanguage,
+    awsBedrockModelPrefix: state.awsBedrockModelPrefix,
+    setAwsBedrockModelPrefix: state.setAwsBedrockModelPrefix,
   }));
 
   const themeOptions = useMemo(() => {
@@ -78,6 +86,15 @@ export function ViewerPreferences() {
       })),
     ];
   }, []);
+
+  const awsBedrockModelPrefixOptions = useMemo(
+    () =>
+      awsBedrockModelPrefixes.map((prefix) => ({
+        value: prefix,
+        label: prefix === "" ? "None (no prefix)" : prefix,
+      })),
+    []
+  );
 
   const selectedTimezone = displayTimezone ?? "local";
   return (
@@ -148,6 +165,27 @@ export function ViewerPreferences() {
             {programmingLanguages.map((lang) => (
               <ComboBoxItem key={lang} id={lang} textValue={lang}>
                 <Text weight="heavy">{lang}</Text>
+              </ComboBoxItem>
+            ))}
+          </ComboBox>
+          <ComboBox
+            aria-label="AWS Bedrock Model Prefix"
+            label="AWS Bedrock Model Prefix"
+            description="Choose the cross-region inference prefix for AWS Bedrock models"
+            selectedKey={awsBedrockModelPrefix}
+            onSelectionChange={(value) => {
+              if (value != null) {
+                setAwsBedrockModelPrefix(value as AwsBedrockModelPrefix);
+              }
+            }}
+          >
+            {awsBedrockModelPrefixOptions.map((option) => (
+              <ComboBoxItem
+                key={option.value === "" ? "__none__" : option.value}
+                id={option.value}
+                textValue={option.label}
+              >
+                <Text weight="heavy">{option.label}</Text>
               </ComboBoxItem>
             ))}
           </ComboBox>

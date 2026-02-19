@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -25,6 +25,7 @@ import {
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -156,6 +157,23 @@ export type ModelMenuProps = {
 export function ModelMenu({ value, onChange }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+
+  const handleModelChange = useCallback(
+    (model: ModelMenuValue) => {
+      if (model.provider === "AWS" && awsBedrockModelPrefix) {
+        onChange?.({
+          ...model,
+          modelName: `${awsBedrockModelPrefix}.${model.modelName}`,
+        });
+      } else {
+        onChange?.(model);
+      }
+    },
+    [onChange, awsBedrockModelPrefix]
+  );
   const data = useLazyLoadQuery<ModelMenuQuery>(
     graphql`
       query ModelMenuQuery {
@@ -298,14 +316,14 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
             modelsByProvider={filteredModelsByProvider}
             providerInfoMap={providerInfoMap}
             customProviders={filteredCustomProviders}
-            onChange={onChange}
+            onChange={handleModelChange}
           />
         ) : (
           <ProviderMenu
             providers={data.modelProviders}
             modelsByProvider={modelsByProvider}
             customProviders={customProviders}
-            onChange={onChange}
+            onChange={handleModelChange}
           />
         )}
         <MenuFooter>
@@ -343,6 +361,14 @@ function ModelsByProviderMenu({
   customProviders,
   onChange,
 }: ModelsByProviderMenuProps) {
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+  const displayModelName = (providerKey: string, modelName: string) =>
+    providerKey === "AWS" && awsBedrockModelPrefix
+      ? `${awsBedrockModelPrefix}.${modelName}`
+      : modelName;
+
   const handleModelSelect = (
     providerKey: string,
     modelName: string,
@@ -439,7 +465,7 @@ function ModelsByProviderMenu({
                       <MenuItem
                         key={itemKey}
                         id={itemKey}
-                        textValue={modelName}
+                        textValue={displayModelName(providerKey, modelName)}
                       >
                         <Flex
                           direction="row"
@@ -452,7 +478,9 @@ function ModelsByProviderMenu({
                               height={16}
                             />
                           )}
-                          <Text>{modelName}</Text>
+                          <Text>
+                            {displayModelName(providerKey, modelName)}
+                          </Text>
                         </Flex>
                       </MenuItem>
                     );
@@ -576,6 +604,13 @@ function ProviderModelsSubmenu({
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const isValidProvider = isModelProvider(providerKey);
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+  const displayModelName = (name: string) =>
+    providerKey === "AWS" && awsBedrockModelPrefix
+      ? `${awsBedrockModelPrefix}.${name}`
+      : name;
 
   // Build the list of models, adding the search value as a custom option if needed
   const modelItems = useMemo(() => {
@@ -648,12 +683,12 @@ function ProviderModelsSubmenu({
           }}
         >
           {({ id, name, isCustom }) => (
-            <MenuItem id={id} textValue={id}>
+            <MenuItem id={id} textValue={displayModelName(id)}>
               <Flex direction="row" gap="size-100" alignItems="center">
                 {isValidProvider && (
                   <GenerativeProviderIcon provider={providerKey} height={16} />
                 )}
-                <Text>{name}</Text>
+                <Text>{displayModelName(name)}</Text>
                 {isCustom && (
                   <Text color="text-700" size="XS">
                     (custom)
