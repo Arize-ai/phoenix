@@ -8,7 +8,7 @@ import { dateTimeTool, phoenixDocsTool } from "../tools/index.js";
  * Default agent instance with Phoenix documentation tools
  */
 export const agent = new ToolLoopAgent({
-  model: anthropic("claude-sonnet-4-20250514"),
+  model: anthropic("claude-haiku-4-5-20251001"),
   instructions: AGENT_INSTRUCTIONS,
   tools: {
     dateTime: dateTimeTool,
