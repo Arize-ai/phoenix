@@ -2192,7 +2192,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                     expected: Any = expected_raw
                     actual: Any = actual_raw
 
-                    if error is None and parse_strings and isinstance(expected_raw, str):
+                    if parse_strings and isinstance(expected_raw, str):
                         try:
                             expected = json.loads(expected_raw)
                         except json.JSONDecodeError as e:
