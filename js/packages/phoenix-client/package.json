@@ -72,7 +72,7 @@
     "prebuild": "pnpm run clean && pnpm run generate",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "type:check": "tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
@@ -95,7 +95,6 @@
     "openai": "^6.10.0",
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
     "vitest": "^4.0.10"
   },
   "optionalDependencies": {

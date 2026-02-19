@@ -32,7 +32,7 @@ export function AIMessageContentRadioGroup({
           return;
         }
         const mode = v.keys().next().value;
-        if (isAIMessageMode(mode)) {
+        if (typeof mode === "string" && isAIMessageMode(mode)) {
           onChange(mode);
         }
       }}

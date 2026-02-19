@@ -32,7 +32,7 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "test": "pnpm run -r test run",
-    "type:check": "pnpm run -r type:check"
+    "typecheck": "pnpm run -r typecheck"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
