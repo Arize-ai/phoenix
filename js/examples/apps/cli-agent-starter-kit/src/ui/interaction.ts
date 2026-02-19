@@ -39,6 +39,30 @@ function displayExitMessage(cancelled = false) {
 }
 
 /**
+ * Run a single interaction through the agent with the standard cli.interaction span.
+ * Use this in scripts (seed, eval) to ensure the same span topology as the live CLI.
+ */
+export async function runInteraction({
+  input,
+  agent,
+}: {
+  input: string;
+  agent: Agent;
+}) {
+  const handleInteraction = withSpan(
+    async (input: string) => agent.generate({ prompt: input }),
+    {
+      name: "cli.interaction",
+      kind: "CHAIN",
+      attributes: { "session.id": SESSION_ID },
+      processInput: (input: string) => getInputAttributes(input),
+      processOutput: (result) => getOutputAttributes(result.text),
+    }
+  );
+  return handleInteraction(input);
+}
+
+/**
  * Process a user message through the agent and display the response
  */
 export async function processUserMessage({

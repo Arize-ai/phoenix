@@ -9,6 +9,7 @@ import {
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
 import { agent } from "../../src/agents/index.js";
+import { runInteraction } from "../../src/ui/interaction.js";
 import { terminalFormatDataset } from "../datasets/index.js";
 import { createTerminalSafeFormatEvaluator } from "../evaluators/index.js";
 import { printExperimentSummary } from "../utils/index.js";
@@ -33,7 +34,7 @@ async function main() {
     if (typeof prompt !== "string") {
       throw new Error("Invalid dataset: input.prompt must be a string");
     }
-    const result = await agent.generate({ prompt });
+    const result = await runInteraction({ input: prompt, agent });
     return result.text;
   };
 
