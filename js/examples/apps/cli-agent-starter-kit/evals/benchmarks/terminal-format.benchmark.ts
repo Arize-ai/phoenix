@@ -25,11 +25,12 @@ async function main() {
   // Initialize LLM evaluator
   const evaluator = await createTerminalSafeFormatEvaluator();
 
-  // Create or reuse the existing golden dataset
+  // Create or reuse the benchmark dataset (separate from the task evaluation
+  // dataset so benchmark experiments are tracked under their own dataset in Phoenix)
   const { datasetId } = await createOrGetDataset({
     client,
-    name: terminalFormatDataset.name,
-    description: terminalFormatDataset.description,
+    name: terminalFormatDataset.benchmarkName,
+    description: terminalFormatDataset.benchmarkDescription,
     examples: terminalFormatDataset.examples,
   });
 
