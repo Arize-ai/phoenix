@@ -367,6 +367,30 @@ def _setup_experiment_test(_app: _AppInfo) -> Iterator[_SetupExperimentTest]:
         helper.clean_up()
 
 
+@pytest.fixture
+def _create_dataset(_app: _AppInfo) -> Iterator[Callable[..., Any]]:
+    """Fixture returning an async factory for creating a dataset with automatic cleanup."""
+    created_dataset: Optional[Dataset] = None
+    http = _httpx_client(_app, _app.admin_secret)
+
+    async def _factory(
+        client: Union[AsyncClient, SyncClient],
+        **kwargs: Any,
+    ) -> Dataset:
+        nonlocal created_dataset
+        dataset = await _await_or_return(client.datasets.create_dataset(**kwargs))
+        created_dataset = dataset
+        return dataset
+
+    yield _factory
+
+    if created_dataset is not None:
+        try:
+            http.delete(f"v1/datasets/{created_dataset.id}")
+        except Exception:
+            pass
+
+
 class SpanCapture:
     """Helper class to capture OpenTelemetry spans during testing."""
 
@@ -1892,6 +1916,66 @@ class TestExperimentsIntegration:
         assert experiment["missing_run_count"] == 6  # 2 examples * 3 repetitions
         assert experiment["example_count"] == 2  # Only 2 examples in the split
         assert experiment["metadata"] == {"model": "test"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_experiment_keeps_project_by_default(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _create_dataset: Callable[..., Any],
+    ) -> None:
+        api_key = _app.admin_secret
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=api_key)
+
+        unique_name = f"test_keep_proj_{token_hex(4)}"
+        dataset = await _create_dataset(
+            client,
+            name=unique_name,
+            inputs=[{"q": "test"}],
+            outputs=[{"a": "test"}],
+        )
+
+        experiment = await _await_or_return(client.experiments.create(dataset_id=dataset.id))
+        project_name = experiment["project_name"]
+        assert project_name is not None
+
+        await _await_or_return(client.experiments.delete(experiment_id=experiment["id"]))
+
+        data, _ = _gql(_app, api_key, query="{ projects { edges { node { name } } } }")
+        project_names = [e["node"]["name"] for e in data["data"]["projects"]["edges"]]
+        assert project_name in project_names
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_experiment_with_delete_project_flag_also_deletes_project(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _create_dataset: Callable[..., Any],
+    ) -> None:
+        api_key = _app.admin_secret
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=api_key)
+
+        unique_name = f"test_del_proj_{token_hex(4)}"
+        dataset = await _create_dataset(
+            client,
+            name=unique_name,
+            inputs=[{"q": "test"}],
+            outputs=[{"a": "test"}],
+        )
+
+        experiment = await _await_or_return(client.experiments.create(dataset_id=dataset.id))
+        project_name = experiment["project_name"]
+        assert project_name is not None
+
+        await _await_or_return(
+            client.experiments.delete(experiment_id=experiment["id"], delete_project=True)
+        )
+
+        data, _ = _gql(_app, api_key, query="{ projects { edges { node { name } } } }")
+        project_names = [e["node"]["name"] for e in data["data"]["projects"]["edges"]]
+        assert project_name not in project_names
 
 
 class TestResumeOperations:

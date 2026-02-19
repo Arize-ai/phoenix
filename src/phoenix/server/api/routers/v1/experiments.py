@@ -390,6 +390,13 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
 async def delete_experiment(
     request: Request,
     experiment_id: str,
+    delete_project: bool = Query(
+        default=False,
+        description=(
+            "If true, also delete the project associated with the experiment "
+            "that contains traces and spans for the experiment tasks."
+        ),
+    ),
 ) -> None:
     try:
         experiment_globalid = GlobalID.from_id(experiment_id)
@@ -409,11 +416,18 @@ async def delete_experiment(
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.id)
+        .returning(models.Experiment.project_name)
     )
     async with request.app.state.db() as session:
-        if (await session.scalar(stmt)) is None:
+        result = (await session.execute(stmt)).first()
+        if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
+        project_name = result.project_name
+        if delete_project and project_name:
+            delete_project_stmt = sa.delete(models.Project).where(
+                models.Project.name == project_name
+            )
+            await session.execute(delete_project_stmt)
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):

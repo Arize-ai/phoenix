@@ -38,6 +38,77 @@ describe("deleteExperiment", () => {
     });
   });
 
+  it("should not pass delete_project query param when deleteProject is not supplied", async () => {
+    mockDelete.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    await expect(
+      deleteExperiment({
+        experimentId: "exp-123",
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mockDelete).toHaveBeenCalledWith("/v1/experiments/{experiment_id}", {
+      params: {
+        path: {
+          experiment_id: "exp-123",
+        },
+      },
+    });
+  });
+
+  it("should pass delete_project query param when deleteProject is true", async () => {
+    mockDelete.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    await expect(
+      deleteExperiment({
+        experimentId: "exp-123",
+        deleteProject: true,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mockDelete).toHaveBeenCalledWith("/v1/experiments/{experiment_id}", {
+      params: {
+        path: {
+          experiment_id: "exp-123",
+        },
+        query: {
+          delete_project: true,
+        },
+      },
+    });
+  });
+
+  it("should pass delete_project query param when deleteProject is false", async () => {
+    mockDelete.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    await expect(
+      deleteExperiment({
+        experimentId: "exp-123",
+        deleteProject: false,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mockDelete).toHaveBeenCalledWith("/v1/experiments/{experiment_id}", {
+      params: {
+        path: {
+          experiment_id: "exp-123",
+        },
+        query: {
+          delete_project: false,
+        },
+      },
+    });
+  });
+
   it("should throw error when experiment is not found (404)", async () => {
     mockDelete.mockResolvedValue({
       data: null,
