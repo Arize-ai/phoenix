@@ -2186,22 +2186,39 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
                         ),
                     },
                 ) as execution_span:
-                    try:
-                        if parse_strings and isinstance(expected_raw, str):
+                    distance = -1
+                    error = None
+                    explanation = None
+                    expected: Any = expected_raw
+                    actual: Any = actual_raw
+
+                    if parse_strings and isinstance(expected_raw, str):
+                        try:
                             expected = json.loads(expected_raw)
-                        else:
-                            expected = expected_raw
-                        if parse_strings and isinstance(actual_raw, str):
+                        except json.JSONDecodeError as e:
+                            error = f"Invalid JSON in 'expected': {e}"
+                            explanation = (
+                                f"{error}. If 'expected' is a Python object (not a JSON string),"
+                                " set parse_strings=False to compare without parsing."
+                                " Otherwise ensure the value uses valid JSON formatting"
+                                " (double-quoted keys and string values)."
+                            )
+
+                    if error is None and parse_strings and isinstance(actual_raw, str):
+                        try:
                             actual = json.loads(actual_raw)
-                        else:
-                            actual = actual_raw
+                        except json.JSONDecodeError as e:
+                            error = f"Invalid JSON in 'actual': {e}"
+                            explanation = (
+                                f"{error}. If 'actual' is a Python object (not a JSON string),"
+                                " set parse_strings=False to compare without parsing."
+                                " Otherwise ensure the value uses valid JSON formatting"
+                                " (double-quoted keys and string values)."
+                            )
+
+                    if error is None:
                         distance = json_diff_count(expected, actual)
-                        error = None
                         explanation = f"JSON structures have {distance} difference(s)"
-                    except json.JSONDecodeError as e:
-                        distance = -1
-                        error = f"Invalid JSON: {e}"
-                        explanation = error
 
                     execution_span.set_attributes(
                         oi.get_output_attributes(distance, mime_type="application/json")
