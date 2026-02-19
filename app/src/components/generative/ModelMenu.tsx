@@ -149,6 +149,17 @@ function decodeMenuKey(key: string): ModelInfo | null {
   }
 }
 
+/**
+ * Prepends an AWS Bedrock cross-region inference prefix to a model name.
+ * Idempotent: returns the name unchanged if it already starts with "{prefix}.".
+ */
+function applyBedrockPrefix(modelName: string, prefix: string): string {
+  const prefixDot = `${prefix}.`;
+  return modelName.startsWith(prefixDot)
+    ? modelName
+    : `${prefixDot}${modelName}`;
+}
+
 export type ModelMenuProps = {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
@@ -166,7 +177,7 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
       if (model.provider === "AWS" && awsBedrockModelPrefix) {
         onChange?.({
           ...model,
-          modelName: `${awsBedrockModelPrefix}.${model.modelName}`,
+          modelName: applyBedrockPrefix(model.modelName, awsBedrockModelPrefix),
         });
       } else {
         onChange?.(model);
@@ -366,7 +377,7 @@ function ModelsByProviderMenu({
   );
   const displayModelName = (providerKey: string, modelName: string) =>
     providerKey === "AWS" && awsBedrockModelPrefix
-      ? `${awsBedrockModelPrefix}.${modelName}`
+      ? applyBedrockPrefix(modelName, awsBedrockModelPrefix)
       : modelName;
 
   const handleModelSelect = (
@@ -613,7 +624,7 @@ function ProviderModelsSubmenu({
   );
   const displayModelName = (name: string) =>
     providerKey === "AWS" && awsBedrockModelPrefix
-      ? `${awsBedrockModelPrefix}.${name}`
+      ? applyBedrockPrefix(name, awsBedrockModelPrefix)
       : name;
 
   // Build the list of models, adding the search value as a custom option if needed
@@ -647,13 +658,13 @@ function ProviderModelsSubmenu({
     return baseItems;
   }, [models, searchValue, contains]);
 
-  // Custom filter that always shows the custom option
+  // Custom filter that always shows the custom option and matches against the display name
   const customFilter = (textValue: string, inputValue: string) => {
-    // Always show the custom option (it starts with "custom:")
+    // Always show the custom option (id starts with "custom:")
     if (textValue.startsWith("custom:")) {
       return true;
     }
-    return contains(textValue, inputValue);
+    return contains(displayModelName(textValue), inputValue);
   };
 
   return (
