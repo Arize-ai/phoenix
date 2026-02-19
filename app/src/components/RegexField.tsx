@@ -1,4 +1,4 @@
-import { debounce } from "lodash-es";
+import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FieldError, Input, Label } from "react-aria-components";
 import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";

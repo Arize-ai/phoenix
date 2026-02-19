@@ -1,4 +1,4 @@
-import { debounce } from "lodash-es";
+import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
 

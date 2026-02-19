@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { range } from "lodash-es";
+import { range } from "lodash";
 import { useMemo, useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";

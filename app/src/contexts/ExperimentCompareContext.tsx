@@ -1,4 +1,4 @@
-import { orderBy, range } from "lodash-es";
+import { orderBy, range } from "lodash";
 import {
   createContext,
   ReactNode,
