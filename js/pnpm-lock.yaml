@@ -78,9 +78,6 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
 
   examples/apps/demo-document-relevancy-experiment:
     dependencies:
@@ -149,9 +146,6 @@ importers:
       tsx:
         specifier: ^4.19.1
         version: 4.21.0
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
 
   packages/phoenix-cli:
     dependencies:
@@ -180,9 +174,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.21.0
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@18.19.130)(msw@2.12.10(@types/node@18.19.130)(typescript@5.9.3))
@@ -235,9 +226,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.21.0
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
       vitest:
         specifier: ^4.0.10
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.19.33)(jiti@2.6.1)(msw@2.12.10(@types/node@20.19.33)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
@@ -257,9 +245,6 @@ importers:
       '@types/node':
         specifier: ^20.17.22
         version: 20.19.33
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
       vitest:
         specifier: ^4.0.10
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.19.33)(jiti@2.6.1)(msw@2.12.10(@types/node@20.19.33)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
@@ -315,9 +300,6 @@ importers:
       typedoc:
         specifier: ^0.27.9
         version: 0.27.9(typescript@5.9.3)
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
       vitest:
         specifier: ^4.0.10
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jiti@2.6.1)(msw@2.12.10(@types/node@24.10.13)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
@@ -352,9 +334,6 @@ importers:
       tsx:
         specifier: ^4.19.3
         version: 4.21.0
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
 
   packages/phoenix-otel:
     dependencies:

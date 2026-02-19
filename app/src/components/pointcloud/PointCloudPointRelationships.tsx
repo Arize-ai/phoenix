@@ -1,6 +1,7 @@
 import { QuadraticBezierLine } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
+// @ts-expect-error - this module will be deleted soon
 import THREE from "three";
 
 import { usePointCloudContext } from "@phoenix/contexts/PointCloudContext";
@@ -21,9 +22,8 @@ export function PointCloudPointRelationships() {
   useFrame((_, delta) => {
     if (group.current) {
       group.current.children.forEach(
+        // @ts-expect-error - this module will be deleted soon
         (group) =>
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           (group.children[0].material.uniforms.dashOffset.value -= delta * 5)
       );
     }

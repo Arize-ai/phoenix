@@ -138,7 +138,7 @@
     "rollup-plugin-visualizer": "^5.14.0",
     "storybook": "^8.6.15",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
-    "typescript": "~5.4.5",
+    "typescript": "^5.9.3",
     "vite": "^6.4.1",
     "vite-plugin-circular-dependency": "^0.5.0",
     "vite-plugin-react-fallback-throttle": "^0.1.3",

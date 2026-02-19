@@ -41,7 +41,6 @@
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.17.22",
-    "typescript": "^5.8.2",
     "vitest": "^4.0.10"
   },
   "engines": {

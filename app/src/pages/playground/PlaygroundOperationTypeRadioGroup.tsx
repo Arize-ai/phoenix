@@ -20,7 +20,7 @@ export function PlaygroundOperationTypeRadioGroup() {
           return;
         }
         const type = v.keys().next().value;
-        if (isGenAIOperationType(type)) {
+        if (typeof type === "string" && isGenAIOperationType(type)) {
           setOperationType(type);
         }
       }}
