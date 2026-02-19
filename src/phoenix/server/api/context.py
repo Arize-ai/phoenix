@@ -10,7 +10,6 @@ from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.auth import compute_password_hash
-from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.server.api.dataloaders import (
     AnnotationConfigsByProjectDataLoader,
@@ -227,14 +226,12 @@ class Context(BaseContext):
     db: DbSessionFactory
     data_loaders: DataLoaders
     cache_for_dataloaders: Optional[CacheForDataLoaders]
-    model: Model
     export_path: Path
     span_cost_calculator: SpanCostCalculator
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
-    corpus: Optional[Model] = None
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False

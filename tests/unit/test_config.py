@@ -1483,9 +1483,11 @@ def test_oauth2_role_names_are_subset_of_user_role_names() -> None:
     assert "SYSTEM" not in oauth2_roles, "SYSTEM role must NOT be allowed for OAuth2"
 
     # Verify expected OAuth2 roles are present
-    assert oauth2_roles == {"ADMIN", "MEMBER", "VIEWER"}, (
-        "OAuth2 should only allow ADMIN, MEMBER, VIEWER"
-    )
+    assert oauth2_roles == {
+        "ADMIN",
+        "MEMBER",
+        "VIEWER",
+    }, "OAuth2 should only allow ADMIN, MEMBER, VIEWER"
 
 
 class TestLDAPConfigFromEnv:

@@ -82,7 +82,6 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
-import type { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
@@ -131,58 +130,6 @@ const router = createBrowserRouter(
             element={<ProfilePage />}
           />
           <Route index loader={homeLoader} />
-          <Route
-            path="/model"
-            lazy={() =>
-              import("./pages/ModelRoot").then((module) => ({
-                handle: { crumb: () => "model" },
-                element: <module.ModelRoot />,
-              }))
-            }
-          >
-            <Route
-              index
-              lazy={() =>
-                import("./pages/model/ModelInferencesPage").then((module) => ({
-                  element: <module.ModelInferencesPage />,
-                }))
-              }
-            />
-            <Route
-              lazy={() =>
-                import("./pages/model/ModelInferencesPage").then((module) => ({
-                  element: <module.ModelInferencesPage />,
-                }))
-              }
-            >
-              <Route path="dimensions">
-                <Route
-                  path=":dimensionId"
-                  lazy={() =>
-                    import("./pages/dimension").then((module) => ({
-                      element: <module.DimensionPage />,
-                      loader: module.dimensionLoader,
-                    }))
-                  }
-                />
-              </Route>
-            </Route>
-            <Route path="embeddings">
-              <Route
-                path=":embeddingDimensionId"
-                lazy={() =>
-                  import("./pages/embedding").then((module) => ({
-                    element: <module.EmbeddingPage />,
-                    loader: module.embeddingLoader,
-                    handle: {
-                      crumb: (data: embeddingLoaderQuery$data) =>
-                        data.embedding.name,
-                    },
-                  }))
-                }
-              />
-            </Route>
-          </Route>
           <Route
             path="/projects"
             handle={{ crumb: () => "Projects" }}

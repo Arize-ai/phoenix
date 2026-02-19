@@ -49,17 +49,10 @@ from phoenix.config import (
     get_env_tls_enabled_for_http,
     get_pids_path,
 )
-from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.logging import setup_logging
-from phoenix.pointcloud.umap_parameters import (
-    DEFAULT_MIN_DIST,
-    DEFAULT_N_NEIGHBORS,
-    DEFAULT_N_SAMPLES,
-    UMAPParameters,
-)
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
@@ -83,6 +76,9 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.version import __version__ as phoenix_version
+
+# Legacy --umap_params CLI arg still accepted for backward compat (e.g. session subprocess)
+DEFAULT_UMAP_PARAMS_STR = "0.0,30,500"
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -153,9 +149,6 @@ def _remove_pid_file() -> None:
 
 def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
-
-
-DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 
 def _resolve_grpc_port(args: Namespace) -> int:
@@ -347,11 +340,6 @@ def main() -> None:
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
 
-    model = create_model_from_inferences(
-        primary_inferences,
-        reference_inferences,
-    )
-
     auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
@@ -372,13 +360,6 @@ def main() -> None:
                 target=send_dataset_fixtures,
                 args=(f"http://{host}:{port}", dataset_fixtures),
             ).start()
-    umap_params_list = args.umap_params.split(",")
-    umap_params = UMAPParameters(
-        min_dist=float(umap_params_list[0]),
-        n_neighbors=int(umap_params_list[1]),
-        n_samples=int(umap_params_list[2]),
-    )
-
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
@@ -390,9 +371,6 @@ def main() -> None:
     # Ensure engine is disposed on shutdown to properly close database connections
     shutdown_callbacks.append(engine.dispose)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
-    corpus_model = (
-        None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
-    )
 
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
@@ -452,11 +430,8 @@ def main() -> None:
     app = create_app(
         db=factory,
         export_path=export_path,
-        model=model,
         authentication_enabled=auth_settings.enable_auth,
         basic_auth_disabled=auth_settings.disable_basic_auth,
-        umap_params=umap_params,
-        corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
         dev_vite_port=args.dev_vite_port,

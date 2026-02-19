@@ -100,13 +100,6 @@
           value: Object.freeze({
               basename: "{{basename}}",
               platformVersion: "{{platform_version}}",
-              hasInferences: Boolean("{{has_inferences}}" == "True"),
-              hasCorpus: Boolean("{{has_corpus}}" == "True"),
-              UMAP: {
-                minDist: parseFloat("{{min_dist}}"),
-                nNeighbors: parseInt("{{n_neighbors}}"),
-                nSamples: parseInt("{{n_samples}}"),
-              },
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
               oAuth2Idps: {{ oauth2_idps | tojson }},
               basicAuthDisabled: Boolean("{{basic_auth_disabled}}" == "True"),

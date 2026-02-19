@@ -3,20 +3,18 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from secrets import token_hex
-from typing import Any, Iterable, Iterator, Literal, Optional, Union
+from typing import Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
 import anyio
-import numpy as np
-import numpy.typing as npt
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
-from strawberry import ID, UNSET
+from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Annotated, TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
@@ -32,7 +30,6 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
-from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -42,7 +39,6 @@ from phoenix.server.api.evaluators import (
     validate_template_variables,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.classification_evaluator_configs import (
     get_classification_evaluator_configs,
 )
@@ -55,8 +51,6 @@ from phoenix.server.api.helpers.playground_clients import initialize_playground_
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
-from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -73,18 +67,10 @@ from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateO
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
-from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
-from phoenix.server.api.types.Dimension import to_gql_dimension
-from phoenix.server.api.types.EmbeddingDimension import (
-    DEFAULT_CLUSTER_SELECTION_EPSILON,
-    DEFAULT_MIN_CLUSTER_SIZE,
-    DEFAULT_MIN_SAMPLES,
-    to_gql_embedding_dimension,
-)
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
@@ -92,7 +78,6 @@ from phoenix.server.api.types.Evaluator import (
     Evaluator,
     LLMEvaluator,
 )
-from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
     ExperimentComparison,
@@ -108,8 +93,6 @@ from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
-from phoenix.server.api.types.InferenceModel import InferenceModel
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
@@ -1123,14 +1106,7 @@ class Query:
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
-        has_model_inferences = not info.context.model.is_empty
-        return Functionality(
-            model_inferences=has_model_inferences,
-        )
-
-    @strawberry.field
-    def model(self) -> InferenceModel:
-        return InferenceModel()
+        return Functionality(model_inferences=False)
 
     @strawberry.field
     async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
@@ -1151,13 +1127,9 @@ class Query:
         if type_name == Secret.__name__:
             return Secret(id=global_id.node_id)
         node_id = int(global_id.node_id)
-        if type_name == "Dimension":
-            dimension = info.context.model.scalar_dimensions[node_id]
-            return to_gql_dimension(node_id, dimension)
-        elif type_name == "EmbeddingDimension":
-            embedding_dimension = info.context.model.embedding_dimensions[node_id]
-            return to_gql_embedding_dimension(node_id, embedding_dimension)
-        elif type_name == Project.__name__:
+        if type_name == "Dimension" or type_name == "EmbeddingDimension":
+            raise NotFound(f"Unknown node type: {type_name}")
+        if type_name == Project.__name__:
             return Project(id=node_id)
         elif type_name == Trace.__name__:
             return Trace(id=node_id)
@@ -1511,134 +1483,6 @@ class Query:
             gql_configs.append(gql_config)
 
         return gql_configs
-
-    @strawberry.field
-    def clusters(
-        self,
-        clusters: list[ClusterInput],
-    ) -> list[Cluster]:
-        clustered_events: dict[str, set[ID]] = defaultdict(set)
-        for i, cluster in enumerate(clusters):
-            clustered_events[cluster.id or str(i)].update(cluster.event_ids)
-        return to_gql_clusters(
-            clustered_events=clustered_events,
-        )
-
-    @strawberry.field
-    def hdbscan_clustering(
-        self,
-        info: Info[Context, None],
-        event_ids: Annotated[
-            list[ID],
-            strawberry.argument(
-                description="Event ID of the coordinates",
-            ),
-        ],
-        coordinates_2d: Annotated[
-            Optional[list[InputCoordinate2D]],
-            strawberry.argument(
-                description="Point coordinates. Must be either 2D or 3D.",
-            ),
-        ] = UNSET,
-        coordinates_3d: Annotated[
-            Optional[list[InputCoordinate3D]],
-            strawberry.argument(
-                description="Point coordinates. Must be either 2D or 3D.",
-            ),
-        ] = UNSET,
-        min_cluster_size: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum cluster size",
-            ),
-        ] = DEFAULT_MIN_CLUSTER_SIZE,
-        cluster_min_samples: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum samples",
-            ),
-        ] = DEFAULT_MIN_SAMPLES,
-        cluster_selection_epsilon: Annotated[
-            float,
-            strawberry.argument(
-                description="HDBSCAN cluster selection epsilon",
-            ),
-        ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-    ) -> list[Cluster]:
-        coordinates_3d = ensure_list(coordinates_3d)
-        coordinates_2d = ensure_list(coordinates_2d)
-
-        if len(coordinates_3d) > 0 and len(coordinates_2d) > 0:
-            raise ValueError("must specify only one of 2D or 3D coordinates")
-
-        if len(coordinates_3d) > 0:
-            coordinates = list(
-                map(
-                    lambda coord: np.array(
-                        [coord.x, coord.y, coord.z],
-                    ),
-                    coordinates_3d,
-                )
-            )
-        else:
-            coordinates = list(
-                map(
-                    lambda coord: np.array(
-                        [coord.x, coord.y],
-                    ),
-                    coordinates_2d,
-                )
-            )
-
-        if len(event_ids) != len(coordinates):
-            raise ValueError(
-                f"length mismatch between "
-                f"event_ids ({len(event_ids)}) "
-                f"and coordinates ({len(coordinates)})"
-            )
-
-        if len(event_ids) == 0:
-            return []
-
-        grouped_event_ids: dict[
-            Union[InferencesRole, AncillaryInferencesRole],
-            list[ID],
-        ] = defaultdict(list)
-        grouped_coordinates: dict[
-            Union[InferencesRole, AncillaryInferencesRole],
-            list[npt.NDArray[np.float64]],
-        ] = defaultdict(list)
-
-        for event_id, coordinate in zip(event_ids, coordinates):
-            row_id, inferences_role = unpack_event_id(event_id)
-            grouped_coordinates[inferences_role].append(coordinate)
-            grouped_event_ids[inferences_role].append(create_event_id(row_id, inferences_role))
-
-        stacked_event_ids = (
-            grouped_event_ids[InferencesRole.primary]
-            + grouped_event_ids[InferencesRole.reference]
-            + grouped_event_ids[AncillaryInferencesRole.corpus]
-        )
-        stacked_coordinates = np.stack(
-            grouped_coordinates[InferencesRole.primary]
-            + grouped_coordinates[InferencesRole.reference]
-            + grouped_coordinates[AncillaryInferencesRole.corpus]
-        )
-
-        clusters = Hdbscan(
-            min_cluster_size=min_cluster_size,
-            min_samples=cluster_min_samples,
-            cluster_selection_epsilon=cluster_selection_epsilon,
-        ).find_clusters(stacked_coordinates)
-
-        clustered_events = {
-            str(i): {stacked_event_ids[row_idx] for row_idx in cluster}
-            for i, cluster in enumerate(clusters)
-        }
-
-        return to_gql_clusters(
-            clustered_events=clustered_events,
-        )
 
     @strawberry.field
     async def default_project_trace_retention_policy(

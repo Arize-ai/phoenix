@@ -163,17 +163,11 @@ dev = [
   "types-tabulate",
   "types-tqdm",
   "typing-extensions",
-  "umap-learn",
   "uvloop; platform_system != 'Windows'",
   "vcrpy",
 ]
 
 [project.optional-dependencies]
-embeddings = [
-  "fast-hdbscan>=0.2.0",
-  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
-  "umap-learn",
-]
 evals = []
 experimental = []
 pg = [
@@ -203,9 +197,6 @@ container = [
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.287.3",
   "uvloop; platform_system != 'Windows'",
-  "fast-hdbscan>=0.2.0",
-  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
-  "umap-learn",
   "aioboto3",
 ]
 test = [
@@ -308,9 +299,6 @@ exclude = [
 
 [[tool.mypy.overrides]]
 module = [
-  "fast_hdbscan",
-  "umap",
-  "numba.*",
   "scipy.*",
   "sklearn.*",
   "arize.*",

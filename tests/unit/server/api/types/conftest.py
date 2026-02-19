@@ -1,63 +1,10 @@
-from collections.abc import Callable
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Optional
-from unittest.mock import Mock
-
 import pytest
 from sqlalchemy import insert
 from strawberry.schema import Schema as StrawberrySchema
-from strawberry.types.info import Info
 
-from phoenix.core.model_schema import Model
-from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
-from phoenix.inferences.inferences import Inferences
-from phoenix.server.api.context import Context
 from phoenix.server.api.queries import Query
 from phoenix.server.types import DbSessionFactory
-
-
-@pytest.fixture
-def info_mock_factory() -> Callable[[Model], Info[Context, None]]:
-    """
-    A pytest fixture to inject a primary inferences and an optional reference
-    inferences into a mock of a strawberry.types.info.Info object.
-    """
-
-    def create_info_mock(model: Model) -> Mock:
-        info_mock = Mock(spec=Info)
-        info_mock.context = Mock(spec=Context)
-        info_mock.context.model = model
-        return info_mock
-
-    return create_info_mock
-
-
-@pytest.fixture
-def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
-    """
-    A pytest fixture to inject a primary inferences and an optional reference
-    inferences into an instance of a phoenix.server.api.context.Context object.
-    """
-
-    def create_context(
-        primary_inferences: Inferences, reference_inferences: Optional[Inferences]
-    ) -> Context:
-        return Context(
-            model=create_model_from_inferences(primary_inferences, reference_inferences),
-            export_path=Path(TemporaryDirectory().name),
-            # TODO(persistence): add mock for db
-            db=None,  # type: ignore[arg-type]
-            # TODO(persistence): add mock for data_loaders
-            data_loaders=None,  # type: ignore[arg-type]
-            cache_for_dataloaders=None,
-            span_cost_calculator=None,  # type: ignore[arg-type]
-            encrypt=lambda v: v,
-            decrypt=lambda v: v,
-        )
-
-    return create_context
 
 
 @pytest.fixture

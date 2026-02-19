@@ -1285,9 +1285,11 @@ Capital of Germany?,Berlin,geography,validation
             f"Expected 3 examples with split1, got {len(split1_dataset)}"
         )
         split1_example_ids = {ex["id"] for ex in split1_dataset.examples}
-        assert split1_example_ids == {example_ids[0], example_ids[1], example_ids[3]}, (
-            f"Split1 should contain examples 0, 1, 3. Got: {split1_example_ids}"
-        )
+        assert split1_example_ids == {
+            example_ids[0],
+            example_ids[1],
+            example_ids[3],
+        }, f"Split1 should contain examples 0, 1, 3. Got: {split1_example_ids}"
 
         # Get dataset filtered by split 2 only - should return 3 examples
         split2_dataset = await _await_or_return(
@@ -1300,9 +1302,11 @@ Capital of Germany?,Berlin,geography,validation
             f"Expected 3 examples with split2, got {len(split2_dataset)}"
         )
         split2_example_ids = {ex["id"] for ex in split2_dataset.examples}
-        assert split2_example_ids == {example_ids[0], example_ids[2], example_ids[3]}, (
-            f"Split2 should contain examples 0, 2, 3. Got: {split2_example_ids}"
-        )
+        assert split2_example_ids == {
+            example_ids[0],
+            example_ids[2],
+            example_ids[3],
+        }, f"Split2 should contain examples 0, 2, 3. Got: {split2_example_ids}"
 
         # Get dataset filtered by BOTH splits - should return 4 DISTINCT examples
         # Even though examples 0 and 3 belong to both splits, they should only appear once

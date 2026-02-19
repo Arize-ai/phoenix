@@ -1,2 +1,1 @@
-export * from "./ModelSchemaTable";
-export * from "./ModelEmbeddingsTable";
+// Model components removed (model inferences UI removed).
