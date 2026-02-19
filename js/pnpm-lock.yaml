@@ -53,6 +53,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^3.0.43
         version: 3.0.44(zod@3.25.76)
+      '@ai-sdk/anthropic-v5':
+        specifier: npm:@ai-sdk/anthropic@2.0.65
+        version: '@ai-sdk/anthropic@2.0.65(zod@3.25.76)'
       '@ai-sdk/mcp':
         specifier: ^1.0.20
         version: 1.0.21(zod@3.25.76)
@@ -403,6 +406,12 @@ importers:
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jiti@2.6.1)(msw@2.12.10(@types/node@24.10.13)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
 
 packages:
+
+  '@ai-sdk/anthropic@2.0.65':
+    resolution: {integrity: sha512-HqTPP59mLQ9U6jXQcx6EORkdc5FyZu34Sitkg6jNpyMYcRjStvfx4+NWq/qaR+OTwBFcccv8hvVii0CYkH2Lag==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/anthropic@3.0.44':
     resolution: {integrity: sha512-ke1NldgohWJ7sWLqm9Um9TVIOrtg8Y8AecWeB6PgaLt+paTPisAsyNfe8FNOVusuv58ugLBqY/78AkhUmbjXHA==}
@@ -3591,6 +3600,12 @@ packages:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
 snapshots:
+
+  '@ai-sdk/anthropic@2.0.65(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.1
+      '@ai-sdk/provider-utils': 3.0.21(zod@3.25.76)
+      zod: 3.25.76
 
   '@ai-sdk/anthropic@3.0.44(zod@3.25.76)':
     dependencies:

@@ -209,6 +209,11 @@ export const terminalFormatExamples: Example[] = [
 export const terminalFormatDataset = {
   name: "cli-agent-terminal-format",
   description: "Terminal-safe formatting evaluation dataset with splits",
+  // Separate dataset name for evaluator benchmarks so benchmark experiments are
+  // tracked under a different dataset than task evaluation experiments in Phoenix.
+  benchmarkName: "cli-agent-terminal-format-benchmark",
+  benchmarkDescription:
+    "Golden dataset for benchmarking terminal-safe-format evaluator accuracy",
   examples: terminalFormatExamples.map((example) => ({
     ...example,
     splits: example.metadata?.category

@@ -355,3 +355,160 @@ export function printExperimentSummary({
 
   console.log("");
 }
+
+type ConfusionMatrix = {
+  evaluatorName: string;
+  positiveLabel: string;
+  negativeLabel: string;
+  tp: number;
+  fp: number;
+  tn: number;
+  fn: number;
+  errors: number;
+  total: number;
+};
+
+export function computeConfusionMatrix({
+  experiment,
+  groundTruthByExampleId,
+  evaluatorName,
+  positiveLabel,
+  negativeLabel,
+}: {
+  experiment: RanExperiment;
+  groundTruthByExampleId: Map<string, string>;
+  evaluatorName: string;
+  positiveLabel: string;
+  negativeLabel: string;
+}): ConfusionMatrix {
+  const evaluationRuns = experiment.evaluationRuns ?? [];
+
+  // Build map: experimentRunId -> predicted label for this evaluator
+  const predictedByRunId = new Map<string, string | null>();
+  for (const evalRun of evaluationRuns) {
+    if (evalRun.name !== evaluatorName) continue;
+    const label = evalRun.error ? null : (evalRun.result?.label ?? null);
+    predictedByRunId.set(evalRun.experimentRunId, label);
+  }
+
+  let tp = 0;
+  let fp = 0;
+  let tn = 0;
+  let fn = 0;
+  let errors = 0;
+
+  for (const run of Object.values(experiment.runs)) {
+    if (run.error) continue;
+    const predicted = predictedByRunId.get(run.id);
+    const actual = groundTruthByExampleId.get(run.datasetExampleId);
+    if (predicted === null || predicted === undefined || actual === undefined) {
+      errors++;
+      continue;
+    }
+    if (actual === positiveLabel && predicted === positiveLabel) tp++;
+    else if (actual === negativeLabel && predicted === positiveLabel) fp++;
+    else if (actual === negativeLabel && predicted === negativeLabel) tn++;
+    else if (actual === positiveLabel && predicted === negativeLabel) fn++;
+    else errors++;
+  }
+
+  return {
+    evaluatorName,
+    positiveLabel,
+    negativeLabel,
+    tp,
+    fp,
+    tn,
+    fn,
+    errors,
+    total: tp + fp + tn + fn,
+  };
+}
+
+export function printConfusionMatrix(matrix: ConfusionMatrix): void {
+  const {
+    evaluatorName,
+    positiveLabel,
+    negativeLabel,
+    tp,
+    fp,
+    tn,
+    fn,
+    errors,
+    total,
+  } = matrix;
+  const divider = "-".repeat(60);
+  const border = "=".repeat(60);
+
+  const tpr = tp + fn > 0 ? (tp / (tp + fn)) * 100 : 0;
+  const tnr = tn + fp > 0 ? (tn / (tn + fp)) * 100 : 0;
+  const accuracy = total > 0 ? ((tp + tn) / total) * 100 : 0;
+
+  const predPos = `Pred: ${positiveLabel}`;
+  const predNeg = `Pred: ${negativeLabel}`;
+  const actPos = `Actual: ${positiveLabel}`;
+  const actNeg = `Actual: ${negativeLabel}`;
+
+  const colLabel = Math.max(actPos.length, actNeg.length) + 2;
+  const colPos =
+    Math.max(predPos.length, `${tp} (TP)`.length, `${fp} (FP)`.length) + 2;
+  const colNeg =
+    Math.max(predNeg.length, `${fn} (FN)`.length, `${tn} (TN)`.length) + 2;
+
+  console.log("");
+  console.log(border);
+  console.log(`  EVALUATOR BENCHMARK: ${evaluatorName}`);
+  console.log(border);
+  console.log(`  Positive class:  ${positiveLabel}`);
+  console.log(`  Negative class:  ${negativeLabel}`);
+  console.log(`  Total examples:  ${total}`);
+
+  console.log("");
+  console.log(divider);
+  console.log("  Confusion Matrix");
+  console.log(divider);
+
+  const headerRow = [
+    padRight("", colLabel),
+    padRight(predPos, colPos),
+    padRight(predNeg, colNeg),
+  ].join("  ");
+  console.log(`  ${headerRow}`);
+
+  const tpCell = `${tp} (TP)`;
+  const fnCell = `${fn} (FN)`;
+  const row1 = [
+    padRight(actPos, colLabel),
+    padRight(tpCell, colPos),
+    padRight(fnCell, colNeg),
+  ].join("  ");
+  console.log(`  ${row1}`);
+
+  const fpCell = `${fp} (FP)`;
+  const tnCell = `${tn} (TN)`;
+  const row2 = [
+    padRight(actNeg, colLabel),
+    padRight(fpCell, colPos),
+    padRight(tnCell, colNeg),
+  ].join("  ");
+  console.log(`  ${row2}`);
+
+  console.log("");
+  console.log(divider);
+  console.log("  Metrics");
+  console.log(divider);
+  console.log(
+    `  TPR (True Positive Rate / Sensitivity):   ${tpr.toFixed(1)}%  [${tp}/${tp + fn} positives correct]`
+  );
+  console.log(
+    `  TNR (True Negative Rate / Specificity):   ${tnr.toFixed(1)}%  [${tn}/${tn + fp} negatives correct]`
+  );
+  console.log(
+    `  Accuracy:                                 ${accuracy.toFixed(1)}%  [${tp + tn}/${total} correct]`
+  );
+  console.log(`  Errors (eval failures):                   ${errors}`);
+
+  console.log("");
+  console.log(border);
+  console.log("");
+}

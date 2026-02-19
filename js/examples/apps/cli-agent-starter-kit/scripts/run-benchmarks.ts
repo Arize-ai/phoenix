@@ -2,9 +2,9 @@
 import { runSuite } from "./runner.js";
 
 runSuite({
-  dir: "evals/experiments",
-  ext: ".eval.ts",
-  label: "evaluation",
+  dir: "evals/benchmarks",
+  ext: ".benchmark.ts",
+  label: "benchmark",
   pattern: process.argv[2],
 }).catch((error) => {
   console.error("Fatal error:", error); // eslint-disable-line no-console
