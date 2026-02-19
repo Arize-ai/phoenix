@@ -203,8 +203,8 @@ Create `js/benchmarks/evals-benchmarks/src/{metric_name}_benchmark.ts`.
 
 **Reference existing benchmarks** in the same directory for patterns:
 
+- `conciseness_benchmark.ts` - Good example with failed examples printout
 - `correctness_benchmark.ts` - Good example of category-based organization
-- `hallucination_benchmark.ts` - Simpler structure
 - `tool_invocation_benchmark.ts` - Multi-tool and context handling
 - `document_relevance_benchmark.ts` - Large synthetic dataset
 
@@ -248,6 +248,18 @@ const examplesByCategory = {
   ],
 };
 
+// TaskOutput must include `input` and `output` text so failed examples can be
+// printed with full context for debugging.
+type TaskOutput = {
+  expected_label: string;
+  label: string;
+  score: number;
+  explanation: string;
+  category: string;
+  input: string;
+  output: string;
+};
+
 // Accuracy evaluator to compare predicted vs expected labels
 const accuracyEvaluator = asExperimentEvaluator({
   name: "accuracy",
@@ -263,6 +275,24 @@ const accuracyEvaluator = asExperimentEvaluator({
   },
 });
 
+// The task function must return input/output text alongside the eval result
+// so that the failed examples printer can display what went wrong.
+const task = async (example) => {
+  const input = example.input.question as string;
+  const output = example.output.answer as string;
+  const expectedLabel = example.output.expected_label as string;
+
+  const evalResult = await evaluator.evaluate({ input, output });
+
+  return {
+    expected_label: expectedLabel,
+    category: example.metadata?.category as string,
+    input,
+    output,
+    ...evalResult,
+  };
+};
+
 async function main() {
   const dataset = await createDataset({ ... });
   const experiment = await runExperiment({
@@ -276,42 +306,60 @@ async function main() {
   // Print detailed results by category
   printResultsByCategory(result);
 
-  // Print confusion matrix
-  printConfusionMatrix(result);
+  // Print failed examples so the user can see what went wrong
+  printFailedExamples(result);
 }
 
-function printConfusionMatrix(result) {
-  let truePositive = 0, falsePositive = 0, trueNegative = 0, falseNegative = 0;
+// IMPORTANT: Always print failed examples (where the evaluator's label did not
+// match the expected label). This is critical for diagnosing prompt issues and
+// deciding whether benchmark examples need adjustment. For each failed example,
+// print the category, input, output (truncated if long), expected vs actual
+// label, and the LLM judge's explanation.
+function printFailedExamples(result) {
+  const failures = [];
 
   for (const run of Object.values(result.runs)) {
     const output = run.output;
-    const expected = output.expected_label;
-    const predicted = output.label;
-
-    if (expected === "correct" && predicted === "correct") truePositive++;
-    else if (expected === "incorrect" && predicted === "correct") falsePositive++;
-    else if (expected === "incorrect" && predicted === "incorrect") trueNegative++;
-    else if (expected === "correct" && predicted === "incorrect") falseNegative++;
+    if (run.error || !output) continue;
+    if (output.expected_label !== output.label) {
+      failures.push(output);
+    }
   }
 
-  console.log("\nCONFUSION MATRIX");
-  console.log("                  Predicted");
-  console.log("                  correct  incorrect");
-  console.log(`Actual correct      ${truePositive}        ${falseNegative}`);
-  console.log(`Actual incorrect    ${falsePositive}        ${trueNegative}`);
-  console.log(`\nPrecision: ${(truePositive / (truePositive + falsePositive) * 100).toFixed(1)}%`);
-  console.log(`Recall: ${(truePositive / (truePositive + falseNegative) * 100).toFixed(1)}%`);
+  if (failures.length === 0) {
+    console.log("\nAll examples matched expected labels.");
+    return;
+  }
+
+  console.log(`\nFAILED EXAMPLES (${failures.length})`);
+  console.log("=".repeat(80));
+
+  for (const [i, ex] of failures.entries()) {
+    const truncatedOutput =
+      ex.output.length > 120 ? ex.output.slice(0, 120) + "..." : ex.output;
+    const truncatedExplanation =
+      ex.explanation.length > 200
+        ? ex.explanation.slice(0, 200) + "..."
+        : ex.explanation;
+
+    console.log(`\n  ${i + 1}. [${ex.category}]`);
+    console.log(`     Input:    ${ex.input}`);
+    console.log(`     Output:   ${truncatedOutput}`);
+    console.log(`     Expected: ${ex.expected_label}  |  Got: ${ex.label}`);
+    console.log(`     Reason:   ${truncatedExplanation}`);
+  }
 }
 
 main();
 ```
 
-**Benchmark categories should include:**
+**Benchmark requirements:**
 
 - Positive examples (expected: correct/pass)
 - Negative examples for each failure mode
 - Edge cases
 - Different input formats if applicable
+- **IMPORTANT: The benchmark must print failed examples** (where the evaluator's label did not match the expected label). For each failure, print the category, input, output (truncated if long), expected vs actual label, and the LLM judge's explanation. This is critical for diagnosing prompt issues and tuning examples. The task function must return `input` and `output` text in its result so the printer has access to them.
 
 ## Step 7: Run Benchmark
 
@@ -360,6 +408,7 @@ Create documentation page at `docs/phoenix/evaluation/pre-built-metrics/{metric-
 - [ ] Export added to `llm/index.ts`
 - [ ] JS packages rebuilt (`pnpm build`)
 - [ ] Benchmark suite with diverse test cases
+- [ ] Benchmark prints failed examples with input, output, expected/actual labels, and explanation
 - [ ] Benchmark run with acceptable accuracy (>80% target)
 - [ ] Documentation page created following template
 - [ ] Landing page updated with new metric card

@@ -1,6 +1,7 @@
 export * from "./ClassificationEvaluator";
 export * from "./createClassificationEvaluator";
 export * from "./createClassifierFn";
+export * from "./createConcisenessEvaluator";
 export * from "./createCorrectnessEvaluator";
 export * from "./createDocumentRelevanceEvaluator";
 export * from "./createFaithfulnessEvaluator";
