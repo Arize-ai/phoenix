@@ -17,16 +17,21 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Task | Files |
 | ---- | ----- |
 | Setup | `setup-python`, `setup-typescript` |
+| Decide what to evaluate | `evaluators-overview` |
+| Choose a judge model | `fundamentals-model-selection` |
+| Use pre-built evaluators | `evaluators-pre-built` |
 | Build code evaluator | `evaluators-code-{python\|typescript}` |
 | Build LLM evaluator | `evaluators-llm-{python\|typescript}`, `evaluators-custom-templates` |
 | Batch evaluate DataFrame | `evaluate-dataframe-python` |
 | Run experiment | `experiments-running-{python\|typescript}` |
 | Create dataset | `experiments-datasets-{python\|typescript}` |
+| Generate synthetic data | `experiments-synthetic-{python\|typescript}` |
 | Validate evaluator accuracy | `validation`, `validation-evaluators-{python\|typescript}` |
-| Analyze errors | `error-analysis`, `axial-coding` |
+| Sample traces for review | `observe-sampling-{python\|typescript}` |
+| Analyze errors | `error-analysis`, `error-analysis-multi-turn`, `axial-coding` |
 | RAG evals | `evaluators-rag` |
-| Avoid common mistakes | `common-mistakes-python` |
-| Production | `production-overview`, `production-guardrails` |
+| Avoid common mistakes | `common-mistakes-python`, `fundamentals-anti-patterns` |
+| Production | `production-overview`, `production-guardrails`, `production-continuous` |
 
 ## Workflows
 
@@ -52,7 +57,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | `axial-coding-*` | Categorizing failures |
 | `evaluators-*` | Code, LLM, RAG evaluators |
 | `experiments-*` | Datasets, running experiments |
-| `validation-*` | Calibrating judges |
+| `validation-*` | Validating evaluator accuracy against human labels |
 | `production-*` | CI/CD, monitoring |
 
 ## Key Principles
