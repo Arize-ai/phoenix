@@ -23,8 +23,6 @@
     "eval:no-phoenix": "tsx scripts/run-evals.ts",
     "eval:terminal-format": "pnpm phoenix:ensure && tsx evals/experiments/terminal-format.eval.ts",
     "eval:verbose": "VERBOSE=true pnpm eval",
-    "seed": "pnpm phoenix:ensure && tsx scripts/seed-traces.ts",
-    "seed:topic": "pnpm phoenix:ensure && tsx scripts/seed-traces.ts --dataset phoenix-topic",
     "phoenix:down": "docker compose down",
     "phoenix:ensure": "./scripts/ensure-phoenix.sh",
     "phoenix:ensure:verbose": "./scripts/ensure-phoenix.sh --verbose",
@@ -33,6 +31,8 @@
     "phoenix:restart": "docker compose restart phoenix",
     "phoenix:start": "docker compose up -d phoenix",
     "phoenix:stop": "docker compose stop phoenix",
+    "seed": "pnpm phoenix:ensure && tsx scripts/seed-traces.ts",
+    "seed:topic": "pnpm phoenix:ensure && tsx scripts/seed-traces.ts --dataset phoenix-topic",
     "start": "node --env-file=.env dist/cli.js",
     "start:verbose": "VERBOSE=true node --env-file=.env dist/cli.js"
   },
