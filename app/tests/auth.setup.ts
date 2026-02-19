@@ -1,10 +1,11 @@
 import fs from "fs/promises";
 import { expect, Page, test as setup } from "@playwright/test";
-
-const AUTH_DIR = "playwright/.auth";
-const ADMIN_STORAGE_STATE = `${AUTH_DIR}/admin.json`;
-const MEMBER_STORAGE_STATE = `${AUTH_DIR}/member.json`;
-const VIEWER_STORAGE_STATE = `${AUTH_DIR}/viewer.json`;
+import {
+  ADMIN_STORAGE_STATE_PATH,
+  AUTH_DIR,
+  MEMBER_STORAGE_STATE_PATH,
+  VIEWER_STORAGE_STATE_PATH,
+} from "./constants";
 
 async function login({
   page,
@@ -179,17 +180,17 @@ setup(
     await saveStorageStateForUser({
       email: "admin@localhost",
       password: "admin123",
-      storageStatePath: ADMIN_STORAGE_STATE,
+      storageStatePath: ADMIN_STORAGE_STATE_PATH,
     });
     await saveStorageStateForUser({
       email: "member@localhost.com",
       password: "member123",
-      storageStatePath: MEMBER_STORAGE_STATE,
+      storageStatePath: MEMBER_STORAGE_STATE_PATH,
     });
     await saveStorageStateForUser({
       email: "viewer@localhost.com",
       password: "viewer123",
-      storageStatePath: VIEWER_STORAGE_STATE,
+      storageStatePath: VIEWER_STORAGE_STATE_PATH,
     });
   }
 );

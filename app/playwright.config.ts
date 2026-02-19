@@ -1,4 +1,6 @@
 import { defineConfig, devices, Project } from "@playwright/test";
+import path from "path";
+import { ADMIN_STORAGE_STATE_PATH } from "./tests/constants";
 
 /**
  * Read environment variables from file.
@@ -10,6 +12,7 @@ import { defineConfig, devices, Project } from "@playwright/test";
 // Skip WebKit for CI because of recurring issues with caching binaries.
 const isCI = !!process.env.CI;
 const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
+const appDir = __dirname;
 
 const projects: Project[] = [
   {
@@ -20,7 +23,7 @@ const projects: Project[] = [
     name: "chromium",
     use: {
       ...devices["Desktop Chrome"],
-      storageState: "playwright/.auth/admin.json",
+      storageState: ADMIN_STORAGE_STATE_PATH,
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
@@ -30,7 +33,7 @@ const projects: Project[] = [
     name: "firefox",
     use: {
       ...devices["Desktop Firefox"],
-      storageState: "playwright/.auth/admin.json",
+      storageState: ADMIN_STORAGE_STATE_PATH,
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
@@ -43,7 +46,7 @@ if (!skipWebKit) {
     name: "webkit",
     use: {
       ...devices["Desktop Safari"],
-      storageState: "playwright/.auth/admin.json",
+      storageState: ADMIN_STORAGE_STATE_PATH,
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
@@ -72,7 +75,7 @@ export default defineConfig({
   // Use default workers (cpu count)
   workers: undefined,
   fullyParallel: true,
-  testDir: "./tests",
+  testDir: path.resolve(appDir, "tests"),
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
@@ -96,7 +99,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "pnpm run dev:server:test",
+    command: `pnpm --dir "${appDir}" run dev:server:test`,
     url: "http://localhost:6006",
     reuseExistingServer: !isCI,
     timeout: isCI ? 240_000 : 120_000,

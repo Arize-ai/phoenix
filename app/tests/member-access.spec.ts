@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { expect, test } from "@playwright/test";
+import { MEMBER_STORAGE_STATE_PATH } from "./constants";
 
-test.use({ storageState: "playwright/.auth/member.json" });
+test.use({ storageState: MEMBER_STORAGE_STATE_PATH });
 
 test("can create user key", async ({ page }) => {
   // Navigate to profile page
