@@ -27,11 +27,14 @@ EXAMPLES:
 - "\\x1b[1mImportant:\\x1b[0m check your config" → compliant
 - "• First option\\n• Second option" → compliant (• is a plain text character)
 - "  • Phoenix features\\n  • Setup steps" → compliant (• with indentation is plain text)
+- "You can use createEvaluator or the correctness evaluator" → compliant (technical names as plain text without backticks)
 - "**Important:** check your config" → non_compliant
 - "## Getting Started\\n\\nRun \`npm install\`" → non_compliant
+- "Run \`npm install\` to install dependencies." → non_compliant (backtick inline code is markdown even when standalone)
 - "- First item\\n- Second item" → non_compliant (dash list is markdown)
 - "* First item\\n* Second item" → non_compliant (asterisk list is markdown)
 - "In markdown, bold is written with two asterisks" → compliant (discussing, not using)
+- "In markdown, you write bold as two asterisks before and after text." → compliant (explaining markdown syntax, not using it)
 
 EDGE CASES:
 - Empty or null response → non_compliant
