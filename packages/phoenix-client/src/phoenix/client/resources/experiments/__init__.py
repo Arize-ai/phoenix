@@ -46,7 +46,6 @@ from phoenix.client.resources.experiments.types import (
     ExampleProxy,
     Experiment,
     ExperimentEvaluationRun,
-    ExperimentEvaluator,
     ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
@@ -241,18 +240,15 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
         return evaluators_by_name
 
     elif isinstance(obj, Mapping):
-        mapping_obj = cast(Mapping[EvaluatorName, ExperimentEvaluator], obj)  # pyright: ignore[reportUnnecessaryCast]
-        for name, value in mapping_obj.items():
+        for name, value in obj.items():
             evaluator = create_evaluator(name=name)(value)
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
-        seq_obj = cast(Sequence[ExperimentEvaluator], obj)  # pyright: ignore[reportUnnecessaryCast]
-        for value in seq_obj:
+        for value in obj:
             evaluator = create_evaluator()(value)
             evaluators_by_name[evaluator.name] = evaluator
     else:
-        single_obj = cast(ExperimentEvaluator, obj)  # pyright: ignore[reportUnnecessaryCast]
-        evaluator = create_evaluator()(single_obj)
+        evaluator = create_evaluator()(obj)
         evaluators_by_name[evaluator.name] = evaluator
 
     return evaluators_by_name
