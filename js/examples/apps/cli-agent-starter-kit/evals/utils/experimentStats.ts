@@ -426,7 +426,17 @@ export function computeConfusionMatrix({
 }
 
 export function printConfusionMatrix(matrix: ConfusionMatrix): void {
-  const { evaluatorName, positiveLabel, negativeLabel, tp, fp, tn, fn, errors, total } = matrix;
+  const {
+    evaluatorName,
+    positiveLabel,
+    negativeLabel,
+    tp,
+    fp,
+    tn,
+    fn,
+    errors,
+    total,
+  } = matrix;
   const divider = "-".repeat(60);
   const border = "=".repeat(60);
 
@@ -440,8 +450,10 @@ export function printConfusionMatrix(matrix: ConfusionMatrix): void {
   const actNeg = `Actual: ${negativeLabel}`;
 
   const colLabel = Math.max(actPos.length, actNeg.length) + 2;
-  const colPos = Math.max(predPos.length, `${tp} (TP)`.length, `${fp} (FP)`.length) + 2;
-  const colNeg = Math.max(predNeg.length, `${fn} (FN)`.length, `${tn} (TN)`.length) + 2;
+  const colPos =
+    Math.max(predPos.length, `${tp} (TP)`.length, `${fp} (FP)`.length) + 2;
+  const colNeg =
+    Math.max(predNeg.length, `${fn} (FN)`.length, `${tn} (TN)`.length) + 2;
 
   console.log("");
   console.log(border);

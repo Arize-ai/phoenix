@@ -1,5 +1,5 @@
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { anthropic } from "@ai-sdk/anthropic-v5";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
 export async function createTerminalSafeFormatEvaluator() {
   return createClassificationEvaluator<{ output: string }>({

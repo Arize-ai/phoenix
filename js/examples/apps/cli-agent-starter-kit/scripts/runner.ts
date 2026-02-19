@@ -35,18 +35,30 @@ export async function runSuite({
   label: string;
   pattern?: string;
 }): Promise<void> {
-  const searchPattern = pattern ? `${dir}/*${pattern}*${ext}` : `${dir}/*${ext}`;
+  const searchPattern = pattern
+    ? `${dir}/*${pattern}*${ext}`
+    : `${dir}/*${ext}`;
 
-  const files = await glob(searchPattern, { cwd: process.cwd(), absolute: true });
-  const entries = files.map((file) => ({ name: path.basename(file, ext), file }));
+  const files = await glob(searchPattern, {
+    cwd: process.cwd(),
+    absolute: true,
+  });
+  const entries = files.map((file) => ({
+    name: path.basename(file, ext),
+    file,
+  }));
 
   console.log(
-    pattern ? `\nRunning ${label}s matching: ${pattern}\n` : `\nRunning all ${label}s\n`
+    pattern
+      ? `\nRunning ${label}s matching: ${pattern}\n`
+      : `\nRunning all ${label}s\n`
   );
 
   if (entries.length === 0) {
     console.error(
-      pattern ? `No ${label}s found matching: ${pattern}` : `No ${label}s found in ${dir}/`
+      pattern
+        ? `No ${label}s found matching: ${pattern}`
+        : `No ${label}s found in ${dir}/`
     );
     process.exit(1);
   }

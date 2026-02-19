@@ -42,7 +42,9 @@ async function main() {
   // Build ground truth map: exampleId -> expected label
   const groundTruthByExampleId = new Map<string, string>();
   for (const example of examplesWithIds) {
-    const expectedLabel = example.metadata?.expectedSafe ? "compliant" : "non_compliant";
+    const expectedLabel = example.metadata?.expectedSafe
+      ? "compliant"
+      : "non_compliant";
     groundTruthByExampleId.set(example.id, expectedLabel);
   }
 
@@ -60,7 +62,8 @@ async function main() {
   const experiment = await runExperiment({
     client,
     experimentName,
-    experimentDescription: "Benchmark terminal-safe-format evaluator accuracy against golden dataset",
+    experimentDescription:
+      "Benchmark terminal-safe-format evaluator accuracy against golden dataset",
     dataset: { datasetId },
     task,
     evaluators: [evaluator],
