@@ -434,13 +434,17 @@ function ModelsByProviderMenu({
                     modelName,
                   });
                   return (
-                    <MenuItem key={itemKey} id={itemKey} textValue={modelName}>
+                    <MenuItem
+                      key={itemKey}
+                      id={itemKey}
+                      textValue={displayModelName(providerKey, modelName)}
+                    >
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <GenerativeProviderIcon
                           provider={providerKey}
                           height={16}
                         />
-                        <Text>{modelName}</Text>
+                        <Text>{displayModelName(providerKey, modelName)}</Text>
                       </Flex>
                     </MenuItem>
                   );
@@ -683,7 +687,7 @@ function ProviderModelsSubmenu({
           }}
         >
           {({ id, name, isCustom }) => (
-            <MenuItem id={id} textValue={displayModelName(id)}>
+            <MenuItem id={id} textValue={id}>
               <Flex direction="row" gap="size-100" alignItems="center">
                 {isValidProvider && (
                   <GenerativeProviderIcon provider={providerKey} height={16} />
