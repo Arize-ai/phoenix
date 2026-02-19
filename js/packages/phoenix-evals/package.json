@@ -62,7 +62,7 @@
     "prebuild": "pnpm run clean",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "type:check": "tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@arizeai/openinference-core": "^2.0.0",

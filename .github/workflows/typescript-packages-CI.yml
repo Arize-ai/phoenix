@@ -51,7 +51,7 @@ jobs:
       - name: Type Checking
         working-directory: ./js
         run: |
-          pnpm run type:check
+          pnpm run typecheck
       - name: Linting
         working-directory: ./js
         run: |

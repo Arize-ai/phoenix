@@ -36,7 +36,7 @@
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "type:check": "tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {

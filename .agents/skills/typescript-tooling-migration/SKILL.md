@@ -29,7 +29,7 @@ Both directories should use the same versions of shared tooling:
 | Tool | Sync Enforced | Config Location |
 |------|---------------|-----------------|
 | pnpm | CI check | `package.json` → `packageManager` |
-| TypeScript | Manual | `package.json` → `devDependencies` |
+| TypeScript | CI check | `package.json` → `devDependencies` |
 | oxlint | CI check | `package.json` → `devDependencies` |
 | oxfmt | CI check | `package.json` → `devDependencies` |
 
@@ -230,7 +230,7 @@ rm app/<old-config> js/<old-config>
 ```bash
 # Type checking
 cd app && pnpm run typecheck
-cd js && pnpm run type:check
+cd js && pnpm run typecheck
 
 # Linting
 cd app && pnpm run lint
