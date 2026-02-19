@@ -148,6 +148,57 @@ export type OpenAIResponsesToolDefinition = z.infer<
 >;
 
 /**
+ * The zod schema for the OpenAI Responses API built-in web_search tool.
+ * @see https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses
+ */
+export const openAIWebSearchToolDefinitionSchema = z
+  .object({
+    type: z.literal("web_search"),
+    filters: z
+      .object({
+        allowed_domains: z.array(z.string()).optional(),
+      })
+      .passthrough()
+      .nullable()
+      .optional()
+      .describe(
+        "Domain allow-list and/or block-list (omit protocol, e.g. openai.com)."
+      ),
+    user_location: z
+      .object({
+        type: z.literal("approximate").optional(),
+        country: z.string().optional(),
+        city: z.string().optional(),
+        region: z.string().optional(),
+        timezone: z.string().optional(),
+      })
+      .passthrough()
+      .nullable()
+      .optional()
+      .describe("Refine results by geography (e.g. country, city)."),
+    external_web_access: z
+      .boolean()
+      .optional()
+      .describe("false = cache-only. Default true (live access)."),
+  })
+  .passthrough();
+
+/**
+ * The type of the OpenAI Responses API web_search tool definition
+ */
+export type OpenAIResponsesWebSearchToolDefinition = z.infer<
+  typeof openAIWebSearchToolDefinitionSchema
+>;
+
+/**
+ * JSON schema for the Responses API web_search tool (playground editor when tool is web_search).
+ */
+export const openAIWebSearchToolDefinitionJSONSchema = zodToJsonSchema(
+  openAIWebSearchToolDefinitionSchema,
+  { removeAdditionalStrategy: "passthrough" }
+);
+
+/**
  * The zod schema for an anthropic tool definition
  */
 export const anthropicToolDefinitionSchema = z.object({
@@ -330,6 +381,7 @@ export const llmProviderToolDefinitionSchema = z.union([
   // Responses API must come before Gemini: both have top-level name + parameters,
   // but only Responses API requires type: "function", which Gemini tools lack.
   openAIResponsesToolDefinitionSchema,
+  openAIWebSearchToolDefinitionSchema,
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
   geminiToolDefinitionSchema,
