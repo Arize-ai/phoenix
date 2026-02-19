@@ -32,7 +32,14 @@
         "varsIgnorePattern": "^_",
         "caughtErrorsIgnorePattern": "^_"
       }
-    ]
+    ],
+
+    // Type-aware rules (require --type-aware flag)
+    // These rules catch real bugs - start as warnings and tighten over time
+    "typescript/no-floating-promises": "warn",
+    "typescript/no-misused-promises": "warn",
+    "typescript/await-thenable": "error",
+    "typescript/no-for-in-array": "error"
   },
 
   "ignorePatterns": ["**/dist/**", "**/build/**", "**/node_modules/**"]
