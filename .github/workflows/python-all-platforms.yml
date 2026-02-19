@@ -114,10 +114,85 @@ jobs:
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
   
+  phoenix-client-non-linux:
+    name: Phoenix Client (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
+    runs-on: ${{ matrix.os }}
+    needs: discover-branches
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        py: [3.9, 3.12]
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-client/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+      - run: uvx tox run -e phoenix_client -- -ra -x
+
+  phoenix-evals-non-linux:
+    name: Phoenix Evals (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
+    runs-on: ${{ matrix.os }}
+    needs: discover-branches
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        py: [3.9, 3.12]
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-evals/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+      - run: uvx tox run -e phoenix_evals -- -ra -x
+
+  phoenix-otel-non-linux:
+    name: Phoenix OTel (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
+    runs-on: ${{ matrix.os }}
+    needs: discover-branches
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        py: [3.9, 3.12]
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-otel/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+      - run: uvx tox run -e phoenix_otel -- -ra -x
+
   slack-notification:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [discover-branches, unit-tests-non-linux, integration-tests-non-linux]
+    needs: [discover-branches, unit-tests-non-linux, integration-tests-non-linux, phoenix-client-non-linux, phoenix-evals-non-linux, phoenix-otel-non-linux]
     if: failure()
     steps:
       - uses: slackapi/slack-github-action@v1

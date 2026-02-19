@@ -94,13 +94,12 @@ jobs:
 
   phoenix-client:
     name: Phoenix Client
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,14 +116,13 @@ jobs:
 
   phoenix-evals:
     name: Phoenix Evals
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       fail-fast: false
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -141,13 +139,12 @@ jobs:
 
   phoenix-otel:
     name: Phoenix OTel
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
         with:
