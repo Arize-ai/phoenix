@@ -94,7 +94,6 @@ dev = [
   "debugpy",
   "deepdiff==8.6.1",
   "Faker>=30.1.0",
-  "fast-hdbscan",
   "freezegun",
   "google-genai>=1.0.0",
   "grpc-interceptor[testing]",

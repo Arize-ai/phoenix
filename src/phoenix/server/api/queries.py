@@ -87,7 +87,6 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     parse_experiment_repeated_run_group_node_id,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
-from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
@@ -1103,10 +1102,6 @@ class Query:
                 is_valid=False,
                 error_message=str(error),
             )
-
-    @strawberry.field
-    async def functionality(self, info: Info[Context, None]) -> "Functionality":
-        return Functionality(model_inferences=False)
 
     @strawberry.field
     async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:

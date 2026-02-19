@@ -1707,11 +1707,6 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   arguments: String!
 }
 
-type Functionality {
-  """Model inferences are available for analysis"""
-  modelInferences: Boolean!
-}
-
 input GenerativeCredentialInput {
   envVarName: String!
   value: SecretString!
@@ -2741,7 +2736,6 @@ type Query {
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
   experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
-  functionality: Functionality!
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!

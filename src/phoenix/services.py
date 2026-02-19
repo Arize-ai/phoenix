@@ -106,14 +106,12 @@ class AppService(Service):
         host: str,
         port: int,
         root_path: str,
-        umap_params: str,
     ):
         self.database_url = database_url
         self.export_path = export_path
         self.host = host
         self.port = port
         self.root_path = root_path  # TODO(mikeldking): Add support for root_path
-        self.__umap_params = umap_params
         super().__init__()
 
     @property
@@ -129,8 +127,6 @@ class AppService(Service):
             str(self.host),
             "--port",
             str(self.port),
-            "--umap_params",
-            self.__umap_params,
             "serve",
         ]
         logger.info(f"command: {' '.join(command)}")

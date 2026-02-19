@@ -50,8 +50,6 @@ from phoenix.config import (
     get_pids_path,
 )
 from phoenix.db import get_printable_db_url
-from phoenix.inferences.fixtures import FIXTURES, get_inferences
-from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.logging import setup_logging
 from phoenix.server.app import (
     ScaffolderConfig,
@@ -76,9 +74,6 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.version import __version__ as phoenix_version
-
-# Legacy --umap_params CLI arg still accepted for backward compat (e.g. session subprocess)
-DEFAULT_UMAP_PARAMS_STR = "0.0,30,500"
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -159,13 +154,7 @@ def main() -> None:
     initialize_settings()
     setup_logging()
 
-    primary_inferences_name: str
-    reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
-
-    primary_inferences: Inferences = EMPTY_INFERENCES
-    reference_inferences: Optional[Inferences] = None
-    corpus_inferences: Optional[Inferences] = None
 
     atexit.register(_remove_pid_file)
 
@@ -182,9 +171,6 @@ def main() -> None:
     parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
     parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
-    parser.add_argument(
-        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
-    )
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
@@ -199,13 +185,6 @@ def main() -> None:
         type=int,
         required=False,
         help="Port for the OTLP/gRPC trace ingestion server.",
-    )
-    serve_parser.add_argument(
-        "--with-fixture",
-        type=str,
-        required=False,
-        default="",
-        help=("Name of an inference fixture. Example: 'fixture1'"),
     )
     serve_parser.add_argument(
         "--with-trace-fixtures",
@@ -248,28 +227,11 @@ def main() -> None:
         ),
     )
 
-    datasets_parser = subparsers.add_parser("datasets")
-    datasets_parser.add_argument("--primary", type=str, required=True)
-    datasets_parser.add_argument("--reference", type=str, required=False)
-    datasets_parser.add_argument("--corpus", type=str, required=False)
-    datasets_parser.add_argument("--trace", type=str, required=False)
-
-    fixture_parser = subparsers.add_parser("fixture")
-    fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", action="store_true")
-
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
     trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
-
-    demo_parser = subparsers.add_parser("demo")
-    demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    demo_parser.add_argument(
-        "trace_fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
-    )
-    demo_parser.add_argument("--simulate-streaming", action="store_true")
 
     args = parser.parse_args()
     db_connection_str = (
@@ -280,44 +242,9 @@ def main() -> None:
     force_fixture_ingestion = False
     scaffold_datasets = False
     tracing_fixture_names = set()
-    if args.command == "datasets":
-        primary_inferences_name = args.primary
-        reference_inferences_name = args.reference
-        corpus_inferences_name = args.corpus
-        primary_inferences = Inferences.from_name(primary_inferences_name)
-        reference_inferences = (
-            Inferences.from_name(reference_inferences_name)
-            if reference_inferences_name is not None
-            else None
-        )
-        corpus_inferences = (
-            None if corpus_inferences_name is None else Inferences.from_name(corpus_inferences_name)
-        )
-    elif args.command == "fixture":
-        fixture_name = args.fixture
-        primary_only = args.primary_only
-        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
-            fixture_name,
-            args.no_internet,
-        )
-        if primary_only:
-            reference_inferences_name = None
-            reference_inferences = None
-    elif args.command == "trace-fixture":
+    if args.command == "trace-fixture":
         trace_dataset_name = args.fixture
-    elif args.command == "demo":
-        fixture_name = args.fixture
-        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
-            fixture_name,
-            args.no_internet,
-        )
-        trace_dataset_name = args.trace_fixture
     elif args.command == "serve":
-        if args.with_fixture:
-            primary_inferences, reference_inferences, corpus_inferences = get_inferences(
-                str(args.with_fixture),
-                args.no_internet,
-            )
         if args.with_trace_fixtures:
             tracing_fixture_names.update(
                 [name.strip() for name in args.with_trace_fixtures.split(",")]

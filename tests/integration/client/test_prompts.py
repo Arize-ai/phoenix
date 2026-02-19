@@ -47,6 +47,16 @@ import phoenix as px
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
+from ...__generated__.graphql import (
+    ChatPromptVersionInput,
+    ContentPartInput,
+    CreateChatPromptInput,
+    PromptChatTemplateInput,
+    PromptMessageInput,
+    ResponseFormatInput,
+    TextContentValueInput,
+    ToolDefinitionInput,
+)
 from .._helpers import (
     _MEMBER,
     _SYSTEM_USER_GID,
@@ -57,46 +67,6 @@ from .._helpers import (
     _GetUser,
     _gql,
 )
-
-
-class TextContentValueInput(BaseModel):
-    text: str
-
-
-class ContentPartInput(BaseModel):
-    text: TextContentValueInput | None = None
-
-
-class PromptMessageInput(BaseModel):
-    role: str
-    content: list[ContentPartInput]
-
-
-class PromptChatTemplateInput(BaseModel):
-    messages: list[PromptMessageInput]
-
-
-class ToolDefinitionInput(BaseModel):
-    definition: dict[str, Any]
-
-
-class ResponseFormatInput(BaseModel):
-    definition: dict[str, Any]
-
-
-class ChatPromptVersionInput(BaseModel):
-    templateFormat: str
-    template: PromptChatTemplateInput
-    invocationParameters: dict[str, Any] = {}
-    modelProvider: str
-    modelName: str
-    tools: list[ToolDefinitionInput] = []
-    responseFormat: ResponseFormatInput | None = None
-
-
-class CreateChatPromptInput(BaseModel):
-    name: str
-    promptVersion: ChatPromptVersionInput
 
 
 class TestUserMessage:

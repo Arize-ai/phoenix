@@ -308,7 +308,6 @@ class ProcessSession(Session):
             host=self.host,
             port=self.port,
             root_path=self.root_path,
-            umap_params="0.0,30,500",
         )
 
     @property
