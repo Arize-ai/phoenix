@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   getInputAttributes,
   getOutputAttributes,
@@ -45,16 +46,18 @@ function displayExitMessage(cancelled = false) {
 export async function runInteraction({
   input,
   agent,
+  sessionId = randomUUID(),
 }: {
   input: string;
   agent: Agent;
+  sessionId?: string;
 }) {
   const handleInteraction = withSpan(
     async (input: string) => agent.generate({ prompt: input }),
     {
       name: "cli.interaction",
       kind: "CHAIN",
-      attributes: { "session.id": SESSION_ID },
+      attributes: { "session.id": sessionId },
       processInput: (input: string) => getInputAttributes(input),
       processOutput: (result) => getOutputAttributes(result.text),
     }

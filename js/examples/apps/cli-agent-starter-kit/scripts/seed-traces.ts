@@ -94,11 +94,6 @@ async function seedDataset({
 async function main() {
   const { datasetName, concurrency } = parseArgs();
 
-  let datasetsToRun: Array<{
-    key: string;
-    dataset: { name: string; examples: Example[] };
-  }>;
-
   const resolvedDatasetName = datasetName ?? "phoenix-topic";
   const dataset = DATASETS[resolvedDatasetName];
   if (!dataset) {
@@ -106,7 +101,7 @@ async function main() {
     console.error(`Available datasets: ${Object.keys(DATASETS).join(", ")}`);
     process.exit(1);
   }
-  datasetsToRun = [{ key: resolvedDatasetName, dataset }];
+  const datasetsToRun = [{ key: resolvedDatasetName, dataset }];
 
   const totalExamples = datasetsToRun.reduce(
     (sum, { dataset }) => sum + dataset.examples.length,
