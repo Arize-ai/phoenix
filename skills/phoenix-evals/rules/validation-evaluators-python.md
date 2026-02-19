@@ -1,6 +1,6 @@
-# Validation: Calibration (Python)
+# Validating Evaluators (Python)
 
-Calibrate LLM judges against human labels. Target >80% TPR/TNR/Accuracy.
+Validate LLM evaluators against human-labeled examples. Target >80% TPR/TNR/Accuracy.
 
 ## Calculate Metrics
 
