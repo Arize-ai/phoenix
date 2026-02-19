@@ -53,6 +53,49 @@ async def delete_resource(
 - Use Pydantic models for request/response bodies
 - Endpoints are `async` (FastAPI + SQLAlchemy async session)
 
+## Conventions
+
+### General
+
+- The API communicates over JSON unless otherwise specified by the URL.
+- The API is versioned. If a backwards-incompatible change is made, nest the new route under a new version (e.g., `v2/`).
+
+### HTTP Methods
+
+| Method | Use |
+|---|---|
+| **GET** | Retrieve a representation of a resource |
+| **POST** | Create new resources and sub-resources |
+| **PUT** | Update existing resources (full replacement) |
+| **PATCH** | Update existing resources (partial update) |
+| **DELETE** | Delete existing resources |
+
+### Status Codes
+
+- **2xx** — client and API worked correctly
+- **4xx** — client error (bad request, not found, etc.)
+- **5xx** — server/API error
+
+### Path Structure
+
+- Use **nouns** for resources; avoid verbs in paths.
+- Nouns should be **pluralized** and followed by a globally unique identifier for specific resources (e.g., `/datasets/:dataset_id`).
+- IDs should be consistent with the GraphQL API's global IDs.
+
+### Query Parameters
+
+- Use query parameters for **filtering, sorting, and pagination**.
+- Separator: **`_`** (underscore), e.g., `sort_by`, `filter_by`.
+
+### Pagination
+
+Use **cursor-based pagination**: each response provides a cursor to the next page of results.
+
+### Response Format
+
+- Responses are JSON objects with a top-level **`data`** key.
+- Payload keys use **snake_case**.
+
 ## Testing
 
 Integration tests for API behavior live in `tests/integration/`. Run them with:
