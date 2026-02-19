@@ -1094,6 +1094,7 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-opus-4-6-v1",
+        "anthropic.claude-sonnet-4-6",
         "anthropic.claude-opus-4-5-20251101-v1:0",
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
