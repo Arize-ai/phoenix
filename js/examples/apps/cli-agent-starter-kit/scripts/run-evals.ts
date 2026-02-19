@@ -7,6 +7,6 @@ runSuite({
   label: "evaluation",
   pattern: process.argv[2],
 }).catch((error) => {
-  console.error("Fatal error:", error);
+  console.error("Fatal error:", error); // eslint-disable-line no-console
   process.exit(1);
 });
