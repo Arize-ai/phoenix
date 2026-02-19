@@ -4,7 +4,8 @@ export const phoenixTopicExamples: Example[] = [
   // On-topic: Phoenix OSS observability questions (10)
   {
     input: {
-      prompt: "How do I instrument my LangChain app with Phoenix to see traces?",
+      prompt:
+        "How do I instrument my LangChain app with Phoenix to see traces?",
     },
     metadata: {
       category: "on_topic",
@@ -353,8 +354,7 @@ export const phoenixTopicExamples: Example[] = [
   },
   {
     input: {
-      prompt:
-        "How do I monitor my Phoenix app's performance in production?",
+      prompt: "How do I monitor my Phoenix app's performance in production?",
     },
     metadata: {
       category: "off_topic_other",
