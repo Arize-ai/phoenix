@@ -135,9 +135,9 @@ To support this, each dataset definition in `evals/datasets/` carries two names:
 
 ```typescript
 export const terminalFormatDataset = {
-  name: "cli-agent-terminal-format",             // task evaluation dataset
+  name: "cli-agent-terminal-format", // task evaluation dataset
   description: "...",
-  benchmarkName: "cli-agent-terminal-format-benchmark",  // evaluator benchmark dataset
+  benchmarkName: "cli-agent-terminal-format-benchmark", // evaluator benchmark dataset
   benchmarkDescription: "Golden dataset for benchmarking ...",
   examples: terminalFormatExamples,
 };
@@ -172,11 +172,11 @@ tsx evals/benchmarks/terminal-format.benchmark.ts
 
 In a benchmark experiment the roles are inverted compared to a normal experiment:
 
-| Normal experiment | Benchmark experiment |
-|-------------------|----------------------|
-| Task = agent logic | Task = run the evaluator |
-| Evaluators = judge agent output | Evaluator = exact-match against ground truth |
-| Dataset = agent input/output pairs | Dataset = golden hand-labeled examples |
+| Normal experiment                  | Benchmark experiment                         |
+| ---------------------------------- | -------------------------------------------- |
+| Task = agent logic                 | Task = run the evaluator                     |
+| Evaluators = judge agent output    | Evaluator = exact-match against ground truth |
+| Dataset = agent input/output pairs | Dataset = golden hand-labeled examples       |
 
 The benchmark task calls the evaluator under test and returns its predicted label as the task
 output. The exact-match evaluator then compares that prediction to the `metadata.expectedSafe`
@@ -199,9 +199,15 @@ const exactMatchEvaluator = asExperimentEvaluator({
   name: "exact-match",
   kind: "CODE",
   evaluate: ({ output, metadata }) => {
-    const expectedLabel = metadata?.expectedSafe ? "compliant" : "non_compliant";
+    const expectedLabel = metadata?.expectedSafe
+      ? "compliant"
+      : "non_compliant";
     const match = output === expectedLabel;
-    return { score: match ? 1 : 0, label: output, explanation: `Expected: ${expectedLabel}, Got: ${output}` };
+    return {
+      score: match ? 1 : 0,
+      label: output,
+      explanation: `Expected: ${expectedLabel}, Got: ${output}`,
+    };
   },
 });
 ```
@@ -242,23 +248,36 @@ export const myDataset = {
 ```typescript
 #!/usr/bin/env tsx
 import { createClient } from "@arizeai/phoenix-client";
-import { createOrGetDataset, getDatasetExamples } from "@arizeai/phoenix-client/datasets";
-import { asExperimentEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
+import {
+  createOrGetDataset,
+  getDatasetExamples,
+} from "@arizeai/phoenix-client/datasets";
+import {
+  asExperimentEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
 import { myDataset } from "../datasets/index.js";
 import { myEvaluator } from "../evaluators/index.js";
-import { computeConfusionMatrix, printConfusionMatrix, printExperimentSummary } from "../utils/index.js";
+import {
+  computeConfusionMatrix,
+  printConfusionMatrix,
+  printExperimentSummary,
+} from "../utils/index.js";
 
 async function main() {
   const client = createClient();
 
   const { datasetId } = await createOrGetDataset({
     client,
-    name: myDataset.benchmarkName,          // <-- benchmark dataset, not task dataset
+    name: myDataset.benchmarkName, // <-- benchmark dataset, not task dataset
     description: myDataset.benchmarkDescription,
     examples: myDataset.examples,
   });
 
-  const { examples } = await getDatasetExamples({ client, dataset: { datasetId } });
+  const { examples } = await getDatasetExamples({
+    client,
+    dataset: { datasetId },
+  });
 
   const groundTruthByExampleId = new Map(
     examples.map((ex) => [ex.id, ex.metadata?.expectedLabel as string])
@@ -270,7 +289,11 @@ async function main() {
     evaluate: ({ output, metadata }) => {
       const expected = metadata?.expectedLabel as string;
       const predicted = typeof output === "string" ? output : "unknown";
-      return { score: predicted === expected ? 1 : 0, label: predicted, explanation: `Expected: ${expected}, Got: ${predicted}` };
+      return {
+        score: predicted === expected ? 1 : 0,
+        label: predicted,
+        explanation: `Expected: ${expected}, Got: ${predicted}`,
+      };
     },
   });
 
@@ -279,29 +302,40 @@ async function main() {
     experimentName: `my-eval-benchmark-${Date.now()}`,
     dataset: { datasetId },
     task: async (example) => {
-      const result = await myEvaluator.evaluate({ output: example.output?.response ?? "" });
+      const result = await myEvaluator.evaluate({
+        output: example.output?.response ?? "",
+      });
       return result.label ?? "unknown";
     },
     evaluators: [exactMatchEvaluator],
   });
 
   printExperimentSummary({ experiment });
-  const matrix = computeConfusionMatrix({ experiment, groundTruthByExampleId, evaluatorName: "exact-match", positiveLabel: "pass", negativeLabel: "fail" });
+  const matrix = computeConfusionMatrix({
+    experiment,
+    groundTruthByExampleId,
+    evaluatorName: "exact-match",
+    positiveLabel: "pass",
+    negativeLabel: "fail",
+  });
   printConfusionMatrix(matrix);
 }
 
-main().catch((error) => { console.error(error); process.exit(1); });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 ```
 
 ### Reading the Confusion Matrix
 
 The benchmark prints a confusion matrix with three key metrics:
 
-| Metric | What it measures | Target |
-|--------|-----------------|--------|
-| **TPR** (True Positive Rate / Sensitivity) | % of real positives the evaluator correctly identifies | > 80% |
-| **TNR** (True Negative Rate / Specificity) | % of real negatives the evaluator correctly rejects | > 80% |
-| **Accuracy** | Overall % correct | > 80% |
+| Metric                                     | What it measures                                       | Target |
+| ------------------------------------------ | ------------------------------------------------------ | ------ |
+| **TPR** (True Positive Rate / Sensitivity) | % of real positives the evaluator correctly identifies | > 80%  |
+| **TNR** (True Negative Rate / Specificity) | % of real negatives the evaluator correctly rejects    | > 80%  |
+| **Accuracy**                               | Overall % correct                                      | > 80%  |
 
 A low TPR means the evaluator has too many false negatives (lets bad outputs through).
 A low TNR means the evaluator has too many false positives (flags good outputs as failures).
