@@ -6,6 +6,7 @@ import {
   getDatasetExamples,
 } from "@arizeai/phoenix-client/datasets";
 import {
+  asExperimentEvaluator,
   runExperiment,
   type RunExperimentParams,
 } from "@arizeai/phoenix-client/experiments";
@@ -22,7 +23,7 @@ import {
 async function main() {
   const client = createClient();
 
-  // Initialize LLM evaluator
+  // Initialize LLM evaluator — this is the thing being benchmarked
   const evaluator = await createTerminalSafeFormatEvaluator();
 
   // Create or reuse the benchmark dataset (separate from the task evaluation
@@ -49,14 +50,39 @@ async function main() {
     groundTruthByExampleId.set(example.id, expectedLabel);
   }
 
-  // Task: return the pre-labeled response directly — no agent call
+  // Task: invoke the LLM evaluator on the pre-labeled response.
+  // The evaluator is what we're testing — its predicted label is the task output.
   const task: RunExperimentParams["task"] = async (example: Example) => {
     const response = example.output?.response;
     if (typeof response !== "string") {
       throw new Error("Dataset example missing output.response string");
     }
-    return response;
+    const result = await evaluator.evaluate({
+      input: example.input,
+      output: response,
+      expected: example.output,
+      metadata: example.metadata,
+    });
+    return result.label ?? "unknown";
   };
+
+  // Exact match evaluator: score = 1 when the evaluator's predicted label matches
+  // the ground truth label. Returns the predicted label so the confusion matrix
+  // can compare predictions to ground truth by evaluator label.
+  const exactMatchEvaluator = asExperimentEvaluator({
+    name: "exact-match",
+    kind: "CODE",
+    evaluate: ({ output, metadata }) => {
+      const expectedLabel = metadata?.expectedSafe ? "compliant" : "non_compliant";
+      const predictedLabel = typeof output === "string" ? output : "unknown";
+      const match = predictedLabel === expectedLabel;
+      return {
+        score: match ? 1 : 0,
+        label: predictedLabel,
+        explanation: `Expected: ${expectedLabel}, Got: ${predictedLabel}`,
+      };
+    },
+  });
 
   // Run experiment
   const experimentName = `terminal-format-benchmark-${Date.now()}`;
@@ -67,7 +93,7 @@ async function main() {
       "Benchmark terminal-safe-format evaluator accuracy against golden dataset",
     dataset: { datasetId },
     task,
-    evaluators: [evaluator],
+    evaluators: [exactMatchEvaluator],
   });
 
   // Per-example detail table
@@ -77,7 +103,7 @@ async function main() {
   const matrix = computeConfusionMatrix({
     experiment,
     groundTruthByExampleId,
-    evaluatorName: "terminal-safe-format",
+    evaluatorName: "exact-match",
     positiveLabel: "compliant",
     negativeLabel: "non_compliant",
   });
