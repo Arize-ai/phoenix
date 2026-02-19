@@ -461,7 +461,8 @@ export const phoenixTopicExamples: Example[] = [
   },
   {
     input: {
-      prompt: "Can you recommend some good Netflix shows to watch this weekend?",
+      prompt:
+        "Can you recommend some good Netflix shows to watch this weekend?",
     },
     metadata: {
       category: "off_topic_general",
