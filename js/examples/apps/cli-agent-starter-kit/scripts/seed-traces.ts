@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
+
+// Import instrumentation first (Phoenix must be initialized early)
+/* prettier-ignore */
+import { flush } from "../src/instrumentation.js";
 import { createClient } from "@arizeai/phoenix-client";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
@@ -7,11 +12,7 @@ import {
   terminalFormatDataset,
 } from "../evals/datasets/index.js";
 import { agent } from "../src/agents/index.js";
-import { flush } from "../src/instrumentation.js";
 import { runInteraction } from "../src/ui/interaction.js";
-
-/* eslint-disable no-console */
-import "../src/instrumentation.js";
 
 const DATASETS: Record<string, { name: string; examples: Example[] }> = {
   "terminal-format": terminalFormatDataset,
