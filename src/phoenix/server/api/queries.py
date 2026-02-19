@@ -198,7 +198,7 @@ class ExperimentRunMetricComparison:
             "the base experiment run was missing a value or because all compare experiment runs "
             "were missing values."
         )
-    )  # type: ignore[misc]
+    )  # type: ignore[untyped-decorator]
     def num_runs_without_comparison(self) -> int:
         return (
             self.num_total_runs

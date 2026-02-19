@@ -152,7 +152,7 @@ def _to_pydantic_freeform_annotation_config(
 
 @strawberry.type
 class AnnotationConfigMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def create_annotation_config(
         self,
         info: Info[Context, None],
@@ -191,7 +191,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def update_annotation_config(
         self,
         info: Info[Context, None],
@@ -240,7 +240,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def delete_annotation_configs(
         self,
         info: Info[Context, None],
@@ -272,7 +272,7 @@ class AnnotationConfigMutationMixin:
             ],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def add_annotation_config_to_project(
         self,
         info: Info[Context, None],
@@ -332,7 +332,7 @@ class AnnotationConfigMutationMixin:
                 project=Project(id=project_id),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def remove_annotation_config_from_project(
         self,
         info: Info[Context, None],

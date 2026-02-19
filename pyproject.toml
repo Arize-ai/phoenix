@@ -105,7 +105,7 @@ dev = [
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15",
-  "mypy==1.15.0",
+  "mypy==1.19.1",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
