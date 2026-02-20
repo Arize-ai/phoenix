@@ -4,7 +4,7 @@ sidebarTitle: "Overview"
 description: "Centrally managed evaluators that run automatically during experiments and beyond"
 ---
 
-Server evals let you define evaluation criteria once on the Phoenix server and reuse them across experiments and datasets. Instead of writing and running evaluation code locally, you configure evaluators in the UI and attach them to datasets. When an experiment runs through prompt playground, the attached evaluators label/ score every output automatically.
+Server evals let you define evaluation criteria once on the Phoenix server and reuse them across experiments and datasets. Instead of writing and running evaluation code locally, you configure evaluators in the UI and attach them to datasets. When an experiment runs through the prompt playground, the attached evaluators label and score every output automatically.
 
 ## How It Works
 
@@ -18,7 +18,7 @@ Server evals let you define evaluation criteria once on the Phoenix server and r
   <Card title="Built-in Evaluators" icon="cube" href="/docs/phoenix/evaluation/playground-evaluators/builtin-evaluators">
     Deterministic, code-based evaluators that run without an LLM. Includes exact match, contains, regex, Levenshtein distance, and JSON distance.
   </Card>
-  <Card title="LLM Evaluators" icon="gavel">
+  <Card title="LLM Evaluators" icon="gavel" href="/docs/phoenix/evaluation/playground-evaluators/llm-evaluators">
     LLM-as-a-judge evaluators backed by Phoenix-managed prompts. Use prompt versioning and tags to iterate on evaluation criteria with full traceability.
   </Card>
 </CardGroup>
@@ -27,7 +27,7 @@ Server evals let you define evaluation criteria once on the Phoenix server and r
 
 - **Consistent evaluation** — Evaluators are defined once and applied uniformly. Every experiment against a dataset uses the same criteria, eliminating drift between ad-hoc evaluation scripts.
 - **No local setup required** — Built-in evaluators run entirely on the server with no SDK installation, API keys, or dependencies needed. LLM evaluators use the model configuration already set up on your Phoenix instance.
-- **Tracing** — Evaluators produce OpenTelemetry traces in a dedicated project, so you can audit, debug, and improve your evaluation prompts the same way you observe any other LLM workflow.
+- **Tracing** — LLM evaluators produce OpenTelemetry traces in a dedicated project, so you can audit, debug, and improve your evaluation prompts the same way you observe any other LLM workflow.
 
 ## What's Next
 

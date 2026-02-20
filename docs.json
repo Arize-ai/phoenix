@@ -219,7 +219,9 @@
                 "group": "Server Evals",
                 "pages": [
                   "docs/phoenix/evaluation/playground-evaluators/overview",
-                  "docs/phoenix/evaluation/playground-evaluators/builtin-evaluators"
+                  "docs/phoenix/evaluation/playground-evaluators/llm-evaluators",
+                  "docs/phoenix/evaluation/playground-evaluators/builtin-evaluators",
+                  "docs/phoenix/evaluation/playground-evaluators/input-mapping"
                 ]
               }
             ]
