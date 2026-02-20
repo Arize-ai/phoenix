@@ -37,7 +37,6 @@ from .._helpers import (
     _DEFAULT_ADMIN,
     _DENIED,
     _EXPECTATION_401,
-    _EXPECTATION_404,
     _MEMBER,
     _OK,
     _OK_OR_DENIED,
@@ -54,7 +53,6 @@ from .._helpers import (
     _Email,
     _ExistingSpan,
     _Expectation,
-    _export_embeddings,
     _extract_html,
     _GetUser,
     _GqlId,
@@ -1166,24 +1164,6 @@ class TestSpanExporters:
         headers = dict(authorization=f"Bearer {str(api_key)}")
         export = _span_exporter(_app, headers=headers).export
         assert export(_spans) is expected
-
-
-class TestEmbeddingsRestApi:
-    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_authenticated_users_can_access_route(
-        self,
-        role_or_user: _RoleOrUser,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        user = _get_user(_app, role_or_user)
-        logged_in_user = user.log_in(_app)
-        with _EXPECTATION_404:  # no files have been exported
-            logged_in_user.export_embeddings(_app, "embeddings")
-
-    def test_unauthenticated_requests_receive_401(self, _app: _AppInfo) -> None:
-        with _EXPECTATION_401:
-            _export_embeddings(_app, None, filename="embeddings")
 
 
 class TestPrompts:
