@@ -194,7 +194,7 @@
                 ]
               },
               {
-                "group": "Pre-Built Evals",
+                "group": "SDK Evals",
                 "pages": [
                   "docs/phoenix/evaluation/running-pre-tested-evals",
                   "docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
@@ -216,7 +216,7 @@
                 ]
               },
               {
-                "group": "Playground Evaluators",
+                "group": "Server Evals",
                 "pages": [
                   "docs/phoenix/evaluation/playground-evaluators/builtin-evaluators"
                 ]
