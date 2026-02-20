@@ -179,6 +179,11 @@ export const toOpenAIMessage = (message: unknown): OpenAIMessage | null => {
 /**
  * Convert from OpenAI message format to any other format
  */
+// Casts to ReturnType below are unavoidable: TypeScript cannot narrow a generic
+// type parameter (TargetProviderSDK) through switch/case control flow, so the
+// indexed access type remains unresolved in each branch. The casts are sound
+// because each branch accesses the correct provider's converter and
+// assertUnreachable ensures exhaustive coverage.
 export const fromOpenAIMessage = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -255,6 +260,7 @@ export const toOpenAIToolCall = (
  * @param params.targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
+// See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
 export const fromOpenAIToolCall = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -333,6 +339,7 @@ export const toOpenAIToolChoice = (
  * @param params.targetProvider the provider to convert the tool choice to
  * @returns the tool choice in the target provider format
  */
+// See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
 export const fromOpenAIToolChoice = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -406,6 +413,7 @@ export const toOpenAIToolDefinition = (
 /**
  * Convert from OpenAI tool call format to any other format
  */
+// See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
 export const fromOpenAIToolDefinition = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({

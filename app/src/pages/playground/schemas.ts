@@ -190,6 +190,9 @@ export const modelConfigWithResponseFormatSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.invocation_parameters]:
       stringToInvocationParametersSchema.pipe(
+        // Cast unavoidable: z.lazy() (used by jsonObjectSchema) erases the
+        // Input type to `unknown`, but .pipe() requires the target's Input to
+        // match the source's Output ({ [key: string]: JSONLiteral }).
         z.object({
           response_format: jsonObjectSchema.optional(),
         }) as z.ZodType<
