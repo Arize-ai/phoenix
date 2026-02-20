@@ -19,7 +19,7 @@
     "@langchain/openai": "1.2.4",
     "dotenv": "^17.2.3",
     "langchain": "1.2.16",
-    "zod": "^4.3.6"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/node": "^20.19.30",

@@ -23,7 +23,7 @@
     "autoevals": "^0.0.111",
     "dotenv": "^16.4.7",
     "openai": "^6.9.1",
-    "zod": "^4.1.13"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",

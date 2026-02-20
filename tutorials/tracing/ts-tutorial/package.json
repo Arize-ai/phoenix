@@ -17,7 +17,7 @@
     "@arizeai/phoenix-evals": "^0.6.2",
     "@arizeai/phoenix-otel": "^0.3.0",
     "ai": "^5.0.108",
-    "zod": "^4"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
