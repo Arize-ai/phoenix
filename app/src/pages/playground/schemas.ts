@@ -54,7 +54,7 @@ const messageSchema = z.object({
       .union([z.string(), z.array(z.record(z.string(), z.unknown()))])
       .default(""),
     [MessageAttributePostfixes.contents]: z
-      .array(z.object({ message_content: z.record(z.string()) }))
+      .array(z.object({ message_content: z.record(z.string(), z.string()) }))
       .optional(),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
     [MessageAttributePostfixes.tool_call_id]: z.string().optional(),
@@ -119,7 +119,7 @@ export const chatMessageSchema = z.object({
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 export const jsonObjectSchema: z.ZodType<{ [key: string]: JSONLiteral }> =
-  z.lazy(() => z.record(jsonLiteralSchema));
+  z.lazy(() => z.record(z.string(), jsonLiteralSchema));
 
 export type JsonObjectSchema = z.infer<typeof jsonObjectSchema>;
 

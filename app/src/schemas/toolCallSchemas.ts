@@ -68,7 +68,7 @@ export const awsToolCallSchema = z.object({
   toolUse: z.object({
     toolUseId: z.string().describe("The ID of the tool call"),
     name: z.string().describe("The name of the tool"),
-    input: z.record(z.unknown()).describe("The input for the tool"),
+    input: z.record(z.string(), z.unknown()).describe("The input for the tool"),
   }),
 });
 
@@ -109,7 +109,7 @@ export const anthropicToolCallSchema = z
     id: z.string().describe("The ID of the tool call"),
     type: z.literal("tool_use"),
     name: z.string().describe("The name of the tool"),
-    input: z.record(z.unknown()).describe("The input for the tool"),
+    input: z.record(z.string(), z.unknown()).describe("The input for the tool"),
   })
   .passthrough();
 
@@ -372,11 +372,11 @@ export function createAwsToolCall(): AwsToolCall {
 export const toolCallHeuristicSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
-  arguments: z.record(z.unknown()).optional(),
+  arguments: z.record(z.string(), z.unknown()).optional(),
   function: z
     .object({
       name: z.string().optional(),
-      arguments: z.record(z.unknown()).optional(),
+      arguments: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
 });

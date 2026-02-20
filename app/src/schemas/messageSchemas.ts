@@ -110,7 +110,7 @@ export const anthropicMessageBlockSchema = anthropicToolCallSchema.extend({
   id: z.string().optional(),
   tool_use_id: z.string().optional(),
   name: z.string().optional(),
-  input: z.record(z.unknown()).optional(),
+  input: z.record(z.string(), z.unknown()).optional(),
   source: z
     .object({
       type: z.string(),

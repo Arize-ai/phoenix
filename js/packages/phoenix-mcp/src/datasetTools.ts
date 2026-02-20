@@ -174,9 +174,9 @@ export const initializeDatasetTools = ({
       datasetName: z.string(),
       examples: z.array(
         z.object({
-          input: z.record(z.any()),
-          output: z.record(z.any()),
-          metadata: z.record(z.any()).optional(),
+          input: z.record(z.string(), z.any()),
+          output: z.record(z.string(), z.any()),
+          metadata: z.record(z.string(), z.any()).optional(),
         })
       ),
     },
