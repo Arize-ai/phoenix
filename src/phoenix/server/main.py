@@ -88,7 +88,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  https://github.com/Arize-ai/phoenix
 |
 |  🌎 Join our Community 🌎
-|  https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g
+|  https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
 |
 |  📚 Documentation 📚
 |  https://arize.com/docs/phoenix
