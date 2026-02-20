@@ -271,7 +271,7 @@ import {
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg)
+- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g)
 - 💡 Ask questions and provide feedback in the _#phoenix-support_ channel
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues)
