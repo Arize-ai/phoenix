@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback } from "react";
 import { Outlet } from "react-router";
 
 import { Flex, Icon, Icons, Loading } from "@phoenix/components";
@@ -87,9 +87,6 @@ function SideNav() {
   const isSideNavExpanded = usePreferencesContext(
     (state) => state.isSideNavExpanded
   );
-  const hasInferences = useMemo(() => {
-    return window.Config.hasInferences;
-  }, []);
   const { authenticationEnabled } = useFunctionality();
   const onLogout = useCallback(() => {
     window.location.replace(prependBasename("/auth/logout"));
@@ -99,16 +96,6 @@ function SideNav() {
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
-          {hasInferences && (
-            <li key="model">
-              <NavLink
-                to="/model"
-                text="Model"
-                leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
-                isExpanded={isSideNavExpanded}
-              />
-            </li>
-          )}
           <li>
             <NavLink
               to="/projects"

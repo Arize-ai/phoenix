@@ -74,14 +74,12 @@ from phoenix.config import (
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
 )
-from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
-from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -159,7 +157,6 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
     create_auth_router,
-    create_embeddings_router,
     create_v1_router,
     oauth2_router,
 )
@@ -261,12 +258,6 @@ class OAuth2Idp(TypedDict):
 
 
 class AppConfig(NamedTuple):
-    has_inferences: bool
-    """ Whether the model has inferences (e.g. a primary dataset) """
-    has_corpus: bool
-    min_dist: float
-    n_neighbors: int
-    n_samples: int
     is_development: bool
     web_manifest_path: Path
     authentication_enabled: bool
@@ -338,11 +329,6 @@ class Static(StaticFiles):
             response = templates.TemplateResponse(
                 "index.html",
                 context={
-                    "has_inferences": self._app_config.has_inferences,
-                    "has_corpus": self._app_config.has_corpus,
-                    "min_dist": self._app_config.min_dist,
-                    "n_neighbors": self._app_config.n_neighbors,
-                    "n_samples": self._app_config.n_samples,
                     "basename": get_root_path(scope),
                     "platform_version": phoenix_version,
                     "request": request,
@@ -697,14 +683,11 @@ def create_graphql_router(
     *,
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
-    model: Model,
-    export_path: Path,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
-    corpus: Optional[Model] = None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
@@ -717,13 +700,10 @@ def create_graphql_router(
     Args:
         schema (BaseSchema): The GraphQL schema.
         db (DbSessionFactory): The database session factory pointing to a SQL database.
-        model (Model): The Model representing inferences (legacy)
-        export_path (Path): the file path to export data to for download (legacy)
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
         span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
         event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
-        corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
         read_only (bool, optional): Marks the app as read-only. Defaults to False.
         secret (Optional[Secret], optional): The application secret for auth. Defaults to None.
@@ -737,9 +717,6 @@ def create_graphql_router(
     def get_context() -> Context:
         return Context(
             db=db,
-            model=model,
-            corpus=corpus,
-            export_path=export_path,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
             data_loaders=DataLoaders(
@@ -1017,11 +994,7 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
 
 def create_app(
     db: DbSessionFactory,
-    export_path: Path,
-    model: Model,
     authentication_enabled: bool,
-    umap_params: UMAPParameters,
-    corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
     dev_vite_port: int = 5173,
@@ -1047,16 +1020,6 @@ def create_app(
     management_url: Optional[str] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
-    if model.embedding_dimensions:
-        try:
-            import fast_hdbscan  # noqa: F401
-            import umap  # noqa: F401
-        except ImportError as exc:
-            raise ImportError(
-                "To visualize embeddings, please install `umap-learn` and `fast-hdbscan` "
-                "via `pip install arize-phoenix[embeddings]`"
-            ) from exc
-    logger.info(f"Server umap params: {umap_params}")
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
@@ -1146,10 +1109,7 @@ def create_app(
     graphql_router = create_graphql_router(
         db=db,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
-        model=model,
-        corpus=corpus,
         authentication_enabled=authentication_enabled,
-        export_path=export_path,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -1198,7 +1158,6 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    app.include_router(create_embeddings_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
@@ -1220,11 +1179,6 @@ def create_app(
             app=Static(
                 directory=SERVER_DIR / "static",
                 app_config=AppConfig(
-                    has_inferences=model.is_empty is not True,
-                    has_corpus=corpus is not None,
-                    min_dist=umap_params.min_dist,
-                    n_neighbors=umap_params.n_neighbors,
-                    n_samples=umap_params.n_samples,
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
@@ -1253,7 +1207,6 @@ def create_app(
         )
     app.state.authentication_enabled = authentication_enabled
     app.state.read_only = read_only
-    app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry

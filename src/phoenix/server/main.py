@@ -15,7 +15,6 @@ from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
 from phoenix.config import (
-    EXPORT_DIR,
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
     get_env_allowed_origins,
@@ -49,17 +48,8 @@ from phoenix.config import (
     get_env_tls_enabled_for_http,
     get_pids_path,
 )
-from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
-from phoenix.inferences.fixtures import FIXTURES, get_inferences
-from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.logging import setup_logging
-from phoenix.pointcloud.umap_parameters import (
-    DEFAULT_MIN_DIST,
-    DEFAULT_N_NEIGHBORS,
-    DEFAULT_N_SAMPLES,
-    UMAPParameters,
-)
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
@@ -155,9 +145,6 @@ def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
 
 
-DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
-
-
 def _resolve_grpc_port(args: Namespace) -> int:
     return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
 
@@ -166,13 +153,7 @@ def main() -> None:
     initialize_settings()
     setup_logging()
 
-    primary_inferences_name: str
-    reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
-
-    primary_inferences: Inferences = EMPTY_INFERENCES
-    reference_inferences: Optional[Inferences] = None
-    corpus_inferences: Optional[Inferences] = None
 
     atexit.register(_remove_pid_file)
 
@@ -184,14 +165,10 @@ def main() -> None:
         help=SUPPRESS,
     )
     parser.add_argument("--database-url", required=False, help=SUPPRESS)
-    parser.add_argument("--export_path", help=SUPPRESS)
     parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
     parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
     parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
-    parser.add_argument(
-        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
-    )
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
@@ -206,13 +183,6 @@ def main() -> None:
         type=int,
         required=False,
         help="Port for the OTLP/gRPC trace ingestion server.",
-    )
-    serve_parser.add_argument(
-        "--with-fixture",
-        type=str,
-        required=False,
-        default="",
-        help=("Name of an inference fixture. Example: 'fixture1'"),
     )
     serve_parser.add_argument(
         "--with-trace-fixtures",
@@ -255,76 +225,22 @@ def main() -> None:
         ),
     )
 
-    datasets_parser = subparsers.add_parser("datasets")
-    datasets_parser.add_argument("--primary", type=str, required=True)
-    datasets_parser.add_argument("--reference", type=str, required=False)
-    datasets_parser.add_argument("--corpus", type=str, required=False)
-    datasets_parser.add_argument("--trace", type=str, required=False)
-
-    fixture_parser = subparsers.add_parser("fixture")
-    fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", action="store_true")
-
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
     trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
-    demo_parser = subparsers.add_parser("demo")
-    demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    demo_parser.add_argument(
-        "trace_fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
-    )
-    demo_parser.add_argument("--simulate-streaming", action="store_true")
-
     args = parser.parse_args()
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
-    export_path = Path(args.export_path) if args.export_path else Path(EXPORT_DIR)
-
     force_fixture_ingestion = False
     scaffold_datasets = False
     tracing_fixture_names = set()
-    if args.command == "datasets":
-        primary_inferences_name = args.primary
-        reference_inferences_name = args.reference
-        corpus_inferences_name = args.corpus
-        primary_inferences = Inferences.from_name(primary_inferences_name)
-        reference_inferences = (
-            Inferences.from_name(reference_inferences_name)
-            if reference_inferences_name is not None
-            else None
-        )
-        corpus_inferences = (
-            None if corpus_inferences_name is None else Inferences.from_name(corpus_inferences_name)
-        )
-    elif args.command == "fixture":
-        fixture_name = args.fixture
-        primary_only = args.primary_only
-        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
-            fixture_name,
-            args.no_internet,
-        )
-        if primary_only:
-            reference_inferences_name = None
-            reference_inferences = None
-    elif args.command == "trace-fixture":
+    if args.command == "trace-fixture":
         trace_dataset_name = args.fixture
-    elif args.command == "demo":
-        fixture_name = args.fixture
-        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
-            fixture_name,
-            args.no_internet,
-        )
-        trace_dataset_name = args.trace_fixture
     elif args.command == "serve":
-        if args.with_fixture:
-            primary_inferences, reference_inferences, corpus_inferences = get_inferences(
-                str(args.with_fixture),
-                args.no_internet,
-            )
         if args.with_trace_fixtures:
             tracing_fixture_names.update(
                 [name.strip() for name in args.with_trace_fixtures.split(",")]
@@ -347,11 +263,6 @@ def main() -> None:
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
 
-    model = create_model_from_inferences(
-        primary_inferences,
-        reference_inferences,
-    )
-
     auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
@@ -372,13 +283,6 @@ def main() -> None:
                 target=send_dataset_fixtures,
                 args=(f"http://{host}:{port}", dataset_fixtures),
             ).start()
-    umap_params_list = args.umap_params.split(",")
-    umap_params = UMAPParameters(
-        min_dist=float(umap_params_list[0]),
-        n_neighbors=int(umap_params_list[1]),
-        n_samples=int(umap_params_list[2]),
-    )
-
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
@@ -390,9 +294,6 @@ def main() -> None:
     # Ensure engine is disposed on shutdown to properly close database connections
     shutdown_callbacks.append(engine.dispose)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
-    corpus_model = (
-        None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
-    )
 
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
@@ -451,12 +352,8 @@ def main() -> None:
 
     app = create_app(
         db=factory,
-        export_path=export_path,
-        model=model,
         authentication_enabled=auth_settings.enable_auth,
         basic_auth_disabled=auth_settings.disable_basic_auth,
-        umap_params=umap_params,
-        corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
         dev_vite_port=args.dev_vite_port,

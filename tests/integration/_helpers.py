@@ -248,9 +248,6 @@ class _User:
     def delete_api_key(self, app: _AppInfo, api_key: _ApiKey, /) -> None:
         return _delete_api_key(app, api_key, self)
 
-    def export_embeddings(self, app: _AppInfo, filename: str) -> None:
-        _export_embeddings(app, self, filename=filename)
-
     def initiate_password_reset(
         self,
         app: _AppInfo,
@@ -1146,13 +1143,6 @@ def _reset_password(
 ) -> None:
     json_ = dict(token=token, password=password)
     resp = _httpx_client(app).post("auth/password-reset", json=json_)
-    resp.raise_for_status()
-
-
-def _export_embeddings(
-    app: _AppInfo, auth: Optional[_SecurityArtifact] = None, /, *, filename: str
-) -> None:
-    resp = _httpx_client(app, auth).get("/exports", params={"filename": filename})
     resp.raise_for_status()
 
 

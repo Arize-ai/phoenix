@@ -44,6 +44,9 @@ AWS Bedrock integration now uses `aioboto3` instead of `boto3` for fully async c
 pip install aioboto3
 ```
 
+### Inferences, dimensions, embeddings, and pointcloud (UMAP)
+
+**Breaking change:** Model inferences, dimensions, embeddings, and the pointcloud (UMAP) visualization have been removed from Phoenix, along with their GraphQL and REST APIs. The UI no longer includes the `/model`, `/dimensions`, or `/embeddings` routes.
 
 ## v11.0.0 to v12.0.0
 

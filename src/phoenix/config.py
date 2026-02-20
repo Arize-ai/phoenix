@@ -2659,7 +2659,6 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
 
 
 ROOT_DIR = RestrictedPath(WORKING_DIR)
-EXPORT_DIR = RestrictedPath(WORKING_DIR / "exports")
 INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
 TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
 
@@ -2678,7 +2677,6 @@ def ensure_working_dir_if_needed() -> None:
     try:
         for path in (
             ROOT_DIR,
-            EXPORT_DIR,
             INFERENCES_DIR,
             TRACE_DATASETS_DIR,
         ):
@@ -2694,25 +2692,6 @@ def ensure_working_dir_if_needed() -> None:
 
 # Invoke ensure_working_dir_if_needed() to ensure the working directory exists
 ensure_working_dir_if_needed()
-
-
-def get_exported_files(directory: Path) -> list[Path]:
-    """
-    Yields the list of paths of exported files.
-
-    Parameters
-    ----------
-    directory: Path
-        Disk location to search exported files.
-
-    Returns
-    -------
-    list: list[Path]
-        List of paths of the exported files.
-    """
-    if _no_local_storage():
-        return []  # Do not attempt to access local storage
-    return list(directory.glob("*.parquet"))
 
 
 def get_env_port() -> int:
