@@ -159,9 +159,7 @@ export type PromptMessage = z.infer<typeof promptMessageSchema>;
 
 export const promptMessagesSchema = z.array(promptMessageSchema);
 
-export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const promptMessagesJSONSchema = z.toJSONSchema(promptMessagesSchema);
 
 /**
  * Hub → Spoke: Convert an OpenAI message to Anthropic format

@@ -163,7 +163,7 @@ const stringToInvocationParametersSchema = z
     }
     return data;
   })
-  .default("{}");
+  .prefault("{}");
 /**
  * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
@@ -192,7 +192,10 @@ export const modelConfigWithResponseFormatSchema = z.object({
       stringToInvocationParametersSchema.pipe(
         z.object({
           response_format: jsonObjectSchema.optional(),
-        })
+        }) as z.ZodType<
+          { response_format?: { [key: string]: JSONLiteral } },
+          { [key: string]: JSONLiteral }
+        >
       ),
   }),
 });

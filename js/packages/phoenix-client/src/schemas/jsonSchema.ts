@@ -24,6 +24,7 @@ const jsonSchemaPropertiesSchema = z
 export const jsonSchemaZodSchema = z.looseObject({
   type: z.literal("object"),
   properties: z.record(
+    z.string(),
     z.union([
       jsonSchemaPropertiesSchema,
       z

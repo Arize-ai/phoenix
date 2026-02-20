@@ -145,7 +145,7 @@ export const stringToHttpHeadersSchema = z.string().transform((input, ctx) => {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          result.error.errors[0]?.message || "Invalid HTTP headers format",
+          result.error.issues[0]?.message || "Invalid HTTP headers format",
       });
       return z.NEVER;
     }

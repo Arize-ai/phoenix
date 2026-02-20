@@ -21,7 +21,7 @@ export const CategoricalChoiceToolTypeSchema =
     function: openAIToolDefinitionSchema.shape.function.extend({
       parameters: z.object({
         type: z.literal("object"),
-        properties: z.record(
+        properties: z.partialRecord(
           z.union([z.literal("label"), z.literal("explanation")]),
           z.union([
             z.object({

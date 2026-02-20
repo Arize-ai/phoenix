@@ -29,6 +29,7 @@ export const jsonSchemaZodSchema = z.looseObject({
   type: z.enum(["object", "string", "number", "boolean"]),
   properties: z
     .record(
+      z.string(),
       z.union([
         jsonSchemaPropertiesSchema,
         z

@@ -190,20 +190,27 @@ export const fromOpenAIMessage = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(message);
+      return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(
+        message
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(
         message
-      );
+      ) as ReturnType;
     case "PHOENIX":
-      return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(message);
+      return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(
+        message
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(
         message
-      );
+      ) as ReturnType;
     default:
       return assertUnreachable(targetProvider);
   }
@@ -259,24 +266,27 @@ export const fromOpenAIToolCall = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return SDKProviderConverterMap.OPENAI.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     case "PHOENIX":
       return SDKProviderConverterMap.PHOENIX.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     default:
       assertUnreachable(targetProvider);
   }
@@ -334,24 +344,27 @@ export const fromOpenAIToolChoice = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     case "PHOENIX":
       return SDKProviderConverterMap.PHOENIX.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     default:
       assertUnreachable(targetProvider);
   }
@@ -404,24 +417,27 @@ export const fromOpenAIToolDefinition = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     case "PHOENIX":
       return SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     default:
       assertUnreachable(targetProvider);
   }

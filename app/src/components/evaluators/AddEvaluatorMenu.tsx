@@ -292,7 +292,7 @@ const LLMEvaluatorTemplateSubmenu = ({
             );
             if (evaluator) {
               const maybeValidatedChoices = z
-                .record(z.number())
+                .record(z.string(), z.number())
                 .safeParse(evaluator.choices);
               const validatedChoices = maybeValidatedChoices.success
                 ? maybeValidatedChoices.data
