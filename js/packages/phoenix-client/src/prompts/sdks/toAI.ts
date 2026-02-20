@@ -1,9 +1,7 @@
 import { type ModelMessage, type ToolChoice, type ToolSet } from "ai";
 import invariant from "tiny-invariant";
 
-import {
-  safelyConvertMessageToProvider
-} from "../../schemas/llm/converters";
+import { safelyConvertMessageToProvider } from "../../schemas/llm/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
 
