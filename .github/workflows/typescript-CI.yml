@@ -6,10 +6,12 @@ on:
   push:
     branches:
       - main
-      - version-13
   pull_request:
     paths:
       - "app/**"
+      - ".oxlintrc.json"
+      - ".oxfmtrc.jsonc"
+      - ".nvmrc"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
