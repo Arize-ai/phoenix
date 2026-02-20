@@ -32,14 +32,9 @@ export const jsonSchemaZodSchema = z.looseObject({
         .describe("A list of possible parameter names to their definitions"),
     ])
   ),
-  required: z
-    .array(z.string())
-    .optional()
-    .describe("The required parameters"),
+  required: z.array(z.string()).optional().describe("The required parameters"),
   additionalProperties: z
     .boolean()
     .optional()
-    .describe(
-      "Whether or not additional properties are allowed in the schema"
-    ),
+    .describe("Whether or not additional properties are allowed in the schema"),
 });

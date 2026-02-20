@@ -55,9 +55,7 @@ export const openAIToolCallsSchema = z.array(openAIToolCallSchema);
 /**
  * The JSON schema for multiple OpenAI tool calls
  */
-export const openAIToolCallsJSONSchema = z.toJSONSchema(
-  openAIToolCallsSchema
-);
+export const openAIToolCallsJSONSchema = z.toJSONSchema(openAIToolCallsSchema);
 
 export const awsToolCallSchema = z.object({
   toolUse: z.object({
