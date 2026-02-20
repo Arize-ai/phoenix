@@ -2287,6 +2287,7 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
 ]
