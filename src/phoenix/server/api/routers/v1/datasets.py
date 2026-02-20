@@ -30,7 +30,11 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
+from phoenix.db.helpers import (
+    get_eval_trace_ids_for_datasets,
+    get_evaluator_project_ids_for_datasets,
+    get_project_names_for_datasets,
+)
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -170,7 +174,13 @@ async def list_datasets(
     ),
 )
 async def delete_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+    request: Request,
+    id: str = Path(description="The ID of the dataset to delete."),
+    delete_projects_flag: bool = Query(
+        default=False,
+        alias="delete_projects",
+        description="If true, also delete the projects associated with dataset evaluators.",
+    ),
 ) -> None:
     if id:
         try:
@@ -184,14 +194,20 @@ async def delete_dataset(
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
     project_names_stmt = get_project_names_for_datasets(dataset_id)
     eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
+    evaluator_project_ids_stmt = get_evaluator_project_ids_for_datasets(dataset_id)
     stmt = (
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
     )
     async with request.app.state.db() as session:
-        project_names = await session.scalars(project_names_stmt)
-        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+        project_names = list(await session.scalars(project_names_stmt))
+        eval_trace_ids = list(await session.scalars(eval_trace_ids_stmt))
+        evaluator_project_ids = list(await session.scalars(evaluator_project_ids_stmt))
         if (await session.scalar(stmt)) is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
+        if delete_projects_flag and evaluator_project_ids:
+            await session.execute(
+                delete(models.Project).where(models.Project.id.in_(evaluator_project_ids))
+            )
     tasks = BackgroundTasks()
     tasks.add_task(delete_projects, request.app.state.db, *project_names)
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
@@ -757,14 +773,15 @@ async def _process_pyarrow(
 
     def get_examples() -> Iterator[ExampleContent]:
         for row in reader.read_pandas().to_dict(orient="records"):
+            row_str: Mapping[str, Any] = cast(Mapping[str, Any], row)
             yield ExampleContent(
-                input={k: row.get(k) for k in input_keys},
-                output={k: row.get(k) for k in output_keys},
-                metadata={k: row.get(k) for k in metadata_keys},
+                input={k: row_str.get(k) for k in input_keys},
+                output={k: row_str.get(k) for k in output_keys},
+                metadata={k: row_str.get(k) for k in metadata_keys},
                 splits=frozenset(
-                    str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                    str(v).strip() for k in split_keys if (v := row_str.get(k)) and str(v).strip()
                 ),  # Only include non-empty, non-whitespace split values
-                span_id=_get_span_id(row, span_id_key),
+                span_id=_get_span_id(row_str, span_id_key),
             )
 
     return run_in_threadpool(get_examples)

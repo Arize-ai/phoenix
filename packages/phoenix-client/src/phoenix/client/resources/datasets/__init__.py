@@ -1192,6 +1192,32 @@ class Datasets:
 
         return self._process_dataset_upload_response(response, timeout=timeout)
 
+    def delete(
+        self,
+        *,
+        dataset_id: str,
+        delete_projects: bool = False,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Delete a dataset by ID.
+
+        Args:
+            dataset_id: The ID of the dataset to delete.
+            delete_projects: If True, also delete the projects associated with dataset
+                evaluators. Defaults to False.
+            timeout: Optional request timeout in seconds.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns a 404 (dataset not found) or other error.
+        """
+        response = self._client.delete(
+            f"v1/datasets/{dataset_id}",
+            params={"delete_projects": delete_projects},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
     def _process_dataset_upload_response(
         self,
         response: httpx.Response,
@@ -1949,6 +1975,32 @@ class AsyncDatasets:
         )
 
         return await self._process_dataset_upload_response(response, timeout=timeout)
+
+    async def delete(
+        self,
+        *,
+        dataset_id: str,
+        delete_projects: bool = False,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """
+        Delete a dataset by ID.
+
+        Args:
+            dataset_id: The ID of the dataset to delete.
+            delete_projects: If True, also delete the projects associated with dataset
+                evaluators. Defaults to False.
+            timeout: Optional request timeout in seconds.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns a 404 (dataset not found) or other error.
+        """
+        response = await self._client.delete(
+            f"v1/datasets/{dataset_id}",
+            params={"delete_projects": delete_projects},
+            timeout=timeout,
+        )
+        response.raise_for_status()
 
     async def _process_dataset_upload_response(
         self,

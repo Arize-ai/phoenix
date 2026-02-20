@@ -58,6 +58,12 @@ def get_project_names_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[s
     )
 
 
+def get_evaluator_project_ids_for_datasets(*dataset_ids: int) -> Select[tuple[int]]:
+    return select(distinct(models.DatasetEvaluators.project_id)).where(
+        models.DatasetEvaluators.dataset_id.in_(set(dataset_ids))
+    )
+
+
 def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
