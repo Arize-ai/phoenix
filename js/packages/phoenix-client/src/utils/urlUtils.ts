@@ -77,3 +77,24 @@ export function getDatasetUrl({
   const url = new URL(`datasets/${datasetId}/examples`, getWebBaseUrl(baseUrl));
   return url.toString();
 }
+
+/**
+ * Get the URL to view project traces in the Phoenix web UI
+ * @param params - The parameters for generating the project traces URL
+ * @param params.baseUrl - The base URL of the Phoenix API
+ * @param params.projectName - The name of the project
+ * @returns The URL to view the project traces
+ */
+export function getProjectTracesUrl({
+  baseUrl,
+  projectName,
+}: {
+  baseUrl: string;
+  projectName: string;
+}): string {
+  const url = new URL(
+    `projects/${encodeURIComponent(projectName)}`,
+    getWebBaseUrl(baseUrl)
+  );
+  return url.toString();
+}

@@ -3,6 +3,7 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import { Logger as PhoenixLogger } from "@arizeai/phoenix-logger";
 import {
   createNoOpProvider,
   type DiagLogLevel,
@@ -41,11 +42,8 @@ import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
-import {
-  getDatasetExperimentsUrl,
-  getDatasetUrl,
-  getExperimentUrl,
-} from "../utils/urlUtils";
+import { getExperimentUrl, getProjectTracesUrl } from "../utils/urlUtils";
+import { type GatedLogger, toGatedLogger } from "./gatedLogger";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
 
@@ -168,7 +166,7 @@ export async function runExperiment({
   dataset: datasetSelector,
   task,
   evaluators,
-  logger = console,
+  logger = new PhoenixLogger(),
   record = true,
   concurrency = 5,
   dryRun = false,
@@ -177,6 +175,8 @@ export async function runExperiment({
   useBatchSpanProcessor = true,
   diagLogLevel,
 }: RunExperimentParams): Promise<RanExperiment> {
+  const glog = toGatedLogger(logger);
+
   // Validation
   invariant(
     isValidRepetitionParam(repetitions),
@@ -281,36 +281,18 @@ export async function runExperiment({
     taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
-    logger.info(
-      `🔧 Running experiment in readonly mode. Results will not be recorded.`
+    glog.info(
+      `[experiment] running in readonly mode — results will not be recorded`
     );
   }
 
-  if (!isDryRun && client.config.baseUrl) {
-    const datasetUrl = getDatasetUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-    });
-    const datasetExperimentsUrl = getDatasetExperimentsUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-    });
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-      experimentId: experiment.id,
-    });
+  const evalCount = evaluators?.length ?? 0;
+  const normalizedEvaluators = getExperimentEvaluators(evaluators ?? []);
+  const evalNames =
+    evalCount > 0 ? normalizedEvaluators.map((e) => e.name).join(", ") : "";
 
-    logger.info(`📊 View dataset: ${datasetUrl}`);
-    logger.info(`📺 View dataset experiments: ${datasetExperimentsUrl}`);
-    logger.info(`🔗 View this experiment: ${experimentUrl}`);
-  }
-
-  logger.info(
-    `🧪 Starting experiment "${experimentName || `<unnamed>`}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
-      "evaluator",
-      evaluators?.length ?? 0
-    )} and ${concurrency} concurrent runs`
+  glog.info(
+    `[experiment] starting "${experimentName ?? "<unnamed>"}" on dataset "${dataset.name}" — task: ${task.name}, evaluators: ${evalCount}, concurrency: ${concurrency}`
   );
 
   const runs: Record<ExperimentRunID, ExperimentRun> = {};
@@ -319,7 +301,7 @@ export async function runExperiment({
     experimentId: experiment.id,
     task,
     dataset,
-    logger,
+    glog,
     onComplete: (run) => {
       runs[run.id] = run;
     },
@@ -329,7 +311,7 @@ export async function runExperiment({
     tracer: taskTracer,
     repetitions,
   });
-  logger.info(`✅ Task runs completed`);
+  glog.info(`[tasks] complete`);
 
   const ranExperiment: RanExperiment = {
     ...experiment,
@@ -349,7 +331,7 @@ export async function runExperiment({
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
-  logger.info(`✅ Experiment ${experiment.id} completed`);
+  glog.verbose(`[experiment] ${experiment.id} complete`);
 
   // Refresh experiment info from server to get updated counts (non-dry-run only)
   if (!isDryRun) {
@@ -362,12 +344,38 @@ export async function runExperiment({
   }
 
   if (!isDryRun && client.config.baseUrl) {
+    const baseUrl = client.config.baseUrl;
     const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
+      baseUrl,
       datasetId: dataset.id,
       experimentId: experiment.id,
     });
-    logger.info(`🔍 View results: ${experimentUrl}`);
+
+    const sep = "=".repeat(70);
+    glog.summary(sep);
+    glog.summary("  Experiment Summary");
+    glog.summary(sep);
+    glog.summary(`  Experiment:      "${experimentName ?? "<unnamed>"}"`);
+    glog.summary(`  Dataset:         "${dataset.name}"`);
+    glog.summary(
+      `  Runs:            ${ranExperiment.successfulRunCount} completed, ${ranExperiment.failedRunCount} failed`
+    );
+    glog.summary(
+      `  Evaluators:      ${evalCount}${evalCount > 0 ? ` (${evalNames})` : ""}`
+    );
+    glog.summary("");
+    glog.summary("  Experiment URL:");
+    glog.summary(`    ${experimentUrl}`);
+    if (ranExperiment.projectName) {
+      const tracesUrl = getProjectTracesUrl({
+        baseUrl,
+        projectName: ranExperiment.projectName,
+      });
+      glog.summary("");
+      glog.summary("  Project Traces:");
+      glog.summary(`    ${tracesUrl}`);
+    }
+    glog.summary(sep);
   }
 
   return ranExperiment;
@@ -376,13 +384,13 @@ export async function runExperiment({
 /**
  * Run a task against n examples in a dataset.
  */
-function runTaskWithExamples({
+async function runTaskWithExamples({
   client,
   experimentId,
   task,
   dataset,
   onComplete,
-  logger,
+  glog,
   concurrency = 5,
   isDryRun,
   nExamples,
@@ -400,7 +408,7 @@ function runTaskWithExamples({
   /** A callback to call when the task is complete */
   onComplete: (run: ExperimentRun) => void;
   /** The logger to use */
-  logger: Logger;
+  glog: GatedLogger;
   /** The number of examples to run in parallel */
   concurrency: number;
   /** Whether to run the task as a dry run */
@@ -418,7 +426,6 @@ function runTaskWithExamples({
     "repetitions must be an integer greater than 0"
   );
 
-  logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
   const run = async ({
     example,
     repetitionNumber,
@@ -427,8 +434,8 @@ function runTaskWithExamples({
     repetitionNumber: number;
   }) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
-      logger.info(
-        `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
+      glog.verbose(
+        `[task] example ${example.id} (repetition ${repetitionNumber})`
       );
       const traceId = span.spanContext().traceId;
       const thisRun: ExperimentRun = {
@@ -492,6 +499,8 @@ function runTaskWithExamples({
   const q = queue(run, concurrency);
   const examplesToUse = dataset.examples.slice(0, nExamples);
 
+  glog.startProgress?.(nExamples * repetitions, "tasks");
+
   examplesToUse
     .flatMap((example) =>
       Array.from({ length: repetitions }, (_, index) => ({
@@ -501,14 +510,17 @@ function runTaskWithExamples({
     )
     .forEach((exampleWithRepetition) =>
       q.push(exampleWithRepetition, (err) => {
+        glog.tickProgress?.();
         if (err) {
-          logger.error(
-            `Error running task "${task.name}" on example "${exampleWithRepetition.example.id}" repetition ${exampleWithRepetition.repetitionNumber}: ${err}`
+          glog.error(
+            `[error] task on example "${exampleWithRepetition.example.id}" repetition ${exampleWithRepetition.repetitionNumber}: ${err}`
           );
         }
       })
     );
-  return q.drain();
+  await q.drain();
+  glog.stopProgress?.();
+  return;
 }
 
 /**
@@ -520,7 +532,7 @@ export async function evaluateExperiment({
   experiment,
   evaluators,
   client: _client,
-  logger = console,
+  logger = new PhoenixLogger(),
   concurrency = 5,
   dryRun = false,
   setGlobalTracerProvider = true,
@@ -567,6 +579,7 @@ export async function evaluateExperiment({
    */
   diagLogLevel?: DiagLogLevel;
 }): Promise<RanExperiment> {
+  const glog = toGatedLogger(logger);
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const baseUrl = client.config.baseUrl;
@@ -622,21 +635,13 @@ export async function evaluateExperiment({
       evaluationRuns: [],
     };
   }
-  logger.info(
-    `🧠 Evaluating experiment "${experiment.id}" with ${evaluators?.length ?? 0} ${pluralize(
+  glog.info(
+    `[eval] evaluating experiment "${experiment.id}" with ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
     )}`
   );
 
-  if (!isDryRun && client.config.baseUrl) {
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: experiment.datasetId,
-      experimentId: experiment.id,
-    });
-    logger.info(`🔗 View experiment evaluation: ${experimentUrl}`);
-  }
   type EvaluationId = string;
   const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
@@ -668,7 +673,7 @@ export async function evaluateExperiment({
             run: evaluatorAndRun.run,
             exampleCache: examplesById,
             onComplete: onEvaluationComplete,
-            logger,
+            glog,
           });
           span.setAttributes({
             [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
@@ -723,7 +728,7 @@ export async function evaluateExperiment({
     concurrency
   );
   if (!evaluatorsAndRuns.length) {
-    logger.info(`⛔ No evaluators to run`);
+    glog.info(`[eval] no evaluators to run`);
     return {
       ...experiment,
       evaluationRuns: [],
@@ -732,14 +737,14 @@ export async function evaluateExperiment({
   evaluatorsAndRuns.forEach((evaluatorAndRun) =>
     evaluatorsQueue.push(evaluatorAndRun, (err) => {
       if (err) {
-        logger.error(
-          `❌ Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
+        glog.error(
+          `[error] evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
         );
       }
     })
   );
   await evaluatorsQueue.drain();
-  logger.info(`✅ Evaluation runs completed`);
+  glog.info(`[eval] complete`);
 
   if (provider) {
     await provider.shutdown();
@@ -765,20 +770,18 @@ async function runEvaluator({
   run,
   exampleCache,
   onComplete,
-  logger,
+  glog,
 }: {
   evaluator: Evaluator;
   run: ExperimentRun;
   exampleCache: Record<string, Example>;
-  logger: Logger;
+  glog: GatedLogger;
   onComplete: (run: ExperimentEvaluationRun) => void;
 }) {
   const example = exampleCache[run.datasetExampleId];
   invariant(example, `Example "${run.datasetExampleId}" not found`);
   const evaluate = async () => {
-    logger.info(
-      `🧠 Evaluating run "${run.id}" with evaluator "${evaluator.name}"`
-    );
+    glog.verbose(`[eval] run ${run.id} with evaluator "${evaluator.name}"`);
     const thisEval: ExperimentEvaluationRun = {
       id: localId(),
       traceId: null,
@@ -798,13 +801,13 @@ async function runEvaluator({
         metadata: example?.metadata,
       });
       thisEval.result = result;
-      logger.info(
-        `✅ Evaluator "${evaluator.name}" on run "${run.id}" completed`
+      glog.verbose(
+        `[eval] done: evaluator "${evaluator.name}" on run ${run.id}`
       );
     } catch (error) {
       thisEval.error = error instanceof Error ? error.message : "Unknown error";
-      logger.error(
-        `❌ Evaluator "${evaluator.name}" on run "${run.id}" failed: ${thisEval.error}`
+      glog.error(
+        `[error] evaluator "${evaluator.name}" on run "${run.id}": ${thisEval.error}`
       );
     }
     thisEval.endTime = new Date();

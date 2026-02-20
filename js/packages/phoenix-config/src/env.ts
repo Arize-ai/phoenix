@@ -49,6 +49,21 @@ export const ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT";
 export const ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY";
 
 /**
+ * Controls terminal output verbosity for Phoenix loggers.
+ * Accepted values: "quiet" | "default" | "verbose"
+ * @example
+ * process.env[ENV_PHOENIX_OUTPUT_MODE] = "verbose";
+ */
+export const ENV_PHOENIX_OUTPUT_MODE = "PHOENIX_OUTPUT_MODE";
+
+/**
+ * Disables TTY in-place progress when set to "1".
+ * @example
+ * process.env[ENV_PHOENIX_NO_PROGRESS] = "1";
+ */
+export const ENV_PHOENIX_NO_PROGRESS = "PHOENIX_NO_PROGRESS";
+
+/**
  * Retrieves an integer value from an environment variable.
  *
  * @param envKey - The name of the environment variable to read
@@ -147,6 +162,8 @@ export function getEnvironmentConfig() {
       ENV_PHOENIX_COLLECTOR_ENDPOINT
     ),
     [ENV_PHOENIX_API_KEY]: getStrFromEnvironment(ENV_PHOENIX_API_KEY),
+    [ENV_PHOENIX_OUTPUT_MODE]: getStrFromEnvironment(ENV_PHOENIX_OUTPUT_MODE),
+    [ENV_PHOENIX_NO_PROGRESS]: getStrFromEnvironment(ENV_PHOENIX_NO_PROGRESS),
   };
 }
 

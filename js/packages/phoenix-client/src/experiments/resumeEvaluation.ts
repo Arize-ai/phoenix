@@ -3,6 +3,7 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import { Logger as PhoenixLogger } from "@arizeai/phoenix-logger";
 import {
   type DiagLogLevel,
   NodeTracerProvider,
@@ -20,6 +21,7 @@ import type {
   EvaluationResult,
   Evaluator,
   ExperimentEvaluatorLike,
+  ExperimentInfo,
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
@@ -27,6 +29,8 @@ import { type Logger } from "../types/logger";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
+import { getExperimentUrl, getProjectTracesUrl } from "../utils/urlUtils";
+import { type GatedLogger, toGatedLogger } from "./gatedLogger";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 
@@ -69,7 +73,7 @@ export type ResumeEvaluationParams = ClientFn & {
     | readonly ExperimentEvaluatorLike[];
   /**
    * The logger to use
-   * @default console
+   * @default new Logger()
    */
   readonly logger?: Logger;
   /**
@@ -226,26 +230,49 @@ function setupEvaluationTracer({
 }
 
 /**
- * Prints evaluation summary to logger
+ * Prints evaluation resume summary to logger
  */
 function printEvaluationSummary({
-  logger,
-  experimentId,
+  glog,
+  experiment,
+  baseUrl,
   totalProcessed,
   totalCompleted,
+  totalFailed,
 }: {
-  logger: Logger;
-  experimentId: string;
+  glog: GatedLogger;
+  experiment: ExperimentInfo;
+  baseUrl: string;
   totalProcessed: number;
   totalCompleted: number;
+  totalFailed: number;
 }): void {
-  logger.info("\n" + "=".repeat(70));
-  logger.info("📊 Evaluation Resume Summary");
-  logger.info("=".repeat(70));
-  logger.info(`Experiment ID: ${experimentId}`);
-  logger.info(`Runs processed: ${totalProcessed}`);
-  logger.info(`Evaluations completed: ${totalCompleted}`);
-  logger.info("=".repeat(70));
+  const sep = "=".repeat(70);
+  const experimentUrl = getExperimentUrl({
+    baseUrl,
+    datasetId: experiment.datasetId,
+    experimentId: experiment.id,
+  });
+  glog.summary(sep);
+  glog.summary("  Evaluation Resume Summary");
+  glog.summary(sep);
+  glog.summary(`  Experiment ID:         ${experiment.id}`);
+  glog.summary(`  Evaluations processed: ${totalProcessed}`);
+  glog.summary(`  Completed:             ${totalCompleted}`);
+  glog.summary(`  Failed:                ${totalFailed}`);
+  glog.summary("");
+  glog.summary("  Experiment URL:");
+  glog.summary(`    ${experimentUrl}`);
+  if (experiment.projectName) {
+    const tracesUrl = getProjectTracesUrl({
+      baseUrl,
+      projectName: experiment.projectName,
+    });
+    glog.summary("");
+    glog.summary("  Project Traces:");
+    glog.summary(`    ${tracesUrl}`);
+  }
+  glog.summary(sep);
 }
 
 /**
@@ -312,13 +339,14 @@ export async function resumeEvaluation({
   client: _client,
   experimentId,
   evaluators: _evaluators,
-  logger = console,
+  logger = new PhoenixLogger(),
   concurrency = 5,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
   diagLogLevel,
   stopOnFirstError = false,
 }: ResumeEvaluationParams): Promise<void> {
+  const glog = toGatedLogger(logger);
   const client = _client ?? createClient();
   const pageSize = DEFAULT_PAGE_SIZE;
 
@@ -330,7 +358,7 @@ export async function resumeEvaluation({
   invariant(evaluators.length > 0, "Must specify at least one evaluator");
 
   // Get experiment info
-  logger.info(`🔍 Checking for incomplete evaluations...`);
+  glog.info(`[experiment] checking for incomplete evaluations...`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Initialize tracer (only if experiment has a project_name)
@@ -378,7 +406,7 @@ export async function resumeEvaluation({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.info("🛑 Stopping fetch due to error in evaluation");
+          glog.info("[abort] stopping fetch due to evaluation error");
           break;
         }
 
@@ -435,15 +463,13 @@ export async function resumeEvaluation({
 
         if (batchIncomplete.length === 0) {
           if (totalProcessed === 0) {
-            logger.info(
-              "✅ No incomplete evaluations found. All evaluations are complete."
-            );
+            glog.info("[eval] no incomplete evaluations found, all complete");
           }
           break;
         }
 
         if (totalProcessed === 0) {
-          logger.info("🧠 Resuming evaluations...");
+          glog.info("[eval] resuming evaluations...");
         }
 
         // Build evaluation tasks and send to channel
@@ -473,8 +499,8 @@ export async function resumeEvaluation({
           }
         }
 
-        logger.info(
-          `Fetched batch of ${batchCount} evaluation tasks (channel buffer: ${evalChannel.length})`
+        glog.verbose(
+          `[fetch] batch ${batchCount} (buffered: ${evalChannel.length})`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -517,13 +543,13 @@ export async function resumeEvaluation({
         totalCompleted++;
       } catch (error) {
         totalFailed++;
-        logger.error(
-          `Failed to run evaluator "${item.evaluator.name}" for run ${item.incompleteEval.experimentRun.id}: ${error}`
+        glog.error(
+          `[error] evaluator "${item.evaluator.name}" for run ${item.incompleteEval.experimentRun.id}: ${error}`
         );
 
         // If stopOnFirstError is enabled, abort and re-throw
         if (stopOnFirstError) {
-          logger.error("🛑 Stopping on first error");
+          glog.error("[abort] stopping on first error");
           abortController.abort();
           throw error;
         }
@@ -549,7 +575,7 @@ export async function resumeEvaluation({
     // Always surface producer/infrastructure errors
     if (error instanceof EvaluationFetchError) {
       // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-      logger.error(`❌ Critical: Failed to fetch evaluations from server`);
+      glog.error(`[error] critical: failed to fetch evaluations from server`);
       executionError = err;
     } else if (error instanceof ChannelError && signal.aborted) {
       // Channel closed due to intentional abort - wrap in semantic error
@@ -563,7 +589,7 @@ export async function resumeEvaluation({
     } else {
       // Unexpected error (not from worker, not from producer fetch)
       // This could be a bug in our code or infrastructure failure
-      logger.error(`❌ Unexpected error during evaluation: ${err.message}`);
+      glog.error(`[error] unexpected error during evaluation: ${err.message}`);
       executionError = err;
     }
   } finally {
@@ -576,21 +602,21 @@ export async function resumeEvaluation({
 
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`✅ Evaluations completed.`);
+    glog.info(`[eval] complete`);
   }
 
   if (totalFailed > 0 && !executionError) {
-    logger.info(
-      `⚠️  Warning: ${totalFailed} out of ${totalProcessed} evaluations failed.`
-    );
+    glog.info(`[warn] ${totalFailed} of ${totalProcessed} evaluations failed`);
   }
 
   // Print summary
   printEvaluationSummary({
-    logger,
-    experimentId: experiment.id,
+    glog,
+    experiment,
+    baseUrl,
     totalProcessed,
     totalCompleted,
+    totalFailed,
   });
 
   // Flush spans (if tracer was initialized)

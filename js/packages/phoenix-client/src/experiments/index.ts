@@ -8,3 +8,5 @@ export * from "./deleteExperiment";
 export * from "./resumeExperiment";
 export * from "./resumeEvaluation";
 export * from "./helpers";
+export { Logger } from "@arizeai/phoenix-logger";
+export type { OutputMode } from "@arizeai/phoenix-logger";

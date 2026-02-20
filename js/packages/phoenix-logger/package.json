@@ -1,0 +1,51 @@
+{
+  "name": "@arizeai/phoenix-logger",
+  "version": "0.1.0",
+  "description": "Shared logger for Phoenix packages",
+  "keywords": [
+    "arize",
+    "phoenix"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-logger",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "clean": "rimraf dist",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arizeai/phoenix-config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.22",
+    "vitest": "^4.0.10"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

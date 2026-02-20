@@ -3,6 +3,7 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import { Logger as PhoenixLogger } from "@arizeai/phoenix-logger";
 import {
   type DiagLogLevel,
   NodeTracerProvider,
@@ -19,6 +20,7 @@ import { ClientFn } from "../types/core";
 import { ExampleWithId } from "../types/datasets";
 import type {
   ExperimentEvaluatorLike,
+  ExperimentInfo,
   ExperimentTask,
 } from "../types/experiments";
 import { type Logger } from "../types/logger";
@@ -26,7 +28,8 @@ import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
-import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
+import { getExperimentUrl, getProjectTracesUrl } from "../utils/urlUtils";
+import { type GatedLogger, toGatedLogger } from "./gatedLogger";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { resumeEvaluation } from "./resumeEvaluation";
 
@@ -72,7 +75,7 @@ export type ResumeExperimentParams = ClientFn & {
   readonly evaluators?: readonly ExperimentEvaluatorLike[];
   /**
    * The logger to use
-   * @default console
+   * @default new Logger()
    */
   readonly logger?: Logger;
   /**
@@ -205,26 +208,49 @@ function setupTracer({
 }
 
 /**
- * Prints experiment summary to logger
+ * Prints experiment resume summary to logger
  */
 function printExperimentSummary({
-  logger,
-  experimentId,
+  glog,
+  experiment,
+  baseUrl,
   totalProcessed,
   totalCompleted,
+  totalFailed,
 }: {
-  logger: Logger;
-  experimentId: string;
+  glog: GatedLogger;
+  experiment: ExperimentInfo;
+  baseUrl: string;
   totalProcessed: number;
   totalCompleted: number;
+  totalFailed: number;
 }): void {
-  logger.info("\n" + "=".repeat(70));
-  logger.info("📊 Experiment Resume Summary");
-  logger.info("=".repeat(70));
-  logger.info(`Experiment ID: ${experimentId}`);
-  logger.info(`Incomplete runs processed: ${totalProcessed}`);
-  logger.info(`Successfully completed: ${totalCompleted}`);
-  logger.info("=".repeat(70));
+  const sep = "=".repeat(70);
+  const experimentUrl = getExperimentUrl({
+    baseUrl,
+    datasetId: experiment.datasetId,
+    experimentId: experiment.id,
+  });
+  glog.summary(sep);
+  glog.summary("  Experiment Resume Summary");
+  glog.summary(sep);
+  glog.summary(`  Experiment ID:   ${experiment.id}`);
+  glog.summary(`  Runs processed:  ${totalProcessed}`);
+  glog.summary(`  Completed:       ${totalCompleted}`);
+  glog.summary(`  Failed:          ${totalFailed}`);
+  glog.summary("");
+  glog.summary("  Experiment URL:");
+  glog.summary(`    ${experimentUrl}`);
+  if (experiment.projectName) {
+    const tracesUrl = getProjectTracesUrl({
+      baseUrl,
+      projectName: experiment.projectName,
+    });
+    glog.summary("");
+    glog.summary("  Project Traces:");
+    glog.summary(`    ${tracesUrl}`);
+  }
+  glog.summary(sep);
 }
 
 /**
@@ -284,18 +310,19 @@ export async function resumeExperiment({
   experimentId,
   task,
   evaluators,
-  logger = console,
+  logger = new PhoenixLogger(),
   concurrency = 5,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
   diagLogLevel,
   stopOnFirstError = false,
 }: ResumeExperimentParams): Promise<void> {
+  const glog = toGatedLogger(logger);
   const client = _client ?? createClient();
   const pageSize = DEFAULT_PAGE_SIZE;
 
   // Get experiment info
-  logger.info(`🔍 Fetching experiment info...`);
+  glog.info(`[experiment] fetching info...`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Check if there are incomplete runs
@@ -303,13 +330,11 @@ export async function resumeExperiment({
   const incompleteCount = totalExpected - experiment.successfulRunCount;
 
   if (incompleteCount === 0) {
-    logger.info("✅ No incomplete runs found. Experiment is already complete.");
+    glog.info("[experiment] no incomplete runs found, already complete");
     return;
   }
 
-  logger.info(
-    `🧪 Resuming experiment with ${incompleteCount} incomplete runs...`
-  );
+  glog.info(`[experiment] resuming with ${incompleteCount} incomplete runs`);
 
   // Get base URL for tracing and URL generation
   const baseUrl = client.config.baseUrl;
@@ -333,20 +358,6 @@ export async function resumeExperiment({
   const provider = tracerSetup?.provider ?? null;
   const taskTracer = tracerSetup?.tracer ?? null;
 
-  // Display URLs
-  const datasetExperimentsUrl = getDatasetExperimentsUrl({
-    baseUrl,
-    datasetId: experiment.datasetId,
-  });
-  const experimentUrl = getExperimentUrl({
-    baseUrl,
-    datasetId: experiment.datasetId,
-    experimentId: experiment.id,
-  });
-
-  logger.info(`📺 View dataset experiments: ${datasetExperimentsUrl}`);
-  logger.info(`🔗 View this experiment: ${experimentUrl}`);
-
   // Create a CSP-style bounded buffer for task distribution
   const taskChannel = new Channel<TaskItem>(
     pageSize * CHANNEL_CAPACITY_MULTIPLIER
@@ -360,6 +371,8 @@ export async function resumeExperiment({
   let totalCompleted = 0;
   let totalFailed = 0;
 
+  glog.startProgress?.(incompleteCount, "tasks");
+
   // Producer: Fetch incomplete runs and send to channel
   async function fetchIncompleteRuns(): Promise<void> {
     let cursor: string | null = null;
@@ -368,7 +381,7 @@ export async function resumeExperiment({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.info("🛑 Stopping fetch due to error in task");
+          glog.info("[abort] stopping fetch due to task error");
           break;
         }
 
@@ -437,8 +450,8 @@ export async function resumeExperiment({
           }
         }
 
-        logger.info(
-          `Fetched batch of ${batchCount} incomplete runs (channel buffer: ${taskChannel.length})`
+        glog.verbose(
+          `[fetch] batch ${batchCount} (buffered: ${taskChannel.length})`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -479,15 +492,17 @@ export async function resumeExperiment({
           tracer: taskTracer,
         });
         totalCompleted++;
+        glog.tickProgress?.();
       } catch (error) {
         totalFailed++;
-        logger.error(
-          `Failed to run task for example ${item.example.id}, repetition ${item.repetitionNumber}: ${error}`
+        glog.tickProgress?.();
+        glog.error(
+          `[error] task for example ${item.example.id}, repetition ${item.repetitionNumber}: ${error}`
         );
 
         // If stopOnFirstError is enabled, abort and re-throw
         if (stopOnFirstError) {
-          logger.error("🛑 Stopping on first error");
+          glog.error("[abort] stopping on first error");
           abortController.abort();
           throw error;
         }
@@ -513,7 +528,9 @@ export async function resumeExperiment({
     // Always surface producer/infrastructure errors
     if (error instanceof TaskFetchError) {
       // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-      logger.error(`❌ Critical: Failed to fetch incomplete runs from server`);
+      glog.error(
+        `[error] critical: failed to fetch incomplete runs from server`
+      );
       executionError = err;
     } else if (error instanceof ChannelError && signal.aborted) {
       // Channel closed due to intentional abort - wrap in semantic error
@@ -527,7 +544,9 @@ export async function resumeExperiment({
     } else {
       // Unexpected error (not from worker, not from producer fetch)
       // This could be a bug in our code or infrastructure failure
-      logger.error(`❌ Unexpected error during task execution: ${err.message}`);
+      glog.error(
+        `[error] unexpected error during task execution: ${err.message}`
+      );
       executionError = err;
     }
   } finally {
@@ -538,21 +557,21 @@ export async function resumeExperiment({
     }
   }
 
+  glog.stopProgress?.();
+
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`✅ Task runs completed.`);
+    glog.info(`[tasks] complete`);
   }
 
   if (totalFailed > 0 && !executionError) {
-    logger.info(
-      `⚠️  Warning: ${totalFailed} out of ${totalProcessed} runs failed.`
-    );
+    glog.info(`[warn] ${totalFailed} of ${totalProcessed} runs failed`);
   }
 
   // Run evaluators if provided (only on runs missing evaluations)
   // Skip evaluators if we stopped on error
   if (evaluators && evaluators.length > 0 && !executionError) {
-    logger.info(`\n🔬 Running evaluators...`);
+    glog.info(`[eval] running evaluators...`);
     await resumeEvaluation({
       experimentId,
       evaluators: [...evaluators],
@@ -568,10 +587,12 @@ export async function resumeExperiment({
 
   // Print summary
   printExperimentSummary({
-    logger,
-    experimentId: experiment.id,
+    glog,
+    experiment,
+    baseUrl,
     totalProcessed,
     totalCompleted,
+    totalFailed,
   });
 
   // Flush spans (if tracer was initialized)

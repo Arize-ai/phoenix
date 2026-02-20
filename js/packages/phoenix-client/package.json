@@ -78,6 +78,7 @@
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "@arizeai/openinference-vercel": "^2.7.0",
     "@arizeai/phoenix-config": "workspace:*",
+    "@arizeai/phoenix-logger": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
     "openapi-fetch": "^0.12.5",
