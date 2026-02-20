@@ -214,6 +214,12 @@
                   "docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection",
                   "docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection"
                 ]
+              },
+              {
+                "group": "Playground Evaluators",
+                "pages": [
+                  "docs/phoenix/evaluation/playground-evaluators/builtin-evaluators"
+                ]
               }
             ]
           },
