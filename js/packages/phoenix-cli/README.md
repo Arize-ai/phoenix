@@ -302,7 +302,7 @@ px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
 
 ## Community
 
-- 🌍 [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg)
+- 🌍 [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g)
 - 📚 [Documentation](https://arize.com/docs/phoenix)
 - 🌟 [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 [Report bugs](https://github.com/Arize-ai/phoenix/issues)
