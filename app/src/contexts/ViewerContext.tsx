@@ -1,7 +1,7 @@
 import React, { startTransition, useCallback } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
-import {
+import type {
   ViewerContext_viewer$data,
   ViewerContext_viewer$key,
 } from "./__generated__/ViewerContext_viewer.graphql";

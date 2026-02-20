@@ -22,10 +22,10 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
-import { AnnotationConfigListAssociateAnnotationConfigWithProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAssociateAnnotationConfigWithProjectMutation.graphql";
-import { AnnotationConfigListProjectAnnotationConfigFragment$key } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigFragment.graphql";
-import { AnnotationConfigListQuery } from "@phoenix/components/trace/__generated__/AnnotationConfigListQuery.graphql";
-import { AnnotationConfigListRemoveAnnotationConfigFromProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListRemoveAnnotationConfigFromProjectMutation.graphql";
+import type { AnnotationConfigListAssociateAnnotationConfigWithProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAssociateAnnotationConfigWithProjectMutation.graphql";
+import type { AnnotationConfigListProjectAnnotationConfigFragment$key } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigFragment.graphql";
+import type { AnnotationConfigListQuery } from "@phoenix/components/trace/__generated__/AnnotationConfigListQuery.graphql";
+import type { AnnotationConfigListRemoveAnnotationConfigFromProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListRemoveAnnotationConfigFromProjectMutation.graphql";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 const annotationListBoxCSS = css`

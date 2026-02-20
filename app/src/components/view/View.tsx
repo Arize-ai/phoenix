@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
 import { filterDOMProps } from "@react-aria/utils";
-import { forwardRef, JSXElementConstructor, ReactNode, Ref } from "react";
+import type { JSXElementConstructor, ReactNode, Ref } from "react";
+import { forwardRef } from "react";
 
-import { DOMProps, ViewStyleProps } from "@phoenix/components/types";
+import type { DOMProps, ViewStyleProps } from "@phoenix/components/types";
 
 import { useStyleProps, viewStyleProps } from "../utils";
 

@@ -1,6 +1,6 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import {
+import type { ClientFn } from "../types/core";
+import type {
   AnthropicInvocationParameters,
   AwsInvocationParameters,
   AzureOpenAIInvocationParameters,

@@ -3,7 +3,7 @@ import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Button } from "@phoenix/components/button";
-import { DatasetExampleSelect_ExampleSelectPopoverContentQuery } from "@phoenix/components/dataset/__generated__/DatasetExampleSelect_ExampleSelectPopoverContentQuery.graphql";
+import type { DatasetExampleSelect_ExampleSelectPopoverContentQuery } from "@phoenix/components/dataset/__generated__/DatasetExampleSelect_ExampleSelectPopoverContentQuery.graphql";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { ListBox } from "@phoenix/components/listbox";
 import { Popover } from "@phoenix/components/overlay";

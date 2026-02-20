@@ -25,10 +25,10 @@ import {
   useFilter,
   View,
 } from "@phoenix/components";
-import { TransferTracesButtonTransferMutation } from "@phoenix/pages/project/__generated__/TransferTracesButtonTransferMutation.graphql";
+import type { TransferTracesButtonTransferMutation } from "@phoenix/pages/project/__generated__/TransferTracesButtonTransferMutation.graphql";
 
-import { TransferTracesButton_projects$key } from "./__generated__/TransferTracesButton_projects.graphql";
-import { TransferTracesButtonProjectsQuery } from "./__generated__/TransferTracesButtonProjectsQuery.graphql";
+import type { TransferTracesButton_projects$key } from "./__generated__/TransferTracesButton_projects.graphql";
+import type { TransferTracesButtonProjectsQuery } from "./__generated__/TransferTracesButtonProjectsQuery.graphql";
 
 export function TransferTracesButton({
   traceIds,

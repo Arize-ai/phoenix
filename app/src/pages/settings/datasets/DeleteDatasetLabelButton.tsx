@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import { DeleteDatasetLabelButtonMutation } from "./__generated__/DeleteDatasetLabelButtonMutation.graphql";
+import type { DeleteDatasetLabelButtonMutation } from "./__generated__/DeleteDatasetLabelButtonMutation.graphql";
 
 export type DeleteDatasetLabelButtonProps = {
   datasetLabelId: string;

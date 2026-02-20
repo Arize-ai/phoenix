@@ -1,16 +1,11 @@
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import {
-  parsePromptParams,
-  PromptParam,
-} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import {
-  createNormalizedPlaygroundInstance,
-  PlaygroundInstance,
-  PlaygroundProps,
-} from "@phoenix/store";
+import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import { parsePromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import type { PlaygroundInstance, PlaygroundProps } from "@phoenix/store";
+import { createNormalizedPlaygroundInstance } from "@phoenix/store";
 
 /**
  * A playground instance as returned by the fetch layer, before a

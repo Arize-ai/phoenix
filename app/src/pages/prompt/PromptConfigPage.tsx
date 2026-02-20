@@ -2,7 +2,7 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex, View } from "@phoenix/components";
-import { promptConfigLoader } from "@phoenix/pages/prompt/promptConfigLoader";
+import type { promptConfigLoader } from "@phoenix/pages/prompt/promptConfigLoader";
 
 import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
 

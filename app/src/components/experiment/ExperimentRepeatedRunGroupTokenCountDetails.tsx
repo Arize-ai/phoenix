@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { TokenCountDetails } from "../trace/TokenCountDetails";
-import { ExperimentRepeatedRunGroupTokenCountDetailsQuery } from "./__generated__/ExperimentRepeatedRunGroupTokenCountDetailsQuery.graphql";
+import type { ExperimentRepeatedRunGroupTokenCountDetailsQuery } from "./__generated__/ExperimentRepeatedRunGroupTokenCountDetailsQuery.graphql";
 
 export function ExperimentRepeatedRunGroupTokenCountDetails(props: {
   experimentRepeatedRunGroupId: string;

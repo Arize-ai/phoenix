@@ -11,7 +11,7 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
-import { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
+import type { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";

@@ -17,10 +17,10 @@ import {
 } from "@phoenix/components";
 import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
-import { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
+import type { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
 
 import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersionButton";
-import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
+import type { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 

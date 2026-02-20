@@ -2,7 +2,7 @@ import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { settingsAnnotationsPageLoaderQuery } from "./__generated__/settingsAnnotationsPageLoaderQuery.graphql";
+import type { settingsAnnotationsPageLoaderQuery } from "./__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 
 export const settingsAnnotationsPageLoaderGql = graphql`
   query settingsAnnotationsPageLoaderQuery {

@@ -1,5 +1,5 @@
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
-import { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/types";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 
 export function AnnotationColorSwatch({

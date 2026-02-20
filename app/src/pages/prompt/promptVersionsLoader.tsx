@@ -2,12 +2,13 @@
  * This loader will redirect to the latest version of the prompt if no versionId
  * is provided in url params
  */
-import { LoaderFunctionArgs, redirect } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
+import { redirect } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { promptVersionsLoaderQuery } from "./__generated__/promptVersionsLoaderQuery.graphql";
+import type { promptVersionsLoaderQuery } from "./__generated__/promptVersionsLoaderQuery.graphql";
 
 /**
  * This loader will redirect to the latest version of the prompt if no versionId

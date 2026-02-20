@@ -1,9 +1,10 @@
-import { forwardRef, Ref } from "react";
+import type { Ref } from "react";
+import { forwardRef } from "react";
 import { OverlayArrow } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils";
 
-import { StylableProps } from "../types";
+import type { StylableProps } from "../types";
 
 export interface TooltipArrowProps extends StylableProps {}
 

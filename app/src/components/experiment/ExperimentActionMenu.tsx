@@ -3,9 +3,9 @@ import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
+import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
-  ButtonProps,
   Dialog,
   Flex,
   Icon,

@@ -14,8 +14,9 @@ import {
 } from "react-aria-components";
 
 import { Text } from "../content";
-import { NumberField, NumberFieldProps } from "../field/NumberField";
-import { StylableProps } from "../types";
+import type { NumberFieldProps } from "../field/NumberField";
+import { NumberField } from "../field/NumberField";
+import type { StylableProps } from "../types";
 
 const sliderCSS = css`
   --slider-handle-width: var(--global-dimension-size-250);

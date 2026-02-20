@@ -1,4 +1,4 @@
-import { ISpanItem } from "../types";
+import type { ISpanItem } from "../types";
 import { compareTimestamps, createSpanTree } from "../utils";
 
 describe("compareTimestamps", () => {

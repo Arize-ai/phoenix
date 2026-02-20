@@ -1,6 +1,6 @@
 import Mustache from "mustache";
 
-import { PromptTemplate, RenderedPrompt } from "../types/templating";
+import type { PromptTemplate, RenderedPrompt } from "../types/templating";
 import { createTemplateVariablesProxy } from "./createTemplateVariablesProxy";
 
 /**

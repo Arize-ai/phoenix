@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import type { PopoverProps } from "react-aria-components";
 import {
   Header,
   Menu as AriaMenu,
@@ -7,7 +8,6 @@ import {
   type MenuItemProps as AriaMenuItemProps,
   type MenuProps as AriaMenuProps,
   MenuTrigger as AriaMenuTrigger,
-  PopoverProps,
 } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils";

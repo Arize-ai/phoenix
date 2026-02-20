@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, ReactNode, useMemo } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import { useMemo } from "react";
 import { Button, Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 

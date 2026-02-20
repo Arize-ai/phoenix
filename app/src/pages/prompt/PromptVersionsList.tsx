@@ -4,7 +4,7 @@ import { Link } from "react-router";
 
 import { Flex, View } from "@phoenix/components";
 
-import {
+import type {
   PromptVersionsList__main$data,
   PromptVersionsList__main$key,
 } from "./__generated__/PromptVersionsList__main.graphql";

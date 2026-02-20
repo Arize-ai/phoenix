@@ -15,7 +15,7 @@ import {
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import { DeletePromptDialogMutation } from "./__generated__/DeletePromptDialogMutation.graphql";
+import type { DeletePromptDialogMutation } from "./__generated__/DeletePromptDialogMutation.graphql";
 
 export function DeletePromptDialog({
   promptId,

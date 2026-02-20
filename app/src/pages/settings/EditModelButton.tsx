@@ -1,8 +1,8 @@
 import { getLocalTimeZone } from "@internationalized/date";
 import { Suspense, useState } from "react";
+import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
-  PreloadedQuery,
   useMutation,
   usePreloadedQuery,
   useQueryLoader,
@@ -26,12 +26,13 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { EditModelButtonMutation } from "./__generated__/EditModelButtonMutation.graphql";
-import { EditModelButtonQuery } from "./__generated__/EditModelButtonQuery.graphql";
-import { ModelForm, ModelFormParams } from "./ModelForm";
+import type { EditModelButtonMutation } from "./__generated__/EditModelButtonMutation.graphql";
+import type { EditModelButtonQuery } from "./__generated__/EditModelButtonQuery.graphql";
+import type { ModelFormParams } from "./ModelForm";
+import { ModelForm } from "./ModelForm";
 
 const ModelQuery = graphql`
   query EditModelButtonQuery($id: ID!) {

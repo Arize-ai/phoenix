@@ -1,5 +1,5 @@
-import { AnnotatorKind } from "../../types/annotations";
-import { Evaluator } from "../../types/experiments";
+import type { AnnotatorKind } from "../../types/annotations";
+import type { Evaluator } from "../../types/experiments";
 
 /**
  * Wrap an evaluator function in an object with a name property.

@@ -1,12 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
-import {
-  createDatasetStore,
+import type {
   DatasetStore,
   DatasetStoreState,
   InitialDatasetStoreProps,
 } from "@phoenix/store/datasetStore";
+import { createDatasetStore } from "@phoenix/store/datasetStore";
 
 export const DatasetContext = createContext<DatasetStore | null>(null);
 

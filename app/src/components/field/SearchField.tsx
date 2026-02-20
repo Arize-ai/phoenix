@@ -1,13 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Button,
-  SearchField as AriaSearchField,
-  SearchFieldProps as AriaSearchFieldProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { SearchFieldProps as AriaSearchFieldProps } from "react-aria-components";
+import { Button, SearchField as AriaSearchField } from "react-aria-components";
 
 import { Icon, Icons } from "../icon";
-import { BaseVariant, QuietVariant, SizingProps } from "../types";
+import type { BaseVariant, QuietVariant, SizingProps } from "../types";
 import { fieldBaseCSS, textFieldCSS } from "./styles";
 
 export interface SearchFieldProps extends AriaSearchFieldProps, SizingProps {

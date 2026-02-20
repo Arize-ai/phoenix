@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import {
+import type {
   spanPlaygroundPageLoaderQuery,
   spanPlaygroundPageLoaderQuery$data,
 } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";

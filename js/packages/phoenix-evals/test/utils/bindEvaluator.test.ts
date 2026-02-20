@@ -2,7 +2,7 @@ import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 
 import { createClassificationEvaluator } from "../../src";
-import { ObjectMapping } from "../../src/types/data";
+import type { ObjectMapping } from "../../src/types/data";
 import { bindEvaluator } from "../../src/utils/bindEvaluator";
 
 // Helper function to create a classification evaluator for testing

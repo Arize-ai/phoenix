@@ -17,15 +17,15 @@ import {
   Tabs,
   View,
 } from "@phoenix/components";
+import type { APIKeyFormParams } from "@phoenix/components/auth";
 import {
-  APIKeyFormParams,
   CreateAPIKeyDialog,
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
 import { useNotifyError } from "@phoenix/contexts";
 
-import { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
-import { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
+import type { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
+import type { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
 import { UserAPIKeysTable } from "./UserAPIKeysTable";
 

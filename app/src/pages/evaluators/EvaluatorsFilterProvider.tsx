@@ -1,14 +1,8 @@
-import {
-  createContext,
-  Dispatch,
-  PropsWithChildren,
-  SetStateAction,
-  useContext,
-  useState,
-} from "react";
+import type { Dispatch, PropsWithChildren, SetStateAction } from "react";
+import { createContext, useContext, useState } from "react";
 import invariant from "tiny-invariant";
 
-import { EvaluatorSort } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
+import type { EvaluatorSort } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
 
 export type EvaluatorsFilterContext = {
   filter: string;

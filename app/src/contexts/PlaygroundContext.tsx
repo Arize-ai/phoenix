@@ -1,12 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
-import {
-  createPlaygroundStore,
+import type {
   InitialPlaygroundState,
   PlaygroundState,
   PlaygroundStore,
 } from "@phoenix/store";
+import { createPlaygroundStore } from "@phoenix/store";
 
 export const PlaygroundContext = createContext<PlaygroundStore | null>(null);
 

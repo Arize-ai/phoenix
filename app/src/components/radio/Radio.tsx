@@ -4,7 +4,7 @@ import {
   type RadioProps as AriaRadioProps,
 } from "react-aria-components";
 
-import { StylableProps } from "@phoenix/components/types";
+import type { StylableProps } from "@phoenix/components/types";
 import { classNames } from "@phoenix/utils";
 
 const baseRadioCSS = css(`

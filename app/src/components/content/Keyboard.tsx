@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { forwardRef, PropsWithChildren, Ref } from "react";
+import type { PropsWithChildren, Ref } from "react";
+import { forwardRef } from "react";
 
 import { classNames } from "@phoenix/utils";
 

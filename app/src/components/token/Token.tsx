@@ -1,10 +1,11 @@
 import { css } from "@emotion/react";
-import React, { forwardRef, HTMLProps, Ref } from "react";
+import type { HTMLProps, Ref } from "react";
+import React, { forwardRef } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 
 import { Icon, Icons } from "../icon";
-import { SizingProps, StylableProps } from "../types";
+import type { SizingProps, StylableProps } from "../types";
 
 interface TokenProps
   extends

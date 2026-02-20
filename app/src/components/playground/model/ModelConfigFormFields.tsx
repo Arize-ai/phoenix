@@ -4,7 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
+import type { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
 import { EndpointConfigFormField } from "./EndpointConfigFormField";

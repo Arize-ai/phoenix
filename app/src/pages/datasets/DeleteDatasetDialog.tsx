@@ -21,7 +21,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
-import { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
+import type { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
 
 export type DeleteDatasetDialogProps = {
   datasetId: string;

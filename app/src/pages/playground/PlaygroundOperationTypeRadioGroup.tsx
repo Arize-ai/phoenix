@@ -1,6 +1,6 @@
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { GenAIOperationType } from "@phoenix/store";
+import type { GenAIOperationType } from "@phoenix/store";
 
 function isGenAIOperationType(v: string): v is GenAIOperationType {
   return v === "chat" || v === "text_completion";

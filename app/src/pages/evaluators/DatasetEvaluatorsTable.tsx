@@ -1,12 +1,14 @@
 import { css } from "@emotion/react";
-import {
+import type {
   ColumnDef,
   ColumnSizingState,
+  SortingState,
+  Updater,
+} from "@tanstack/react-table";
+import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
-  Updater,
   useReactTable,
 } from "@tanstack/react-table";
 import React, {
@@ -29,7 +31,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
+import type { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type {
   DatasetEvaluatorFilter,
   DatasetEvaluatorSort,

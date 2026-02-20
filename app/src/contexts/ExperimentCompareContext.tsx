@@ -1,15 +1,15 @@
 import { orderBy, range } from "lodash";
+import type { ReactNode } from "react";
 import {
   createContext,
-  ReactNode,
   useCallback,
   useContext,
   useMemo,
   useState,
 } from "react";
 
-import { type AnnotationConfig } from "@phoenix/components/annotation";
-import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import type { AnnotationConfig } from "@phoenix/components/annotation";
+import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]

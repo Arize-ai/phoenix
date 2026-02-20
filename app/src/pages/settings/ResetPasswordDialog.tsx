@@ -21,7 +21,7 @@ import {
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";
+import type { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";
 
 const MIN_PASSWORD_LENGTH = 4;
 

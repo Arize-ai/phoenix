@@ -1,4 +1,4 @@
-import { ISpanItem } from "./types";
+import type { ISpanItem } from "./types";
 
 export type SpanTreeNode<TSpan> = {
   span: TSpan;

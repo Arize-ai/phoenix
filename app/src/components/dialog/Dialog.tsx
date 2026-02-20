@@ -1,14 +1,18 @@
 import { css } from "@emotion/react";
-import { forwardRef, HTMLAttributes } from "react";
+import type { HTMLAttributes } from "react";
+import { forwardRef } from "react";
 import {
   Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
 } from "react-aria-components";
 
-import { Button, ButtonProps } from "@phoenix/components/button";
-import { Heading, HeadingProps } from "@phoenix/components/content";
+import type { ButtonProps } from "@phoenix/components/button";
+import { Button } from "@phoenix/components/button";
+import type { HeadingProps } from "@phoenix/components/content";
+import { Heading } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
-import { Flex, FlexProps } from "@phoenix/components/layout";
+import type { FlexProps } from "@phoenix/components/layout";
+import { Flex } from "@phoenix/components/layout";
 import { classNames } from "@phoenix/utils";
 
 export type DialogProps = AriaDialogProps;

@@ -1,14 +1,16 @@
 import { css } from "@emotion/react";
-import {
+import type {
   AccessorFnColumnDef,
   AccessorKeyColumnDef,
+  HeaderContext,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
+import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  HeaderContext,
-  SortingState,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -21,9 +23,9 @@ import {
   useRef,
   useState,
 } from "react";
+import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
-  PreloadedQuery,
   useFragment,
   usePaginationFragment,
   usePreloadedQuery,
@@ -58,7 +60,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components/tooltip";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
-import { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
+import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";

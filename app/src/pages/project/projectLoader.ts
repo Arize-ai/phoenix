@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { projectLoaderQuery } from "./__generated__/projectLoaderQuery.graphql";
+import type { projectLoaderQuery } from "./__generated__/projectLoaderQuery.graphql";
 
 /**
  * Loads in the necessary page data for the project page

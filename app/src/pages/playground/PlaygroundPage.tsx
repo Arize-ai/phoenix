@@ -2,10 +2,8 @@ import { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
 import { Playground } from "./Playground";
-import {
-  buildPlaygroundPropsFromLoaderData,
-  PlaygroundPageLoaderData,
-} from "./playgroundPageLoader";
+import type { PlaygroundPageLoaderData } from "./playgroundPageLoader";
+import { buildPlaygroundPropsFromLoaderData } from "./playgroundPageLoader";
 
 export function PlaygroundPage() {
   const loaderData = useLoaderData<PlaygroundPageLoaderData>();

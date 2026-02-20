@@ -4,7 +4,7 @@ import {
   asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
-import { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
 import { spaceKnowledgeApplication } from "./app";

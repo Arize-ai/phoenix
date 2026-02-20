@@ -1,10 +1,10 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Input, Label, Text, TextField } from "@phoenix/components";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
+import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 import { OptimizationDirectionField } from "./OptimizationDirectionField";
 

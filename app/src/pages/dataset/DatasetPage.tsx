@@ -19,9 +19,9 @@ import {
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
-import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
+import type { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 
-import {
+import type {
   DatasetPageQuery,
   DatasetPageQuery$data,
 } from "./__generated__/DatasetPageQuery.graphql";

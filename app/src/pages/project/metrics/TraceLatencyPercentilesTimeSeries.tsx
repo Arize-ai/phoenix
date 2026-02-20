@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import type { LegendProps, TooltipContentProps } from "recharts";
 import {
   CartesianGrid,
   ComposedChart,
   Legend,
-  LegendProps,
   Line,
   ResponsiveContainer,
   Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -30,7 +29,7 @@ import {
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { formatFloat, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceLatencyPercentilesTimeSeriesQuery } from "./__generated__/TraceLatencyPercentilesTimeSeriesQuery.graphql";

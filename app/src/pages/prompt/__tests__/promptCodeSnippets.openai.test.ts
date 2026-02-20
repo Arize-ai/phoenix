@@ -1,7 +1,7 @@
 import { mapPromptToSDKSnippet } from "../promptCodeSnippets";
+import type { FixturePromptVersion } from "./fixtures";
 import {
   BASE_MOCK_PROMPT_VERSION,
-  FixturePromptVersion,
   OPENAI_RESPONSE_FORMAT,
   OPENAI_TOOL,
 } from "./fixtures";

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fromPhoenixLLMEvaluator } from "../../../src/experiments/helpers/fromPhoenixLLMEvaluator";
 import { getExperimentEvaluators } from "../../../src/experiments/helpers/getExperimentEvaluators";
-import { Evaluator } from "../../../src/types/experiments";
+import type { Evaluator } from "../../../src/types/experiments";
 
 // Mock the fromPhoenixLLMEvaluator function
 const mockFromPhoenixEvaluator = vi.fn();

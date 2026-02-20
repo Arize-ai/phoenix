@@ -9,7 +9,8 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
-import { PropsWithChildren, ReactNode, Suspense, useMemo, useRef } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -20,11 +21,11 @@ import {
 } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 
+import type { CardProps, TokenProps, ViewProps } from "@phoenix/components";
 import {
   Alert,
   Button,
   Card,
-  CardProps,
   ContextualHelp,
   CopyToClipboardButton,
   Counter,
@@ -51,9 +52,7 @@ import {
   Text,
   ToggleButton,
   Token,
-  TokenProps,
   View,
-  ViewProps,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
@@ -67,7 +66,7 @@ import { SpanKindIcon } from "@phoenix/components/trace";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import {
+import type {
   AttributeDocument,
   AttributeEmbedding,
   AttributeEmbeddingEmbedding,
@@ -79,8 +78,8 @@ import {
   AttributeReranker,
   AttributeRetrieval,
   AttributeTool,
-  isAttributeMessages,
 } from "@phoenix/openInference/tracing/types";
+import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import {
@@ -91,7 +90,7 @@ import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
-import {
+import type {
   MimeType,
   SpanDetailsQuery,
   SpanDetailsQuery$data,

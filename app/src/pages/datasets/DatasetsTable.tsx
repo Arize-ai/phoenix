@@ -1,11 +1,13 @@
 import { css } from "@emotion/react";
-import {
+import type {
   CellContext,
   ColumnDef,
+  SortingState,
+} from "@tanstack/react-table";
+import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -44,8 +46,8 @@ import {
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
-import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
-import {
+import type { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
+import type {
   DatasetSort,
   DatasetsTableDatasetsQuery,
 } from "./__generated__/DatasetsTableDatasetsQuery.graphql";

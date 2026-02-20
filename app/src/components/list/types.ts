@@ -1,6 +1,6 @@
-import { HTMLProps } from "react";
+import type { HTMLProps } from "react";
 
-import { ComponentSize } from "@phoenix/components/types";
+import type { ComponentSize } from "@phoenix/components/types";
 
 export interface ListProps extends Omit<HTMLProps<HTMLUListElement>, "size"> {
   /**

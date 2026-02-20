@@ -21,7 +21,7 @@ import {
   View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";
-import { PromptsLabelMenuQuery } from "@phoenix/pages/prompts/__generated__/PromptsLabelMenuQuery.graphql";
+import type { PromptsLabelMenuQuery } from "@phoenix/pages/prompts/__generated__/PromptsLabelMenuQuery.graphql";
 
 type PromptsLabelMenuProps = {
   onSelectionChange: (labelIds: string[]) => void;

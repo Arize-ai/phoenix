@@ -1,4 +1,4 @@
-import { CreateClassificationEvaluatorArgs } from "../types/evals";
+import type { CreateClassificationEvaluatorArgs } from "../types/evals";
 import { ClassificationEvaluator } from "./ClassificationEvaluator";
 
 export function createClassificationEvaluator<

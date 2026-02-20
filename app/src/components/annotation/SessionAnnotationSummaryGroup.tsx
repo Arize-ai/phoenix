@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex } from "@phoenix/components";
-import { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
+import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import {
@@ -11,7 +11,7 @@ import {
   SummaryValue,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
-import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
 const useSessionAnnotationSummaryGroup = (
   session: SessionAnnotationSummaryGroup$key

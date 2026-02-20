@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, useCallback, useEffect } from "react";
+import type { PropsWithChildren } from "react";
+import { useCallback, useEffect } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";

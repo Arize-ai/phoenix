@@ -1,4 +1,4 @@
-import { Node } from "./core";
+import type { Node } from "./core";
 
 type DatasetSelectorBase = { versionId?: string; splits?: string[] };
 

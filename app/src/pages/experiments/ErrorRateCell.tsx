@@ -1,4 +1,4 @@
-import { CellContext } from "@tanstack/react-table";
+import type { CellContext } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";

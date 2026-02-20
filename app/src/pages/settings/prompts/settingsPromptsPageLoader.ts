@@ -1,6 +1,6 @@
 import { graphql, loadQuery } from "react-relay";
 
-import { settingsPromptsPageLoaderQuery } from "@phoenix/pages/settings/prompts/__generated__/settingsPromptsPageLoaderQuery.graphql";
+import type { settingsPromptsPageLoaderQuery } from "@phoenix/pages/settings/prompts/__generated__/settingsPromptsPageLoaderQuery.graphql";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 export const settingsPromptsPageLoaderGql = graphql`

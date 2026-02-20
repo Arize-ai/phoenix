@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
+import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
-  ButtonProps,
   DialogTrigger,
   Flex,
   Icon,

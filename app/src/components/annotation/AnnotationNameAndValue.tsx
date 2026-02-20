@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
-import { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 import { Flex, Text } from "@phoenix/components";
-import { TextSize } from "@phoenix/components/types";
+import type { TextSize } from "@phoenix/components/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 

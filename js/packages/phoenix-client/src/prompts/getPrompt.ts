@@ -1,6 +1,6 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { PromptSelector, PromptVersion } from "../types/prompts";
+import type { ClientFn } from "../types/core";
+import type { PromptSelector, PromptVersion } from "../types/prompts";
 import { getPromptBySelector } from "../utils/getPromptBySelector";
 
 /**

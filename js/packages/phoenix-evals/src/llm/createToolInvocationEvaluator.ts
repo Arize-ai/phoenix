@@ -1,6 +1,6 @@
 import { TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG } from "../__generated__/default_templates";
-import { CreateClassificationEvaluatorArgs } from "../types/evals";
-import { ClassificationEvaluator } from "./ClassificationEvaluator";
+import type { CreateClassificationEvaluatorArgs } from "../types/evals";
+import type { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
 export interface ToolInvocationEvaluatorArgs<

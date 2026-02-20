@@ -1,7 +1,7 @@
 import { graphql, useFragment } from "react-relay";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
-import {
+import type {
   PromptChatMessagesCard__main$data,
   PromptChatMessagesCard__main$key,
 } from "@phoenix/components/prompt/__generated__/PromptChatMessagesCard__main.graphql";
@@ -11,10 +11,10 @@ import {
   ChatTemplateMessageToolCallPart,
   ChatTemplateMessageToolResultPart,
 } from "@phoenix/components/prompt/ChatTemplateMessageCard";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
-import { AnyPart } from "@phoenix/schemas/promptSchemas";
+import type { AnyPart } from "@phoenix/schemas/promptSchemas";
 import {
   asTextPart,
   asToolCallPart,

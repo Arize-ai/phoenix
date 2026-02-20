@@ -18,8 +18,8 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
-import { DatasetSelect_dataset$key } from "./__generated__/DatasetSelect_dataset.graphql";
-import { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
+import type { DatasetSelect_dataset$key } from "./__generated__/DatasetSelect_dataset.graphql";
+import type { DatasetSelectQuery } from "./__generated__/DatasetSelectQuery.graphql";
 
 type DatasetSelectProps = {
   onChange?: (key: string) => void;

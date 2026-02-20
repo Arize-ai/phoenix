@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -6,12 +7,12 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
+import type { SequentialChartColors } from "@phoenix/components/chart";
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -21,7 +22,6 @@ import {
   defaultXAxisProps,
   defaultYAxisProps,
   SEQUENTIAL_CHART_COLORS,
-  SequentialChartColors,
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";

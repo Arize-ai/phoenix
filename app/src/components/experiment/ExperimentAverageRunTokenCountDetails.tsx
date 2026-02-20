@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { TokenCountDetails } from "../trace/TokenCountDetails";
-import { ExperimentAverageRunTokenCountDetailsQuery } from "./__generated__/ExperimentAverageRunTokenCountDetailsQuery.graphql";
+import type { ExperimentAverageRunTokenCountDetailsQuery } from "./__generated__/ExperimentAverageRunTokenCountDetailsQuery.graphql";
 
 export function ExperimentAverageRunTokenCountDetails({
   experimentId,
@@ -42,15 +42,15 @@ export function ExperimentAverageRunTokenCountDetails({
       const tokenCountTotal = data.experiment.costSummary.total.tokens;
       const runCount = data.experiment.runCount;
       const averageRunTokenCountTotal =
-        tokenCountTotal == null || runCount == 0
+        tokenCountTotal == null || runCount === 0
           ? null
           : tokenCountTotal / runCount;
       const averageRunTokenCountPrompt =
-        tokenCountPrompt == null || runCount == 0
+        tokenCountPrompt == null || runCount === 0
           ? null
           : tokenCountPrompt / runCount;
       const averageRunTokenCountCompletion =
-        tokenCountCompletion == null || runCount == 0
+        tokenCountCompletion == null || runCount === 0
           ? null
           : tokenCountCompletion / runCount;
 

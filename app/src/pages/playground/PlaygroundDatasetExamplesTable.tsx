@@ -1,17 +1,16 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { SetStateAction } from "react";
 import {
   memo,
   type ReactNode,
   type RefObject,
-  SetStateAction,
   Suspense,
   useCallback,
   useEffect,
@@ -19,8 +18,8 @@ import {
   useRef,
   useState,
 } from "react";
+import type { Disposable } from "react-relay";
 import {
-  Disposable,
   graphql,
   useLazyLoadQuery,
   useMutation,
@@ -28,11 +27,8 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 import { useSearchParams } from "react-router";
-import {
-  GraphQLSubscriptionConfig,
-  PayloadError,
-  requestSubscription,
-} from "relay-runtime";
+import type { GraphQLSubscriptionConfig, PayloadError } from "relay-runtime";
+import { requestSubscription } from "relay-runtime";
 
 import {
   Flex,
@@ -100,25 +96,28 @@ import {
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
-import {
+import type {
   PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
   PlaygroundDatasetExamplesTableMutation$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
-import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
-import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
-import PlaygroundDatasetExamplesTableSubscription, {
+import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
+import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
+import type {
   EvaluatorInputMappingInput,
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   InstanceVariablesProvider,
   useInstanceVariables,
 } from "./InstanceVariablesContext";
-import {
+import type {
   EvaluationChunk,
   ExampleRunData,
   InstanceResponses,
+} from "./PlaygroundDatasetExamplesTableContext";
+import {
   makeExpandedCellKey,
   type Span,
   usePlaygroundDatasetExamplesTableContext,
@@ -126,10 +125,8 @@ import {
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundInstanceProgressIndicator } from "./PlaygroundInstanceProgressIndicator";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
-import {
-  PartialOutputToolCall,
-  PlaygroundToolCall,
-} from "./PlaygroundToolCall";
+import type { PartialOutputToolCall } from "./PlaygroundToolCall";
+import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import {
   extractRootVariable,
   getChatCompletionOverDatasetInput,

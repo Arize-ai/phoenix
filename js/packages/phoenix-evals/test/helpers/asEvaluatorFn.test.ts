@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { asEvaluatorFn } from "../../src/helpers/asEvaluatorFn";
-import { EvaluationResult } from "../../src/types";
+import type { EvaluationResult } from "../../src/types";
 
 type TestRecord = {
   input: string;

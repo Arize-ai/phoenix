@@ -1,9 +1,8 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
@@ -61,7 +60,7 @@ import type {
   ExperimentsTableFragment$data,
   ExperimentsTableFragment$key,
 } from "./__generated__/ExperimentsTableFragment.graphql";
-import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import type { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";

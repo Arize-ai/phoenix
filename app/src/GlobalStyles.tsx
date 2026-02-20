@@ -1,6 +1,7 @@
 import { css, Global } from "@emotion/react";
 
-import { ThemeContextType, useTheme } from "./contexts";
+import type { ThemeContextType } from "./contexts";
+import { useTheme } from "./contexts";
 
 /**
  * Medium size root CSS variables

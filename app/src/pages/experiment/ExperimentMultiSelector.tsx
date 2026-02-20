@@ -1,11 +1,7 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
-import {
-  graphql,
-  PreloadedQuery,
-  useFragment,
-  usePreloadedQuery,
-} from "react-relay";
+import type { PreloadedQuery } from "react-relay";
+import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {

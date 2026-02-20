@@ -1,5 +1,5 @@
-import { PhoenixClient } from "@arizeai/phoenix-client";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PhoenixClient } from "@arizeai/phoenix-client";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 const LIST_PROJECTS_DESCRIPTION = `Get a list of all projects.

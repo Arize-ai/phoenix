@@ -1,10 +1,10 @@
 import { fetchQuery, graphql, readInlineData } from "react-relay";
 
-import { GenerativeProviderKey } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import type { GenerativeProviderKey } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
-import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
-import { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
+import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
@@ -21,20 +21,20 @@ import {
   normalizeInvocationParameters,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
-import {
+import type {
   TextPart,
   ToolCallPart,
   ToolResultPart,
 } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import type { PlaygroundInstance } from "@phoenix/store/playground";
 import {
   DEFAULT_INSTANCE_PARAMS,
   generateMessageId,
   generateToolId,
-  PlaygroundInstance,
 } from "@phoenix/store/playground";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 import {
   asTextPart,
@@ -45,7 +45,7 @@ import {
   makeToolResultPart,
 } from "@phoenix/utils/promptUtils";
 
-import {
+import type {
   fetchPlaygroundPromptQuery as fetchPlaygroundPromptQueryType,
   PromptMessageRole,
 } from "./__generated__/fetchPlaygroundPromptQuery.graphql";

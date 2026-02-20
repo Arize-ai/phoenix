@@ -4,7 +4,7 @@ import { redirect } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
-import { authenticatedRootLoaderQuery } from "./__generated__/authenticatedRootLoaderQuery.graphql";
+import type { authenticatedRootLoaderQuery } from "./__generated__/authenticatedRootLoaderQuery.graphql";
 
 /**
  * Loads in the necessary data at the root of the authenticated application

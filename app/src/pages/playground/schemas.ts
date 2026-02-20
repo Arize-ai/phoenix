@@ -11,10 +11,8 @@ import {
   jsonSchemaZodSchema,
   llmProviderToolDefinitionSchema,
 } from "@phoenix/schemas";
-import {
-  JSONLiteral,
-  jsonLiteralSchema,
-} from "@phoenix/schemas/jsonLiteralSchema";
+import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
+import { jsonLiteralSchema } from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import {
   isObject,

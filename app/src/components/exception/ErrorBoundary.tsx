@@ -1,7 +1,8 @@
-import { Component, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Component } from "react";
 
 import { BugReportErrorBoundaryFallback } from "./BugReportErrorBoundaryFallback";
-import { ErrorBoundaryFallbackComponent } from "./types";
+import type { ErrorBoundaryFallbackComponent } from "./types";
 type ErrorBoundaryProps = {
   children: ReactNode;
   /**

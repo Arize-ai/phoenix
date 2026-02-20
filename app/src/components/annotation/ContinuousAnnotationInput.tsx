@@ -1,17 +1,12 @@
 import { forwardRef } from "react";
 
-import {
-  Flex,
-  Input,
-  NumberField,
-  NumberFieldProps,
-  Text,
-} from "@phoenix/components";
+import type { NumberFieldProps } from "@phoenix/components";
+import { Flex, Input, NumberField, Text } from "@phoenix/components";
 import { AnnotationInputExplanation } from "@phoenix/components/annotation/AnnotationInputExplanation";
 import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
-import { AnnotationConfigContinuous } from "@phoenix/pages/settings/types";
+import type { AnnotationConfigContinuous } from "@phoenix/pages/settings/types";
 
-import { AnnotationInputPropsBase } from "./types";
+import type { AnnotationInputPropsBase } from "./types";
 
 type ContinuousAnnotationInputProps =
   AnnotationInputPropsBase<AnnotationConfigContinuous> & NumberFieldProps;

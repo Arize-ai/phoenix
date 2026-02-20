@@ -1,9 +1,10 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs, redirect } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
+import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { sessionRedirectLoaderQuery } from "./__generated__/sessionRedirectLoaderQuery.graphql";
+import type { sessionRedirectLoaderQuery } from "./__generated__/sessionRedirectLoaderQuery.graphql";
 
 export async function sessionRedirectLoader({ params }: LoaderFunctionArgs) {
   const { session_id: sessionId } = params;

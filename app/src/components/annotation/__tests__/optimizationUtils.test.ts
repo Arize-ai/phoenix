@@ -3,7 +3,7 @@ import {
   getPositiveOptimization,
   getPositiveOptimizationFromConfig,
 } from "../optimizationUtils";
-import {
+import type {
   AnnotationConfig,
   AnnotationConfigCategorical,
   AnnotationConfigContinuous,

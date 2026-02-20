@@ -2,14 +2,14 @@ import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import { Flex } from "@phoenix/components";
-import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
-import { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
-import {
+import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
+import type {
   PlaygroundDatasetSection_evaluator$data,
   PlaygroundDatasetSection_evaluator$key,
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
-import { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
-import { Mutable } from "@phoenix/typeUtils";
+import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
+import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";

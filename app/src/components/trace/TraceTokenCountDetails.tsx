@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { TraceTokenCountDetailsQuery } from "./__generated__/TraceTokenCountDetailsQuery.graphql";
+import type { TraceTokenCountDetailsQuery } from "./__generated__/TraceTokenCountDetailsQuery.graphql";
 import { TokenCountDetails } from "./TokenCountDetails";
 
 export function TraceTokenCountDetails(props: { traceNodeId: string }) {

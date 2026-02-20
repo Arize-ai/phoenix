@@ -1,7 +1,8 @@
 import { graphql, useMutation } from "react-relay";
 
-import { EditDatasetFormMutation } from "./__generated__/EditDatasetFormMutation.graphql";
-import { DatasetForm, DatasetFormParams } from "./DatasetForm";
+import type { EditDatasetFormMutation } from "./__generated__/EditDatasetFormMutation.graphql";
+import type { DatasetFormParams } from "./DatasetForm";
+import { DatasetForm } from "./DatasetForm";
 
 export function EditDatasetForm({
   datasetName,

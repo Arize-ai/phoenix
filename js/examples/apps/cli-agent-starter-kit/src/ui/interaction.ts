@@ -14,7 +14,7 @@ import {
   text,
 } from "@clack/prompts";
 
-import { Agent } from "../agents/index.js";
+import type { Agent } from "../agents/index.js";
 import { SESSION_ID } from "../instrumentation.js";
 import { printWelcome } from "./welcome.js";
 

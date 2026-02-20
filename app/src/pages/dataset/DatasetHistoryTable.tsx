@@ -13,7 +13,7 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import { DatasetHistoryTable_versions$key } from "./__generated__/DatasetHistoryTable_versions.graphql";
+import type { DatasetHistoryTable_versions$key } from "./__generated__/DatasetHistoryTable_versions.graphql";
 
 const PAGE_SIZE = 100;
 

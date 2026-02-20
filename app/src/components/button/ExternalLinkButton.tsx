@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
-import React, { Ref } from "react";
+import type { Ref } from "react";
+import React from "react";
 
 import { buttonCSS } from "./styles";
-import { ButtonProps } from "./types";
+import type { ButtonProps } from "./types";
 
 // Custom props for the button styling and visuals
 interface ExternalLinkButtonCustomProps extends Pick<

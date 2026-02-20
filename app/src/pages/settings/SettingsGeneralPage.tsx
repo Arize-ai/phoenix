@@ -15,14 +15,12 @@ import {
 } from "@phoenix/components";
 import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
-import { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
+import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
 import { GlobalRetentionPolicyCard } from "@phoenix/pages/settings/GlobalRetentionPolicyCard";
-import {
-  settingsGeneralPageLoaderGQL,
-  settingsGeneralPageLoaderType,
-} from "@phoenix/pages/settings/settingsGeneralPageLoader";
+import type { settingsGeneralPageLoaderType } from "@phoenix/pages/settings/settingsGeneralPageLoader";
+import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
 const formCSS = css`

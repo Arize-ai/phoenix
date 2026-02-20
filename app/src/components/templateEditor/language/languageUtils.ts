@@ -1,4 +1,4 @@
-import { LRParser } from "@lezer/lr";
+import type { LRParser } from "@lezer/lr";
 
 /**
  * Extracts all variables from a templated string.

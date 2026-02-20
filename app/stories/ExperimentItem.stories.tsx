@@ -1,7 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
 import { View } from "@phoenix/components";
-import { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentItem } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 

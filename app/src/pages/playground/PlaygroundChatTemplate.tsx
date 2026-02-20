@@ -13,13 +13,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
-import {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import type { PropsWithChildren } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -44,10 +39,10 @@ import {
 } from "@phoenix/components/templateEditor";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { validateMustacheSections } from "@phoenix/components/templateEditor/language/mustacheLike";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { ChatMessage, PlaygroundState } from "@phoenix/store";
+import type { ChatMessage, PlaygroundState } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import {
   selectPlaygroundInstance,
@@ -62,17 +57,14 @@ import {
   RESPONSE_FORMAT_PARAM_NAME,
 } from "./constants";
 import { areInvocationParamsEqual } from "./invocationParameterUtils";
-import {
-  AIMessageContentRadioGroup,
-  AIMessageMode,
-  MessageMode,
-} from "./MessageContentRadioGroup";
+import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
+import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
 import { MessageRoleSelect } from "./MessageRoleSelect";
 import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import { createToolCallForProvider } from "./playgroundUtils";
-import { PlaygroundInstanceProps } from "./types";
+import type { PlaygroundInstanceProps } from "./types";
 
 /**
  * The z-index of the dragging message.

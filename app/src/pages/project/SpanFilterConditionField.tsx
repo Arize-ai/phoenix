@@ -1,14 +1,14 @@
-import {
-  autocompletion,
+import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
+import { autocompletion } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
+import type { EditorView } from "@uiw/react-codemirror";
 import CodeMirror, {
   type BasicSetupOptions,
-  EditorView,
   keymap,
 } from "@uiw/react-codemirror";
 import {
@@ -39,7 +39,7 @@ import { useTheme } from "@phoenix/contexts";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import environment from "@phoenix/RelayEnvironment";
 
-import { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
+import type { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
 const codeMirrorCSS = css`
@@ -86,7 +86,7 @@ function filterConditionCompletions(
   const word = context.matchBefore(/\w*/);
   if (!word) return null;
 
-  if (word.from == word.to && !context.explicit) return null;
+  if (word.from === word.to && !context.explicit) return null;
 
   return {
     from: word.from,
@@ -364,7 +364,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       </Flex>
       <TooltipTrigger isOpen={hasError && isFocused}>
         <Tooltip placement="bottom" triggerRef={filterConditionFieldRef}>
-          {errorMessage != "" ? (
+          {errorMessage !== "" ? (
             <Text color="danger">{errorMessage}</Text>
           ) : (
             <Text color="success">Valid Expression</Text>

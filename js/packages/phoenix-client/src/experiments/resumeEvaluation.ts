@@ -3,19 +3,18 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
 import {
   type DiagLogLevel,
-  NodeTracerProvider,
   objectAsAttributes,
   register,
   SpanStatusCode,
-  Tracer,
 } from "@arizeai/phoenix-otel";
 import invariant from "tiny-invariant";
 
-import { components } from "../__generated__/api/v1";
+import type { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
-import { ClientFn } from "../types/core";
+import type { ClientFn } from "../types/core";
 import type {
   EvaluationResult,
   Evaluator,
@@ -23,7 +22,7 @@ import type {
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
-import { type Logger } from "../types/logger";
+import type { Logger } from "../types/logger";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";

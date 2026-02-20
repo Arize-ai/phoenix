@@ -23,7 +23,7 @@ import {
 } from "@phoenix/components";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
-import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
+import type { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 import { promptLoaderQuery } from "./promptLoader";
 import { usePromptIdLoader } from "./usePromptIdLoader";

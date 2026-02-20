@@ -1,10 +1,12 @@
 import { css } from "@emotion/react";
-import {
+import type {
   ColumnDef,
-  flexRender,
-  getCoreRowModel,
   OnChangeFn,
   SortingState,
+} from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { formatDistance } from "date-fns";
@@ -26,12 +28,12 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 import { useNavigate } from "react-router";
-import { Subscription } from "relay-runtime";
+import type { Subscription } from "relay-runtime";
 
+import type { FlexProps } from "@phoenix/components";
 import {
   DebouncedSearch,
   Flex,
-  FlexProps,
   Heading,
   Icon,
   Icons,
@@ -58,23 +60,23 @@ import {
   usePreferencesContext,
   useViewerCanModify,
 } from "@phoenix/contexts";
-import {
+import type {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeToggle";
-import { ProjectSortOrder } from "@phoenix/store/preferencesStore";
+import type { ProjectSortOrder } from "@phoenix/store/preferencesStore";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import {
+import type {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
-import {
+import type {
   ProjectSort,
   ProjectsPageProjectsQuery,
 } from "./__generated__/ProjectsPageProjectsQuery.graphql";
-import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
+import type { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 

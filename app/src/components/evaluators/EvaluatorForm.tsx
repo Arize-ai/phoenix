@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
@@ -15,15 +15,15 @@ import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/Eval
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import {
   DEFAULT_STORE_VALUES,
   type EvaluatorStore,
 } from "@phoenix/store/evaluatorStore";
-import {
-  ClassificationEvaluatorAnnotationConfig,
-  type EvaluatorInputMapping as EvaluatorInputMappingType,
-  type EvaluatorKind,
+import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
+import type {
+  EvaluatorInputMapping as EvaluatorInputMappingType,
+  EvaluatorKind,
 } from "@phoenix/types";
 
 export type EvaluatorFormValues = {

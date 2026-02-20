@@ -1,11 +1,8 @@
 import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
-import {
-  createOpenAIResponseFormat,
-  generateMessageId,
-  PlaygroundNormalizedInstance,
-} from "@phoenix/store";
+import type { PlaygroundNormalizedInstance } from "@phoenix/store";
+import { createOpenAIResponseFormat, generateMessageId } from "@phoenix/store";
 
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,

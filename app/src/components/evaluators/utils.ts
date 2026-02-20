@@ -2,19 +2,17 @@ import { graphql, readInlineData } from "relay-runtime";
 
 import type { CreateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
-import { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
-import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
+import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import {
   fromOpenAIToolDefinition,
   toOpenAIToolDefinition,
 } from "@phoenix/schemas";
-import {
-  CategoricalChoiceToolType,
-  CategoricalChoiceToolTypeSchema,
-} from "@phoenix/schemas/phoenixToolTypeSchemas";
+import type { CategoricalChoiceToolType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import { CategoricalChoiceToolTypeSchema } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import { fromOpenAIToolChoice } from "@phoenix/schemas/toolChoiceSchemas";
-import { type AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   EvaluatorInputMapping,

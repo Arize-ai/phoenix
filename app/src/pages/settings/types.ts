@@ -1,8 +1,8 @@
-import {
+import type {
   AnnotationConfigTableFragment$data,
   AnnotationType,
 } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 
 export type AnnotationConfigBase = Mutable<
   AnnotationConfigTableFragment$data["annotationConfigs"]["edges"][number]["annotationConfig"]

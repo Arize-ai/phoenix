@@ -9,14 +9,14 @@ import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
 import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
-import {
+import type {
   ContentPartInput,
   EvaluatorPromptPreviewQuery,
   PromptChatTemplateInput,
   PromptTemplateFormat,
 } from "@phoenix/components/evaluators/__generated__/EvaluatorPromptPreviewQuery.graphql";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { Skeleton } from "@phoenix/components/loading/Skeleton";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -28,7 +28,7 @@ import {
   findToolCallId,
   findToolCallName,
 } from "@phoenix/schemas/toolCallSchemas";
-import {
+import type {
   ChatMessage,
   PlaygroundChatTemplate,
 } from "@phoenix/store/playground/types";

@@ -1,7 +1,9 @@
 import { css } from "@emotion/react";
-import { forwardRef, HTMLAttributes, Ref } from "react";
+import type { HTMLAttributes, Ref } from "react";
+import { forwardRef } from "react";
 
-import { Icon, Icons, Text, TextProps } from "@phoenix/components";
+import type { TextProps } from "@phoenix/components";
+import { Icon, Icons, Text } from "@phoenix/components";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCountItemCSS = css`

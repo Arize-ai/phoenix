@@ -1,8 +1,8 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { Prompt } from "../types/prompts";
+import type { ClientFn } from "../types/core";
+import type { Prompt } from "../types/prompts";
 
 export type ListPromptsParams = ClientFn;
 

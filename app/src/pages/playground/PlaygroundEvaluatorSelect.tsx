@@ -15,21 +15,17 @@ import {
   Separator,
 } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
-import {
-  CreateLLMDatasetEvaluatorInitialState,
-  CreateLLMDatasetEvaluatorSlideover,
-} from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
+import type { CreateLLMDatasetEvaluatorInitialState } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
+import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import type { EvaluatorKind } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenuContents } from "@phoenix/components/evaluators/AddEvaluatorMenu";
-import {
-  EvaluatorItem,
-  EvaluatorSelectMenuItem,
-} from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { EvaluatorSelectMenuItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { isStringArray } from "@phoenix/typeUtils";
 
-import { PlaygroundEvaluatorSelect_query$key } from "./__generated__/PlaygroundEvaluatorSelect_query.graphql";
+import type { PlaygroundEvaluatorSelect_query$key } from "./__generated__/PlaygroundEvaluatorSelect_query.graphql";
 
 type PlaygroundEvaluatorSelectProps = {
   datasetId: string;

@@ -1,10 +1,9 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
@@ -24,7 +23,7 @@ import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import {
+import type {
   SpanFeedback_annotations$data,
   SpanFeedback_annotations$key,
 } from "./__generated__/SpanFeedback_annotations.graphql";

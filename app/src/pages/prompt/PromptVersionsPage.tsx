@@ -6,7 +6,7 @@ import { graphql } from "relay-runtime";
 import { Flex, View } from "@phoenix/components";
 
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
-import { PromptVersionsPageContent__main$key } from "./__generated__/PromptVersionsPageContent__main.graphql";
+import type { PromptVersionsPageContent__main$key } from "./__generated__/PromptVersionsPageContent__main.graphql";
 import { promptLoaderQuery } from "./promptLoader";
 import { PromptVersionsList } from "./PromptVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
