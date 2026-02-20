@@ -15,7 +15,6 @@ from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
 from phoenix.config import (
-    EXPORT_DIR,
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
     get_env_allowed_origins,
@@ -166,7 +165,6 @@ def main() -> None:
         help=SUPPRESS,
     )
     parser.add_argument("--database-url", required=False, help=SUPPRESS)
-    parser.add_argument("--export_path", help=SUPPRESS)
     parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
     parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
@@ -237,8 +235,6 @@ def main() -> None:
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
-    export_path = Path(args.export_path) if args.export_path else Path(EXPORT_DIR)
-
     force_fixture_ingestion = False
     scaffold_datasets = False
     tracing_fixture_names = set()
@@ -356,7 +352,6 @@ def main() -> None:
 
     app = create_app(
         db=factory,
-        export_path=export_path,
         authentication_enabled=auth_settings.enable_auth,
         basic_auth_disabled=auth_settings.disable_basic_auth,
         debug=args.debug,

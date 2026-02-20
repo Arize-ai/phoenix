@@ -29,7 +29,6 @@ from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
 from phoenix.client import Client
-from phoenix.config import EXPORT_DIR
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -298,7 +297,6 @@ async def app(
         yield create_app(
             db=db,
             authentication_enabled=False,
-            export_path=EXPORT_DIR,
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )

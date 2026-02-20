@@ -5,7 +5,6 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
-from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from importlib.util import find_spec
@@ -28,7 +27,6 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_port,
-    get_exported_files,
     get_working_dir,
 )
 from phoenix.db import get_printable_db_url
@@ -74,25 +72,6 @@ class NotebookEnvironment(Enum):
     DATABRICKS = "databricks"
 
 
-class ExportedData(_BaseList):
-    def __init__(self) -> None:
-        self.paths: set[Path] = set()
-        self.names: list[str] = []
-        super().__init__()
-
-    def __repr__(self) -> str:
-        return f"[{', '.join(f'<DataFrame {name}>' for name in self.names)}]"
-
-    def add(self, paths: Iterable[Path]) -> None:
-        new_paths = sorted(
-            set(paths) - self.paths,
-            key=lambda p: p.stat().st_mtime,
-        )
-        self.paths.update(new_paths)
-        self.names.extend(path.stem for path in new_paths)
-        self.data.extend(pd.read_parquet(path) for path in new_paths)
-
-
 class Session(TraceDataExtractor, ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
@@ -101,7 +80,7 @@ class Session(TraceDataExtractor, ABC):
     """The notebook environment that the session is running in."""
 
     def __dir__(self) -> list[str]:
-        return ["exports", "view", "url"]
+        return ["view", "url"]
 
     def __init__(
         self,
@@ -117,9 +96,6 @@ class Session(TraceDataExtractor, ABC):
         self.host = host or get_env_host()
         self.port = port or get_env_port()
         self.temp_dir = TemporaryDirectory()
-        self.export_path = Path(self.temp_dir.name) / "exports"
-        self.export_path.mkdir(parents=True, exist_ok=True)
-        self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
         self.root_path = (
             (get_env_host_root_path() or _get_root_path(self.notebook_env, self.port))
@@ -234,19 +210,6 @@ class Session(TraceDataExtractor, ABC):
     def active(self) -> bool:
         """Whether session is active, i.e. whether server still serves"""
 
-    @property
-    def exports(self) -> ExportedData:
-        """Exported data sorted in descending order by modification date.
-
-        Returns
-        -------
-        dataframes: list
-            List of dataframes
-        """
-        files = get_exported_files(self.export_path)
-        self.exported_data.add(files)
-        return self.exported_data
-
     def view(self, *, height: int = 1000, slug: str = "") -> "IFrame":
         """View the session in a notebook embedded iFrame.
 
@@ -304,7 +267,6 @@ class ProcessSession(Session):
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             database_url=database_url,
-            export_path=self.export_path,
             host=self.host,
             port=self.port,
             root_path=self.root_path,
@@ -346,7 +308,6 @@ class ThreadSession(Session):
         factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
         self.app = create_app(
             db=factory,
-            export_path=self.export_path,
             authentication_enabled=False,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
             initial_evaluations=(

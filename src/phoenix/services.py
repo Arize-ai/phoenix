@@ -102,13 +102,11 @@ class AppService(Service):
     def __init__(
         self,
         database_url: str,
-        export_path: Path,
         host: str,
         port: int,
         root_path: str,
     ):
         self.database_url = database_url
-        self.export_path = export_path
         self.host = host
         self.port = port
         self.root_path = root_path  # TODO(mikeldking): Add support for root_path
@@ -121,8 +119,6 @@ class AppService(Service):
             "main.py",
             "--database-url",
             self.database_url,
-            "--export_path",
-            str(self.export_path),
             "--host",
             str(self.host),
             "--port",

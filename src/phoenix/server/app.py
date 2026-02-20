@@ -157,7 +157,6 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
     create_auth_router,
-    create_embeddings_router,
     create_v1_router,
     oauth2_router,
 )
@@ -684,7 +683,6 @@ def create_graphql_router(
     *,
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
-    export_path: Path,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
@@ -702,7 +700,6 @@ def create_graphql_router(
     Args:
         schema (BaseSchema): The GraphQL schema.
         db (DbSessionFactory): The database session factory pointing to a SQL database.
-        export_path (Path): the file path to export data to for download (legacy)
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
         span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
@@ -720,7 +717,6 @@ def create_graphql_router(
     def get_context() -> Context:
         return Context(
             db=db,
-            export_path=export_path,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
             data_loaders=DataLoaders(
@@ -998,7 +994,6 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
 
 def create_app(
     db: DbSessionFactory,
-    export_path: Path,
     authentication_enabled: bool,
     debug: bool = False,
     dev: bool = False,
@@ -1115,7 +1110,6 @@ def create_app(
         db=db,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
         authentication_enabled=authentication_enabled,
-        export_path=export_path,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -1164,7 +1158,6 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    app.include_router(create_embeddings_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
@@ -1214,7 +1207,6 @@ def create_app(
         )
     app.state.authentication_enabled = authentication_enabled
     app.state.read_only = read_only
-    app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry

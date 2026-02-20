@@ -1,7 +1,6 @@
 from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import cached_property, partial
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from starlette.datastructures import Secret
@@ -226,7 +225,6 @@ class Context(BaseContext):
     db: DbSessionFactory
     data_loaders: DataLoaders
     cache_for_dataloaders: Optional[CacheForDataLoaders]
-    export_path: Path
     span_cost_calculator: SpanCostCalculator
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
