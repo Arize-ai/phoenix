@@ -90,7 +90,6 @@
     "use-deep-compare-effect": "^1.8.1",
     "use-zustand": "^0.2.0",
     "zod": "^4",
-    "zod-to-json-schema": "^3.25.1",
     "zustand": "^4.5.7"
   },
   "devDependencies": {

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
@@ -92,11 +91,8 @@ export type OpenAIToolDefinition = z.infer<typeof openAIToolDefinitionSchema>;
 /**
  * The JSON schema for an OpenAI tool definition
  */
-export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
-  openAIToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const openAIToolDefinitionJSONSchema = z.toJSONSchema(
+  openAIToolDefinitionSchema
 );
 
 /**
@@ -158,11 +154,8 @@ export type AnthropicToolDefinition = z.infer<
 /**
  * The JSON schema for an anthropic tool definition
  */
-export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
-  anthropicToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const anthropicToolDefinitionJSONSchema = z.toJSONSchema(
+  anthropicToolDefinitionSchema
 );
 
 export const awsToolDefinitionSchema = z.object({
@@ -177,11 +170,8 @@ export const awsToolDefinitionSchema = z.object({
 
 export type AwsToolDefinition = z.infer<typeof awsToolDefinitionSchema>;
 
-export const awsToolDefinitionJSONSchema = zodToJsonSchema(
-  awsToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const awsToolDefinitionJSONSchema = z.toJSONSchema(
+  awsToolDefinitionSchema
 );
 
 export type AnyProviderToolDefinition =
@@ -204,11 +194,8 @@ export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
 /**
  * The JSON schema for a Gemini tool definition
  */
-export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
-  geminiToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const geminiToolDefinitionJSONSchema = z.toJSONSchema(
+  geminiToolDefinitionSchema
 );
 
 /**

@@ -5,7 +5,6 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import {
   jsonSchemaZodSchema,
@@ -279,11 +278,8 @@ export const openAIResponseFormatSchema = z.lazy(() =>
 
 export type OpenAIResponseFormat = z.infer<typeof openAIResponseFormatSchema>;
 
-export const openAIResponseFormatJSONSchema = zodToJsonSchema(
-  openAIResponseFormatSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const openAIResponseFormatJSONSchema = z.toJSONSchema(
+  openAIResponseFormatSchema
 );
 
 const promptTemplateVariablesSchema = z.string().transform((s, ctx) => {

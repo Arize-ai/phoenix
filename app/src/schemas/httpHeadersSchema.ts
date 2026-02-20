@@ -1,5 +1,4 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import { isObject } from "@phoenix/typeUtils";
 
@@ -107,10 +106,7 @@ export type HttpHeaders = z.infer<typeof httpHeadersSchema>;
 /**
  * JSON Schema for HTTP headers (for JSONEditor validation)
  */
-export const httpHeadersJSONSchema = zodToJsonSchema(httpHeadersSchema, {
-  name: "HttpHeaders",
-  definitions: {},
-});
+export const httpHeadersJSONSchema = z.toJSONSchema(httpHeadersSchema);
 
 /**
  * Transform a string to HTTP headers schema.

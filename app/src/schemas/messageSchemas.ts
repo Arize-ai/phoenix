@@ -1,5 +1,4 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -66,9 +65,7 @@ export type OpenAIMessage = z.infer<typeof openAIMessageSchema>;
 
 export const openAIMessagesSchema = z.array(openAIMessageSchema);
 
-export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const openAIMessagesJSONSchema = z.toJSONSchema(openAIMessagesSchema);
 
 /**
  * AWS Message Schemas
@@ -84,9 +81,7 @@ export type AwsMessage = z.infer<typeof awsMessageSchema>;
 
 export const awsMessagesSchema = z.array(awsMessageSchema);
 
-export const awsMessagesJSONSchema = zodToJsonSchema(awsMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const awsMessagesJSONSchema = z.toJSONSchema(awsMessagesSchema);
 
 /**
  * Anthropic Message Schemas
@@ -125,11 +120,8 @@ export type AnthropicMessage = z.infer<typeof anthropicMessageSchema>;
 
 export const anthropicMessagesSchema = z.array(anthropicMessageSchema);
 
-export const anthropicMessagesJSONSchema = zodToJsonSchema(
-  anthropicMessagesSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const anthropicMessagesJSONSchema = z.toJSONSchema(
+  anthropicMessagesSchema
 );
 
 /**

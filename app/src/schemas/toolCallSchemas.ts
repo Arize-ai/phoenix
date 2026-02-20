@@ -1,5 +1,4 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import { ToolCallPart } from "@phoenix/schemas/promptSchemas";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -56,11 +55,8 @@ export const openAIToolCallsSchema = z.array(openAIToolCallSchema);
 /**
  * The JSON schema for multiple OpenAI tool calls
  */
-export const openAIToolCallsJSONSchema = zodToJsonSchema(
-  openAIToolCallsSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const openAIToolCallsJSONSchema = z.toJSONSchema(
+  openAIToolCallsSchema
 );
 
 export const awsToolCallSchema = z.object({
@@ -75,9 +71,7 @@ export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
 
 export const awsToolCallsSchema = z.array(awsToolCallSchema);
 
-export const awsToolCallsJSONSchema = zodToJsonSchema(awsToolCallsSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const awsToolCallsJSONSchema = z.toJSONSchema(awsToolCallsSchema);
 
 export const openAIToolCallToAws = openAIToolCallSchema.transform(
   (openai): AwsToolCall => ({
@@ -123,11 +117,8 @@ export const anthropicToolCallsSchema = z.array(anthropicToolCallSchema);
 /**
  * The JSON schema for multiple Anthropic tool calls
  */
-export const anthropicToolCallsJSONSchema = zodToJsonSchema(
-  anthropicToolCallsSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const anthropicToolCallsJSONSchema = z.toJSONSchema(
+  anthropicToolCallsSchema
 );
 
 /**
