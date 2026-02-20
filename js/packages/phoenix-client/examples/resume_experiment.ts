@@ -63,7 +63,11 @@ async function main() {
           }
 
           // Simulate varied accuracy scores for visibility in UI
-          const outputStr = String(output?.answer || "");
+          const outputObj =
+            typeof output === "object"
+              ? (output as Record<string, unknown>)
+              : {};
+          const outputStr = String(outputObj.answer || "");
           const expectedStr = String(expected?.answer || "");
           const hasCorrectNumber = outputStr.includes(expectedStr);
 
@@ -103,7 +107,11 @@ async function main() {
           kind: "CODE",
           evaluate: async ({ output, expected }) => {
             // Simulate varied accuracy scores for visibility in UI
-            const outputStr = String(output?.answer || "");
+            const outputObj =
+              typeof output === "object"
+                ? (output as Record<string, unknown>)
+                : {};
+            const outputStr = String(outputObj.answer || "");
             const expectedStr = String(expected?.answer || "");
             const hasCorrectNumber = outputStr.includes(expectedStr);
 

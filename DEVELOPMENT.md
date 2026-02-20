@@ -295,6 +295,12 @@ After doing so, consider pasting the following settings into your workspace sett
       "source.fixAll.ruff": "always"
     }
   },
+  "[typescript, typescriptreact]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.oxlint": "always"
+    }
+  },
   "mypy-type-checker.ignorePatterns": [".tox,.venv,app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",

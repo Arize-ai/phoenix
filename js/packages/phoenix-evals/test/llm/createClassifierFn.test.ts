@@ -1,4 +1,4 @@
-import { MockLanguageModelV2 } from "ai/test";
+import { MockLanguageModelV3 } from "ai/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createClassifierFn } from "../../src/llm/createClassifierFn";
@@ -43,10 +43,22 @@ Is the answer above factual or hallucinated based on the query and reference tex
 
   it("should create a llm classifier", async () => {
     // Arrange
-    const mockModel = new MockLanguageModelV2({
+    const mockModel = new MockLanguageModelV3({
       doGenerate: async () => ({
-        finishReason: "stop",
-        usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+        finishReason: { unified: "stop", raw: undefined },
+        usage: {
+          inputTokens: {
+            total: 100,
+            noCache: 100,
+            cacheRead: undefined,
+            cacheWrite: undefined,
+          },
+          outputTokens: {
+            total: 150,
+            text: 150,
+            reasoning: undefined,
+          },
+        },
         content: [
           {
             type: "text",
@@ -79,10 +91,22 @@ Is the answer above factual or hallucinated based on the query and reference tex
 
   it("should have telemetry enabled by default", async () => {
     // Arrange
-    const mockModel = new MockLanguageModelV2({
+    const mockModel = new MockLanguageModelV3({
       doGenerate: async () => ({
-        finishReason: "stop",
-        usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+        finishReason: { unified: "stop", raw: undefined },
+        usage: {
+          inputTokens: {
+            total: 100,
+            noCache: 100,
+            cacheRead: undefined,
+            cacheWrite: undefined,
+          },
+          outputTokens: {
+            total: 150,
+            text: 150,
+            reasoning: undefined,
+          },
+        },
         content: [
           {
             type: "text",
@@ -143,10 +167,22 @@ Is the answer above factual or hallucinated based on the query and reference tex
 
   it("should respect explicitly disabled telemetry", async () => {
     // Arrange
-    const mockModel = new MockLanguageModelV2({
+    const mockModel = new MockLanguageModelV3({
       doGenerate: async () => ({
-        finishReason: "stop",
-        usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+        finishReason: { unified: "stop", raw: undefined },
+        usage: {
+          inputTokens: {
+            total: 100,
+            noCache: 100,
+            cacheRead: undefined,
+            cacheWrite: undefined,
+          },
+          outputTokens: {
+            total: 150,
+            text: 150,
+            reasoning: undefined,
+          },
+        },
         content: [
           {
             type: "text",

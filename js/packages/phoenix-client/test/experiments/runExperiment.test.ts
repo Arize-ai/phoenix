@@ -1,5 +1,5 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-import { MockLanguageModelV2 } from "ai/test";
+import { MockLanguageModelV3 } from "ai/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as getDatasetModule from "../../src/datasets/getDataset";
@@ -208,10 +208,18 @@ describe("runExperiment (dryRun)", () => {
     const task = (example: Example) => `Hi, ${example.input.name}`;
     const correctnessEvaluator = createClassificationEvaluator({
       name: "correctness",
-      model: new MockLanguageModelV2({
+      model: new MockLanguageModelV3({
         doGenerate: async () => ({
-          finishReason: "stop",
-          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 10,
+              noCache: 10,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: { total: 20, text: 20, reasoning: undefined },
+          },
           content: [
             {
               type: "text",
@@ -264,10 +272,18 @@ describe("runExperiment (dryRun)", () => {
     // Phoenix-evals evaluator
     const phoenixEvaluator = createClassificationEvaluator({
       name: "politeness",
-      model: new MockLanguageModelV2({
+      model: new MockLanguageModelV3({
         doGenerate: async () => ({
-          finishReason: "stop",
-          usage: { inputTokens: 15, outputTokens: 25, totalTokens: 40 },
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 15,
+              noCache: 15,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: { total: 25, text: 25, reasoning: undefined },
+          },
           content: [
             {
               type: "text",
