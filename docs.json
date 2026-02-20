@@ -194,7 +194,7 @@
                 ]
               },
               {
-                "group": "Pre-Built Evals",
+                "group": "SDK Evals",
                 "pages": [
                   "docs/phoenix/evaluation/running-pre-tested-evals",
                   "docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
@@ -216,9 +216,12 @@
                 ]
               },
               {
-                "group": "Playground Evaluators",
+                "group": "Server Evals",
                 "pages": [
-                  "docs/phoenix/evaluation/playground-evaluators/builtin-evaluators"
+                  "docs/phoenix/evaluation/server-evals/overview",
+                  "docs/phoenix/evaluation/server-evals/llm-evaluators",
+                  "docs/phoenix/evaluation/server-evals/builtin-evaluators",
+                  "docs/phoenix/evaluation/server-evals/input-mapping"
                 ]
               }
             ]
@@ -259,7 +262,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               {
@@ -1008,7 +1011,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",

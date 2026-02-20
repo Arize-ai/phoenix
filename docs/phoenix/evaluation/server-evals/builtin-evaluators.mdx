@@ -1,9 +1,9 @@
 ---
 title: "Built-in Evaluators"
-description: "Server-side code evaluators that score experiment outputs without requiring an LLM, API keys, or any installation."
+description: "Server-side code evaluators that label and score experiment outputs without requiring an LLM, API keys, or any installation."
 ---
 
-Built-in evaluators run server-side and are always available to add to any dataset. Configure them in the Phoenix UI and they score each output automatically when an experiment runs.
+Built-in evaluators run server-side and are always available to add to any dataset. Configure them in the Phoenix UI and they label and score each output automatically when an experiment runs.
 
 ## Available Evaluators
 
@@ -19,30 +19,9 @@ Built-in evaluators run server-side and are always available to add to any datas
 
 ## Configuring Inputs
 
-Each evaluator parameter can be set in one of two modes, toggled inline next to the field:
+Each evaluator parameter can be set to either a **path** (a JSONPath expression that extracts a value from the evaluation parameters) or a **literal** (a fixed value typed directly). Use paths to pull from dataset inputs, task outputs, reference data, or metadata. Use literals for static configuration like regex patterns or word lists.
 
-**Path mode** — Enter a [JSONPath](https://www.rfc-editor.org/rfc/rfc9535) expression pointing to a value in the evaluation context. The context has four top-level keys:
-
-| Key | Contains |
-|-----|----------|
-| `input` | The input sent to the model |
-| `output` | The model's response |
-| `reference` | Ground-truth or reference values from your dataset |
-| `metadata` | Additional metadata attached to the example |
-
-Paths support dot notation, bracket notation for special characters, and array indexing:
-
-| Example path | Resolves to |
-|--------------|-------------|
-| `output` | The full model response |
-| `output.answer` | A specific field if the response is a JSON object |
-| `reference.expected` | A field within your reference data |
-| `output[0].content` | The first element of an array-valued output |
-| `output['trace-id']` | A field whose name contains a hyphen |
-
-The UI shows a searchable dropdown of paths auto-generated from your dataset's columns, but you can type any valid path directly.
-
-**Text mode** — Type a literal value directly into the field. Use this for static configuration that doesn't come from your dataset — a regex pattern, a list of words to match, or a fixed reference string.
+See [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for full details on mapping modes, resolution order, and examples.
 
 ---
 
