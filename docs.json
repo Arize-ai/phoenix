@@ -262,7 +262,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               {
@@ -1011,7 +1011,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
