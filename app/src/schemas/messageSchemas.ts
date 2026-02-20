@@ -54,15 +54,13 @@ export const openAIMessageRoleSchema = z.enum([
 
 export type OpenAIMessageRole = z.infer<typeof openAIMessageRoleSchema>;
 
-export const openAIMessageSchema = z
-  .object({
-    role: openAIMessageRoleSchema,
-    content: z.string().nullable(),
-    name: z.string().optional(),
-    tool_call_id: z.string().optional(),
-    tool_calls: z.array(openAIToolCallSchema).optional(),
-  })
-  .passthrough();
+export const openAIMessageSchema = z.looseObject({
+  role: openAIMessageRoleSchema,
+  content: z.string().nullable(),
+  name: z.string().optional(),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(openAIToolCallSchema).optional(),
+});
 
 export type OpenAIMessage = z.infer<typeof openAIMessageSchema>;
 
@@ -75,14 +73,12 @@ export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
 /**
  * AWS Message Schemas
  */
-export const awsMessageSchema = z
-  .object({
-    role: z.enum(["user", "assistant", "tool"]),
-    content: z.array(z.unknown()),
-    tool_call_id: z.string().optional(),
-    tool_calls: z.array(awsToolCallSchema).optional(),
-  })
-  .passthrough();
+export const awsMessageSchema = z.looseObject({
+  role: z.enum(["user", "assistant", "tool"]),
+  content: z.array(z.unknown()),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(awsToolCallSchema).optional(),
+});
 
 export type AwsMessage = z.infer<typeof awsMessageSchema>;
 
@@ -162,12 +158,10 @@ export const promptContentPartSchema = z.discriminatedUnion("__typename", [
 
 export type PromptContentPart = z.infer<typeof promptContentPartSchema>;
 
-export const promptMessageSchema = z
-  .object({
-    role: promptMessageRoleSchema,
-    content: z.array(promptContentPartSchema),
-  })
-  .passthrough();
+export const promptMessageSchema = z.looseObject({
+  role: promptMessageRoleSchema,
+  content: z.array(promptContentPartSchema),
+});
 
 export type PromptMessage = z.infer<typeof promptMessageSchema>;
 

@@ -10,31 +10,28 @@ import { jsonSchemaZodSchema } from "../../jsonSchema";
  * allow for extra keys when the zod schema is used for parsing. This is to allow more flexibility for users
  * to define their own tools according
  */
-export const openAIToolDefinitionSchema = z
-  .object({
-    type: z.literal("function").describe("The type of the tool"),
-    function: z
-      .object({
-        name: z.string().describe("The name of the function"),
-        description: z
-          .string()
-          .optional()
-          .describe("A description of the function"),
-        parameters: jsonSchemaZodSchema
-          .extend({
-            strict: z
-              .boolean()
-              .optional()
-              .describe(
-                "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
-              ),
-          })
-          .describe("The parameters that the function accepts"),
-      })
-      .passthrough()
-      .describe("The function definition"),
-  })
-  .passthrough();
+export const openAIToolDefinitionSchema = z.looseObject({
+  type: z.literal("function").describe("The type of the tool"),
+  function: z
+    .looseObject({
+      name: z.string().describe("The name of the function"),
+      description: z
+        .string()
+        .optional()
+        .describe("A description of the function"),
+      parameters: jsonSchemaZodSchema
+        .extend({
+          strict: z
+            .boolean()
+            .optional()
+            .describe(
+              "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
+            ),
+        })
+        .describe("The parameters that the function accepts"),
+    })
+    .describe("The function definition"),
+});
 
 /**
  * The type of an OpenAI tool definition
