@@ -1,0 +1,119 @@
+---
+title: "Agent-Assisted Setup"
+description: >-
+  Use a coding agent to automatically add Phoenix tracing to your application.
+---
+
+# Agent-Assisted Setup
+
+The fastest way to add Phoenix tracing to your application. Paste a single URL into your coding agent and it handles everything — dependency installation, instrumentation, and configuration.
+
+<Tip>
+**Get started — paste this into your coding agent:**
+```
+Follow the instructions from https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md and ask me questions as needed.
+```
+</Tip>
+
+### How it works
+
+1. **Paste the URL** into any coding agent (Claude Code, Cursor, Windsurf, Copilot, etc.)
+2. **The agent analyzes** your codebase — detects language, LLM providers, and frameworks
+3. **The agent proposes** an instrumentation plan based on your stack
+4. **You approve**, and the agent implements tracing with the right integrations
+
+<Info>
+**Supported stacks:** Python, TypeScript/JavaScript, and Java — covering 30+ LLM providers, frameworks, and platforms. See the [full integration list](/docs/phoenix/integrations).
+</Info>
+
+### What the agent does
+
+- **Phase 1 (Analysis):** Scans imports and dependency files to detect your LLM provider and framework, then proposes an instrumentation plan. No code changes.
+- **Phase 2 (Implementation):** Installs dependencies, creates a centralized instrumentation module, and configures OpenTelemetry to send traces to Phoenix.
+
+---
+
+## Alternative: MCP and Skills
+
+For persistent documentation access, direct Phoenix instance operations, and reusable agent skills beyond the initial tracing setup, see the [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) guide.
+
+<CardGroup cols={3}>
+  <Card title="CLI" icon="terminal" href="/docs/phoenix/integrations/developer-tools/coding-agents#cli">
+    Terminal access to traces, experiments, datasets, and prompts.
+  </Card>
+  <Card title="MCP" icon="plug" href="/docs/phoenix/integrations/developer-tools/coding-agents#mcp">
+    In-editor Phoenix documentation lookup and direct Phoenix instance operations.
+  </Card>
+  <Card title="Skills" icon="wand-magic-sparkles" href="/docs/phoenix/integrations/developer-tools/coding-agents#skills">
+    Reusable instructions so agents apply Phoenix best practices consistently.
+  </Card>
+</CardGroup>
+
+---
+
+## IDE-Specific Instructions
+
+<Tabs>
+  <Tab title="Claude Code">
+    In your Claude Code session, paste the PROMPT.md URL and ask the agent to follow the instructions.
+
+    For richer ongoing integration, add the Phoenix MCP server:
+    ```bash
+    claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    Open Cursor's AI chat panel. Paste the PROMPT.md URL and instruct the agent to add Phoenix tracing.
+
+    For richer ongoing integration, add to `.cursor/mcp.json`:
+    ```json
+    {
+      "mcpServers": {
+        "phoenix-docs": {
+          "url": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="VS Code (Copilot)">
+    Open the Copilot chat panel. Paste the PROMPT.md URL and ask it to follow the instructions.
+
+    For richer ongoing integration, add to `.vscode/mcp.json`:
+    ```json
+    {
+      "servers": {
+        "phoenix-docs": {
+          "url": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Windsurf">
+    Open the Cascade panel. Paste the PROMPT.md URL and ask the agent to add Phoenix tracing.
+
+    For richer ongoing integration, add to `~/.codeium/windsurf/mcp_config.json`:
+    ```json
+    {
+      "mcpServers": {
+        "phoenix-docs": {
+          "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Validate Your Setup
+
+After the agent finishes:
+
+1. Run your application and trigger at least one LLM call
+2. Open Phoenix UI (local: http://localhost:6006, or your Phoenix Cloud URL)
+3. Navigate to the **Traces** view and verify traces appear under your project
+
+If no traces appear, check the [Troubleshooting FAQ](/docs/phoenix/resources/frequently-asked-questions).
