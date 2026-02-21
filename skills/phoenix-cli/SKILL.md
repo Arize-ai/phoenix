@@ -21,199 +21,6 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 
 Run `px --help` to see all commands. Run `px <command> --help` for command-specific flags.
 
-## `px api graphql` — Query the Phoenix GraphQL API
-
-The most flexible command. POST any GraphQL query directly to Phoenix. Output is `{"data": {...}}` JSON — pipe to `jq '.data.<field>'` to extract.
-
-Only queries are permitted. Mutations and subscriptions are rejected before hitting the server.
-
-### Discover available fields
-
-Always start with introspection when you don't know what's available:
-
-```bash
-# List all queryable root fields
-$ px api graphql '{ __schema { queryType { fields { name description } } } }' | \
-    jq '.data.__schema.queryType.fields[] | {name, description}'
-
-# Inspect fields of any type
-$ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | \
-    jq '.data.__type.fields[] | {name, type: .type.name}'
-```
-
-Key root query fields: `projects`, `datasets`, `experiments`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `serverStatus`, `viewer`.
-
-### Projects
-
-```bash
-$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal createdAt } } } }'
-{
-  "data": {
-    "projects": {
-      "edges": [
-        {
-          "node": {
-            "name": "default",
-            "traceCount": 1482,
-            "tokenCountTotal": 219083,
-            "createdAt": "2026-01-01T00:00:00+00:00"
-          }
-        }
-      ]
-    }
-  }
-}
-
-# Extract project names
-$ px api graphql '{ projects { edges { node { name } } } }' | \
-    jq -r '.data.projects.edges[].node.name'
-default
-```
-
-Project fields: `id`, `name`, `traceCount`, `recordCount`, `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `createdAt`, `updatedAt`, `spanAnnotationNames`, `traceAnnotationNames`.
-
-### Datasets
-
-```bash
-$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount createdAt } } } }' | \
-    jq '.data.datasets.edges[].node'
-{"name": "eval-golden-set", "exampleCount": 120, "experimentCount": 4, "createdAt": "..."}
-{"name": "rag-test-cases", "exampleCount": 50, "experimentCount": 1, "createdAt": "..."}
-
-# Get first N datasets
-$ px api graphql '{ datasets(first: 5) { edges { node { name exampleCount } } } }' | \
-    jq '.data.datasets.edges[].node'
-
-# Total count
-$ px api graphql '{ datasetCount }' | jq '.data.datasetCount'
-12
-```
-
-Dataset fields: `id`, `name`, `description`, `exampleCount`, `experimentCount`, `evaluatorCount`, `createdAt`, `updatedAt`, `metadata`.
-
-### Experiments
-
-Experiments are nested under datasets:
-
-```bash
-$ px api graphql '{
-  datasets {
-    edges {
-      node {
-        name
-        experiments {
-          edges {
-            node {
-              id
-              name
-              runCount
-              errorRate
-              averageRunLatencyMs
-              createdAt
-            }
-          }
-        }
-      }
-    }
-  }
-}' | jq '.data.datasets.edges[].node | {dataset: .name, experiments: [.experiments.edges[].node]}'
-
-# Find experiments with non-zero error rate
-$ px api graphql '{
-  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
-}' | jq '.. | objects | select(.errorRate? > 0) | {name, errorRate, runCount}'
-```
-
-Experiment fields: `id`, `name`, `runCount`, `errorRate`, `averageRunLatencyMs`, `projectName`, `createdAt`, `updatedAt`, `sequenceNumber`, `metadata`.
-
-### Experiment runs
-
-Drill into individual run outputs, errors, and trace IDs:
-
-```bash
-$ px api graphql '{
-  datasets(first: 1) {
-    edges {
-      node {
-        name
-        experiments(first: 1) {
-          edges {
-            node {
-              name
-              runs {
-                edges {
-                  node { traceId output error latencyMs }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
-{
-  "traceId": "b696d0aca0340f2aa8a4517cbe0ff36d",
-  "output": {"answer": "Moore's Law is the observation that..."},
-  "error": null,
-  "latencyMs": 1006
-}
-
-# Find failed runs across all datasets
-$ px api graphql '{
-  datasets { edges { node { experiments { edges { node {
-    name
-    runs { edges { node { error output traceId } } }
-  } } } } } }
-}' | jq '.. | objects | select(.error? != null) | {error, traceId}'
-```
-
-ExperimentRun fields: `id`, `traceId`, `output`, `error`, `latencyMs`, `startTime`, `endTime`, `repetitionNumber`.
-
-### Prompts
-
-```bash
-$ px api graphql '{ prompts { edges { node { name description createdAt } } } }' | \
-    jq '.data.prompts.edges[].node'
-
-$ px api graphql '{ promptCount }' | jq '.data.promptCount'
-```
-
-### Evaluators
-
-```bash
-$ px api graphql '{ evaluators { edges { node { name kind description isBuiltin } } } }' | \
-    jq '.data.evaluators.edges[].node'
-{"name": "correctness", "kind": "LLM", "description": "Evaluates answer correctness", "isBuiltin": true}
-
-$ px api graphql '{ evaluatorCount }' | jq '.data.evaluatorCount'
-```
-
-Evaluator fields: `id`, `name`, `kind`, `description`, `isBuiltin`, `createdAt`, `updatedAt`, `inputSchema`.
-
-### Quick instance summary
-
-```bash
-$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
-{
-  "data": {
-    "projectCount": 1,
-    "datasetCount": 12,
-    "promptCount": 3,
-    "evaluatorCount": 2
-  }
-}
-```
-
-### Server health
-
-```bash
-$ px api graphql '{ serverStatus { insufficientStorage } }' | jq '.data.serverStatus'
-{"insufficientStorage": false}
-```
-
----
-
 ## `px traces` — Fetch recent traces
 
 ```bash
@@ -327,6 +134,104 @@ px prompt my-evaluator --tag production --format text --no-progress
 
 # Pipe to an AI assistant
 px prompt my-evaluator --format text --no-progress | claude -p "Suggest improvements"
+```
+
+---
+
+## `px api graphql` — Query the Phoenix GraphQL API
+
+For cases not covered by the commands above. POST any GraphQL query directly to Phoenix. Output is `{"data": {...}}` JSON — pipe with `jq '.data.<field>'` to extract. Only queries are permitted; mutations and subscriptions are rejected.
+
+### Discover available fields
+
+```bash
+# List all queryable root fields
+$ px api graphql '{ __schema { queryType { fields { name description } } } }' | \
+    jq '.data.__schema.queryType.fields[] | {name, description}'
+
+# Inspect fields of any type
+$ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | \
+    jq '.data.__type.fields[] | {name, type: .type.name}'
+```
+
+Key root query fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `serverStatus`, `viewer`.
+
+### Projects
+
+```bash
+$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal createdAt } } } }' | \
+    jq '.data.projects.edges[].node'
+{"name": "default", "traceCount": 1482, "tokenCountTotal": 219083, "createdAt": "..."}
+```
+
+Project fields: `id`, `name`, `traceCount`, `recordCount`, `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `createdAt`, `updatedAt`, `spanAnnotationNames`, `traceAnnotationNames`.
+
+### Datasets
+
+```bash
+$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount createdAt } } } }' | \
+    jq '.data.datasets.edges[].node'
+{"name": "eval-golden-set", "exampleCount": 120, "experimentCount": 4, "createdAt": "..."}
+
+$ px api graphql '{ datasetCount }' | jq '.data.datasetCount'
+12
+```
+
+Dataset fields: `id`, `name`, `description`, `exampleCount`, `experimentCount`, `evaluatorCount`, `createdAt`, `updatedAt`, `metadata`.
+
+### Experiments
+
+```bash
+$ px api graphql '{
+  datasets {
+    edges {
+      node {
+        name
+        experiments {
+          edges {
+            node { id name runCount errorRate averageRunLatencyMs createdAt }
+          }
+        }
+      }
+    }
+  }
+}' | jq '.data.datasets.edges[].node | {dataset: .name, experiments: [.experiments.edges[].node]}'
+
+# Find experiments with non-zero error rate
+$ px api graphql '{
+  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
+}' | jq '.. | objects | select(.errorRate? > 0) | {name, errorRate, runCount}'
+```
+
+### Experiment runs
+
+```bash
+$ px api graphql '{
+  datasets(first: 1) {
+    edges { node { experiments(first: 1) { edges { node {
+      name
+      runs { edges { node { traceId output error latencyMs } } }
+    } } } } }
+  }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
+{"traceId": "b696d0ac...", "output": {"answer": "Moore's Law is..."}, "error": null, "latencyMs": 1006}
+```
+
+ExperimentRun fields: `id`, `traceId`, `output`, `error`, `latencyMs`, `startTime`, `endTime`.
+
+### Evaluators
+
+```bash
+$ px api graphql '{ evaluators { edges { node { name kind description isBuiltin } } } }' | \
+    jq '.data.evaluators.edges[].node'
+{"name": "correctness", "kind": "LLM", "description": "Evaluates answer correctness", "isBuiltin": true}
+```
+
+### Quick instance summary
+
+```bash
+$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+{"data": {"projectCount": 1, "datasetCount": 12, "promptCount": 3, "evaluatorCount": 2}}
 ```
 
 ---
