@@ -31,7 +31,7 @@ const counterCSS = css`
 export function Counter(props: CounterProps) {
   const { children, variant = "default" } = props;
   return (
-    <span css={counterCSS} data-variant={variant} className="ac-counter">
+    <span css={counterCSS} data-variant={variant} className="counter">
       {children}
     </span>
   );

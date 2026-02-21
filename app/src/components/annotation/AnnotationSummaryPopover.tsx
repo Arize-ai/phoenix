@@ -129,7 +129,7 @@ export function AnnotationSummaryPopover({
                         {filteredAnnotations.map((annotation) => (
                           <tr
                             css={css`
-                              padding-left: var(ac-global-dimensions-size-200);
+                              padding-left: var(--global-dimension-size-200);
                             `}
                             key={annotation.id}
                           >

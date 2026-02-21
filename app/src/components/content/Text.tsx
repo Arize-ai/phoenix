@@ -96,7 +96,7 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
 
   return (
     <AriaText
-      className={classNames("ac-text", `font-${fontFamily}`, className)}
+      className={classNames("text", `font-${fontFamily}`, className)}
       {...restProps}
       {...styleProps}
       css={css`

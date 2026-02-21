@@ -64,7 +64,7 @@ const tokenBaseCSS = css`
   user-select: none;
   max-width: var(--token-max-width);
 
-  .ac-token__text {
+  .token__text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -206,7 +206,7 @@ function Token(
     </button>
   ) : null;
 
-  const textContent = <span className="ac-token__text">{children}</span>;
+  const textContent = <span className="token__text">{children}</span>;
 
   const renderContent = () => {
     if (onPress && onRemove) {

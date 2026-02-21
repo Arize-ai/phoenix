@@ -22,7 +22,7 @@ export interface SearchFieldProps extends AriaSearchFieldProps, SizingProps {
 
  */
 export const SearchIcon = () => {
-  return <Icon className="ac-search-icon" svg={<Icons.Search />} />;
+  return <Icon className="search-field__icon" svg={<Icons.Search />} />;
 };
 
 const searchFieldCSS = css`
@@ -49,7 +49,7 @@ const searchFieldCSS = css`
     grid-area: label;
   }
 
-  .ac-search-icon {
+  .search-field__icon {
     grid-area: icon;
     position: absolute;
     left: var(--textfield-horizontal-padding);
@@ -77,7 +77,7 @@ const searchFieldCSS = css`
     grid-area: help;
   }
 
-  .ac-searchfield-clear {
+  .search-field__clear {
     grid-area: clear;
     position: absolute;
     /* account for clear button size */
@@ -112,7 +112,7 @@ const searchFieldCSS = css`
   }
 
   /* Left padding when icon present: inset + icon + gap (gap = inset) */
-  .ac-search-icon ~ .react-aria-Input {
+  .search-field__icon ~ .react-aria-Input {
     padding-left: calc(
       var(--textfield-horizontal-padding) * 2 + var(--searchfield-icon-size)
     ) !important;
@@ -126,7 +126,7 @@ const searchFieldCSS = css`
   }
 
   &[data-invalid="true"] {
-    .ac-search-icon {
+    .search-field__icon {
       color: var(--global-color-danger);
     }
   }
@@ -162,7 +162,7 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
     <AriaSearchField
       data-size={size}
       data-variant={variant}
-      className="ac-searchfield"
+      className="search-field"
       ref={ref}
       isReadOnly={isReadOnly}
       {...otherProps}
@@ -174,7 +174,7 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
           {!isReadOnly && (
             <Button
               slot="clear"
-              className="ac-searchfield-clear"
+              className="search-field__clear"
               data-empty={renderProps.isEmpty || undefined}
             >
               <Icon svg={<Icons.CloseOutline />} />

@@ -16,7 +16,7 @@ function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
   return (
     <AriaTextField
       data-size={size}
-      className="ac-textfield"
+      className="text-field"
       ref={ref}
       {...otherProps}
       css={css(fieldBaseCSS, textFieldCSS)}

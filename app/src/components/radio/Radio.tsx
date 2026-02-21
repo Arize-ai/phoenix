@@ -61,7 +61,7 @@ export const Radio = ({
 }: RadioProps & StylableProps) => {
   return (
     <AriaRadio
-      className={classNames("ac-radio", className)}
+      className={classNames("radio", className)}
       css={css(baseRadioCSS, cssProp)}
       {...props}
     />

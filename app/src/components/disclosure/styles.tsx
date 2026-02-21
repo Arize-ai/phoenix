@@ -12,7 +12,7 @@ export const disclosureGroupCSS = css`
   }
 
   // add border between items, only when child is expanded
-  > .ac-disclosure:not(:last-child) {
+  > .disclosure:not(:last-child) {
     &[data-expanded="true"] {
       border-bottom: 1px solid var(--global-border-color-default);
     }

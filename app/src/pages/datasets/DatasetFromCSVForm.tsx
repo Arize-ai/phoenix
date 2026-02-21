@@ -108,7 +108,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       <div
         css={css`
           padding: var(--global-dimension-size-200);
-          .ac-dropdown-button {
+          .dropdown__button {
             width: 100%;
           }
         `}

@@ -144,7 +144,7 @@ export const Skeleton = forwardRef<HTMLSpanElement, SkeletonProps>(
     return (
       <span
         ref={ref}
-        className={classNames(className, "ac-skeleton")}
+        className={classNames(className, "skeleton")}
         css={[
           skeletonStyles,
           animation === "pulse" && pulseAnimation,

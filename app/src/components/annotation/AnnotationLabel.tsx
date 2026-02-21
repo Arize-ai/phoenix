@@ -19,7 +19,7 @@ export const baseAnnotationLabelCSS = css`
       background-color: var(--global-color-gray-300);
     }
   }
-  .ac-icon-wrap {
+  .icon-wrap {
     font-size: 12px;
   }
 `;

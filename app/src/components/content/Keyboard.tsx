@@ -25,7 +25,7 @@ export const Keyboard = forwardRef(function Keyboard(
     <kbd
       ref={ref}
       css={keyboardCSS}
-      className={classNames("ac-keyboard", className)}
+      className={classNames("keyboard", className)}
       {...props}
     >
       {children}

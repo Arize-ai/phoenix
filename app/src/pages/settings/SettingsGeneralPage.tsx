@@ -24,7 +24,7 @@ import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGe
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
 const formCSS = css`
-  .ac-field {
+  .field {
     // Hacky solution to make the text fields fill the remaining space
     width: calc(100% - var(--global-dimension-size-600));
   }

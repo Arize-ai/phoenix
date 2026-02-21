@@ -20,7 +20,7 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       css={css`
         color: var(--global-text-color-500);
         cursor: pointer;
-        .ac-icon-wrap {
+        .icon-wrap {
           font-size: 1.2rem;
         }
 

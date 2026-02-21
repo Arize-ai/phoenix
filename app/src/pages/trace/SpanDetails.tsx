@@ -1454,16 +1454,16 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
           <DisclosureGroup
             css={css`
               width: 100%;
-              // when any .ac-disclosure-trigger is hovered, show the child .copy-to-clipboard-button
-              .ac-disclosure-trigger {
+              // when any .disclosure__trigger is hovered, show the child .copy-to-clipboard-button
+              .disclosure__trigger {
                 width: 100%;
                 .copy-to-clipboard-button {
                   visibility: hidden;
                 }
               }
-              .ac-disclosure-trigger:hover,
-              .ac-disclosure-trigger:focus-within,
-              .ac-disclosure-trigger:focus-visible {
+              .disclosure__trigger:hover,
+              .disclosure__trigger:focus-within,
+              .disclosure__trigger:focus-visible {
                 .copy-to-clipboard-button {
                   visibility: visible;
                 }

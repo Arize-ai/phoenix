@@ -43,7 +43,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
         </Alert>
         <div
           css={css`
-            .ac-field {
+            .field {
               width: 100%;
             }
           `}
