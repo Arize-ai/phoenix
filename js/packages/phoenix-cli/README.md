@@ -46,11 +46,11 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable | Description |
-|----------|-------------|
-| `PHOENIX_HOST` | Phoenix API endpoint |
-| `PHOENIX_PROJECT` | Project name or ID |
-| `PHOENIX_API_KEY` | API key (if auth is enabled) |
+| Variable                 | Description                   |
+| ------------------------ | ----------------------------- |
+| `PHOENIX_HOST`           | Phoenix API endpoint          |
+| `PHOENIX_PROJECT`        | Project name or ID            |
+| `PHOENIX_API_KEY`        | API key (if auth is enabled)  |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
 
 ## Commands
@@ -184,15 +184,15 @@ px traces --last-n-minutes 60 --limit 20     # filter by time window
 px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `[directory]` | Save traces as JSON files to directory | stdout |
-| `-n, --limit <number>` | Number of traces (newest first) | 10 |
-| `--last-n-minutes <number>` | Only traces from the last N minutes | — |
-| `--since <timestamp>` | Traces since ISO timestamp | — |
-| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
-| `--no-progress` | Suppress progress output | — |
-| `--include-annotations` | Include span annotations | — |
+| Option                      | Description                            | Default  |
+| --------------------------- | -------------------------------------- | -------- |
+| `[directory]`               | Save traces as JSON files to directory | stdout   |
+| `-n, --limit <number>`      | Number of traces (newest first)        | 10       |
+| `--last-n-minutes <number>` | Only traces from the last N minutes    | —        |
+| `--since <timestamp>`       | Traces since ISO timestamp             | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
+| `--no-progress`             | Suppress progress output               | —        |
+| `--include-annotations`     | Include span annotations               | —        |
 
 ```bash
 # Find ERROR traces
@@ -289,10 +289,10 @@ px prompt my-evaluator --format text --no-progress | claude -p "Review this prom
 px prompt my-evaluator --tag production --format json | jq '.template'
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--tag <name>` | Get version by tag | — |
-| `--version <id>` | Get specific version | latest |
+| Option              | Description                        | Default  |
+| ------------------- | ---------------------------------- | -------- |
+| `--tag <name>`      | Get version by tag                 | —        |
+| `--version <id>`    | Get specific version               | latest   |
 | `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
 
 ---
@@ -313,18 +313,20 @@ Trace JSON structure:
   "traceId": "abc123def456",
   "status": "OK",
   "duration": 1250,
-  "spans": [{
-    "name": "chat_completion",
-    "span_kind": "LLM",
-    "status_code": "OK",
-    "attributes": {
-      "llm.model_name": "gpt-4",
-      "llm.token_count.prompt": 512,
-      "llm.token_count.completion": 256,
-      "input.value": "What is the weather?",
-      "output.value": "The weather is sunny..."
+  "spans": [
+    {
+      "name": "chat_completion",
+      "span_kind": "LLM",
+      "status_code": "OK",
+      "attributes": {
+        "llm.model_name": "gpt-4",
+        "llm.token_count.prompt": 512,
+        "llm.token_count.completion": 256,
+        "input.value": "What is the weather?",
+        "output.value": "The weather is sunny..."
+      }
     }
-  }]
+  ]
 }
 ```
 
