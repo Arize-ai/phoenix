@@ -5,6 +5,9 @@ import { Logger } from "../types/logger";
  */
 export const noopLogger = {
   info: () => undefined,
+  warn: () => undefined,
   error: () => undefined,
   log: () => undefined,
+  debug: () => undefined,
+  table: () => undefined,
 } satisfies Logger;
