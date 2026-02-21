@@ -140,24 +140,6 @@ export function logExperimentResumeSummary(
 }
 
 /**
- * Log experiment resume links block.
- */
-export function logExperimentResumeLinks(
-  logger: Logger,
-  {
-    experimentsUrl,
-    experimentUrl,
-  }: {
-    experimentsUrl: string;
-    experimentUrl: string;
-  }
-): void {
-  logger.info("\nLinks");
-  logger.info(`  Experiments  ${experimentsUrl}`);
-  logger.info(`  Experiment   ${experimentUrl}`);
-}
-
-/**
  * Log evaluation resume summary table.
  * Outputs a header + a single-row table keyed as "summary".
  */
