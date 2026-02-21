@@ -6,9 +6,9 @@ import type { ExperimentEvaluationRun } from "../types/experiments";
  * e.g. "[start] Tasks (3 examples × 1 repetition)"
  */
 export const PROGRESS_PREFIX = {
-  start: "[start]",
-  progress: "[progress]",
-  completed: "[completed]",
+  start: "[start] ",
+  progress: "[progress] ",
+  completed: "[completed] ",
 } as const;
 
 /**
