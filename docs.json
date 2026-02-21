@@ -71,6 +71,7 @@
                   }
                 ]
               },
+              "docs/phoenix/agent-assisted-setup",
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo"
             ]
