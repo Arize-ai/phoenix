@@ -15,12 +15,12 @@ export function getTemplateVariables(args: GetTemplateVariableArgs): string[] {
   if (typeof template === "string") {
     return getTemplateVariablesFromString(template);
   }
-  return template.reduce((acc, message) => {
+  return template.reduce<string[]>((acc, message) => {
     if (message.content !== undefined && typeof message.content === "string") {
       return [...acc, ...getTemplateVariablesFromString(message.content)];
     }
     return acc;
-  }, [] as string[]);
+  }, []);
 }
 /**
  * Parse out the template variables of a string template
@@ -29,11 +29,11 @@ export function getTemplateVariables(args: GetTemplateVariableArgs): string[] {
  */
 function getTemplateVariablesFromString(template: string): string[] {
   const templateSpans = Mustache.parse(template);
-  return templateSpans.reduce((acc, templateSpan) => {
+  return templateSpans.reduce<string[]>((acc, templateSpan) => {
     const [spanType, value] = templateSpan;
     if (spanType === "name" && typeof value === "string") {
       acc = [...acc, value];
     }
     return acc;
-  }, [] as string[]);
+  }, []);
 }

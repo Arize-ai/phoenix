@@ -92,15 +92,14 @@ export const objectToInvocationParameters = (
   // so we'll use the invocation name as the key
   const invocationParameterDefinitionMap =
     supportedInvocationParameters.length > 0
-      ? supportedInvocationParameters.reduce(
-          (acc, curr) => {
-            if (curr.invocationName) {
-              acc[curr.invocationName] = curr;
-            }
-            return acc;
-          },
-          {} as Record<string, (typeof supportedInvocationParameters)[number]>
-        )
+      ? supportedInvocationParameters.reduce<
+          Record<string, (typeof supportedInvocationParameters)[number]>
+        >((acc, curr) => {
+          if (curr.invocationName) {
+            acc[curr.invocationName] = curr;
+          }
+          return acc;
+        }, {})
       : {};
   // now we'll map the incoming invocation parameters to the supported invocation parameters
   // we'll use the invocation name as the key
@@ -325,53 +324,51 @@ export const invocationParametersToObject = (
 ) => {
   const invocationParameterDefinitionMap =
     supportedInvocationParameters.length > 0
-      ? supportedInvocationParameters.reduce(
-          (acc, curr) => {
-            if (curr.canonicalName || curr.invocationName) {
-              acc[(curr.canonicalName || curr.invocationName) as string] = curr;
-            }
-            return acc;
-          },
-          {} as Record<string, (typeof supportedInvocationParameters)[number]>
-        )
+      ? supportedInvocationParameters.reduce<
+          Record<string, (typeof supportedInvocationParameters)[number]>
+        >((acc, curr) => {
+          if (curr.canonicalName || curr.invocationName) {
+            acc[(curr.canonicalName || curr.invocationName) as string] = curr;
+          }
+          return acc;
+        }, {})
       : {};
-  return invocationParameters.reduce(
-    (acc, curr) => {
-      const definition =
-        invocationParameterDefinitionMap[
-          curr.canonicalName || curr.invocationName
-        ];
-      if (definition) {
-        acc[curr.invocationName] =
-          curr[
-            toCamelCase(
-              definition.invocationInputField as string
-            ) as keyof typeof curr
-          ];
-      } else {
-        // If no definition is found, preserve the parameter value
-        // This ensures parameters like reasoning_effort are not lost
-        // when supported parameters haven't been fetched yet
-        const value =
-          curr.valueString ??
-          curr.valueInt ??
-          curr.valueFloat ??
-          curr.valueBool ??
-          curr.valueBoolean ??
-          curr.valueJson ??
-          curr.valueStringList ??
-          null;
-        if (value !== null) {
-          acc[curr.invocationName] = value;
-        }
-      }
-      return acc;
-    },
-    {} as Record<
+  return invocationParameters.reduce<
+    Record<
       string,
       string | number | boolean | null | Record<string, unknown> | unknown[]
     >
-  );
+  >((acc, curr) => {
+    const definition =
+      invocationParameterDefinitionMap[
+        curr.canonicalName || curr.invocationName
+      ];
+    if (definition) {
+      acc[curr.invocationName] =
+        curr[
+          toCamelCase(
+            definition.invocationInputField as string
+          ) as keyof typeof curr
+        ];
+    } else {
+      // If no definition is found, preserve the parameter value
+      // This ensures parameters like reasoning_effort are not lost
+      // when supported parameters haven't been fetched yet
+      const value =
+        curr.valueString ??
+        curr.valueInt ??
+        curr.valueFloat ??
+        curr.valueBool ??
+        curr.valueBoolean ??
+        curr.valueJson ??
+        curr.valueStringList ??
+        null;
+      if (value !== null) {
+        acc[curr.invocationName] = value;
+      }
+    }
+    return acc;
+  }, {});
 };
 
 const HIDDEN_INVOCATION_PARAMETERS = [

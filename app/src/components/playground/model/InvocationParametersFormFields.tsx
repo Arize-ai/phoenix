@@ -345,21 +345,18 @@ export const InvocationParametersFormFields = ({
             )
           )
       )
-      .reduce(
-        (acc, field) => {
-          const existingParameter = instanceInvocationParameters.find((p) =>
-            areInvocationParamsEqual(p, field)
-          );
-          const value = existingParameter
-            ? getInvocationParameterValue(field, existingParameter)
-            : undefined;
-          return {
-            ...acc,
-            [field.invocationName!]: value ?? null,
-          };
-        },
-        {} as Record<string, unknown>
-      );
+      .reduce<Record<string, unknown>>((acc, field) => {
+        const existingParameter = instanceInvocationParameters.find((p) =>
+          areInvocationParamsEqual(p, field)
+        );
+        const value = existingParameter
+          ? getInvocationParameterValue(field, existingParameter)
+          : undefined;
+        return {
+          ...acc,
+          [field.invocationName!]: value ?? null,
+        };
+      }, {});
   }, [instanceInvocationParameters, supportedInvocationParameterDefinitions]);
 
   // Mirror the form state in react-hook-form so that we can use the validation and error state

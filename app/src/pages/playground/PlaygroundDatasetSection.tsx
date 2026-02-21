@@ -112,20 +112,19 @@ export function PlaygroundDatasetSection({
       .filter((datasetEvaluator) =>
         selectedDatasetEvaluatorIds.includes(datasetEvaluator.id)
       )
-      .reduce(
-        (acc, datasetEvaluator) => {
-          acc[datasetEvaluator.id] = {
-            name: datasetEvaluator.name,
-            inputMapping:
-              datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
-          };
-          return acc;
-        },
-        {} as Record<
+      .reduce<
+        Record<
           string,
           { name: string; inputMapping: EvaluatorInputMappingInput }
         >
-      );
+      >((acc, datasetEvaluator) => {
+        acc[datasetEvaluator.id] = {
+          name: datasetEvaluator.name,
+          inputMapping:
+            datasetEvaluator.inputMapping as Mutable<EvaluatorInputMappingInput>,
+        };
+        return acc;
+      }, {});
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
   const evaluatorOutputConfigs = useMemo(() => {
     const selectedEvaluators = datasetEvaluators.filter((datasetEvaluator) =>

@@ -347,12 +347,12 @@ export function ExperimentCompareListPage({
   }, [aggregateData?.dataset.datasetEvaluators?.edges]);
 
   const annotationConfigsByName = useMemo(() => {
-    return annotationConfigs.reduce(
+    return annotationConfigs.reduce<Record<string, AnnotationConfig>>(
       (acc, config) => {
         acc[config.name] = config;
         return acc;
       },
-      {} as Record<string, AnnotationConfig>
+      {}
     );
   }, [annotationConfigs]);
 
