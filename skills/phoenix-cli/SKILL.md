@@ -9,7 +9,16 @@ metadata:
 
 # Phoenix CLI
 
-The Phoenix CLI (`px`) gives you command-line access to your Phoenix observability data. Every command outputs JSON, designed to be piped to `jq` or read directly.
+The Phoenix CLI gives you command-line access to your Phoenix observability data. Every command outputs JSON, designed to be piped to `jq` or read directly.
+
+## Invocation
+
+```bash
+px <command>                          # if installed globally (npm install -g @arizeai/phoenix-cli)
+npx @arizeai/phoenix-cli <command>    # no install required
+```
+
+`npx` is the simplest option — no setup needed. Substitute `npx @arizeai/phoenix-cli` for `px` in any example below.
 
 ## Setup
 
