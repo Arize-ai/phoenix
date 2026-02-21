@@ -12,7 +12,6 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["@emotion/react/types/css-prop", "vitest/globals"],
-    "baseUrl": "./src",
     "plugins": [
       {
         "name": "ts-plugin-sort-import-suggestions",
@@ -29,7 +28,7 @@
       }
     ],
     "paths": {
-      "@phoenix/*": ["*"]
+      "@phoenix/*": ["./src/*"]
     }
   }
 }

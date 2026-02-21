@@ -93,25 +93,50 @@ jobs:
 
       - name: Check typescript version consistency
         run: |
-          APP_VERSION=$(jq -r '.devDependencies.typescript // empty' app/package.json)
-          JS_VERSION=$(jq -r '.devDependencies.typescript // empty' js/package.json)
+          APP_VERSION=$(jq -r '.devDependencies["@typescript/native-preview"] // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies["@typescript/native-preview"] // empty' js/package.json)
 
-          echo "app/package.json: typescript@$APP_VERSION"
-          echo "js/package.json: typescript@$JS_VERSION"
+          echo "app/package.json: @typescript/native-preview@$APP_VERSION"
+          echo "js/package.json: @typescript/native-preview@$JS_VERSION"
 
           if [ -z "$APP_VERSION" ]; then
-            echo "::error::app/package.json is missing typescript in devDependencies"
+            echo "::error::app/package.json is missing @typescript/native-preview in devDependencies"
             exit 1
           fi
 
           if [ -z "$JS_VERSION" ]; then
-            echo "::error::js/package.json is missing typescript in devDependencies"
+            echo "::error::js/package.json is missing @typescript/native-preview in devDependencies"
             exit 1
           fi
 
           if [ "$APP_VERSION" != "$JS_VERSION" ]; then
-            echo "::error::typescript versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            echo "::error::@typescript/native-preview versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
             exit 1
           fi
 
-          echo "typescript versions are consistent: $APP_VERSION"
+          echo "@typescript/native-preview versions are consistent: $APP_VERSION"
+
+      - name: Check oxlint-tsgolint version consistency
+        run: |
+          APP_VERSION=$(jq -r '.devDependencies["oxlint-tsgolint"] // empty' app/package.json)
+          JS_VERSION=$(jq -r '.devDependencies["oxlint-tsgolint"] // empty' js/package.json)
+
+          echo "app/package.json: oxlint-tsgolint@$APP_VERSION"
+          echo "js/package.json: oxlint-tsgolint@$JS_VERSION"
+
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::app/package.json is missing oxlint-tsgolint in devDependencies"
+            exit 1
+          fi
+
+          if [ -z "$JS_VERSION" ]; then
+            echo "::error::js/package.json is missing oxlint-tsgolint in devDependencies"
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$JS_VERSION" ]; then
+            echo "::error::oxlint-tsgolint versions do not match! app/package.json has $APP_VERSION, js/package.json has $JS_VERSION"
+            exit 1
+          fi
+
+          echo "oxlint-tsgolint versions are consistent: $APP_VERSION"

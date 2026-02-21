@@ -34,7 +34,7 @@ Is the answer above factual or hallucinated based on the query and reference tex
 `;
 
 async function main() {
-  const evaluator = await createClassificationEvaluator({
+  const evaluator = createClassificationEvaluator({
     name: "hallucination",
     model,
     choices: { factual: 1, hallucinated: 0 },

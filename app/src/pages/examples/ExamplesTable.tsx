@@ -127,20 +127,17 @@ export function ExamplesTable({
           >,
         }))
         .filter((example) => selectedExampleIds.includes(example.id))
-        .reduce((acc, example) => {
+        .reduce<ExamplesCache>((acc, example) => {
           acc[example.id] = example;
           return acc;
-        }, {} as ExamplesCache)
+        }, {})
     );
   }, [data, selectedExampleIds, setExamplesCache]);
   const rowSelection = useMemo(() => {
-    return selectedExampleIds.reduce(
-      (acc, id) => {
-        acc[id] = true;
-        return acc;
-      },
-      {} as Record<string, boolean>
-    );
+    return selectedExampleIds.reduce<Record<string, boolean>>((acc, id) => {
+      acc[id] = true;
+      return acc;
+    }, {});
   }, [selectedExampleIds]);
   const setRowSelection = useCallback(
     (rowSelection: Updater<Record<string, boolean>>) => {
@@ -148,13 +145,10 @@ export function ExamplesTable({
         if (typeof rowSelection === "function") {
           return Object.keys(
             rowSelection(
-              prevSelection.reduce(
-                (acc, id) => {
-                  acc[id] = true;
-                  return acc;
-                },
-                {} as Record<string, boolean>
-              )
+              prevSelection.reduce<Record<string, boolean>>((acc, id) => {
+                acc[id] = true;
+                return acc;
+              }, {})
             )
           );
         }

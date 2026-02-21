@@ -221,10 +221,10 @@ export const Slider = forwardRef(_Slider) as <T extends number | number[]>(
   props: SliderProps<T> & { ref?: React.Ref<HTMLDivElement> }
 ) => ReturnType<typeof _Slider>;
 
-export function SliderNumberField({
+export const SliderNumberField = ({
   onChange: _onChange,
   ...props
-}: NumberFieldProps) {
+}: NumberFieldProps) => {
   const sliderState = useContext(SliderStateContext)!;
   const { step, getThumbMinValue, getThumbMaxValue, values, setThumbValue } =
     sliderState;
@@ -257,7 +257,7 @@ export function SliderNumberField({
       <Input />
     </NumberField>
   );
-}
+};
 
 function SliderTextField() {
   const state = useContext(SliderStateContext)!;

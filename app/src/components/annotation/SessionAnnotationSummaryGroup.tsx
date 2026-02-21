@@ -77,7 +77,7 @@ const useSessionAnnotationSummaryGroup = (
   // newest first - sessions don't have createdAt on annotations
   const annotationsByName = useMemo(
     () =>
-      sessionAnnotations.reduce(
+      sessionAnnotations.reduce<Record<string, typeof sessionAnnotations>>(
         (acc, annotation) => {
           if (annotation.label == null && annotation.score == null) {
             return acc;
@@ -89,21 +89,20 @@ const useSessionAnnotationSummaryGroup = (
           }
           return acc;
         },
-        {} as Record<string, typeof sessionAnnotations>
+        {}
       ),
     [sessionAnnotations]
   );
   const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce(
-      (acc, edge) => {
-        const name = edge.node.name;
-        if (name && edge.node.annotationType === "CATEGORICAL") {
-          acc[name] = edge.node as AnnotationConfigCategorical;
-        }
-        return acc;
-      },
-      {} as Record<string, AnnotationConfigCategorical>
-    );
+    return data.project.annotationConfigs.edges.reduce<
+      Record<string, AnnotationConfigCategorical>
+    >((acc, edge) => {
+      const name = edge.node.name;
+      if (name && edge.node.annotationType === "CATEGORICAL") {
+        acc[name] = edge.node as AnnotationConfigCategorical;
+      }
+      return acc;
+    }, {});
   }, [data.project.annotationConfigs]);
   return {
     sortedSummariesByName,

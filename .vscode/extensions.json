@@ -12,6 +12,7 @@
     "graphql.vscode-graphql-syntax",
 
     "oxc.oxc-vscode",
+    "TypeScriptTeam.native-preview",
     "meta.relay",
     "github.vscode-pull-request-github",
     "ms-playwright.playwright",
