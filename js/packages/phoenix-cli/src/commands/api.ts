@@ -4,12 +4,12 @@ import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput } from "../io";
 
 /**
- * Returns true if the query string is a GraphQL mutation.
+ * Returns true if the query string is a GraphQL mutation or subscription.
  * Strips # comments first to avoid false positives.
  */
-export function isMutation({ query }: { query: string }): boolean {
+export function isNonQuery({ query }: { query: string }): boolean {
   const stripped = query.replace(/#[^\n]*/g, "");
-  return /^\s*mutation[\s({]/m.test(stripped);
+  return /^\s*(mutation|subscription)[\s({]/m.test(stripped);
 }
 
 interface ApiGraphqlOptions {
@@ -22,10 +22,11 @@ async function apiGraphqlHandler(
   options: ApiGraphqlOptions
 ): Promise<void> {
   try {
-    // 1. Reject mutations
-    if (isMutation({ query })) {
+    // 1. Reject mutations and subscriptions
+    if (isNonQuery({ query })) {
       writeError({
-        message: "Error: Mutations are not allowed. Only queries are permitted.",
+        message:
+          "Error: Only queries are permitted. Mutations and subscriptions are not allowed.",
       });
       process.exit(1);
     }
@@ -84,7 +85,7 @@ async function apiGraphqlHandler(
     // Always write full response to stdout (2-space indent, pipeable)
     writeOutput({ message: JSON.stringify(json, null, 2) });
 
-    if (json.errors && json.errors.length > 0 && json.data === undefined) {
+    if (json.errors && json.errors.length > 0 && json.data == null) {
       process.exit(1);
     }
   } catch (error) {
