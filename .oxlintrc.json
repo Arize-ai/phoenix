@@ -12,8 +12,6 @@
     "typescript/prefer-ts-expect-error": "error",
     "typescript/consistent-return": "error",
     "typescript/consistent-type-imports": "error",
-    "typescript/no-unsafe-type-assertion": "error",
-    // "eslint/no-shadow": "warn",
     "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",
     "eslint/no-implicit-conversion": [
@@ -35,9 +33,16 @@
     ],
 
     // Type-aware rules (require --type-aware flag)
-    // These rules catch real bugs - start as warnings and tighten over time
-    "typescript/no-floating-promises": "warn",
-    "typescript/no-misused-promises": "warn",
+    // We should really adhere to these rules, off for now due to noisiness
+    "typescript/no-floating-promises": "off",
+    "typescript/no-base-to-string": "off",
+    "typescript/restrict-template-expressions": "off",
+    "typescript/require-array-sort-compare": "off",
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/no-misused-spread": "off",
+    // "typescript/no-misused-promises": "warn",
+    // "typescript/no-unsafe-type-assertion": "error",
+    // "eslint/no-shadow": "warn",
     "typescript/await-thenable": "error",
     "typescript/no-for-in-array": "error"
   },

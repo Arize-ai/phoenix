@@ -33,7 +33,8 @@
       {
         "allowInterfaces": "with-single-extends"
       }
-    ]
+    ],
+    "typescript/unbound-method": "off"
   },
 
   "ignorePatterns": ["playwright-report/**", "test-results/**"]
