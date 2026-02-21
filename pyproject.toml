@@ -100,7 +100,6 @@ dev = [
   "grpcio",
   "httpx",
   "httpx-ws",
-  "hypothesis-jsonschema>=0.23.1",
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15",
