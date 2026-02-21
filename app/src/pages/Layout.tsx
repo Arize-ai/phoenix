@@ -21,7 +21,7 @@ import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
-import { LayoutLoaderData } from "./layoutLoader";
+import type { LayoutLoaderData } from "./layoutLoader";
 
 const layoutCSS = css`
   display: flex;
