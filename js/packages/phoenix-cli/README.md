@@ -22,7 +22,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-cli/README.md" />
 </p>
 
-A command-line interface for [Arize Phoenix](https://github.com/Arize-ai/phoenix). Fetch traces, list datasets, and export experiment results directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+A command-line interface for [Arize Phoenix](https://github.com/Arize-ai/phoenix). Fetch traces, inspect datasets, query experiments, and access the full GraphQL API—all from your terminal. Output is JSON, designed to be piped to `jq` or read by AI coding agents.
 
 ## Installation
 
@@ -36,267 +36,299 @@ Or run directly with npx:
 npx @arizeai/phoenix-cli
 ```
 
-## Quick Start
+## Configuration
 
 ```bash
-# Configure your Phoenix instance
 export PHOENIX_HOST=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
-
-# Fetch the most recent trace
-px traces --limit 1
-
-# Fetch a specific trace by ID
-px trace abc123def456
-
-# Export traces to a directory
-px traces ./my-traces --limit 50
 ```
 
-## Environment Variables
+CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable                 | Description                                          |
-| ------------------------ | ---------------------------------------------------- |
-| `PHOENIX_HOST`           | Phoenix API endpoint (e.g., `http://localhost:6006`) |
-| `PHOENIX_PROJECT`        | Project name or ID                                   |
-| `PHOENIX_API_KEY`        | API key for authentication (if required)             |
-| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string                        |
-
-CLI flags take priority over environment variables.
+| Variable | Description |
+|----------|-------------|
+| `PHOENIX_HOST` | Phoenix API endpoint |
+| `PHOENIX_PROJECT` | Project name or ID |
+| `PHOENIX_API_KEY` | API key (if auth is enabled) |
+| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
 
 ## Commands
 
-### `px projects`
+### `px api graphql <query>`
 
-List all available projects.
+Make authenticated GraphQL queries against the Phoenix API. Output is pretty-printed JSON. Only queries are permitted — mutations and subscriptions are rejected.
 
 ```bash
-px projects
-px projects --format raw  # JSON output for piping
+px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
 ```
+
+Use introspection to discover what fields are available:
+
+```bash
+$ px api graphql '{ __schema { queryType { fields { name } } } }' | jq '.data.__schema.queryType.fields[].name'
+"projects"
+"datasets"
+"experiments"
+"prompts"
+"evaluators"
+"projectCount"
+"datasetCount"
+...
+```
+
+Inspect any type's fields:
+
+```bash
+$ px api graphql '{ __type(name: "Experiment") { fields { name type { name } } } }' | \
+    jq '.data.__type.fields[] | {name, type: .type.name}'
+{"name":"id","type":"ID"}
+{"name":"name","type":"String"}
+{"name":"runCount","type":"Int"}
+{"name":"errorRate","type":"Float"}
+{"name":"averageRunLatencyMs","type":"Float"}
+...
+```
+
+**Projects:**
+
+```bash
+$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }'
+{
+  "data": {
+    "projects": {
+      "edges": [
+        { "node": { "name": "default", "traceCount": 1482, "tokenCountTotal": 219083 } }
+      ]
+    }
+  }
+}
+
+$ px api graphql '{ projects { edges { node { name traceCount } } } }' | \
+    jq '.data.projects.edges[].node'
+{"name": "default", "traceCount": 1482}
+```
+
+**Datasets:**
+
+```bash
+$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | \
+    jq '.data.datasets.edges[].node'
+{"name": "eval-golden-set", "exampleCount": 120, "experimentCount": 4}
+{"name": "rag-test-cases", "exampleCount": 50, "experimentCount": 1}
+
+$ px api graphql '{ datasetCount }'
+{"data": {"datasetCount": 12}}
+```
+
+**Experiments:**
+
+```bash
+# List experiments per dataset with error rate and avg latency
+$ px api graphql '{
+  datasets {
+    edges {
+      node {
+        name
+        experiments {
+          edges {
+            node { name runCount errorRate averageRunLatencyMs }
+          }
+        }
+      }
+    }
+  }
+}' | jq '.data.datasets.edges[].node | {dataset: .name, experiments: [.experiments.edges[].node]}'
+
+# Find experiments with failures
+$ px api graphql '{
+  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
+}' | jq '.. | objects | select(.errorRate? > 0) | {name, errorRate, runCount}'
+
+# Inspect individual run outputs
+$ px api graphql '{
+  datasets(first: 1) {
+    edges { node { experiments(first: 1) { edges { node {
+      name
+      runs { edges { node { traceId output error latencyMs } } }
+    } } } } }
+  }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
+```
+
+**Counts at a glance:**
+
+```bash
+$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+{
+  "data": {
+    "projectCount": 1,
+    "datasetCount": 12,
+    "promptCount": 3,
+    "evaluatorCount": 2
+  }
+}
+```
+
+---
 
 ### `px traces [directory]`
 
-Fetch recent traces from the configured project.
+Fetch recent traces from the configured project. All output is JSON.
 
 ```bash
-px traces --limit 10                          # Output to stdout
-px traces ./my-traces --limit 10              # Save to directory
-px traces --last-n-minutes 60 --limit 20      # Filter by time
-px traces --since 2026-01-13T10:00:00Z        # Since timestamp
-px traces --format raw --no-progress | jq     # Pipe to jq
+px traces --limit 10                          # stdout (pretty)
+px traces --format raw --no-progress | jq    # pipe-friendly compact JSON
+px traces ./my-traces --limit 50             # save as JSON files to directory
+px traces --last-n-minutes 60 --limit 20     # filter by time window
+px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
 ```
 
-| Option                      | Description                               | Default  |
-| --------------------------- | ----------------------------------------- | -------- |
-| `[directory]`               | Save traces as JSON files to directory    | stdout   |
-| `-n, --limit <number>`      | Number of traces to fetch (newest first)  | 10       |
-| `--last-n-minutes <number>` | Only fetch traces from the last N minutes | —        |
-| `--since <timestamp>`       | Fetch traces since ISO timestamp          | —        |
-| `--format <format>`         | `pretty`, `json`, or `raw`                | `pretty` |
-| `--no-progress`             | Disable progress output                   | —        |
-| `--include-annotations`     | Include span annotations in trace export  | —        |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[directory]` | Save traces as JSON files to directory | stdout |
+| `-n, --limit <number>` | Number of traces (newest first) | 10 |
+| `--last-n-minutes <number>` | Only traces from the last N minutes | — |
+| `--since <timestamp>` | Traces since ISO timestamp | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Suppress progress output | — |
+| `--include-annotations` | Include span annotations | — |
+
+```bash
+# Find ERROR traces
+px traces --limit 50 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+
+# Sort by duration, take top 5 slowest
+px traces --limit 20 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
+
+# Extract LLM model names used
+px traces --limit 50 --format raw --no-progress | \
+  jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
+```
+
+---
 
 ### `px trace <trace-id>`
 
-Fetch a specific trace by ID.
+Fetch a single trace by ID.
 
 ```bash
 px trace abc123def456
-px trace abc123def456 --file trace.json      # Save to file
-px trace abc123def456 --format raw | jq      # Pipe to jq
+px trace abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
+px trace abc123def456 --file trace.json
 ```
 
-| Option                  | Description                              | Default  |
-| ----------------------- | ---------------------------------------- | -------- |
-| `--file <path>`         | Save to file instead of stdout           | stdout   |
-| `--format <format>`     | `pretty`, `json`, or `raw`               | `pretty` |
-| `--include-annotations` | Include span annotations in trace export | —        |
+---
 
 ### `px datasets`
 
-List all available datasets.
+List all datasets.
 
 ```bash
-px datasets
-px datasets --format json                    # JSON output
-px datasets --format raw --no-progress | jq  # Pipe to jq
+px datasets --format raw --no-progress | jq '.[].name'
 ```
 
-| Option              | Description                | Default  |
-| ------------------- | -------------------------- | -------- |
-| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
-| `--limit <number>`  | Maximum number of datasets | —        |
+---
 
 ### `px dataset <dataset-identifier>`
 
 Fetch examples from a dataset.
 
 ```bash
-px dataset query_response                        # Fetch all examples
-px dataset query_response --split train          # Filter by split
-px dataset query_response --split train --split test  # Multiple splits
-px dataset query_response --version <version-id> # Specific version
-px dataset query_response --file dataset.json    # Save to file
-px dataset query_response --format raw | jq '.examples[].input'
+px dataset my-dataset --format raw | jq '.examples[].input'
+px dataset my-dataset --split train --split test
+px dataset my-dataset --version <version-id>
+px dataset my-dataset --file dataset.json
 ```
 
-| Option           | Description                              | Default  |
-| ---------------- | ---------------------------------------- | -------- |
-| `--split <name>` | Filter by split (can be used repeatedly) | —        |
-| `--version <id>` | Fetch from specific dataset version      | latest   |
-| `--file <path>`  | Save to file instead of stdout           | stdout   |
-| `--format <fmt>` | `pretty`, `json`, or `raw`               | `pretty` |
+---
 
 ### `px experiments --dataset <name-or-id>`
 
-List experiments for a dataset, optionally exporting full data to files.
+List experiments for a dataset.
 
 ```bash
-px experiments --dataset my-dataset                 # List experiments
-px experiments --dataset my-dataset --format json   # JSON output
-px experiments --dataset my-dataset ./experiments   # Export to directory
+px experiments --dataset my-dataset --format raw --no-progress | \
+  jq '.[] | {id, successful_run_count, failed_run_count}'
 ```
 
-| Option                   | Description                               | Default  |
-| ------------------------ | ----------------------------------------- | -------- |
-| `--dataset <name-or-id>` | Dataset name or ID (required)             | —        |
-| `[directory]`            | Export experiment JSON files to directory | stdout   |
-| `--format <format>`      | `pretty`, `json`, or `raw`                | `pretty` |
-| `--limit <number>`       | Maximum number of experiments             | —        |
+---
 
 ### `px experiment <experiment-id>`
 
-Fetch a single experiment with all run data.
+Fetch a single experiment with all run data (inputs, outputs, evaluations, trace IDs).
 
 ```bash
-px experiment RXhwZXJpbWVudDox
-px experiment RXhwZXJpbWVudDox --file exp.json   # Save to file
-px experiment RXhwZXJpbWVudDox --format json     # JSON output
+# Find failed runs
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '.[] | select(.error != null) | {input, error}'
+
+# Average latency
+px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+  jq '[.[].latency_ms] | add / length'
 ```
 
-| Option              | Description                    | Default  |
-| ------------------- | ------------------------------ | -------- |
-| `--file <path>`     | Save to file instead of stdout | stdout   |
-| `--format <format>` | `pretty`, `json`, or `raw`     | `pretty` |
+---
 
-## Output Formats
+### `px prompts`
 
-**`pretty`** (default) — Human-readable tree view:
+List all prompts.
 
-```
-┌─ Trace: abc123def456
-│
-│  Input: What is the weather in San Francisco?
-│  Output: The weather is currently sunny...
-│
-│  Spans:
-│  └─ ✓ agent_run (CHAIN) - 1250ms
-│     ├─ ✓ llm_call (LLM) - 800ms
-│     └─ ✓ tool_execution (TOOL) - 400ms
-└─
+```bash
+px prompts --format raw --no-progress | jq '.[].name'
 ```
 
-**`json`** — Formatted JSON with indentation.
+---
 
-**`raw`** — Compact JSON for piping to `jq` or other tools.
+### `px prompt <prompt-identifier>`
 
-## JSON Structure
+Fetch a prompt. The `text` format is ideal for piping to AI assistants.
+
+```bash
+px prompt my-evaluator --format text --no-progress | claude -p "Review this prompt"
+px prompt my-evaluator --tag production --format json | jq '.template'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--tag <name>` | Get version by tag | — |
+| `--version <id>` | Get specific version | latest |
+| `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
+
+---
+
+## JSON output shape
+
+All commands output JSON. Use `--format raw` for compact JSON and `--no-progress` to suppress stderr when piping:
+
+```bash
+px traces --format raw --no-progress | jq ...
+px datasets --format raw --no-progress | jq ...
+```
+
+Trace JSON structure:
 
 ```json
 {
   "traceId": "abc123def456",
-  "spans": [
-    {
-      "name": "chat_completion",
-      "context": {
-        "trace_id": "abc123def456",
-        "span_id": "span-1"
-      },
-      "span_kind": "LLM",
-      "parent_id": null,
-      "start_time": "2026-01-17T10:00:00.000Z",
-      "end_time": "2026-01-17T10:00:01.250Z",
-      "status_code": "OK",
-      "attributes": {
-        "llm.model_name": "gpt-4",
-        "llm.token_count.prompt": 512,
-        "llm.token_count.completion": 256,
-        "input.value": "What is the weather?",
-        "output.value": "The weather is sunny..."
-      }
-    }
-  ],
-  "rootSpan": { ... },
-  "startTime": "2026-01-17T10:00:00.000Z",
-  "endTime": "2026-01-17T10:00:01.250Z",
+  "status": "OK",
   "duration": 1250,
-  "status": "OK"
+  "spans": [{
+    "name": "chat_completion",
+    "span_kind": "LLM",
+    "status_code": "OK",
+    "attributes": {
+      "llm.model_name": "gpt-4",
+      "llm.token_count.prompt": 512,
+      "llm.token_count.completion": 256,
+      "input.value": "What is the weather?",
+      "output.value": "The weather is sunny..."
+    }
+  }]
 }
 ```
 
-Spans include [OpenInference](https://github.com/Arize-ai/openinference) semantic attributes like `llm.model_name`, `llm.token_count.*`, `input.value`, `output.value`, `tool.name`, and `exception.*`.
-
-## Examples
-
-### Debug failed traces
-
-```bash
-px traces --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
-```
-
-### Find slowest traces
-
-```bash
-px traces --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
-```
-
-### Extract LLM models used
-
-```bash
-px traces --limit 50 --format raw --no-progress | \
-  jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
-```
-
-### Count errors
-
-```bash
-px traces --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
-```
-
-### List datasets and experiments
-
-```bash
-# List all datasets
-px datasets --format raw --no-progress | jq '.[].name'
-# Output: "query_response"
-
-# List experiments for a dataset
-px experiments --dataset query_response --format raw --no-progress | \
-  jq '.[] | {id, successful_run_count, failed_run_count}'
-# Output: {"id":"RXhwZXJpbWVudDox","successful_run_count":249,"failed_run_count":1}
-
-# Export all experiment data for a dataset to a directory
-px experiments --dataset query_response ./experiments/
-```
-
-### Analyze experiment results
-
-```bash
-# Get input queries and latency from an experiment
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
-  jq '.[] | {query: .input.query, latency_ms, trace_id}'
-
-# Find failed runs in an experiment
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
-  jq '.[] | select(.error != null) | {query: .input.query, error}'
-# Output: {"query":"looking for complex fodmap meal ideas","error":"peer closed connection..."}
-
-# Calculate average latency across runs
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
-  jq '[.[].latency_ms] | add / length'
-```
+`px api graphql` output always wraps results in `{"data": {...}}`. Pipe with `jq '.data.<field>'` to extract.
 
 ---
 
