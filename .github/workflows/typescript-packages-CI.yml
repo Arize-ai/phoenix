@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-typescript-${{ github.head_ref }}
+  group: test-typescript-packages-${{ github.head_ref }}
   cancel-in-progress: true
 
 jobs:
