@@ -85,6 +85,11 @@ const navLinkCSS = css`
     padding-inline-start: var(--global-dimension-size-50);
     padding-inline-end: var(--global-dimension-size-100);
     white-space: nowrap;
+    flex: 1;
+    text-align: start;
+  }
+  .ac-counter {
+    margin-inline-end: var(--global-dimension-size-100);
   }
 `;
 
@@ -288,6 +293,7 @@ export function NavLink(props: {
   to: string;
   text: string;
   leadingVisual: ReactNode;
+  trailingVisual?: ReactNode;
   isExpanded: boolean;
 }) {
   return (
@@ -297,6 +303,7 @@ export function NavLink(props: {
           <RRNavLink to={props.to} css={navLinkCSS}>
             {props.leadingVisual}
             <Text>{props.text}</Text>
+            {props.trailingVisual}
           </RRNavLink>
         </div>
       </Pressable>
