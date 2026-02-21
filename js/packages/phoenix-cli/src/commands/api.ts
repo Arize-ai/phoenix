@@ -4,33 +4,6 @@ import { getConfigErrorMessage, resolveConfig } from "../config";
 import { writeError, writeOutput } from "../io";
 
 /**
- * Parse an array of "key=value" strings into a record.
- * Splits only on the first `=` so values may contain `=`.
- */
-export function parseFields({
-  fields,
-}: {
-  fields: string[];
-}): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const field of fields) {
-    const eqIndex = field.indexOf("=");
-    if (eqIndex === -1) {
-      throw new Error(`Invalid field format: "${field}". Expected key=value.`);
-    }
-    const key = field.slice(0, eqIndex);
-    const value = field.slice(eqIndex + 1);
-    if (!key) {
-      throw new Error(
-        `Invalid field format: "${field}". Key must not be empty.`
-      );
-    }
-    result[key] = value;
-  }
-  return result;
-}
-
-/**
  * Returns true if the query string is a GraphQL mutation.
  * Strips # comments first to avoid false positives.
  */
@@ -45,41 +18,19 @@ interface ApiGraphqlOptions {
 }
 
 async function apiGraphqlHandler(
-  fields: string[],
+  query: string,
   options: ApiGraphqlOptions
 ): Promise<void> {
   try {
-    // 1. Parse key=value fields
-    let parsed: Record<string, string>;
-    try {
-      parsed = parseFields({ fields });
-    } catch (error) {
-      writeError({
-        message: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      });
-      process.exit(1);
-    }
-
-    // 2. Require query field
-    const query = parsed["query"];
-    if (!query) {
-      writeError({
-        message:
-          "Error: Missing required field \"query\".\n\nExample:\n  px api graphql query='{ serverStatus { status } }'",
-      });
-      process.exit(1);
-    }
-
-    // 3. Reject mutations
+    // 1. Reject mutations
     if (isMutation({ query })) {
       writeError({
-        message:
-          "Error: Mutations are not allowed. Only queries are permitted.",
+        message: "Error: Mutations are not allowed. Only queries are permitted.",
       });
       process.exit(1);
     }
 
-    // 4. Resolve config (endpoint only — no project required)
+    // 2. Resolve config (endpoint only — no project required)
     const config = resolveConfig({
       cliOptions: { endpoint: options.endpoint, apiKey: options.apiKey },
     });
@@ -95,18 +46,7 @@ async function apiGraphqlHandler(
       process.exit(1);
     }
 
-    // 5. Build request body — all keys other than "query" become variables
-    const variables: Record<string, string> = {};
-    for (const [key, value] of Object.entries(parsed)) {
-      if (key !== "query") {
-        variables[key] = value;
-      }
-    }
-
-    const body: Record<string, unknown> = { query };
-    if (Object.keys(variables).length > 0) body.variables = variables;
-
-    // 6. Build URL and auth headers
+    // 3. Build URL and auth headers
     const graphqlUrl = `${config.endpoint.replace(/\/$/, "")}/graphql`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -116,11 +56,11 @@ async function apiGraphqlHandler(
       headers["Authorization"] = `Bearer ${config.apiKey}`;
     }
 
-    // 7. POST using Node 22 built-in fetch
+    // 4. POST using Node 22 built-in fetch
     const response = await fetch(graphqlUrl, {
       method: "POST",
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify({ query }),
     });
 
     if (!response.ok) {
@@ -130,7 +70,7 @@ async function apiGraphqlHandler(
       process.exit(1);
     }
 
-    // 8. Parse and output response
+    // 5. Parse and output response
     const json = (await response.json()) as {
       data?: unknown;
       errors?: Array<{ message: string }>;
@@ -160,28 +100,21 @@ function createApiGraphqlCommand(): Command {
     .description(
       "Execute a GraphQL query against the Phoenix API.\n" +
         "\n" +
-        "  Pass arguments as key=value pairs. The 'query' field is required.\n" +
-        "  All other key=value pairs become GraphQL variables.\n" +
         "  Only queries are permitted — mutations are rejected.\n" +
         "\n" +
         "  Examples:\n" +
         "\n" +
-        "    # Check server status\n" +
-        "    px api graphql query='{ serverStatus { status } }'\n" +
-        "\n" +
         "    # List project names\n" +
-        "    px api graphql query='{ projects { edges { node { name } } } }'\n" +
+        "    px api graphql '{ projects { edges { node { name } } } }'\n" +
         "\n" +
-        "    # Use a named query with variables\n" +
-        "    px api graphql \\\n" +
-        "      query='query GetDatasets($first: Int) { datasets(first: $first) { edges { node { name } } } }' \\\n" +
-        "      first=5\n" +
+        "    # Filter inline\n" +
+        "    px api graphql '{ datasets(first: 5) { edges { node { name } } } }'\n" +
         "\n" +
         "    # Pipe to jq to extract fields\n" +
-        "    px api graphql query='{ projects { edges { node { name } } } }' | \\\n" +
+        "    px api graphql '{ projects { edges { node { name } } } }' | \\\n" +
         "      jq '.data.projects.edges[].node.name'"
     )
-    .argument("[fields...]", "key=value pairs: query and any GraphQL variables")
+    .argument("<query>", "GraphQL query string")
     .option("--endpoint <url>", "Phoenix API endpoint (or set PHOENIX_HOST)")
     .option("--api-key <key>", "Phoenix API key (or set PHOENIX_API_KEY)")
     .action(apiGraphqlHandler);

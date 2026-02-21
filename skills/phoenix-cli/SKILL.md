@@ -114,18 +114,26 @@ px experiment <experiment-id> --format raw --no-progress | \
 
 ### Explore the Phoenix API with GraphQL
 
-Use `px api graphql` to run ad-hoc queries against the full Phoenix GraphQL schema:
+Use `px api graphql` to run ad-hoc queries against the full Phoenix GraphQL schema.
+Introspection is fully supported and is the best way to discover available fields.
 
 ```bash
-# Check if server is ready
-px api graphql query='{ serverStatus { status } }'
+# Discover all available query root fields
+px api graphql '{ __schema { queryType { fields { name description } } } }' | \
+  jq '.data.__schema.queryType.fields[].name'
+
+# Inspect the fields of a specific type
+px api graphql '{ __type(name: "Span") { fields { name type { name kind } } } }'
 
 # List project names
-px api graphql query='{ projects { edges { node { name } } } }' | \
+px api graphql '{ projects { edges { node { name } } } }' | \
   jq '.data.projects.edges[].node.name'
 
 # Get dataset count
-px api graphql query='{ datasetCount }' | jq '.data.datasetCount'
+px api graphql '{ datasetCount }' | jq '.data.datasetCount'
+
+# Check server storage status
+px api graphql '{ serverStatus { insufficientStorage } }'
 ```
 
 ## Command Reference
@@ -225,15 +233,14 @@ px prompt <prompt-name> [options]
 Execute a raw GraphQL query against the Phoenix API. Only queries permitted.
 
 ```bash
-px api graphql query='{ serverStatus { status } }'
-px api graphql query='{ projects { edges { node { name } } } }'
-px api graphql query='query GetDatasets($first: Int) { datasets(first: $first) { edges { node { name } } } }' first=5
+px api graphql '{ serverStatus { status } }'
+px api graphql '{ projects { edges { node { name } } } }'
+px api graphql '{ datasets(first: 5) { edges { node { name } } } }'
 ```
 
-| Field/Option | Description |
-|--------------|-------------|
-| `query=<string>` | GraphQL query string (required) |
-| `<key>=<value>` | Additional pairs become GraphQL variables |
+| Argument/Option | Description |
+|-----------------|-------------|
+| `<query>` | GraphQL query string (required) |
 | `--endpoint <url>` | Phoenix API endpoint |
 | `--api-key <key>` | Phoenix API key |
 

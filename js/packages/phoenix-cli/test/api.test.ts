@@ -1,42 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isMutation, parseFields } from "../src/commands/api";
-
-describe("parseFields", () => {
-  it("parses a single key=value pair", () => {
-    expect(parseFields({ fields: ["query=hello"] })).toEqual({
-      query: "hello",
-    });
-  });
-
-  it("parses multiple key=value pairs", () => {
-    expect(
-      parseFields({ fields: ["query=hello", "first=5", "after=cursor123"] })
-    ).toEqual({ query: "hello", first: "5", after: "cursor123" });
-  });
-
-  it("splits only on the first = so values may contain =", () => {
-    expect(parseFields({ fields: ["query=a=b=c"] })).toEqual({
-      query: "a=b=c",
-    });
-  });
-
-  it("throws when a field has no = sign", () => {
-    expect(() => parseFields({ fields: ["badfield"] })).toThrow(
-      'Invalid field format: "badfield". Expected key=value.'
-    );
-  });
-
-  it("throws when the key is empty (=value)", () => {
-    expect(() => parseFields({ fields: ["=value"] })).toThrow(
-      'Invalid field format: "=value". Key must not be empty.'
-    );
-  });
-
-  it("returns an empty record for an empty array", () => {
-    expect(parseFields({ fields: [] })).toEqual({});
-  });
-});
+import { isMutation } from "../src/commands/api";
 
 describe("isMutation", () => {
   it("returns false for an anonymous shorthand query", () => {
