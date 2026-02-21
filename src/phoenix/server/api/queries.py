@@ -1719,6 +1719,40 @@ class Query:
 
         return PromptChatTemplate(messages=messages)
 
+    @strawberry.field
+    async def project_count(self, info: Info[Context, None]) -> int:
+        stmt = select(func.count(models.Project.id))
+        stmt = exclude_experiment_projects(stmt)
+        stmt = exclude_dataset_evaluator_projects(stmt)
+        async with info.context.db() as session:
+            return await session.scalar(stmt) or 0
+
+    @strawberry.field
+    async def dataset_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db() as session:
+            return await session.scalar(select(func.count(models.Dataset.id))) or 0
+
+    @strawberry.field
+    async def prompt_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db() as session:
+            return await session.scalar(select(func.count(models.Prompt.id))) or 0
+
+    @strawberry.field
+    async def evaluator_count(self, info: Info[Context, None]) -> int:
+        has_dataset_association = exists(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.evaluator_id == models.Evaluator.id
+            )
+        )
+        stmt = select(func.count(models.Evaluator.id)).where(
+            or_(
+                models.Evaluator.kind != "BUILTIN",
+                has_dataset_association,
+            )
+        )
+        async with info.context.db() as session:
+            return await session.scalar(stmt) or 0
+
 
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],

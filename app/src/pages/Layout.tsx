@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback } from "react";
-import { Outlet } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 
-import { Flex, Icon, Icons, Loading } from "@phoenix/components";
+import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
@@ -20,6 +20,8 @@ import {
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
+
+import { LayoutLoaderData } from "./layoutLoader";
 
 const layoutCSS = css`
   display: flex;
@@ -87,6 +89,7 @@ function SideNav() {
   const isSideNavExpanded = usePreferencesContext(
     (state) => state.isSideNavExpanded
   );
+  const loaderData = useLoaderData<LayoutLoaderData>();
   const { authenticationEnabled } = useFunctionality();
   const onLogout = useCallback(() => {
     window.location.replace(prependBasename("/auth/logout"));
@@ -101,6 +104,11 @@ function SideNav() {
               to="/projects"
               text="Projects"
               leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              trailingVisual={
+                isSideNavExpanded && loaderData?.projectCount != null ? (
+                  <Counter>{loaderData.projectCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -109,6 +117,11 @@ function SideNav() {
               to="/datasets"
               text="Datasets & Experiments"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              trailingVisual={
+                isSideNavExpanded && loaderData?.datasetCount != null ? (
+                  <Counter>{loaderData.datasetCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -125,6 +138,11 @@ function SideNav() {
               to="/evaluators"
               text="Evaluators"
               leadingVisual={<Icon svg={<Icons.Scale />} />}
+              trailingVisual={
+                isSideNavExpanded && loaderData?.evaluatorCount != null ? (
+                  <Counter>{loaderData.evaluatorCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -133,6 +151,11 @@ function SideNav() {
               to="/prompts"
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              trailingVisual={
+                isSideNavExpanded && loaderData?.promptCount != null ? (
+                  <Counter>{loaderData.promptCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>

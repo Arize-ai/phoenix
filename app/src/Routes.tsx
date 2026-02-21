@@ -83,6 +83,7 @@ import {
   TracePage,
 } from "./pages";
 import { Layout } from "./pages/Layout";
+import { layoutLoader } from "./pages/layoutLoader";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
@@ -123,7 +124,7 @@ const router = createBrowserRouter(
       />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
-        <Route element={<Layout />}>
+        <Route element={<Layout />} loader={layoutLoader}>
           <Route
             path="/profile"
             handle={{ crumb: () => "profile" }}
