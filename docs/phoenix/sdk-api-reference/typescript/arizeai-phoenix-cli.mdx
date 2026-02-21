@@ -230,7 +230,8 @@ px prompts --format raw --no-progress | jq  # Pipe to jq
 
 ### `px prompt <prompt_identifier>`
 
-Show a Phoenix prompt. Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
+Show a Phoenix prompt.
+ Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
 
 ```bash
 px prompt my-assistant-prompt                    # Latest version (pretty)
@@ -255,6 +256,35 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 <system>You are a helpful assistant specialized in...</system>
 <user>{{user_input}}</user>
 ```
+
+### `px api graphql [fields...]`
+
+Execute a GraphQL query against the Phoenix API. Only queries are permitted — mutations are rejected.
+
+Pass fields as `key=value` pairs. The `query` key is required; all other keys become GraphQL variables.
+
+```bash
+# Check server health
+px api graphql query='{ serverStatus { status } }'
+
+# List all project names
+px api graphql query='{ projects { edges { node { name } } } }'
+
+# Pass GraphQL variables
+px api graphql \
+  query='query GetDatasets($first: Int) { datasets(first: $first) { edges { node { name } } } }' \
+  first=5
+
+# Pipe to jq to extract values
+px api graphql query='{ projects { edges { node { name } } } }' | \
+  jq '.data.projects.edges[].node.name'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[fields...]` | `key=value` pairs: `query` (required) and any GraphQL variables | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
 
 ## Output Formats
 
@@ -387,6 +417,20 @@ px prompt my-evaluator --format json --no-progress | jq '.template'
 
 # Get a specific tagged version
 px prompt my-evaluator --tag production --format text --no-progress
+```
+
+### Query the GraphQL API directly
+
+```bash
+# Check server status
+px api graphql query='{ serverStatus { status } }'
+
+# Explore datasets via GraphQL
+px api graphql query='{ datasets { edges { node { name } } } }' | \
+  jq '.data.datasets.edges[].node.name'
+
+# Get viewer info (authenticated instances)
+px api graphql query='{ viewer { username email } }'
 ```
 
 ## Use with AI Coding Assistants

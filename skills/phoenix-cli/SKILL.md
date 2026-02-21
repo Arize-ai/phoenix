@@ -112,6 +112,22 @@ px experiment <experiment-id> --format raw --no-progress | \
   jq '[.[].latency_ms] | add / length'
 ```
 
+### Explore the Phoenix API with GraphQL
+
+Use `px api graphql` to run ad-hoc queries against the full Phoenix GraphQL schema:
+
+```bash
+# Check if server is ready
+px api graphql query='{ serverStatus { status } }'
+
+# List project names
+px api graphql query='{ projects { edges { node { name } } } }' | \
+  jq '.data.projects.edges[].node.name'
+
+# Get dataset count
+px api graphql query='{ datasetCount }' | jq '.data.datasetCount'
+```
+
 ## Command Reference
 
 ### px traces
@@ -203,6 +219,23 @@ Fetch a specific prompt.
 ```bash
 px prompt <prompt-name> [options]
 ```
+
+### px api graphql
+
+Execute a raw GraphQL query against the Phoenix API. Only queries permitted.
+
+```bash
+px api graphql query='{ serverStatus { status } }'
+px api graphql query='{ projects { edges { node { name } } } }'
+px api graphql query='query GetDatasets($first: Int) { datasets(first: $first) { edges { node { name } } } }' first=5
+```
+
+| Field/Option | Description |
+|--------------|-------------|
+| `query=<string>` | GraphQL query string (required) |
+| `<key>=<value>` | Additional pairs become GraphQL variables |
+| `--endpoint <url>` | Phoenix API endpoint |
+| `--api-key <key>` | Phoenix API key |
 
 ## Output Formats
 
