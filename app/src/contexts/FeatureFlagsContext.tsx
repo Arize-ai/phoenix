@@ -11,7 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
-type FeatureFlag = never;
+type FeatureFlag = "agents";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -19,7 +19,9 @@ export type FeatureFlagsContextType = {
 
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
-const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {};
+const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
+  agents: false,
+};
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
   const featureFlagsFromLocalStorage = localStorage.getItem(
