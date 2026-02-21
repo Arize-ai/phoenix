@@ -54,9 +54,6 @@ importers:
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
 
   examples/apps/cli-agent-starter-kit:
     dependencies:
