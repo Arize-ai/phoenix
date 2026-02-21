@@ -88,6 +88,10 @@ export default defineConfig(() => {
           advancedChunks: {
             groups: [
               {
+                name: "vendor-three",
+                test: /three\/build/,
+              },
+              {
                 name: "vendor-codemirror",
                 test: /codemirror/,
               },
@@ -99,7 +103,18 @@ export default defineConfig(() => {
                 name: "vendor-shiki",
                 test: /shiki/,
               },
-              // Catch-all for remaining node_modules
+              {
+                name: "vendor-ai-sdk-react",
+                test: /@ai-sdk\/react|\/node_modules\/ai\//,
+              },
+              {
+                name: "vendor-streamdown",
+                test: /streamdown/,
+              },
+              {
+                name: "vendor-json-render",
+                test: /@json-render/,
+              },
               {
                 name: "vendor",
                 test: /node_modules/,

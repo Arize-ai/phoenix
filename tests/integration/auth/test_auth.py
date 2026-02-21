@@ -1856,3 +1856,65 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"Admin/Member expected {expected_status_code} but got {response.status_code} "
                         f"for {method} {endpoint}"
                     )
+
+
+class TestVercelChatStreamRouterAuth:
+    @pytest.fixture
+    def _params(self) -> dict[str, str]:
+        return {
+            "provider_type": "builtin",
+            "provider": "ANTHROPIC",
+            "model_name": "claude-3-5-sonnet-20241022",
+        }
+
+    @pytest.fixture
+    def _body(self) -> dict[str, Any]:
+        return {
+            "id": "test-msg-id",
+            "messages": [
+                {"id": "msg-1", "role": "user", "parts": [{"type": "text", "text": "hi"}]}
+            ],
+        }
+
+    def test_unauthenticated_request_is_rejected(
+        self,
+        _app: _AppInfo,
+        _params: dict[str, str],
+        _body: dict[str, Any],
+    ) -> None:
+        response = _httpx_client(_app).post("/vercel_chat_stream", params=_params, json=_body)
+        with _EXPECTATION_401:
+            response.raise_for_status()
+
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
+    def test_all_authenticated_roles_can_access_vercel_chat_stream(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+        _params: dict[str, str],
+        _body: dict[str, Any],
+    ) -> None:
+        user = _get_user(_app, role_or_user)
+        logged_in_user = user.log_in(_app)
+        response = _httpx_client(_app, logged_in_user.tokens).post(
+            "/vercel_chat_stream", params=_params, json=_body
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
+    def test_api_key_authentication_works_for_vercel_chat_stream(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+        _params: dict[str, str],
+        _body: dict[str, Any],
+    ) -> None:
+        user = _get_user(_app, role_or_user)
+        logged_in_user = user.log_in(_app)
+        api_key = logged_in_user.create_api_key(_app)
+        response = _httpx_client(_app, api_key).post(
+            "/vercel_chat_stream", params=_params, json=_body
+        )
+        assert response.status_code == 200
