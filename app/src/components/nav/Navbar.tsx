@@ -88,6 +88,9 @@ const navLinkCSS = css`
     flex: 1;
     text-align: start;
   }
+  .ac-counter {
+    margin-inline-end: var(--global-dimension-size-100);
+  }
 `;
 
 const brandCSS = css`
