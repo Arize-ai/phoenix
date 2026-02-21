@@ -67,8 +67,7 @@ export function createLogger({
 }: { level?: LogLevel; logger?: Logger } = {}): Logger {
   const resolvedLevel = level ?? getLogLevelFromEnvironment();
   const levelIndex = VALID_LOG_LEVELS.indexOf(resolvedLevel);
-  const shouldLog = (l: LogLevel) =>
-    VALID_LOG_LEVELS.indexOf(l) >= levelIndex;
+  const shouldLog = (l: LogLevel) => VALID_LOG_LEVELS.indexOf(l) >= levelIndex;
 
   const base = logger ?? console;
 

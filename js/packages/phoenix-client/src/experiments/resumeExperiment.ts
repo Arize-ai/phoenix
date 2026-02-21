@@ -14,20 +14,24 @@ import invariant from "tiny-invariant";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
+import { createLogger, type Logger } from "../logger";
 import type { ClientFn } from "../types/core";
 import type { ExampleWithId } from "../types/datasets";
 import type {
   ExperimentEvaluatorLike,
   ExperimentTask,
 } from "../types/experiments";
-import { createLogger, type Logger } from "../logger";
-import { logExperimentResumeLinks, logExperimentResumeSummary, PROGRESS_PREFIX } from "./logging";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo.js";
+import {
+  logExperimentResumeLinks,
+  logExperimentResumeSummary,
+  PROGRESS_PREFIX,
+} from "./logging";
 import { resumeEvaluation } from "./resumeEvaluation";
 
 /**
@@ -520,9 +524,7 @@ export async function resumeExperiment({
   }
 
   if (totalFailed > 0 && !executionError) {
-    logger.warn(
-      `${totalFailed} out of ${totalProcessed} runs failed.`
-    );
+    logger.warn(`${totalFailed} out of ${totalProcessed} runs failed.`);
   }
 
   // Run evaluators if provided (only on runs missing evaluations)

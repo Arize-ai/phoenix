@@ -17,6 +17,7 @@ import invariant from "tiny-invariant";
 
 import { createClient, type PhoenixClient } from "../client";
 import { getDataset } from "../datasets/getDataset";
+import { createLogger, type Logger } from "../logger";
 import type { AnnotatorKind } from "../types/annotations";
 import type { ClientFn } from "../types/core";
 import type {
@@ -35,8 +36,6 @@ import type {
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
-import { createLogger, type Logger } from "../logger";
-import { logEvalSummary, logLinks, logTaskSummary, PROGRESS_PREFIX } from "./logging";
 import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
@@ -48,6 +47,12 @@ import {
 } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
+import {
+  logEvalSummary,
+  logLinks,
+  logTaskSummary,
+  PROGRESS_PREFIX,
+} from "./logging";
 
 /**
  * Validate that a repetition is valid

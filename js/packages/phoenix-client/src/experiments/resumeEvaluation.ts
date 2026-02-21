@@ -14,6 +14,7 @@ import invariant from "tiny-invariant";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
+import { createLogger, type Logger } from "../logger";
 import type { ClientFn } from "../types/core";
 import type {
   EvaluationResult,
@@ -22,13 +23,12 @@ import type {
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
-import { createLogger, type Logger } from "../logger";
-import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
+import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
@@ -412,7 +412,9 @@ export async function resumeEvaluation({
 
         if (batchIncomplete.length === 0) {
           if (totalProcessed === 0) {
-            logger.info(`${PROGRESS_PREFIX.completed}No incomplete evaluations found.`);
+            logger.info(
+              `${PROGRESS_PREFIX.completed}No incomplete evaluations found.`
+            );
           }
           break;
         }
@@ -555,9 +557,7 @@ export async function resumeEvaluation({
   }
 
   if (totalFailed > 0 && !executionError) {
-    logger.warn(
-      `${totalFailed} out of ${totalProcessed} evaluations failed.`
-    );
+    logger.warn(`${totalFailed} out of ${totalProcessed} evaluations failed.`);
   }
 
   logEvalResumeSummary(logger, {

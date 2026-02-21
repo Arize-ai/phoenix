@@ -1,5 +1,5 @@
-import type { ExperimentEvaluationRun } from "../types/experiments";
 import type { Logger } from "../logger";
+import type { ExperimentEvaluationRun } from "../types/experiments";
 
 /**
  * Progress line prefixes used in experiment run output.
@@ -81,8 +81,10 @@ export function logEvalSummary(
       const topLabels = Object.entries(counts)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 2);
-      if (topLabels[0]) row["label 1"] = `${topLabels[0][0]} (${topLabels[0][1]})`;
-      if (topLabels[1]) row["label 2"] = `${topLabels[1][0]} (${topLabels[1][1]})`;
+      if (topLabels[0])
+        row["label 1"] = `${topLabels[0][0]} (${topLabels[0][1]})`;
+      if (topLabels[1])
+        row["label 2"] = `${topLabels[1][0]} (${topLabels[1][1]})`;
     }
     tableObj[name] = row;
   }
