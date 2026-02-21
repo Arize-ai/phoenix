@@ -90,6 +90,8 @@ const navLinkCSS = css`
   }
   .ac-counter {
     margin-inline-end: var(--global-dimension-size-100);
+    font-size: var(--global-font-size-xxs);
+    line-height: var(--global-line-height-xxs);
   }
 `;
 
