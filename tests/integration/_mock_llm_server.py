@@ -102,6 +102,7 @@ from openai.types.responses import (
     ResponseUsage,
     ToolParam,
 )
+from openai.types.responses.response_status import ResponseStatus
 from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from types_aiobotocore_bedrock_runtime.type_defs import (
@@ -916,7 +917,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
 
         # Helper to create base Response
         def make_response(
-            status: str, output: list[Any], usage: ResponseUsage | None = None
+            status: ResponseStatus | None, output: list[Any], usage: ResponseUsage | None = None
         ) -> Response:
             return Response(
                 id=response_id,
@@ -927,7 +928,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 parallel_tool_calls=True,
                 tool_choice="auto",
                 tools=[],
-                status=status,  # type: ignore[arg-type]
+                status=status,
                 usage=usage,
             )
 
@@ -1073,7 +1074,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
 
         # Helper to create base Response
         def make_response(
-            status: str, output: list[Any], usage: ResponseUsage | None = None
+            status: ResponseStatus | None, output: list[Any], usage: ResponseUsage | None = None
         ) -> Response:
             return Response(
                 id=response_id,
@@ -1084,7 +1085,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 parallel_tool_calls=True,
                 tool_choice="auto",
                 tools=[],
-                status=status,  # type: ignore[arg-type]
+                status=status,
                 usage=usage,
             )
 
@@ -1382,7 +1383,9 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         # Validate request using BaseModel wrapper (handles IO[Any] with arbitrary_types_allowed)
         try:
             # raw_body is dict[str, Any] from JSON parsing; Pydantic validates against TypedDict
-            validated = _BedrockConverseRequest(request=raw_body)  # type: ignore[arg-type]
+            validated = _BedrockConverseRequest(
+                request=cast(ConverseStreamRequestTypeDef, raw_body)
+            )
             req = validated.request
         except ValidationError as e:
             logger.error(f"Invalid Bedrock ConverseStream request: {e}")
