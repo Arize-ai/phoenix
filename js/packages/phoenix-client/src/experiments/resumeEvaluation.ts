@@ -14,6 +14,7 @@ import invariant from "tiny-invariant";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
+import { createLogger, type Logger } from "../logger";
 import type { ClientFn } from "../types/core";
 import type {
   EvaluationResult,
@@ -22,12 +23,12 @@ import type {
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
-import type { Logger } from "../types/logger";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
+import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
@@ -68,7 +69,7 @@ export type ResumeEvaluationParams = ClientFn & {
     | readonly ExperimentEvaluatorLike[];
   /**
    * The logger to use
-   * @default console
+   * @default createLogger()
    */
   readonly logger?: Logger;
   /**
@@ -225,29 +226,6 @@ function setupEvaluationTracer({
 }
 
 /**
- * Prints evaluation summary to logger
- */
-function printEvaluationSummary({
-  logger,
-  experimentId,
-  totalProcessed,
-  totalCompleted,
-}: {
-  logger: Logger;
-  experimentId: string;
-  totalProcessed: number;
-  totalCompleted: number;
-}): void {
-  logger.info("\n" + "=".repeat(70));
-  logger.info("📊 Evaluation Resume Summary");
-  logger.info("=".repeat(70));
-  logger.info(`Experiment ID: ${experimentId}`);
-  logger.info(`Runs processed: ${totalProcessed}`);
-  logger.info(`Evaluations completed: ${totalCompleted}`);
-  logger.info("=".repeat(70));
-}
-
-/**
  * Resume incomplete evaluations for an experiment.
  *
  * This function identifies which evaluations have not been completed (either missing or failed)
@@ -311,7 +289,7 @@ export async function resumeEvaluation({
   client: _client,
   experimentId,
   evaluators: _evaluators,
-  logger = console,
+  logger = createLogger(),
   concurrency = 5,
   setGlobalTracerProvider = true,
   useBatchSpanProcessor = true,
@@ -329,7 +307,7 @@ export async function resumeEvaluation({
   invariant(evaluators.length > 0, "Must specify at least one evaluator");
 
   // Get experiment info
-  logger.info(`🔍 Checking for incomplete evaluations...`);
+  logger.info(`${PROGRESS_PREFIX.start}Checking for incomplete evaluations.`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Initialize tracer (only if experiment has a project_name)
@@ -377,7 +355,7 @@ export async function resumeEvaluation({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.info("🛑 Stopping fetch due to error in evaluation");
+          logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
           break;
         }
 
@@ -435,14 +413,14 @@ export async function resumeEvaluation({
         if (batchIncomplete.length === 0) {
           if (totalProcessed === 0) {
             logger.info(
-              "✅ No incomplete evaluations found. All evaluations are complete."
+              `${PROGRESS_PREFIX.completed}No incomplete evaluations found.`
             );
           }
           break;
         }
 
         if (totalProcessed === 0) {
-          logger.info("🧠 Resuming evaluations...");
+          logger.info(`${PROGRESS_PREFIX.start}Resuming evaluations.`);
         }
 
         // Build evaluation tasks and send to channel
@@ -472,8 +450,8 @@ export async function resumeEvaluation({
           }
         }
 
-        logger.info(
-          `Fetched batch of ${batchCount} evaluation tasks (channel buffer: ${evalChannel.length})`
+        logger.debug(
+          `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -522,7 +500,7 @@ export async function resumeEvaluation({
 
         // If stopOnFirstError is enabled, abort and re-throw
         if (stopOnFirstError) {
-          logger.error("🛑 Stopping on first error");
+          logger.warn("Stopping on first error");
           abortController.abort();
           throw error;
         }
@@ -548,7 +526,7 @@ export async function resumeEvaluation({
     // Always surface producer/infrastructure errors
     if (error instanceof EvaluationFetchError) {
       // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-      logger.error(`❌ Critical: Failed to fetch evaluations from server`);
+      logger.error(`Critical: Failed to fetch evaluations from server`);
       executionError = err;
     } else if (error instanceof ChannelError && signal.aborted) {
       // Channel closed due to intentional abort - wrap in semantic error
@@ -562,7 +540,7 @@ export async function resumeEvaluation({
     } else {
       // Unexpected error (not from worker, not from producer fetch)
       // This could be a bug in our code or infrastructure failure
-      logger.error(`❌ Unexpected error during evaluation: ${err.message}`);
+      logger.error(`Unexpected error during evaluation: ${err.message}`);
       executionError = err;
     }
   } finally {
@@ -575,21 +553,18 @@ export async function resumeEvaluation({
 
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`✅ Evaluations completed.`);
+    logger.info(`${PROGRESS_PREFIX.completed}Evaluations completed.`);
   }
 
   if (totalFailed > 0 && !executionError) {
-    logger.info(
-      `⚠️  Warning: ${totalFailed} out of ${totalProcessed} evaluations failed.`
-    );
+    logger.warn(`${totalFailed} out of ${totalProcessed} evaluations failed.`);
   }
 
-  // Print summary
-  printEvaluationSummary({
-    logger,
+  logEvalResumeSummary(logger, {
     experimentId: experiment.id,
-    totalProcessed,
-    totalCompleted,
+    processed: totalProcessed,
+    completed: totalCompleted,
+    failed: totalFailed,
   });
 
   // Flush spans (if tracer was initialized)

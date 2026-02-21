@@ -132,7 +132,10 @@ const main = async () => {
         ...log,
         log: (message) => s.message(message),
         info: (message) => s.message(message),
+        warn: (message) => s.message(message),
         error: (message) => s.message(message),
+        debug: (message) => s.message(message),
+        table: (data) => s.message(JSON.stringify(data)),
       },
       evaluators: [
         // You can implement code based evaluators like this

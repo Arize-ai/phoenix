@@ -17,6 +17,7 @@ import invariant from "tiny-invariant";
 
 import { createClient, type PhoenixClient } from "../client";
 import { getDataset } from "../datasets/getDataset";
+import { createLogger, type Logger } from "../logger";
 import type { AnnotatorKind } from "../types/annotations";
 import type { ClientFn } from "../types/core";
 import type {
@@ -35,7 +36,6 @@ import type {
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
-import type { Logger } from "../types/logger";
 import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
@@ -47,6 +47,12 @@ import {
 } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
+import {
+  logEvalSummary,
+  logLinks,
+  logTaskSummary,
+  PROGRESS_PREFIX,
+} from "./logging";
 
 /**
  * Validate that a repetition is valid
@@ -167,7 +173,7 @@ export async function runExperiment({
   dataset: datasetSelector,
   task,
   evaluators,
-  logger = console,
+  logger = createLogger(),
   record = true,
   concurrency = 5,
   dryRun = false,
@@ -281,35 +287,39 @@ export async function runExperiment({
   }
   if (!record) {
     logger.info(
-      `🔧 Running experiment in readonly mode. Results will not be recorded.`
+      `Running experiment in readonly mode. Results will not be recorded.`
     );
   }
 
+  const links: Array<{ label: string; url: string }> = [];
   if (!isDryRun && client.config.baseUrl) {
-    const datasetUrl = getDatasetUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
+    links.push({
+      label: "Dataset",
+      url: getDatasetUrl({
+        baseUrl: client.config.baseUrl,
+        datasetId: dataset.id,
+      }),
     });
-    const datasetExperimentsUrl = getDatasetExperimentsUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
+    links.push({
+      label: "Experiments",
+      url: getDatasetExperimentsUrl({
+        baseUrl: client.config.baseUrl,
+        datasetId: dataset.id,
+      }),
     });
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-      experimentId: experiment.id,
+    links.push({
+      label: "Experiment",
+      url: getExperimentUrl({
+        baseUrl: client.config.baseUrl,
+        datasetId: dataset.id,
+        experimentId: experiment.id,
+      }),
     });
-
-    logger.info(`📊 View dataset: ${datasetUrl}`);
-    logger.info(`📺 View dataset experiments: ${datasetExperimentsUrl}`);
-    logger.info(`🔗 View this experiment: ${experimentUrl}`);
   }
 
+  const evCount = evaluators?.length ?? 0;
   logger.info(
-    `🧪 Starting experiment "${experimentName || `<unnamed>`}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
-      "evaluator",
-      evaluators?.length ?? 0
-    )} and ${concurrency} concurrent runs`
+    `${PROGRESS_PREFIX.start}Experiment ${experimentName || "<unnamed>"} (dataset ${dataset.name}, ${nExamples} ${pluralize("example", nExamples)}, ${evCount} ${pluralize("evaluator", evCount)})`
   );
 
   const runs: Record<ExperimentRunID, ExperimentRun> = {};
@@ -328,12 +338,26 @@ export async function runExperiment({
     tracer: taskTracer,
     repetitions,
   });
-  logger.info(`✅ Task runs completed`);
+  const taskRuns = Object.values(runs);
+  const taskErrors = taskRuns.filter((run) => run.error != null).length;
+  const taskTotal = nExamples * repetitions;
+  const taskOkStr =
+    taskErrors > 0
+      ? `${taskRuns.length - taskErrors}/${taskTotal} ok  (${taskErrors} failed)`
+      : `${taskRuns.length}/${taskTotal} ok`;
+  logger.info(`${PROGRESS_PREFIX.completed}Tasks ${taskOkStr}`);
 
   const ranExperiment: RanExperiment = {
     ...experiment,
     runs,
   };
+
+  if (evaluators && evaluators.length > 0) {
+    const evNames = getExperimentEvaluators(evaluators)
+      .map((evaluator) => evaluator.name)
+      .join(", ");
+    logger.info(`${PROGRESS_PREFIX.start}Evaluations (${evNames})`);
+  }
 
   const { evaluationRuns } = await evaluateExperiment({
     experiment: ranExperiment,
@@ -348,8 +372,6 @@ export async function runExperiment({
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
-  logger.info(`✅ Experiment ${experiment.id} completed`);
-
   // Refresh experiment info from server to get updated counts (non-dry-run only)
   if (!isDryRun) {
     const updatedExperiment = await getExperimentInfo({
@@ -360,14 +382,18 @@ export async function runExperiment({
     Object.assign(ranExperiment, updatedExperiment);
   }
 
-  if (!isDryRun && client.config.baseUrl) {
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-      experimentId: experiment.id,
-    });
-    logger.info(`🔍 View results: ${experimentUrl}`);
+  logTaskSummary(logger, {
+    nExamples,
+    repetitions,
+    nRuns: taskRuns.length,
+    nErrors: taskErrors,
+  });
+
+  if (ranExperiment.evaluationRuns && ranExperiment.evaluationRuns.length > 0) {
+    logEvalSummary(logger, ranExperiment.evaluationRuns);
   }
+
+  logLinks(logger, links);
 
   return ranExperiment;
 }
@@ -417,7 +443,9 @@ function runTaskWithExamples({
     "repetitions must be an integer greater than 0"
   );
 
-  logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
+  logger.debug(
+    `${PROGRESS_PREFIX.start}Tasks (${nExamples} ${pluralize("example", nExamples)} × ${repetitions} ${pluralize("repetition", repetitions)})`
+  );
   const run = async ({
     example,
     repetitionNumber,
@@ -426,9 +454,7 @@ function runTaskWithExamples({
     repetitionNumber: number;
   }) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
-      logger.info(
-        `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
-      );
+      logger.debug(`${PROGRESS_PREFIX.progress}Task on example ${example.id}`);
       const traceId = span.spanContext().traceId;
       const thisRun: ExperimentRun = {
         id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
@@ -519,7 +545,7 @@ export async function evaluateExperiment({
   experiment,
   evaluators,
   client: _client,
-  logger = console,
+  logger = createLogger(),
   concurrency = 5,
   dryRun = false,
   setGlobalTracerProvider = true,
@@ -621,21 +647,6 @@ export async function evaluateExperiment({
       evaluationRuns: [],
     };
   }
-  logger.info(
-    `🧠 Evaluating experiment "${experiment.id}" with ${evaluators?.length ?? 0} ${pluralize(
-      "evaluator",
-      evaluators?.length ?? 0
-    )}`
-  );
-
-  if (!isDryRun && client.config.baseUrl) {
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: experiment.datasetId,
-      experimentId: experiment.id,
-    });
-    logger.info(`🔗 View experiment evaluation: ${experimentUrl}`);
-  }
   type EvaluationId = string;
   const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
@@ -722,7 +733,7 @@ export async function evaluateExperiment({
     concurrency
   );
   if (!evaluatorsAndRuns.length) {
-    logger.info(`⛔ No evaluators to run`);
+    logger.warn(`No evaluators to run`);
     return {
       ...experiment,
       evaluationRuns: [],
@@ -732,13 +743,22 @@ export async function evaluateExperiment({
     evaluatorsQueue.push(evaluatorAndRun, (err) => {
       if (err) {
         logger.error(
-          `❌ Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
+          `Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
         );
       }
     })
   );
   await evaluatorsQueue.drain();
-  logger.info(`✅ Evaluation runs completed`);
+  const evalTotal = Object.values(evaluationRuns).length;
+  const evalErrors = Object.values(evaluationRuns).filter(
+    (ev) => ev.error != null
+  ).length;
+  const evalExpected = runsToEvaluate.length * normalizedEvaluators.length;
+  const evalOkStr =
+    evalErrors > 0
+      ? `${evalTotal - evalErrors}/${evalExpected} ok  (${evalErrors} failed)`
+      : `${evalTotal}/${evalExpected} ok`;
+  logger.info(`${PROGRESS_PREFIX.completed}Evaluations ${evalOkStr}`);
 
   if (provider) {
     await provider.shutdown();
@@ -775,8 +795,8 @@ async function runEvaluator({
   const example = exampleCache[run.datasetExampleId];
   invariant(example, `Example "${run.datasetExampleId}" not found`);
   const evaluate = async () => {
-    logger.info(
-      `🧠 Evaluating run "${run.id}" with evaluator "${evaluator.name}"`
+    logger.debug(
+      `${PROGRESS_PREFIX.progress}Eval ${evaluator.name} on run ${run.id}`
     );
     const thisEval: ExperimentEvaluationRun = {
       id: localId(),
@@ -797,13 +817,10 @@ async function runEvaluator({
         metadata: example?.metadata,
       });
       thisEval.result = result;
-      logger.info(
-        `✅ Evaluator "${evaluator.name}" on run "${run.id}" completed`
-      );
     } catch (error) {
       thisEval.error = error instanceof Error ? error.message : "Unknown error";
       logger.error(
-        `❌ Evaluator "${evaluator.name}" on run "${run.id}" failed: ${thisEval.error}`
+        `Evaluator "${evaluator.name}" on run "${run.id}" failed: ${thisEval.error}`
       );
     }
     thisEval.endTime = new Date();
