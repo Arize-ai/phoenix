@@ -1,18 +1,17 @@
 import { css } from "@emotion/react";
+import type { PropsWithChildren } from "react";
 import React, {
   forwardRef,
-  PropsWithChildren,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
-import {
+import type {
   ImperativePanelHandle,
-  Panel,
   PanelProps,
-  PanelResizeHandle,
   PanelResizeHandleProps,
 } from "react-resizable-panels";
+import { Panel, PanelResizeHandle } from "react-resizable-panels";
 
 import { Icon, Icons } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";

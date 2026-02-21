@@ -1,24 +1,26 @@
 import { css } from "@emotion/react";
 import React from "react";
+import type {
+  ComboBoxProps as AriaComboBoxProps,
+  ListBoxItemProps as AriaListBoxItemProps,
+  ListBoxProps,
+  ValidationResult,
+} from "react-aria-components";
 import {
   Button,
   ComboBox as AriaComboBox,
-  ComboBoxProps as AriaComboBoxProps,
   FieldError,
   Input,
   Label,
   ListBox,
   ListBoxItem,
-  ListBoxItemProps as AriaListBoxItemProps,
-  ListBoxProps,
   Popover,
   Text,
-  ValidationResult,
 } from "react-aria-components";
 
 import { fieldBaseCSS } from "../field/styles";
 import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
-import { SizingProps } from "../types";
+import type { SizingProps } from "../types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>

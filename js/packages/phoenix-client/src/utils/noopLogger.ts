@@ -1,4 +1,4 @@
-import { Logger } from "../types/logger";
+import type { Logger } from "../types/logger";
 
 /**
  * A logger that does nothing

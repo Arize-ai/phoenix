@@ -3,7 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Alert } from "@phoenix/components";
 
-import { StorageAlertQuery } from "./__generated__/StorageAlertQuery.graphql";
+import type { StorageAlertQuery } from "./__generated__/StorageAlertQuery.graphql";
 
 const storageAlertQuery = graphql`
   query StorageAlertQuery {

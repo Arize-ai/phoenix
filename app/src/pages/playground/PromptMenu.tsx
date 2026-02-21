@@ -4,6 +4,7 @@ import { Autocomplete, Input, useFilter } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
+import type { TextProps } from "@phoenix/components";
 import {
   Button,
   CompositeField,
@@ -20,14 +21,13 @@ import {
   TabList,
   Tabs,
   Text,
-  TextProps,
   Token,
   View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
-import { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
+import type { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 export type PromptVersion = {

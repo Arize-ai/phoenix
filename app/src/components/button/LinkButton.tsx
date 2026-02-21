@@ -1,9 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import { Link, LinkProps } from "react-router";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { LinkProps } from "react-router";
+import { Link } from "react-router";
 
 import { buttonCSS } from "./styles";
-import { ButtonProps } from "./types";
+import type { ButtonProps } from "./types";
 
 interface LinkButtonProps
   extends

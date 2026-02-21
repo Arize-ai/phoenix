@@ -5,10 +5,8 @@ import invariant from "tiny-invariant";
 import { Flex } from "@phoenix/components";
 import { PromptsFilterBar } from "@phoenix/pages/prompts/PromptsFilterBar";
 import { PromptsFilterProvider } from "@phoenix/pages/prompts/PromptsFilterProvider";
-import {
-  promptsLoaderGql,
-  PromptsLoaderType,
-} from "@phoenix/pages/prompts/promptsLoader";
+import type { PromptsLoaderType } from "@phoenix/pages/prompts/promptsLoader";
+import { promptsLoaderGql } from "@phoenix/pages/prompts/promptsLoader";
 
 import { PromptsTable } from "./PromptsTable";
 

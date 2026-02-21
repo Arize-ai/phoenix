@@ -6,10 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@phoenix/components";
-import {
-  useDatasetLabelMutations,
-  UseDatasetLabelMutationsParams,
-} from "@phoenix/components/dataset/useDatasetLabelMutations";
+import type { UseDatasetLabelMutationsParams } from "@phoenix/components/dataset/useDatasetLabelMutations";
+import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { NewLabelForm } from "@phoenix/components/label";
 
 type NewDatasetLabelDialogProps = UseDatasetLabelMutationsParams & {

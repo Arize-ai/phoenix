@@ -21,15 +21,15 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import type { Annotation } from "@phoenix/components/annotation";
 import {
-  Annotation,
   type AnnotationConfig,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { Skeleton } from "@phoenix/components/loading";
-import { ExecutionState } from "@phoenix/components/types";
+import type { ExecutionState } from "@phoenix/components/types";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 

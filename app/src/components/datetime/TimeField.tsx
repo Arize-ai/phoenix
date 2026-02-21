@@ -1,10 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  TimeField as AriaTimeField,
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type {
   TimeFieldProps as AriaTimeFieldProps,
   TimeValue,
 } from "react-aria-components";
+import { TimeField as AriaTimeField } from "react-aria-components";
 
 import { fieldBaseCSS } from "../field/styles";
 

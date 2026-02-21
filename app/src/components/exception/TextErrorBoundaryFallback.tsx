@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 
 import { Text } from "../content";
 import { Icon, Icons } from "../icon";
-import { ErrorBoundaryFallbackProps } from "./types";
+import type { ErrorBoundaryFallbackProps } from "./types";
 
 /**
  * An error boundary fallback that displays the text "error"

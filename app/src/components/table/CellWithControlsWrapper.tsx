@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 
 const cellWithControlsWrapCSS = css`
   position: relative;

@@ -3,7 +3,7 @@ import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Button, Flex, Label, Text } from "@phoenix/components";
-import { EvaluatorExampleSelectQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleSelectQuery.graphql";
+import type { EvaluatorExampleSelectQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleSelectQuery.graphql";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { ListBox } from "@phoenix/components/listbox";
 import { Popover } from "@phoenix/components/overlay";

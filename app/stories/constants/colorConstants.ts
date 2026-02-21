@@ -1,4 +1,4 @@
-import { ColorValue } from "@phoenix/components/types";
+import type { ColorValue } from "@phoenix/components/types";
 
 export const GLOBAL_COLORS: ColorValue[] = [
   "gray-50",

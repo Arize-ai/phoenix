@@ -3,7 +3,7 @@ import { schemeSet2 } from "d3-scale-chromatic";
 import { transparentize } from "polished";
 import { useMemo } from "react";
 
-import { Size } from "@phoenix/components/types/sizing";
+import type { Size } from "@phoenix/components/types/sizing";
 function indexToChar(index: number) {
   // Wrap around using modulo if index exceeds 'C'
   const charCode = 65 + index; // 'A' has ASCII code 65, 'B' is 66, 'C' is 67

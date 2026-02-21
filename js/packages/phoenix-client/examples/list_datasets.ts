@@ -1,4 +1,5 @@
-import { createClient, Types } from "../src";
+import type { Types } from "../src";
+import { createClient } from "../src";
 
 // baseUrl defaults to http://localhost:6006
 const phoenix = createClient();

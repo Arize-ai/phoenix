@@ -1,6 +1,6 @@
 import { parseAbsoluteToLocal } from "@internationalized/date";
 import { useMemo } from "react";
-import { DateValue, Key } from "react-aria-components";
+import type { DateValue, Key } from "react-aria-components";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 
 import {
@@ -22,10 +22,10 @@ import {
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { RegexField } from "@phoenix/components/RegexField";
 import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
+import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   DEFAULT_TOKEN_COMPLETION_OPTIONS,
   DEFAULT_TOKEN_PROMPT_OPTIONS,
-  ModelTokenKind,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,

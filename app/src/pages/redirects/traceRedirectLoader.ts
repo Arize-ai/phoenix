@@ -1,9 +1,10 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs, redirect } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
+import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { traceRedirectLoaderQuery } from "./__generated__/traceRedirectLoaderQuery.graphql";
+import type { traceRedirectLoaderQuery } from "./__generated__/traceRedirectLoaderQuery.graphql";
 
 export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
   const { trace_otel_id } = params;

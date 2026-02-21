@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -13,7 +13,7 @@ import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
-import { ProjectDashboardsTable_projects$key } from "./__generated__/ProjectDashboardsTable_projects.graphql";
+import type { ProjectDashboardsTable_projects$key } from "./__generated__/ProjectDashboardsTable_projects.graphql";
 
 const PAGE_SIZE = 50;
 

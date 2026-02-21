@@ -1,5 +1,6 @@
 import fs from "fs/promises";
-import { expect, Page, test as setup } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test as setup } from "@playwright/test";
 
 const AUTH_DIR = "playwright/.auth";
 const ADMIN_STORAGE_STATE = `${AUTH_DIR}/admin.json`;

@@ -4,7 +4,7 @@ import invariant from "tiny-invariant";
 
 import { DatasetHistoryTable } from "@phoenix/pages/dataset/DatasetHistoryTable";
 
-import { datasetVersionsLoader } from "./datasetVersionsLoader";
+import type { datasetVersionsLoader } from "./datasetVersionsLoader";
 
 /**
  * Dataset-specific history page that lists dataset version history.

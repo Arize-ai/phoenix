@@ -1,6 +1,6 @@
-import { PhoenixClient } from "@arizeai/phoenix-client";
+import type { PhoenixClient } from "@arizeai/phoenix-client";
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import {
   addPromptVersionTagSchema,

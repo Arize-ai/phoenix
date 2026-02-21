@@ -1,9 +1,9 @@
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import { AnnotationSummaryGroupStacks } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { TraceHeaderRootSpanAnnotationsFragment$key } from "@phoenix/pages/trace/__generated__/TraceHeaderRootSpanAnnotationsFragment.graphql";
+import type { TraceHeaderRootSpanAnnotationsFragment$key } from "@phoenix/pages/trace/__generated__/TraceHeaderRootSpanAnnotationsFragment.graphql";
 
-import { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeaderRootSpanAnnotationsQuery.graphql";
+import type { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeaderRootSpanAnnotationsQuery.graphql";
 
 export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
   const query = useLazyLoadQuery<TraceHeaderRootSpanAnnotationsQuery>(

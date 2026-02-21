@@ -1,9 +1,7 @@
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
-import { SizingProps } from "@phoenix/components/types";
-import {
-  isProgrammingLanguage,
-  ProgrammingLanguage,
-} from "@phoenix/types/code";
+import type { SizingProps } from "@phoenix/components/types";
+import type { ProgrammingLanguage } from "@phoenix/types/code";
+import { isProgrammingLanguage } from "@phoenix/types/code";
 
 export function CodeLanguageRadioGroup({
   language,

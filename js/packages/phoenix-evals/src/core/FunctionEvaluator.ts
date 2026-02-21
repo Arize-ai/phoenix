@@ -1,4 +1,8 @@
-import { CreateEvaluatorArgs, EvaluationResult, ObjectMapping } from "../types";
+import type {
+  CreateEvaluatorArgs,
+  EvaluationResult,
+  ObjectMapping,
+} from "../types";
 import { EvaluatorBase } from "./EvaluatorBase";
 
 type FunctionEvaluatorArgs<RecordType extends Record<string, unknown>> =

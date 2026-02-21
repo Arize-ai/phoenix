@@ -1,4 +1,5 @@
-import { PropsWithChildren, useMemo } from "react";
+import type { PropsWithChildren } from "react";
+import { useMemo } from "react";
 
 import {
   Card,
@@ -15,9 +16,12 @@ import {
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { ToolCallPart, ToolResultPart } from "@phoenix/schemas/promptSchemas";
+import type {
+  ToolCallPart,
+  ToolResultPart,
+} from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import {
   formatContentAsString,

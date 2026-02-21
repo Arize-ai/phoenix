@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { useDatasetLabelMutationsAddLabelMutation } from "@phoenix/components/dataset/__generated__/useDatasetLabelMutationsAddLabelMutation.graphql";
-import { LabelParams } from "@phoenix/components/label";
+import type { useDatasetLabelMutationsAddLabelMutation } from "@phoenix/components/dataset/__generated__/useDatasetLabelMutationsAddLabelMutation.graphql";
+import type { LabelParams } from "@phoenix/components/label";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export type UseDatasetLabelMutationsParams = {

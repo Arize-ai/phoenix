@@ -12,7 +12,7 @@ import { TableEmpty } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { DeletePromptLabelButton } from "@phoenix/pages/settings/prompts/DeletePromptLabelButton";
 
-import { PromptLabelsTableFragment$key } from "./__generated__/PromptLabelsTableFragment.graphql";
+import type { PromptLabelsTableFragment$key } from "./__generated__/PromptLabelsTableFragment.graphql";
 
 export function PromptLabelsTable({
   query,

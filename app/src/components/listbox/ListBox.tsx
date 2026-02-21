@@ -1,11 +1,9 @@
 import { css } from "@emotion/react";
-import { Ref } from "react";
-import {
-  ListBox as AriaListBox,
-  ListBoxProps as AriaListBoxProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import type { ListBoxProps as AriaListBoxProps } from "react-aria-components";
+import { ListBox as AriaListBox } from "react-aria-components";
 
-import { StylableProps } from "../types";
+import type { StylableProps } from "../types";
 
 const listBoxCSS = css`
   display: flex;

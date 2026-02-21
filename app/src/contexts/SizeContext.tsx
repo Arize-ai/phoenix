@@ -1,6 +1,7 @@
-import { createContext, ReactNode, useContext } from "react";
+import type { ReactNode } from "react";
+import { createContext, useContext } from "react";
 
-import { ComponentSize } from "@phoenix/components/types";
+import type { ComponentSize } from "@phoenix/components/types";
 
 interface SizeContextType {
   size: ComponentSize;

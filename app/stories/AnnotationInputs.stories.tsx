@@ -7,7 +7,7 @@ import { AnnotationSaveButton } from "@phoenix/components/annotation/AnnotationS
 import { CategoricalAnnotationInput } from "@phoenix/components/annotation/CategoricalAnnotationInput";
 import { ContinuousAnnotationInput } from "@phoenix/components/annotation/ContinuousAnnotationInput";
 import { FreeformAnnotationInput } from "@phoenix/components/annotation/FreeformAnnotationInput";
-import {
+import type {
   AnnotationConfigCategorical,
   AnnotationConfigContinuous,
   AnnotationConfigFreeform,

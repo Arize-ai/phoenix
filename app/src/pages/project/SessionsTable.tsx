@@ -1,13 +1,15 @@
 import { css } from "@emotion/react";
-import {
+import type {
   ColumnDef,
   ExpandedState,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
+import {
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
   getSortedRowModel,
-  SortingState,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import React, {
@@ -42,8 +44,8 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 
 import { IntCell, TextCell } from "../../components/table";
-import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
-import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
+import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { SessionColumnSelector } from "./SessionColumnSelector";
 import { useSessionSearchContext } from "./SessionSearchContext";

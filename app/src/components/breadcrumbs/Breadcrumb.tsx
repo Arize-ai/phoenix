@@ -1,9 +1,8 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Breadcrumb as AriaBreadcrumb,
-  BreadcrumbProps as AriaBreadcrumbProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { BreadcrumbProps as AriaBreadcrumbProps } from "react-aria-components";
+import { Breadcrumb as AriaBreadcrumb } from "react-aria-components";
 
 import { Icon, Icons } from "../icon";
 

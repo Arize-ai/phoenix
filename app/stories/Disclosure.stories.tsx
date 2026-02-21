@@ -1,14 +1,16 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type {
+  DisclosureProps,
+  DisclosureTriggerProps,
+} from "@phoenix/components";
 import {
   Card,
   Disclosure,
   DisclosureGroup,
   type DisclosureGroupProps,
   DisclosurePanel,
-  DisclosureProps,
   DisclosureTrigger,
-  DisclosureTriggerProps,
   Text,
   View,
 } from "@phoenix/components";

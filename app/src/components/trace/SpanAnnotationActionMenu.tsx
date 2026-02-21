@@ -1,9 +1,9 @@
 import { startTransition, useCallback, useRef, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
+import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
-  ButtonProps,
   Dialog,
   DialogTrigger,
   Flex,
@@ -23,9 +23,9 @@ import {
   DialogTitle,
 } from "@phoenix/components/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
+import type { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
 
-import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
+import type { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
 
 type SpanAnnotationActionMenuProps = {
   buttonVariant?: ButtonProps["variant"];

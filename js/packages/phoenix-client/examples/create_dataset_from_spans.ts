@@ -18,7 +18,7 @@
 import { createClient } from "../src/client";
 import { createDataset } from "../src/datasets/createDataset";
 import { getSpans } from "../src/spans/getSpans";
-import { Example } from "../src/types/datasets";
+import type { Example } from "../src/types/datasets";
 
 // Configuration
 const PHOENIX_BASE_URL = "http://localhost:6006";

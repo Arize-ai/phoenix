@@ -19,7 +19,7 @@ import {
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 
-import { DeletePromptVersionTagButtonMutation } from "./__generated__/DeletePromptVersionTagButtonMutation.graphql";
+import type { DeletePromptVersionTagButtonMutation } from "./__generated__/DeletePromptVersionTagButtonMutation.graphql";
 
 export function DeletePromptVersionTagButton({
   promptVersionTagId,

@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
+import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
-  PreloadedQuery,
   usePreloadedQuery,
   useRefetchableFragment,
 } from "react-relay";
@@ -26,8 +26,8 @@ import {
 } from "@phoenix/components";
 import { useProjectContext } from "@phoenix/contexts";
 
-import { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
-import { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
+import type { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
+import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import { isProjectTab } from "./constants";
 import { ProjectAnnotationConfigCard } from "./ProjectAnnotationConfigCard";
 import {

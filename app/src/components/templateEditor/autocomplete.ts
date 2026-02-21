@@ -1,14 +1,14 @@
-import {
-  autocompletion,
+import type {
   Completion,
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
-import { Extension } from "@codemirror/state";
-import { EditorView } from "@uiw/react-codemirror";
+import { autocompletion } from "@codemirror/autocomplete";
+import type { Extension } from "@codemirror/state";
+import type { EditorView } from "@uiw/react-codemirror";
 
 import { TemplateFormats } from "./constants";
-import { TemplateFormat } from "./types";
+import type { TemplateFormat } from "./types";
 
 /**
  * Finds variables that likely represent arrays/objects that can be iterated.

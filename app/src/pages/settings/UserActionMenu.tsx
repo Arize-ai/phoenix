@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { type DataID } from "relay-runtime";
+import type { DataID } from "relay-runtime";
 
 import {
   Button,
@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
-import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
+import type { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
 

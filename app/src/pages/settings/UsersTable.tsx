@@ -1,12 +1,13 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
 
 import { Flex, Icon, Icons, Modal, ModalOverlay } from "@phoenix/components";
@@ -16,11 +17,12 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
+import type { UserRole } from "@phoenix/constants";
+import { isUserRole, normalizeUserRole } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
-import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
-import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
+import type { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
+import type { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
 import { UserActionMenu } from "./UserActionMenu";
 import { UserRoleChangeDialog } from "./UserRoleChangeDialog";
 

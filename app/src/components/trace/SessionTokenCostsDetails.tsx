@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { SessionTokenCostsDetailsQuery } from "./__generated__/SessionTokenCostsDetailsQuery.graphql";
+import type { SessionTokenCostsDetailsQuery } from "./__generated__/SessionTokenCostsDetailsQuery.graphql";
 import { TokenCostsDetails } from "./TokenCostsDetails";
 
 export function SessionTokenCostsDetails(props: { sessionNodeId: string }) {

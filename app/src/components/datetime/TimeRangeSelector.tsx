@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { Dialog, DialogTrigger } from "react-aria-components";
 
 import { usePreferencesContext } from "@phoenix/contexts";
@@ -13,11 +13,11 @@ import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
 import { Flex } from "../layout";
 import { ListBox, ListBoxItem } from "../listbox";
 import { Popover, PopoverArrow } from "../overlay";
-import { ComponentSize } from "../types";
+import type { ComponentSize } from "../types";
 import { View } from "../view";
 import { LAST_N_TIME_RANGES } from "./constants";
 import { TimeRangeForm } from "./TimeRangeForm";
-import { OpenTimeRangeWithKey } from "./types";
+import type { OpenTimeRangeWithKey } from "./types";
 import { getTimeRangeFromLastNTimeRangeKey, isTimeRangeKey } from "./utils";
 
 export type TimeRangeSelectorProps = {

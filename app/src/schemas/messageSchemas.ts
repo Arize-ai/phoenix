@@ -1,7 +1,7 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
-import { ModelProviders } from "@phoenix/constants/generativeConstants";
+import type { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 import {
@@ -13,7 +13,8 @@ import {
   makeToolResultPart,
 } from "@phoenix/utils/promptUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
+import type { JSONLiteral } from "./jsonLiteralSchema";
+import { jsonLiteralSchema } from "./jsonLiteralSchema";
 import {
   type TextPart,
   textPartSchema,

@@ -1,14 +1,15 @@
 import { css, keyframes } from "@emotion/react";
-import { forwardRef, Ref } from "react";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { ModalOverlayProps as AriaModalOverlayProps } from "react-aria-components";
 import {
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
-  ModalOverlayProps as AriaModalOverlayProps,
 } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils";
 
-import { SizingProps } from "../types";
+import type { SizingProps } from "../types";
 
 const modalSlideover = keyframes`
   from {

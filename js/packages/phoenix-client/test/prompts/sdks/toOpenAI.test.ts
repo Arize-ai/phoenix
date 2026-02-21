@@ -4,7 +4,7 @@ import { assertType, describe, expect, it } from "vitest";
 
 import { toOpenAI } from "../../../src/prompts/sdks/toOpenAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
-import { PromptVersion } from "../../../src/types/prompts";
+import type { PromptVersion } from "../../../src/types/prompts";
 import {
   BASE_MOCK_PROMPT_VERSION,
   BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,

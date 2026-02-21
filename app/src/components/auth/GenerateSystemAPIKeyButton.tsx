@@ -3,7 +3,7 @@ import { graphql, useMutation } from "react-relay";
 import { Button } from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
 
-import { GenerateSystemAPIKeyButtonMutation } from "./__generated__/GenerateSystemAPIKeyButtonMutation.graphql";
+import type { GenerateSystemAPIKeyButtonMutation } from "./__generated__/GenerateSystemAPIKeyButtonMutation.graphql";
 
 type GenerateSystemAPIKeyButtonProps = {
   /**

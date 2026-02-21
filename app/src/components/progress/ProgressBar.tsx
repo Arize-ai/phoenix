@@ -1,8 +1,9 @@
-import { forwardRef, Ref } from "react";
+import type { Ref } from "react";
+import { forwardRef } from "react";
 import { ProgressBar as ReactAriaProgressBar } from "react-aria-components";
 
 import { progressBarCSS } from "./styles";
-import { ProgressBarProps } from "./types";
+import type { ProgressBarProps } from "./types";
 
 function ProgressBar(
   { width, height, ...props }: ProgressBarProps,

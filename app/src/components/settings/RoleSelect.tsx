@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 
+import type { SelectProps } from "@phoenix/components";
 import {
   Button,
   FieldError,
@@ -9,7 +10,6 @@ import {
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
-  SelectProps,
   SelectValue,
 } from "@phoenix/components";
 import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";

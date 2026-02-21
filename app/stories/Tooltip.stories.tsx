@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
+import type { TooltipProps } from "@phoenix/components/tooltip";
 import {
   Tooltip,
   TooltipArrow,
-  TooltipProps,
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
 

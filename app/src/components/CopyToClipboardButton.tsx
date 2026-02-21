@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 import copy from "copy-to-clipboard";
-import { RefObject, useCallback, useState } from "react";
+import type { RefObject } from "react";
+import { useCallback, useState } from "react";
 
-import { Button, ButtonProps } from "./button";
+import type { ButtonProps } from "./button";
+import { Button } from "./button";
 import { Icon, Icons } from "./icon";
 import { Tooltip, TooltipTrigger } from "./tooltip";
 

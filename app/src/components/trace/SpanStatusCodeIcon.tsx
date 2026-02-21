@@ -1,7 +1,7 @@
 import { Icon, Icons } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { SpanStatusCodeType } from "./types";
+import type { SpanStatusCodeType } from "./types";
 import { useSpanStatusCodeColor } from "./useSpanStatusCodeColor";
 
 export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({

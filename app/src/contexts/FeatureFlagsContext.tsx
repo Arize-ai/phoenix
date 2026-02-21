@@ -1,4 +1,5 @@
-import React, { createContext, PropsWithChildren, useState } from "react";
+import type { PropsWithChildren } from "react";
+import React, { createContext, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { Dialog, Modal, ModalOverlay, Switch, View } from "@phoenix/components";

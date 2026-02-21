@@ -8,8 +8,8 @@ import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfig
 import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
-import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
-import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
+import type { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
+import type { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
 import { EditPromptButton } from "./EditPromptButton";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";

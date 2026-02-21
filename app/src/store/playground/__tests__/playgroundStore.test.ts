@@ -1,4 +1,4 @@
-import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
+import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,

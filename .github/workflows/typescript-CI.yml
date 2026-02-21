@@ -6,15 +6,17 @@ on:
   push:
     branches:
       - main
-      - version-13
   pull_request:
     paths:
       - "app/**"
+      - ".oxlintrc.json"
+      - ".oxfmtrc.jsonc"
+      - ".nvmrc"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 concurrency:
-  group: test-typescript-${{ github.head_ref }}
+  group: test-typescript-app-${{ github.head_ref }}
   cancel-in-progress: true
 
 jobs:

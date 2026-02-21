@@ -1,10 +1,10 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { DialogTriggerProps } from "@phoenix/components";
 import {
   Button,
   Dialog,
   DialogTrigger,
-  DialogTriggerProps,
   Popover,
   PopoverArrow,
   View,

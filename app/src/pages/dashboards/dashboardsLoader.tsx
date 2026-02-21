@@ -3,7 +3,7 @@ import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { dashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
+import type { dashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
 
 /**
  * A loader for the dashboards page

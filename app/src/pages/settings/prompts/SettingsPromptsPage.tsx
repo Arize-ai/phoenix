@@ -2,10 +2,8 @@ import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  settingsPromptsPageLoaderGql,
-  SettingsPromptsPageLoaderType,
-} from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
+import type { SettingsPromptsPageLoaderType } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
+import { settingsPromptsPageLoaderGql } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 
 import { PromptLabelsSettingsCard } from "./PromptLabelsSettingsCard";
 

@@ -10,15 +10,17 @@ import {
   SelectValue,
   Token,
 } from "@phoenix/components";
-import {
+import type {
   AnthropicToolChoice,
-  findToolChoiceName,
   GoogleToolChoice,
+  OpenaiToolChoice,
+} from "@phoenix/schemas/toolChoiceSchemas";
+import {
+  findToolChoiceName,
   makeAnthropicToolChoice,
   makeAwsToolChoice,
   makeGoogleToolChoice,
   makeOpenAIToolChoice,
-  OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 

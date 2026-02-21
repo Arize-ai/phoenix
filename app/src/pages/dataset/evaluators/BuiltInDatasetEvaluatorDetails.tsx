@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
@@ -17,7 +17,7 @@ import { LevenshteinDistanceEvaluatorDetails } from "@phoenix/components/evaluat
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { RegexEvaluatorDetails } from "@phoenix/components/evaluators/RegexEvaluatorDetails";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
+import type { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 const boxCSS = css`
   background-color: var(--global-background-color-dark);

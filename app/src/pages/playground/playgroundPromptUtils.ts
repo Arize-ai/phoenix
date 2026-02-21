@@ -1,4 +1,4 @@
-import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
 

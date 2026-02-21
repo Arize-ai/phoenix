@@ -1,6 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
-import { LinkButton, LinkButtonProps } from "@phoenix/components";
+import type { LinkButtonProps } from "@phoenix/components";
+import { LinkButton } from "@phoenix/components";
 
 const meta: Meta = {
   title: "LinkButton",

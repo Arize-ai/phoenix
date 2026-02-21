@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,

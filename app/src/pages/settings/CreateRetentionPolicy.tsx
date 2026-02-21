@@ -5,14 +5,12 @@ import { Alert } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import {
+import type {
   CreateRetentionPolicyMutation,
   ProjectTraceRetentionRuleInput,
 } from "./__generated__/CreateRetentionPolicyMutation.graphql";
-import {
-  RetentionPolicyForm,
-  RetentionPolicyFormParams,
-} from "./RetentionPolicyForm";
+import type { RetentionPolicyFormParams } from "./RetentionPolicyForm";
+import { RetentionPolicyForm } from "./RetentionPolicyForm";
 
 /**
  * A Wrapper around the RetentionPolicyForm component that is used to create a new retention policy.

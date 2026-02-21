@@ -1,5 +1,7 @@
-import { forwardRef, Ref } from "react";
-import { TagGroup as AriaTagGroup, TagGroupProps } from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { TagGroupProps } from "react-aria-components";
+import { TagGroup as AriaTagGroup } from "react-aria-components";
 
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 

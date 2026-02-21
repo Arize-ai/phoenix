@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { ReactNode, startTransition, useEffect } from "react";
+import type { ReactNode } from "react";
+import { startTransition, useEffect } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
 
@@ -19,8 +20,8 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
-import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
+import type { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
+import type { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 

@@ -5,6 +5,7 @@ import { format } from "d3-format";
  */
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   CartesianGrid,
@@ -12,7 +13,6 @@ import {
   Line,
   ResponsiveContainer,
   Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 export const cardCSS = (style?: CSSProperties) => css`
   --scope-border-color: ${

@@ -1,5 +1,5 @@
-import { EvaluatorBase } from "../core/EvaluatorBase";
-import { ObjectMapping } from "../types/data";
+import type { EvaluatorBase } from "../core/EvaluatorBase";
+import type { ObjectMapping } from "../types/data";
 
 /**
  * Context for binding an evaluator with input mapping configuration.

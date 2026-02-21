@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
+import type { TextProps } from "@phoenix/components";
 import {
   Loading,
   RichTooltip,
-  TextProps,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";

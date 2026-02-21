@@ -7,11 +7,9 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { ProjectTraceRetentionRuleInput } from "./__generated__/CreateRetentionPolicyMutation.graphql";
 import type { EditRetentionPolicyMutation } from "./__generated__/EditRetentionPolicyMutation.graphql";
-import { EditRetentionPolicyQuery } from "./__generated__/EditRetentionPolicyQuery.graphql";
-import {
-  RetentionPolicyForm,
-  RetentionPolicyFormParams,
-} from "./RetentionPolicyForm";
+import type { EditRetentionPolicyQuery } from "./__generated__/EditRetentionPolicyQuery.graphql";
+import type { RetentionPolicyFormParams } from "./RetentionPolicyForm";
+import { RetentionPolicyForm } from "./RetentionPolicyForm";
 
 interface EditRetentionPolicyProps {
   policyId: string;

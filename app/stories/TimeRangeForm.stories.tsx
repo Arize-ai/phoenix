@@ -1,6 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";
 
+import type { TimeRangeFormProps } from "@phoenix/components";
 import {
   Button,
   Dialog,
@@ -10,7 +11,6 @@ import {
   Popover,
   PopoverArrow,
   TimeRangeForm,
-  TimeRangeFormProps,
   View,
 } from "@phoenix/components";
 import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";

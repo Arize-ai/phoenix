@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import {
-  PropsWithChildren,
-  startTransition,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import type { PropsWithChildren } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 import {
   Button,
@@ -17,10 +12,8 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
-import {
-  TimelineBar,
-  TimelineBarProps,
-} from "@phoenix/components/timeline/TimelineBar";
+import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
+import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -30,8 +23,9 @@ import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { TraceTreeProvider, useTraceTree } from "./TraceTreeContext";
-import { ISpanItem, SpanStatusCodeType } from "./types";
-import { createSpanTree, SpanTreeNode } from "./utils";
+import type { ISpanItem, SpanStatusCodeType } from "./types";
+import type { SpanTreeNode } from "./utils";
+import { createSpanTree } from "./utils";
 
 export type TraceTreeProps = {
   spans: ISpanItem[];

@@ -1,5 +1,5 @@
 import { Suspense, useMemo } from "react";
-import { PreloadedQuery } from "react-relay";
+import type { PreloadedQuery } from "react-relay";
 import { useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 

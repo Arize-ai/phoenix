@@ -1,13 +1,13 @@
-import {
+import type {
   AnthropicToolDefinition,
   OpenAIToolDefinition,
 } from "@phoenix/schemas";
-import {
+import type {
   AnthropicToolCall,
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 
-import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
+import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 export const basePlaygroundSpan: PlaygroundSpan = {
   __typename: "Span",

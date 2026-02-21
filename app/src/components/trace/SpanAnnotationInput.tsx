@@ -1,7 +1,10 @@
-import { Key } from "react-aria-components";
+import type { Key } from "react-aria-components";
 import { Controller, useFormContext } from "react-hook-form";
 
-import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
+import type {
+  Annotation,
+  AnnotationConfig,
+} from "@phoenix/components/annotation";
 import { CategoricalAnnotationInput } from "@phoenix/components/annotation/CategoricalAnnotationInput";
 import { ContinuousAnnotationInput } from "@phoenix/components/annotation/ContinuousAnnotationInput";
 import { FreeformAnnotationInput } from "@phoenix/components/annotation/FreeformAnnotationInput";

@@ -1,5 +1,5 @@
-import { PhoenixClient, Types } from "@arizeai/phoenix-client";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 const GET_SPANS_DESCRIPTION = `Get spans from a project with filtering criteria.

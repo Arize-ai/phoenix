@@ -16,9 +16,9 @@ import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerConte
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { createPolicyScheduleSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
-import { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
-import { RetentionPoliciesTable_retentionPolicy$key } from "./__generated__/RetentionPoliciesTable_retentionPolicy.graphql";
-import { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
+import type { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
+import type { RetentionPoliciesTable_retentionPolicy$key } from "./__generated__/RetentionPoliciesTable_retentionPolicy.graphql";
+import type { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
 import { RetentionPolicyActionMenu } from "./RetentionPolicyActionMenu";
 
 const RETENTION_POLICY_FRAGMENT = graphql`

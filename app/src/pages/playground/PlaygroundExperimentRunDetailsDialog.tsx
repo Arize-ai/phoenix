@@ -3,9 +3,9 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Card,
-  CardProps,
   CopyToClipboardButton,
   Dialog,
   Flex,

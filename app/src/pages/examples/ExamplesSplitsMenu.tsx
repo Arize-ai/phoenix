@@ -1,10 +1,10 @@
 import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
+import type { ButtonProps } from "@phoenix/components";
 import {
   Autocomplete,
   Button,
-  ButtonProps,
   Icon,
   Icons,
   Input,
@@ -19,8 +19,8 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";
-import { ExamplesSplitsMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitsMenuQuery.graphql";
-import { Mutable } from "@phoenix/typeUtils";
+import type { ExamplesSplitsMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitsMenuQuery.graphql";
+import type { Mutable } from "@phoenix/typeUtils";
 
 type ExamplesSplitsMenuProps = {
   onSelectionChange: (splitIds: string[]) => void;

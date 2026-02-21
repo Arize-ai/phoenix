@@ -1,12 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
-import {
-  createCredentialsStore,
+import type {
   CredentialsProps,
   CredentialsState,
   CredentialsStore,
 } from "@phoenix/store/credentialsStore";
+import { createCredentialsStore } from "@phoenix/store/credentialsStore";
 
 export const CredentialsContext = createContext<CredentialsStore | null>(null);
 

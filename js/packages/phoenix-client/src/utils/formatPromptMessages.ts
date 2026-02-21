@@ -1,9 +1,7 @@
-import { Variables } from "../prompts/sdks/types";
-import {
-  asTextPart,
-  TextPart,
-} from "../schemas/llm/phoenixPrompt/messagePartSchemas";
-import { PromptChatMessage, PromptTemplateFormat } from "../types/prompts";
+import type { Variables } from "../prompts/sdks/types";
+import type { TextPart } from "../schemas/llm/phoenixPrompt/messagePartSchemas";
+import { asTextPart } from "../schemas/llm/phoenixPrompt/messagePartSchemas";
+import type { PromptChatMessage, PromptTemplateFormat } from "../types/prompts";
 import { assertUnreachable } from "./assertUnreachable";
 
 /**

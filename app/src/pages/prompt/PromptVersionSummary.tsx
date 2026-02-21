@@ -7,7 +7,7 @@ import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useCurrentTime } from "@phoenix/hooks";
 
-import { PromptVersionSummaryFragment$key } from "./__generated__/PromptVersionSummaryFragment.graphql";
+import type { PromptVersionSummaryFragment$key } from "./__generated__/PromptVersionSummaryFragment.graphql";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export function PromptVersionSummary(props: {

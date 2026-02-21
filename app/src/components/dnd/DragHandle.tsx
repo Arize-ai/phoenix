@@ -1,4 +1,4 @@
-import { DraggableAttributes } from "@dnd-kit/core";
+import type { DraggableAttributes } from "@dnd-kit/core";
 import { css } from "@emotion/react";
 import React from "react";
 

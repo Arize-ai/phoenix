@@ -1,13 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
-import {
-  DateInput,
-  DateSegment,
-  Label,
-  TimeField,
-  TimeFieldProps,
-  TimeValue,
-} from "@phoenix/components";
+import type { TimeFieldProps, TimeValue } from "@phoenix/components";
+import { DateInput, DateSegment, Label, TimeField } from "@phoenix/components";
 
 const meta: Meta = {
   title: "TimeField",

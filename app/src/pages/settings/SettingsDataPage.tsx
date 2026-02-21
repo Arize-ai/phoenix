@@ -21,10 +21,8 @@ import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
 import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
-import {
-  SettingsDataLoaderType,
-  settingsDataPageLoaderGql,
-} from "./settingsDataPageLoader";
+import type { SettingsDataLoaderType } from "./settingsDataPageLoader";
+import { settingsDataPageLoaderGql } from "./settingsDataPageLoader";
 
 export function SettingsDataPage() {
   const loaderData = useLoaderData<SettingsDataLoaderType>();

@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { forwardRef, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { forwardRef } from "react";
 
 import { Button } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";

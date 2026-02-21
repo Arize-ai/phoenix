@@ -64,11 +64,11 @@ export function ExperimentAverageRunTokenCostsDetails({
       const costCompletion = data.experiment.costSummary.completion.cost;
       const runCount = data.experiment.runCount;
       const averageRunCostTotal =
-        costTotal == null || runCount == 0 ? null : costTotal / runCount;
+        costTotal == null || runCount === 0 ? null : costTotal / runCount;
       const averageRunCostPrompt =
-        costPrompt == null || runCount == 0 ? null : costPrompt / runCount;
+        costPrompt == null || runCount === 0 ? null : costPrompt / runCount;
       const averageRunCostCompletion =
-        costCompletion == null || runCount == 0
+        costCompletion == null || runCount === 0
           ? null
           : costCompletion / runCount;
 
