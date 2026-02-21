@@ -1,5 +1,18 @@
 # @arizeai/phoenix-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- 67e8111: Add `px api graphql` command for executing raw GraphQL queries against the Phoenix API. Only queries are permitted — mutations and subscriptions are rejected. Output is pretty-printed JSON, suitable for piping to `jq`.
+
+### Patch Changes
+
+- Updated dependencies [db24319]
+- Updated dependencies [b18325b]
+  - @arizeai/phoenix-client@5.9.0
+  - @arizeai/phoenix-config@0.1.1
+
 ## 0.5.2
 
 ### Patch Changes
@@ -53,6 +66,7 @@
 ### Minor Changes
 
 - 32343ff: Add datasets and experiments commands to the CLI:
+
   - `px datasets` - List all available Phoenix datasets with example counts and metadata
   - `px dataset <name-or-id>` - Fetch examples from a dataset with optional `--split` and `--version` filters
   - `px experiments --dataset <name-or-id>` - List experiments for a dataset, optionally export full experiment data to a directory
