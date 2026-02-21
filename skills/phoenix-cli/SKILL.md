@@ -24,10 +24,11 @@ Run `px --help` to see all commands. Run `px <command> --help` for command-speci
 ## `px traces` — Fetch recent traces
 
 ```bash
-px traces --limit 10                         # newest 10 traces (pretty)
-px traces --format raw --no-progress | jq   # compact JSON for piping
-px traces ./out/ --limit 50                 # save as files to directory
-px traces --last-n-minutes 60               # filter by time window
+px traces --limit 10                          # newest 10 traces (pretty print)
+px traces --format raw --no-progress | jq    # compact JSON for piping
+px traces ./out/ --limit 50                  # save as JSON files to directory
+px traces --last-n-minutes 60 --limit 20     # filter by time window
+px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
 ```
 
 Always use `--format raw --no-progress` when piping to `jq`.
@@ -39,48 +40,130 @@ px traces --limit 50 --format raw --no-progress | jq '.[] | select(.status == "E
 # Slowest 5 traces
 px traces --limit 20 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 
-# LLM models used
+# LLM models used across recent traces
 px traces --limit 50 --format raw --no-progress | \
   jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
 
 # Token counts per trace
 px traces --limit 20 --format raw --no-progress | \
-  jq '.[] | {traceId, tokens: (.spans[] | select(.span_kind == "LLM") | .attributes["llm.token_count.completion"])}'
+  jq '.[] | {traceId, duration, prompt: .rootSpan.attributes["llm.token_count.prompt"], completion: .rootSpan.attributes["llm.token_count.completion"]}'
+
+# Extract LLM inputs and outputs
+px traces --limit 10 --format raw --no-progress | \
+  jq '.[] | {traceId, input: .rootSpan.attributes["input.value"], output: .rootSpan.attributes["output.value"]}'
 ```
 
-Trace JSON shape:
+### Trace JSON shape
+
+Each element of the output array is a `Trace` object:
 
 ```json
 {
-  "traceId": "abc123",
+  "traceId": "73b0daa1b19c689af2f72a553cdea89d",
   "status": "OK",
-  "duration": 1250,
-  "spans": [{
-    "name": "chat_completion",
-    "span_kind": "LLM",
-    "status_code": "OK",
-    "attributes": {
-      "llm.model_name": "gpt-4",
-      "llm.token_count.prompt": 512,
-      "llm.token_count.completion": 256,
-      "input.value": "...",
-      "output.value": "..."
+  "startTime": "2026-02-21T06:45:49.076Z",
+  "endTime": "2026-02-21T06:45:49.571Z",
+  "duration": 495,
+  "rootSpan": { ... },
+  "spans": [
+    {
+      "id": "U3BhbjoyNTQ=",
+      "name": "ChatCompletion",
+      "context": {
+        "trace_id": "73b0daa1b19c689af2f72a553cdea89d",
+        "span_id": "1b85de45f4aac981"
+      },
+      "span_kind": "LLM",
+      "parent_id": null,
+      "start_time": "2026-02-21T06:45:49.076614+00:00",
+      "end_time": "2026-02-21T06:45:49.571064+00:00",
+      "status_code": "OK",
+      "status_message": "",
+      "attributes": {
+        "input.value": "{\"messages\": [...], \"tools\": []}",
+        "input.mime_type": "application/json",
+        "output.value": "Hi! What would you like help with?",
+        "output.mime_type": "text/plain",
+        "llm.model_name": "gpt-4o",
+        "llm.provider": "openai",
+        "llm.system": "openai",
+        "llm.input_messages.0.message.role": "system",
+        "llm.input_messages.0.message.content": "You are a chatbot",
+        "llm.input_messages.1.message.role": "user",
+        "llm.input_messages.1.message.content": "Hello",
+        "llm.output_messages.0.message.role": "assistant",
+        "llm.output_messages.0.message.content": "Hi! What would you like help with?",
+        "llm.invocation_parameters": "{\"temperature\": 0.7}",
+        "llm.token_count.prompt": 14,
+        "llm.token_count.completion": 12,
+        "llm.token_count.total": 26,
+        "llm.token_count.prompt_details.cache_read": 0,
+        "llm.token_count.completion_details.reasoning": 0
+      },
+      "events": []
     }
-  }]
+  ]
 }
 ```
 
-Key span kinds: `LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`.
+### Key fields
 
-Key attributes: `llm.model_name`, `llm.provider`, `llm.token_count.prompt`, `llm.token_count.completion`, `llm.input_messages.*`, `llm.output_messages.*`, `input.value`, `output.value`, `exception.message`.
+**Trace-level** (top of each object):
+- `traceId` — unique trace identifier
+- `status` — `"OK"` or `"ERROR"` (derived from spans)
+- `duration` — total milliseconds
+- `startTime` / `endTime` — ISO timestamps
+- `rootSpan` — the top-level span (no `parent_id`)
+- `spans` — all spans in the trace
+
+**Span-level** (inside `spans[]`):
+- `span_kind` — `LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`
+- `status_code` — `"OK"` or `"ERROR"`
+- `parent_id` — `null` for root span, span ID string for children
+- `context.span_id` — unique span identifier
+
+**Key OpenInference attributes** (inside `attributes`):
+- `input.value` — raw input (may be JSON string when `input.mime_type` is `application/json`)
+- `output.value` — raw output text
+- `llm.model_name` — model used (e.g. `"gpt-4o"`, `"claude-3-5-sonnet"`)
+- `llm.provider` — provider name (e.g. `"openai"`, `"anthropic"`)
+- `llm.token_count.prompt` / `.completion` / `.total` — token counts
+- `llm.token_count.prompt_details.cache_read` — cached prompt tokens
+- `llm.token_count.completion_details.reasoning` — reasoning tokens (o-series models)
+- `llm.input_messages.{N}.message.role` / `.content` — individual messages (indexed)
+- `llm.output_messages.{N}.message.role` / `.content` — model response messages
+- `llm.invocation_parameters` — JSON string of call parameters (temperature, etc.)
+- `exception.message` — error message if span failed
 
 ---
 
 ## `px trace <trace-id>` — Single trace
 
+Fetches a single trace by ID. Returns the same `Trace` JSON shape as `px traces` but for one trace. The `traceId` is the `traceId` field from a `px traces` result or from a `traceId` in an experiment run.
+
 ```bash
-px trace abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
-px trace abc123def456 --format raw | jq '.spans | sort_by(-.duration_ms) | .[0:3]'
+px trace 73b0daa1b19c689af2f72a553cdea89d
+px trace 73b0daa1b19c689af2f72a553cdea89d --format raw | jq .
+px trace 73b0daa1b19c689af2f72a553cdea89d --file trace.json
+
+# Find spans that failed
+px trace <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
+
+# Sort spans by duration (longest first)
+px trace <trace-id> --format raw | \
+  jq '.spans | sort_by(-(.end_time | fromdateiso8601) + (.start_time | fromdateiso8601)) | .[0:5] | .[] | {name, span_kind, status_code}'
+
+# Extract LLM input/output messages
+px trace <trace-id> --format raw | \
+  jq '.spans[] | select(.span_kind == "LLM") | {
+    model: .attributes["llm.model_name"],
+    input: [to_entries | .[] | select(.key | startswith("llm.input_messages")) | {(.key): .value}],
+    output: .attributes["llm.output_messages.0.message.content"]
+  }'
+
+# Get exception details
+px trace <trace-id> --format raw | \
+  jq '.spans[] | select(.attributes["exception.message"]) | {name, error: .attributes["exception.message"]}'
 ```
 
 ---
