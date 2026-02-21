@@ -105,7 +105,7 @@ function SideNav() {
               text="Projects"
               leadingVisual={<Icon svg={<Icons.GridOutline />} />}
               trailingVisual={
-                isSideNavExpanded && loaderData?.projectCount != null ? (
+                loaderData?.projectCount != null ? (
                   <Counter>{loaderData.projectCount}</Counter>
                 ) : undefined
               }
@@ -118,7 +118,7 @@ function SideNav() {
               text="Datasets & Experiments"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
               trailingVisual={
-                isSideNavExpanded && loaderData?.datasetCount != null ? (
+                loaderData?.datasetCount != null ? (
                   <Counter>{loaderData.datasetCount}</Counter>
                 ) : undefined
               }
@@ -139,7 +139,7 @@ function SideNav() {
               text="Evaluators"
               leadingVisual={<Icon svg={<Icons.Scale />} />}
               trailingVisual={
-                isSideNavExpanded && loaderData?.evaluatorCount != null ? (
+                loaderData?.evaluatorCount != null ? (
                   <Counter>{loaderData.evaluatorCount}</Counter>
                 ) : undefined
               }
@@ -152,7 +152,7 @@ function SideNav() {
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
               trailingVisual={
-                isSideNavExpanded && loaderData?.promptCount != null ? (
+                loaderData?.promptCount != null ? (
                   <Counter>{loaderData.promptCount}</Counter>
                 ) : undefined
               }
