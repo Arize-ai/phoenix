@@ -28,8 +28,8 @@ import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import {
-  logExperimentResumeLinks,
   logExperimentResumeSummary,
+  logLinks,
   PROGRESS_PREFIX,
 } from "./logging";
 import { resumeEvaluation } from "./resumeEvaluation";
@@ -550,10 +550,10 @@ export async function resumeExperiment({
     completed: totalCompleted,
     failed: totalFailed,
   });
-  logExperimentResumeLinks(logger, {
-    experimentsUrl: datasetExperimentsUrl,
-    experimentUrl,
-  });
+  logLinks(logger, [
+    { label: "Experiments", url: datasetExperimentsUrl },
+    { label: "Experiment", url: experimentUrl },
+  ]);
 
   // Flush spans (if tracer was initialized)
   if (provider) {
