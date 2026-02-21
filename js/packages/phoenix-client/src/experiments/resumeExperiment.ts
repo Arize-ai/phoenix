@@ -21,21 +21,15 @@ import type {
   ExperimentEvaluatorLike,
   ExperimentTask,
 } from "../types/experiments";
-import { type Logger } from "../types/logger";
+import { createLogger, type Logger } from "../logger";
+import { logExperimentResumeLinks, logExperimentResumeSummary, PREFIX } from "./logging";
 import { Channel, ChannelError } from "../utils/channel";
-import { createLogger } from "../utils/createLogger";
 import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { resumeEvaluation } from "./resumeEvaluation";
-
-const PREFIX = {
-  start: "[start]    ",
-  progress: "[progress] ",
-  completed: "[completed]",
-} as const;
 
 /**
  * Error thrown when task is aborted due to a failure in stopOnFirstError mode.
@@ -279,7 +273,7 @@ export async function resumeExperiment({
   const pageSize = DEFAULT_PAGE_SIZE;
 
   // Get experiment info
-  logger.info(`${PREFIX.start}  Fetching experiment info.`);
+  logger.info(`${PREFIX.start}Fetching experiment info.`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Check if there are incomplete runs
@@ -288,13 +282,13 @@ export async function resumeExperiment({
 
   if (incompleteCount === 0) {
     logger.info(
-      `${PREFIX.completed}  No incomplete runs found. Experiment is already complete.`
+      `${PREFIX.completed}No incomplete runs found. Experiment is already complete.`
     );
     return;
   }
 
   logger.info(
-    `${PREFIX.start}  Resuming experiment with ${incompleteCount} incomplete runs.`
+    `${PREFIX.start}Resuming experiment with ${incompleteCount} incomplete runs.`
   );
 
   // Get base URL for tracing and URL generation
@@ -351,7 +345,7 @@ export async function resumeExperiment({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.debug(`${PREFIX.progress}  Stopping fetch.`);
+          logger.debug(`${PREFIX.progress}Stopping fetch.`);
           break;
         }
 
@@ -421,7 +415,7 @@ export async function resumeExperiment({
         }
 
         logger.debug(
-          `${PREFIX.progress}  Fetched batch of ${batchCount} incomplete runs.`
+          `${PREFIX.progress}Fetched batch of ${batchCount} incomplete runs.`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -523,7 +517,7 @@ export async function resumeExperiment({
 
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`${PREFIX.completed}  Task runs completed.`);
+    logger.info(`${PREFIX.completed}Task runs completed.`);
   }
 
   if (totalFailed > 0 && !executionError) {
@@ -535,7 +529,7 @@ export async function resumeExperiment({
   // Run evaluators if provided (only on runs missing evaluations)
   // Skip evaluators if we stopped on error
   if (evaluators && evaluators.length > 0 && !executionError) {
-    logger.info(`${PREFIX.start}  Running evaluators.`);
+    logger.info(`${PREFIX.start}Running evaluators.`);
     await resumeEvaluation({
       experimentId,
       evaluators: [...evaluators],
@@ -549,20 +543,16 @@ export async function resumeExperiment({
     });
   }
 
-  // Print summary
-  logger.info("Experiment Resume Summary");
-  logger.table([
-    {
-      experiment_id: experiment.id,
-      processed: totalProcessed,
-      completed: totalCompleted,
-      failed: totalFailed,
-    },
-  ]);
-
-  logger.info("\nLinks");
-  logger.info(`  Experiments  ${datasetExperimentsUrl}`);
-  logger.info(`  Experiment   ${experimentUrl}`);
+  logExperimentResumeSummary(logger, {
+    experimentId: experiment.id,
+    processed: totalProcessed,
+    completed: totalCompleted,
+    failed: totalFailed,
+  });
+  logExperimentResumeLinks(logger, {
+    experimentsUrl: datasetExperimentsUrl,
+    experimentUrl,
+  });
 
   // Flush spans (if tracer was initialized)
   if (provider) {

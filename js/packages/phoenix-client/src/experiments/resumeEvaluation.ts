@@ -23,19 +23,13 @@ import type {
   IncompleteEvaluation,
   TaskOutput,
 } from "../types/experiments";
-import { type Logger } from "../types/logger";
+import { createLogger, type Logger } from "../logger";
+import { logEvalResumeSummary, PREFIX } from "./logging";
 import { Channel, ChannelError } from "../utils/channel";
-import { createLogger } from "../utils/createLogger";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
-
-const PREFIX = {
-  start: "[start]    ",
-  progress: "[progress] ",
-  completed: "[completed]",
-} as const;
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
@@ -314,7 +308,7 @@ export async function resumeEvaluation({
   invariant(evaluators.length > 0, "Must specify at least one evaluator");
 
   // Get experiment info
-  logger.info(`${PREFIX.start}  Checking for incomplete evaluations.`);
+  logger.info(`${PREFIX.start}Checking for incomplete evaluations.`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Initialize tracer (only if experiment has a project_name)
@@ -362,7 +356,7 @@ export async function resumeEvaluation({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.debug(`${PREFIX.progress}  Stopping fetch.`);
+          logger.debug(`${PREFIX.progress}Stopping fetch.`);
           break;
         }
 
@@ -419,13 +413,13 @@ export async function resumeEvaluation({
 
         if (batchIncomplete.length === 0) {
           if (totalProcessed === 0) {
-            logger.info(`${PREFIX.completed}  No incomplete evaluations found.`);
+            logger.info(`${PREFIX.completed}No incomplete evaluations found.`);
           }
           break;
         }
 
         if (totalProcessed === 0) {
-          logger.info(`${PREFIX.start}  Resuming evaluations.`);
+          logger.info(`${PREFIX.start}Resuming evaluations.`);
         }
 
         // Build evaluation tasks and send to channel
@@ -456,7 +450,7 @@ export async function resumeEvaluation({
         }
 
         logger.debug(
-          `${PREFIX.progress}  Fetched batch of ${batchCount} evaluation tasks.`
+          `${PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -558,7 +552,7 @@ export async function resumeEvaluation({
 
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`${PREFIX.completed}  Evaluations completed.`);
+    logger.info(`${PREFIX.completed}Evaluations completed.`);
   }
 
   if (totalFailed > 0 && !executionError) {
@@ -567,16 +561,12 @@ export async function resumeEvaluation({
     );
   }
 
-  // Print summary
-  logger.info("Evaluation Resume Summary");
-  logger.table([
-    {
-      experiment_id: experiment.id,
-      processed: totalProcessed,
-      completed: totalCompleted,
-      failed: totalFailed,
-    },
-  ]);
+  logEvalResumeSummary(logger, {
+    experimentId: experiment.id,
+    processed: totalProcessed,
+    completed: totalCompleted,
+    failed: totalFailed,
+  });
 
   // Flush spans (if tracer was initialized)
   if (provider) {

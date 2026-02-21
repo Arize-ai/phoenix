@@ -36,8 +36,8 @@ import type {
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
-import { type Logger } from "../types/logger";
-import { createLogger } from "../utils/createLogger";
+import { createLogger, type Logger } from "../logger";
+import { logEvalSummary, logLinks, logTaskSummary, PREFIX } from "./logging";
 import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
@@ -49,12 +49,6 @@ import {
 } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
-
-const PREFIX = {
-  start: "[start]",
-  progress: "[progress]",
-  completed: "[completed]",
-} as const;
 
 /**
  * Validate that a repetition is valid
@@ -341,7 +335,7 @@ export async function runExperiment({
     repetitions,
   });
   const taskRuns = Object.values(runs);
-  const taskErrors = taskRuns.filter((r) => r.error != null).length;
+  const taskErrors = taskRuns.filter((run) => run.error != null).length;
   const taskTotal = nExamples * repetitions;
   const taskOkStr =
     taskErrors > 0
@@ -356,7 +350,7 @@ export async function runExperiment({
 
   if (evaluators && evaluators.length > 0) {
     const evNames = getExperimentEvaluators(evaluators)
-      .map((e) => e.name)
+      .map((evaluator) => evaluator.name)
       .join(", ");
     logger.info(`${PREFIX.start} Evaluations (${evNames})`);
   }
@@ -384,69 +378,18 @@ export async function runExperiment({
     Object.assign(ranExperiment, updatedExperiment);
   }
 
-  // Task summary
-  logger.info("");
-  logger.info("Task Summary");
-  const taskRow: Record<string, unknown> = { n_examples: nExamples };
-  if (repetitions > 1) taskRow.repetitions = repetitions;
-  taskRow.n_runs = taskRuns.length;
-  if (taskErrors > 0) taskRow.n_errors = taskErrors;
-  logger.table([taskRow]);
+  logTaskSummary(logger, {
+    nExamples,
+    repetitions,
+    nRuns: taskRuns.length,
+    nErrors: taskErrors,
+  });
 
-  // Evaluation summary (if evaluators ran)
   if (ranExperiment.evaluationRuns && ranExperiment.evaluationRuns.length > 0) {
-    logger.info("");
-    logger.info("Evaluation Summary");
-
-    const byEvaluator = new Map<string, ExperimentEvaluationRun[]>();
-    for (const ev of ranExperiment.evaluationRuns) {
-      const list = byEvaluator.get(ev.name) ?? [];
-      list.push(ev);
-      byEvaluator.set(ev.name, list);
-    }
-
-    const evalRows = Array.from(byEvaluator.entries()).map(([name, evs]) => {
-      const scores = evs.flatMap((e) =>
-        e.result?.score != null ? [e.result.score] : []
-      );
-      const labels = evs.flatMap((e) =>
-        e.result?.label != null ? [e.result.label] : []
-      );
-      const errors = evs.filter((e) => e.error != null);
-
-      const row: Record<string, unknown> = { evaluator: name, n: evs.length };
-      if (errors.length > 0) row.n_errors = errors.length;
-      if (scores.length > 0) {
-        row.n_scores = scores.length;
-        row.avg_score = Number(
-          (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(3)
-        );
-      }
-      if (labels.length > 0) {
-        row.n_labels = labels.length;
-        const counts: Record<string, number> = {};
-        for (const l of labels) counts[l] = (counts[l] ?? 0) + 1;
-        const topLabels = Object.entries(counts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 2);
-        if (topLabels[0]) row.label_1 = `${topLabels[0][0]} (${topLabels[0][1]})`;
-        if (topLabels[1]) row.label_2 = `${topLabels[1][0]} (${topLabels[1][1]})`;
-      }
-      return row;
-    });
-
-    logger.table(evalRows);
+    logEvalSummary(logger, ranExperiment.evaluationRuns);
   }
 
-  if (links.length > 0) {
-    const maxLen = Math.max(...links.map((l) => l.label.length));
-    logger.info("");
-    logger.info("Links");
-    for (const { label, url } of links) {
-      logger.info(`  ${label.padEnd(maxLen)}  ${url}`);
-    }
-    logger.info("");
-  }
+  logLinks(logger, links);
 
   return ranExperiment;
 }
@@ -804,7 +747,7 @@ export async function evaluateExperiment({
   await evaluatorsQueue.drain();
   const evalTotal = Object.values(evaluationRuns).length;
   const evalErrors = Object.values(evaluationRuns).filter(
-    (e) => e.error != null
+    (ev) => ev.error != null
   ).length;
   const evalExpected = runsToEvaluate.length * normalizedEvaluators.length;
   const evalOkStr =
