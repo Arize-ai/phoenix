@@ -118,22 +118,99 @@ Use `px api graphql` to run ad-hoc queries against the full Phoenix GraphQL sche
 Introspection is fully supported and is the best way to discover available fields.
 
 ```bash
-# Discover all available query root fields
+# Quick instance summary
+px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+
+# Discover all query root fields
 px api graphql '{ __schema { queryType { fields { name description } } } }' | \
   jq '.data.__schema.queryType.fields[].name'
 
-# Inspect the fields of a specific type
-px api graphql '{ __type(name: "Span") { fields { name type { name kind } } } }'
+# Inspect the fields of any type by name
+px api graphql '{ __type(name: "Experiment") { fields { name type { name kind } } } }'
+```
 
-# List project names
+**Projects**
+
+```bash
+# List projects with trace counts and token usage
+px api graphql '{ projects { edges { node { name traceCount tokenCountTotal createdAt } } } }'
+
+# Extract just project names
 px api graphql '{ projects { edges { node { name } } } }' | \
   jq '.data.projects.edges[].node.name'
+```
 
-# Get dataset count
-px api graphql '{ datasetCount }' | jq '.data.datasetCount'
+**Datasets**
 
-# Check server storage status
-px api graphql '{ serverStatus { insufficientStorage } }'
+```bash
+# List datasets with example and experiment counts
+px api graphql '{ datasets { edges { node { name exampleCount experimentCount createdAt } } } }'
+
+# Get first 5 datasets
+px api graphql '{ datasets(first: 5) { edges { node { name exampleCount } } } }'
+```
+
+**Experiments**
+
+```bash
+# List experiments per dataset with error rate and latency
+px api graphql '{
+  datasets {
+    edges {
+      node {
+        name
+        experiments {
+          edges {
+            node { name runCount errorRate averageRunLatencyMs createdAt }
+          }
+        }
+      }
+    }
+  }
+}'
+
+# Find experiments with errors
+px api graphql '{
+  datasets {
+    edges {
+      node {
+        name
+        experiments {
+          edges { node { name errorRate runCount } }
+        }
+      }
+    }
+  }
+}' | jq '.data.datasets.edges[].node.experiments.edges[].node | select(.errorRate > 0)'
+
+# Inspect individual run outputs and trace IDs
+px api graphql '{
+  datasets(first: 1) {
+    edges {
+      node {
+        experiments(first: 1) {
+          edges {
+            node {
+              name
+              runs {
+                edges {
+                  node { traceId output error latencyMs }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}'
+```
+
+**Evaluators**
+
+```bash
+# List all evaluators
+px api graphql '{ evaluators { edges { node { name kind description isBuiltin } } } }'
 ```
 
 ## Command Reference
@@ -233,9 +310,10 @@ px prompt <prompt-name> [options]
 Execute a raw GraphQL query against the Phoenix API. Only queries permitted.
 
 ```bash
-px api graphql '{ serverStatus { status } }'
-px api graphql '{ projects { edges { node { name } } } }'
-px api graphql '{ datasets(first: 5) { edges { node { name } } } }'
+px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+px api graphql '{ projects { edges { node { name traceCount } } } }'
+px api graphql '{ datasets(first: 5) { edges { node { name exampleCount experimentCount } } } }'
+px api graphql '{ serverStatus { insufficientStorage } }'
 ```
 
 | Argument/Option | Description |
