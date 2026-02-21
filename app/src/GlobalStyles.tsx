@@ -1,6 +1,7 @@
 import { css, Global } from "@emotion/react";
 
-import { ThemeContextType, useTheme } from "./contexts";
+import type { ThemeContextType } from "./contexts";
+import { useTheme } from "./contexts";
 
 /**
  * Medium size root CSS variables
@@ -1100,7 +1101,7 @@ const appGlobalStylesCSS = css`
     --gradient-bar-height: 8px;
 
     --nav-collapsed-width: 52px;
-    --nav-expanded-width: 230px;
+    --nav-expanded-width: 260px;
 
     --global-opacity-disabled: 0.4;
 

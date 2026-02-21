@@ -2,10 +2,8 @@ import { css } from "@emotion/react";
 import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";
-import {
-  detectToolCallProvider,
-  LlmProviderToolCall,
-} from "@phoenix/schemas/toolCallSchemas";
+import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
+import { detectToolCallProvider } from "@phoenix/schemas/toolCallSchemas";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 

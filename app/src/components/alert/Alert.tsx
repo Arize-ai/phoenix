@@ -1,11 +1,11 @@
 import { css } from "@emotion/react";
-import { ReactNode, SyntheticEvent } from "react";
+import type { ReactNode, SyntheticEvent } from "react";
 
 import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 import { Text } from "../content";
 import { CloseOutline, Icon } from "../icon";
-import { SeverityLevel } from "../types";
+import type { SeverityLevel } from "../types";
 import { getSeverityIcon } from "./getSeverityIcon";
 
 export interface AlertProps {

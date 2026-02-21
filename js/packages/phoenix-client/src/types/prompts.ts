@@ -1,4 +1,4 @@
-import { components } from "../__generated__/api/v1";
+import type { components } from "../__generated__/api/v1";
 
 /**
  * Supported prompt model providers

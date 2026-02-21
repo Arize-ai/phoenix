@@ -4,7 +4,7 @@ import {
   type ToggleButtonGroupProps as AriaToggleButtonGroupProps,
 } from "react-aria-components";
 
-import { SizingProps, StylableProps } from "@phoenix/components/types";
+import type { SizingProps, StylableProps } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils";
 

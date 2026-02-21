@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { CSSProperties, PropsWithChildren } from "react";
+import type { CSSProperties, PropsWithChildren } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -15,7 +15,7 @@ import { classNames } from "@phoenix/utils";
 
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
-import { FlexStyleProps, SizingProps, StylableProps } from "../types";
+import type { FlexStyleProps, SizingProps, StylableProps } from "../types";
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
 export type DisclosureGroupProps = AriaDisclosureGroupProps &

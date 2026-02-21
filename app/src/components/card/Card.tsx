@@ -1,17 +1,11 @@
-import {
-  forwardRef,
-  Ref,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useState,
-} from "react";
+import type { Ref } from "react";
+import { forwardRef, useEffect, useEffectEvent, useId, useState } from "react";
 
 import { Heading } from "../content";
 import { Icon, Icons } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
 import { cardCSS } from "./styles";
-import { CardProps } from "./types";
+import type { CardProps } from "./types";
 
 function Card(
   {

@@ -7,7 +7,8 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 
-import { EditExampleDialog, EditExampleDialogProps } from "./EditExampleDialog";
+import type { EditExampleDialogProps } from "./EditExampleDialog";
+import { EditExampleDialog } from "./EditExampleDialog";
 
 type EditExampleButtonProps = EditExampleDialogProps;
 

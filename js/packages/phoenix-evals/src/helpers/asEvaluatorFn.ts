@@ -1,4 +1,4 @@
-import { AnyFn, EvaluatorFn } from "../types";
+import type { AnyFn, EvaluatorFn } from "../types";
 import { isPromise } from "../utils/typeUtils";
 import { toEvaluationResult } from "./toEvaluationResult";
 

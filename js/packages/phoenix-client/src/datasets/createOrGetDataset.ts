@@ -1,5 +1,6 @@
 import { createClient } from "../client";
-import { createDataset, CreateDatasetParams } from "./createDataset";
+import type { CreateDatasetParams } from "./createDataset";
+import { createDataset } from "./createDataset";
 import { getDatasetInfoByName } from "./getDatasetInfoByName";
 
 export type CreateOrGetDatasetParams = CreateDatasetParams;

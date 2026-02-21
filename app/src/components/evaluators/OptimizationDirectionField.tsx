@@ -14,7 +14,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { EvaluatorOptimizationDirection } from "@phoenix/types";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 export const optimizationDirectionOptions: {
   value: EvaluatorOptimizationDirection;

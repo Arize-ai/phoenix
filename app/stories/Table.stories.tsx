@@ -1,13 +1,15 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
-import {
+import type {
   ColumnDef,
   ColumnSizingState,
+  RowSelectionState,
+  SortingState,
+} from "@tanstack/react-table";
+import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  RowSelectionState,
-  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";

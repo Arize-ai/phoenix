@@ -1,9 +1,10 @@
 import { css, keyframes } from "@emotion/react";
-import { forwardRef, HTMLAttributes } from "react";
+import type { HTMLAttributes } from "react";
+import { forwardRef } from "react";
 
 import { classNames } from "@phoenix/utils";
 
-import { BorderRadiusToken } from "../types/sizing";
+import type { BorderRadiusToken } from "../types/sizing";
 
 // Export the AnimationType so it can be used in stories
 export type AnimationType = "pulse" | "wave" | false;

@@ -1,8 +1,9 @@
-import { ColumnSizingState, Updater } from "@tanstack/react-table";
-import { create, StateCreator } from "zustand";
+import type { ColumnSizingState, Updater } from "@tanstack/react-table";
+import type { StateCreator } from "zustand";
+import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import { ProjectTab } from "@phoenix/pages/project/constants";
+import type { ProjectTab } from "@phoenix/pages/project/constants";
 
 type VisibilityState = Record<string, boolean>;
 export interface TracingProps {

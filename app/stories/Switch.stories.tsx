@@ -1,7 +1,8 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";
 
-import { Flex, Switch, SwitchProps } from "@phoenix/components";
+import type { SwitchProps } from "@phoenix/components";
+import { Flex, Switch } from "@phoenix/components";
 
 const meta: Meta<SwitchProps> = {
   title: "Switch",

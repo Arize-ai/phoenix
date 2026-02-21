@@ -1,9 +1,9 @@
-import { Meta, StoryFn } from "@storybook/react";
-import { ComponentProps } from "react";
-import { QueuedToast } from "react-aria-components";
+import type { Meta, StoryFn } from "@storybook/react";
+import type { ComponentProps } from "react";
+import type { QueuedToast } from "react-aria-components";
 
 import { Toast } from "@phoenix/components";
-import { NotificationParams } from "@phoenix/contexts";
+import type { NotificationParams } from "@phoenix/contexts";
 
 const meta: Meta = {
   title: "Toast",

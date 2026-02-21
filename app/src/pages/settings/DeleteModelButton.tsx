@@ -21,7 +21,7 @@ import {
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { DeleteModelButtonMutation } from "./__generated__/DeleteModelButtonMutation.graphql";
+import type { DeleteModelButtonMutation } from "./__generated__/DeleteModelButtonMutation.graphql";
 
 function DeleteModelDialogContent({
   modelId,

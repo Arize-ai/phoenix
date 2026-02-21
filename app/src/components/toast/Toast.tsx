@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { QueuedToast } from "react-aria-components";
 import {
-  QueuedToast,
   UNSTABLE_Toast as AriaToast,
   UNSTABLE_ToastContent as AriaToastContent,
 } from "react-aria-components";

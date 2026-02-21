@@ -1,6 +1,6 @@
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
-import { ViewStyleProps } from "@phoenix/components/types";
+import type { ViewStyleProps } from "@phoenix/components/types";
 
 export interface CardProps extends PropsWithChildren<ViewStyleProps> {
   /**

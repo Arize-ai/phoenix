@@ -1,14 +1,15 @@
+import type { AnthropicToolCall, OpenAIToolCall } from "../toolCallSchemas";
 import {
-  AnthropicToolCall,
   createAnthropicToolCall,
   createOpenAIToolCall,
-  OpenAIToolCall,
 } from "../toolCallSchemas";
-import {
+import type {
   AnthropicToolDefinition,
+  OpenAIToolDefinition,
+} from "../toolSchemas";
+import {
   createAnthropicToolDefinition,
   createOpenAIToolDefinition,
-  OpenAIToolDefinition,
 } from "../toolSchemas";
 
 export const getTestAnthropicToolDefinition = (

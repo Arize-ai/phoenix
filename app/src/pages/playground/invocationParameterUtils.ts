@@ -1,5 +1,5 @@
-import { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
-import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
+import type { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 
 /**
  * Check if two invocation parameters are equal by comparing their invocation name and canonical name

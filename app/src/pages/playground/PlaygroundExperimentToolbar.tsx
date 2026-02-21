@@ -9,10 +9,10 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
-import { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
+import type { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
+import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";

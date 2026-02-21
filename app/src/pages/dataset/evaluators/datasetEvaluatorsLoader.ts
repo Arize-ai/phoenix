@@ -1,10 +1,10 @@
 import { graphql, loadQuery } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { datasetEvaluatorsLoaderQuery } from "./__generated__/datasetEvaluatorsLoaderQuery.graphql";
+import type { datasetEvaluatorsLoaderQuery } from "./__generated__/datasetEvaluatorsLoaderQuery.graphql";
 
 export const datasetEvaluatorsLoaderGQL = graphql`
   query datasetEvaluatorsLoaderQuery($id: ID!) {

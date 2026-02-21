@@ -1,8 +1,7 @@
-import { forwardRef, Ref } from "react";
-import {
-  OverlayArrow as AriaOverlayArrow,
-  OverlayArrowProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { OverlayArrowProps } from "react-aria-components";
+import { OverlayArrow as AriaOverlayArrow } from "react-aria-components";
 
 type PopoverArrowProps = Omit<OverlayArrowProps, "children">;
 function PopoverArrow(props: PopoverArrowProps, ref: Ref<HTMLDivElement>) {

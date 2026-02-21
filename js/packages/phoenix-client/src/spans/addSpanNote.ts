@@ -1,5 +1,5 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
+import type { ClientFn } from "../types/core";
 
 /**
  * Parameters for a single span note

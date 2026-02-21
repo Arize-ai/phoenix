@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, Suspense, useMemo } from "react";
+import type { PropsWithChildren } from "react";
+import { Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -24,7 +25,7 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
-import {
+import type {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";

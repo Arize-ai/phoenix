@@ -3,13 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FieldError, Input, Label } from "react-aria-components";
 import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
 
-import { RegexFieldQuery } from "@phoenix/components/__generated__/RegexFieldQuery.graphql";
+import type { RegexFieldQuery } from "@phoenix/components/__generated__/RegexFieldQuery.graphql";
 import { Text } from "@phoenix/components/content";
+import type { TextFieldProps } from "@phoenix/components/field";
 import {
   FieldDangerIcon,
   FieldSuccessIcon,
   TextField,
-  TextFieldProps,
 } from "@phoenix/components/field";
 
 type RegexFieldProps = {

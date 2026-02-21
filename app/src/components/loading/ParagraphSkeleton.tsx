@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
-import { AnimationType, Skeleton } from "./Skeleton";
+import type { AnimationType } from "./Skeleton";
+import { Skeleton } from "./Skeleton";
 
 export interface ParagraphSkeletonProps {
   /**

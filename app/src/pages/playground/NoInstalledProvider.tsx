@@ -2,7 +2,7 @@ import { Flex, Text, View } from "@phoenix/components";
 import { PythonBlock } from "@phoenix/components/code";
 import { Empty } from "@phoenix/components/Empty";
 
-import { PlaygroundQuery$data } from "./__generated__/PlaygroundQuery.graphql";
+import type { PlaygroundQuery$data } from "./__generated__/PlaygroundQuery.graphql";
 
 // The playground is disabled if no LLM provider client is installed on the server.
 // This message is displayed until the user installs a provider for the server to use, and then restarts the server.

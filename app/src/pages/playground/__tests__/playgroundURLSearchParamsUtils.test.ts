@@ -1,6 +1,6 @@
+import type { PromptParam } from "../playgroundURLSearchParamsUtils";
 import {
   parsePromptParams,
-  PromptParam,
   setPromptParams,
 } from "../playgroundURLSearchParamsUtils";
 

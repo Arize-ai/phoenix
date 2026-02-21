@@ -1,5 +1,5 @@
 import { PythonBlock, TypeScriptBlock } from "@phoenix/components/code";
-import { ProgrammingLanguage } from "@phoenix/types/code";
+import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 export function CodeBlock({

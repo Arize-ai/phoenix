@@ -1,4 +1,5 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
+import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -6,7 +7,6 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -27,7 +27,7 @@ import {
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,

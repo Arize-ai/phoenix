@@ -16,20 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@phoenix/components/dialog";
-import {
-  LDAPUserForm,
-  LDAPUserFormParams,
-} from "@phoenix/components/settings/LDAPUserForm";
-import {
-  OAuthUserForm,
-  OAuthUserFormParams,
-} from "@phoenix/components/settings/OAuthUserForm";
-import {
-  UserForm,
-  UserFormParams,
-} from "@phoenix/components/settings/UserForm";
+import type { LDAPUserFormParams } from "@phoenix/components/settings/LDAPUserForm";
+import { LDAPUserForm } from "@phoenix/components/settings/LDAPUserForm";
+import type { OAuthUserFormParams } from "@phoenix/components/settings/OAuthUserForm";
+import { OAuthUserForm } from "@phoenix/components/settings/OAuthUserForm";
+import type { UserFormParams } from "@phoenix/components/settings/UserForm";
+import { UserForm } from "@phoenix/components/settings/UserForm";
 
-import { NewUserDialogMutation } from "./__generated__/NewUserDialogMutation.graphql";
+import type { NewUserDialogMutation } from "./__generated__/NewUserDialogMutation.graphql";
 
 export function NewUserDialog({
   onNewUserCreated,

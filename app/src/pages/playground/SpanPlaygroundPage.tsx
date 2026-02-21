@@ -4,9 +4,9 @@ import invariant from "tiny-invariant";
 
 import { Alert, Button, Flex, Icon, Icons } from "@phoenix/components";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
+import type { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "@phoenix/pages/playground/Playground";
-import { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";
+import type { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";
 
 import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
 

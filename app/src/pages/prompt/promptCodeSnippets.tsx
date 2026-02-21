@@ -1,11 +1,11 @@
 import { template } from "lodash";
 
+import type { OpenAIMessage } from "@phoenix/schemas/messageSchemas";
 import {
   fromOpenAIMessage,
-  OpenAIMessage,
   promptMessageToOpenAI,
 } from "@phoenix/schemas/messageSchemas";
-import { ProgrammingLanguage } from "@phoenix/types/code";
+import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { isObject } from "@phoenix/typeUtils";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";

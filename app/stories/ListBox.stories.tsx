@@ -1,6 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
-import { ListBox, ListBoxItem, ListBoxProps } from "@phoenix/components";
+import type { ListBoxProps } from "@phoenix/components";
+import { ListBox, ListBoxItem } from "@phoenix/components";
 
 const meta: Meta = {
   title: "ListBox",

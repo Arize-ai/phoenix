@@ -5,7 +5,7 @@ import { Flex, View } from "@phoenix/components";
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";
 import { ResetPasswordForm } from "./ResetPasswordForm";
-import { resetPasswordLoader } from "./resetPasswordLoader";
+import type { resetPasswordLoader } from "./resetPasswordLoader";
 
 export function ResetPasswordPage() {
   const loaderData = useLoaderData<typeof resetPasswordLoader>();

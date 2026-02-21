@@ -1,4 +1,4 @@
-import { SerializedStyles } from "@emotion/react";
+import type { SerializedStyles } from "@emotion/react";
 
 export type ColorValue =
   | "gray-50"

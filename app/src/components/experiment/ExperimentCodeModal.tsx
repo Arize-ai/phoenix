@@ -1,6 +1,6 @@
+import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
-  ButtonProps,
   DialogTrigger,
   Icon,
   Icons,
@@ -8,10 +8,8 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 
-import {
-  RunExperimentCodeDialogContent,
-  RunExperimentCodeDialogProps,
-} from "./RunExperimentCodeDialog";
+import type { RunExperimentCodeDialogProps } from "./RunExperimentCodeDialog";
+import { RunExperimentCodeDialogContent } from "./RunExperimentCodeDialog";
 
 export type { RunExperimentCodeDialogProps as ExperimentCodeModalProps };
 

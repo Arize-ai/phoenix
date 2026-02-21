@@ -71,6 +71,7 @@
                   }
                 ]
               },
+              "docs/phoenix/agent-assisted-setup",
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo"
             ]
@@ -306,7 +307,8 @@
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
-              "docs/phoenix/settings/data-retention"
+              "docs/phoenix/settings/data-retention",
+              "docs/phoenix/settings/custom-ai-providers"
             ]
           },
           {

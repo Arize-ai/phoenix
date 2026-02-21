@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import string
 import struct
 import threading
 import time
@@ -67,7 +68,6 @@ from google.genai.types import GenerateContentResponseUsageMetadata as GenAIUsag
 from google.genai.types import Part as GenAIPart
 from google.genai.types import ToolDict as GenAIToolDict
 from google.genai.types import _GenerateContentParameters as GenAIGenerateContentParams
-from hypothesis_jsonschema import from_schema
 from openai.types.chat import (
     ChatCompletionChunk,
     ChatCompletionMessageParam,
@@ -102,6 +102,7 @@ from openai.types.responses import (
     ResponseUsage,
     ToolParam,
 )
+from openai.types.responses.response_status import ResponseStatus
 from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from types_aiobotocore_bedrock_runtime.type_defs import (
@@ -376,27 +377,64 @@ def _sanitize_for_postgres(data: Any) -> Any:
     return data
 
 
-def _generate_fake_data(schema: dict[str, Any]) -> Any:
-    """Generate fake data from a JSON schema using hypothesis-jsonschema.
+def _generate_from_schema(schema: dict[str, Any]) -> Any:
+    """Generate data conforming to a JSON schema using stdlib random.
 
-    Note: We use .example() which is meant for interactive use, but it's fine here
-    since we're just generating mock data, not doing property-based testing.
+    Thread-safe alternative to hypothesis-jsonschema's from_schema().example(),
+    which uses global Hypothesis state that is not safe under concurrent access.
     """
-    import warnings
+    if not schema:
+        return ""
 
-    from hypothesis.errors import NonInteractiveExampleWarning
+    # Enum takes priority over type dispatch
+    if "enum" in schema:
+        return random.choice(schema["enum"])
 
+    schema_type = schema.get("type", "")
+
+    if schema_type == "object":
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+        if not required:
+            return {}
+        return {
+            key: _generate_from_schema(properties[key]) for key in required if key in properties
+        }
+
+    if schema_type == "string":
+        return "".join(random.choices(string.ascii_lowercase, k=random.randint(3, 12)))
+
+    if schema_type in ("number", "float"):
+        return random.uniform(schema.get("minimum", 0), schema.get("maximum", 100))
+
+    if schema_type == "integer":
+        return random.randint(int(schema.get("minimum", 0)), int(schema.get("maximum", 100)))
+
+    if schema_type == "boolean":
+        return random.choice([True, False])
+
+    if schema_type == "array":
+        items_schema = schema.get("items", {})
+        return [_generate_from_schema(items_schema) for _ in range(random.randint(0, 3))]
+
+    if schema_type == "null":
+        return None
+
+    return ""
+
+
+def _generate_fake_data(schema: dict[str, Any]) -> Any:
+    """Generate fake data from a JSON schema.
+
+    Uses _generate_from_schema() which is thread-safe, unlike the previous
+    hypothesis-jsonschema approach that used global state.
+    """
     if not schema:
         return {}
     try:
-        strategy = from_schema(schema)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", NonInteractiveExampleWarning)
-            data = strategy.example()
-        # Sanitize to remove null bytes and invalid Unicode for PostgreSQL
-        return _sanitize_for_postgres(data)
+        return _sanitize_for_postgres(_generate_from_schema(schema))
     except Exception as e:
-        logger.warning(f"Failed to generate fake data from schema: {e}")
+        logger.warning(f"Failed to generate fake data via _generate_from_schema: {e}")
         return {}
 
 
@@ -879,7 +917,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
 
         # Helper to create base Response
         def make_response(
-            status: str, output: list[Any], usage: ResponseUsage | None = None
+            status: ResponseStatus | None, output: list[Any], usage: ResponseUsage | None = None
         ) -> Response:
             return Response(
                 id=response_id,
@@ -890,7 +928,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 parallel_tool_calls=True,
                 tool_choice="auto",
                 tools=[],
-                status=status,  # type: ignore[arg-type]
+                status=status,
                 usage=usage,
             )
 
@@ -1036,7 +1074,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
 
         # Helper to create base Response
         def make_response(
-            status: str, output: list[Any], usage: ResponseUsage | None = None
+            status: ResponseStatus | None, output: list[Any], usage: ResponseUsage | None = None
         ) -> Response:
             return Response(
                 id=response_id,
@@ -1047,7 +1085,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 parallel_tool_calls=True,
                 tool_choice="auto",
                 tools=[],
-                status=status,  # type: ignore[arg-type]
+                status=status,
                 usage=usage,
             )
 
@@ -1345,7 +1383,9 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         # Validate request using BaseModel wrapper (handles IO[Any] with arbitrary_types_allowed)
         try:
             # raw_body is dict[str, Any] from JSON parsing; Pydantic validates against TypedDict
-            validated = _BedrockConverseRequest(request=raw_body)  # type: ignore[arg-type]
+            validated = _BedrockConverseRequest(
+                request=cast(ConverseStreamRequestTypeDef, raw_body)
+            )
             req = validated.request
         except ValidationError as e:
             logger.error(f"Invalid Bedrock ConverseStream request: {e}")

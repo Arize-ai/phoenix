@@ -1,4 +1,5 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
+import type { TooltipContentProps } from "recharts";
 import {
   CartesianGrid,
   Legend,
@@ -6,7 +7,6 @@ import {
   LineChart,
   ResponsiveContainer,
   Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";

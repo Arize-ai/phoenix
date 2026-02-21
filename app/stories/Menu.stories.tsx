@@ -1,4 +1,4 @@
-import { Meta } from "@storybook/react";
+import type { Meta } from "@storybook/react";
 import { useMemo, useState } from "react";
 import {
   Autocomplete,

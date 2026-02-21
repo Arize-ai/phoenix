@@ -1,4 +1,4 @@
-import { PlaygroundState } from "./types";
+import type { PlaygroundState } from "./types";
 
 /**
  * Curried selector to get an instance by id

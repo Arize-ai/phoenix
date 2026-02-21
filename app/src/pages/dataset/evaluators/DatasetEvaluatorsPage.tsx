@@ -13,11 +13,9 @@ import {
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
-import { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
-import {
-  datasetEvaluatorsLoader,
-  datasetEvaluatorsLoaderGQL,
-} from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
+import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
+import type { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
+import { datasetEvaluatorsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import {
   DatasetEvaluatorsTable,
   useDatasetEvaluatorsTable,

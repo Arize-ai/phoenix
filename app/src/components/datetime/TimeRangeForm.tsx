@@ -1,10 +1,10 @@
 import { css } from "@emotion/react";
 import { getLocalTimeZone, parseAbsolute } from "@internationalized/date";
 import { useCallback } from "react";
+import type { DateValue } from "react-aria-components";
 import {
   DateInput,
   DateSegment,
-  DateValue,
   FieldError,
   Form,
   Label,

@@ -27,8 +27,8 @@ import {
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifySuccess } from "@phoenix/contexts";
 
-import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
-import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
+import type { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
+import type { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
 import { RemoveProjectDataForm } from "./RemoveProjectDataForm";
 
 enum ProjectAction {

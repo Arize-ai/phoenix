@@ -1,6 +1,6 @@
-import { ProgressBarProps as ReactAriaProgressBarProps } from "react-aria-components";
+import type { ProgressBarProps as ReactAriaProgressBarProps } from "react-aria-components";
 
-import { ComponentSize, StyleProps } from "@phoenix/components/types";
+import type { ComponentSize, StyleProps } from "@phoenix/components/types";
 
 export interface ProgressCircleProps extends ReactAriaProgressBarProps {
   /**

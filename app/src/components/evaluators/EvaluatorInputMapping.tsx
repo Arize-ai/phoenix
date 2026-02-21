@@ -1,4 +1,5 @@
-import { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
+import type { PropsWithChildren } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import { Loading, Text } from "@phoenix/components";

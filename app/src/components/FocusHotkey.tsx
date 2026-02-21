@@ -1,4 +1,5 @@
-import { FocusManagerOptions, useFocusManager } from "react-aria";
+import type { FocusManagerOptions } from "react-aria";
+import { useFocusManager } from "react-aria";
 import { useHotkeys } from "react-hotkeys-hook";
 
 /**

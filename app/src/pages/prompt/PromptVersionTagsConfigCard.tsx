@@ -1,5 +1,5 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -13,7 +13,7 @@ import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
-import { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
+import type { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
 import { DeletePromptVersionTagButton } from "./DeletePromptVersionTagButton";
 
 export function PromptVersionTagsConfigCard({

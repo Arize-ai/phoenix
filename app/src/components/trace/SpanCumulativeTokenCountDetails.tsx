@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { SpanCumulativeTokenCountDetailsQuery } from "./__generated__/SpanCumulativeTokenCountDetailsQuery.graphql";
+import type { SpanCumulativeTokenCountDetailsQuery } from "./__generated__/SpanCumulativeTokenCountDetailsQuery.graphql";
 import { TokenCountDetails } from "./TokenCountDetails";
 
 export function SpanCumulativeTokenCountDetails(props: { spanNodeId: string }) {

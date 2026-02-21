@@ -3,7 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
-import { EvaluatorExampleDatasetQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleDatasetQuery.graphql";
+import type { EvaluatorExampleDatasetQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleDatasetQuery.graphql";
 import { EvaluatorExampleSelect } from "@phoenix/components/evaluators/EvaluatorExampleSelect";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";

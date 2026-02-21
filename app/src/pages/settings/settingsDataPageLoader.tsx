@@ -2,7 +2,7 @@ import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import {
+import type {
   settingsDataPageLoaderQuery,
   settingsDataPageLoaderQuery$variables,
 } from "./__generated__/settingsDataPageLoaderQuery.graphql";

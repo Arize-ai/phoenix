@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 
+import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
-  ButtonProps,
   Dialog,
   DialogCloseButton,
   DialogContent,

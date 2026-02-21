@@ -1,4 +1,4 @@
-import {
+import type {
   CreateEvaluatorArgs,
   EvaluationKind,
   EvaluationResult,
@@ -6,7 +6,7 @@ import {
   OptimizationDirection,
   TelemetryConfig,
 } from "../types";
-import { ObjectMapping } from "../types/data";
+import type { ObjectMapping } from "../types/data";
 
 /**
  * Base class for all evaluators

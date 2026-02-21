@@ -3,24 +3,23 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
 import {
   createNoOpProvider,
   type DiagLogLevel,
-  NodeTracerProvider,
   objectAsAttributes,
   register,
   SpanStatusCode,
   trace,
-  Tracer,
 } from "@arizeai/phoenix-otel";
 import { queue } from "async";
 import invariant from "tiny-invariant";
 
 import { createClient, type PhoenixClient } from "../client";
 import { getDataset } from "../datasets/getDataset";
-import { AnnotatorKind } from "../types/annotations";
-import { ClientFn } from "../types/core";
-import {
+import type { AnnotatorKind } from "../types/annotations";
+import type { ClientFn } from "../types/core";
+import type {
   Dataset,
   DatasetSelector,
   Example,
@@ -37,7 +36,7 @@ import type {
   RanExperiment,
 } from "../types/experiments";
 import { createLogger, type Logger } from "../logger";
-import { logEvalSummary, logLinks, logTaskSummary, PREFIX } from "./logging";
+import { logEvalSummary, logLinks, logTaskSummary, PROGRESS_PREFIX } from "./logging";
 import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
@@ -315,7 +314,7 @@ export async function runExperiment({
 
   const evCount = evaluators?.length ?? 0;
   logger.info(
-    `${PREFIX.start} Experiment ${experimentName || "<unnamed>"} (dataset ${dataset.name}, ${nExamples} ${pluralize("example", nExamples)}, ${evCount} ${pluralize("evaluator", evCount)})`
+    `${PROGRESS_PREFIX.start} Experiment ${experimentName || "<unnamed>"} (dataset ${dataset.name}, ${nExamples} ${pluralize("example", nExamples)}, ${evCount} ${pluralize("evaluator", evCount)})`
   );
 
   const runs: Record<ExperimentRunID, ExperimentRun> = {};
@@ -341,7 +340,7 @@ export async function runExperiment({
     taskErrors > 0
       ? `${taskRuns.length - taskErrors}/${taskTotal} ok  (${taskErrors} failed)`
       : `${taskRuns.length}/${taskTotal} ok`;
-  logger.info(`${PREFIX.completed} Tasks ${taskOkStr}`);
+  logger.info(`${PROGRESS_PREFIX.completed} Tasks ${taskOkStr}`);
 
   const ranExperiment: RanExperiment = {
     ...experiment,
@@ -352,7 +351,7 @@ export async function runExperiment({
     const evNames = getExperimentEvaluators(evaluators)
       .map((evaluator) => evaluator.name)
       .join(", ");
-    logger.info(`${PREFIX.start} Evaluations (${evNames})`);
+    logger.info(`${PROGRESS_PREFIX.start} Evaluations (${evNames})`);
   }
 
   const { evaluationRuns } = await evaluateExperiment({
@@ -440,7 +439,7 @@ function runTaskWithExamples({
   );
 
   logger.debug(
-    `${PREFIX.start} Tasks (${nExamples} ${pluralize("example", nExamples)} × ${repetitions} ${pluralize("repetition", repetitions)})`
+    `${PROGRESS_PREFIX.start} Tasks (${nExamples} ${pluralize("example", nExamples)} × ${repetitions} ${pluralize("repetition", repetitions)})`
   );
   const run = async ({
     example,
@@ -450,7 +449,7 @@ function runTaskWithExamples({
     repetitionNumber: number;
   }) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
-      logger.debug(`${PREFIX.progress} Task on example ${example.id}`);
+      logger.debug(`${PROGRESS_PREFIX.progress} Task on example ${example.id}`);
       const traceId = span.spanContext().traceId;
       const thisRun: ExperimentRun = {
         id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
@@ -754,7 +753,7 @@ export async function evaluateExperiment({
     evalErrors > 0
       ? `${evalTotal - evalErrors}/${evalExpected} ok  (${evalErrors} failed)`
       : `${evalTotal}/${evalExpected} ok`;
-  logger.info(`${PREFIX.completed} Evaluations ${evalOkStr}`);
+  logger.info(`${PROGRESS_PREFIX.completed} Evaluations ${evalOkStr}`);
 
   if (provider) {
     await provider.shutdown();
@@ -792,7 +791,7 @@ async function runEvaluator({
   invariant(example, `Example "${run.datasetExampleId}" not found`);
   const evaluate = async () => {
     logger.debug(
-      `${PREFIX.progress} Eval ${evaluator.name} on run ${run.id}`
+      `${PROGRESS_PREFIX.progress} Eval ${evaluator.name} on run ${run.id}`
     );
     const thisEval: ExperimentEvaluationRun = {
       id: localId(),

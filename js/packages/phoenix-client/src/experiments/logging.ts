@@ -5,7 +5,7 @@ import type { Logger } from "../logger";
  * Progress line prefixes used in experiment run output.
  * e.g. "[start] Tasks (3 examples × 1 repetition)"
  */
-export const PREFIX = {
+export const PROGRESS_PREFIX = {
   start: "[start]",
   progress: "[progress]",
   completed: "[completed]",

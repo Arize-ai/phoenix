@@ -15,7 +15,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { Annotation } from "@phoenix/components/annotation";
+import type { Annotation } from "@phoenix/components/annotation";
 import { EXPLANATION_LABEL_WIDTH } from "@phoenix/components/annotation/constants";
 
 export const AnnotationInputExplanation = ({

@@ -1,12 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
-import {
-  createTracingStore,
+import type {
   CreateTracingStoreProps,
   TracingState,
   TracingStore,
 } from "@phoenix/store/tracingStore";
+import { createTracingStore } from "@phoenix/store/tracingStore";
 
 export const TracingContext = createContext<TracingStore | null>(null);
 

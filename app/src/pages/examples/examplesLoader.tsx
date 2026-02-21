@@ -1,9 +1,9 @@
 import { graphql, loadQuery } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { examplesLoaderQuery } from "./__generated__/examplesLoaderQuery.graphql";
+import type { examplesLoaderQuery } from "./__generated__/examplesLoaderQuery.graphql";
 
 export const examplesLoaderGql = graphql`
   query examplesLoaderQuery($id: ID!) {

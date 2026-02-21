@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 import { Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";

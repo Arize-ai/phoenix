@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { Text, TextProps } from "@phoenix/components";
+import type { TextProps } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 
 type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
   /**

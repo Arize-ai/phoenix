@@ -1,6 +1,7 @@
 import React from "react";
 
-import { Text, TextProps } from "@phoenix/components";
+import type { TextProps } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 export const MeanScore = ({

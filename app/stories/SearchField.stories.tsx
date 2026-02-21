@@ -1,13 +1,13 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 import { fn } from "@storybook/test";
 
+import type { SearchFieldProps } from "@phoenix/components";
 import {
   FieldError,
   Flex,
   Input,
   Label,
   SearchField,
-  SearchFieldProps,
   Text,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/field";

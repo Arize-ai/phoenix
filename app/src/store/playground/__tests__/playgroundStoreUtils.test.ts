@@ -9,7 +9,7 @@ import {
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
 } from "../playgroundStoreUtils";
-import { ChatMessage, Tool } from "../types";
+import type { ChatMessage, Tool } from "../types";
 
 type TestName = string;
 type ToolCallConversionTestTuple<T extends ModelProvider> = [

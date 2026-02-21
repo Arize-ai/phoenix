@@ -3,19 +3,18 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
 import {
   type DiagLogLevel,
-  NodeTracerProvider,
   objectAsAttributes,
   register,
   SpanStatusCode,
-  Tracer,
 } from "@arizeai/phoenix-otel";
 import invariant from "tiny-invariant";
 
-import { components } from "../__generated__/api/v1";
+import type { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
-import { ClientFn } from "../types/core";
+import type { ClientFn } from "../types/core";
 import type {
   EvaluationResult,
   Evaluator,
@@ -24,7 +23,7 @@ import type {
   TaskOutput,
 } from "../types/experiments";
 import { createLogger, type Logger } from "../logger";
-import { logEvalResumeSummary, PREFIX } from "./logging";
+import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
@@ -308,7 +307,7 @@ export async function resumeEvaluation({
   invariant(evaluators.length > 0, "Must specify at least one evaluator");
 
   // Get experiment info
-  logger.info(`${PREFIX.start}Checking for incomplete evaluations.`);
+  logger.info(`${PROGRESS_PREFIX.start}Checking for incomplete evaluations.`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Initialize tracer (only if experiment has a project_name)
@@ -356,7 +355,7 @@ export async function resumeEvaluation({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.debug(`${PREFIX.progress}Stopping fetch.`);
+          logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
           break;
         }
 
@@ -413,13 +412,13 @@ export async function resumeEvaluation({
 
         if (batchIncomplete.length === 0) {
           if (totalProcessed === 0) {
-            logger.info(`${PREFIX.completed}No incomplete evaluations found.`);
+            logger.info(`${PROGRESS_PREFIX.completed}No incomplete evaluations found.`);
           }
           break;
         }
 
         if (totalProcessed === 0) {
-          logger.info(`${PREFIX.start}Resuming evaluations.`);
+          logger.info(`${PROGRESS_PREFIX.start}Resuming evaluations.`);
         }
 
         // Build evaluation tasks and send to channel
@@ -450,7 +449,7 @@ export async function resumeEvaluation({
         }
 
         logger.debug(
-          `${PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
+          `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -552,7 +551,7 @@ export async function resumeEvaluation({
 
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`${PREFIX.completed}Evaluations completed.`);
+    logger.info(`${PROGRESS_PREFIX.completed}Evaluations completed.`);
   }
 
   if (totalFailed > 0 && !executionError) {

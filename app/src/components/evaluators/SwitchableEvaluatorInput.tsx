@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
 import { useMemo, useState } from "react";
-import { Key } from "react-aria-components";
-import {
+import type { Key } from "react-aria-components";
+import type {
   Control,
-  Controller,
   FieldValues,
   Path,
   UseFormSetValue,
 } from "react-hook-form";
+import { Controller } from "react-hook-form";
 
 import {
   Button,

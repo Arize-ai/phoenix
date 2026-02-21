@@ -1,6 +1,8 @@
 import { css, keyframes } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import { Popover as AriaPopover, PopoverProps } from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { PopoverProps } from "react-aria-components";
+import { Popover as AriaPopover } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils";
 

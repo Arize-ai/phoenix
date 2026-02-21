@@ -9,7 +9,7 @@ import {
   InfoFilled,
   InfoOutline,
 } from "../icon";
-import { SeverityLevel } from "../types";
+import type { SeverityLevel } from "../types";
 
 type IconOptions = {
   /**

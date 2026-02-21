@@ -1,7 +1,7 @@
 import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
+import type { FetchFunction } from "relay-runtime";
 import {
   Environment,
-  FetchFunction,
   Network,
   Observable,
   RecordSource,

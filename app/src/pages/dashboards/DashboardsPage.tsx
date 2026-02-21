@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -25,7 +25,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import { dashboardsLoader } from "./dashboardsLoader";
+import type { dashboardsLoader } from "./dashboardsLoader";
 import { ProjectDashboardsTable } from "./ProjectDashboardsTable";
 
 // Inline DashboardsTable component

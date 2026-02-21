@@ -1,10 +1,5 @@
-import {
-  createContext,
-  PropsWithChildren,
-  startTransition,
-  useContext,
-  useState,
-} from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, startTransition, useContext, useState } from "react";
 
 export type TimeSliceContextType = {
   selectedTimestamp: Date | null;

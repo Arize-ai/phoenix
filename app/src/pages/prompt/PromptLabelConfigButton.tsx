@@ -31,15 +31,15 @@ import {
   View,
 } from "@phoenix/components";
 import { NewPromptLabelDialog } from "@phoenix/components/prompt/NewPromptLabelDialog";
-import {
+import type {
   PromptLabelConfigButton_allLabels$data,
   PromptLabelConfigButton_allLabels$key,
 } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_allLabels.graphql";
-import { PromptLabelConfigButton_promptLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_promptLabels.graphql";
-import { PromptLabelConfigButtonUnsetLabelsMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonUnsetLabelsMutation.graphql";
+import type { PromptLabelConfigButton_promptLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_promptLabels.graphql";
+import type { PromptLabelConfigButtonUnsetLabelsMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonUnsetLabelsMutation.graphql";
 
-import { PromptLabelConfigButtonQuery } from "./__generated__/PromptLabelConfigButtonQuery.graphql";
-import { PromptLabelConfigButtonSetLabelsMutation } from "./__generated__/PromptLabelConfigButtonSetLabelsMutation.graphql";
+import type { PromptLabelConfigButtonQuery } from "./__generated__/PromptLabelConfigButtonQuery.graphql";
+import type { PromptLabelConfigButtonSetLabelsMutation } from "./__generated__/PromptLabelConfigButtonSetLabelsMutation.graphql";
 
 type PromptLabelConfigButtonProps = {
   promptId: string;

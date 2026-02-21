@@ -4,7 +4,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex, Link } from "@phoenix/components";
 
-import { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
+import type { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
 import { PromptVersionSummary } from "./PromptVersionSummary";
 
 const NUM_VERSIONS_TO_SHOW = 5;
@@ -53,7 +53,7 @@ export function PromptLatestVersionsList(props: {
           return (
             <li key={version.id} css={versionListItemCSS}>
               <PromptVersionSummary promptVersion={version} />
-              {version.sequenceNumber != 1 ? (
+              {version.sequenceNumber !== 1 ? (
                 <VersionsConnector isLastConnector={isLastConnector} />
               ) : null}
             </li>

@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { ComponentProps, useCallback, useMemo, useState } from "react";
+import type { ComponentProps } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Autocomplete,
   Input,
@@ -29,7 +30,7 @@ import {
 import { SearchIcon } from "@phoenix/components/field";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
-import { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
+import type { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
 
 type DatasetSelectWithSplitsProps = {
   onSelectionChange?: (changes: {

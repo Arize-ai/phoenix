@@ -1,4 +1,4 @@
-import { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "json-schema";
 import { useCallback, useMemo } from "react";
 
 import {
@@ -20,10 +20,10 @@ import {
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
-import { Tool } from "@phoenix/store";
+import type { Tool } from "@phoenix/store";
 
 import { getToolName } from "./playgroundUtils";
-import { PlaygroundInstanceProps } from "./types";
+import type { PlaygroundInstanceProps } from "./types";
 
 export type UpdateToolFn = (definition: Tool["definition"]) => void;
 

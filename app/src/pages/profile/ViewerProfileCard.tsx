@@ -20,7 +20,7 @@ import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
-import { ViewerProfileCardMutation } from "./__generated__/ViewerProfileCardMutation.graphql";
+import type { ViewerProfileCardMutation } from "./__generated__/ViewerProfileCardMutation.graphql";
 
 type EditProfileFormParams = {
   username: string;

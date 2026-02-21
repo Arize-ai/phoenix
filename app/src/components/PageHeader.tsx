@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Heading, Text } from "./content";
 import { Flex } from "./layout";

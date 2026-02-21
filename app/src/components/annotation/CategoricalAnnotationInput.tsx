@@ -14,10 +14,10 @@ import {
 import { AnnotationInputExplanation } from "@phoenix/components/annotation/AnnotationInputExplanation";
 import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
-import { SelectProps } from "@phoenix/components/select";
-import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+import type { SelectProps } from "@phoenix/components/select";
+import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
-import { AnnotationInputPropsBase } from "./types";
+import type { AnnotationInputPropsBase } from "./types";
 
 type CategoricalAnnotationInputProps =
   AnnotationInputPropsBase<AnnotationConfigCategorical> &

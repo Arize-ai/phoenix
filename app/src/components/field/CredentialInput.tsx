@@ -1,10 +1,8 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Button,
-  Input as AriaInput,
-  InputProps as AriaInputProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { InputProps as AriaInputProps } from "react-aria-components";
+import { Button, Input as AriaInput } from "react-aria-components";
 
 import { useSize } from "@phoenix/contexts/SizeContext";
 

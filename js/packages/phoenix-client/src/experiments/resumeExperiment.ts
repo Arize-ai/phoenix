@@ -3,26 +3,25 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
 import {
   type DiagLogLevel,
-  NodeTracerProvider,
   objectAsAttributes,
   register,
   SpanStatusCode,
-  Tracer,
 } from "@arizeai/phoenix-otel";
 import invariant from "tiny-invariant";
 
-import { components } from "../__generated__/api/v1";
+import type { components } from "../__generated__/api/v1";
 import { createClient, type PhoenixClient } from "../client";
-import { ClientFn } from "../types/core";
-import { ExampleWithId } from "../types/datasets";
+import type { ClientFn } from "../types/core";
+import type { ExampleWithId } from "../types/datasets";
 import type {
   ExperimentEvaluatorLike,
   ExperimentTask,
 } from "../types/experiments";
 import { createLogger, type Logger } from "../logger";
-import { logExperimentResumeLinks, logExperimentResumeSummary, PREFIX } from "./logging";
+import { logExperimentResumeLinks, logExperimentResumeSummary, PROGRESS_PREFIX } from "./logging";
 import { Channel, ChannelError } from "../utils/channel";
 import { ensureString } from "../utils/ensureString";
 import { isHttpErrorWithStatus } from "../utils/isHttpError";
@@ -273,7 +272,7 @@ export async function resumeExperiment({
   const pageSize = DEFAULT_PAGE_SIZE;
 
   // Get experiment info
-  logger.info(`${PREFIX.start}Fetching experiment info.`);
+  logger.info(`${PROGRESS_PREFIX.start}Fetching experiment info.`);
   const experiment = await getExperimentInfo({ client, experimentId });
 
   // Check if there are incomplete runs
@@ -282,13 +281,13 @@ export async function resumeExperiment({
 
   if (incompleteCount === 0) {
     logger.info(
-      `${PREFIX.completed}No incomplete runs found. Experiment is already complete.`
+      `${PROGRESS_PREFIX.completed}No incomplete runs found. Experiment is already complete.`
     );
     return;
   }
 
   logger.info(
-    `${PREFIX.start}Resuming experiment with ${incompleteCount} incomplete runs.`
+    `${PROGRESS_PREFIX.start}Resuming experiment with ${incompleteCount} incomplete runs.`
   );
 
   // Get base URL for tracing and URL generation
@@ -345,7 +344,7 @@ export async function resumeExperiment({
       do {
         // Stop fetching if abort signal received
         if (signal.aborted) {
-          logger.debug(`${PREFIX.progress}Stopping fetch.`);
+          logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
           break;
         }
 
@@ -415,7 +414,7 @@ export async function resumeExperiment({
         }
 
         logger.debug(
-          `${PREFIX.progress}Fetched batch of ${batchCount} incomplete runs.`
+          `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} incomplete runs.`
         );
       } while (cursor !== null && !signal.aborted);
     } catch (error) {
@@ -517,7 +516,7 @@ export async function resumeExperiment({
 
   // Only show completion message if we didn't stop on error
   if (!executionError) {
-    logger.info(`${PREFIX.completed}Task runs completed.`);
+    logger.info(`${PROGRESS_PREFIX.completed}Task runs completed.`);
   }
 
   if (totalFailed > 0 && !executionError) {
@@ -529,7 +528,7 @@ export async function resumeExperiment({
   // Run evaluators if provided (only on runs missing evaluations)
   // Skip evaluators if we stopped on error
   if (evaluators && evaluators.length > 0 && !executionError) {
-    logger.info(`${PREFIX.start}Running evaluators.`);
+    logger.info(`${PROGRESS_PREFIX.start}Running evaluators.`);
     await resumeEvaluation({
       experimentId,
       evaluators: [...evaluators],

@@ -1,4 +1,4 @@
-import { EvaluationResult } from "../types";
+import type { EvaluationResult } from "../types";
 
 /**
  * Type guard to check if a value has a score property.

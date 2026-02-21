@@ -1,12 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
-import {
-  createProjectStore,
+import type {
   CreateProjectStoreProps,
   ProjectState,
   ProjectStore,
 } from "@phoenix/store/projectStore";
+import { createProjectStore } from "@phoenix/store/projectStore";
 
 export const ProjectContext = createContext<ProjectStore | null>(null);
 
