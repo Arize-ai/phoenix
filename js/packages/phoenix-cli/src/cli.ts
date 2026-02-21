@@ -3,6 +3,7 @@
 import { Command } from "commander";
 
 import {
+  createApiCommand,
   createAuthCommand,
   createDatasetCommand,
   createDatasetsCommand,
@@ -35,6 +36,7 @@ export function main() {
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptsCommand());
   program.addCommand(createPromptCommand());
+  program.addCommand(createApiCommand());
 
   // Show help if no command provided
   if (process.argv.length === 2) {
