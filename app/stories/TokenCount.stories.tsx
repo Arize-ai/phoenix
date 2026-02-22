@@ -70,7 +70,7 @@ export const WithBasicTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount {...args} role="button" />
+        <TokenCount {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCountDetails
@@ -97,7 +97,7 @@ export const WithDetailedTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount {...args} role="button" />
+        <TokenCount {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCountDetails
@@ -133,7 +133,7 @@ export const SmallWithTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount {...args} role="button" />
+        <TokenCount {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCountDetails total={842} prompt={342} completion={500} />
@@ -153,7 +153,7 @@ export const WithLoadingTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount {...args} role="button" />
+        <TokenCount {...args} />
       </Pressable>
       <RichTooltip>
         <Suspense fallback={<Loading />}>
@@ -185,7 +185,7 @@ export const CompletionOnlyTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount {...args} role="button" />
+        <TokenCount {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCountDetails
@@ -212,7 +212,7 @@ export const MultipleTokenCounts: Story = {
     <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S" role="button">
+          <TokenCount size="S">
             {230}
           </TokenCount>
         </Pressable>
@@ -223,7 +223,7 @@ export const MultipleTokenCounts: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S" role="button">
+          <TokenCount size="S">
             {461}
           </TokenCount>
         </Pressable>
@@ -239,7 +239,7 @@ export const MultipleTokenCounts: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S" role="button">
+          <TokenCount size="S">
             {1008}
           </TokenCount>
         </Pressable>

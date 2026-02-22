@@ -90,7 +90,7 @@ export const WithBasicTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCostsDetails total={0.0342} prompt={0.023} completion={0.0112} />
@@ -110,7 +110,7 @@ export const WithDetailedTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCostsDetails
@@ -146,7 +146,7 @@ export const SmallWithTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCostsDetails total={0.0156} prompt={0.0089} completion={0.0067} />
@@ -166,7 +166,7 @@ export const WithLoadingTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <Suspense fallback={<Loading />}>
@@ -201,7 +201,7 @@ export const PromptOnlyTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCostsDetails
@@ -227,7 +227,7 @@ export const CompletionOnlyTooltip: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCostsDetails
@@ -253,7 +253,7 @@ export const HighCostDetailed: Story = {
   render: (args) => (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts {...args} role="button" />
+        <TokenCosts {...args} />
       </Pressable>
       <RichTooltip>
         <TokenCostsDetails
@@ -290,7 +290,7 @@ export const MultipleCostDisplays: Story = {
     <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
       <TooltipTrigger>
         <Pressable>
-          <TokenCosts size="S" role="button">
+          <TokenCosts size="S">
             {0.0123}
           </TokenCosts>
         </Pressable>
@@ -301,7 +301,7 @@ export const MultipleCostDisplays: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCosts size="S" role="button">
+          <TokenCosts size="S">
             {0.0456}
           </TokenCosts>
         </Pressable>
@@ -312,7 +312,7 @@ export const MultipleCostDisplays: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCosts size="S" role="button">
+          <TokenCosts size="S">
             {0.1234}
           </TokenCosts>
         </Pressable>
@@ -352,7 +352,7 @@ export const CostComparison: Story = {
         </div>
         <TooltipTrigger>
           <Pressable>
-            <TokenCosts size="M" role="button">
+            <TokenCosts size="M">
               {0.001}
             </TokenCosts>
           </Pressable>
@@ -372,7 +372,7 @@ export const CostComparison: Story = {
         </div>
         <TooltipTrigger>
           <Pressable>
-            <TokenCosts size="M" role="button">
+            <TokenCosts size="M">
               {0.056}
             </TokenCosts>
           </Pressable>
@@ -400,7 +400,7 @@ export const CostComparison: Story = {
         </div>
         <TooltipTrigger>
           <Pressable>
-            <TokenCosts size="M" role="button">
+            <TokenCosts size="M">
               {0.234}
             </TokenCosts>
           </Pressable>
