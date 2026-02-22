@@ -5,38 +5,6 @@ description: Instrument agent applications built with Mastra
 
 Mastra is an agentic framework that simplifies building complex AI applications with multi-agent workflows, tool integrations, and memory management.
 
-## Launch Phoenix
-
-<Tabs>
-  <Tab title="Phoenix Cloud">
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. In your code, configure environment variables for your endpoint and API key:
-
-```bash
-# .env, or shell environment
-
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR PHOENIX API KEY"
-# Collector Endpoint for Phoenix Cloud (find under Settings > Hostname)
-PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/<your-space-name>"
-```
-</Tab>
-<Tab title="Self-hosted Phoenix">
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
-2. In your code, configure environment variables for your endpoint and API key:
-
-```bash
-# .env, or shell environment
-
-# Collector Endpoint for your self hosted Phoenix, like localhost
-PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
-# (optional) If authentication enabled, add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR API KEY"
-```
-</Tab>
-</Tabs>
-
 ## Install
 
 ```bash
@@ -47,16 +15,28 @@ npm install @mastra/arize @mastra/observability
 
 Create a `.env` file that points Mastra to your Phoenix instance:
 
+<Tabs>
+  <Tab title="Phoenix Cloud">
+1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+2. Grab your API key from the Keys option on the left bar.
+3. Find your hostname under **Settings > Hostname**.
+
 ```bash
-# Local Phoenix
-PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
-
-# Phoenix Cloud (find your hostname under Settings > Hostname)
-# PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
-
-PHOENIX_API_KEY=your-api-key # Optional for local Phoenix, required for Cloud
-PHOENIX_PROJECT_NAME=mastra-service # Optional, defaults to "mastra-service"
+PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
+PHOENIX_API_KEY=your-api-key
+PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
+</Tab>
+<Tab title="Self-hosted Phoenix">
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
+
+```bash
+PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
+PHOENIX_PROJECT_NAME=mastra-service # Optional
+```
+</Tab>
+</Tabs>
 
 ## Setup
 
