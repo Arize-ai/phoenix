@@ -1,5 +1,5 @@
 {
-  "name": "langchain-ts-quickstart",
+  "name": "langchain-quickstart",
   "version": "1.0.0",
   "description": "Simple LangChain TypeScript application with Phoenix tracing",
   "type": "module",
@@ -12,9 +12,9 @@
   "dependencies": {
     "@ai-sdk/openai": "^2.0.63",
     "@arizeai/openinference-instrumentation-langchain": "^4.0.6",
-    "@arizeai/phoenix-client": "5.7.0",
-    "@arizeai/phoenix-evals": "^0.7.0",
-    "@arizeai/phoenix-otel": "^0.3.4",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
+    "@arizeai/phoenix-otel": "workspace:*",
     "@langchain/core": "1.1.18",
     "@langchain/openai": "1.2.4",
     "dotenv": "^17.2.3",

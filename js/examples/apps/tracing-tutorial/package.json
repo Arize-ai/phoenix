@@ -1,5 +1,5 @@
 {
-  "name": "phoenix-tracing-tutorial",
+  "name": "tracing-tutorial",
   "version": "1.0.0",
   "description": "Phoenix Tracing Tutorial - Learn to trace LLM applications with Phoenix",
   "type": "module",
@@ -13,9 +13,9 @@
     "@ai-sdk/openai": "^2.0.80",
     "@arizeai/openinference-core": "^1.0.0",
     "@arizeai/openinference-semantic-conventions": "^1.0.0",
-    "@arizeai/phoenix-client": "^5.5.1",
-    "@arizeai/phoenix-evals": "^0.6.2",
-    "@arizeai/phoenix-otel": "^0.3.0",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
+    "@arizeai/phoenix-otel": "workspace:*",
     "ai": "^5.0.108",
     "zod": "^3.25.76"
   },

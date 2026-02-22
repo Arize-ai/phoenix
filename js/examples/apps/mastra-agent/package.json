@@ -1,5 +1,5 @@
 {
-  "name": "mastra-phoenix-example",
+  "name": "mastra-agent",
   "version": "1.0.0",
   "description": "Simple Mastra agent with Arize Phoenix tracing",
   "type": "module",
@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.63",
-    "@arizeai/phoenix-client": "^5.3.0",
-    "@arizeai/phoenix-evals": "^0.3.1",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
     "@mastra/arize": "latest",
     "@mastra/core": "latest",
     "dotenv": "latest",
