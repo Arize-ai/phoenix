@@ -69,7 +69,23 @@ Your response should be a single word: either "completed" or "incomplete", and i
 Did the agent successfully complete the user's goal?
 `;
 
-function extractInputOutputFromSpan(span: any): {
+interface SpanLike {
+  attributes?: Record<string, unknown>;
+  events?: Array<{ attributes?: Record<string, unknown> }>;
+  name?: string;
+  kind?: string;
+  global_id?: string;
+  context?: Record<string, unknown>;
+  span_id?: string;
+  id?: string;
+  spanId?: string;
+  parent_span_id?: string;
+  parentSpanId?: string;
+  trace_id?: string;
+  traceId?: string;
+}
+
+function extractInputOutputFromSpan(span: SpanLike): {
   input: string | null;
   output: string | null;
 } {
@@ -125,7 +141,7 @@ async function main() {
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
 
-  let allSpans: any[] = [];
+  let allSpans: SpanLike[] = [];
   let cursor: string | null | undefined = undefined;
 
   do {
@@ -240,7 +256,7 @@ async function main() {
       spanAnnotations,
       sync: true,
     });
-  } catch (error) {}
+  } catch (_error) {}
 
   const toolSpanIds = new Set(
     toolSpans.map(
@@ -254,12 +270,12 @@ async function main() {
     )
   );
 
-  const spansByTrace = new Map<string, any[]>();
+  const spansByTrace = new Map<string, SpanLike[]>();
   for (const span of allSpans) {
     const traceId =
-      span.context?.trace_id ||
+      (span.context?.trace_id as string) ||
       span.trace_id ||
-      span.context?.traceId ||
+      (span.context?.traceId as string) ||
       span.traceId;
     if (traceId) {
       if (!spansByTrace.has(traceId)) {
@@ -269,21 +285,14 @@ async function main() {
     }
   }
 
-  const rootSpansPerTrace: any[] = [];
-  for (const [traceId, spans] of spansByTrace.entries()) {
+  const rootSpansPerTrace: SpanLike[] = [];
+  for (const [_traceId, spans] of spansByTrace.entries()) {
     const rootSpansInTrace = spans.filter((span) => {
-      const spanId =
-        span.global_id ||
-        span.context?.span_id ||
-        span.span_id ||
-        span.id ||
-        span.context?.spanId ||
-        span.spanId;
       const parentId =
         span.parent_span_id ||
-        span.context?.parent_span_id ||
+        (span.context?.parent_span_id as string) ||
         span.parentSpanId ||
-        span.context?.parentSpanId;
+        (span.context?.parentSpanId as string);
 
       if (!parentId) {
         return true;
@@ -291,10 +300,10 @@ async function main() {
       const parentInTrace = spans.some((s) => {
         const sId =
           s.global_id ||
-          s.context?.span_id ||
+          (s.context?.span_id as string) ||
           s.span_id ||
           s.id ||
-          s.context?.spanId ||
+          (s.context?.spanId as string) ||
           s.spanId;
         return sId === parentId;
       });
@@ -406,7 +415,7 @@ async function main() {
       spanAnnotations: goalAnnotations,
       sync: true,
     });
-  } catch (error) {}
+  } catch (_error) {}
 }
 
 main().catch(() => {

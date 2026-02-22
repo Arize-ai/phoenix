@@ -1,5 +1,4 @@
 import { openai } from "@ai-sdk/openai";
-import { ArizeExporter } from "@mastra/arize";
 import { Agent } from "@mastra/core/agent";
 
 import { movieSelectorTool } from "../tools/movie-selector-tool";

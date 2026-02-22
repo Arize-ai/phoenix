@@ -1,4 +1,4 @@
-import { openai, createOpenAI } from "@ai-sdk/openai";
+import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 
@@ -7,7 +7,16 @@ import "dotenv/config";
 const toStr = (v: unknown) =>
   typeof v === "string" ? v : v != null ? JSON.stringify(v) : null;
 
-function getInputOutput(span: any) {
+interface SpanLike {
+  attributes?: Record<string, unknown>;
+  name?: string;
+  span_name?: string;
+  context?: { span_id?: string };
+  span_id?: string;
+  id?: string;
+}
+
+function getInputOutput(span: SpanLike) {
   const attrs = span.attributes ?? {};
   const input = toStr(attrs["input.value"] ?? attrs["input"]);
   const output = toStr(attrs["output.value"] ?? attrs["output"]);
@@ -28,7 +37,7 @@ async function main() {
   // );
 
   const evaluator = createCorrectnessEvaluator({
-    model: base_model as any,
+    model: base_model,
   });
 
   const projectName =
@@ -38,11 +47,11 @@ async function main() {
 
   const parentSpans: { spanId: string; input: string; output: string }[] = [];
   for (const s of spans) {
-    const name = (s as any).name ?? (s as any).span_name;
+    const span = s as SpanLike;
+    const name = span.name ?? span.span_name;
     if (name !== "LangGraph") continue;
-    const { input, output } = getInputOutput(s);
-    const spanId =
-      (s as any).context?.span_id ?? (s as any).span_id ?? (s as any).id;
+    const { input, output } = getInputOutput(span);
+    const spanId = span.context?.span_id ?? span.span_id ?? span.id;
     if (input && output && spanId) {
       parentSpans.push({ spanId: String(spanId), input, output });
     }

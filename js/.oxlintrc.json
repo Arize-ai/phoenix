@@ -13,10 +13,14 @@
     "eqeqeq": ["error", "smart"]
   },
 
-  "ignorePatterns": [
-    "**/dist/**",
-    "**/build/**",
-    "**/*.{js,jsx,cjs,mjs}",
-    "examples/apps/**"
-  ]
+  "overrides": [
+    {
+      "files": ["examples/apps/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
+
+  "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
 }

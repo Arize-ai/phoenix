@@ -254,7 +254,7 @@ async function evaluateTraces() {
           evaluator: "retrieval_relevance",
         },
       });
-    } catch (error) {
+    } catch (_error) {
       console.error(`   ❌ Evaluation failed for ${spanId.substring(0, 8)}...`);
     }
 
@@ -445,7 +445,7 @@ async function evaluateSessions() {
           turnCount: sessionSpans.length,
         },
       });
-    } catch (error) {
+    } catch (_error) {
       console.error(`   ❌ Coherence evaluation failed`);
     }
 
@@ -476,7 +476,7 @@ async function evaluateSessions() {
           turnCount: sessionSpans.length,
         },
       });
-    } catch (error) {
+    } catch (_error) {
       console.error(`   ❌ Resolution evaluation failed`);
     }
 

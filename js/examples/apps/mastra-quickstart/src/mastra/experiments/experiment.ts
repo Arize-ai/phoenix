@@ -1,5 +1,4 @@
 import { openai } from "@ai-sdk/openai";
-import { getDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
