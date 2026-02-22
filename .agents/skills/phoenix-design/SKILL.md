@@ -21,15 +21,15 @@ Reference for CSS conventions, class naming, and Emotion CSS-in-JS patterns in t
 | Style across component boundaries | [Cross-Component Selectors](#cross-component-selectors) |
 | Apply theme-aware styles | [Theme Classes](#theme-classes) |
 | Work with React Aria classes | [React Aria Integration](#react-aria-integration) |
-| Audit for legacy class names | [Auditing & Verification](#auditing--verification) |
 | Look up a component's class name | [Component Class Reference](#component-class-reference) |
+| Verify styling changes | [Verification](#verification) |
 
 ---
 
 ## Key Facts
 
 - **All styling is Emotion CSS-in-JS** — there are no traditional `.css` or `.scss` files in `app/src/`
-- **No prefix on class names** — the legacy `ac-` (Arize Components) and `px-` prefixes have been removed; new classes must be unprefixed
+- **No prefix on class names** — classes are unprefixed BEM; never add a prefix
 - **BEM naming** is the standard: `block`, `block__element`, `block--modifier`
 - CSS variables all use `--global-*` prefix (defined in `GlobalStyles.tsx`)
 - Theme classes are applied to `document.body` via `ThemeContext.tsx`
@@ -41,9 +41,9 @@ Reference for CSS conventions, class naming, and Emotion CSS-in-JS patterns in t
 ### Pattern
 
 ```
-block                   → disclosure, tabs, slider
-block__element          → slider__label, dialog__title, search-field__icon
-block--modifier         → theme--dark, dropdown--picker
+block             → disclosure, tabs, slider
+block__element    → slider__label, dialog__title, search-field__icon
+block--modifier   → theme--dark, dropdown--picker
 ```
 
 ### Rules
@@ -52,20 +52,15 @@ block--modifier         → theme--dark, dropdown--picker
 - **Element**: A part that cannot exist independently — uses `__` separator — `slider__label`, `field__icon`
 - **Modifier**: A variant or state — uses `--` separator — `theme--dark`, `dropdown--picker`
 - Compound names within a segment use hyphens: `search-field`, `toggle-button`, `dialog__close-button`
-- **No prefix** — never add `ac-`, `px-`, or any other prefix to new classes
+- **No prefix** — never add any prefix to class names
 
 ### Examples
 
 ```tsx
-// Good
 className="search-field"
 className="search-field__clear"
 className="disclosure__panel"
 className="theme--dark"
-
-// Bad — do not add prefixes
-className="ac-search-field"
-className="px-search-field__clear"
 ```
 
 ---
@@ -73,8 +68,6 @@ className="px-search-field__clear"
 ## CSS Variables
 
 All design tokens are CSS custom properties defined in `app/src/GlobalStyles.tsx` and scoped to `:root, .theme`.
-
-### Variable Prefix
 
 All variables use `--global-*`:
 
@@ -89,23 +82,11 @@ var(--global-button-height-m)
 var(--global-background-color-dark)
 ```
 
-### Common Pitfall
-
-CSS custom properties require the `--` prefix inside `var()`. This is **invalid**:
-
-```css
-/* WRONG — missing -- prefix */
-padding-left: var(ac-global-dimensions-size-200);
-
-/* CORRECT */
-padding-left: var(--global-dimension-size-200);
-```
+CSS custom properties require the `--` prefix inside `var()` — `var(--global-dimension-size-200)` not `var(global-dimension-size-200)`.
 
 ---
 
 ## Theme Classes
-
-### How They Work
 
 Theme classes are applied to `document.body` in `app/src/contexts/ThemeContext.tsx`:
 
@@ -114,37 +95,29 @@ document.body.classList.add("theme");
 document.body.classList.add(`theme--${theme}`); // "theme--dark" or "theme--light"
 ```
 
-### Selectors in GlobalStyles.tsx
+Selectors in `GlobalStyles.tsx`:
 
 ```css
-/* Base theme variables */
-:root, .theme { ... }
-
-/* Dark theme overrides */
-:root, .theme--dark { ... }
-
-/* Light theme overrides */
-:root, .theme--light { ... }
+:root, .theme { ... }        /* base variables */
+:root, .theme--dark { ... }  /* dark overrides */
+:root, .theme--light { ... } /* light overrides */
 ```
 
-### Overlay Container
-
-The overlay portal also needs the theme class — applied in `GlobalStyles.tsx`:
+The overlay portal also receives the theme class:
 
 ```css
 #root > div[data-overlay-container="true"] > .theme { ... }
 ```
 
+When using `disableBodyTheme` (e.g., Storybook's `ThemedStory`), the theme class must be applied to the container element directly — `` className={`theme theme--${theme}`} `` — so CSS variables resolve within that scope.
+
 ---
 
 ## Cross-Component Selectors
 
-Pages and feature components often need to style child component internals via CSS selectors. Use the unprefixed BEM class names as targets.
-
-### Pattern
+Pages and containers often need to style child component internals. Target the BEM class of the child component:
 
 ```tsx
-// In a page or container component, target a child component's class
 const pageCSS = css`
   .tabs {
     flex: 1 1 auto;
@@ -163,7 +136,7 @@ const pageCSS = css`
 
 ### Common Targets
 
-| Target class | When to use |
+| Class | When to use |
 |---|---|
 | `.tabs` | Make tabs fill available space |
 | `.tabs__pane-container` | Control overflow on tab panels |
@@ -173,8 +146,8 @@ const pageCSS = css`
 | `.field` | Make a field fill full width |
 | `.field__label` | Override label spacing |
 | `.disclosure__panel` | Control disclosure panel layout |
-| `.disclosure__trigger` | Style disclosure headers (hover states, etc.) |
-| `.disclosure-group` | Control the group container |
+| `.disclosure__trigger` | Style disclosure headers / hover states |
+| `.disclosure-group` | Control the disclosure group container |
 | `.icon-wrap` | Adjust icon sizing within a parent |
 | `.text` | Truncation or overflow on text nodes |
 | `.view` | Width or layout overrides on View wrappers |
@@ -185,25 +158,18 @@ const pageCSS = css`
 
 ## React Aria Integration
 
-Components built with `react-aria-components` carry both Phoenix BEM classes and `react-aria-*` classes. Phoenix BEM classes are assigned via `className=` and are the correct target for styling. React Aria's own classes (`react-aria-Button`, etc.) should not be used as styling targets in application code.
-
-### How Component Classes Are Assigned
+Components built with `react-aria-components` carry both Phoenix BEM classes and `react-aria-*` classes. Always target the Phoenix BEM class, not the `react-aria-*` class:
 
 ```tsx
-// Component assigns its own BEM class alongside the react-aria class
-<AriaTabs
-  className={classNames("react-aria-Tabs", "tabs", className)}
-  ...
-/>
+// Component assigns BEM class alongside the react-aria class
+<AriaTabs className={classNames("react-aria-Tabs", "tabs", className)} />
 
-// Use the BEM class as the selector, not the react-aria class
-.tabs { flex: 1 1 auto; }          // correct
+// Target the BEM class
+.tabs { flex: 1 1 auto; }            // correct
 .react-aria-Tabs { flex: 1 1 auto; } // avoid
 ```
 
-### Data Attributes for State
-
-React Aria exposes component state as `data-*` attributes — use these for state-based styling rather than class modifiers:
+Use React Aria's `data-*` attributes for state-based styling — do not create modifier classes for component state:
 
 ```css
 &[data-hovered] { background-color: var(--hover-background); }
@@ -217,8 +183,6 @@ React Aria exposes component state as `data-*` attributes — use these for stat
 ---
 
 ## Component Class Reference
-
-Complete mapping of Phoenix component class names.
 
 ### Theme / Global
 
@@ -236,7 +200,7 @@ Complete mapping of Phoenix component class names.
 ### Button / Toggle
 | Class | Component |
 |---|---|
-| `button` | CSS selector target (no className assignment in Button.tsx) |
+| `button` | CSS selector target |
 | `toggle-button` | `ToggleButton.tsx` |
 | `toggle-button-group` | `ToggleButtonGroup.tsx` |
 
@@ -244,9 +208,9 @@ Complete mapping of Phoenix component class names.
 | Class | Component |
 |---|---|
 | `combobox__container` | `ComboBox.tsx` |
-| `menu-item__selected-checkmark` | `ComboBox.tsx` (on icon-wrap inside menu item) |
+| `menu-item__selected-checkmark` | `ComboBox.tsx` |
 
-### Counter / Badge
+### Counter
 | Class | Component |
 |---|---|
 | `counter` | `Counter.tsx` |
@@ -260,7 +224,7 @@ Complete mapping of Phoenix component class names.
 | `dialog__close-button` | `Dialog.tsx` |
 | `popover` | `Popover.tsx` |
 
-### Disclosure / Accordion
+### Disclosure
 | Class | Component |
 |---|---|
 | `disclosure-group` | `Disclosure.tsx` |
@@ -268,7 +232,7 @@ Complete mapping of Phoenix component class names.
 | `disclosure__panel` | `Disclosure.tsx` |
 | `disclosure__trigger` | `Disclosure.tsx` |
 
-### Dropdown / Select
+### Dropdown / Select / Radio
 | Class | Component |
 |---|---|
 | `dropdown` | CSS selector target |
@@ -300,6 +264,11 @@ Complete mapping of Phoenix component class names.
 | `icon-wrap` | `Icon.tsx` |
 | `visually-hidden` | `VisuallyHidden.tsx` |
 
+### Loading
+| Class | Component |
+|---|---|
+| `skeleton` | `Skeleton.tsx` |
+
 ### Slider
 | Class | Component |
 |---|---|
@@ -330,24 +299,11 @@ Complete mapping of Phoenix component class names.
 |---|---|
 | `token__text` | `Token.tsx` |
 
-### Loading
-| Class | Component |
-|---|---|
-| `skeleton` | `Skeleton.tsx` |
-
 ---
 
-## Auditing & Verification
+## Verification
 
-### Check for legacy prefixed classes
-
-```bash
-# Should return zero results
-grep -rn "ac-" app/src/ --include="*.tsx" --include="*.ts" | grep -v "__generated__" | grep -v "//.*ac-"
-grep -rn "px-combobox\|px-menu\|\"px-\|\.px-" app/src/ --include="*.tsx" --include="*.ts" | grep -v "__generated__"
-```
-
-### Full verification suite
+After any styling change, run:
 
 ```bash
 pnpm --dir app run typecheck   # 0 errors expected
@@ -355,22 +311,11 @@ pnpm --dir app run lint:fix    # 0 warnings/errors expected
 pnpm --dir app test            # all tests pass
 ```
 
-### Mass rename strategy
-
-When renaming a class used in many files, use `replace_all: true` with the Edit tool. Be careful with substring matches — rename more specific strings first (e.g., rename `.ac-tabs__pane-container` before `.ac-tabs` to avoid double-substitution).
-
-```tsx
-// Step 1 — rename the more specific string first
-// .ac-tabs__pane-container → .tabs__pane-container
-
-// Step 2 — then rename the base
-// .ac-tabs → .tabs
-```
-
 ### Two locations to update for every class
 
-Every class name lives in **two places** that must both be updated:
-1. The **CSS definition** — the Emotion template literal where it appears as a selector (e.g., `.slider__label { ... }`)
+Every class name lives in two places that must both stay in sync:
+
+1. The **CSS definition** — the Emotion template literal where it is used as a selector (e.g., `.slider__label { ... }`)
 2. The **className assignment** — the TSX `className="slider__label"` prop
 
-Additionally, check for **cross-component selectors** in pages and feature components that target the class from outside its defining component.
+Also check for **cross-component selectors** in pages and containers that target the class from outside the defining component.
