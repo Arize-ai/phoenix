@@ -1,5 +1,6 @@
-import { Mastra } from "@mastra/core";
 import { ArizeExporter } from "@mastra/arize";
+import { Mastra } from "@mastra/core";
+
 import { movieAgent } from "./agents/movie-agent";
 
 export const mastra = new Mastra({

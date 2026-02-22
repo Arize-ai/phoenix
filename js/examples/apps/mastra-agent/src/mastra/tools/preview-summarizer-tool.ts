@@ -1,6 +1,6 @@
-import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
 import { ArizeExporter } from "@mastra/arize";
+import { z } from "zod";
 
 export const previewSummarizerTool = {
   name: "previewSummarizer",

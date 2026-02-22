@@ -1,7 +1,8 @@
-import "dotenv/config";
-import { register } from "@arizeai/phoenix-otel";
 import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
+import { register } from "@arizeai/phoenix-otel";
 import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
+
+import "dotenv/config";
 
 const provider = register({
   projectName: "langchain-travel-agent",
@@ -11,6 +12,7 @@ const lcInstrumentation = new LangChainInstrumentation();
 lcInstrumentation.manuallyInstrument(CallbackManagerModule);
 
 import { createAgent } from "langchain";
+
 import { travelTools } from "./tools";
 
 async function main() {
@@ -54,7 +56,7 @@ Focus on ${interests}.
 Include essential info, budget breakdown, and local experiences.
 `;
     console.log(
-      `\n--- Query ${i + 1}/${queries.length}: ${duration} in ${destination} ---\n`,
+      `\n--- Query ${i + 1}/${queries.length}: ${duration} in ${destination} ---\n`
     );
     try {
       const response = await agent.invoke({

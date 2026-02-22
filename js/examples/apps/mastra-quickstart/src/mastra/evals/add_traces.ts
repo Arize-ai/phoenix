@@ -1,5 +1,6 @@
-import "dotenv/config";
 import { MastraClient } from "@mastra/client-js";
+
+import "dotenv/config";
 
 const mastraClient = new MastraClient({
   baseUrl: "http://localhost:4111",

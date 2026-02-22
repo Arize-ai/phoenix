@@ -1,6 +1,6 @@
+import { openai } from "@ai-sdk/openai";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { openai } from "@ai-sdk/openai";
 
 export const financialSearchTool = createTool({
   id: "financial-search",
@@ -10,12 +10,12 @@ export const financialSearchTool = createTool({
     tickers: z
       .string()
       .describe(
-        "Stock ticker symbol(s) to research (e.g., 'TSLA', 'AAPL', 'AAPL, MSFT' for multiple)",
+        "Stock ticker symbol(s) to research (e.g., 'TSLA', 'AAPL', 'AAPL, MSFT' for multiple)"
       ),
     focus: z
       .string()
       .describe(
-        "The specific focus area for the research (e.g., 'financial analysis and market outlook', 'valuation metrics and growth prospects')",
+        "The specific focus area for the research (e.g., 'financial analysis and market outlook', 'valuation metrics and growth prospects')"
       ),
   }),
   outputSchema: z.object({

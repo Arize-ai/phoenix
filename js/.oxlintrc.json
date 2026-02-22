@@ -13,5 +13,10 @@
     "eqeqeq": ["error", "smart"]
   },
 
-  "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/build/**",
+    "**/*.{js,jsx,cjs,mjs}",
+    "examples/apps/**"
+  ]
 }

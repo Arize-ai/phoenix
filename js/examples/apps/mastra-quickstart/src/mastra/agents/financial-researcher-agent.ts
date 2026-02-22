@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+
 import { financialSearchTool } from "../tools/financial-search-tool";
 
 export const financialResearcherAgent = new Agent({

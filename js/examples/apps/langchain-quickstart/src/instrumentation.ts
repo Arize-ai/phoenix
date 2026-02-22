@@ -21,6 +21,7 @@ export const provider = register({
 });
 
 console.log("✅ Phoenix tracing enabled");
-console.log(`   Project: ${process.env.PHOENIX_PROJECT_NAME || "langchain-ts-quickstart"}`);
+console.log(
+  `   Project: ${process.env.PHOENIX_PROJECT_NAME || "langchain-ts-quickstart"}`
+);
 console.log("");
-

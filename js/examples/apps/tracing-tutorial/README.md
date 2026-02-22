@@ -3,6 +3,7 @@
 Build a support agent and trace every LLM call, tool execution, and RAG retrieval with Phoenix. Evaluate response quality with annotations and LLM-as-Judge. Track multi-turn conversations as sessions.
 
 This tutorial accompanies the Phoenix Tracing Tutorial documentation:
+
 - [Chapter 1: Your First Traces](https://docs.arize.com/phoenix/tracing/tutorial/your-first-traces)
 - [Chapter 2: Annotations and Evaluation](https://docs.arize.com/phoenix/tracing/tutorial/annotations-and-evaluation)
 - [Chapter 3: Sessions](https://docs.arize.com/phoenix/tracing/tutorial/sessions)
@@ -45,6 +46,7 @@ pnpm start
 ```
 
 This runs the complete support agent that demonstrates:
+
 - **Query Classification** - LLM decides if it's an order status or FAQ question
 - **Tool Calls** - For order status, calls `lookupOrderStatus` tool and summarizes results
 - **RAG Pipeline** - For FAQs, embeds the query, searches knowledge base, generates answer
@@ -59,6 +61,7 @@ pnpm evaluate
 ```
 
 This runs LLM-as-Judge evaluations that:
+
 - Fetch recent spans from Phoenix
 - Run **tool_result** (success/error) checks on tool calls
 - Run **retrieval_relevance** (LLM-as-Judge) on RAG queries
@@ -74,6 +77,7 @@ pnpm sessions
 ```
 
 This runs three conversation scenarios:
+
 - **Order Inquiry** - Customer asks about order, then follow-up questions
 - **FAQ Conversation** - Multiple FAQ questions in one session
 - **Mixed Conversation** - Switching between order and FAQ topics
@@ -87,6 +91,7 @@ pnpm evaluate:sessions
 ```
 
 This runs session-level evaluations:
+
 - **Conversation Coherence** - Did the agent maintain context?
 - **Resolution Status** - Was the customer's issue resolved?
 
@@ -99,6 +104,7 @@ Open Phoenix at `http://localhost:6006` after running the scripts.
 Each `support-agent` trace shows the complete request flow:
 
 **Order Status Query:**
+
 ```
 support-agent (AGENT)
 ├── ai.generateText (classification → "order_status")
@@ -108,6 +114,7 @@ support-agent (AGENT)
 ```
 
 **FAQ Query:**
+
 ```
 support-agent (AGENT)
 ├── ai.generateText (classification → "faq")
@@ -118,6 +125,7 @@ support-agent (AGENT)
 ### Annotations (Chapter 2)
 
 Check the **Annotations** tab on each trace to see:
+
 - **user_feedback** - Interactive thumbs up/down from users
 - **tool_result** - Code-based: success/error
 - **retrieval_relevance** - LLM evaluation: relevant/irrelevant
@@ -127,6 +135,7 @@ Filter traces by annotation values to find patterns in failures.
 ### Sessions (Chapter 3)
 
 Click the **Sessions** tab in Phoenix to see:
+
 - **Conversation threads** - All turns grouped by session ID
 - **Chat view** - Click into a session to see the full back-and-forth
 - **Session annotations** - Coherence and resolution status on the last turn

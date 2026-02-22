@@ -14,10 +14,10 @@
  */
 
 import { openai } from "@ai-sdk/openai";
-import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
-import { logSessionAnnotations } from "@arizeai/phoenix-client/sessions";
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+import { logSessionAnnotations } from "@arizeai/phoenix-client/sessions";
+import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 
 // =============================================================================
 // Configuration
@@ -161,16 +161,21 @@ async function evaluateTraces() {
 
   // Step 2: Filter spans by type
   const toolSpans = spans.filter((span) => span.name === "ai.toolCall");
-  const llmSpans = spans.filter((span) => 
-    span.name === "ai.generateText" && 
-    String(span.attributes["input.value"] || "").includes("Answer the user's question using ONLY the information provided in the context below. Be friendly and concise.")
+  const llmSpans = spans.filter(
+    (span) =>
+      span.name === "ai.generateText" &&
+      String(span.attributes["input.value"] || "").includes(
+        "Answer the user's question using ONLY the information provided in the context below. Be friendly and concise."
+      )
   );
 
   console.log(`   Found ${toolSpans.length} tool spans`);
   console.log(`   Found ${llmSpans.length} RAG generation spans`);
 
   if (toolSpans.length === 0 && llmSpans.length === 0) {
-    console.log("\n⚠️  No tool or RAG spans found. Run 'pnpm start' first to generate traces.");
+    console.log(
+      "\n⚠️  No tool or RAG spans found. Run 'pnpm start' first to generate traces."
+    );
     return;
   }
 
@@ -193,9 +198,10 @@ async function evaluateTraces() {
     const output = JSON.stringify(span.attributes["output.value"] || "");
 
     // Simple check: does the output contain "error" or "not found"?
-    const hasError = output.toLowerCase().includes("error") || 
-                     output.toLowerCase().includes("not found");
-    
+    const hasError =
+      output.toLowerCase().includes("error") ||
+      output.toLowerCase().includes("not found");
+
     const status = hasError ? "❌ ERROR" : "✅ SUCCESS";
     console.log(`   Tool span ${spanId.substring(0, 8)}... ${status}`);
 
@@ -204,8 +210,10 @@ async function evaluateTraces() {
       name: "tool_result",
       label: hasError ? "error" : "success",
       score: hasError ? 0 : 1,
-      explanation: hasError ? "Tool returned an error or 'not found' response" : "Tool executed successfully",
-      annotatorKind: "LLM" as const,  // Using "LLM" for consistency, though this is code-based
+      explanation: hasError
+        ? "Tool returned an error or 'not found' response"
+        : "Tool executed successfully",
+      annotatorKind: "LLM" as const, // Using "LLM" for consistency, though this is code-based
       metadata: {
         evaluator: "tool_result",
         type: "code",
@@ -221,9 +229,9 @@ async function evaluateTraces() {
 
   for (const span of llmSpans) {
     const spanId = span.context.span_id;
-    
+
     // Extract the system prompt (which contains the retrieved context)
-    const input = span.attributes["input.value"] as string || "";
+    const input = (span.attributes["input.value"] as string) || "";
 
     try {
       const result = await retrievalRelevanceEvaluator.evaluate({
@@ -261,7 +269,7 @@ async function evaluateTraces() {
     try {
       await logSpanAnnotations({
         spanAnnotations: annotations,
-        sync: false,  // async mode - Phoenix processes in background
+        sync: false, // async mode - Phoenix processes in background
       });
       console.log(`✅ Logged ${annotations.length} evaluation annotations`);
     } catch (error) {
@@ -277,21 +285,33 @@ async function evaluateTraces() {
   // Tool span summary
   const toolAnnotations = annotations.filter((a) => a.name === "tool_result");
   if (toolAnnotations.length > 0) {
-    const successCount = toolAnnotations.filter((a) => a.label === "success").length;
-    const errorCount = toolAnnotations.filter((a) => a.label === "error").length;
+    const successCount = toolAnnotations.filter(
+      (a) => a.label === "success"
+    ).length;
+    const errorCount = toolAnnotations.filter(
+      (a) => a.label === "error"
+    ).length;
 
     console.log(`\n   🔧 Tool Calls (lookupOrderStatus):`);
     console.log(`      Success: ${successCount} | Errors: ${errorCount}`);
   }
 
   // Retrieval span summary
-  const retrievalAnnotations = annotations.filter((a) => a.name === "retrieval_relevance");
+  const retrievalAnnotations = annotations.filter(
+    (a) => a.name === "retrieval_relevance"
+  );
   if (retrievalAnnotations.length > 0) {
-    const relevantCount = retrievalAnnotations.filter((a) => a.label === "relevant").length;
-    const irrelevantCount = retrievalAnnotations.filter((a) => a.label === "irrelevant").length;
+    const relevantCount = retrievalAnnotations.filter(
+      (a) => a.label === "relevant"
+    ).length;
+    const irrelevantCount = retrievalAnnotations.filter(
+      (a) => a.label === "irrelevant"
+    ).length;
 
     console.log(`\n   📚 FAQ Retrieval:`);
-    console.log(`      Relevant: ${relevantCount} | Irrelevant: ${irrelevantCount}`);
+    console.log(
+      `      Relevant: ${relevantCount} | Irrelevant: ${irrelevantCount}`
+    );
   }
 
   console.log("\n" + "=".repeat(60));
@@ -299,7 +319,9 @@ async function evaluateTraces() {
   console.log("");
   console.log("Now click into traces you marked as unhelpful to see:");
   console.log("   - 'tool_result' = 'error' → Order not found");
-  console.log("   - 'retrieval_relevance' = 'irrelevant' → FAQ not in knowledge base");
+  console.log(
+    "   - 'retrieval_relevance' = 'irrelevant' → FAQ not in knowledge base"
+  );
   console.log("=".repeat(60));
 }
 
@@ -328,16 +350,18 @@ async function evaluateSessions() {
     console.error("❌ Failed to fetch spans:", error);
     console.log("\n💡 Make sure:");
     console.log("   1. Phoenix is running at http://localhost:6006");
-    console.log("   2. You've run 'pnpm sessions' to generate session traces first");
+    console.log(
+      "   2. You've run 'pnpm sessions' to generate session traces first"
+    );
     return;
   }
 
   // Step 2: Group spans by session ID
   const agentSpans = spans.filter((span) => span.name === "support-agent");
-  
+
   // Group by session ID
   const sessionGroups: Map<string, SpanData[]> = new Map();
-  
+
   for (const span of agentSpans) {
     const sessionId = span.attributes[SemanticConventions.SESSION_ID] as string;
     if (sessionId) {
@@ -351,7 +375,9 @@ async function evaluateSessions() {
   console.log(`   Found ${sessionGroups.size} sessions with agent spans`);
 
   if (sessionGroups.size === 0) {
-    console.log("\n⚠️  No sessions found. Run 'pnpm sessions' first to generate session traces.");
+    console.log(
+      "\n⚠️  No sessions found. Run 'pnpm sessions' first to generate session traces."
+    );
     return;
   }
 
@@ -382,11 +408,13 @@ async function evaluateSessions() {
     });
 
     // Build conversation transcript
-    const transcript = sessionSpans.map((span, i) => {
-      const input = span.attributes["input.value"] as string || "";
-      const output = span.attributes["output.value"] as string || "";
-      return `Turn ${i + 1}:\nUser: ${input}\nAgent: ${output}`;
-    }).join("\n\n");
+    const transcript = sessionSpans
+      .map((span, i) => {
+        const input = (span.attributes["input.value"] as string) || "";
+        const output = (span.attributes["output.value"] as string) || "";
+        return `Turn ${i + 1}:\nUser: ${input}\nAgent: ${output}`;
+      })
+      .join("\n\n");
 
     console.log("   Transcript preview:", transcript.substring(0, 100) + "...");
 
@@ -397,7 +425,8 @@ async function evaluateSessions() {
       });
       const coherenceLabel = coherenceResult.label ?? "unknown";
       const coherenceScore = coherenceResult.score ?? 0;
-      const status = coherenceLabel === "coherent" ? "✅ COHERENT" : "❌ INCOHERENT";
+      const status =
+        coherenceLabel === "coherent" ? "✅ COHERENT" : "❌ INCOHERENT";
       console.log(`   Coherence: ${status}`);
       if (coherenceResult.explanation) {
         console.log(`   Explanation: ${coherenceResult.explanation}`);
@@ -427,7 +456,8 @@ async function evaluateSessions() {
       });
       const resolutionLabel = resolutionResult.label ?? "unknown";
       const resolutionScore = resolutionResult.score ?? 0;
-      const status = resolutionLabel === "resolved" ? "✅ RESOLVED" : "❌ UNRESOLVED";
+      const status =
+        resolutionLabel === "resolved" ? "✅ RESOLVED" : "❌ UNRESOLVED";
       console.log(`   Resolution: ${status}`);
       if (resolutionResult.explanation) {
         console.log(`   Explanation: ${resolutionResult.explanation}`);
@@ -463,7 +493,9 @@ async function evaluateSessions() {
         sessionAnnotations,
         sync: false,
       });
-      console.log(`✅ Logged ${sessionAnnotations.length} session-level annotations`);
+      console.log(
+        `✅ Logged ${sessionAnnotations.length} session-level annotations`
+      );
     } catch (error) {
       console.error("❌ Failed to log session annotations:", error);
     }
@@ -474,19 +506,31 @@ async function evaluateSessions() {
   console.log("📊 Session Evaluation Summary");
   console.log("=".repeat(60));
 
-  const coherenceAnnotations = sessionAnnotations.filter((a) => a.name === "conversation_coherence");
-  const resolutionAnnotations = sessionAnnotations.filter((a) => a.name === "resolution_status");
+  const coherenceAnnotations = sessionAnnotations.filter(
+    (a) => a.name === "conversation_coherence"
+  );
+  const resolutionAnnotations = sessionAnnotations.filter(
+    (a) => a.name === "resolution_status"
+  );
 
   if (coherenceAnnotations.length > 0) {
-    const coherentCount = coherenceAnnotations.filter((a) => a.label === "coherent").length;
+    const coherentCount = coherenceAnnotations.filter(
+      (a) => a.label === "coherent"
+    ).length;
     console.log(`\n   🧠 Conversation Coherence:`);
-    console.log(`      Coherent: ${coherentCount}/${coherenceAnnotations.length}`);
+    console.log(
+      `      Coherent: ${coherentCount}/${coherenceAnnotations.length}`
+    );
   }
 
   if (resolutionAnnotations.length > 0) {
-    const resolvedCount = resolutionAnnotations.filter((a) => a.label === "resolved").length;
+    const resolvedCount = resolutionAnnotations.filter(
+      (a) => a.label === "resolved"
+    ).length;
     console.log(`\n   ✅ Issue Resolution:`);
-    console.log(`      Resolved: ${resolvedCount}/${resolutionAnnotations.length}`);
+    console.log(
+      `      Resolved: ${resolvedCount}/${resolutionAnnotations.length}`
+    );
   }
 
   console.log("\n" + "=".repeat(60));
@@ -496,7 +540,9 @@ async function evaluateSessions() {
   console.log("   1. Go to the Sessions tab to see all conversations");
   console.log("   2. Click into a session to see the full conversation");
   console.log("   3. Session-level annotations appear on the session itself:");
-  console.log("      - 'conversation_coherence' shows if context was maintained");
+  console.log(
+    "      - 'conversation_coherence' shows if context was maintained"
+  );
   console.log("      - 'resolution_status' shows if the issue was resolved");
   console.log("=".repeat(60));
 }
@@ -517,5 +563,3 @@ async function main() {
 
 // Run the evaluation
 main().catch(console.error);
-
-

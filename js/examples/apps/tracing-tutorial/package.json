@@ -4,10 +4,10 @@
   "description": "Phoenix Tracing Tutorial - Learn to trace LLM applications with Phoenix",
   "type": "module",
   "scripts": {
-    "start": "npx tsx support-agent.ts",
-    "sessions": "npx tsx support-agent.ts --sessions",
     "evaluate": "npx tsx evaluate-traces.ts",
-    "evaluate:sessions": "npx tsx evaluate-traces.ts --sessions"
+    "evaluate:sessions": "npx tsx evaluate-traces.ts --sessions",
+    "sessions": "npx tsx support-agent.ts --sessions",
+    "start": "npx tsx support-agent.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.80",

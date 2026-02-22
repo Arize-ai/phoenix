@@ -13,7 +13,7 @@ async function searchApi(query: string): Promise<string | null> {
 
   if (!tavilyKey) {
     throw new Error(
-      "TAVILY_API_KEY environment variable is not set. Please set it with: export TAVILY_API_KEY=your-key-here",
+      "TAVILY_API_KEY environment variable is not set. Please set it with: export TAVILY_API_KEY=your-key-here"
     );
   }
 
@@ -32,7 +32,7 @@ async function searchApi(query: string): Promise<string | null> {
 
     if (!response.ok) {
       throw new Error(
-        `Tavily API error: ${response.status} ${response.statusText}`,
+        `Tavily API error: ${response.status} ${response.statusText}`
       );
     }
 
@@ -61,7 +61,7 @@ class EssentialInfoTool extends StructuredTool {
     "Required. Fetches weather, best time to visit, top attractions, and etiquette for a destination. Call this first when building a trip plan. Do not use for budget or local experiences.";
   schema = z.object({
     destination: destinationSchema.describe(
-      "The travel destination (e.g., 'Japan', 'Portugal'). Required.",
+      "The travel destination (e.g., 'Japan', 'Portugal'). Required."
     ),
   });
 
@@ -83,10 +83,10 @@ class BudgetBasicsTool extends StructuredTool {
     "Required. Fetches travel cost breakdown (lodging, food, transport, activities) for a destination and trip duration. Call with the exact duration the user asked for (e.g., '5 days'). Do not use for essentials or local experiences.";
   schema = z.object({
     destination: destinationSchema.describe(
-      "The travel destination. Required.",
+      "The travel destination. Required."
     ),
     duration: durationSchema.describe(
-      "Trip duration in the form 'N days' (e.g., '5 days', '7 days'). Required.",
+      "Trip duration in the form 'N days' (e.g., '5 days', '7 days'). Required."
     ),
   });
 
@@ -115,10 +115,10 @@ class LocalFlavorTool extends StructuredTool {
     "Required. Fetches authentic local experiences and cultural highlights for a destination. Call with the user's stated interests (e.g., 'food, culture', 'beaches, wine'). Do not use for essentials or budget.";
   schema = z.object({
     destination: destinationSchema.describe(
-      "The travel destination. Required.",
+      "The travel destination. Required."
     ),
     interests: interestsSchema.describe(
-      "The user's interests (e.g., 'food, culture', 'beaches, wine'). Required—use the exact interests from the request.",
+      "The user's interests (e.g., 'food, culture', 'beaches, wine'). Required—use the exact interests from the request."
     ),
   });
 

@@ -1,10 +1,11 @@
 // This document is for a correctness eval on tools and goal completion for the agent.
 
-import "dotenv/config";
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import assert from "assert";
 import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
-import assert from "assert";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+import "dotenv/config";
 
 const model = openai("gpt-4o-mini");
 
@@ -117,7 +118,7 @@ async function main() {
 
   if (!phoenixEndpoint) {
     throw new Error(
-      "PHOENIX_ENDPOINT environment variable is required. Please set it in your .env file.",
+      "PHOENIX_ENDPOINT environment variable is required. Please set it in your .env file."
     );
   }
 
@@ -146,7 +147,7 @@ async function main() {
     const kind = span.kind?.toLowerCase() || "";
 
     const matchesToolName = toolNames.some((toolName) =>
-      name.includes(toolName),
+      name.includes(toolName)
     );
 
     const isToolCall = kind === "tool" || kind === "function";
@@ -217,7 +218,7 @@ async function main() {
 
   assert(
     correctCount >= totalCount * 0.5,
-    `Expected at least 50% of tests to pass, but only ${correctCount}/${totalCount} passed`,
+    `Expected at least 50% of tests to pass, but only ${correctCount}/${totalCount} passed`
   );
 
   const spanAnnotations = results.map((result) => ({
@@ -249,8 +250,8 @@ async function main() {
         s.span_id ||
         s.id ||
         s.context?.spanId ||
-        s.spanId,
-    ),
+        s.spanId
+    )
   );
 
   const spansByTrace = new Map<string, any[]>();

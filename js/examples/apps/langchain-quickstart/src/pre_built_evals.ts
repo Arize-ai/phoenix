@@ -1,7 +1,8 @@
-import "dotenv/config";
-import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 import { openai, createOpenAI } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+
+import "dotenv/config";
 
 const toStr = (v: unknown) =>
   typeof v === "string" ? v : v != null ? JSON.stringify(v) : null;
@@ -59,7 +60,7 @@ async function main() {
         annotatorKind: "LLM" as const,
         metadata: { evaluator: "correctness", input, output },
       };
-    }),
+    })
   );
 
   await logSpanAnnotations({ spanAnnotations, sync: true });

@@ -1,7 +1,8 @@
-import "dotenv/config";
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+
+import "dotenv/config";
 
 const EVAL_NAME = "completeness";
 const AGENT_SPAN_NAME = "invoke_agent Financial Analysis Orchestrator";
@@ -98,12 +99,12 @@ async function main() {
         annotatorKind: "LLM" as const,
         metadata: { evaluator: EVAL_NAME, input, output },
       };
-    }),
+    })
   );
 
   await logSpanAnnotations({ spanAnnotations, sync: true });
   console.log(
-    `Logged ${spanAnnotations.length} ${EVAL_NAME} evaluations to Phoenix`,
+    `Logged ${spanAnnotations.length} ${EVAL_NAME} evaluations to Phoenix`
   );
 }
 

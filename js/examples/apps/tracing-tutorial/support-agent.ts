@@ -18,16 +18,16 @@
  * Run multi-turn demo with: pnpm start -- --sessions
  */
 
-// Import instrumentation first - this must be at the top!
-import { provider } from "./instrumentation.js";
-
-import { embed, generateText, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { trace, SpanStatusCode, context } from "@arizeai/phoenix-otel";
-import { z } from "zod";
-import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
 import { setSession } from "@arizeai/openinference-core";
 import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+import { trace, SpanStatusCode, context } from "@arizeai/phoenix-otel";
+import { embed, generateText, tool } from "ai";
+import { z } from "zod";
+
+// Import instrumentation first - this must be at the top!
+import { provider } from "./instrumentation.js";
 
 // Get a tracer for creating custom spans
 const tracer = trace.getTracer("support-agent");
@@ -189,7 +189,7 @@ interface SessionContext {
 
 /**
  * Handle a support query with optional session tracking.
- * 
+ *
  * @param userQuery - The user's question
  * @param sessionId - Optional session ID for multi-turn conversations
  * @param conversationHistory - Previous messages in the conversation
@@ -231,14 +231,15 @@ async function handleSupportQuery(
           }
 
           // Build conversation context for multi-turn support
-          const conversationContext = conversationHistory.length > 0
-            ? `\n\nPrevious conversation:\n${conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')}`
-            : '';
-          
+          const conversationContext =
+            conversationHistory.length > 0
+              ? `\n\nPrevious conversation:\n${conversationHistory.map((m) => `${m.role}: ${m.content}`).join("\n")}`
+              : "";
+
           // Check if we have a remembered order ID from previous turns
           const rememberedOrderInfo = sessionContext.lastMentionedOrderId
             ? `\nNote: The customer previously mentioned order ${sessionContext.lastMentionedOrderId}.`
-            : '';
+            : "";
 
           // Step 1: Classify the query
           console.log("\n📋 Step 1: Classifying query...");
@@ -260,27 +261,33 @@ Respond with JSON only:
             experimental_telemetry: { isEnabled: true },
           });
 
-        let classification: ClassificationResult;
-        try {
-          classification = JSON.parse(classificationResult.text);
-        } catch {
-          // Default to FAQ if parsing fails
-          classification = {
-            category: "faq",
-            confidence: "low",
-            reasoning: "Failed to parse classification",
-          };
-        }
+          let classification: ClassificationResult;
+          try {
+            classification = JSON.parse(classificationResult.text);
+          } catch {
+            // Default to FAQ if parsing fails
+            classification = {
+              category: "faq",
+              confidence: "low",
+              reasoning: "Failed to parse classification",
+            };
+          }
 
-        console.log(`   Category: ${classification.category}`);
-        console.log(`   Confidence: ${classification.confidence}`);
-        console.log(`   Reasoning: ${classification.reasoning}`);
+          console.log(`   Category: ${classification.category}`);
+          console.log(`   Confidence: ${classification.confidence}`);
+          console.log(`   Reasoning: ${classification.reasoning}`);
 
-        category = classification.category;
-        agentSpan.setAttribute("classification.category", classification.category);
-        agentSpan.setAttribute("classification.confidence", classification.confidence);
+          category = classification.category;
+          agentSpan.setAttribute(
+            "classification.category",
+            classification.category
+          );
+          agentSpan.setAttribute(
+            "classification.confidence",
+            classification.confidence
+          );
 
-        let response: string;
+          let response: string;
 
           // Step 2: Route based on classification
           if (classification.category === "order_status") {
@@ -299,12 +306,17 @@ Respond with JSON only:
               prompt: orderPrompt,
               tools: {
                 lookupOrderStatus: tool({
-                  description: "Look up the current status of a customer order by order ID",
+                  description:
+                    "Look up the current status of a customer order by order ID",
                   inputSchema: z.object({
-                    orderId: z.string().describe("The order ID to look up (e.g., ORD-12345)"),
+                    orderId: z
+                      .string()
+                      .describe("The order ID to look up (e.g., ORD-12345)"),
                   }),
                   execute: async ({ orderId }) => {
-                    console.log(`   🔧 Tool called: lookupOrderStatus(${orderId})`);
+                    console.log(
+                      `   🔧 Tool called: lookupOrderStatus(${orderId})`
+                    );
 
                     // Simulate API latency
                     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -312,7 +324,9 @@ Respond with JSON only:
                     const order = orderDatabase[orderId];
                     if (!order) {
                       console.log(`   ❌ Order not found: ${orderId}`);
-                      return { error: `Order ${orderId} not found in our system` };
+                      return {
+                        error: `Order ${orderId} not found in our system`,
+                      };
                     }
 
                     console.log(`   ✅ Order found: ${JSON.stringify(order)}`);
@@ -324,24 +338,31 @@ Respond with JSON only:
               experimental_telemetry: { isEnabled: true },
             } as Parameters<typeof generateText>[0]);
 
-          // Get the tool result from the steps (AI SDK uses 'output' not 'result')
-          let orderInfo: Record<string, unknown> | null = null;
-          for (const step of toolDecision.steps || []) {
-            if (step.toolResults && step.toolResults.length > 0) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              orderInfo = (step.toolResults[0] as any).output as Record<string, unknown>;
-              break;
+            // Get the tool result from the steps (AI SDK uses 'output' not 'result')
+            let orderInfo: Record<string, unknown> | null = null;
+            for (const step of toolDecision.steps || []) {
+              if (step.toolResults && step.toolResults.length > 0) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                orderInfo = (step.toolResults[0] as any).output as Record<
+                  string,
+                  unknown
+                >;
+                break;
+              }
             }
-          }
-          
-          if (orderInfo) {
-            console.log(`   📦 Order info for response: ${JSON.stringify(orderInfo)}`);
-            console.log("\n💬 Step 3: Generating response from tool result...");
-            
-            const finalResponse = await generateText({
-              model: openai.chat("gpt-4o-mini"),
-              system: `You are a helpful customer support agent. Summarize order information in a friendly way. Use the exact data provided - do not make up information.`,
-              prompt: `Customer asked: "${userQuery}"
+
+            if (orderInfo) {
+              console.log(
+                `   📦 Order info for response: ${JSON.stringify(orderInfo)}`
+              );
+              console.log(
+                "\n💬 Step 3: Generating response from tool result..."
+              );
+
+              const finalResponse = await generateText({
+                model: openai.chat("gpt-4o-mini"),
+                system: `You are a helpful customer support agent. Summarize order information in a friendly way. Use the exact data provided - do not make up information.`,
+                prompt: `Customer asked: "${userQuery}"
 
 Here is the order information I found:
 - Order ID: ${orderInfo.orderId}
@@ -351,66 +372,69 @@ Here is the order information I found:
 - Estimated Arrival: ${orderInfo.eta}
 
 Write a friendly 2-3 sentence response sharing this information with the customer.`,
+                experimental_telemetry: { isEnabled: true },
+              });
+
+              response = finalResponse.text;
+            } else {
+              // No tool was called (e.g., no order ID provided)
+              response =
+                toolDecision.text ||
+                "I'd be happy to help you with your order status. Could you please provide your order ID? It should look like ORD-XXXXX.";
+            }
+          } else {
+            // Handle FAQ with RAG
+            console.log("\n📚 Step 2: Searching knowledge base (RAG)...");
+
+            // Embed the query
+            const { embedding: queryEmbedding } = await embed({
+              model: openai.embedding("text-embedding-ada-002"),
+              value: userQuery,
               experimental_telemetry: { isEnabled: true },
             });
-            
-            response = finalResponse.text;
-          } else {
-            // No tool was called (e.g., no order ID provided)
-            response = toolDecision.text || "I'd be happy to help you with your order status. Could you please provide your order ID? It should look like ORD-XXXXX.";
-          }
 
-        } else {
-          // Handle FAQ with RAG
-          console.log("\n📚 Step 2: Searching knowledge base (RAG)...");
+            // Find relevant FAQs
+            const relevantFAQs = FAQ_DATABASE.filter(
+              (faq) => faq.embedding !== null
+            )
+              .map((faq) => ({
+                ...faq,
+                score: cosineSimilarity(queryEmbedding, faq.embedding!),
+              }))
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 2);
 
-          // Embed the query
-          const { embedding: queryEmbedding } = await embed({
-            model: openai.embedding("text-embedding-ada-002"),
-            value: userQuery,
-            experimental_telemetry: { isEnabled: true },
-          });
+            console.log("   Found relevant FAQs:");
+            relevantFAQs.forEach((faq) => {
+              console.log(`   - [${faq.score.toFixed(3)}] ${faq.question}`);
+            });
 
-          // Find relevant FAQs
-          const relevantFAQs = FAQ_DATABASE.filter((faq) => faq.embedding !== null)
-            .map((faq) => ({
-              ...faq,
-              score: cosineSimilarity(queryEmbedding, faq.embedding!),
-            }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 2);
+            // Build context
+            const ragContext = relevantFAQs
+              .map((faq) => `Q: ${faq.question}\nA: ${faq.answer}`)
+              .join("\n\n");
 
-          console.log("   Found relevant FAQs:");
-          relevantFAQs.forEach((faq) => {
-            console.log(`   - [${faq.score.toFixed(3)}] ${faq.question}`);
-          });
+            // Generate answer
+            console.log("\n💬 Step 3: Generating response...");
 
-          // Build context
-          const ragContext = relevantFAQs
-            .map((faq) => `Q: ${faq.question}\nA: ${faq.answer}`)
-            .join("\n\n");
-
-          // Generate answer
-          console.log("\n💬 Step 3: Generating response...");
-
-          const ragResult = await generateText({
-            model: openai.chat("gpt-4o-mini"),
-            system: `You are a helpful customer support agent. Answer the user's question using ONLY the information provided in the context below. Be friendly and concise.
+            const ragResult = await generateText({
+              model: openai.chat("gpt-4o-mini"),
+              system: `You are a helpful customer support agent. Answer the user's question using ONLY the information provided in the context below. Be friendly and concise.
 
 Context:
 ${ragContext}`,
-            prompt: userQuery,
-            experimental_telemetry: { isEnabled: true },
-          });
+              prompt: userQuery,
+              experimental_telemetry: { isEnabled: true },
+            });
 
-          response = ragResult.text;
-        }
+            response = ragResult.text;
+          }
 
-        console.log("\n📤 Response:", response);
-        console.log("=".repeat(60));
+          console.log("\n📤 Response:", response);
+          console.log("=".repeat(60));
 
-        agentSpan.setAttribute("output.value", response);
-        agentSpan.setStatus({ code: SpanStatusCode.OK });
+          agentSpan.setAttribute("output.value", response);
+          agentSpan.setStatus({ code: SpanStatusCode.OK });
 
           return {
             query: userQuery,
@@ -431,12 +455,9 @@ ${ragContext}`,
 
   // If we have a session ID, propagate it to all child spans
   if (sessionId) {
-    return context.with(
-      setSession(context.active(), { sessionId }),
-      runAgent
-    );
+    return context.with(setSession(context.active(), { sessionId }), runAgent);
   }
-  
+
   // No session - run without session context propagation
   return runAgent();
 }
@@ -489,7 +510,7 @@ async function collectUserFeedback(responses: AgentResponse[]): Promise<void> {
 
   for (let i = 0; i < responses.length; i++) {
     const resp = responses[i];
-    
+
     console.log("-".repeat(60));
     console.log(`\n📝 Response ${i + 1} of ${responses.length}`);
     console.log(`\n   Query: "${resp.query}"`);
@@ -536,9 +557,11 @@ async function collectUserFeedback(responses: AgentResponse[]): Promise<void> {
     try {
       await logSpanAnnotations({
         spanAnnotations: annotations,
-        sync: false,  // async mode - Phoenix processes in background
+        sync: false, // async mode - Phoenix processes in background
       });
-      console.log(`✅ Logged ${annotations.length} feedback annotations to Phoenix`);
+      console.log(
+        `✅ Logged ${annotations.length} feedback annotations to Phoenix`
+      );
     } catch (error) {
       console.error("❌ Failed to log feedback:", error);
     }
@@ -581,7 +604,9 @@ async function runMultiTurnConversation(
   console.log("=".repeat(60));
 
   for (const turn of scenario.turns) {
-    console.log(`\n💬 Turn ${sessionContext.turnCount + 1}: "${turn.userMessage}"`);
+    console.log(
+      `\n💬 Turn ${sessionContext.turnCount + 1}: "${turn.userMessage}"`
+    );
     console.log(`   Expected: ${turn.expectedBehavior}`);
 
     // Run the agent with session context
@@ -599,7 +624,8 @@ async function runMultiTurnConversation(
     conversationHistory.push({ role: "assistant", content: result.response });
 
     // Update session context - extract order ID if mentioned
-    const orderIdMatch = turn.userMessage.match(/ORD-\d+/i) || result.response.match(/ORD-\d+/i);
+    const orderIdMatch =
+      turn.userMessage.match(/ORD-\d+/i) || result.response.match(/ORD-\d+/i);
     if (orderIdMatch) {
       sessionContext.lastMentionedOrderId = orderIdMatch[0].toUpperCase();
     }
@@ -623,8 +649,12 @@ async function runSessionsDemo(): Promise<void> {
   console.log("=".repeat(60));
   console.log("Phoenix Tracing Tutorial - Sessions Demo");
   console.log("=".repeat(60));
-  console.log("\nThis demo shows multi-turn conversations tracked as sessions.");
-  console.log("Each conversation has a unique session ID that links all turns together.");
+  console.log(
+    "\nThis demo shows multi-turn conversations tracked as sessions."
+  );
+  console.log(
+    "Each conversation has a unique session ID that links all turns together."
+  );
   console.log("View them in Phoenix UI under the 'Sessions' tab.\n");
 
   // Initialize FAQ embeddings first
@@ -642,7 +672,8 @@ async function runSessionsDemo(): Promise<void> {
         },
         {
           userMessage: "When will it arrive?",
-          expectedBehavior: "Agent remembers order → Provides ETA from previous lookup",
+          expectedBehavior:
+            "Agent remembers order → Provides ETA from previous lookup",
         },
         {
           userMessage: "What's the tracking number?",
@@ -741,7 +772,9 @@ async function main() {
   console.log("=".repeat(60));
   console.log("Phoenix Tracing Tutorial - Support Agent with Feedback");
   console.log("=".repeat(60));
-  console.log("\n💡 Tip: Run with --sessions flag for multi-turn conversation demo");
+  console.log(
+    "\n💡 Tip: Run with --sessions flag for multi-turn conversation demo"
+  );
   console.log("   Example: pnpm start -- --sessions\n");
 
   // Initialize FAQ embeddings first
@@ -750,15 +783,15 @@ async function main() {
   // Test queries that exercise different paths
   const queries = [
     // Good queries - should produce helpful responses
-    "What's the status of order ORD-12345?",  // → Order Status → Tool Call (order exists)
-    "How can I get a refund?",                 // → FAQ → RAG (question in knowledge base)
-    "Where is my order ORD-67890?",            // → Order Status → Tool Call (order exists)
-    "I forgot my password",                    // → FAQ → RAG (question in knowledge base)
-    
+    "What's the status of order ORD-12345?", // → Order Status → Tool Call (order exists)
+    "How can I get a refund?", // → FAQ → RAG (question in knowledge base)
+    "Where is my order ORD-67890?", // → Order Status → Tool Call (order exists)
+    "I forgot my password", // → FAQ → RAG (question in knowledge base)
+
     // Bad queries - agent fails to help properly
-    "What's the status of order ORD-99999?",   // → Order doesn't exist in database
-    "How do I upgrade to a premium plan?",     // → Not in FAQ database, agent can't answer
-    "Can you help me with something random?",  // → Vague/unclear request
+    "What's the status of order ORD-99999?", // → Order doesn't exist in database
+    "How do I upgrade to a premium plan?", // → Not in FAQ database, agent can't answer
+    "Can you help me with something random?", // → Vague/unclear request
   ];
 
   // Collect responses with span IDs

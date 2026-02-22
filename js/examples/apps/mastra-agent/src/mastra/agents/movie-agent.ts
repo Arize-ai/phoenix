@@ -1,9 +1,10 @@
 import { openai } from "@ai-sdk/openai";
-import { Agent } from "@mastra/core/agent";
-import { movieSelectorTool } from "../tools/movie-selector-tool";
-import { reviewerTool } from "../tools/reviewer-tool";
-import { previewSummarizerTool } from "../tools/preview-summarizer-tool";
 import { ArizeExporter } from "@mastra/arize";
+import { Agent } from "@mastra/core/agent";
+
+import { movieSelectorTool } from "../tools/movie-selector-tool";
+import { previewSummarizerTool } from "../tools/preview-summarizer-tool";
+import { reviewerTool } from "../tools/reviewer-tool";
 
 export const movieAgent = new Agent({
   name: "Movie Recommendation Assistant",

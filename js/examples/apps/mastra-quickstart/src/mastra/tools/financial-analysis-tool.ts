@@ -9,12 +9,12 @@ export const financialAnalysisTool = createTool({
     tickers: z
       .string()
       .describe(
-        "Stock ticker symbol(s) to research (e.g., 'TSLA', 'AAPL, MSFT')",
+        "Stock ticker symbol(s) to research (e.g., 'TSLA', 'AAPL, MSFT')"
       ),
     focus: z
       .string()
       .describe(
-        "The specific focus area for the research (e.g., 'financial analysis and market outlook')",
+        "The specific focus area for the research (e.g., 'financial analysis and market outlook')"
       ),
   }),
   outputSchema: z.object({

@@ -1,15 +1,17 @@
-import "dotenv/config";
-import { getDataset } from "@arizeai/phoenix-client/datasets";
-import type { Example } from "@arizeai/phoenix-client/types/datasets";
-import { runExperiment } from "@arizeai/phoenix-client/experiments";
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
+import { getDataset } from "@arizeai/phoenix-client/datasets";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+import type { Example } from "@arizeai/phoenix-client/types/datasets";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
-import { financialSearchTool } from "../tools/financial-search-tool";
+
 import { financialOrchestratorAgent } from "../agents/financial-orchestrator-agent";
 import { financialWriterAgent } from "../agents/financial-writer-agent";
 import { financialCompletenessTemplate } from "../evals/evals";
+import { financialSearchTool } from "../tools/financial-search-tool";
+
+import "dotenv/config";
 
 const financialResearcherAgent = new Agent({
   id: "financial-researcher-agent",

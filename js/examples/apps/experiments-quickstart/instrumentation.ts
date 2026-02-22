@@ -1,6 +1,5 @@
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { OpenInferenceSimpleSpanProcessor } from "@arizeai/openinference-vercel";
-
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";

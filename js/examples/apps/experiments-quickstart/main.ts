@@ -1,3 +1,4 @@
+import { openai } from "@ai-sdk/openai";
 import {
   OpenInferenceSpanKind,
   SemanticConventions,
@@ -10,13 +11,11 @@ import {
 import type { Example } from "@arizeai/phoenix-client/types/datasets";
 import type { EvaluatorParams } from "@arizeai/phoenix-client/types/experiments";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { generateText } from "ai";
 
 import "dotenv/config";
 import "./instrumentation.js";
-
-import { openai } from "@ai-sdk/openai";
-import { SpanStatusCode, trace } from "@opentelemetry/api";
-import { generateText } from "ai";
 
 const tracer = trace.getTracer("experiments-tutorial");
 

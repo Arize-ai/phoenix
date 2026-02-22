@@ -1,6 +1,7 @@
+import { ArizeExporter } from "@mastra/arize";
 import { Mastra } from "@mastra/core/mastra";
 import { Observability } from "@mastra/observability";
-import { ArizeExporter } from "@mastra/arize";
+
 import { financialOrchestratorAgent } from "./agents/financial-orchestrator-agent";
 import { financialResearcherAgent } from "./agents/financial-researcher-agent";
 import { financialWriterAgent } from "./agents/financial-writer-agent";

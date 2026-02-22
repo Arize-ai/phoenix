@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
 
 export const movieSelectorTool = {
   name: "movieSelector",
@@ -9,7 +9,7 @@ export const movieSelectorTool = {
     genre: z
       .string()
       .describe(
-        "The movie genre (e.g., 'action', 'comedy', 'drama', 'sci-fi')",
+        "The movie genre (e.g., 'action', 'comedy', 'drama', 'sci-fi')"
       ),
   }),
   execute: async ({ genre }: { genre: string }) => {
