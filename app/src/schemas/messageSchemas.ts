@@ -1,5 +1,4 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import type { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -55,43 +54,35 @@ export const openAIMessageRoleSchema = z.enum([
 
 export type OpenAIMessageRole = z.infer<typeof openAIMessageRoleSchema>;
 
-export const openAIMessageSchema = z
-  .object({
-    role: openAIMessageRoleSchema,
-    content: z.string().nullable(),
-    name: z.string().optional(),
-    tool_call_id: z.string().optional(),
-    tool_calls: z.array(openAIToolCallSchema).optional(),
-  })
-  .passthrough();
+export const openAIMessageSchema = z.looseObject({
+  role: openAIMessageRoleSchema,
+  content: z.string().nullable(),
+  name: z.string().optional(),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(openAIToolCallSchema).optional(),
+});
 
 export type OpenAIMessage = z.infer<typeof openAIMessageSchema>;
 
 export const openAIMessagesSchema = z.array(openAIMessageSchema);
 
-export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const openAIMessagesJSONSchema = z.toJSONSchema(openAIMessagesSchema);
 
 /**
  * AWS Message Schemas
  */
-export const awsMessageSchema = z
-  .object({
-    role: z.enum(["user", "assistant", "tool"]),
-    content: z.array(z.unknown()),
-    tool_call_id: z.string().optional(),
-    tool_calls: z.array(awsToolCallSchema).optional(),
-  })
-  .passthrough();
+export const awsMessageSchema = z.looseObject({
+  role: z.enum(["user", "assistant", "tool"]),
+  content: z.array(z.unknown()),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(awsToolCallSchema).optional(),
+});
 
 export type AwsMessage = z.infer<typeof awsMessageSchema>;
 
 export const awsMessagesSchema = z.array(awsMessageSchema);
 
-export const awsMessagesJSONSchema = zodToJsonSchema(awsMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const awsMessagesJSONSchema = z.toJSONSchema(awsMessagesSchema);
 
 /**
  * Anthropic Message Schemas
@@ -111,7 +102,7 @@ export const anthropicMessageBlockSchema = anthropicToolCallSchema.extend({
   id: z.string().optional(),
   tool_use_id: z.string().optional(),
   name: z.string().optional(),
-  input: z.record(z.unknown()).optional(),
+  input: z.record(z.string(), z.unknown()).optional(),
   source: z
     .object({
       type: z.string(),
@@ -130,11 +121,8 @@ export type AnthropicMessage = z.infer<typeof anthropicMessageSchema>;
 
 export const anthropicMessagesSchema = z.array(anthropicMessageSchema);
 
-export const anthropicMessagesJSONSchema = zodToJsonSchema(
-  anthropicMessagesSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const anthropicMessagesJSONSchema = z.toJSONSchema(
+  anthropicMessagesSchema
 );
 
 /**
@@ -163,20 +151,16 @@ export const promptContentPartSchema = z.discriminatedUnion("__typename", [
 
 export type PromptContentPart = z.infer<typeof promptContentPartSchema>;
 
-export const promptMessageSchema = z
-  .object({
-    role: promptMessageRoleSchema,
-    content: z.array(promptContentPartSchema),
-  })
-  .passthrough();
+export const promptMessageSchema = z.looseObject({
+  role: promptMessageRoleSchema,
+  content: z.array(promptContentPartSchema),
+});
 
 export type PromptMessage = z.infer<typeof promptMessageSchema>;
 
 export const promptMessagesSchema = z.array(promptMessageSchema);
 
-export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const promptMessagesJSONSchema = z.toJSONSchema(promptMessagesSchema);
 
 /**
  * Hub → Spoke: Convert an OpenAI message to Anthropic format

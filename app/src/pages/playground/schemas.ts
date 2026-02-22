@@ -5,7 +5,6 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import {
   jsonSchemaZodSchema,
@@ -52,7 +51,7 @@ const messageSchema = z.object({
       .union([z.string(), z.array(z.record(z.string(), z.unknown()))])
       .default(""),
     [MessageAttributePostfixes.contents]: z
-      .array(z.object({ message_content: z.record(z.string()) }))
+      .array(z.object({ message_content: z.record(z.string(), z.string()) }))
       .optional(),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
     [MessageAttributePostfixes.tool_call_id]: z.string().optional(),
@@ -117,7 +116,7 @@ export const chatMessageSchema = z.object({
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 export const jsonObjectSchema: z.ZodType<{ [key: string]: JSONLiteral }> =
-  z.lazy(() => z.record(jsonLiteralSchema));
+  z.lazy(() => z.record(z.string(), jsonLiteralSchema));
 
 export type JsonObjectSchema = z.infer<typeof jsonObjectSchema>;
 
@@ -162,7 +161,7 @@ const stringToInvocationParametersSchema = z
     }
     return data;
   })
-  .default("{}");
+  .prefault("{}");
 /**
  * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
@@ -189,9 +188,15 @@ export const modelConfigWithResponseFormatSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.invocation_parameters]:
       stringToInvocationParametersSchema.pipe(
+        // Cast unavoidable: z.lazy() (used by jsonObjectSchema) erases the
+        // Input type to `unknown`, but .pipe() requires the target's Input to
+        // match the source's Output ({ [key: string]: JSONLiteral }).
         z.object({
           response_format: jsonObjectSchema.optional(),
-        })
+        }) as z.ZodType<
+          { response_format?: { [key: string]: JSONLiteral } },
+          { [key: string]: JSONLiteral }
+        >
       ),
   }),
 });
@@ -277,11 +282,8 @@ export const openAIResponseFormatSchema = z.lazy(() =>
 
 export type OpenAIResponseFormat = z.infer<typeof openAIResponseFormatSchema>;
 
-export const openAIResponseFormatJSONSchema = zodToJsonSchema(
-  openAIResponseFormatSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const openAIResponseFormatJSONSchema = z.toJSONSchema(
+  openAIResponseFormatSchema
 );
 
 const promptTemplateVariablesSchema = z.string().transform((s, ctx) => {

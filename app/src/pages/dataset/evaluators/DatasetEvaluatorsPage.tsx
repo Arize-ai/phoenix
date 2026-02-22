@@ -80,7 +80,7 @@ export function DatasetEvaluatorsPageContent() {
     );
     if (template) {
       const maybeValidatedChoices = z
-        .record(z.number())
+        .record(z.string(), z.number())
         .safeParse(template.choices);
       const validatedChoices = maybeValidatedChoices.success
         ? maybeValidatedChoices.data

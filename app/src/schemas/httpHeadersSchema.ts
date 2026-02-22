@@ -1,5 +1,4 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import { isObject } from "@phoenix/typeUtils";
 
@@ -107,10 +106,7 @@ export type HttpHeaders = z.infer<typeof httpHeadersSchema>;
 /**
  * JSON Schema for HTTP headers (for JSONEditor validation)
  */
-export const httpHeadersJSONSchema = zodToJsonSchema(httpHeadersSchema, {
-  name: "HttpHeaders",
-  definitions: {},
-});
+export const httpHeadersJSONSchema = z.toJSONSchema(httpHeadersSchema);
 
 /**
  * Transform a string to HTTP headers schema.
@@ -145,11 +141,19 @@ export const stringToHttpHeadersSchema = z.string().transform((input, ctx) => {
 
     const result = httpHeadersSchema.safeParse(parsed);
     if (!result.success) {
-      // Forward the original validation error for better UX
+      // In Zod v4, record key validation errors are wrapped in an
+      // "invalid_key" issue with nested sub-issues containing the
+      // original error. Extract the inner message for better UX.
+      const issue = result.error.issues[0];
+      const innerMessage =
+        issue &&
+        "issues" in issue &&
+        Array.isArray(issue.issues) &&
+        issue.issues[0]?.message;
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          result.error.errors[0]?.message || "Invalid HTTP headers format",
+          innerMessage || issue?.message || "Invalid HTTP headers format",
       });
       return z.NEVER;
     }
