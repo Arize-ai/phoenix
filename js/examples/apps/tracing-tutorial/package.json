@@ -1,0 +1,27 @@
+{
+  "name": "tracing-tutorial",
+  "version": "1.0.0",
+  "description": "Phoenix Tracing Tutorial - Learn to trace LLM applications with Phoenix",
+  "type": "module",
+  "scripts": {
+    "evaluate": "npx tsx evaluate-traces.ts",
+    "evaluate:sessions": "npx tsx evaluate-traces.ts --sessions",
+    "sessions": "npx tsx support-agent.ts --sessions",
+    "start": "npx tsx support-agent.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.80",
+    "@arizeai/openinference-core": "^1.0.0",
+    "@arizeai/openinference-semantic-conventions": "^1.0.0",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
+    "@arizeai/phoenix-otel": "workspace:*",
+    "ai": "^5.0.108",
+    "zod": "^4.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

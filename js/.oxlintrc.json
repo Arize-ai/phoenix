@@ -13,5 +13,14 @@
     "eqeqeq": ["error", "smart"]
   },
 
+  "overrides": [
+    {
+      "files": ["examples/apps/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
+
   "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
 }
