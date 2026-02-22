@@ -38,16 +38,14 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.md" />
 </p>
 
-Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
+Phoenix is an open-source observability platform for LLM applications and AI agents. Built on OpenTelemetry, it gives you visibility into your entire AI stack so you can ship with confidence.
 
-- [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
-- [**_Evaluation_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
-- [**_Datasets_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
-- [**_Experiments_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
-- [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
-- [**_Prompt Management_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
+- [**Tracing**](https://arize.com/docs/phoenix/tracing/llm-traces) — Trace LLM application execution with OpenTelemetry-based instrumentation
+- [**Evaluation**](https://arize.com/docs/phoenix/evaluation/llm-evals) — Evaluate your app with managed LLM-as-judge and code evaluators — or bring your own
+- [**Datasets & Experiments**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) — Create versioned datasets and run experiments to track changes to prompts, models, and retrieval
+- [**Prompt Management**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts) — Version, tag, and test prompts with a built-in playground
 
-Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://arize.com/docs/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy), 🤗[smolagents](https://arize.com/docs/phoenix/tracing/integrations-tracing/hfsmolagents)) and LLM providers ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai) and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is vendor and language agnostic with out-of-the-box support for LLM providers ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), and more) and frameworks ([LangChain](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [Pydantic AI](https://arize.com/docs/phoenix/integrations/pydantic)). See the full list on the [integrations page](https://arize.com/docs/phoenix/integrations) or explore the [OpenInference](https://github.com/Arize-ai/openinference) project for details on auto-instrumentation.
 
 Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud.
 
