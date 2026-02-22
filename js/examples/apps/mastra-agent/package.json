@@ -11,14 +11,14 @@
     "@ai-sdk/openai": "^2.0.63",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
-    "@mastra/arize": "latest",
-    "@mastra/core": "latest",
-    "dotenv": "latest",
-    "zod": "latest"
+    "@mastra/arize": "^1.0.3",
+    "@mastra/core": "^1.5.0",
+    "dotenv": "^16.4.7",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "mastra": "latest",
+    "mastra": "^1.3.2",
     "tsx": "^4.20.6",
     "typescript": "^5.0.0"
   }
