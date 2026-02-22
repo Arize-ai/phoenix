@@ -6,8 +6,8 @@ import { Flex, Text } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
-import { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
-import { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
+import type { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
+import type { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 
 type DocumentEvaluationSummaryProps = {

@@ -1,9 +1,8 @@
 import { css } from "@emotion/react";
-import { forwardRef, ReactNode, Ref } from "react";
-import {
-  Switch as AriaSwitch,
-  SwitchProps as AriaSwitchProps,
-} from "react-aria-components";
+import type { ReactNode, Ref } from "react";
+import { forwardRef } from "react";
+import type { SwitchProps as AriaSwitchProps } from "react-aria-components";
+import { Switch as AriaSwitch } from "react-aria-components";
 
 const switchCSS = css`
   display: flex;

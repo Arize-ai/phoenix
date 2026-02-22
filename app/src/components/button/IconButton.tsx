@@ -1,9 +1,11 @@
-import { css, SerializedStyles } from "@emotion/react";
-import { ReactNode } from "react";
-import { Button, ButtonProps } from "react-aria-components";
+import type { SerializedStyles } from "@emotion/react";
+import { css } from "@emotion/react";
+import type { ReactNode } from "react";
+import type { ButtonProps } from "react-aria-components";
+import { Button } from "react-aria-components";
 
-import { ColorValue, TextColorValue } from "../types";
-import { ComponentSize } from "../types/sizing";
+import type { ColorValue, TextColorValue } from "../types";
+import type { ComponentSize } from "../types/sizing";
 import { colorValue } from "../utils";
 
 const getIconButtonColor = (color: TextColorValue): string => {
@@ -60,7 +62,7 @@ const iconButtonCSS = (color: TextColorValue) => css`
     min-width: var(--global-button-height-s);
     min-height: var(--global-button-height-s);
     height: var(--global-button-height-s);
-    .ac-icon-wrap {
+    .icon-wrap {
       font-size: var(--icon-button-font-size-s);
     }
   }
@@ -70,19 +72,19 @@ const iconButtonCSS = (color: TextColorValue) => css`
     min-width: var(--global-button-height-m);
     min-height: var(--global-button-height-m);
     height: var(--global-button-height-m);
-    .ac-icon-wrap {
+    .icon-wrap {
       font-size: var(--icon-button-font-size-m);
     }
   }
 
-  .ac-icon-wrap {
+  .icon-wrap {
     opacity: 0.7;
     transition: opacity 0.2s ease;
   }
 
   &[data-hovered] {
     background-color: var(--hover-background);
-    .ac-icon-wrap {
+    .icon-wrap {
       opacity: 1;
     }
   }

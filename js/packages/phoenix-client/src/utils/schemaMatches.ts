@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 /**
  * Simple utility to check if two types are exactly equivalent

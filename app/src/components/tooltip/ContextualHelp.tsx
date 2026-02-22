@@ -1,11 +1,11 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { TooltipTrigger } from "react-aria-components";
 
 import { Button } from "../button";
 import { Icon, Icons } from "../icon";
 import { Tooltip } from "./Tooltip";
-import { TooltipProps } from "./types";
+import type { TooltipProps } from "./types";
 
 const getIconByVariant = (variant: ContextualHelpProps["variant"]) => {
   switch (variant) {

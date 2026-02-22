@@ -1,4 +1,4 @@
-import { AnnotationConfig } from "@phoenix/pages/settings/types";
+import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 export type {
   AnnotationConfig,

@@ -1,8 +1,9 @@
-import { forwardRef, Ref } from "react";
+import type { Ref } from "react";
+import { forwardRef } from "react";
 import { Checkbox as AriaCheckbox } from "react-aria-components";
 
 import { checkboxCSS } from "@phoenix/components/checkbox/styles";
-import { CheckboxProps } from "@phoenix/components/checkbox/types";
+import type { CheckboxProps } from "@phoenix/components/checkbox/types";
 
 function Checkbox(props: CheckboxProps, ref: Ref<HTMLLabelElement>) {
   const { children, isHovered, ...restProps } = props;

@@ -1,7 +1,7 @@
 import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/messages/messages";
 import invariant from "tiny-invariant";
 
-import { AnthropicToolChoice } from "../../schemas/llm/anthropic/toolChoiceSchemas";
+import type { AnthropicToolChoice } from "../../schemas/llm/anthropic/toolChoiceSchemas";
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,

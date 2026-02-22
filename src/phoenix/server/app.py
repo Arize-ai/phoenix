@@ -927,7 +927,7 @@ def create_engine_and_run_migrations(
             "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
             "then try starting Phoenix again.\n\n"
             "If issues persist, please reach out for support in the Arize community Slack:\n"
-            "https://arize-ai.slack.com\n\n"
+            "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g\n\n"
             "You can also refer to the Alembic documentation for more information:\n"
             "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
             ""

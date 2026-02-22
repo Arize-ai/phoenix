@@ -6,7 +6,8 @@ import invariant from "tiny-invariant";
 import { ExamplesFilterBar } from "@phoenix/pages/examples/ExamplesFilterBar";
 import { ExamplesFilterProvider } from "@phoenix/pages/examples/ExamplesFilterContext";
 
-import { examplesLoader, examplesLoaderGql } from "./examplesLoader";
+import type { examplesLoader } from "./examplesLoader";
+import { examplesLoaderGql } from "./examplesLoader";
 import { ExamplesTable } from "./ExamplesTable";
 
 export function ExamplesPage() {

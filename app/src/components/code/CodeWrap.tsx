@@ -1,6 +1,7 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { View, ViewProps } from "@phoenix/components";
+import type { ViewProps } from "@phoenix/components";
+import { View } from "@phoenix/components";
 
 export function CodeWrap({
   children,

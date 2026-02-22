@@ -1,8 +1,8 @@
 import { withSpan } from "@arizeai/openinference-core";
 
-import { EvaluatorBase } from "../core/EvaluatorBase";
+import type { EvaluatorBase } from "../core/EvaluatorBase";
 import { FunctionEvaluator } from "../core/FunctionEvaluator";
-import {
+import type {
   EvaluationKind,
   OptimizationDirection,
   TelemetryConfig,

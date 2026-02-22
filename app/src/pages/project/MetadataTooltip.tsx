@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   Flex,

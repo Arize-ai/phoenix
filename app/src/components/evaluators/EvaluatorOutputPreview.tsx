@@ -17,7 +17,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { type Annotation } from "@phoenix/components/annotation";
+import type { Annotation } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { getPositiveOptimization } from "@phoenix/components/annotation/optimizationUtils";
 import { JSONBlock } from "@phoenix/components/code";

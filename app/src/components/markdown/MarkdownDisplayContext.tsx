@@ -1,14 +1,9 @@
-import {
-  createContext,
-  PropsWithChildren,
-  startTransition,
-  useCallback,
-  useContext,
-} from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, startTransition, useCallback, useContext } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { MarkdownDisplayMode } from "./types";
+import type { MarkdownDisplayMode } from "./types";
 
 export type MarkdownDisplayContextType = {
   mode: MarkdownDisplayMode;

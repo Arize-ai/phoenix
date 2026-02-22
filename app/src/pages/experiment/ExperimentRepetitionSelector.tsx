@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { SetStateAction, useMemo } from "react";
+import type { SetStateAction } from "react";
+import { useMemo } from "react";
 
 import {
   Flex,

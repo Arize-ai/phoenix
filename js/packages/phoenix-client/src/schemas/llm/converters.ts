@@ -1,17 +1,17 @@
 import invariant from "tiny-invariant";
-import z from "zod";
+import type z from "zod";
 
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import { safelyParseJSON } from "../../utils/safelyParseJSON";
-import { JSONLiteral } from "../jsonLiteralSchema";
+import type { JSONLiteral } from "../jsonLiteralSchema";
 import { SDKProviderConverterMap } from "./constants";
-import { OpenAIChatPart } from "./openai/messagePartSchemas";
-import { OpenAIMessage } from "./openai/messageSchemas";
-import { OpenAIToolCall } from "./openai/toolCallSchemas";
-import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "./openai/toolSchemas";
+import type { OpenAIChatPart } from "./openai/messagePartSchemas";
+import type { OpenAIMessage } from "./openai/messageSchemas";
+import type { OpenAIToolCall } from "./openai/toolCallSchemas";
+import type { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
+import type { OpenAIToolDefinition } from "./openai/toolSchemas";
 import { toolCallHeuristicSchema } from "./schemas";
-import { LLMMessagePart, PromptSDKFormat } from "./types";
+import type { LLMMessagePart, PromptSDKFormat } from "./types";
 import {
   detectMessagePartProvider,
   detectMessageProvider,

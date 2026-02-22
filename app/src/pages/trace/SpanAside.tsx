@@ -2,7 +2,8 @@ import { Suspense, useRef } from "react";
 import { FocusScope } from "react-aria";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useFragment } from "react-relay";
-import { ImperativePanelHandle, PanelGroup } from "react-resizable-panels";
+import type { ImperativePanelHandle } from "react-resizable-panels";
+import { PanelGroup } from "react-resizable-panels";
 
 import { Flex, KeyboardToken, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
@@ -12,9 +13,9 @@ import {
   EDIT_ANNOTATION_HOTKEY,
   SpanAnnotationsEditor,
 } from "@phoenix/components/trace/SpanAnnotationsEditor";
-import { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
+import type { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
 
-import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
+import type { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import {
   NOTE_HOTKEY,
   SpanNotesEditor,

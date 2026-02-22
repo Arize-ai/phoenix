@@ -1,6 +1,6 @@
 import { JSONPath } from "jsonpath-plus";
 
-import { ObjectMapping, ValueGetter } from "../types/data";
+import type { ObjectMapping, ValueGetter } from "../types/data";
 
 /**
  * Remaps an object by applying field mappings while preserving original data.

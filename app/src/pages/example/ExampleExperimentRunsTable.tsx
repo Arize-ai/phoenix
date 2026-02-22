@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -19,8 +19,8 @@ import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 
-import { ExampleExperimentRunsTableFragment$key } from "./__generated__/ExampleExperimentRunsTableFragment.graphql";
-import { ExampleExperimentRunsTableQuery } from "./__generated__/ExampleExperimentRunsTableQuery.graphql";
+import type { ExampleExperimentRunsTableFragment$key } from "./__generated__/ExampleExperimentRunsTableFragment.graphql";
+import type { ExampleExperimentRunsTableQuery } from "./__generated__/ExampleExperimentRunsTableQuery.graphql";
 
 const PAGE_SIZE = 100;
 

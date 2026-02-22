@@ -12,7 +12,7 @@ import {
 import { normalizeUserRole } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import {
+import type {
   UserRoleChangeDialogMutation,
   UserRoleInput,
 } from "./__generated__/UserRoleChangeDialogMutation.graphql";

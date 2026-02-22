@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 export function TableEmptyWrap(props: PropsWithChildren) {
   const { children } = props;

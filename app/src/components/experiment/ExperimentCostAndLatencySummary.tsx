@@ -15,7 +15,7 @@ import { Skeleton } from "@phoenix/components/loading";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { ExecutionState } from "@phoenix/components/types";
+import type { ExecutionState } from "@phoenix/components/types";
 
 import type { ExperimentCostAndLatencySummaryQuery } from "./__generated__/ExperimentCostAndLatencySummaryQuery.graphql";
 import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";

@@ -16,11 +16,9 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
-import { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
-import {
-  settingsModelsLoaderGql,
-  SettingsModelsLoaderType,
-} from "@phoenix/pages/settings/settingsModelsLoader";
+import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
+import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
+import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsLoader";
 
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";

@@ -1,7 +1,8 @@
-import { forwardRef, Ref } from "react";
+import type { Ref } from "react";
+import { forwardRef } from "react";
 
 import { listCSS } from "./styles";
-import { ListProps } from "./types";
+import type { ListProps } from "./types";
 
 function List(
   { size = "M", children, ...otherProps }: ListProps,

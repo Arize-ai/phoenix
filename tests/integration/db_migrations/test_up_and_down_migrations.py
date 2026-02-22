@@ -6,6 +6,7 @@ Validates linear migration history, bidirectional capability, and repeatability
 across SQLite and PostgreSQL backends using Alembic.
 """
 
+import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine
@@ -13,10 +14,26 @@ from sqlalchemy import Engine
 from . import _down, _up, _verify_clean_state
 
 
+@pytest.mark.parametrize(
+    "migrate_index_concurrently",
+    [
+        pytest.param(False, id="default"),
+        pytest.param(
+            True,
+            id="concurrently",
+            marks=pytest.mark.skipif(
+                "os.environ.get('CI_TEST_DB_BACKEND', 'sqlite').lower() != 'postgresql'",
+                reason="CONCURRENTLY only applies to PostgreSQL",
+            ),
+        ),
+    ],
+)
 def test_up_and_down_migrations(
     _engine: Engine,
     _alembic_config: Config,
     _schema: str,
+    migrate_index_concurrently: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
     Test complete migration lifecycle - all migrations can be applied and rolled back.
@@ -37,6 +54,11 @@ def test_up_and_down_migrations(
         AssertionError: If migrations fail or history is non-linear
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
     """
+    if migrate_index_concurrently:
+        monkeypatch.setenv("PHOENIX_MIGRATE_INDEX_CONCURRENTLY", "true")
+    else:
+        monkeypatch.delenv("PHOENIX_MIGRATE_INDEX_CONCURRENTLY", raising=False)
+
     # Verify clean state and test full migration cycle
     _verify_clean_state(_engine, _schema)
     _up(_engine, _alembic_config, "head", _schema)

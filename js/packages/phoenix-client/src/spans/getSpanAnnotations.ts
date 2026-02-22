@@ -1,7 +1,7 @@
-import { operations } from "../__generated__/api/v1";
+import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { ProjectSelector } from "../types/projects";
+import type { ClientFn } from "../types/core";
+import type { ProjectSelector } from "../types/projects";
 
 /**
  * Parameters to get span annotations from a project using auto-generated types

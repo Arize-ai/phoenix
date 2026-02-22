@@ -9,7 +9,7 @@ import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluator
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
+import type { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
 
 export function LLMDatasetEvaluatorDetails({

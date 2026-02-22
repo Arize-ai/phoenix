@@ -1,12 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
-import {
-  Label,
-  Tag,
-  TagGroup,
-  TagGroupProps,
-  TagList,
-} from "@phoenix/components";
+import type { TagGroupProps } from "@phoenix/components";
+import { Label, Tag, TagGroup, TagList } from "@phoenix/components";
 
 const meta: Meta = {
   title: "TagGroup",

@@ -1,12 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  TextField as AriaTextField,
-  TextFieldProps as AriaTextFieldProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { TextFieldProps as AriaTextFieldProps } from "react-aria-components";
+import { TextField as AriaTextField } from "react-aria-components";
 
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/types";
 
 import { textFieldCSS } from "./styles";
 
@@ -17,7 +16,7 @@ function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
   return (
     <AriaTextField
       data-size={size}
-      className="ac-textfield"
+      className="text-field"
       ref={ref}
       {...otherProps}
       css={css(fieldBaseCSS, textFieldCSS)}

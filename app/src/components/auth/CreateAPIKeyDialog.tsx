@@ -3,12 +3,12 @@ import { getLocalTimeZone } from "@internationalized/date";
 import { Controller, useForm } from "react-hook-form";
 import { Form } from "react-router";
 
+import type { DateValue } from "@phoenix/components";
 import {
   Button,
   DateField,
   DateInput,
   DateSegment,
-  DateValue,
   Dialog,
   FieldError,
   Flex,

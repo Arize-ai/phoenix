@@ -8,16 +8,6 @@ on:
       - main
       - version-*
   pull_request:
-    paths:
-      - "**/*.py"
-      - "**/*.ipynb"
-      - "src/**"
-      - "tests/**"
-      - "tutorials/**"
-      - "**/pyproject.toml"
-      - "packages/**"
-      - "tox.ini"
-      - "uv.lock"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -564,7 +554,7 @@ jobs:
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
 
   test-migrations:
-    name: DB Migration Continuity (${{ matrix.db }})
+    name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.migrations == 'true' }}
@@ -572,6 +562,10 @@ jobs:
       fail-fast: false
       matrix:
         db: [sqlite, postgresql]
+        concurrently: [false]
+        include:
+          - db: postgresql
+            concurrently: true
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
@@ -606,6 +600,9 @@ jobs:
           else
             echo "PHOENIX_SQL_DATABASE_URL=sqlite:///phoenix_test.db" >> $GITHUB_ENV
           fi
+          if [ "${{ matrix.concurrently }}" = "true" ]; then
+            echo "PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true" >> $GITHUB_ENV
+          fi
       - name: Run migrations on installed Phoenix
         working-directory: ${{ env.PHOENIX_PATH }}
         run: |
@@ -629,6 +626,11 @@ jobs:
         working-directory: ${{ env.PHOENIX_PATH }}
         run: |
           alembic downgrade base
+          alembic current
+      - name: Test up migrations
+        working-directory: ${{ env.PHOENIX_PATH }}
+        run: |
+          alembic upgrade head
           alembic current
 
   phoenix-client-canary-tests-sdk:
@@ -664,3 +666,39 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
+
+  ci-required:
+    name: CI Required
+    needs:
+      - ruff
+      - changes
+      - phoenix-client
+      - phoenix-evals
+      - phoenix-otel
+      - clean-jupyter-notebooks
+      - build-graphql-schema
+      - build-openapi-schema
+      - compile-protobuf
+      - compile-prompts
+      - check-lockfile
+      - type-check
+      - type-check-unit-tests
+      - unit-tests
+      - type-check-integration-tests
+      - integration-tests
+      - test-migrations
+      - phoenix-client-canary-tests-sdk
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"

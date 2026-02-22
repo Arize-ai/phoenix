@@ -1,4 +1,5 @@
-import { createContext, PropsWithChildren, useContext } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext } from "react";
 
 /**
  * Global static context for the functionality of the platform

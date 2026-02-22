@@ -1,5 +1,6 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { ModalProps } from "@phoenix/components";
 import {
   Button,
   Dialog,
@@ -7,7 +8,6 @@ import {
   Flex,
   Modal,
   ModalOverlay,
-  ModalProps,
   Text,
   View,
 } from "@phoenix/components";

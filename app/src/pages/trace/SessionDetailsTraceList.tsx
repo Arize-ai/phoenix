@@ -24,7 +24,7 @@ import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import {
+import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
 } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";

@@ -1,12 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, ReactNode, Ref, useState } from "react";
-import {
-  TextField as AriaTextField,
-  TextFieldProps as AriaTextFieldProps,
-} from "react-aria-components";
+import type { ReactNode, Ref } from "react";
+import { forwardRef, useState } from "react";
+import type { TextFieldProps as AriaTextFieldProps } from "react-aria-components";
+import { TextField as AriaTextField } from "react-aria-components";
 
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts/SizeContext";
 
 import { CredentialContext } from "./CredentialContext";
@@ -29,7 +28,7 @@ function CredentialField(
       <SizeProvider size={size}>
         <AriaTextField
           data-size={size}
-          className="ac-credentialfield"
+          className="credential-field"
           autoComplete="off"
           ref={ref}
           {...otherProps}

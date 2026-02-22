@@ -1,4 +1,4 @@
-import { CellContext } from "@tanstack/react-table";
+import type { CellContext } from "@tanstack/react-table";
 
 import { isNumberOrNull } from "@phoenix/typeUtils";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";

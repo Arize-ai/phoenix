@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * A wrapper for code mirror editors that lazily initializes the editor when it is scrolled into view.

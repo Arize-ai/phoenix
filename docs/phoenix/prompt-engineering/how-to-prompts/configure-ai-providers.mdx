@@ -5,19 +5,45 @@ description: "Phoenix natively integrates with OpenAI, Azure OpenAI, Anthropic, 
 
 ## Credentials
 
-To securely provide your API keys, you have two options. One is to store them in your browser in local storage. Alternatively, you can set them as environment variables on the server side. If both are set at the same time, the credential set in the browser will take precedence.
+To securely provide your API keys, you have four options.
+
+1. **Browser**: Store them in your browser's local storage.
+2. **Database (Secrets)**: Save them encrypted in the Phoenix database.
+3. **Database (Custom Providers)**: Configure named providers with specific credentials.
+4. **Environment Variables**: Set them as environment variables on the server.
+
+For built-in providers (e.g., selecting "OpenAI" directly), Phoenix resolves credentials in this order: **Browser > Database (Secrets) > Environment Variables**.
+Custom Providers (Option 3) are selected explicitly and use their own configured credentials.
 
 ### Option 1: Store API Keys in the Browser
 
-API keys can be entered in the playground application via the API Keys dropdown menu. This option stores API keys in the browser. Simply navigate to to settings and set your API keys.
+API keys can be entered in the playground application via the API Keys dropdown menu. This option stores API keys in your browser's local storage.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d2f72ee7-image.jpeg" />
 </Frame>
 
-### Option 2: Set Environment Variables on Server Side
+### Option 2: Save Secrets (Encrypted) in the Database
 
-*Available on self-hosted Phoenix*
+You can save your API keys persistently in the Phoenix database. Navigate to the **Settings** page, select the **AI Providers** tab, and click the edit icon for a provider. In the dialog, toggle the view to **Secrets** and enter your keys. Keys are stored encrypted at rest in the `secrets` table. If you change the server's `PHOENIX_SECRET` environment variable, these entries will become unreadable and must be updated.
+
+### Option 3: Custom Providers
+
+Custom providers let you store provider credentials and routing settings on the server and reuse them across the playground and prompt versions.
+
+For detailed instructions on configuring custom providers, see the [Custom AI Providers](/docs/phoenix/settings/custom-ai-providers) settings page.
+
+**Using Custom Providers in the Playground and Prompts**
+
+Custom providers appear in model selection menus as their own provider group. When you select one:
+
+1. The model list mirrors the built-in model list for that SDK.
+2. Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider config.
+3. You can still add request-level custom headers from the model configuration panel.
+
+Prompt versions and evaluators use custom providers when a prompt version is saved with a custom provider selection. If you do not select a custom provider for a prompt, Phoenix falls back to environment variables or saved secrets for the built-in provider.
+
+### Option 4: Set Environment Variables on Server Side
 
 If the following variables are set in the server environment, they'll be used at API invocation time.
 
@@ -46,7 +72,7 @@ To use this fallback behavior, **do not fill out the AWS credentials in the Play
 
 ### Option 1: Configure the base URL in the prompt playground
 
-Since you can configure the base URL for the OpenAI client, you can use the prompt playground with a variety of OpenAI Client compatible LLMs such as **Ollama**, **DeepSeek**, and more.\\
+Since you can configure the base URL for the OpenAI client, you can use the prompt playground with a variety of OpenAI Client compatible LLMs such as **Ollama**, **DeepSeek**, and more.\
 
 <Frame caption="Simply insert the URL for the OpenAI client compatible LLM provider">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca5e3fd5-image.jpeg" />
@@ -78,57 +104,6 @@ If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix
 <Info>
 OpenAI and Azure OpenAI support two API types: **Chat Completions** (`chat.completions.create`) and **Responses** (`responses.create`). For built-in providers, choose the API type from the model configuration panel in the Playground. For custom providers, set the API type in the provider configuration. Built-in providers default to Chat Completions, while custom providers default to Responses.
 </Info>
-
-## Custom Providers
-
-Custom providers let you store provider credentials and routing settings on the server and reuse them across the playground and prompt versions. This is ideal for shared environments where you want a single, managed configuration instead of per-browser API keys or ephemeral routing fields.
-
-![Custom provider configuration in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/custom-provider-config.png)
-
-To create a custom provider:
-
-1. Go to **Settings** → **AI Providers**.
-2. In **Custom Providers**, select **New Provider**.
-3. Enter a **Name** and a **Provider String**.
-4. Choose the **SDK** and fill in the required fields.
-5. Click **Test** to validate the credentials, then **Create Provider**.
-
-### Supported SDKs and Fields
-
-**OpenAI**
-Required: API key, API type (Chat Completions or Responses)
-Optional: Base URL, Organization, Project, Default headers
-
-**Azure OpenAI**
-Required: Endpoint, authentication method
-API key auth: API key
-AD token provider auth: Tenant ID, Client ID, Client Secret (Scope optional)
-Default credentials auth: Endpoint only
-Optional: Default headers
-
-**Anthropic**
-Required: API key
-Optional: Base URL, Default headers
-
-**AWS Bedrock**
-Required: Region, authentication method
-Access keys auth: Access Key ID, Secret Access Key (Session Token optional)
-Default credentials auth: Region only
-Optional: Endpoint URL
-
-**Google GenAI**
-Required: API key
-Optional: Base URL, Headers
-
-### Using Custom Providers in the Playground and Prompts
-
-Custom providers appear in model selection menus as their own provider group. When you select one:
-
-1. The model list mirrors the built-in model list for that SDK.
-2. Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider config.
-3. You can still add request-level custom headers from the model configuration panel.
-
-Prompt versions and evaluators use custom providers when a prompt version is saved with a custom provider selection. If you do not select a custom provider for a prompt, Phoenix falls back to environment variables or saved secrets for the built-in provider.
 
 
 ## Custom Headers

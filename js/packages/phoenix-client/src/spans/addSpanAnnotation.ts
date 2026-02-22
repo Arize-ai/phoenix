@@ -1,6 +1,7 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { SpanAnnotation, toSpanAnnotationData } from "./types";
+import type { ClientFn } from "../types/core";
+import type { SpanAnnotation } from "./types";
+import { toSpanAnnotationData } from "./types";
 
 /**
  * Parameters to add a span annotation

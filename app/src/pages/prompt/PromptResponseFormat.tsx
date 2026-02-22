@@ -10,7 +10,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { PromptResponseFormatFragment$key } from "@phoenix/pages/prompt/__generated__/PromptResponseFormatFragment.graphql";
+import type { PromptResponseFormatFragment$key } from "@phoenix/pages/prompt/__generated__/PromptResponseFormatFragment.graphql";
 import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 export function PromptResponseFormat({

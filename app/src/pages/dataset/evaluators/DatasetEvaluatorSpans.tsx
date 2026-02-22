@@ -3,7 +3,7 @@ import { graphql, useFragment } from "react-relay";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
-import { DatasetEvaluatorSpans_project$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorSpans_project.graphql";
+import type { DatasetEvaluatorSpans_project$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorSpans_project.graphql";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 

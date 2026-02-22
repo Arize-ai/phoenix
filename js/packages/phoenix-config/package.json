@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-config",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "central configuration for Phoenix",
   "keywords": [
     "arize",

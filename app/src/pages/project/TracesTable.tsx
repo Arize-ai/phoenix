@@ -1,19 +1,21 @@
 import { css } from "@emotion/react";
-import {
+import type {
   CellContext,
   ColumnDef,
   ExpandedState,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
+import {
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
   getSortedRowModel,
-  SortingState,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
+import type { ComponentProps } from "react";
 import React, {
-  ComponentProps,
   Fragment,
   startTransition,
   useCallback,
@@ -47,8 +49,9 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
-import { ISpanItem } from "@phoenix/components/trace/types";
-import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import type { ISpanItem } from "@phoenix/components/trace/types";
+import type { SpanTreeNode } from "@phoenix/components/trace/utils";
+import { createSpanTree } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -57,12 +60,12 @@ import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
-import {
+import type {
   SpanStatusCode,
   TracesTable_spans$data,
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
-import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
+import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";

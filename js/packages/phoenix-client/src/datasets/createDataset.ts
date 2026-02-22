@@ -1,8 +1,8 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { Example } from "../types/datasets";
+import type { ClientFn } from "../types/core";
+import type { Example } from "../types/datasets";
 
 export type CreateDatasetParams = ClientFn & {
   /**

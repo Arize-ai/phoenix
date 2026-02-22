@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { promptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
+import type { promptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
 
 export const promptConfigLoader = async ({ params }: LoaderFunctionArgs) => {
   const promptId = params.promptId;

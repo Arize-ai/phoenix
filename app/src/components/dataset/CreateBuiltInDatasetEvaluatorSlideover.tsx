@@ -1,5 +1,5 @@
 import { Suspense, useMemo, useState } from "react";
-import { ModalOverlayProps } from "react-aria-components";
+import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -11,7 +11,7 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation.graphql";
+import type { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation.graphql";
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";

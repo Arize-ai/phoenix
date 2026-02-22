@@ -15,7 +15,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
+import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
 import { SessionDetails } from "./SessionDetails";
 

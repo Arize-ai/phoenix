@@ -1,4 +1,5 @@
-import { create, StateCreator } from "zustand";
+import type { StateCreator } from "zustand";
+import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";

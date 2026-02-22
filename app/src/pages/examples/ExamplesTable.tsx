@@ -1,9 +1,8 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, Updater } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
-  Updater,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -29,16 +28,14 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
-import {
-  ExamplesCache,
-  useExamplesFilterContext,
-} from "@phoenix/pages/examples/ExamplesFilterContext";
-import { Mutable } from "@phoenix/typeUtils";
+import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
+import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
+import type { Mutable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
-import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
+import type { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
-import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
+import type { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;

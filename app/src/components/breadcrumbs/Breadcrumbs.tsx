@@ -1,11 +1,10 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Breadcrumbs as AriaBreadcrumbs,
-  BreadcrumbsProps as AriaBreadcrumbsProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { BreadcrumbsProps as AriaBreadcrumbsProps } from "react-aria-components";
+import { Breadcrumbs as AriaBreadcrumbs } from "react-aria-components";
 
-import { ComponentSize } from "@phoenix/components/types";
+import type { ComponentSize } from "@phoenix/components/types";
 
 export interface BreadcrumbProps<T> extends AriaBreadcrumbsProps<T> {
   size?: ComponentSize;
@@ -37,7 +36,7 @@ const breadcrumbsCSS = css`
     --breadcrumb-separator-icon-padding: var(--global-dimension-size-75);
   }
 
-  .ac-icon-wrap {
+  .icon-wrap {
     padding: 0 var(--breadcrumb-separator-icon-padding);
   }
 `;

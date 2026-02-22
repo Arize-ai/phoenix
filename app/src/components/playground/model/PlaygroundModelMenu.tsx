@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
-import { ModelMenu, ModelMenuValue } from "@phoenix/components/generative";
+import type { ModelMenuValue } from "@phoenix/components/generative";
+import { ModelMenu } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 

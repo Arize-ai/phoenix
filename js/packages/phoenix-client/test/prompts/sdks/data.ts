@@ -1,4 +1,4 @@
-import { PromptVersion } from "../../../src/types/prompts";
+import type { PromptVersion } from "../../../src/types/prompts";
 
 export const BASE_MOCK_PROMPT_VERSION = {
   id: "test",

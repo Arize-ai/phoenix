@@ -1,4 +1,4 @@
-import { LastNTimeRange, LastNTimeRangeKey } from "./types";
+import type { LastNTimeRange, LastNTimeRangeKey } from "./types";
 
 export const LAST_N_TIME_RANGES: LastNTimeRange[] = [
   { key: "15m", label: "Last 15 Min" },

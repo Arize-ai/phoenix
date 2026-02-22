@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { Control, Controller } from "react-hook-form";
+import type { Control } from "react-hook-form";
+import { Controller } from "react-hook-form";
 
 import {
   Button,
@@ -11,11 +12,9 @@ import {
   Input,
   NumberField,
 } from "@phoenix/components";
-import { ModelFormParams } from "@phoenix/pages/settings/ModelForm";
-import {
-  ModelTokenKind,
-  ModelTokenTypeComboBox,
-} from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+import type { ModelFormParams } from "@phoenix/pages/settings/ModelForm";
+import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+import { ModelTokenTypeComboBox } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 
 export function ModelTokenCostControlTable({
   title,

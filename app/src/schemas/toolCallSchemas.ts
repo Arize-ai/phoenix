@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-import { ToolCallPart } from "@phoenix/schemas/promptSchemas";
+import type { ToolCallPart } from "@phoenix/schemas/promptSchemas";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
+import type { JSONLiteral } from "./jsonLiteralSchema";
+import { jsonLiteralSchema } from "./jsonLiteralSchema";
 
 /**
  * The schema for an OpenAI tool call, this is what a message that calls a tool looks like

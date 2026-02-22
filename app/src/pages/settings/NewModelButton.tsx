@@ -21,7 +21,8 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { NewModelButtonCreateModelMutation } from "./__generated__/NewModelButtonCreateModelMutation.graphql";
-import { ModelForm, ModelFormParams } from "./ModelForm";
+import type { ModelFormParams } from "./ModelForm";
+import { ModelForm } from "./ModelForm";
 
 export function NewModelButton({
   onModelCreated,

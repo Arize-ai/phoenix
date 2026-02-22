@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
 
-import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
-import { TextColorValue } from "@phoenix/components/types/style";
+import type { TextProps } from "@phoenix/components";
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import type { TextColorValue } from "@phoenix/components/types/style";
 import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 /**
  * The thresholds for the latency text color.

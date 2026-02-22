@@ -1,8 +1,8 @@
-import { LanguageModel } from "ai";
+import type { LanguageModel } from "ai";
 
-import { ObjectMapping } from "./data";
-import { WithTelemetry } from "./otel";
-import { PromptTemplate } from "./templating";
+import type { ObjectMapping } from "./data";
+import type { WithTelemetry } from "./otel";
+import type { PromptTemplate } from "./templating";
 
 /**
  * A specific AI example that is under evaluation

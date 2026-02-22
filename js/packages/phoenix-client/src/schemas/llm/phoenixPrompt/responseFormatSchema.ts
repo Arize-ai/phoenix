@@ -1,6 +1,6 @@
 import z from "zod";
 
-import { PromptResponseFormat } from "../../../types/prompts";
+import type { PromptResponseFormat } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
 
 /**

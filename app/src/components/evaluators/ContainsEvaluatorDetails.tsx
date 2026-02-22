@@ -1,5 +1,5 @@
 import { Flex, Text } from "@phoenix/components";
-import { EvaluatorInputMapping } from "@phoenix/types";
+import type { EvaluatorInputMapping } from "@phoenix/types";
 
 export function ContainsEvaluatorDetails({
   inputMapping,

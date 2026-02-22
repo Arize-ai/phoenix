@@ -26,8 +26,8 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-import { EditPromptButton_data$key } from "./__generated__/EditPromptButton_data.graphql";
-import { EditPromptButtonPatchPromptMutation } from "./__generated__/EditPromptButtonPatchPromptMutation.graphql";
+import type { EditPromptButton_data$key } from "./__generated__/EditPromptButton_data.graphql";
+import type { EditPromptButtonPatchPromptMutation } from "./__generated__/EditPromptButtonPatchPromptMutation.graphql";
 type EditPromptFormParams = {
   description: string;
   metadata: string;

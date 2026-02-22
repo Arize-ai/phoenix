@@ -1,5 +1,5 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -16,8 +16,8 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFragment.graphql";
-import { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
+import type { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFragment.graphql";
+import type { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
 
 const TIMESTAMP_CELL_SIZE = 70;
 

@@ -230,7 +230,8 @@ px prompts --format raw --no-progress | jq  # Pipe to jq
 
 ### `px prompt <prompt_identifier>`
 
-Show a Phoenix prompt. Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
+Show a Phoenix prompt.
+ Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
 
 ```bash
 px prompt my-assistant-prompt                    # Latest version (pretty)
@@ -255,6 +256,146 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 <system>You are a helpful assistant specialized in...</system>
 <user>{{user_input}}</user>
 ```
+
+### `px api graphql <query>`
+
+Make authenticated GraphQL queries against the Phoenix API. Output is `{"data": {...}}` JSON — pipe with `jq '.data.<field>'` to extract values. Only queries are permitted; mutations and subscriptions are rejected before hitting the server.
+
+```bash
+px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
+```
+
+| Argument/Option | Description | Default |
+|-----------------|-------------|---------|
+| `<query>` | GraphQL query string | — |
+| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_HOST` |
+| `--api-key <key>` | Phoenix API key | `$PHOENIX_API_KEY` |
+
+#### Discover the schema with introspection
+
+Use introspection to explore what fields and types are available without leaving your terminal:
+
+```bash
+$ px api graphql '{ __schema { queryType { fields { name } } } }' | \
+    jq '.data.__schema.queryType.fields[].name'
+"projects"
+"datasets"
+"prompts"
+"evaluators"
+"projectCount"
+"datasetCount"
+"promptCount"
+"evaluatorCount"
+"serverStatus"
+"viewer"
+...
+
+$ px api graphql '{ __type(name: "Experiment") { fields { name type { name } } } }' | \
+    jq '.data.__type.fields[] | {name, type: .type.name}'
+{"name": "id", "type": "ID"}
+{"name": "name", "type": "String"}
+{"name": "runCount", "type": "Int"}
+{"name": "errorRate", "type": "Float"}
+{"name": "averageRunLatencyMs", "type": "Float"}
+```
+
+#### Projects
+
+```bash
+$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }'
+{
+  "data": {
+    "projects": {
+      "edges": [
+        { "node": { "name": "default", "traceCount": 1482, "tokenCountTotal": 219083 } }
+      ]
+    }
+  }
+}
+
+$ px api graphql '{ projects { edges { node { name traceCount } } } }' | \
+    jq '.data.projects.edges[].node'
+{"name": "default", "traceCount": 1482}
+```
+
+Available fields: `id`, `name`, `traceCount`, `recordCount`, `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `createdAt`, `updatedAt`.
+
+#### Datasets
+
+```bash
+$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | \
+    jq '.data.datasets.edges[].node'
+{"name": "eval-golden-set", "exampleCount": 120, "experimentCount": 4}
+{"name": "rag-test-cases", "exampleCount": 50, "experimentCount": 1}
+
+$ px api graphql '{ datasetCount }' | jq '.data.datasetCount'
+12
+```
+
+Available fields: `id`, `name`, `description`, `exampleCount`, `experimentCount`, `evaluatorCount`, `createdAt`, `updatedAt`.
+
+#### Experiments
+
+Experiments are nested under datasets in the GraphQL schema:
+
+```bash
+$ px api graphql '{
+  datasets {
+    edges {
+      node {
+        name
+        experiments {
+          edges {
+            node { name runCount errorRate averageRunLatencyMs }
+          }
+        }
+      }
+    }
+  }
+}' | jq '.data.datasets.edges[].node | {dataset: .name, experiments: [.experiments.edges[].node]}'
+
+# Find experiments with non-zero error rate
+$ px api graphql '{
+  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
+}' | jq '.. | objects | select(.errorRate? > 0)'
+```
+
+To inspect individual run outputs, errors, and trace IDs:
+
+```bash
+$ px api graphql '{
+  datasets(first: 1) {
+    edges { node { experiments(first: 1) { edges { node {
+      name
+      runs { edges { node { traceId output error latencyMs } } }
+    } } } } }
+  }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
+{"traceId": "b696d0ac...", "output": {"answer": "Moore's Law is..."}, "error": null, "latencyMs": 1006}
+```
+
+Available run fields: `traceId`, `output`, `error`, `latencyMs`, `startTime`, `endTime`.
+
+#### Evaluators
+
+```bash
+$ px api graphql '{ evaluators { edges { node { name kind description isBuiltin } } } }' | \
+    jq '.data.evaluators.edges[].node'
+{"name": "correctness", "kind": "LLM", "description": "Evaluates answer correctness", "isBuiltin": true}
+```
+
+#### Instance summary
+
+```bash
+$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+{
+  "data": {
+    "projectCount": 1,
+    "datasetCount": 12,
+    "promptCount": 3,
+    "evaluatorCount": 2
+  }
+}
 
 ## Output Formats
 
@@ -387,6 +528,43 @@ px prompt my-evaluator --format json --no-progress | jq '.template'
 
 # Get a specific tagged version
 px prompt my-evaluator --tag production --format text --no-progress
+```
+
+### Query the GraphQL API directly
+
+```bash
+# Quick instance summary
+$ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
+{"data": {"projectCount": 1, "datasetCount": 12, "promptCount": 3, "evaluatorCount": 2}}
+
+# Discover all available query fields
+$ px api graphql '{ __schema { queryType { fields { name } } } }' | \
+    jq '.data.__schema.queryType.fields[].name'
+
+# Projects with stats
+$ px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }' | \
+    jq '.data.projects.edges[].node'
+
+# Datasets with counts
+$ px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | \
+    jq '.data.datasets.edges[].node'
+
+# Find experiments with errors
+$ px api graphql '{
+  datasets { edges { node { name experiments { edges { node { name errorRate runCount } } } } } }
+}' | jq '.. | objects | select(.errorRate? > 0)'
+
+# Drill into run outputs
+$ px api graphql '{
+  datasets(first: 1) { edges { node {
+    experiments(first: 1) { edges { node {
+      runs { edges { node { traceId output error latencyMs } } }
+    } } }
+  } } }
+}' | jq '.data.datasets.edges[0].node.experiments.edges[0].node.runs.edges[].node'
+
+# Get viewer info (authenticated instances)
+$ px api graphql '{ viewer { username email } }'
 ```
 
 ## Use with AI Coding Assistants

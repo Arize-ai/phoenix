@@ -3,14 +3,14 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import type { InitialPlaygroundState } from "@phoenix/store";
 import {
   DEFAULT_INSTANCE_PARAMS,
   generateInstanceId,
   generateMessageId,
-  InitialPlaygroundState,
   type PlaygroundChatTemplate,
 } from "@phoenix/store";
-import { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
+import type { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 
 const getDefaultMessages: () => PlaygroundChatTemplate["messages"] = () => [
   {

@@ -1,12 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Select as AriaSelect,
-  SelectProps as AriaSelectProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { SelectProps as AriaSelectProps } from "react-aria-components";
+import { Select as AriaSelect } from "react-aria-components";
 
 import { selectCSS } from "@phoenix/components/select/styles";
-import { SizingProps, StylableProps } from "@phoenix/components/types";
+import type { SizingProps, StylableProps } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts";
 
 import { fieldBaseCSS } from "../field/styles";
@@ -26,7 +25,7 @@ function Select<T extends object, M extends "single" | "multiple">(
     <SizeProvider size={size}>
       <AriaSelect
         data-size={size}
-        className="ac-select"
+        className="select"
         ref={ref}
         css={css(fieldBaseCSS, selectCSS)}
         {...otherProps}

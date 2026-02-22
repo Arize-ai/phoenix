@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import type { PopoverProps } from "react-aria-components";
 import {
   Header,
   Menu as AriaMenu,
@@ -7,7 +8,6 @@ import {
   type MenuItemProps as AriaMenuItemProps,
   type MenuProps as AriaMenuProps,
   MenuTrigger as AriaMenuTrigger,
-  PopoverProps,
 } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils";
@@ -327,14 +327,14 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
         flex-shrink: 0;
 
         /* Add vertical padding to quiet SearchFields in header */
-        .ac-searchfield[data-variant="quiet"] .react-aria-Input,
-        .ac-searchfield[data-variant="quiet"]
+        .search-field[data-variant="quiet"] .react-aria-Input,
+        .search-field[data-variant="quiet"]
           .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
           border-bottom-color: var(--global-menu-border-color);
         }
-        * + .ac-searchfield[data-variant="quiet"] .react-aria-Input,
+        * + .search-field[data-variant="quiet"] .react-aria-Input,
         *
-          + .ac-searchfield[data-variant="quiet"]
+          + .search-field[data-variant="quiet"]
           .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
           border-top-color: var(--global-menu-border-color);
         }

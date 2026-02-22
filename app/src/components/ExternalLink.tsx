@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Icon, Icons } from "./icon";
 
@@ -21,7 +21,7 @@ export function ExternalLink({ href, children }: ExternalLinkProps) {
         &:hover {
           text-decoration: underline;
         }
-        .ac-icon-wrap {
+        .icon-wrap {
           display: inline-block;
           margin-left: 0.1em;
           font-size: 1em;

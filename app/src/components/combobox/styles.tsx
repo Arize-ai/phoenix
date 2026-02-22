@@ -24,7 +24,7 @@ export const comboBoxCSS = css`
     }
   }
 
-  .px-combobox-container {
+  .combobox__container {
     display: flex;
     flex-direction: row;
     min-width: 200px;
@@ -82,7 +82,7 @@ export const comboBoxItemCSS = css`
   font-size: var(--global-dimension-static-font-size-100);
   cursor: pointer;
   position: relative;
-  & > .ac-icon-wrap.px-menu-item__selected-checkmark {
+  & > .icon-wrap.menu-item__selected-checkmark {
     height: var(--global-dimension-static-size-200);
     width: var(--global-dimension-static-size-200);
   }

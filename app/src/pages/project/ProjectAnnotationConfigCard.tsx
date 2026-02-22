@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import {
-  CellContext,
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -34,11 +33,11 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { tableCSS } from "@phoenix/components/table/styles";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import { ProjectAnnotationConfigCardContent_project_annotations$key } from "./__generated__/ProjectAnnotationConfigCardContent_project_annotations.graphql";
-import { ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation } from "./__generated__/ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation.graphql";
-import { ProjectAnnotationConfigCardContentProjectAnnotationsQuery } from "./__generated__/ProjectAnnotationConfigCardContentProjectAnnotationsQuery.graphql";
-import { ProjectAnnotationConfigCardContentQuery } from "./__generated__/ProjectAnnotationConfigCardContentQuery.graphql";
-import { ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation } from "./__generated__/ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation.graphql";
+import type { ProjectAnnotationConfigCardContent_project_annotations$key } from "./__generated__/ProjectAnnotationConfigCardContent_project_annotations.graphql";
+import type { ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation } from "./__generated__/ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation.graphql";
+import type { ProjectAnnotationConfigCardContentProjectAnnotationsQuery } from "./__generated__/ProjectAnnotationConfigCardContentProjectAnnotationsQuery.graphql";
+import type { ProjectAnnotationConfigCardContentQuery } from "./__generated__/ProjectAnnotationConfigCardContentQuery.graphql";
+import type { ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation } from "./__generated__/ProjectAnnotationConfigCardContentRemoveAnnotationConfigFromProjectMutation.graphql";
 
 interface ProjectAnnotationConfigCardProps {
   projectId: string;

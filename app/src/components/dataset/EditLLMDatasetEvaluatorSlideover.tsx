@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
-import { ModalOverlayProps } from "react-aria-components";
+import type { ModalOverlayProps } from "react-aria-components";
 import {
   graphql,
   useFragment,
@@ -33,7 +33,7 @@ import {
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
 import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type EditLLMDatasetEvaluatorSlideoverProps = {

@@ -13,13 +13,11 @@ import {
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
+import type { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
-import {
-  SavePromptForm,
-  SavePromptFormParams,
-} from "@phoenix/pages/playground/SavePromptForm";
+import type { SavePromptFormParams } from "@phoenix/pages/playground/SavePromptForm";
+import { SavePromptForm } from "@phoenix/pages/playground/SavePromptForm";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 /**

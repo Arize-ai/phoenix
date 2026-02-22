@@ -6,7 +6,7 @@ import {
 } from "@phoenix/schemas";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { ChatMessage, Tool } from "./types";
+import type { ChatMessage, Tool } from "./types";
 
 /**
  * Best effort attempts to convert instance tools to the providers schema

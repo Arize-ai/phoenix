@@ -1,5 +1,5 @@
 import { formatTemplate } from "../template";
-import {
+import type {
   ClassificationChoicesMap,
   CreateClassifierArgs,
   EvaluationResult,

@@ -1,12 +1,12 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { PageHeaderProps } from "@phoenix/components";
 import {
   Button,
   Flex,
   Icon,
   Icons,
   PageHeader,
-  PageHeaderProps,
   Token,
 } from "@phoenix/components";
 

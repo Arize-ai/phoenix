@@ -1,9 +1,10 @@
 import { javascript } from "@codemirror/lang-javascript";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, {
+import type {
   BasicSetupOptions,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
+import CodeMirror from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";

@@ -13,9 +13,9 @@ import {
   createPolicyScheduleSummaryText,
 } from "@phoenix/utils/retentionPolicyUtils";
 
-import { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
-import { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
-import { ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation } from "./__generated__/ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation.graphql";
+import type { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
+import type { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
+import type { ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation } from "./__generated__/ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation.graphql";
 
 export const ProjectRetentionPolicyCard = ({
   project,

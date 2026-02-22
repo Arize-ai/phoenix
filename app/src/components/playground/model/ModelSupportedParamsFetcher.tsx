@@ -3,9 +3,9 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 
-import { ModelSupportedParamsFetcherQuery } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import type { ModelSupportedParamsFetcherQuery } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 
 /**
  * Fetches the supported invocation parameters for a model and syncs them to the

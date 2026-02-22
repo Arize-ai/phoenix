@@ -18,10 +18,8 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import {
-  AwsBedrockModelPrefix,
-  awsBedrockModelPrefixes,
-} from "@phoenix/store/preferencesStore";
+import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
+import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 
 export function PlaygroundConfigButton() {
   const streaming = usePlaygroundContext((state) => state.streaming);

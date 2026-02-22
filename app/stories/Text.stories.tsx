@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import { Meta } from "@storybook/react";
+import type { Meta } from "@storybook/react";
 
-import { Flex, Text, TextProps } from "@phoenix/components";
+import type { TextProps } from "@phoenix/components";
+import { Flex, Text } from "@phoenix/components";
 
 import { GLOBAL_COLORS } from "./constants/colorConstants";
 
@@ -51,7 +52,7 @@ function GalleryComponent() {
     >
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
@@ -66,7 +67,7 @@ function GalleryComponent() {
       </p>
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
@@ -81,7 +82,7 @@ function GalleryComponent() {
       </p>
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
@@ -96,7 +97,7 @@ function GalleryComponent() {
       </p>
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}

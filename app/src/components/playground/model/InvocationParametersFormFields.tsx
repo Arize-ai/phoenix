@@ -1,6 +1,7 @@
 import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
-import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
+import type { Control, FieldErrors } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import {
   FieldError,
@@ -13,13 +14,13 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import { ModelSupportedParamsFetcherQuery$data } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import type { ModelSupportedParamsFetcherQuery$data } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { OpenAIReasoningEffortConfigField } from "@phoenix/components/playground/model/OpenAIReasoningEffortConfigField";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
 import { GoogleGenAIThinkingLevelConfigField } from "@phoenix/pages/playground/GoogleGenAIThinkingLevelConfigField";
-import { ModelInvocationParameterInput } from "@phoenix/store";
-import { Mutable } from "@phoenix/typeUtils";
+import type { ModelInvocationParameterInput } from "@phoenix/store";
+import type { Mutable } from "@phoenix/typeUtils";
 
 import { paramsToIgnoreInInvocationParametersForm } from "../../../pages/playground/constants";
 import {

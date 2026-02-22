@@ -1,11 +1,5 @@
-import {
-  createContext,
-  Dispatch,
-  PropsWithChildren,
-  SetStateAction,
-  useContext,
-  useState,
-} from "react";
+import type { Dispatch, PropsWithChildren, SetStateAction } from "react";
+import { createContext, useContext, useState } from "react";
 import invariant from "tiny-invariant";
 
 import type { DatasetEvaluatorSort } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTableEvaluatorsQuery.graphql";

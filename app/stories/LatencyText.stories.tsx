@@ -1,9 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
-import {
-  LatencyText,
-  LatencyThresholds,
-} from "@phoenix/components/trace/LatencyText";
+import type { LatencyThresholds } from "@phoenix/components/trace/LatencyText";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 
 const meta: Meta = {
   title: "Trace/LatencyText",

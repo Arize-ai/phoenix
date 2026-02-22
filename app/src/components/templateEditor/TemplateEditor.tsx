@@ -1,12 +1,11 @@
 import { defaultKeymap } from "@codemirror/commands";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, {
+import type {
   BasicSetupOptions,
-  EditorView,
-  keymap,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { useTheme } from "@phoenix/contexts";
@@ -16,7 +15,7 @@ import { createTemplateAutocomplete } from "./autocomplete";
 import { TemplateFormats } from "./constants";
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
-import { TemplateFormat } from "./types";
+import type { TemplateFormat } from "./types";
 
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
   templateFormat: TemplateFormat;

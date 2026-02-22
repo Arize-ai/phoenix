@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { datasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
+import type { datasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
 
 /**
  * Loads the dataset data required for the dataset history page

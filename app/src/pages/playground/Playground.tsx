@@ -2,7 +2,8 @@ import { css } from "@emotion/react";
 import { Fragment, Suspense, useCallback, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { BlockerFunction, useBlocker, useSearchParams } from "react-router";
+import type { BlockerFunction } from "react-router";
+import { useBlocker, useSearchParams } from "react-router";
 
 import {
   Button,
@@ -27,13 +28,11 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
-import {
-  PromptParam,
-  setPromptParams,
-} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import { PlaygroundProps } from "@phoenix/store";
+import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import { setPromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import type { PlaygroundProps } from "@phoenix/store";
 
-import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
+import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundConfigButton } from "./PlaygroundConfigButton";
@@ -138,13 +137,13 @@ const playgroundPromptPanelContentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  & > .ac-disclosure-group {
+  & > .disclosure-group {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
     flex: 1 1 auto;
-    & > .ac-disclosure {
+    & > .disclosure {
       height: 100%;
       display: flex;
       flex-direction: column;
@@ -157,7 +156,7 @@ const playgroundPromptPanelContentCSS = css`
       & > #prompts-heading {
         flex: 0 0 auto;
       }
-      .ac-disclosure-panel {
+      .disclosure__panel {
         height: 100%;
         overflow: hidden;
         flex: 1 1 auto;

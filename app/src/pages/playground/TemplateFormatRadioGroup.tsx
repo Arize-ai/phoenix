@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { isTemplateFormat } from "@phoenix/components/templateEditor/types";
-import { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export type TemplateFormatRadioGroupProps = SizingProps & {

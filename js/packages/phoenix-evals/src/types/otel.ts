@@ -1,4 +1,4 @@
-import { Tracer } from "@opentelemetry/api";
+import type { Tracer } from "@opentelemetry/api";
 
 export type TelemetryConfig = {
   /**

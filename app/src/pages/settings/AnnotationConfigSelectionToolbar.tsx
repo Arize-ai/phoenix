@@ -15,7 +15,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { AnnotationConfig } from "@phoenix/pages/settings/types";
+import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 interface AnnotationConfigSelectionToolbarProps {
   selectedConfig: AnnotationConfig;

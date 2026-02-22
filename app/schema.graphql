@@ -2760,6 +2760,10 @@ type Query {
   getTraceByOtelId(traceId: String!): Trace
   getProjectSessionById(sessionId: String!): ProjectSession
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
+  projectCount: Int!
+  datasetCount: Int!
+  promptCount: Int!
+  evaluatorCount: Int!
 }
 
 input RemoveAnnotationConfigFromProjectInput {

@@ -1,7 +1,11 @@
-import { ReactNode } from "react";
-import { ButtonProps as AriaButtonProps } from "react-aria-components";
+import type { ReactNode } from "react";
+import type { ButtonProps as AriaButtonProps } from "react-aria-components";
 
-import { SizingProps, StylableProps, Variant } from "@phoenix/components/types";
+import type {
+  SizingProps,
+  StylableProps,
+  Variant,
+} from "@phoenix/components/types";
 
 type ButtonVariant = Exclude<Variant, "info">;
 

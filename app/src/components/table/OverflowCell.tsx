@@ -1,13 +1,6 @@
 import { css } from "@emotion/react";
-import {
-  memo,
-  PropsWithChildren,
-  RefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import type { PropsWithChildren, RefObject } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
@@ -60,7 +53,7 @@ const expandButtonCSS = css`
   color: var(--global-text-color-500);
   transition: color 0.2s ease-in-out;
 
-  .ac-icon-wrap {
+  .icon-wrap {
     font-size: var(--global-font-size-m);
     color: inherit;
   }

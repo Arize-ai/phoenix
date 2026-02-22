@@ -1,9 +1,6 @@
 import { mapPromptToSDKSnippet } from "../promptCodeSnippets";
-import {
-  ANTHROPIC_TOOL,
-  BASE_MOCK_PROMPT_VERSION,
-  FixturePromptVersion,
-} from "./fixtures";
+import type { FixturePromptVersion } from "./fixtures";
+import { ANTHROPIC_TOOL, BASE_MOCK_PROMPT_VERSION } from "./fixtures";
 
 describe("promptCodeSnippets", () => {
   describe("anthropic", () => {

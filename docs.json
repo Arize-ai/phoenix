@@ -71,6 +71,7 @@
                   }
                 ]
               },
+              "docs/phoenix/agent-assisted-setup",
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo"
             ]
@@ -194,7 +195,7 @@
                 ]
               },
               {
-                "group": "Pre-Built Evals",
+                "group": "SDK Evals",
                 "pages": [
                   "docs/phoenix/evaluation/running-pre-tested-evals",
                   "docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
@@ -216,9 +217,12 @@
                 ]
               },
               {
-                "group": "Playground Evaluators",
+                "group": "Server Evals",
                 "pages": [
-                  "docs/phoenix/evaluation/playground-evaluators/builtin-evaluators"
+                  "docs/phoenix/evaluation/server-evals/overview",
+                  "docs/phoenix/evaluation/server-evals/llm-evaluators",
+                  "docs/phoenix/evaluation/server-evals/builtin-evaluators",
+                  "docs/phoenix/evaluation/server-evals/input-mapping"
                 ]
               }
             ]
@@ -259,7 +263,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               {
@@ -303,7 +307,8 @@
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
-              "docs/phoenix/settings/data-retention"
+              "docs/phoenix/settings/data-retention",
+              "docs/phoenix/settings/custom-ai-providers"
             ]
           },
           {
@@ -1008,7 +1013,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
@@ -1262,7 +1267,7 @@
     "links": [
       {
         "label": "",
-        "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
+        "href": "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g",
         "title": "Community Slack",
         "icon": "users"
       },

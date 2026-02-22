@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useState } from "react";
+import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
-  PreloadedQuery,
   useMutation,
   usePreloadedQuery,
   useQueryLoader,
@@ -28,8 +28,8 @@ import {
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { EditCustomProviderButtonPatchMutation } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
-import { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
+import type { EditCustomProviderButtonPatchMutation } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
+import type { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
 import { ProviderForm, type ProviderFormData } from "./CustomProviderForm";
 import {
   createDefaultFormData,

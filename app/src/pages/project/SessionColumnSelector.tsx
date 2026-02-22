@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
-import { Column } from "@tanstack/react-table";
-import { ChangeEvent, useCallback, useMemo } from "react";
+import type { Column } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
+import { useCallback, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
@@ -15,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
-import { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
+import type { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
 const UN_HIDABLE_COLUMN_IDS = ["sessionId"];
 
 type SessionColumnSelectorProps<T extends object> = {
