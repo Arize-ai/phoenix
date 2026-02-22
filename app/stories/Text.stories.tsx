@@ -52,7 +52,7 @@ function GalleryComponent() {
     >
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
@@ -67,7 +67,7 @@ function GalleryComponent() {
       </p>
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
@@ -82,7 +82,7 @@ function GalleryComponent() {
       </p>
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
@@ -97,7 +97,7 @@ function GalleryComponent() {
       </p>
       <p
         css={css`
-          .ac-text {
+          .text {
             display: block;
           }
         `}
