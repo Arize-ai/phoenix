@@ -74,7 +74,7 @@ export function PromptTools({
       <DisclosureGroup
         css={css`
           & {
-            > .ac-disclosure:last-child {
+            > .disclosure:last-child {
               &[data-expanded="true"] {
                 border-bottom: 1px solid var(--global-border-color-default);
               }

@@ -33,7 +33,7 @@ const mainCSS = css`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  .ac-tabs {
+  .tabs {
     flex: 1 1 auto;
     overflow: hidden;
     display: flex;
@@ -41,7 +41,7 @@ const mainCSS = css`
     div[role="tablist"] {
       flex: none;
     }
-    .ac-tabs__pane-container {
+    .tabs__pane-container {
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;

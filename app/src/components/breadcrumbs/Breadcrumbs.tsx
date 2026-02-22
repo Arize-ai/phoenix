@@ -36,7 +36,7 @@ const breadcrumbsCSS = css`
     --breadcrumb-separator-icon-padding: var(--global-dimension-size-75);
   }
 
-  .ac-icon-wrap {
+  .icon-wrap {
     padding: 0 var(--breadcrumb-separator-icon-padding);
   }
 `;

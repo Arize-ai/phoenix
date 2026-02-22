@@ -50,7 +50,7 @@ function CredentialInput(
           ) !important; // Don't want to fight specificity here
         }
 
-        .ac-credential-input__toggle {
+        .credential-input__toggle {
           position: absolute;
           right: var(
             --textfield-vertical-padding
@@ -92,7 +92,7 @@ function CredentialInput(
         readOnly={readOnly}
       />
       <Button
-        className="ac-credential-input__toggle"
+        className="credential-input__toggle"
         onPress={() => setIsVisible(!isVisible)}
         isDisabled={disabled || readOnly}
         aria-label={isVisible ? "Hide credential" : "Show credential"}

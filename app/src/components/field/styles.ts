@@ -114,14 +114,14 @@ export const textFieldCSS = css`
     --icon-size: var(--global-font-size-l);
   }
 
-  &:has(.ac-field-icon) {
+  &:has(.field__icon) {
     .react-aria-Input {
       padding-right: calc(var(--textfield-horizontal-padding) + var(--icon-size));
     }
   }
 
   /* Icons */
-  .ac-field-icon {
+  .field__icon {
     position: absolute;
     right: var(--textfield-horizontal-padding);
     top: var(--field-icon-vertical-position);

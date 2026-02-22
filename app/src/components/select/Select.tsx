@@ -25,7 +25,7 @@ function Select<T extends object, M extends "single" | "multiple">(
     <SizeProvider size={size}>
       <AriaSelect
         data-size={size}
-        className="ac-select"
+        className="select"
         ref={ref}
         css={css(fieldBaseCSS, selectCSS)}
         {...otherProps}

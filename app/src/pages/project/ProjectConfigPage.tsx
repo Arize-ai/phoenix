@@ -126,8 +126,8 @@ const ProjectConfigCard = ({
           <div
             css={css`
               width: 100%;
-              .ac-dropdown,
-              .ac-dropdown-button {
+              .dropdown,
+              .dropdown__button {
                 width: 100%;
               }
             `}

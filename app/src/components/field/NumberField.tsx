@@ -29,7 +29,7 @@ const NumberField = forwardRef(function NumberField(
       data-size={size}
       {...otherProps}
       className={classNames(
-        "ac-textfield react-aria-NumberField",
+        "text-field react-aria-NumberField",
         props.className
       )}
       ref={ref}

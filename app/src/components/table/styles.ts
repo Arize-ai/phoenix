@@ -65,7 +65,7 @@ export const tableCSS = css`
           }
         }
         // Style action menu buttons in the header
-        .ac-button[data-size="compact"][data-childless="true"] {
+        .button[data-size="compact"][data-childless="true"] {
           padding: 0;
           border: none;
           background-color: transparent;

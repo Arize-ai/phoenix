@@ -105,7 +105,7 @@ function ThemedStory({
         <MemoryRouter initialEntries={["/"]}>
           <GlobalStyles />
           <div
-            className={`ac-theme ac-theme--${theme}`}
+            className={`theme theme--${theme}`}
             data-testid="story-background"
             style={{
               backgroundColor: "var(--global-background-color-default)",

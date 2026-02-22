@@ -8,7 +8,7 @@ import { useTheme } from "./contexts";
  */
 export const mediumRootCSS = css`
   :root,
-  .ac-theme {
+  .theme {
     --global-dimension-scale-factor: 1;
     --global-dimension-size-0: 0px;
     --global-dimension-size-10: 1px;
@@ -66,7 +66,7 @@ export const mediumRootCSS = css`
 
 const staticCSS = css`
   :root,
-  .ac-theme {
+  .theme {
     // static colors
     --global-static-color-white-900: rgba(255, 255, 255, 0.9);
     --global-static-color-white-700: rgba(255, 255, 255, 0.7);
@@ -87,7 +87,7 @@ const staticCSS = css`
 
 const dimensionsCSS = css`
   :root,
-  .ac-theme {
+  .theme {
     --global-dimension-static-size-0: 0px;
     --global-dimension-static-size-10: 1px;
     --global-dimension-static-size-25: 2px;
@@ -170,7 +170,7 @@ const dimensionsCSS = css`
 
 export const darkThemeCSS = css`
   :root,
-  .ac-theme--dark {
+  .theme--dark {
     /* Colors */
 
     // sync system elements like the scrollbar with the theme
@@ -631,7 +631,7 @@ export const darkThemeCSS = css`
 
 export const lightThemeCSS = css`
   :root,
-  .ac-theme--light {
+  .theme--light {
     /* Colors */
 
     // sync system elements like the scrollbar with the theme
@@ -893,7 +893,7 @@ export const lightThemeCSS = css`
 
 export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   :root,
-  .ac-theme--${theme} {
+  .theme--${theme} {
     // The primary color tint for  the apps
     --global-color-primary: var(--global-color-gray-900);
     --global-color-primary-900: rgba(var(--global-color-gray-900-rgb), 0.9);
@@ -1020,7 +1020,7 @@ const appGlobalStylesCSS = css`
   body,
   input,
   button,
-  .ac-theme // We scope it to the theme so we can mount two at the same time
+  .theme // We scope it to the theme so we can mount two at the same time
   {
     font-family: "Geist", sans-serif;
     font-optical-sizing: auto;
@@ -1028,7 +1028,7 @@ const appGlobalStylesCSS = css`
     font-style: normal;
     color: var(--global-text-color-900);
   }
-  .ac-theme {
+  .theme {
     color: var(--global-text-color-900);
     font-size: var(--global-font-size-s);
   }
@@ -1039,7 +1039,7 @@ const appGlobalStylesCSS = css`
     overflow: hidden;
     #root,
     #root > div[data-overlay-container="true"],
-    #root > div[data-overlay-container="true"] > .ac-theme {
+    #root > div[data-overlay-container="true"] > .theme {
       height: 100vh;
     }
   }
@@ -1085,7 +1085,7 @@ const appGlobalStylesCSS = css`
   }
 
   :root,
-  .ac-theme {
+  .theme {
     --section-background-color: #2f353d;
 
     /** The color of shadows on menus etc. */
@@ -1134,7 +1134,7 @@ const appGlobalStylesCSS = css`
     );
   }
 
-  .ac-theme--dark {
+  .theme--dark {
     --primary-color: #9efcfd;
     --primary-color--transparent: rgb(158, 252, 253, 0.2);
     --reference-color: #baa1f9;
@@ -1143,7 +1143,7 @@ const appGlobalStylesCSS = css`
     --corpus-color--transparent: #92969c63;
     --overlay-shadow-color: rgba(0, 0, 0, 0.6);
   }
-  .ac-theme--light {
+  .theme--light {
     --primary-color: #00add0;
     --primary-color--transparent: rgba(0, 173, 208, 0.2);
     --reference-color: #4500d9;
@@ -1155,7 +1155,7 @@ const appGlobalStylesCSS = css`
 `;
 
 const codeMirrorOverridesCSS = css`
-  .ac-theme--light {
+  .theme--light {
     .cm-editor {
       background-color: rgba(255, 255, 255, 0.5) !important;
     }
@@ -1163,7 +1163,7 @@ const codeMirrorOverridesCSS = css`
       background-color: rgba(0, 0, 0, 0.05) !important;
     }
   }
-  .ac-theme--dark {
+  .theme--dark {
     .cm-editor {
       background-color: rgba(0, 0, 0, 0.4) !important;
     }
@@ -1174,17 +1174,17 @@ const codeMirrorOverridesCSS = css`
 `;
 
 const chartCSS = css`
-  .ac-theme {
+  .theme {
     --chart-cartesian-grid-stroke-color: var(--global-color-gray-300);
     --chart-axis-stroke-color: var(--global-color-gray-300);
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
   }
-  .ac-theme--dark {
+  .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }
-  .ac-theme--light {
+  .theme--light {
     --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
   }
 `;

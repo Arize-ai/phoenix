@@ -99,11 +99,11 @@ const alertCSS = css`
     );
   }
 
-  .ac-alert__icon-title-wrap {
+  .alert__icon-title-wrap {
     display: flex;
     flex-direction: row;
 
-    .ac-icon-wrap {
+    .icon-wrap {
       margin-top: 4px;
       margin-right: var(--global-dimension-static-size-200);
       font-size: var(--global-font-size-l);
@@ -156,7 +156,7 @@ export const Alert = ({
       data-has-title={!!title}
       data-theme={theme}
     >
-      <div css={iconTitleWrapCSS} className="ac-alert__icon-title-wrap">
+      <div css={iconTitleWrapCSS} className="alert__icon-title-wrap">
         {icon}
         <div>
           {title ? (

@@ -14,7 +14,7 @@ const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   display: flex;
   align-items: center;
   overflow: hidden;
-  .ac-text {
+  .text {
     display: inline-block;
     max-width: ${maxWidth};
     white-space: nowrap;

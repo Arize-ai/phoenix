@@ -124,7 +124,7 @@ const modalCSS = css`
     border: 1px solid var(--global-border-color-light);
     outline: none;
 
-    & .ac-DialogHeader {
+    & .dialog__header {
       position: sticky;
       top: 0;
       background: var(--global-background-color-dark);
