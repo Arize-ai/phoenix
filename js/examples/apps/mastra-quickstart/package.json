@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"no tests\"",
     "dev": "pnpx mastra dev",
     "build": "mastra build",
     "start": "mastra start",
