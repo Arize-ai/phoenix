@@ -401,7 +401,6 @@ function ModelsByProviderMenu({
   return (
     <Menu
       css={menuWidthCSS}
-      autoFocus={false}
       onAction={(key) => {
         const modelInfo = decodeMenuKey(String(key));
         if (!modelInfo) {
@@ -536,7 +535,7 @@ function ProviderMenu({
   onChange,
 }: ProviderMenuProps) {
   return (
-    <Menu css={menuWidthCSS} autoFocus={false}>
+    <Menu css={menuWidthCSS}>
       {/* Custom providers */}
       {customProviders.map((customProvider) => {
         const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];

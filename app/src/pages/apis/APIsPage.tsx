@@ -44,10 +44,18 @@ export function APIsPage() {
           <Tab id="graphql">GraphQL</Tab>
         </TabList>
         <LazyTabPanel id="rest">
-          <iframe src={`${basename}/docs`} style={iframeStyle} />
+          <iframe
+            title="REST API documentation"
+            src={`${basename}/docs`}
+            style={iframeStyle}
+          />
         </LazyTabPanel>
         <LazyTabPanel id="graphql">
-          <iframe src={`${basename}/graphql`} style={iframeStyle} />
+          <iframe
+            title="GraphQL API documentation"
+            src={`${basename}/graphql`}
+            style={iframeStyle}
+          />
         </LazyTabPanel>
       </Tabs>
     </div>
