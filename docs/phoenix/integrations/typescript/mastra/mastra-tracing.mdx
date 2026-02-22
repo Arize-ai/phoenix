@@ -22,7 +22,7 @@ Create a `.env` file that points Mastra to your Phoenix instance:
 3. Find your hostname under **Settings > Hostname**.
 
 ```bash
-PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
+PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
 PHOENIX_API_KEY=your-api-key
 PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
@@ -31,7 +31,7 @@ PHOENIX_PROJECT_NAME=mastra-service # Optional
 1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
 
 ```bash
-PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
 PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
@@ -77,7 +77,7 @@ export const mastra = new Mastra({
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
@@ -135,7 +135,7 @@ const mastra = new Mastra({
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
