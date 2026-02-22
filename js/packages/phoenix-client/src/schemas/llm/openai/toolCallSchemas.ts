@@ -14,12 +14,11 @@ export const openAIToolCallSchema = z.object({
     .transform(() => "function" as const),
   id: z.string().describe("The ID of the tool call"),
   function: z
-    .object({
+    .looseObject({
       name: z.string().describe("The name of the function"),
       arguments: z.string().describe("The arguments for the function"),
     })
-    .describe("The function that is being called")
-    .passthrough(),
+    .describe("The function that is being called"),
 });
 
 /**

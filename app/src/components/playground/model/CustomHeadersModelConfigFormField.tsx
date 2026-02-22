@@ -64,7 +64,7 @@ export function CustomHeadersModelConfigFormField({
           patch: { customHeaders: result.data },
         });
       } else {
-        const firstError = result.error.errors[0];
+        const firstError = result.error.issues[0];
         setErrorMessage(
           firstError?.message ??
             firstError?.path?.join(".") ??

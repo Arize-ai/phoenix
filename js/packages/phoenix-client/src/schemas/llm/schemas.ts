@@ -61,11 +61,11 @@ export type LlmProviderToolCalls = z.infer<typeof llmProviderToolCallsSchema>;
 export const toolCallHeuristicSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
-  arguments: z.record(z.unknown()).optional(),
+  arguments: z.record(z.string(), z.unknown()).optional(),
   function: z
     .object({
       name: z.string().optional(),
-      arguments: z.record(z.unknown()).optional(),
+      arguments: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
 });

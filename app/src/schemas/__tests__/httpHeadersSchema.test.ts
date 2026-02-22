@@ -28,7 +28,7 @@ describe("httpHeadersSchema", () => {
       const result = stringToHttpHeadersSchema.safeParse(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toBe(
+      expect(result.error?.issues[0]?.message).toBe(
         "Duplicate keys found in JSON object"
       );
     });
@@ -38,7 +38,7 @@ describe("httpHeadersSchema", () => {
       const result = stringToHttpHeadersSchema.safeParse(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toBe(
+      expect(result.error?.issues[0]?.message).toBe(
         "Duplicate header names found (header names are case-insensitive)"
       );
     });
@@ -51,7 +51,7 @@ describe("httpHeadersSchema", () => {
       // These should fail validation due to invalid header structure (objects as values)
       // but NOT due to duplicate detection
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).not.toContain("Duplicate");
+      expect(result.error?.issues[0]?.message).not.toContain("Duplicate");
     });
 
     it("should skip duplicate detection for arrays", () => {
@@ -60,7 +60,7 @@ describe("httpHeadersSchema", () => {
 
       // Should fail due to array value, not duplicate detection
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).not.toContain("Duplicate");
+      expect(result.error?.issues[0]?.message).not.toContain("Duplicate");
     });
 
     it("should successfully skip duplicate detection for valid flat objects", () => {
@@ -82,7 +82,7 @@ describe("httpHeadersSchema", () => {
 
       // This should fail because quotes in header names are invalid per RFC 7230
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toContain(
+      expect(result.error?.issues[0]?.message).toContain(
         "valid HTTP header characters"
       );
     });
@@ -93,7 +93,7 @@ describe("httpHeadersSchema", () => {
       const result = stringToHttpHeadersSchema.safeParse(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toContain(
+      expect(result.error?.issues[0]?.message).toContain(
         "valid HTTP header characters"
       );
     });
@@ -104,7 +104,7 @@ describe("httpHeadersSchema", () => {
       const result = stringToHttpHeadersSchema.safeParse(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toContain(
+      expect(result.error?.issues[0]?.message).toContain(
         "visible ASCII characters"
       );
     });
@@ -115,7 +115,7 @@ describe("httpHeadersSchema", () => {
       const result = stringToHttpHeadersSchema.safeParse(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toBe("Invalid JSON format");
+      expect(result.error?.issues[0]?.message).toBe("Invalid JSON format");
     });
 
     it("should reject non-object JSON", () => {
@@ -123,7 +123,7 @@ describe("httpHeadersSchema", () => {
       const result = stringToHttpHeadersSchema.safeParse(input);
 
       expect(result.success).toBe(false);
-      expect(result.error?.errors[0]?.message).toBe(
+      expect(result.error?.issues[0]?.message).toBe(
         "Must be a valid JSON object"
       );
     });

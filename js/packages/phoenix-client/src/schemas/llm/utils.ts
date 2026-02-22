@@ -1,4 +1,4 @@
-import type { ZodTypeAny } from "zod";
+import type { ZodType } from "zod";
 
 import { isObject } from "../../utils/isObject";
 import { anthropicMessagePartSchema } from "./anthropic/messagePartSchemas";
@@ -30,12 +30,12 @@ import { vercelAIMessageSchema } from "./vercel/messageSchemas";
 import { vercelAIToolDefinitionSchema } from "./vercel/toolSchemas";
 
 export const makeSDKConverters = <
-  MessageSchema extends ZodTypeAny,
-  MessagePartSchema extends ZodTypeAny,
-  ToolChoiceSchema extends ZodTypeAny,
-  ToolCallSchema extends ZodTypeAny,
-  ToolDefinitionSchema extends ZodTypeAny,
-  ResponseFormatSchema extends ZodTypeAny,
+  MessageSchema extends ZodType,
+  MessagePartSchema extends ZodType,
+  ToolChoiceSchema extends ZodType,
+  ToolCallSchema extends ZodType,
+  ToolDefinitionSchema extends ZodType,
+  ResponseFormatSchema extends ZodType,
 >({
   messages,
   messageParts,

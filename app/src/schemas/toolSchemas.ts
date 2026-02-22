@@ -1,12 +1,11 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
 import { jsonLiteralSchema } from "./jsonLiteralSchema";
 
 const jsonSchemaPropertiesSchema = z
-  .object({
+  .looseObject({
     type: z
       .enum([
         "string",
@@ -24,36 +23,27 @@ const jsonSchemaPropertiesSchema = z
       .describe("A description of the parameter"),
     enum: z.array(z.string()).optional().describe("The allowed values"),
   })
-  .passthrough()
   .describe("A map of parameter names to their definitions");
 
-export const jsonSchemaZodSchema = z
-  .object({
-    type: z.enum(["object", "string", "number", "boolean"]),
-    properties: z
-      .record(
-        z.union([
-          jsonSchemaPropertiesSchema,
-          z
-            .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
-            .describe(
-              "A list of possible parameter names to their definitions"
-            ),
-        ])
-      )
-      .optional(),
-    required: z
-      .array(z.string())
-      .optional()
-      .describe("The required parameters"),
-    additionalProperties: z
-      .boolean()
-      .optional()
-      .describe(
-        "Whether or not additional properties are allowed in the schema"
-      ),
-  })
-  .passthrough();
+export const jsonSchemaZodSchema = z.looseObject({
+  type: z.enum(["object", "string", "number", "boolean"]),
+  properties: z
+    .record(
+      z.string(),
+      z.union([
+        jsonSchemaPropertiesSchema,
+        z
+          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .describe("A list of possible parameter names to their definitions"),
+      ])
+    )
+    .optional(),
+  required: z.array(z.string()).optional().describe("The required parameters"),
+  additionalProperties: z
+    .boolean()
+    .optional()
+    .describe("Whether or not additional properties are allowed in the schema"),
+});
 
 /**
  * The schema for an OpenAI tool definition
@@ -63,31 +53,28 @@ export const jsonSchemaZodSchema = z
  * allow for extra keys when the zod schema is used for parsing. This is to allow more flexibility for users
  * to define their own tools according
  */
-export const openAIToolDefinitionSchema = z
-  .object({
-    type: z.literal("function").describe("The type of the tool"),
-    function: z
-      .object({
-        name: z.string().describe("The name of the function"),
-        description: z
-          .string()
-          .optional()
-          .describe("A description of the function"),
-        parameters: jsonSchemaZodSchema
-          .extend({
-            strict: z
-              .boolean()
-              .optional()
-              .describe(
-                "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
-              ),
-          })
-          .describe("The parameters that the function accepts"),
-      })
-      .passthrough()
-      .describe("The function definition"),
-  })
-  .passthrough();
+export const openAIToolDefinitionSchema = z.looseObject({
+  type: z.literal("function").describe("The type of the tool"),
+  function: z
+    .looseObject({
+      name: z.string().describe("The name of the function"),
+      description: z
+        .string()
+        .optional()
+        .describe("A description of the function"),
+      parameters: jsonSchemaZodSchema
+        .extend({
+          strict: z
+            .boolean()
+            .optional()
+            .describe(
+              "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
+            ),
+        })
+        .describe("The parameters that the function accepts"),
+    })
+    .describe("The function definition"),
+});
 
 /**
  * The type of an OpenAI tool definition
@@ -98,11 +85,8 @@ export type OpenAIToolDefinition = z.infer<typeof openAIToolDefinitionSchema>;
 /**
  * The JSON schema for an OpenAI tool definition
  */
-export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
-  openAIToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const openAIToolDefinitionJSONSchema = z.toJSONSchema(
+  openAIToolDefinitionSchema
 );
 
 /**
@@ -113,31 +97,29 @@ export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
  * the Responses API flattens name, description, and parameters to the top level
  * alongside `type` and `strict`.
  */
-export const openAIResponsesToolDefinitionSchema = z
-  .object({
-    type: z
-      .literal("function")
-      .describe("The type of the tool. Always `function`."),
-    name: z.string().describe("The name of the function to call."),
-    parameters: jsonSchemaZodSchema
-      .nullable()
-      .describe(
-        "A JSON schema object describing the parameters of the function."
-      ),
-    strict: z
-      .boolean()
-      .nullable()
-      .describe(
-        "Whether to enforce strict parameter validation. Default `true`."
-      ),
-    description: z
-      .string()
-      .optional()
-      .describe(
-        "A description of the function. Used by the model to determine whether or not to call the function."
-      ),
-  })
-  .passthrough();
+export const openAIResponsesToolDefinitionSchema = z.looseObject({
+  type: z
+    .literal("function")
+    .describe("The type of the tool. Always `function`."),
+  name: z.string().describe("The name of the function to call."),
+  parameters: jsonSchemaZodSchema
+    .nullable()
+    .describe(
+      "A JSON schema object describing the parameters of the function."
+    ),
+  strict: z
+    .boolean()
+    .nullable()
+    .describe(
+      "Whether to enforce strict parameter validation. Default `true`."
+    ),
+  description: z
+    .string()
+    .optional()
+    .describe(
+      "A description of the function. Used by the model to determine whether or not to call the function."
+    ),
+});
 
 /**
  * The type of an OpenAI Responses API tool definition
@@ -166,11 +148,8 @@ export type AnthropicToolDefinition = z.infer<
 /**
  * The JSON schema for an anthropic tool definition
  */
-export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
-  anthropicToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const anthropicToolDefinitionJSONSchema = z.toJSONSchema(
+  anthropicToolDefinitionSchema
 );
 
 export const awsToolDefinitionSchema = z.object({
@@ -185,11 +164,8 @@ export const awsToolDefinitionSchema = z.object({
 
 export type AwsToolDefinition = z.infer<typeof awsToolDefinitionSchema>;
 
-export const awsToolDefinitionJSONSchema = zodToJsonSchema(
-  awsToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const awsToolDefinitionJSONSchema = z.toJSONSchema(
+  awsToolDefinitionSchema
 );
 
 export type AnyProviderToolDefinition =
@@ -212,11 +188,8 @@ export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
 /**
  * The JSON schema for a Gemini tool definition
  */
-export const geminiToolDefinitionJSONSchema = zodToJsonSchema(
-  geminiToolDefinitionSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const geminiToolDefinitionJSONSchema = z.toJSONSchema(
+  geminiToolDefinitionSchema
 );
 
 /**

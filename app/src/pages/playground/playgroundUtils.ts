@@ -1384,20 +1384,16 @@ export function areRequiredInvocationParametersConfigured(
 /**
  * Schema for validating if Anthropic extended thinking is enabled.
  */
-const anthropicExtendedThinkingEnabledSchema = z
-  .object({
-    type: z.literal("enabled"),
-  })
-  .passthrough();
+const anthropicExtendedThinkingEnabledSchema = z.looseObject({
+  type: z.literal("enabled"),
+});
 
 /**
  * Schema for validating Anthropic forced tool use.
  */
-const anthropicForcedToolUseSchema = z
-  .object({
-    type: z.enum(["any", "tool"]),
-  })
-  .passthrough();
+const anthropicForcedToolUseSchema = z.looseObject({
+  type: z.enum(["any", "tool"]),
+});
 
 /**
  * Applies Anthropic-specific constraints to the invocation parameters.
@@ -1501,15 +1497,13 @@ export const applyProviderInvocationParameterConstraints = (
 const AZURE_DEPLOYMENT_PATH_REGEX = /(?:^|\/)deployments\/([^/]+)(?:\/?|$)/;
 
 // Optional schema to read LangChain-provided deployment name from metadata
-const LS_METADATA_SCHEMA = z
-  .object({
-    metadata: z
-      .object({
-        ls_model_name: z.string().optional(),
-      })
-      .optional(),
-  })
-  .passthrough();
+const LS_METADATA_SCHEMA = z.looseObject({
+  metadata: z
+    .object({
+      ls_model_name: z.string().optional(),
+    })
+    .optional(),
+});
 
 // Parse Azure details (endpoint, deployment name) from URL
 function parseAzureDeploymentInfoFromUrl(fullUrl: string): {
