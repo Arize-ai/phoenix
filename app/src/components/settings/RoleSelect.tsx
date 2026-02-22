@@ -17,7 +17,7 @@ import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
 const UserRoles = Object.values(UserRole);
 
 const hiddenLabelCSS = css`
-  .ac-field-label {
+  .field__label {
     display: none;
   }
 `;

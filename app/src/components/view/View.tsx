@@ -33,7 +33,7 @@ function View(props: ViewProps, ref: Ref<HTMLElement>) {
         overflow: hidden;
         box-sizing: border-box;
       `}
-      className="ac-view"
+      className="view"
     >
       {children}
     </ElementType>

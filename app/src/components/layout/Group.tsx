@@ -32,7 +32,7 @@ export const Group = forwardRef<HTMLDivElement, GroupProps>(
         {...props}
         ref={ref}
         css={groupCSS}
-        className="ac-group react-aria-Group"
+        className="group react-aria-Group"
       />
     </SizeProvider>
   )

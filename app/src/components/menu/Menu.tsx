@@ -327,14 +327,14 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
         flex-shrink: 0;
 
         /* Add vertical padding to quiet SearchFields in header */
-        .ac-searchfield[data-variant="quiet"] .react-aria-Input,
-        .ac-searchfield[data-variant="quiet"]
+        .search-field[data-variant="quiet"] .react-aria-Input,
+        .search-field[data-variant="quiet"]
           .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
           border-bottom-color: var(--global-menu-border-color);
         }
-        * + .ac-searchfield[data-variant="quiet"] .react-aria-Input,
+        * + .search-field[data-variant="quiet"] .react-aria-Input,
         *
-          + .ac-searchfield[data-variant="quiet"]
+          + .search-field[data-variant="quiet"]
           .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
           border-top-color: var(--global-menu-border-color);
         }

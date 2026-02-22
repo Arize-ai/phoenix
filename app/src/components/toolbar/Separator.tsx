@@ -28,7 +28,7 @@ function Separator(props: SeparatorProps, ref: React.Ref<HTMLDivElement>) {
       {...props}
       ref={ref}
       css={separatorCSS}
-      className="ac-separator react-aria-Separator"
+      className="separator react-aria-Separator"
     />
   );
 }

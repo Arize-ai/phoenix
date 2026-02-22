@@ -151,8 +151,8 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
               /* Make widths configurable */
               .dataset-picker {
                 width: 100%;
-                .ac-dropdown--picker,
-                .ac-dropdown-button {
+                .dropdown--picker,
+                .dropdown__button {
                   width: 100%;
                 }
               }

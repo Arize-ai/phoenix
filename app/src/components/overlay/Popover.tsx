@@ -116,7 +116,7 @@ function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
     <AriaPopover
       {...props}
       ref={ref}
-      className={classNames("ac-popover react-aria-Popover", props.className)}
+      className={classNames("popover react-aria-Popover", props.className)}
       css={popoverCSS}
     />
   );

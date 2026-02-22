@@ -68,8 +68,8 @@ export function OAuthUserForm({
       css={css`
         .role-select {
           width: 100%;
-          .ac-dropdown--picker,
-          .ac-dropdown-button {
+          .dropdown--picker,
+          .dropdown__button {
             width: 100%;
           }
         }

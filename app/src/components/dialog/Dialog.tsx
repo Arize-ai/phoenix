@@ -64,7 +64,7 @@ export const DialogHeader = ({ children, ...props }: DialogHeaderProps) => {
     <div
       {...props}
       css={dialogHeaderCSS}
-      className={classNames(props.className, "ac-DialogHeader")}
+      className={classNames(props.className, "dialog__header")}
     >
       <Flex
         width="100%"
@@ -87,7 +87,7 @@ export const DialogTitle = ({ children, ...props }: DialogTitleProps) => {
       data-testid="dialog-title"
       slot="title"
       {...props}
-      className={classNames(props.className, "ac-DialogTitle")}
+      className={classNames(props.className, "dialog__title")}
     >
       {children}
     </Heading>
@@ -106,7 +106,7 @@ export const DialogTitleExtra = ({
       alignItems="center"
       data-testid="dialog-title-extra"
       {...props}
-      className={classNames(props.className, "ac-DialogTitleExtra")}
+      className={classNames(props.className, "dialog__title-extra")}
     >
       {children}
     </Flex>
@@ -139,7 +139,7 @@ export const DialogCloseButton = ({
       type="button"
       slot="close"
       {...props}
-      className={classNames(props.className, "ac-DialogCloseButton")}
+      className={classNames(props.className, "dialog__close-button")}
     >
       {children}
     </Button>

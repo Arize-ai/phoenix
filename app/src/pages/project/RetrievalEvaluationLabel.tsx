@@ -24,7 +24,7 @@ type RetrievalEvaluationLabelProps = RetrievalEvaluation;
 const textCSS = css`
   display: flex;
   align-items: center;
-  .ac-text {
+  .text {
     display: inline-block;
     max-width: 9rem;
     white-space: nowrap;

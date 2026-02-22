@@ -53,7 +53,7 @@ const expandButtonCSS = css`
   color: var(--global-text-color-500);
   transition: color 0.2s ease-in-out;
 
-  .ac-icon-wrap {
+  .icon-wrap {
     font-size: var(--global-font-size-m);
     color: inherit;
   }

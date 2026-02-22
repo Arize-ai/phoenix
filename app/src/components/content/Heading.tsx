@@ -27,7 +27,7 @@ function Heading(props: HeadingProps, ref: Ref<HTMLHeadingElement>) {
     <AriaHeading
       {...otherProps}
       css={css(textBaseCSS, headingBaseCSS)}
-      className={classNames("ac-Heading", props.className)}
+      className={classNames("heading", props.className)}
       ref={ref}
       level={level}
       data-level={level}

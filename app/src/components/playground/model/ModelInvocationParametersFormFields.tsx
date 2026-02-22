@@ -12,13 +12,13 @@ const modelParametersFormCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-200);
-  .ac-field,
-  .ac-dropdown,
-  .ac-dropdown-button,
-  .ac-slider {
+  .field,
+  .dropdown,
+  .dropdown__button,
+  .slider {
     width: 100%;
   }
-  .ac-slider-controls > .ac-slider-track:first-child::before {
+  .slider__controls > .slider__track:first-child::before {
     background: var(--global-color-primary);
   }
 `;

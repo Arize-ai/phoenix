@@ -702,7 +702,7 @@ function ExperimentSidebarItem({
             onPress={() => setIsCollapsed(!isCollapsed)}
             css={css`
               flex: none;
-              .ac-icon-wrap {
+              .icon-wrap {
                 transform: ${isCollapsed ? "rotate(0deg)" : "rotate(90deg)"};
                 transition: all 0.1s ease-in-out;
               }

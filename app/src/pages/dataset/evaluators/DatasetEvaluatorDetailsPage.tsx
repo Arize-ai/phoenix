@@ -31,7 +31,7 @@ const mainCSS = css`
   overflow: hidden;
   flex-direction: column;
   height: 100%;
-  .ac-tabs {
+  .tabs {
     flex: 1 1 auto;
     overflow: hidden;
     display: flex;

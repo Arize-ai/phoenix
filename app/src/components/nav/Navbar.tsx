@@ -78,18 +78,18 @@ const navLinkCSS = css`
     color: var(--global-text-color-900);
     background-color: var(--global-color-gray-200);
   }
-  & > .ac-icon-wrap {
+  & > .icon-wrap {
     padding: var(--global-dimension-size-100);
     display: inline-block;
   }
-  .ac-text {
+  .text {
     padding-inline-start: var(--global-dimension-size-50);
     padding-inline-end: var(--global-dimension-size-100);
     white-space: nowrap;
     flex: 1;
     text-align: start;
   }
-  .ac-counter {
+  .counter {
     margin-inline-end: var(--global-dimension-size-100);
   }
 `;

@@ -34,7 +34,7 @@ export const Icon = ({
   const resolvedColor = color === "inherit" ? "inherit" : colorValue(color);
   return (
     <i
-      className={classNames("ac-icon-wrap", className)}
+      className={classNames("icon-wrap", className)}
       css={css(
         css`
           width: 1em;

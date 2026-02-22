@@ -41,7 +41,7 @@ export function InvocationParameterJsonEditor({
   return (
     <div
       css={css`
-        & .ac-view {
+        & .view {
           width: 100%;
         }
       `}

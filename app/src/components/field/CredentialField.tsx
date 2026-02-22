@@ -28,7 +28,7 @@ function CredentialField(
       <SizeProvider size={size}>
         <AriaTextField
           data-size={size}
-          className="ac-credentialfield"
+          className="credential-field"
           autoComplete="off"
           ref={ref}
           {...otherProps}

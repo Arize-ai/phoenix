@@ -26,7 +26,7 @@ const formatHeadersForEditor = (
 };
 
 const fieldContainerCSS = css`
-  & .ac-view {
+  & .view {
     width: 100%;
   }
 `;

@@ -73,7 +73,7 @@ export const ToggleButton = ({
       css={css(baseToggleButtonCSS, cssProp)}
       data-size={size}
       data-childless={!children}
-      className={classNames("ac-toggle-button", className)}
+      className={classNames("toggle-button", className)}
       {...rest}
     >
       {renderContent}
