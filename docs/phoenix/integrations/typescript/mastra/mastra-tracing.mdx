@@ -48,8 +48,13 @@ npm install @mastra/arize @mastra/observability
 Create a `.env` file that points Mastra to your Phoenix instance:
 
 ```bash
+# Local Phoenix
 PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
-PHOENIX_API_KEY=your-api-key # Optional for local Phoenix
+
+# Phoenix Cloud (find your hostname under Settings > Hostname)
+# PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
+
+PHOENIX_API_KEY=your-api-key # Optional for local Phoenix, required for Cloud
 PHOENIX_PROJECT_NAME=mastra-service # Optional, defaults to "mastra-service"
 ```
 
