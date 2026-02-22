@@ -67,7 +67,11 @@ export function UserPicture({
 
   return (
     <div css={styles} data-theme={theme}>
-      {profilePictureUrl ? <img src={profilePictureUrl} /> : firstLetter}
+      {profilePictureUrl ? (
+        <img src={profilePictureUrl} alt={`${name} profile picture`} />
+      ) : (
+        firstLetter
+      )}
     </div>
   );
 }

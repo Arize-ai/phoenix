@@ -36,9 +36,7 @@ export function ExperimentRepeatedRunGroupTokenCosts(
   return (
     <TooltipTrigger isDisabled={props.costTotal == null}>
       <Pressable>
-        <TokenCosts size={props.size} aria-role="button">
-          {props.costTotal}
-        </TokenCosts>
+        <TokenCosts size={props.size}>{props.costTotal}</TokenCosts>
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
