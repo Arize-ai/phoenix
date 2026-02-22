@@ -40,7 +40,7 @@ PHOENIX_API_KEY="ADD YOUR API KEY"
 ## Install
 
 ```bash
-npm install @mastra/arize
+npm install @mastra/arize @mastra/observability
 ```
 
 ## Configure Environment
@@ -55,15 +55,38 @@ PHOENIX_PROJECT_NAME=mastra-service # Optional, defaults to "mastra-service"
 
 ## Setup
 
-Initialize the Arize exporter inside your Mastra project:
+Initialize the Arize exporter inside your Mastra project.
+
+**Zero-config setup** (reads from environment variables automatically):
 
 ```typescript
 import { Mastra } from "@mastra/core";
+import { Observability } from "@mastra/observability";
 import { ArizeExporter } from "@mastra/arize";
 
 export const mastra = new Mastra({
   // ... other config (agents, workflows, etc.)
-  observability: {
+  observability: new Observability({
+    configs: {
+      arize: {
+        serviceName: "mastra-service",
+        exporters: [new ArizeExporter()],
+      },
+    },
+  }),
+});
+```
+
+**Explicit configuration:**
+
+```typescript
+import { Mastra } from "@mastra/core";
+import { Observability } from "@mastra/observability";
+import { ArizeExporter } from "@mastra/arize";
+
+export const mastra = new Mastra({
+  // ... other config (agents, workflows, etc.)
+  observability: new Observability({
     configs: {
       arize: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
@@ -76,7 +99,7 @@ export const mastra = new Mastra({
         ],
       },
     },
-  },
+  }),
 });
 ```
 
@@ -88,6 +111,7 @@ From here you can use Mastra as normal. Create agents with tools and run them:
 import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core";
+import { Observability } from "@mastra/observability";
 import { ArizeExporter } from "@mastra/arize";
 import { z } from "zod";
 
@@ -120,7 +144,7 @@ const weatherAgent = new Agent({
 // Register the agent with Mastra instance
 const mastra = new Mastra({
   agents: { weatherAgent },
-  observability: {
+  observability: new Observability({
     configs: {
       arize: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
@@ -133,7 +157,7 @@ const mastra = new Mastra({
         ],
       },
     },
-  },
+  }),
 });
 ```
 
@@ -173,4 +197,5 @@ Now that you have tracing setup, all agent runs, tool calls, and model interacti
 ## Resources
 
 * [Working example](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/mastra/example-agent)
-* [Mastra CLI Documentation](https://mastra.ai/en/docs/getting-started/installation)
+* [Mastra Arize exporter docs](https://mastra.ai/docs/observability/tracing/exporters/arize)
+* [Mastra CLI Documentation](https://mastra.ai/docs/getting-started/installation)
