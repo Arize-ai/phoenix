@@ -7,22 +7,34 @@ on:
     branches:
       - main
       - version-13
-    paths:
-      - "src/**"
-      - "app/**"
-      - ".github/workflows/playwright.yaml"
   pull_request:
     branches:
       - main
       - version-13
-    paths:
-      - "src/**"
-      - "app/**"
-      - ".github/workflows/playwright.yaml"
+
 jobs:
+  changes:
+    name: Filter Changes
+    runs-on: ubuntu-latest
+    outputs:
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            e2e:
+              - "src/**"
+              - "app/**"
+              - ".github/workflows/playwright.yaml"
+
+
   e2e-test:
     timeout-minutes: 60
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.e2e == 'true' }}
     defaults:
       run:
         working-directory: ./app
@@ -87,3 +99,23 @@ jobs:
           name: playwright-report-py${{ matrix.py }}-${{ matrix.os }}
           path: app/playwright-report/
           retention-days: 30
+
+  ci-required:
+    name: CI Required
+    needs:
+      - changes
+      - e2e-test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"
