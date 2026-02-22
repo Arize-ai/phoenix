@@ -290,9 +290,7 @@ export const MultipleCostDisplays: Story = {
     <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
       <TooltipTrigger>
         <Pressable>
-          <TokenCosts size="S">
-            {0.0123}
-          </TokenCosts>
+          <TokenCosts size="S">{0.0123}</TokenCosts>
         </Pressable>
         <RichTooltip>
           <TokenCostsDetails total={0.0123} prompt={0.0123} />
@@ -301,9 +299,7 @@ export const MultipleCostDisplays: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCosts size="S">
-            {0.0456}
-          </TokenCosts>
+          <TokenCosts size="S">{0.0456}</TokenCosts>
         </Pressable>
         <RichTooltip>
           <TokenCostsDetails total={0.0456} prompt={0.0256} completion={0.02} />
@@ -312,9 +308,7 @@ export const MultipleCostDisplays: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCosts size="S">
-            {0.1234}
-          </TokenCosts>
+          <TokenCosts size="S">{0.1234}</TokenCosts>
         </Pressable>
         <RichTooltip>
           <TokenCostsDetails
@@ -352,9 +346,7 @@ export const CostComparison: Story = {
         </div>
         <TooltipTrigger>
           <Pressable>
-            <TokenCosts size="M">
-              {0.001}
-            </TokenCosts>
+            <TokenCosts size="M">{0.001}</TokenCosts>
           </Pressable>
           <RichTooltip>
             <TokenCostsDetails
@@ -372,9 +364,7 @@ export const CostComparison: Story = {
         </div>
         <TooltipTrigger>
           <Pressable>
-            <TokenCosts size="M">
-              {0.056}
-            </TokenCosts>
+            <TokenCosts size="M">{0.056}</TokenCosts>
           </Pressable>
           <RichTooltip>
             <TokenCostsDetails
@@ -400,9 +390,7 @@ export const CostComparison: Story = {
         </div>
         <TooltipTrigger>
           <Pressable>
-            <TokenCosts size="M">
-              {0.234}
-            </TokenCosts>
+            <TokenCosts size="M">{0.234}</TokenCosts>
           </Pressable>
           <RichTooltip>
             <TokenCostsDetails

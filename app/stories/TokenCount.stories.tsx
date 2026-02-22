@@ -212,9 +212,7 @@ export const MultipleTokenCounts: Story = {
     <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S">
-            {230}
-          </TokenCount>
+          <TokenCount size="S">{230}</TokenCount>
         </Pressable>
         <RichTooltip>
           <TokenCountDetails total={230} prompt={230} />
@@ -223,9 +221,7 @@ export const MultipleTokenCounts: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S">
-            {461}
-          </TokenCount>
+          <TokenCount size="S">{461}</TokenCount>
         </Pressable>
         <RichTooltip>
           <TokenCountDetails
@@ -239,9 +235,7 @@ export const MultipleTokenCounts: Story = {
 
       <TooltipTrigger>
         <Pressable>
-          <TokenCount size="S">
-            {1008}
-          </TokenCount>
+          <TokenCount size="S">{1008}</TokenCount>
         </Pressable>
         <RichTooltip>
           <TokenCountDetails total={1008} completion={1008} />
