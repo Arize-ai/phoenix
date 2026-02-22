@@ -1,4 +1,4 @@
-import { ZodType } from "zod";
+import type { ZodType } from "zod";
 
 import type { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
 import type { AnthropicMessagePart } from "./anthropic/messagePartSchemas";
