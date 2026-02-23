@@ -156,6 +156,7 @@ dev = [
   "types-protobuf",
   "types-psutil",
   "types-python-dateutil",
+  "types-PyYAML",
   "types-requests",
   "types-setuptools",
   "types-tabulate",
@@ -281,6 +282,10 @@ pypi = [
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
+files = [
+  "src/",
+  "tests/",
+]
 exclude = [
   "api_reference",
   "dist/",

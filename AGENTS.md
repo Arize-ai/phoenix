@@ -45,13 +45,20 @@ uv run pytest tests/unit/test_failed_unit_tests.py::test_failed_test  # Runs a p
 uv run pytest tests/integration -n auto                               # Runs integration tests in parallel
 ```
 
+Type checking can be done via a `make` command or by invoking `uv run mypy` directly:
+
+```bash
+make typecheck-python          # Type check (checks src/ and tests/)
+uv run mypy                    # Type check (checks src/ and tests/)
+uv run mypy src                # Type check the main source code
+uv run mypy tests/unit         # Type check unit tests
+uv run mypy tests/integration  # Type check integration tests
+```
+
 Other commands can be managed through tox
 
 ```bash
 tox run -e ruff                                          # Format and lint
-tox run -e ruff,remove_symlinks,type_check,add_symlinks  # Type check (remove/add symlinks)
-tox run -e type_check_unit_tests                         # Type check unit tests
-tox run -e type_check_integration_tests                  # Type check integration tests
 tox run -e phoenix_client                                # Test sub-package
 tox list                                                 # List all environments
 ```

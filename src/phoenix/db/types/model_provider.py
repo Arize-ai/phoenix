@@ -670,12 +670,18 @@ class GoogleGenAICustomProviderConfig(BaseModel):
             else None
         )
 
-        def create_client() -> "AbstractAsyncContextManager[GoogleAsyncClient]":
+        # Wrapped with @asynccontextmanager because Google's AsyncClient has
+        # a non-standard __aexit__ signature that doesn't conform to
+        # AbstractAsyncContextManager.
+        @asynccontextmanager
+        async def create_client() -> "AsyncIterator[GoogleAsyncClient]":
             with without_env_vars("GOOGLE_*", "GEMINI_*"):
-                return Client(  # type: ignore[no-any-return]
+                client = Client(
                     api_key=api_key,
                     http_options=http_options,
                 ).aio
+            async with client as client_:
+                yield client_
 
         return create_client
 

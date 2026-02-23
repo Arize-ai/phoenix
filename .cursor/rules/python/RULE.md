@@ -8,15 +8,10 @@
 - `tox run -e unit_tests -- -c pytest-quiet.ini` - Run all unit tests in quiet mode
 - `tox run -e unit_tests -- -k test_name` - Run specific test in verbose mode
 - `tox run -e integration_tests` - Run integration tests
-- `tox run -e type_check_unit_tests` - Type check unit tests
+- `make typecheck-python` or `uv run mypy` - Type check all Python code
 - `tox list` - List all available tox environments
 
 By default, `pytest` is configured to run in verbose mode. When running a large number of tests at once, ensure that you run in quiet mode to avoid flooding the context window.
-
-### Development Setup
-
-- `tox run -e add_symlinks` - Add symlinks for sub-packages (required after setup)
-- `tox run -e remove_symlinks` - Remove symlinks before type checking
 
 ### Database
 
@@ -39,11 +34,10 @@ By default, `pytest` is configured to run in verbose mode. When running a large 
 
 ## Workflow
 
-1. Always run `tox run -e add_symlinks` after initial setup
-2. Use tox for all testing and linting operations
-3. Run `tox run -e clean_jupyter_notebooks` after editing notebooks
-4. Type check with: `tox run -e ruff,remove_symlinks,type_check,add_symlinks`
-5. Check linter errors with ReadLints tool after making changes
+1. Use tox for all testing and linting operations
+2. Run `tox run -e clean_jupyter_notebooks` after editing notebooks
+3. Type check with: `make typecheck-python` or `uv run mypy`
+4. Check linter errors with ReadLints tool after making changes
 
 ## Project Structure
 

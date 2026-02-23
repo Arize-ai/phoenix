@@ -1,9 +1,9 @@
 import re
 from typing import Any
 
-import vcr
+import vcr  # type: ignore[import-untyped]
 from pytest import FixtureRequest
-from vcr.cassette import Cassette
+from vcr.cassette import Cassette  # type: ignore[import-untyped]
 
 
 class CustomVCR(vcr.VCR):  # type: ignore[misc]
