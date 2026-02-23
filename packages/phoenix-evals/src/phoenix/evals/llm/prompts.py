@@ -806,7 +806,10 @@ def phoenix_prompt_to_prompt_template(prompt_version: PromptVersionInput) -> Pro
                 f"template_type={declared_template_type!r}."
             )
         raw_messages = template.get("messages")
-        if not isinstance(raw_messages, Sequence):
+        if not (
+            isinstance(raw_messages, Sequence)
+            and not isinstance(raw_messages, (str, bytes, bytearray))
+        ):
             raise PhoenixTemplateMappingError(
                 "Chat template payload must include a sequence 'messages' field."
             )
@@ -857,7 +860,7 @@ def _normalize_prompt_version_role(role: Any, *, index: int) -> str:
         raise PhoenixTemplateMappingError(
             f"Message role at index {index} must be a string, got {type(role).__name__}."
         )
-    normalized = _PROMPT_VERSION_ROLE_MAP.get(role)
+    normalized = _PROMPT_VERSION_ROLE_MAP.get(role.lower())
     if normalized is None:
         raise PhoenixTemplateMappingError(f"Unsupported message role at index {index}: {role!r}.")
     return normalized

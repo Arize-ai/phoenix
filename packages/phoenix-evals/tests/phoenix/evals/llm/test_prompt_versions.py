@@ -74,9 +74,9 @@ def test_phoenix_prompt_to_prompt_template_normalizes_supported_roles() -> None:
         "template": {
             "type": "chat",
             "messages": [
-                {"role": "developer", "content": "Be strict."},
-                {"role": "model", "content": "Previous answer."},
-                {"role": "ai", "content": "Current answer."},
+                {"role": "Developer", "content": "Be strict."},
+                {"role": "Model", "content": "Previous answer."},
+                {"role": "AI", "content": "Current answer."},
             ],
         },
     }
@@ -119,4 +119,18 @@ def test_phoenix_prompt_to_prompt_template_raises_for_unsupported_content_part_t
     }
 
     with pytest.raises(PhoenixTemplateMappingError, match="Only 'text' is supported"):
+        phoenix_prompt_to_prompt_template(payload)
+
+
+def test_phoenix_prompt_to_prompt_template_raises_for_string_messages_payload() -> None:
+    payload = {
+        "template_type": "CHAT",
+        "template_format": "MUSTACHE",
+        "template": {
+            "type": "chat",
+            "messages": "not-a-message-list",
+        },
+    }
+
+    with pytest.raises(PhoenixTemplateMappingError, match="sequence 'messages' field"):
         phoenix_prompt_to_prompt_template(payload)
