@@ -119,7 +119,7 @@ export function ProjectActionMenu({
           size="S"
           leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
         />
-        <Popover>
+        <Popover placement="bottom end">
           <Menu
             aria-label="Project Actions Menu"
             onAction={(action) => {
@@ -197,7 +197,7 @@ export function ProjectActionMenu({
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
       >
-        <Modal size="M">
+        <Modal size="S">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -234,11 +234,8 @@ export function ProjectActionMenu({
           </Dialog>
         </Modal>
       </ModalOverlay>
-      <ModalOverlay
-        isOpen={showClearDialog}
-        onOpenChange={setShowClearDialog}
-      >
-        <Modal size="M">
+      <ModalOverlay isOpen={showClearDialog} onOpenChange={setShowClearDialog}>
+        <Modal size="S">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -279,7 +276,7 @@ export function ProjectActionMenu({
         isOpen={showRemoveDataDialog}
         onOpenChange={setShowRemoveDataDialog}
       >
-        <Modal size="M">
+        <Modal size="S">
           <Dialog>
             <DialogContent>
               <DialogHeader>
