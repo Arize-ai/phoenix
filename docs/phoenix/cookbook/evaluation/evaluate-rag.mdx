@@ -92,7 +92,7 @@ LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 
 For this tutorial we will be using OpenAI for creating synthetic data as well as for evaluation.
 
-```cpp
+```python
 if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
     openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
 os.environ["OPENAI_API_KEY"] = openai_api_key
@@ -483,7 +483,7 @@ results = rag_evaluation_dataframe.mean(numeric_only=True)
 results
 ```
 
-```sh
+```text
 ncdg@2_score         0.913450
 precision@2_score    0.804598
 hit                  0.936782
