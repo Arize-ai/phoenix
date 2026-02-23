@@ -5,78 +5,86 @@ description: Instrument agent applications built with Mastra
 
 Mastra is an agentic framework that simplifies building complex AI applications with multi-agent workflows, tool integrations, and memory management.
 
-## Launch Phoenix
-
-<Tabs>
-  <Tab title="Phoenix Cloud">
-1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-2. Grab your API key from the Keys option on the left bar.
-3. In your code, configure environment variables for your endpoint and API key:
-
-```bash
-# .env, or shell environment
-
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR PHOENIX API KEY"
-# And Collector Endpoint for Phoenix Cloud
-PHOENIX_COLLECTOR_ENDPOINT="ADD YOUR PHOENIX HOSTNAME"
-```
-</Tab>
-<Tab title="Self-hosted Phoenix">
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
-2. In your code, configure environment variables for your endpoint and API key:
-
-```bash
-# .env, or shell environment
-
-# Collector Endpoint for your self hosted Phoenix, like localhost
-PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
-# (optional) If authentication enabled, add Phoenix API Key for tracing
-PHOENIX_API_KEY="ADD YOUR API KEY"
-```
-</Tab>
-</Tabs>
-
 ## Install
 
 ```bash
-npm install @mastra/arize
+npm install @mastra/arize @mastra/observability
 ```
 
 ## Configure Environment
 
 Create a `.env` file that points Mastra to your Phoenix instance:
 
+<Tabs>
+  <Tab title="Phoenix Cloud">
+1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+2. Grab your API key from the Keys option on the left bar.
+3. Find your hostname under **Settings > Hostname**.
+
 ```bash
-PHOENIX_ENDPOINT=http://localhost:6006/v1/traces
-PHOENIX_API_KEY=your-api-key # Optional for local Phoenix
-PHOENIX_PROJECT_NAME=mastra-service # Optional, defaults to "mastra-service"
+PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/<your-space-name>/v1/traces
+PHOENIX_API_KEY=your-api-key
+PHOENIX_PROJECT_NAME=mastra-service # Optional
 ```
+</Tab>
+<Tab title="Self-hosted Phoenix">
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](/docs/phoenix/self-hosting).
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
+PHOENIX_PROJECT_NAME=mastra-service # Optional
+```
+</Tab>
+</Tabs>
 
 ## Setup
 
-Initialize the Arize exporter inside your Mastra project:
+Initialize the Arize exporter inside your Mastra project.
+
+**Zero-config setup** (reads from environment variables automatically):
 
 ```typescript
 import { Mastra } from "@mastra/core";
+import { Observability } from "@mastra/observability";
 import { ArizeExporter } from "@mastra/arize";
 
 export const mastra = new Mastra({
   // ... other config (agents, workflows, etc.)
-  observability: {
+  observability: new Observability({
+    configs: {
+      arize: {
+        serviceName: "mastra-service",
+        exporters: [new ArizeExporter()],
+      },
+    },
+  }),
+});
+```
+
+**Explicit configuration:**
+
+```typescript
+import { Mastra } from "@mastra/core";
+import { Observability } from "@mastra/observability";
+import { ArizeExporter } from "@mastra/arize";
+
+export const mastra = new Mastra({
+  // ... other config (agents, workflows, etc.)
+  observability: new Observability({
     configs: {
       arize: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
         ],
       },
     },
-  },
+  }),
 });
 ```
 
@@ -88,6 +96,7 @@ From here you can use Mastra as normal. Create agents with tools and run them:
 import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core";
+import { Observability } from "@mastra/observability";
 import { ArizeExporter } from "@mastra/arize";
 import { z } from "zod";
 
@@ -120,20 +129,20 @@ const weatherAgent = new Agent({
 // Register the agent with Mastra instance
 const mastra = new Mastra({
   agents: { weatherAgent },
-  observability: {
+  observability: new Observability({
     configs: {
       arize: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-service",
         exporters: [
           new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
         ],
       },
     },
-  },
+  }),
 });
 ```
 
@@ -172,5 +181,6 @@ Now that you have tracing setup, all agent runs, tool calls, and model interacti
 
 ## Resources
 
-* [Working example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/mastra-agent)
-* [Mastra CLI Documentation](https://mastra.ai/en/docs/getting-started/installation)
+* [Working example](https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/mastra/example-agent)
+* [Mastra Arize exporter docs](https://mastra.ai/docs/observability/tracing/exporters/arize)
+* [Mastra CLI Documentation](https://mastra.ai/docs/getting-started/installation)
