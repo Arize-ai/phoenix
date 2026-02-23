@@ -10,7 +10,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -54,6 +54,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { DocumentAnnotationForm } from "@phoenix/pages/trace/DocumentAnnotationForm";
 import { AttributesJSONBlock } from "@phoenix/components/code";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
@@ -211,6 +212,8 @@ export function SpanDetails({
               hit
             }
             documentEvaluations {
+              id
+              annotatorKind
               documentPosition
               name
               label
@@ -962,6 +965,8 @@ function RetrieverSpanInfo(props: {
                       borderColor={"seafoam-700"}
                       backgroundColor={"seafoam-100"}
                       tokenColor="var(--global-color-seafoam-1000)"
+                      spanNodeId={span.id}
+                      documentPosition={idx}
                     />
                   </li>
                 );
@@ -1272,16 +1277,32 @@ function DocumentItem({
   backgroundColor,
   borderColor,
   tokenColor,
+  spanNodeId,
+  documentPosition,
 }: {
   document: AttributeDocument;
   documentEvaluations?: DocumentEvaluation[] | null;
   backgroundColor: ViewProps["backgroundColor"];
   borderColor: ViewProps["borderColor"];
   tokenColor: TokenProps["color"];
+  spanNodeId?: string;
+  documentPosition?: number;
 }) {
   const metadata = document[DocumentAttributePostfixes.metadata];
   const hasEvaluations = documentEvaluations && documentEvaluations.length;
   const documentContent = document[DocumentAttributePostfixes.content];
+  const canAnnotate =
+    spanNodeId != null && documentPosition != null;
+  const humanAnnotation = useMemo(
+    () =>
+      documentEvaluations?.find(
+        (e) => e.annotatorKind === "HUMAN" && e.name === "relevance"
+      ) ?? null,
+    [documentEvaluations]
+  );
+  const [isAnnotating, setIsAnnotating] = useState(
+    () => humanAnnotation != null
+  );
   return (
     <Card
       {...defaultCardProps}
@@ -1296,13 +1317,26 @@ function DocumentItem({
         </Flex>
       }
       extra={
-        typeof document[DocumentAttributePostfixes.score] === "number" && (
-          <Token color={tokenColor}>
-            {`score ${numberFormatter(
-              document[DocumentAttributePostfixes.score]
-            )}`}
-          </Token>
-        )
+        <Flex direction="row" gap="size-100" alignItems="center">
+          {typeof document[DocumentAttributePostfixes.score] === "number" && (
+            <Token color={tokenColor}>
+              {`score ${numberFormatter(
+                document[DocumentAttributePostfixes.score]
+              )}`}
+            </Token>
+          )}
+          {canAnnotate && (
+            <Button
+              size="S"
+              variant={isAnnotating ? "primary" : "default"}
+              leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
+              onPress={() => setIsAnnotating((prev) => !prev)}
+              aria-label="Annotate document"
+            >
+              Annotate
+            </Button>
+          )}
+        </Flex>
       }
     >
       <Flex direction="column">
@@ -1398,6 +1432,16 @@ function DocumentItem({
                 })}
               </ul>
             </Flex>
+          </View>
+        )}
+        {canAnnotate && isAnnotating && (
+          <View borderColor={borderColor} borderTopWidth="thin">
+            <DocumentAnnotationForm
+              spanNodeId={spanNodeId}
+              documentPosition={documentPosition}
+              existingAnnotation={humanAnnotation}
+              onDismiss={() => setIsAnnotating(false)}
+            />
           </View>
         )}
       </Flex>
