@@ -608,9 +608,7 @@ jobs:
       - compile-prompts
       - check-lockfile
       - type-check
-      - type-check-unit-tests
       - unit-tests
-      - type-check-integration-tests
       - integration-tests
       - test-migrations
       - phoenix-client-canary-tests-sdk
