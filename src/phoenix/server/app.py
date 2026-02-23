@@ -63,6 +63,7 @@ from phoenix.config import (
     get_env_csrf_trusted_origins,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
+    get_env_database_sql_echo,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
@@ -917,7 +918,7 @@ def create_engine_and_run_migrations(
         return create_engine(
             connection_str=database_url,
             migrate=not Settings.disable_migrations,
-            log_to_stdout=False,
+            log_to_stdout=get_env_database_sql_echo(),
         )
     except PhoenixMigrationError as e:
         msg = (

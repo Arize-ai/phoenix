@@ -106,6 +106,18 @@ Phoenix supports two types of database URLs:
 Note that if you plan on using SQLite, it's advised to to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
+ENV_PHOENIX_SQL_DATABASE_ECHO = "PHOENIX_SQL_DATABASE_ECHO"
+"""
+Whether to echo all SQL statements issued by SQLAlchemy to stdout.
+This is equivalent to passing ``echo=True`` to SQLAlchemy's ``create_engine()``.
+Useful for debugging database queries during development.
+
+Set to ``true`` to enable SQL logging, ``false`` (default) to disable it.
+
+Example::
+
+    PHOENIX_SQL_DATABASE_ECHO=true
+"""
 ENV_PHOENIX_POSTGRES_HOST = "PHOENIX_POSTGRES_HOST"
 """
 As an alternative to setting PHOENIX_SQL_DATABASE_URL, you can set the following
@@ -2777,6 +2789,10 @@ def get_env_database_connection_str() -> str:
 
     working_dir = get_working_dir()
     return f"sqlite:///{working_dir}/phoenix.db"
+
+
+def get_env_database_sql_echo() -> bool:
+    return _bool_val(ENV_PHOENIX_SQL_DATABASE_ECHO, False)
 
 
 def get_env_database_schema() -> Optional[str]:
