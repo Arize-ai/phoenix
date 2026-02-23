@@ -105,7 +105,7 @@ in a few concise bullet points that are easy for beginners to understand.
 prompt = client.prompts.create(
     name="article-bullet-summarizer",
     version=PromptVersion(
-        messages=[{"role": "user", "content": content}],
+        [{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points"

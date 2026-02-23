@@ -395,7 +395,7 @@ To see all operations for a single request as one trace, wrap them in a parent s
   <Tab title="Python" icon="python">
     ```python
     from opentelemetry import trace
-    from openinference.semantic_conventions import SpanAttributes
+    from openinference.semconv.trace import SpanAttributes
 
     def handle_support_query(user_query: str) -> AgentResponse:
         tracer = trace.get_tracer("support-agent")

@@ -111,10 +111,10 @@ prompt = px_client.prompts.get(prompt_version_id="COPY VERSION ID FROM VERSIONS 
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
 // Pull the latest version by name
-const prompt = await getPrompt({ name: "support-classifier" });
+const prompt = await getPrompt({ prompt: { name: "support-classifier" } });
 
 // Pull a specific version by ID
-const promptByVersion = await getPrompt({ versionId: "COPIED_PROMPT_VERSION_ID" });
+const promptByVersion = await getPrompt({ prompt: { versionId: "COPIED_PROMPT_VERSION_ID" } });
 ```
   </Tab>
 </Tabs>

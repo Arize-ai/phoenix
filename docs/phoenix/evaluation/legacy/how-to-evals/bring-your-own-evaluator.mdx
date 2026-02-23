@@ -75,7 +75,7 @@ rails = ["irrelevant", "relevant"]
 relevance_classifications = llm_classify(
     dataframe=<YOUR_DATAFRAME_GOES_HERE>,
     template=CATEGORICAL_TEMPLATE,
-    model=OpenAIModel('gpt-4o', api_key=''),
+    model=OpenAIModel(model='gpt-4o'),
     rails=rails
 )
 ```

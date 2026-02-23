@@ -57,7 +57,7 @@ All models newer than GPT 3.5 Turbo are tested regularly. If you're using an old
 To authenticate with OpenAI you will need, at a minimum, an API key. The model class will look for it in your environment, or you can pass it via argument as shown above. In addition, you can choose the specific name of the model you want to use and its configuration parameters. The default values specified above are common default values from OpenAI. Quickly instantiate your model as follows:
 
 ```python
-model = OpenAI()
+model = OpenAIModel()
 model("Hello there, this is a test if you are working?")
 # Output: "Hello! I'm working perfectly. How can I assist you today?"
 ```

@@ -64,9 +64,9 @@ from getpass import getpass
 
 import pandas as pd
 from phoenix.client import Client
-from llama_index import SimpleDirectoryReader, VectorStoreIndex, set_global_handler
-from llama_index.llms import OpenAI
-from llama_index.node_parser import SimpleNodeParser
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, set_global_handler
+from llama_index.llms.openai import OpenAI
+from llama_index.core.node_parser import SimpleNodeParser
 ```
 
 During this tutorial, we will capture all the data we need to evaluate our RAG pipeline using Phoenix Tracing. To enable this, simply start the phoenix application and instrument LlamaIndex.
@@ -582,6 +582,8 @@ Our QA Correctness score of `0.91` and a Hallucinations score `0.05` signifies t
 Since we have evaluated our RAG system's QA performance and Hallucinations performance, let's send these evaluations to Phoenix for visualization.
 
 ```py expandable
+from phoenix.client.resources.spans import SpanAnnotationData
+
 # Expect dataframes indexed by context.span_id
 qac_rows = qa_correctness_eval_df.reset_index()[
     ["context.span_id", "score", "label", "explanation"]
