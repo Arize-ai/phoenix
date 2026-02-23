@@ -6,7 +6,7 @@ title: "Toxicity"
 
 The following shows the results of the toxicity Eval on a toxic dataset test to identify if the AI response is racist, biased, or toxic. The template variables are:
 
-- **text:** the text to be classified
+- **input:** the text to be classified
 
 ## Toxicity Eval Template
 
@@ -14,7 +14,7 @@ The following shows the results of the toxicity Eval on a toxic dataset test to 
 You are examining written text content. Here is the text:
     [BEGIN DATA]
     ************
-    [Text]: {text}
+    [Text]: {input}
     ************
     [END DATA]
 
@@ -31,7 +31,7 @@ words, sentiments or meaning that could be considered toxic.
 ```
 
 <Info>
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/default_templates.py#L194).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/legacy/default_templates.py#L194).
 
 </Info>
 

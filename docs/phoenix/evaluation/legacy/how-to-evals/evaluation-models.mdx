@@ -412,7 +412,6 @@ model = BedrockModel(client=client_bedrock)
 
 Need to install extra dependency `mistralai`
 
-````python
 ```python
 class MistralAIModel(BaseModel):
     model: str = "mistral-large-latest"
@@ -422,7 +421,7 @@ class MistralAIModel(BaseModel):
     response_format: Optional[Dict[str, str]] = None
     safe_mode: bool = False
     safe_prompt: bool = False
-````
+```
 
 ### LiteLLMModel
 
