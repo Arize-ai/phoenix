@@ -67,7 +67,7 @@ Below is an example of logging conversations:
       # Propagate the session_id down to spans crated by the OpenAI instrumentation
       # This is not strictly necessary, but it helps to correlate the spans to the same session
       with using_session(session_id):
-      response = client.chat.completions.create(
+          response = client.chat.completions.create(
           model="gpt-3.5-turbo",
           messages=[{"role": "system", "content": "You are a helpful assistant."}] + messages,
       ).choices[0].message
