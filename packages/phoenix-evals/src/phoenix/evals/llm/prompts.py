@@ -17,10 +17,12 @@ from collections.abc import Mapping, Sequence
 from enum import Enum
 from string import Formatter
 from textwrap import dedent
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, Protocol, TypedDict, Union
 
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
+
+from phoenix.evals.exceptions import PhoenixTemplateMappingError
 
 
 class TemplateFormat(str, Enum):
@@ -744,3 +746,149 @@ class PromptTemplate:
                 )
             rendered_messages.append(rendered_msg)
         return rendered_messages
+
+
+class PromptVersionDumpable(Protocol):
+    def _dumps(self) -> Mapping[str, Any]: ...
+
+
+PromptVersionInput = Union[Mapping[str, Any], PromptVersionDumpable]
+
+_PROMPT_VERSION_ROLE_MAP = {
+    "user": "user",
+    "assistant": "assistant",
+    "ai": "assistant",
+    "model": "assistant",
+    "system": "system",
+    "developer": "system",
+}
+
+
+def phoenix_prompt_to_prompt_template(prompt_version: PromptVersionInput) -> PromptTemplate:
+    """
+    Convert a Phoenix prompt version payload (or `PromptVersion` object) into a PromptTemplate.
+
+    Supported input formats:
+    - Mapping with PromptVersionData-like shape
+    - Objects that implement `_dumps()` and return PromptVersionData-like mappings
+
+    Raises:
+        TypeError: If the prompt_version input cannot be coerced to a mapping.
+        PhoenixTemplateMappingError: If template content cannot be represented by PromptTemplate.
+    """
+    data = _coerce_prompt_version_data(prompt_version)
+    template_format = _to_template_format(data.get("template_format"))
+
+    template = data.get("template")
+    if not isinstance(template, Mapping):
+        raise PhoenixTemplateMappingError("Prompt version template must be a mapping.")
+
+    template_type = template.get("type")
+    declared_template_type = data.get("template_type")
+
+    if template_type == "string":
+        if declared_template_type not in (None, "STR"):
+            raise PhoenixTemplateMappingError(
+                "Template type mismatch: template.type='string' but "
+                f"template_type={declared_template_type!r}."
+            )
+        raw_template = template.get("template")
+        if not isinstance(raw_template, str):
+            raise PhoenixTemplateMappingError(
+                "String template payload must include a string 'template' field."
+            )
+        return PromptTemplate(template=raw_template, template_format=template_format)
+
+    if template_type == "chat":
+        if declared_template_type not in (None, "CHAT"):
+            raise PhoenixTemplateMappingError(
+                "Template type mismatch: template.type='chat' but "
+                f"template_type={declared_template_type!r}."
+            )
+        raw_messages = template.get("messages")
+        if not isinstance(raw_messages, Sequence):
+            raise PhoenixTemplateMappingError(
+                "Chat template payload must include a sequence 'messages' field."
+            )
+        converted_messages = [
+            _convert_prompt_version_message(message, i) for i, message in enumerate(raw_messages)
+        ]
+        return PromptTemplate(template=converted_messages, template_format=template_format)
+
+    raise PhoenixTemplateMappingError(f"Unsupported prompt template type: {template_type!r}.")
+
+
+def _coerce_prompt_version_data(prompt_version: PromptVersionInput) -> Mapping[str, Any]:
+    if isinstance(prompt_version, Mapping):
+        return prompt_version
+
+    dumps = getattr(prompt_version, "_dumps", None)
+    if callable(dumps):
+        data = dumps()
+        if isinstance(data, Mapping):
+            return data
+        raise TypeError(f"Expected _dumps() to return a mapping, got {type(data).__name__}.")
+
+    raise TypeError("prompt_version must be a mapping or an object implementing _dumps().")
+
+
+def _to_template_format(template_format: Any) -> Optional[TemplateFormat]:
+    if template_format is None or template_format == "NONE":
+        return None
+    if template_format == "MUSTACHE":
+        return TemplateFormat.MUSTACHE
+    if template_format == "F_STRING":
+        return TemplateFormat.F_STRING
+    raise PhoenixTemplateMappingError(f"Unsupported prompt template format: {template_format!r}.")
+
+
+def _convert_prompt_version_message(message: Any, index: int) -> dict[str, Any]:
+    if not isinstance(message, Mapping):
+        raise PhoenixTemplateMappingError(
+            f"Message at index {index} must be a mapping, got {type(message).__name__}."
+        )
+    role = _normalize_prompt_version_role(message.get("role"), index=index)
+    content = _convert_prompt_version_content(message.get("content"), index=index)
+    return {"role": role, "content": content}
+
+
+def _normalize_prompt_version_role(role: Any, *, index: int) -> str:
+    if not isinstance(role, str):
+        raise PhoenixTemplateMappingError(
+            f"Message role at index {index} must be a string, got {type(role).__name__}."
+        )
+    normalized = _PROMPT_VERSION_ROLE_MAP.get(role)
+    if normalized is None:
+        raise PhoenixTemplateMappingError(f"Unsupported message role at index {index}: {role!r}.")
+    return normalized
+
+
+def _convert_prompt_version_content(content: Any, *, index: int) -> Any:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, Sequence):
+        raise PhoenixTemplateMappingError(
+            f"Message content at index {index} must be a string or sequence."
+        )
+
+    parts: list[dict[str, str]] = []
+    for part_index, part in enumerate(content):
+        if not isinstance(part, Mapping):
+            raise PhoenixTemplateMappingError(
+                f"Message content part at message index {index}, part index {part_index} "
+                "must be a mapping."
+            )
+        part_type = part.get("type")
+        if part_type != "text":
+            raise PhoenixTemplateMappingError(
+                f"Unsupported content part type at message index {index}, part index {part_index}: "
+                f"{part_type!r}. Only 'text' is supported."
+            )
+        text = part.get("text")
+        if not isinstance(text, str):
+            raise PhoenixTemplateMappingError(
+                f"Text content part at message index {index}, part index {part_index} must "
+                "include a string 'text' field."
+            )
+        parts.append({"type": "text", "text": text})
+    return parts
