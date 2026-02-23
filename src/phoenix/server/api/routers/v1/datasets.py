@@ -7,7 +7,7 @@ import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Hashable, Iterator, Mapping, Sequence
 from datetime import datetime
 from enum import Enum
 from functools import partial
@@ -834,7 +834,7 @@ def _check_keys_exist(
         raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
 
 
-def _get_span_id(row: Mapping[str, Any], span_id_key: SpanIdKey) -> Optional[str]:
+def _get_span_id(row: Mapping[Hashable, Any], span_id_key: SpanIdKey) -> Optional[str]:
     """Extract span_id from a row, returning None if not present or empty."""
     if not span_id_key:
         return None

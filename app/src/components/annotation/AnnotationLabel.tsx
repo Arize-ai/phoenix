@@ -1,9 +1,9 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 
-import { Annotation, AnnotationDisplayPreference } from "./types";
+import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--global-dimension-size-50);
@@ -19,7 +19,7 @@ export const baseAnnotationLabelCSS = css`
       background-color: var(--global-color-gray-300);
     }
   }
-  .ac-icon-wrap {
+  .icon-wrap {
     font-size: 12px;
   }
 `;

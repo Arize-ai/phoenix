@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useZustand } from "use-zustand";
-import { create, StateCreator } from "zustand";
+import type { StateCreator } from "zustand";
+import { create } from "zustand";
 
-import { PlaygroundDatasetExamplesTableSubscription$data } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
-import { PartialOutputToolCall } from "./PlaygroundToolCall";
+import type { PlaygroundDatasetExamplesTableSubscription$data } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 
 type InstanceId = number;
 export type ExampleId = string;

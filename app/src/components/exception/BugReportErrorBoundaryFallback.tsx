@@ -5,7 +5,7 @@ import { ExternalLink } from "../ExternalLink";
 import { Flex } from "../layout";
 import { View } from "../view";
 import { isConnectionTimeoutError } from "./isConnectionTimeoutError";
-import { ErrorBoundaryFallbackProps } from "./types";
+import type { ErrorBoundaryFallbackProps } from "./types";
 
 export function BugReportErrorBoundaryFallback({
   error,

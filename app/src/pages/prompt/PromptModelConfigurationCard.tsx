@@ -7,7 +7,7 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
 } from "@phoenix/components";
-import { PromptModelConfigurationCard__main$key } from "@phoenix/pages/prompt/__generated__/PromptModelConfigurationCard__main.graphql";
+import type { PromptModelConfigurationCard__main$key } from "@phoenix/pages/prompt/__generated__/PromptModelConfigurationCard__main.graphql";
 import { PromptInvocationParameters } from "@phoenix/pages/prompt/PromptInvocationParameters";
 import { PromptLLM } from "@phoenix/pages/prompt/PromptLLM";
 import { PromptResponseFormat } from "@phoenix/pages/prompt/PromptResponseFormat";

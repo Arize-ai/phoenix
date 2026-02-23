@@ -1,6 +1,6 @@
 import { graphql, loadQuery } from "react-relay";
 
-import { evaluatorsPageLoaderQuery } from "@phoenix/pages/evaluators/__generated__/evaluatorsPageLoaderQuery.graphql";
+import type { evaluatorsPageLoaderQuery } from "@phoenix/pages/evaluators/__generated__/evaluatorsPageLoaderQuery.graphql";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 export const evaluatorsPageLoaderGql = graphql`

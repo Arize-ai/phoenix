@@ -1,9 +1,9 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { RichTooltip, TooltipTrigger, TriggerWrap } from "@phoenix/components";
 
 import { AnnotationDetailsContent } from "./AnnotationDetailsContent";
-import { Annotation } from "./types";
+import type { Annotation } from "./types";
 
 /**
  * Wraps a component with a tooltip that displays information about an annotation.

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "json-schema";
 import {
   type ReactNode,
   useCallback,
@@ -9,14 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Control,
-  Controller,
-  useForm,
-  UseFormGetValues,
-  UseFormReset,
-  useWatch,
-} from "react-hook-form";
+import type { Control, UseFormGetValues, UseFormReset } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 

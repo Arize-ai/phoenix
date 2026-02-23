@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import { PrettyText } from "../utility";
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { markdownCSS } from "./styles";
-import { MarkdownDisplayMode } from "./types";
+import type { MarkdownDisplayMode } from "./types";
 
 export function MarkdownBlock({
   children,

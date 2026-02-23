@@ -1,11 +1,14 @@
 import { css } from "@emotion/react";
-import { ComponentProps, ReactNode, Ref, useState } from "react";
+import type { ComponentProps, ReactNode, Ref } from "react";
+import { useState } from "react";
+import type {
+  GridListItemProps as AriaGridListItemProps,
+  GridListProps as AriaGridListProps,
+} from "react-aria-components";
 import {
   GridList as AriaGridList,
   GridListHeader,
   GridListItem as AriaGridListItem,
-  GridListItemProps as AriaGridListItemProps,
-  GridListProps as AriaGridListProps,
   GridListSection as AriaGridListSection,
 } from "react-aria-components";
 
@@ -18,7 +21,7 @@ import {
 } from "@phoenix/components/gridlist/styles";
 import { Flex } from "@phoenix/components/layout";
 
-import { StylableProps } from "../types";
+import type { StylableProps } from "../types";
 
 export interface GridListProps<T> extends AriaGridListProps<T>, StylableProps {
   ref?: Ref<HTMLDivElement>;

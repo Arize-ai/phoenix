@@ -1,11 +1,11 @@
 import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
 
-import { ToolCallPart } from "@phoenix/schemas/promptSchemas";
+import type { ToolCallPart } from "@phoenix/schemas/promptSchemas";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
+import type { JSONLiteral } from "./jsonLiteralSchema";
+import { jsonLiteralSchema } from "./jsonLiteralSchema";
 
 /**
  * The schema for an OpenAI tool call, this is what a message that calls a tool looks like
@@ -21,16 +21,15 @@ export const openAIToolCallSchema = z.object({
     .describe("The type of the tool call")
     .default("function"),
   function: z
-    .object({
+    .looseObject({
       name: z.string().describe("The name of the function"),
       // TODO(Parker): The arguments here should not actually be a string, however this is a relic from the current way we stream tool calls where the chunks will come in as strings of partial json objects fix this here: https://github.com/Arize-ai/phoenix/issues/5269
       arguments: z
         // TODO(apowell): This is dishonest. OpenAI and our backend expects a string, but we stringify it behind the scenes.
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .describe("The arguments for the function"),
     })
-    .describe("The function that is being called")
-    .passthrough(),
+    .describe("The function that is being called"),
 });
 
 /**
@@ -57,18 +56,13 @@ export const openAIToolCallsSchema = z.array(openAIToolCallSchema);
 /**
  * The JSON schema for multiple OpenAI tool calls
  */
-export const openAIToolCallsJSONSchema = zodToJsonSchema(
-  openAIToolCallsSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
-);
+export const openAIToolCallsJSONSchema = z.toJSONSchema(openAIToolCallsSchema);
 
 export const awsToolCallSchema = z.object({
   toolUse: z.object({
     toolUseId: z.string().describe("The ID of the tool call"),
     name: z.string().describe("The name of the tool"),
-    input: z.record(z.unknown()).describe("The input for the tool"),
+    input: z.record(z.string(), z.unknown()).describe("The input for the tool"),
   }),
 });
 
@@ -76,9 +70,7 @@ export type AwsToolCall = z.infer<typeof awsToolCallSchema>;
 
 export const awsToolCallsSchema = z.array(awsToolCallSchema);
 
-export const awsToolCallsJSONSchema = zodToJsonSchema(awsToolCallsSchema, {
-  removeAdditionalStrategy: "passthrough",
-});
+export const awsToolCallsJSONSchema = z.toJSONSchema(awsToolCallsSchema);
 
 export const openAIToolCallToAws = openAIToolCallSchema.transform(
   (openai): AwsToolCall => ({
@@ -104,14 +96,12 @@ export const awsToolCallToOpenAI = awsToolCallSchema.transform(
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
  */
-export const anthropicToolCallSchema = z
-  .object({
-    id: z.string().describe("The ID of the tool call"),
-    type: z.literal("tool_use"),
-    name: z.string().describe("The name of the tool"),
-    input: z.record(z.unknown()).describe("The input for the tool"),
-  })
-  .passthrough();
+export const anthropicToolCallSchema = z.looseObject({
+  id: z.string().describe("The ID of the tool call"),
+  type: z.literal("tool_use"),
+  name: z.string().describe("The name of the tool"),
+  input: z.record(z.string(), z.unknown()).describe("The input for the tool"),
+});
 
 /**
  * The type of an Anthropic tool call
@@ -126,11 +116,8 @@ export const anthropicToolCallsSchema = z.array(anthropicToolCallSchema);
 /**
  * The JSON schema for multiple Anthropic tool calls
  */
-export const anthropicToolCallsJSONSchema = zodToJsonSchema(
-  anthropicToolCallsSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const anthropicToolCallsJSONSchema = z.toJSONSchema(
+  anthropicToolCallsSchema
 );
 
 /**
@@ -372,11 +359,11 @@ export function createAwsToolCall(): AwsToolCall {
 export const toolCallHeuristicSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
-  arguments: z.record(z.unknown()).optional(),
+  arguments: z.record(z.string(), z.unknown()).optional(),
   function: z
     .object({
       name: z.string().optional(),
-      arguments: z.record(z.unknown()).optional(),
+      arguments: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
 });

@@ -1,5 +1,5 @@
-import { paths } from "../__generated__/api/v1";
-import { Annotation } from "../types/annotations";
+import type { paths } from "../__generated__/api/v1";
+import type { Annotation } from "../types/annotations";
 
 type SpanAnnotationData =
   paths["/v1/span_annotations"]["post"]["requestBody"]["content"]["application/json"]["data"][0];

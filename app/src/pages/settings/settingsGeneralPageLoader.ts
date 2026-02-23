@@ -2,7 +2,7 @@ import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { settingsGeneralPageLoaderQuery } from "./__generated__/settingsGeneralPageLoaderQuery.graphql";
+import type { settingsGeneralPageLoaderQuery } from "./__generated__/settingsGeneralPageLoaderQuery.graphql";
 
 export const settingsGeneralPageLoaderGQL = graphql`
   query settingsGeneralPageLoaderQuery {

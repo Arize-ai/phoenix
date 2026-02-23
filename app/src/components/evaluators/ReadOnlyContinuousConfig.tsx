@@ -9,7 +9,7 @@ import {
   TextField,
 } from "@phoenix/components";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { ContinuousEvaluatorAnnotationConfig } from "@phoenix/types";
+import type { ContinuousEvaluatorAnnotationConfig } from "@phoenix/types";
 
 import { OptimizationDirectionField } from "./OptimizationDirectionField";
 

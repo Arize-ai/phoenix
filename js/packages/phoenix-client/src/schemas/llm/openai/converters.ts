@@ -2,29 +2,31 @@ import invariant from "tiny-invariant";
 
 import { assertUnreachable } from "../../../utils/assertUnreachable";
 import { isObject } from "../../../utils/isObject";
-import {
+import type {
   AnthropicImageBlock,
   AnthropicMessagePart,
   AnthropicTextBlock,
   AnthropicToolUseBlock,
 } from "../anthropic/messagePartSchemas";
-import { AnthropicMessage } from "../anthropic/messageSchemas";
-import { AnthropicToolCall } from "../anthropic/toolCallSchemas";
-import { AnthropicToolChoice } from "../anthropic/toolChoiceSchemas";
-import { AnthropicToolDefinition } from "../anthropic/toolSchemas";
-import {
-  makeTextPart,
-  makeToolResultPart,
+import type { AnthropicMessage } from "../anthropic/messageSchemas";
+import type { AnthropicToolCall } from "../anthropic/toolCallSchemas";
+import type { AnthropicToolChoice } from "../anthropic/toolChoiceSchemas";
+import type { AnthropicToolDefinition } from "../anthropic/toolSchemas";
+import type {
   PhoenixContentPart,
   ToolCallPart,
 } from "../phoenixPrompt/messagePartSchemas";
 import {
+  makeTextPart,
+  makeToolResultPart,
+} from "../phoenixPrompt/messagePartSchemas";
+import type {
   PhoenixMessage,
   PhoenixMessageRole,
 } from "../phoenixPrompt/messageSchemas";
-import { VercelAIMessage } from "../vercel/messageSchemas";
-import { VercelAIToolChoice } from "../vercel/toolChoiceSchemas";
-import { VercelAIToolDefinition } from "../vercel/toolSchemas";
+import type { VercelAIMessage } from "../vercel/messageSchemas";
+import type { VercelAIToolChoice } from "../vercel/toolChoiceSchemas";
+import type { VercelAIToolDefinition } from "../vercel/toolSchemas";
 import { openaiChatPartSchema } from "./messagePartSchemas";
 import { openAIMessageSchema } from "./messageSchemas";
 import { openAIToolCallSchema } from "./toolCallSchemas";

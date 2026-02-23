@@ -265,9 +265,9 @@ async def _run_subscription_with_evaluators(
                         elif typename == "EvaluationErrorChunk":
                             eval_errors_seen.append(subscription_data)
 
-            # Log any evaluation errors for debugging
-            if eval_errors_seen:
-                print(f"Evaluation errors received: {eval_errors_seen}")
+            assert not eval_errors_seen, (
+                f"Evaluation errors received during subscription: {eval_errors_seen}"
+            )
 
         if experiment_id is None:
             error_msg = "Did not receive experiment ID from subscription"

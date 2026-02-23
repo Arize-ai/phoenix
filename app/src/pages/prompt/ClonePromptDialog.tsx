@@ -25,7 +25,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
-import { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
+import type { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";

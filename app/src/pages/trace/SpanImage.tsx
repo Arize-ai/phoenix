@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { ReactNode, useState } from "react";
+import type { ReactNode } from "react";
+import { useState } from "react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
 import { classNames } from "@phoenix/utils";
@@ -66,7 +67,7 @@ export function SpanImage(props: SpanImageProps) {
   if (isRedacted) {
     content = <RedactedImageSVG />;
   } else {
-    content = <img src={props.url} />;
+    content = <img src={props.url} alt="Span image" />;
   }
   return (
     <div

@@ -27,7 +27,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
-import { PlaygroundInstanceProps } from "./types";
+import type { PlaygroundInstanceProps } from "./types";
 
 /**
  * This is the maximum width of the model config button model name text.

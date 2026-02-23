@@ -1,10 +1,10 @@
-import { ColumnSort } from "@tanstack/react-table";
+import type { ColumnSort } from "@tanstack/react-table";
 
-import {
+import type {
   ProjectSessionSort,
   SessionsTableQuery$variables,
 } from "./__generated__/SessionsTableQuery.graphql";
-import {
+import type {
   SpanSort,
   TracesTableQuery$variables,
 } from "./__generated__/TracesTableQuery.graphql";

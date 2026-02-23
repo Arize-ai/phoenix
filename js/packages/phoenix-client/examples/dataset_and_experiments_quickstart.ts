@@ -5,13 +5,10 @@ import { OpenAI } from "openai";
 
 import { createClient } from "../src";
 import { createDataset } from "../src/datasets/createDataset";
-import {
-  asEvaluator,
-  runExperiment,
-  RunExperimentParams,
-} from "../src/experiments";
-import { AnnotatorKind } from "../src/types/annotations";
-import { Example } from "../src/types/datasets";
+import type { RunExperimentParams } from "../src/experiments";
+import { asEvaluator, runExperiment } from "../src/experiments";
+import type { AnnotatorKind } from "../src/types/annotations";
+import type { Example } from "../src/types/datasets";
 
 // Replace with your actual OpenAI API key
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

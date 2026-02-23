@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
   ChatRoleMap,
   DEFAULT_CHAT_ROLE,
@@ -10,29 +10,28 @@ import {
   DEFAULT_OPENAI_API_TYPE,
   ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
+import type { OpenAIToolDefinition } from "@phoenix/schemas";
 import {
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
   fromOpenAIToolDefinition,
   openAIResponsesToOpenAI,
-  OpenAIToolDefinition,
 } from "@phoenix/schemas";
-import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
-import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
-import {
+import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
+import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import type {
   AnthropicToolCall,
-  createAnthropicToolCall,
-  createOpenAIToolCall,
   LlmProviderToolCall,
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
-import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
-import { CredentialsState } from "@phoenix/store/credentialsStore";
 import {
+  createAnthropicToolCall,
+  createOpenAIToolCall,
+} from "@phoenix/schemas/toolCallSchemas";
+import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import type { CredentialsState } from "@phoenix/store/credentialsStore";
+import type {
   ChatMessage,
-  createNormalizedPlaygroundInstance,
-  generateMessageId,
-  generateToolId,
   ModelConfig,
   ModelInvocationParameterInput,
   PlaygroundInput,
@@ -42,21 +41,23 @@ import {
   Tool,
 } from "@phoenix/store/playground";
 import {
-  assertUnreachable,
-  isStringKeyedObject,
-  Mutable,
-} from "@phoenix/typeUtils";
+  createNormalizedPlaygroundInstance,
+  generateMessageId,
+  generateToolId,
+} from "@phoenix/store/playground";
+import type { Mutable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
 import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
-import {
+import type {
   ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
-import {
+import type {
   ChatCompletionInput,
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
@@ -84,15 +85,13 @@ import {
   constrainInvocationParameterInputsToDefinition,
   toCamelCase,
 } from "./invocationParameterUtils";
+import type { JsonObjectSchema, LlmToolSchema, MessageSchema } from "./schemas";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
-  JsonObjectSchema,
   llmInputMessageSchema,
   llmOutputMessageSchema,
-  LlmToolSchema,
   llmToolSchema,
-  MessageSchema,
   modelConfigSchema,
   modelConfigWithInvocationParametersSchema,
   modelConfigWithResponseFormatSchema,
@@ -100,7 +99,7 @@ import {
   promptTemplateSchema,
   urlSchema,
 } from "./schemas";
-import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
+import type { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
 /**
  * Checks if a string is a valid chat message role
@@ -803,7 +802,7 @@ export const extractVariablesFromInstance = ({
   instance: PlaygroundInstance;
   templateFormat: TemplateFormat;
 }) => {
-  if (templateFormat == TemplateFormats.NONE) {
+  if (templateFormat === TemplateFormats.NONE) {
     return [];
   }
   const variables = new Set<string>();
@@ -849,7 +848,7 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
 }) => {
-  if (templateFormat == TemplateFormats.NONE) {
+  if (templateFormat === TemplateFormats.NONE) {
     return [];
   }
   return Array.from(
@@ -892,7 +891,7 @@ export const getVariablesMapFromInstances = ({
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  if (templateFormat == TemplateFormats.NONE) {
+  if (templateFormat === TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
   const variableKeys = extractVariablesFromInstances({
@@ -1385,20 +1384,16 @@ export function areRequiredInvocationParametersConfigured(
 /**
  * Schema for validating if Anthropic extended thinking is enabled.
  */
-const anthropicExtendedThinkingEnabledSchema = z
-  .object({
-    type: z.literal("enabled"),
-  })
-  .passthrough();
+const anthropicExtendedThinkingEnabledSchema = z.looseObject({
+  type: z.literal("enabled"),
+});
 
 /**
  * Schema for validating Anthropic forced tool use.
  */
-const anthropicForcedToolUseSchema = z
-  .object({
-    type: z.enum(["any", "tool"]),
-  })
-  .passthrough();
+const anthropicForcedToolUseSchema = z.looseObject({
+  type: z.enum(["any", "tool"]),
+});
 
 /**
  * Applies Anthropic-specific constraints to the invocation parameters.
@@ -1465,7 +1460,7 @@ const filterZeroValueInvocationParameters = (
       param.invocationName &&
       ZERO_VALUE_INVOCATION_NAMES.includes(param.invocationName)
     ) {
-      return !(param.valueFloat == 0 || param.valueInt == 0);
+      return !(param.valueFloat === 0 || param.valueInt === 0);
     }
     return true;
   });
@@ -1502,15 +1497,13 @@ export const applyProviderInvocationParameterConstraints = (
 const AZURE_DEPLOYMENT_PATH_REGEX = /(?:^|\/)deployments\/([^/]+)(?:\/?|$)/;
 
 // Optional schema to read LangChain-provided deployment name from metadata
-const LS_METADATA_SCHEMA = z
-  .object({
-    metadata: z
-      .object({
-        ls_model_name: z.string().optional(),
-      })
-      .optional(),
-  })
-  .passthrough();
+const LS_METADATA_SCHEMA = z.looseObject({
+  metadata: z
+    .object({
+      ls_model_name: z.string().optional(),
+    })
+    .optional(),
+});
 
 // Parse Azure details (endpoint, deployment name) from URL
 function parseAzureDeploymentInfoFromUrl(fullUrl: string): {

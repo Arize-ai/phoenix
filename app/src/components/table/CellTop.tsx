@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 /**
  * A component that renders a row at the top of a table cell

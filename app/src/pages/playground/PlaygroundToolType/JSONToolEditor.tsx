@@ -6,7 +6,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { BaseToolEditorProps } from "@phoenix/pages/playground/PlaygroundTool";
+import type { BaseToolEditorProps } from "@phoenix/pages/playground/PlaygroundTool";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**

@@ -1,10 +1,11 @@
 import { fetchQuery, graphql } from "react-relay";
-import { create, StateCreator } from "zustand";
+import type { StateCreator } from "zustand";
+import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { datasetStore_latestVersionQuery } from "./__generated__/datasetStore_latestVersionQuery.graphql";
+import type { datasetStore_latestVersionQuery } from "./__generated__/datasetStore_latestVersionQuery.graphql";
 
 interface DatasetVersion {
   id: string;

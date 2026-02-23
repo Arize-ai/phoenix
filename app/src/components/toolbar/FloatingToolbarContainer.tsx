@@ -1,5 +1,5 @@
 import { css, keyframes } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 const riseIn = keyframes`
   from {

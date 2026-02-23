@@ -1,5 +1,5 @@
-import { PhoenixClient } from "@arizeai/phoenix-client";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PhoenixClient } from "@arizeai/phoenix-client";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 const LIST_DATASETS_DESCRIPTION = `Get a list of all datasets.
@@ -174,9 +174,9 @@ export const initializeDatasetTools = ({
       datasetName: z.string(),
       examples: z.array(
         z.object({
-          input: z.record(z.any()),
-          output: z.record(z.any()),
-          metadata: z.record(z.any()).optional(),
+          input: z.record(z.string(), z.any()),
+          output: z.record(z.string(), z.any()),
+          metadata: z.record(z.string(), z.any()).optional(),
         })
       ),
     },

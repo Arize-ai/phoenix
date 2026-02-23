@@ -24,9 +24,9 @@ export function splitEventIdsByInferenceSet(eventIds: string[]): {
   const corpusEventIds: string[] = [];
   eventIds.forEach((id) => {
     const inferencesRole = getInferencesRoleFromEventId(id);
-    if (inferencesRole == InferencesRole.primary) {
+    if (inferencesRole === InferencesRole.primary) {
       primaryEventIds.push(id);
-    } else if (inferencesRole == InferencesRole.corpus) {
+    } else if (inferencesRole === InferencesRole.corpus) {
       corpusEventIds.push(id);
     } else {
       referenceEventIds.push(id);

@@ -1,10 +1,8 @@
 import { json } from "@codemirror/lang-json";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, {
-  BasicSetupOptions,
-  EditorView,
-} from "@uiw/react-codemirror";
+import type { BasicSetupOptions } from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";

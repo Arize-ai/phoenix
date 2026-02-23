@@ -1,11 +1,10 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, SortingFn } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  SortingFn,
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -34,13 +33,13 @@ import {
   TooltipTrigger,
 } from "@phoenix/components/tooltip";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import {
+import type {
   GenerativeModelKind,
   ModelsTable_generativeModels$data,
   ModelsTable_generativeModels$key,
 } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import { EditModelButton } from "@phoenix/pages/settings/EditModelButton";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getProviderName } from "@phoenix/utils/generativeUtils";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 

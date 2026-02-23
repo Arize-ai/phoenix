@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
+import type { ComboBoxProps } from "@phoenix/components";
+import { ComboBox, ComboBoxItem } from "@phoenix/components";
 
-import { PromptComboBoxQuery } from "./__generated__/PromptComboBoxQuery.graphql";
+import type { PromptComboBoxQuery } from "./__generated__/PromptComboBoxQuery.graphql";
 
 export type PromptItem =
   PromptComboBoxQuery["response"]["prompts"]["edges"][number]["prompt"];

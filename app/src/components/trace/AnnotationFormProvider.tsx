@@ -1,15 +1,13 @@
 import { debounce } from "lodash";
-import {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import type { PropsWithChildren } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import invariant from "tiny-invariant";
 
-import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
+import type {
+  Annotation,
+  AnnotationConfig,
+} from "@phoenix/components/annotation";
 
 export type AnnotationFormMutationResult =
   | {

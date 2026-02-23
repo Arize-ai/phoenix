@@ -15,7 +15,7 @@ import {
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 
-import { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";
+import type { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";
 import { ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 
 type SpanEventsListProps = {

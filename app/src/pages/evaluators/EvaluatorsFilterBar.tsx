@@ -1,4 +1,5 @@
-import { DebouncedSearch, Flex, View, ViewProps } from "@phoenix/components";
+import type { ViewProps } from "@phoenix/components";
+import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 
 export const EvaluatorsFilterBar = ({

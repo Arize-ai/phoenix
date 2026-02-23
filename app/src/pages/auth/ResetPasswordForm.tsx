@@ -17,8 +17,8 @@ import {
 import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
-import { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
-import { ResetPasswordFormQuery$key } from "./__generated__/ResetPasswordFormQuery.graphql";
+import type { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
+import type { ResetPasswordFormQuery$key } from "./__generated__/ResetPasswordFormQuery.graphql";
 
 const MIN_PASSWORD_LENGTH = 4;
 

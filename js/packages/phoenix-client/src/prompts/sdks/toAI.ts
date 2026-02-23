@@ -1,9 +1,9 @@
-import { type ModelMessage, type ToolChoice, type ToolSet } from "ai";
+import type { ModelMessage, ToolChoice, ToolSet } from "ai";
 import invariant from "tiny-invariant";
 
 import { safelyConvertMessageToProvider } from "../../schemas/llm/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
-import { Variables, toSDKParamsBase } from "./types";
+import type { Variables, toSDKParamsBase } from "./types";
 
 export type PartialAIParams = {
   messages: ModelMessage[];

@@ -1,14 +1,16 @@
 import { css } from "@emotion/react";
-import {
+import type {
   ColumnDef,
   ColumnSizingState,
   ExpandedState,
+  SortingState,
+  Updater,
+} from "@tanstack/react-table";
+import {
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
   getSortedRowModel,
-  SortingState,
-  Updater,
   useReactTable,
 } from "@tanstack/react-table";
 import React, {
@@ -30,8 +32,8 @@ import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
-import {
+import type { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
+import type {
   EvaluatorFilter,
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";

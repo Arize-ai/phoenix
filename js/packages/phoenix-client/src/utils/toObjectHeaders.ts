@@ -1,4 +1,4 @@
-import { HeadersOptions } from "openapi-fetch";
+import type { HeadersOptions } from "openapi-fetch";
 
 /**
  * A utility function that simplifies the headers for passing to other clients

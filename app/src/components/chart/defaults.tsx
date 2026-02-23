@@ -1,4 +1,4 @@
-import {
+import type {
   CartesianGridProps,
   LabelProps,
   LegendProps,

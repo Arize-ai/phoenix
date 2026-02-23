@@ -4,7 +4,7 @@ import invariant from "tiny-invariant";
 
 import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
-import { authenticatedRootLoader } from "@phoenix/pages/authenticatedRootLoader";
+import type { authenticatedRootLoader } from "@phoenix/pages/authenticatedRootLoader";
 
 import { AppAlerts } from "./AppAlerts";
 

@@ -6,9 +6,9 @@ import {
   useEffect,
   useMemo,
 } from "react";
+import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
-  PreloadedQuery,
   useFragment,
   usePreloadedQuery,
   useQueryLoader,
@@ -21,8 +21,8 @@ import {
   ExperimentNameWithColorSwatch,
   useExperimentColors,
 } from "@phoenix/components/experiment";
+import type { ExperimentCompareViewMode } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
 import {
-  ExperimentCompareViewMode,
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";

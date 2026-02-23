@@ -11,15 +11,15 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
+import type { APIKeyFormParams } from "@phoenix/components/auth";
 import {
-  APIKeyFormParams,
   CreateAPIKeyDialog,
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
 import { useNotifyError } from "@phoenix/contexts";
 
-import { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
-import {
+import type { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
+import type {
   ViewerAPIKeysCreateUserAPIKeyMutation,
   ViewerAPIKeysCreateUserAPIKeyMutation$data,
 } from "./__generated__/ViewerAPIKeysCreateUserAPIKeyMutation.graphql";

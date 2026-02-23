@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren, Suspense, useMemo } from "react";
+import type { PropsWithChildren } from "react";
+import { Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -24,7 +25,7 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
-import {
+import type {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
@@ -286,15 +287,15 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
       css={css`
         height: 100%;
         overflow: hidden;
-        .ac-tabs {
+        .tabs {
           height: 100%;
           overflow: hidden;
-          .ac-tabs__extra {
+          .tabs__extra {
             width: 100%;
             padding-right: var(--global-dimension-size-200);
             padding-bottom: var(--global-dimension-size-50);
           }
-          .ac-tabs__pane-container {
+          .tabs__pane-container {
             min-height: 100%;
             height: 100%;
             overflow-y: auto;

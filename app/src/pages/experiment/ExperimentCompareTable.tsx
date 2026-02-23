@@ -1,15 +1,13 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, Table } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { ReactNode, RefObject } from "react";
 import React, {
-  ReactNode,
-  RefObject,
   startTransition,
   useCallback,
   useEffect,
@@ -17,12 +15,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  graphql,
-  PreloadedQuery,
-  usePaginationFragment,
-  usePreloadedQuery,
-} from "react-relay";
+import type { PreloadedQuery } from "react-relay";
+import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import {
@@ -39,7 +33,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { type AnnotationConfig } from "@phoenix/components/annotation";
+import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,

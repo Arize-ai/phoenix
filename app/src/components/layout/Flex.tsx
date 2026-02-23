@@ -1,12 +1,13 @@
 import { css } from "@emotion/react";
 import { filterDOMProps } from "@react-aria/utils";
-import { forwardRef, ReactNode, Ref } from "react";
+import type { ReactNode, Ref } from "react";
+import { forwardRef } from "react";
 
-import { DOMProps, FlexStyleProps } from "@phoenix/components/types";
+import type { DOMProps, FlexStyleProps } from "@phoenix/components/types";
+import type { StyleHandlers } from "@phoenix/components/utils";
 import {
   passthroughStyle,
   responsiveDimensionValue,
-  StyleHandlers,
   useStyleProps,
 } from "@phoenix/components/utils";
 import { classNames } from "@phoenix/utils";

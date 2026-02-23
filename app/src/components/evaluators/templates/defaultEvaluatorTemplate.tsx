@@ -1,4 +1,4 @@
-import { LLMEvaluatorTemplate } from "@phoenix/components/evaluators/templates/types";
+import type { LLMEvaluatorTemplate } from "@phoenix/components/evaluators/templates/types";
 import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 
 const SYSTEM_PROMPT = `

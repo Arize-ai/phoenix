@@ -13,7 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { PromptTools__main$key } from "@phoenix/pages/prompt/__generated__/PromptTools__main.graphql";
+import type { PromptTools__main$key } from "@phoenix/pages/prompt/__generated__/PromptTools__main.graphql";
 import {
   findToolDefinitionDescription,
   findToolDefinitionName,
@@ -74,7 +74,7 @@ export function PromptTools({
       <DisclosureGroup
         css={css`
           & {
-            > .ac-disclosure:last-child {
+            > .disclosure:last-child {
               &[data-expanded="true"] {
                 border-bottom: 1px solid var(--global-border-color-default);
               }

@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
+import type { RichTooltipProps } from "@phoenix/components/tooltip";
 import {
   RichTooltip,
   RichTooltipActions,
   RichTooltipDescription,
-  RichTooltipProps,
   RichTooltipTitle,
   TooltipArrow,
   TooltipTrigger,

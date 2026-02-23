@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { usePaginationFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { GlobalEvaluatorsTable_evaluators$key } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTable_evaluators.graphql";
+import type { GlobalEvaluatorsTable_evaluators$key } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTable_evaluators.graphql";
 import { EvaluatorsTable } from "@phoenix/pages/evaluators/EvaluatorsTable";
 
 const PAGE_SIZE = 100;

@@ -2,7 +2,7 @@ import { fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { layoutLoaderQuery } from "./__generated__/layoutLoaderQuery.graphql";
+import type { layoutLoaderQuery } from "./__generated__/layoutLoaderQuery.graphql";
 
 export const layoutLoaderGql = graphql`
   query layoutLoaderQuery {

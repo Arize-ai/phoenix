@@ -4,7 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
+import type { ModelConfigFormFieldsQuery } from "./__generated__/ModelConfigFormFieldsQuery.graphql";
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
 import { EndpointConfigFormField } from "./EndpointConfigFormField";
@@ -16,13 +16,13 @@ const modelConfigFormCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-200);
-  .ac-field,
-  .ac-dropdown,
-  .ac-dropdown-button,
-  .ac-slider {
+  .field,
+  .dropdown,
+  .dropdown__button,
+  .slider {
     width: 100%;
   }
-  .ac-slider-controls > .ac-slider-track:first-child::before {
+  .slider__controls > .slider__track:first-child::before {
     background: var(--global-color-primary);
   }
   padding: var(--global-dimension-size-200);

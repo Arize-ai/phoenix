@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { promptVersionLoaderQuery } from "./__generated__/promptVersionLoaderQuery.graphql";
+import type { promptVersionLoaderQuery } from "./__generated__/promptVersionLoaderQuery.graphql";
 
 /**
  * Loads in the necessary page data for the prompt/:promptId/versions/:versionId page

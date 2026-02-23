@@ -1,11 +1,8 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
 import { Flex, View } from "@phoenix/components";
-import {
-  ComboBox,
-  ComboBoxItem,
-  ComboBoxProps,
-} from "@phoenix/components/combobox/ComboBox";
+import type { ComboBoxProps } from "@phoenix/components/combobox/ComboBox";
+import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox/ComboBox";
 
 const meta: Meta = {
   title: "ComboBox",

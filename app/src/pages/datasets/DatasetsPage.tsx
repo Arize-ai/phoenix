@@ -5,7 +5,7 @@ import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
 
-import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import type { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { DatasetsTable } from "./DatasetsTable";
 import { NewDatasetActionMenu } from "./NewDatasetActionMenu";
 export function DatasetsPage() {

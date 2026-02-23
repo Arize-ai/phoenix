@@ -14,7 +14,7 @@ import {
 import { isChatMessageRole } from "./playgroundUtils";
 
 const hiddenLabelCSS = css`
-  .ac-field-label {
+  .field__label {
     display: none;
   }
 `;

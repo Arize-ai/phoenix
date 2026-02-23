@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 const visuallyHiddenCSS = css`
   border: 0;
@@ -16,7 +16,7 @@ const visuallyHiddenCSS = css`
  */
 export const VisuallyHidden = ({ children }: { children: ReactNode }) => {
   return (
-    <span className="ac-visually-hidden" css={visuallyHiddenCSS}>
+    <span className="visually-hidden" css={visuallyHiddenCSS}>
       {children}
     </span>
   );

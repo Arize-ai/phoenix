@@ -1,12 +1,14 @@
 import { css } from "@emotion/react";
-import { forwardRef, ReactNode, Ref, useCallback } from "react";
-import { Button as AriaButton, ButtonRenderProps } from "react-aria-components";
+import type { ReactNode, Ref } from "react";
+import { forwardRef, useCallback } from "react";
+import type { ButtonRenderProps } from "react-aria-components";
+import { Button as AriaButton } from "react-aria-components";
 
 import { useSize } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils";
 
 import { buttonCSS } from "./styles";
-import { ButtonProps } from "./types";
+import type { ButtonProps } from "./types";
 
 function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
   const {

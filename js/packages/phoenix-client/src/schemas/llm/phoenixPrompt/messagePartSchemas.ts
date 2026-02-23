@@ -41,7 +41,7 @@ export const toolResultPartSchema = schemaMatches<
       z.number(),
       z.boolean(),
       z.null(),
-      z.record(z.unknown()),
+      z.record(z.string(), z.unknown()),
       z.array(z.unknown()),
     ]),
   })

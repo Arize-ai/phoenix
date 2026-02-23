@@ -14,8 +14,9 @@ import {
 } from "react-aria-components";
 
 import { Text } from "../content";
-import { NumberField, NumberFieldProps } from "../field/NumberField";
-import { StylableProps } from "../types";
+import type { NumberFieldProps } from "../field/NumberField";
+import { NumberField } from "../field/NumberField";
+import type { StylableProps } from "../types";
 
 const sliderCSS = css`
   --slider-handle-width: var(--global-dimension-size-250);
@@ -35,16 +36,16 @@ const sliderCSS = css`
   width: var(--alias-single-line-width, var(--global-dimension-size-2400));
   color: var(--text-color);
 
-  .ac-slider-label {
+  .slider__label {
     grid-area: label;
   }
 
-  .ac-slider-output {
+  .slider__output {
     grid-area: output;
     min-height: var(--global-dimension-size-350);
   }
 
-  .ac-slider-track {
+  .slider__track {
     grid-area: track;
     position: relative;
     height: var(--slider-track-height, var(--global-border-size-thick));
@@ -71,7 +72,7 @@ const sliderCSS = css`
     }
   }
 
-  .ac-slider-thumb {
+  .slider__thumb {
     width: var(--slider-handle-width, var(--global-dimension-size-200));
     height: var(--slider-handle-height, var(--global-dimension-size-200));
     border-radius: var(
@@ -120,7 +121,7 @@ const sliderCSS = css`
     width: 100%;
     align-items: baseline;
 
-    .ac-slider-number-field {
+    .slider__number-field {
       .react-aria-Input {
         min-width: var(--global-dimension-size-800);
         width: var(--global-dimension-size-800);
@@ -131,7 +132,7 @@ const sliderCSS = css`
       }
     }
 
-    .ac-slider-track {
+    .slider__track {
       height: var(--slider-track-height, var(--global-border-size-thick));
       width: calc(100% - var(--slider-handle-width));
       left: calc(var(--slider-handle-width) / 2);
@@ -156,7 +157,7 @@ const sliderCSS = css`
       }
     }
 
-    .ac-slider-thumb {
+    .slider__thumb {
       top: 50%;
       z-index: 2;
     }
@@ -176,12 +177,12 @@ function _Slider<T extends number | number[]>(
 ) {
   return (
     <AriaSlider css={css(sliderCSS, _css)} {...props} ref={ref}>
-      {label && <Label className="ac-slider-label">{label}</Label>}
-      <AriaSliderOutput className="ac-slider-output">
+      {label && <Label className="slider__label">{label}</Label>}
+      <AriaSliderOutput className="slider__output">
         {typeof children === "undefined" ? <SliderTextField /> : children}
       </AriaSliderOutput>
       <AriaSliderTrack
-        className="ac-slider-track"
+        className="slider__track"
         style={({ state }) => {
           // check state to determine how we should fill the track
           // generate css vars for single thumb
@@ -206,7 +207,7 @@ function _Slider<T extends number | number[]>(
                 key={i}
                 index={i}
                 aria-label={thumbLabels?.[i]}
-                className="ac-slider-thumb"
+                className="slider__thumb"
               />
             ))}
           </>
@@ -238,7 +239,7 @@ export function SliderNumberField({
   const labelProps = useSlottedContext(LabelContext)!;
   return (
     <NumberField
-      className="ac-slider-number-field"
+      className="slider__number-field"
       aria-labelledby={labelProps.id}
       value={value}
       onChange={(v) => {

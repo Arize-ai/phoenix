@@ -1,13 +1,15 @@
 import { css } from "@emotion/react";
-import { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { userEvent, within } from "@storybook/test";
 import React from "react";
 
 import { CompositeField } from "@phoenix/components";
-import {
+import type {
   PromptData,
-  PromptSelector,
   PromptVersion,
+} from "@phoenix/pages/playground/PromptMenu";
+import {
+  PromptSelector,
   PromptVersionSelector,
 } from "@phoenix/pages/playground/PromptMenu";
 

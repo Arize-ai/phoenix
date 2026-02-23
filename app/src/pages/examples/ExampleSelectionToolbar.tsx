@@ -27,7 +27,7 @@ import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingTo
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";
-import { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
+import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 interface SelectedExample {

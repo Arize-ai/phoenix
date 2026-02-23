@@ -1,5 +1,12 @@
 # @arizeai/phoenix-evals
 
+## 0.10.0
+
+### Minor Changes
+
+- b18325b: feat: upgrade AI SDK to v6
+- d43c4ee: feat: add conciseness evaluator
+
 ## 0.9.0
 
 ### Minor Changes

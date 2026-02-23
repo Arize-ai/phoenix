@@ -1,4 +1,5 @@
-import { forwardRef, HTMLProps, Ref } from "react";
+import type { HTMLProps, Ref } from "react";
+import { forwardRef } from "react";
 
 function ListItem(
   { children, ...props }: HTMLProps<HTMLLIElement>,

@@ -11,6 +11,7 @@
     "js/**/dist/**",
     "js/**/build/**",
     "js/docs/**",
+    "**/CHANGELOG.md",
   ],
   "experimentalSortImports": {
     "newlinesBetween": false,

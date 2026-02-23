@@ -6,10 +6,8 @@ import invariant from "tiny-invariant";
 import { Flex, Loading } from "@phoenix/components";
 import { EvaluatorsFilterBar } from "@phoenix/pages/evaluators/EvaluatorsFilterBar";
 import { EvaluatorsFilterProvider } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
-import {
-  evaluatorsPageLoaderGql,
-  EvaluatorsPageLoaderType,
-} from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import type { EvaluatorsPageLoaderType } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import { evaluatorsPageLoaderGql } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { GlobalEvaluatorsTable } from "@phoenix/pages/evaluators/GlobalEvaluatorsTable";
 
 export const EvaluatorsPage = () => {

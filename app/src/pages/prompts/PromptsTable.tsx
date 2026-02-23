@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -31,8 +31,8 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 
-import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
-import { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
+import type { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
+import type { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
 import { PromptActionMenu } from "./PromptActionMenu";
 import { PromptsEmpty } from "./PromptsEmpty";
 

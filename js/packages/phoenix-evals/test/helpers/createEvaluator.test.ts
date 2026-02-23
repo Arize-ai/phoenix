@@ -7,7 +7,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createEvaluator } from "../../src/helpers/createEvaluator";
-import { EvaluationResult } from "../../src/types";
+import type { EvaluationResult } from "../../src/types";
 
 type TestRecord = {
   input: string;

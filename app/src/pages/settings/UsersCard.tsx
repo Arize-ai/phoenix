@@ -1,11 +1,12 @@
-import { ReactNode, Suspense, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Button, Card, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
+import type { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
 import { NewUserDialog } from "./NewUserDialog";
 import { UsersTable } from "./UsersTable";
 

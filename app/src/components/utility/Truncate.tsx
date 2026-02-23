@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import React, { CSSProperties } from "react";
+import type { CSSProperties } from "react";
+import React from "react";
 
 const truncateSingleCSS = css`
   text-overflow: ellipsis;

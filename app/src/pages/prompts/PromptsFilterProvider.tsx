@@ -1,11 +1,5 @@
-import {
-  createContext,
-  Dispatch,
-  PropsWithChildren,
-  SetStateAction,
-  useContext,
-  useState,
-} from "react";
+import type { Dispatch, PropsWithChildren, SetStateAction } from "react";
+import { createContext, useContext, useState } from "react";
 
 export type PromptsFilterContext = {
   filter: string;

@@ -1,10 +1,11 @@
 import { Suspense, useCallback } from "react";
-import { Pressable, PressEvent } from "react-aria";
+import type { PressEvent } from "react-aria";
+import { Pressable } from "react-aria";
 
+import type { TextProps } from "@phoenix/components";
 import {
   Loading,
   RichTooltip,
-  TextProps,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";

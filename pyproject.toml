@@ -100,7 +100,6 @@ dev = [
   "grpcio",
   "httpx",
   "httpx-ws",
-  "hypothesis-jsonschema>=0.23.1",
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15",
@@ -157,6 +156,7 @@ dev = [
   "types-protobuf",
   "types-psutil",
   "types-python-dateutil",
+  "types-PyYAML",
   "types-requests",
   "types-setuptools",
   "types-tabulate",
@@ -282,6 +282,10 @@ pypi = [
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
+files = [
+  "src/",
+  "tests/",
+]
 exclude = [
   "api_reference",
   "dist/",

@@ -50,7 +50,7 @@ export function PlaygroundCredentialsDropdown() {
   return (
     <div
       css={css`
-        .ac-dropdown-button {
+        .dropdown__button {
           min-width: 0px;
         }
       `}

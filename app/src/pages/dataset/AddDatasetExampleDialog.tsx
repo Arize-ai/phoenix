@@ -1,19 +1,15 @@
 import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
-import {
-  Control,
-  Controller,
-  useForm,
-  UseFormHandleSubmit,
-} from "react-hook-form";
+import type { Control, UseFormHandleSubmit } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useMutation } from "react-relay";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Alert,
   Button,
   Card,
-  CardProps,
   Checkbox,
   Dialog,
   FieldError,
@@ -43,7 +39,7 @@ import {
   isJSONObjectString,
 } from "@phoenix/utils/jsonUtils";
 
-import { AddDatasetExampleDialogMutation } from "./__generated__/AddDatasetExampleDialogMutation.graphql";
+import type { AddDatasetExampleDialogMutation } from "./__generated__/AddDatasetExampleDialogMutation.graphql";
 
 type DatasetExamplePatch = {
   input: string;

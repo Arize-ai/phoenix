@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -7,7 +8,6 @@ import {
   Legend,
   ResponsiveContainer,
   Tooltip,
-  TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
@@ -23,7 +23,7 @@ import {
   truncateModelName,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
-import { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";

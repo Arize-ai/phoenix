@@ -2,10 +2,11 @@ import { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
 import { Alert, Button, Flex } from "@phoenix/components";
-import { TraceTree, TraceTreeProps } from "@phoenix/components/trace/TraceTree";
+import type { TraceTreeProps } from "@phoenix/components/trace/TraceTree";
+import { TraceTree } from "@phoenix/components/trace/TraceTree";
 
-import { ConnectedTraceTree$key } from "./__generated__/ConnectedTraceTree.graphql";
-import { ConnectedTraceTreeQuery } from "./__generated__/ConnectedTraceTreeQuery.graphql";
+import type { ConnectedTraceTree$key } from "./__generated__/ConnectedTraceTree.graphql";
+import type { ConnectedTraceTreeQuery } from "./__generated__/ConnectedTraceTreeQuery.graphql";
 
 type ConnectedTraceTreeProps = {
   trace: ConnectedTraceTree$key;

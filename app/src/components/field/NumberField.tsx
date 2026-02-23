@@ -1,12 +1,11 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  NumberField as AriaNumberField,
-  NumberFieldProps as AriaNumberFieldProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { NumberFieldProps as AriaNumberFieldProps } from "react-aria-components";
+import { NumberField as AriaNumberField } from "react-aria-components";
 
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/types";
 import { classNames } from "@phoenix/utils";
 
 import { textFieldCSS } from "./styles";
@@ -30,7 +29,7 @@ const NumberField = forwardRef(function NumberField(
       data-size={size}
       {...otherProps}
       className={classNames(
-        "ac-textfield react-aria-NumberField",
+        "text-field react-aria-NumberField",
         props.className
       )}
       ref={ref}

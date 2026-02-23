@@ -9,7 +9,7 @@ import {
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { EditCustomProviderButtonQuery$data } from "@phoenix/pages/settings/__generated__/EditCustomProviderButtonQuery.graphql";
+import type { EditCustomProviderButtonQuery$data } from "@phoenix/pages/settings/__generated__/EditCustomProviderButtonQuery.graphql";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   safelyJSONStringify,

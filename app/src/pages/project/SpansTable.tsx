@@ -1,11 +1,9 @@
 import { css } from "@emotion/react";
+import type { ColumnDef, SortingState, Table } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
-  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import React, {
@@ -53,11 +51,11 @@ import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
-import {
+import type {
   SpansTable_spans$key,
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
-import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
+import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";

@@ -19,9 +19,9 @@ import {
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
-import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
+import type { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 
-import {
+import type {
   DatasetPageQuery,
   DatasetPageQuery$data,
 } from "./__generated__/DatasetPageQuery.graphql";
@@ -92,7 +92,7 @@ const mainCSS = css`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  .ac-tabs {
+  .tabs {
     flex: 1 1 auto;
     overflow: hidden;
     display: flex;
@@ -100,7 +100,7 @@ const mainCSS = css`
     div[role="tablist"] {
       flex: none;
     }
-    .ac-tabs__pane-container {
+    .tabs__pane-container {
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;

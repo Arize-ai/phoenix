@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useState } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { OpenTimeRangeWithKey } from "./types";
+import type { OpenTimeRangeWithKey } from "./types";
 import {
   getTimeRangeFromLastNTimeRangeKey,
   isLastNTimeRangeKey,

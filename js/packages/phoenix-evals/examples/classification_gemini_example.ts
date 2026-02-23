@@ -2,7 +2,7 @@ import assert from "assert";
 import { google } from "@ai-sdk/google";
 
 /* eslint-disable no-console */
-import { PromptTemplate } from "../src";
+import type { PromptTemplate } from "../src";
 import { createClassificationEvaluator } from "../src/llm";
 
 const model = google("gemini-2.5-flash");

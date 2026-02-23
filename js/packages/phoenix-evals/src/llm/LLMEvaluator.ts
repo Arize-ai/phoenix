@@ -1,5 +1,5 @@
 import { EvaluatorBase } from "../core/EvaluatorBase";
-import { CreateLLMEvaluatorArgs } from "../types";
+import type { CreateLLMEvaluatorArgs } from "../types";
 
 /**
  * Base class for llm evaluation metrics / scores

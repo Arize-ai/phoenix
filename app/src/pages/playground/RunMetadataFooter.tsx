@@ -20,7 +20,7 @@ import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
-import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
+import type { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
 export function RunMetadataFooter({ spanId }: { spanId: string }) {

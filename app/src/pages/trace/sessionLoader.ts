@@ -1,9 +1,9 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { sessionLoaderQuery } from "./__generated__/sessionLoaderQuery.graphql";
+import type { sessionLoaderQuery } from "./__generated__/sessionLoaderQuery.graphql";
 
 /**
  * Loads in the necessary page data for the dataset page

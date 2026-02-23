@@ -1,17 +1,16 @@
-import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
+import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
-import { LlmProviderToolDefinition } from "@phoenix/schemas";
-import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
+import type { LlmProviderToolDefinition } from "@phoenix/schemas";
+import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
+import type { PlaygroundInput, PlaygroundInstance } from "@phoenix/store";
 import {
   _resetInstanceId,
   _resetMessageId,
   createOpenAIResponseFormat,
-  PlaygroundInput,
-  PlaygroundInstance,
 } from "@phoenix/store";
 
-import { InvocationParameterInput } from "../__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import type { InvocationParameterInput } from "../__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
@@ -45,15 +44,14 @@ import {
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
-import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
+import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
+import type { SpanTool, SpanToolCall } from "./fixtures";
 import {
   basePlaygroundSpan,
   expectedAnthropicToolCall,
   expectedTestOpenAIToolCall,
   expectedUnknownToolCall,
   spanAttributesWithInputMessages,
-  SpanTool,
-  SpanToolCall,
   testSpanAnthropicTool,
   testSpanAnthropicToolDefinition,
   testSpanOpenAITool,

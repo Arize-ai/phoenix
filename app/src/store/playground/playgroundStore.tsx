@@ -1,8 +1,9 @@
-import { create, StateCreator } from "zustand";
+import type { StateCreator } from "zustand";
+import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_NAME,
@@ -19,7 +20,7 @@ import {
   mergeInvocationParametersWithDefaults,
 } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
-import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
+import type { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 
 import {
@@ -790,7 +791,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           dirtyInstances: {
             ...get().dirtyInstances,
-            ...(dirty != undefined ? { [instanceId]: dirty } : {}),
+            ...(dirty != null ? { [instanceId]: dirty } : {}),
           },
           instances: instances.map((instance) => {
             if (instance.id === instanceId) {

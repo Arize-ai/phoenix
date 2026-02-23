@@ -12,7 +12,7 @@ from openinference.semconv.trace import (
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from sqlalchemy import select
 from strawberry.relay import GlobalID
-from vcr.request import Request
+from vcr.request import Request  # type: ignore[import-untyped]
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models

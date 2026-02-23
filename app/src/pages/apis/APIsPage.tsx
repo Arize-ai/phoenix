@@ -25,11 +25,11 @@ export function APIsPage() {
         flex-direction: column;
         flex: 1 1 auto;
         height: 100%;
-        .ac-tabs {
+        .tabs {
           flex: 1 1 auto;
         }
-        .ac-tabs__pane-container,
-        .ac-tabs__pane-container > div {
+        .tabs__pane-container,
+        .tabs__pane-container > div {
           flex: 1 1 auto;
           height: 100%;
         }
@@ -44,10 +44,18 @@ export function APIsPage() {
           <Tab id="graphql">GraphQL</Tab>
         </TabList>
         <LazyTabPanel id="rest">
-          <iframe src={`${basename}/docs`} style={iframeStyle} />
+          <iframe
+            title="REST API documentation"
+            src={`${basename}/docs`}
+            style={iframeStyle}
+          />
         </LazyTabPanel>
         <LazyTabPanel id="graphql">
-          <iframe src={`${basename}/graphql`} style={iframeStyle} />
+          <iframe
+            title="GraphQL API documentation"
+            src={`${basename}/graphql`}
+            style={iframeStyle}
+          />
         </LazyTabPanel>
       </Tabs>
     </div>

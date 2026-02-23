@@ -1,6 +1,6 @@
 import z from "zod";
 
-import { PromptToolChoice } from "../../../types/prompts";
+import type { PromptToolChoice } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
 
 /**

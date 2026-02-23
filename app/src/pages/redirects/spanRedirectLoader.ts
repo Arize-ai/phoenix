@@ -1,9 +1,10 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs, redirect } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
+import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { spanRedirectLoaderQuery } from "./__generated__/spanRedirectLoaderQuery.graphql";
+import type { spanRedirectLoaderQuery } from "./__generated__/spanRedirectLoaderQuery.graphql";
 
 export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
   const { span_otel_id } = params;

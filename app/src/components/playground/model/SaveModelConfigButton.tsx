@@ -1,11 +1,7 @@
 import { useCallback } from "react";
 
-import {
-  Button,
-  ButtonProps,
-  Tooltip,
-  TooltipTrigger,
-} from "@phoenix/components";
+import type { ButtonProps } from "@phoenix/components";
+import { Button, Tooltip, TooltipTrigger } from "@phoenix/components";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";

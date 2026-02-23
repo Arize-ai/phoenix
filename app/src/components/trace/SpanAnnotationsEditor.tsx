@@ -6,7 +6,8 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { FocusManagerOptions, FocusScope } from "react-aria";
+import type { FocusManagerOptions } from "react-aria";
+import { FocusScope } from "react-aria";
 import {
   graphql,
   useFragment,
@@ -31,30 +32,33 @@ import {
   useNullableTimeRangeContext,
   View,
 } from "@phoenix/components";
-import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
+import type {
+  Annotation,
+  AnnotationConfig,
+} from "@phoenix/components/annotation";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
 import { Empty } from "@phoenix/components/Empty";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import type { SpanAnnotationsEditorAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorAddAnnotationConfigToProjectMutation.graphql";
-import { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
-import { SpanAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorDeleteAnnotationMutation.graphql";
-import { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorSpanAnnotationsListQuery.graphql";
+import type { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
+import type { SpanAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorDeleteAnnotationMutation.graphql";
+import type { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorSpanAnnotationsListQuery.graphql";
 import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
-import {
-  AnnotationFormMutationResult,
-  AnnotationFormProvider,
-} from "@phoenix/components/trace/AnnotationFormProvider";
+import type { AnnotationFormMutationResult } from "@phoenix/components/trace/AnnotationFormProvider";
+import { AnnotationFormProvider } from "@phoenix/components/trace/AnnotationFormProvider";
 import { useNotifyError } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
-import { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
+import type { AnnotationConfig as AnnotationConfigType } from "@phoenix/pages/settings/types";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
-import { isStringArray, Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
+import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
-import { SpanAnnotationsEditorCreateAnnotationConfigMutation } from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
-import { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
-import { AnnotationFormData, SpanAnnotationInput } from "./SpanAnnotationInput";
+import type { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
+import type { SpanAnnotationsEditorCreateAnnotationConfigMutation } from "./__generated__/SpanAnnotationsEditorCreateAnnotationConfigMutation.graphql";
+import type { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
+import type { AnnotationFormData } from "./SpanAnnotationInput";
+import { SpanAnnotationInput } from "./SpanAnnotationInput";
 
 export const EDIT_ANNOTATION_HOTKEY = "e";
 

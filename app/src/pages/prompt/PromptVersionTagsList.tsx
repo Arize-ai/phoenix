@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Token, TokenProps } from "@phoenix/components";
+import type { TokenProps } from "@phoenix/components";
+import { Flex, Token } from "@phoenix/components";
 
-import { PromptVersionTagsList_data$key } from "./__generated__/PromptVersionTagsList_data.graphql";
+import type { PromptVersionTagsList_data$key } from "./__generated__/PromptVersionTagsList_data.graphql";
 
 export function PromptVersionTagsList({
   promptVersion,

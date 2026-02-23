@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
-import { useDatasetSplitMutationsCreateSplitMutation } from "@phoenix/components/datasetSplit/__generated__/useDatasetSplitMutationsCreateSplitMutation.graphql";
-import { useDatasetSplitMutationsCreateSplitWithExamplesMutation } from "@phoenix/components/datasetSplit/__generated__/useDatasetSplitMutationsCreateSplitWithExamplesMutation.graphql";
-import { DatasetSplitParams } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
+import type { useDatasetSplitMutationsCreateSplitMutation } from "@phoenix/components/datasetSplit/__generated__/useDatasetSplitMutationsCreateSplitMutation.graphql";
+import type { useDatasetSplitMutationsCreateSplitWithExamplesMutation } from "@phoenix/components/datasetSplit/__generated__/useDatasetSplitMutationsCreateSplitWithExamplesMutation.graphql";
+import type { DatasetSplitParams } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 

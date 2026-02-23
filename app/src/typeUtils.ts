@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 /**
  * Utility function that uses the type system to check if a switch statement is exhaustive.

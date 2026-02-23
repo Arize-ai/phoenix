@@ -1,5 +1,6 @@
 import { graphql, useFragment } from "react-relay";
 
+import type { SelectProps } from "@phoenix/components";
 import {
   Button,
   Flex,
@@ -9,7 +10,6 @@ import {
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
-  SelectProps,
   SelectValue,
   Text,
 } from "@phoenix/components";

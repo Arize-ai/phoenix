@@ -2,7 +2,7 @@
 import { createClient } from "../src";
 import { createDataset } from "../src/datasets/createDataset";
 import { getDataset } from "../src/datasets/getDataset";
-import { Example } from "../src/types/datasets";
+import type { Example } from "../src/types/datasets";
 
 // Initialize Phoenix client
 const client = createClient();

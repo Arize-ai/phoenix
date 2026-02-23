@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
-import { DeletePromptLabelButtonMutation } from "./__generated__/DeletePromptLabelButtonMutation.graphql";
+import type { DeletePromptLabelButtonMutation } from "./__generated__/DeletePromptLabelButtonMutation.graphql";
 
 export type DeletePromptLabelButtonProps = {
   promptLabelId: string;

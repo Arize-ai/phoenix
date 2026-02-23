@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 export interface LargeTextWrapProps extends PropsWithChildren {
   height?: number;

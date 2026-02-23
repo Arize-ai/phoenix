@@ -3,6 +3,8 @@
 
   "extends": ["../.oxlintrc.json"],
 
+  "plugins": ["typescript", "node"],
+
   "env": {
     "node": true
   },
@@ -10,6 +12,15 @@
   "rules": {
     "eqeqeq": ["error", "smart"]
   },
+
+  "overrides": [
+    {
+      "files": ["examples/apps/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
 
   "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
 }

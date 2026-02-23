@@ -1,17 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Key } from "react-aria-components";
-import {
-  graphql,
-  PreloadedQuery,
-  usePreloadedQuery,
-  useQueryLoader,
-} from "react-relay";
+import type { Key } from "react-aria-components";
+import type { PreloadedQuery } from "react-relay";
+import { graphql, usePreloadedQuery, useQueryLoader } from "react-relay";
 
-import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
+import type { ComboBoxProps } from "@phoenix/components";
+import { ComboBox, ComboBoxItem } from "@phoenix/components";
 
-import modelsQuery, {
-  ModelComboBoxQuery,
-} from "./__generated__/ModelComboBoxQuery.graphql";
+import type { ModelComboBoxQuery } from "./__generated__/ModelComboBoxQuery.graphql";
+import modelsQuery from "./__generated__/ModelComboBoxQuery.graphql";
 
 type ModelItem = {
   name: string;

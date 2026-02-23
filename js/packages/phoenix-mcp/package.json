@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-mcp",
-  "version": "2.3.6",
+  "version": "2.3.7",
   "description": "A MCP server for Arize Phoenix",
   "keywords": [
     "arize-phoenix",
@@ -32,9 +32,9 @@
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.2",
-    "glob": "^12.0.0",
+    "glob": "^13.0.6",
     "minimist": "^1.2.8",
-    "zod": "^3.24.2"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",

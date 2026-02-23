@@ -6,10 +6,8 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
-import {
-  datasetEvaluatorDetailsLoader,
-  DatasetEvaluatorDetailsLoaderData,
-} from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
@@ -30,12 +28,17 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
+import type {
+  DatasetLoaderData,
+  ProjectLoaderData,
+  PromptLoaderData,
+  SpanPlaygroundPageLoaderData,
+} from "./pages";
 import {
   APIsPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
   datasetLoader,
-  DatasetLoaderData,
   DatasetPage,
   DatasetsPage,
   datasetVersionsLoader,
@@ -55,7 +58,6 @@ import {
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
-  ProjectLoaderData,
   ProjectMetricsPage,
   ProjectPage,
   ProjectSessionsPage,
@@ -65,7 +67,6 @@ import {
   ProjectTracesPage,
   PromptConfigPage,
   promptLoader,
-  PromptLoaderData,
   promptsLoader,
   PromptsPage,
   resetPasswordLoader,
@@ -78,7 +79,6 @@ import {
   SettingsPromptsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
-  SpanPlaygroundPageLoaderData,
   SupportPage,
   TracePage,
 } from "./pages";

@@ -1,11 +1,12 @@
-import { create, StateCreator } from "zustand";
+import type { StateCreator } from "zustand";
+import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
-import { ProgrammingLanguage } from "@phoenix/types/code";
+import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
-import { ModelConfig } from "./playground";
+import type { ModelConfig } from "./playground";
 
 export type MarkdownDisplayMode = "text" | "markdown";
 

@@ -1,10 +1,8 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Button,
-  Input as AriaInput,
-  InputProps as AriaInputProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { InputProps as AriaInputProps } from "react-aria-components";
+import { Button, Input as AriaInput } from "react-aria-components";
 
 import { useSize } from "@phoenix/contexts/SizeContext";
 
@@ -52,7 +50,7 @@ function CredentialInput(
           ) !important; // Don't want to fight specificity here
         }
 
-        .ac-credential-input__toggle {
+        .credential-input__toggle {
           position: absolute;
           right: var(
             --textfield-vertical-padding
@@ -94,7 +92,7 @@ function CredentialInput(
         readOnly={readOnly}
       />
       <Button
-        className="ac-credential-input__toggle"
+        className="credential-input__toggle"
         onPress={() => setIsVisible(!isVisible)}
         isDisabled={disabled || readOnly}
         aria-label={isVisible ? "Hide credential" : "Show credential"}

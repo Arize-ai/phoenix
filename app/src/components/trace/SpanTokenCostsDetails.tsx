@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { SpanTokenCostsDetailsQuery } from "./__generated__/SpanTokenCostsDetailsQuery.graphql";
+import type { SpanTokenCostsDetailsQuery } from "./__generated__/SpanTokenCostsDetailsQuery.graphql";
 import { TokenCostsDetails } from "./TokenCostsDetails";
 
 export function SpanTokenCostsDetails(props: { spanNodeId: string }) {

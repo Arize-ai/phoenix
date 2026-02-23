@@ -19,10 +19,10 @@ import {
   TypeScriptBlock,
 } from "@phoenix/components/code";
 import { usePreferencesContext } from "@phoenix/contexts";
-import { ProgrammingLanguage } from "@phoenix/types/code";
+import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { PromptCodeExportCard__main$key } from "./__generated__/PromptCodeExportCard__main.graphql";
+import type { PromptCodeExportCard__main$key } from "./__generated__/PromptCodeExportCard__main.graphql";
 import {
   mapPromptToClientSnippet,
   mapPromptToSDKSnippet,

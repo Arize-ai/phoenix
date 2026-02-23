@@ -3,11 +3,11 @@ import { useCallback, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Alert,
   Button,
   Card,
-  CardProps,
   Dialog,
   Flex,
   Icon,
@@ -26,7 +26,7 @@ import {
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-import { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
+import type { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",

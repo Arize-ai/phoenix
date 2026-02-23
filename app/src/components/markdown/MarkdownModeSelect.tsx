@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
-import { MarkdownDisplayMode } from "./types";
+import type { MarkdownDisplayMode } from "./types";
 
 const markdownDisplayModes: MarkdownDisplayMode[] = ["text", "markdown"];
 

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { ListBox, ListBoxItem } from "@phoenix/components";
-import { Annotation } from "@phoenix/components/annotation";
+import type { Annotation } from "@phoenix/components/annotation";
 import { useExperimentRunFilterCondition } from "@phoenix/pages/experiment/ExperimentRunFilterConditionContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 

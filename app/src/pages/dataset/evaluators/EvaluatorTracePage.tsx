@@ -19,7 +19,7 @@ import {
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
 
-import { datasetEvaluatorDetailsLoader } from "./datasetEvaluatorDetailsLoader";
+import type { datasetEvaluatorDetailsLoader } from "./datasetEvaluatorDetailsLoader";
 
 export const EVALUATOR_DETAILS_ROUTE_ID = "evaluatorDetails";
 

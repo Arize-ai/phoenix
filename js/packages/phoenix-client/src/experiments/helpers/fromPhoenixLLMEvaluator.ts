@@ -1,6 +1,6 @@
 import type { LLMEvaluator } from "@arizeai/phoenix-evals";
 
-import { Evaluator } from "../../types/experiments";
+import type { Evaluator } from "../../types/experiments";
 import { asExperimentEvaluator } from "./asExperimentEvaluator";
 
 /**

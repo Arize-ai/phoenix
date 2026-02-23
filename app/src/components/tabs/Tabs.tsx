@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import React, { ComponentProps } from "react";
+import type { ComponentProps } from "react";
+import React from "react";
 import {
   Tab as AriaTab,
   TabList as AriaTabList,
@@ -11,7 +12,7 @@ import {
   type TabsProps as AriaTabsProps,
 } from "react-aria-components";
 
-import { StylableProps } from "@phoenix/components/types";
+import type { StylableProps } from "@phoenix/components/types";
 import { classNames } from "@phoenix/utils";
 
 const tabsCSS = css`
@@ -49,7 +50,7 @@ export function Tabs({
   return (
     <AriaTabs
       css={css(tabsCSS, _css)}
-      className={classNames("react-aria-Tabs", "ac-tabs", className)}
+      className={classNames("react-aria-Tabs", "tabs", className)}
       orientation={orientation}
       {...props}
     >
