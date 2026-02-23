@@ -45,9 +45,11 @@ class BasicQA(dspy.Signature):
 
 
 if __name__ == "__main__":
-    turbo = dspy.OpenAI(model="gpt-3.5-turbo")
+    from openinference.instrumentation import using_attributes
 
-    dspy.settings.configure(lm=turbo)
+    turbo = dspy.LM("openai/gpt-3.5-turbo")
+
+    dspy.configure(lm=turbo)
 
     with using_attributes(
         session_id="my-test-session",

@@ -11,11 +11,11 @@ class BedrockModel:
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
-    max_tokens: int = 256
+    max_tokens: int = 1024
     """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
     """Total probability mass of tokens to consider at each step."""
-    top_k: int = 256
+    top_k: Optional[int] = None
     """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens. """

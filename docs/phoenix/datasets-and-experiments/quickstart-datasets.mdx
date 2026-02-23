@@ -272,10 +272,10 @@ Use pre-built evaluators to grade task output with code...
   <Tab title="TypeScript" icon="js">
 
       ```javascript
-      import { asEvaluator } from "@arizeai/phoenix-client/experiments";
+      import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
 
       // Code-based evaluator that checks if response contains specific keywords
-      const containsKeyword = asEvaluator({
+      const containsKeyword = asExperimentEvaluator({
         name: "contains_keyword",
         kind: "CODE",
         evaluate: async ({ output }) => {
@@ -320,7 +320,7 @@ or LLMs.
   <Tab title="TypeScript" icon="js">
 
     ```javascript
-    import { asEvaluator } from "@arizeai/phoenix-client/experiments";
+    import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
     import { OpenAI } from "openai";
 
     const openai = new OpenAI({
@@ -328,7 +328,7 @@ or LLMs.
     });
 
     // LLM-based evaluator for conciseness
-    const conciseness = asEvaluator({
+    const conciseness = asExperimentEvaluator({
       name: "conciseness",
       kind: "LLM",
       evaluate: async ({ output }) => {
@@ -386,10 +386,10 @@ Define custom evaluators with code...
   <Tab title="TypeScript" icon="js">
 
     ```javascript
-    import { asEvaluator } from "@arizeai/phoenix-client/experiments";
+    import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
 
     // Custom Jaccard similarity evaluator
-    const jaccardSimilarity = asEvaluator({
+    const jaccardSimilarity = asExperimentEvaluator({
       name: "jaccard_similarity",
       kind: "CODE",
       evaluate: async ({ output, expected }) => {
@@ -464,7 +464,7 @@ or LLMs.
   <Tab title="TypeScript" icon="js">
 
     ```javascript
-    import { asEvaluator } from "@arizeai/phoenix-client/experiments";
+    import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
     import { OpenAI } from "openai";
 
     const openai = new OpenAI({
@@ -472,7 +472,7 @@ or LLMs.
     });
 
     // LLM-based accuracy evaluator
-    const accuracy = asEvaluator({
+    const accuracy = asExperimentEvaluator({
       name: "accuracy",
       kind: "LLM",
       evaluate: async ({ input, output, expected }) => {
