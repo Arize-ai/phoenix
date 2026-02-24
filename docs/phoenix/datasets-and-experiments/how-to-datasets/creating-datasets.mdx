@@ -34,7 +34,7 @@ When manually creating a dataset (let's say collecting hypothetical questions an
     px_client = Client()
     dataset = px_client.datasets.create_dataset(
         dataframe=dataset_df,
-        dataset_name="physics-questions",
+        name="physics-questions",
         input_keys=["query"],
         output_keys=["responses"],
     )

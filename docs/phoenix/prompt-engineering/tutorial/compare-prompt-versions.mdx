@@ -95,7 +95,7 @@ const newVersion = await createPrompt({
   version: promptVersion({
     description: "Added broad_vs_specific instruction",
     modelProvider: "OPENAI",
-    modelName: existing.model_name
+    modelName: existing.model_name,
     template: newMessages,
     templateFormat: "MUSTACHE",
     invocationParameters: { temperature: 1, top_p: 1 },
@@ -219,8 +219,8 @@ VERSION_3 = "REPLACE WITH VERSION 3 ID"
 VERSION_4 = "REPLACE WITH VERSION 4 ID"
 
 # Get prompt versions
-prompt_v1 = px_client.prompts.get(prompt_version_id=VERSION_A)
-prompt_v2 = px_client.prompts.get(prompt_version_id=VERSION_B)
+prompt_v1 = px_client.prompts.get(prompt_version_id=VERSION_3)
+prompt_v2 = px_client.prompts.get(prompt_version_id=VERSION_4)
 
 # Define task factory
 def create_task(prompt):
@@ -238,16 +238,16 @@ def create_task(prompt):
 
 # Run experiment with Version 3
 experiment_v3 = await async_run_experiment(
-    dataset=dataset,
+    dataset=support_query_dataset,
     task=create_task(prompt_v1),
-    evaluators=[ground_truth_evaluator, output_evaluator], 
+    evaluators=[ground_truth_evaluator, output_evaluator],
     ## evaluator code in Test Prompts at Scale
     experiment_name="support-classifier-v3",
 )
 
 # Run experiment with Version 4
 experiment_v4 = await async_run_experiment(
-    dataset=dataset,
+    dataset=support_query_dataset,
     task=create_task(prompt_v2),
     evaluators=[ground_truth_evaluator, output_evaluator],
     ## evaluator code in Test Prompts at Scale
@@ -286,7 +286,7 @@ const newVersion = await createPrompt({
   version: promptVersion({
     description: "Added broad_vs_specific instruction",
     modelProvider: "OPENAI",
-    modelName: existing.model_name
+    modelName: existing.model_name,
     template: newMessages,
     templateFormat: "MUSTACHE",
     invocationParameters: { temperature: 1, top_p: 1 },

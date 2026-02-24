@@ -99,7 +99,7 @@ The **task** function specifies how to generate output for every input in the da
   <Tab title="Python" icon="python">
 ```python
 ## Feel free to use any LLM provider. To run experiments asynchronously, use an async client.
-from openai import AsyncOpenAI()
+from openai import AsyncOpenAI
 from phoenix.client import Client
 
 async_openai_client = AsyncOpenAI()
@@ -254,7 +254,7 @@ from phoenix.client.experiments import async_run_experiment
 experiment = await async_run_experiment(
     dataset=support_query_dataset,
     task=task,
-    evaluators=[ground_truth_evaluator, analysis_evaluator],
+    evaluators=[ground_truth_evaluator, output_evaluator],
 )
 ```
 

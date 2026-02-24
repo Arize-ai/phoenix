@@ -193,8 +193,8 @@ results = llm_classify(
     model=model,
     data=df,
     data_processor=async_fetch_gcloud_data,  # Optional, for private links
-    template=EMOTION_PROMPT_TEMPLATE,
-    rails=EMOTION_AUDIO_RAILS,
+    template=template,
+    rails=TONE_EMOTION_RAILS,
     provide_explanation=True,  # Enable explanations
 )
 ```

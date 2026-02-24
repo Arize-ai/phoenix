@@ -205,12 +205,12 @@ For better integration with the Experiments UI, use the `create_evaluator` funct
 from phoenix.evals import create_evaluator
 import re
 
-@create_evaluator(name="contains_link", kind="CODE")
+@create_evaluator(name="contains_link", kind="code")
 def contains_link(output):
     pattern = r"https?://[^\s]+"
     return bool(re.search(pattern, output))
 
-@create_evaluator(name="wordiness", kind="CODE")
+@create_evaluator(name="wordiness", kind="code")
 def wordiness(expected, output):
     return len(output.split()) < len(expected.split())
 ```
@@ -243,7 +243,7 @@ Evaluators are passed as a list to the `evaluators` parameter in `run_experiment
 from phoenix.experiments import run_experiment
 from phoenix.evals import create_evaluator
 
-@create_evaluator(name="has_greeting", kind="CODE")
+@create_evaluator(name="has_greeting", kind="code")
 def has_greeting(output):
     return any(word in output.lower() for word in ["hello", "hi", "hey"])
 
