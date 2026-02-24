@@ -157,7 +157,7 @@ setup: check-tools install-python install-node ## Complete development environme
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
-	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o app/schema.graphql
+	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o $(APP_DIR)/schema.graphql
 	@echo -e "$(GREEN)✓ app/schema.graphql$(NC)"
 
 relay-build: ## Build Relay from GraphQL schema
@@ -170,8 +170,7 @@ graphql: schema-graphql relay-build ## Generate GraphQL schema and build Relay (
 
 schema-openapi: ## Generate OpenAPI schema from Python
 	@echo -e "$(CYAN)Generating OpenAPI schema...$(NC)"
-	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
-	@cd $(SCHEMAS_DIR) && $(UV) run python -m phoenix.server.api.openapi.main -o openapi.json
+	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI

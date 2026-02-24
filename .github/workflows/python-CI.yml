@@ -237,10 +237,7 @@ jobs:
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
-        run: |
-          uv venv
-          uv pip install --no-sources --strict --reinstall-package arize-phoenix .
-          cd schemas && uv run python -m phoenix.server.api.openapi.main -o openapi.json
+        run: make schema-openapi
       - run: git diff --exit-code
 
   compile-protobuf:
