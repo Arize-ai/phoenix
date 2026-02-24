@@ -295,13 +295,12 @@ format-ts: ## Format TypeScript packages (js/)
 format: format-python format-frontend format-ts ## Format all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Code formatting complete$(NC)"
 
-clean-notebooks: ## Clean Jupyter notebook metadata
+clean-notebooks: ## Clean Jupyter notebook output and metadata
 	@echo -e "$(CYAN)Cleaning Jupyter notebook metadata...$(NC)"
-	@$(UV) pip install --strict -U -r requirements/clean-jupyter-notebooks.txt
 	@find . -type f -name "*.ipynb" \
 		-not -path "*/tutorials/evals/*" \
 		-not -path "*/tutorials/ai_evals_course/*" \
-		-exec $(UV) run jupyter nbconvert \
+		-exec uv run jupyter nbconvert \
 			--ClearOutputPreprocessor.enabled=True \
 			--ClearMetadataPreprocessor.enabled=True \
 			--inplace {} \;

@@ -164,6 +164,7 @@ dev = [
   "typing-extensions",
   "uvloop; platform_system != 'Windows'",
   "vcrpy",
+  "jupyter>=1.1.1",
 ]
 
 [project.optional-dependencies]

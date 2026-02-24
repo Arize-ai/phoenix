@@ -175,16 +175,7 @@ jobs:
             requirements/clean-jupyter-notebooks.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
-        run: |
-          uv venv
-          uv pip install --strict -U -r requirements/clean-jupyter-notebooks.txt
-          find . -type f -name "*.ipynb" \
-            -not -path "*/tutorials/evals/*" \
-            -not -path "*/tutorials/ai_evals_course/*" \
-            -exec uv run jupyter nbconvert \
-              --ClearOutputPreprocessor.enabled=True \
-              --ClearMetadataPreprocessor.enabled=True \
-              --inplace {} \;
+        run: make clean-notebooks
       - run: git diff --exit-code
 
   build-graphql-schema:
