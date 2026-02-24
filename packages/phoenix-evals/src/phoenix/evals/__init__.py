@@ -86,7 +86,7 @@ from .legacy import (
     llm_generate,
     run_evals,
 )
-from .llm import LLM
+from .llm import LLM, phoenix_prompt_to_prompt_template
 
 __version__ = version("arize-phoenix-evals")
 
@@ -178,6 +178,7 @@ __all__ = [
     "templating",
     "llm",
     "LLM",
+    "phoenix_prompt_to_prompt_template",
     "bind_evaluator",
     "tracing",
     "utils",
