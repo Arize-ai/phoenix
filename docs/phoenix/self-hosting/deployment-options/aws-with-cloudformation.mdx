@@ -45,16 +45,16 @@ arn:aws:iam::123456789012:policy/PhoenixDeployPermissions
 
 **a) If you use an IAM User:**
 
-```html
-bashCopyEditaws iam attach-user-policy \
+```bash
+aws iam attach-user-policy \
   --user-name <YOUR_DEPLOY_USER> \
   --policy-arn <PASTE ARN HERE>
 ```
 
 **b) If you use an IAM Role (e.g. CodeBuild or CI/CD):**
 
-```html
-bashCopyEditaws iam attach-role-policy \
+```bash
+aws iam attach-role-policy \
   --role-name <YOUR_DEPLOY_ROLE> \
   --policy-arn <PASTE ARN HERE>
 ```
@@ -97,7 +97,7 @@ $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/my-app
 #### 2. Authenticate Docker to ECR
 
 ```swift
-ecr get-login-password --region $REGION \
+aws ecr get-login-password --region $REGION \
   | docker login \
     --username AWS \
     --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
@@ -245,7 +245,7 @@ You can now reference these secrets in your downstream CloudFormation templates 
 
 **Copy this CloudFormation template:** [**app.yml**](https://github.com/Arize-ai/phoenix/blob/main/tutorials/deployment/AWS%20Cloudformation/app.yml)
 
-This CloudFormation stack (`app.yaml`) launches:
+This CloudFormation stack (`app.yml`) launches:
 * An ECS **Cluster**
 * An **IAM Task Execution Role** & **Task Role** (to pull images, read secrets)
 * A **Security Group** that allows outbound Internet access
@@ -312,8 +312,8 @@ Once you have Phoenix + your agent/LLM task up and running, you can easily add m
 
 2. **Add new TaskDefinitions / Services** to your `app.yml` (or split each into its own CFN stack):
 
-   ```php expandable
-   yamlCopyEditParameters:
+   ```yaml expandable
+   Parameters:
      FrontendImageUri: …
      BackendImageUri: …
      DbMigrationImageUri: …

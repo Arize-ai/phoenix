@@ -297,7 +297,7 @@ def prompt_task(input):
 
 def evaluate_response(input, output):
     response_classifications = llm_classify(
-        dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
+        data=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
         template=TOOL_CALLING_PROMPT_TEMPLATE,
         model=OpenAIModel(model="gpt-3.5-turbo"),
         rails=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
@@ -381,7 +381,7 @@ def prompt_task(input):
 
 def evaluate_response(input, output):
     response_classifications = llm_classify(
-        dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
+        data=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
         template=TOOL_CALLING_PROMPT_TEMPLATE,
         model=OpenAIModel(model="gpt-3.5-turbo"),
         rails=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),

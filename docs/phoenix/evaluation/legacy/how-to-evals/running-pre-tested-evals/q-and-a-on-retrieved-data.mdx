@@ -6,11 +6,11 @@ title: "Q&A On retrieved data"
 
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
 
-- **question**: This is the question the Q\&A system is running against
+- **input**: This is the question the Q\&A system is running against
 
-- **sampled_answer**: This is the answer from the Q\&A system.
+- **output**: This is the answer from the Q\&A system.
 
-- **context**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
+- **reference**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
 
 ## Q\&A Eval Template
 
@@ -19,11 +19,11 @@ You are given a question, an answer and reference text. You must determine wheth
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {question}
+    [Question]: {input}
     ************
-    [Reference]: {context}
+    [Reference]: {reference}
     ************
-    [Answer]: {sampled_answer}
+    [Answer]: {output}
     [END DATA]
 Your response must be a single word, either "correct" or "incorrect",
 and should not contain any text or characters aside from that word.
@@ -33,14 +33,14 @@ answer.
 ```
 
 <Info>
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/span_templates.py#L104).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/legacy/span_templates.py#L104).
 
 </Info>
 
 ## How To Run the Q\&A Eval
 
 ```python
-import phoenix.evals.templates.default_templates as templates
+import phoenix.evals.default_templates as templates
 from phoenix.evals import (
     OpenAIModel,
     download_benchmark_dataset,
@@ -48,7 +48,7 @@ from phoenix.evals import (
 )
 
 model = OpenAIModel(
-    model_name="gpt-4",
+    model="gpt-4",
     temperature=0.0,
 )
 

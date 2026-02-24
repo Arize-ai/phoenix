@@ -27,7 +27,7 @@ If you only want the spans that contain a specific annotation, you can pass in a
 
 ```python
 from phoenix.client import Client
-from phoenix.client.types.span import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 query = SpanQuery().where("annotations['correctness']")
@@ -42,7 +42,7 @@ The queries can also filter by annotation scores and labels.
 
 ```python
 from phoenix.client import Client
-from phoenix.client.types.span import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 query = SpanQuery().where("annotations['correctness'].score == 1")
@@ -67,7 +67,7 @@ Instead of an input dataframe, you can also pass in a list of ids:
 
 ```javascript
 annotations = client.spans.get_span_annotations_dataframe(
-    span_ids=list[spans.index],
+    span_ids=list(spans.index),
     project_identifier="default",
 )
 ```

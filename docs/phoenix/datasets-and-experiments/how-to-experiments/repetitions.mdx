@@ -31,7 +31,7 @@ def my_task(input):
 experiment = client.experiments.run_experiment(
     dataset=dataset,
     task=my_task,
-    experiment_name="greeting-experiment"
+    experiment_name="greeting-experiment",
     repetitions=3
 )
 ```
@@ -39,7 +39,7 @@ experiment = client.experiments.run_experiment(
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { runexperiment } from "@arizeai/phoenix-client/experiments";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
 
 const task = async (example) => `hello ${example.input.name}`;
 
