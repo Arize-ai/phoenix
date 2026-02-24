@@ -1,5 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "openapi": "docs/openapi.json",
   "theme": "mint",
   "name": "Phoenix",
   "colors": {
