@@ -131,7 +131,7 @@ export type EvaluationKind = "LLM" | "CODE";
  * The direction to optimize the numeric evaluation score
  * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
  */
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NEUTRAL";
 
 /**
  * The description of an evaluator
