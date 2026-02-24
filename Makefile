@@ -303,7 +303,7 @@ clean-notebooks: ## Clean Jupyter notebook output and metadata
 		-exec uv run jupyter nbconvert \
 			--ClearOutputPreprocessor.enabled=True \
 			--ClearMetadataPreprocessor.enabled=True \
-			--inplace {} \;
+			--inplace {} +
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint-python: ## Lint Python code with ruff
