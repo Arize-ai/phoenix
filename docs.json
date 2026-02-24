@@ -71,6 +71,7 @@
                   }
                 ]
               },
+              "docs/phoenix/agent-assisted-setup",
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo"
             ]
@@ -194,7 +195,7 @@
                 ]
               },
               {
-                "group": "Pre-Built Evals",
+                "group": "SDK Evals",
                 "pages": [
                   "docs/phoenix/evaluation/running-pre-tested-evals",
                   "docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
@@ -213,6 +214,15 @@
                   "docs/phoenix/evaluation/running-pre-tested-evals/agent-planning",
                   "docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection",
                   "docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection"
+                ]
+              },
+              {
+                "group": "Server Evals",
+                "pages": [
+                  "docs/phoenix/evaluation/server-evals/overview",
+                  "docs/phoenix/evaluation/server-evals/llm-evaluators",
+                  "docs/phoenix/evaluation/server-evals/builtin-evaluators",
+                  "docs/phoenix/evaluation/server-evals/input-mapping"
                 ]
               }
             ]
@@ -253,7 +263,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               {
@@ -297,7 +307,8 @@
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
-              "docs/phoenix/settings/data-retention"
+              "docs/phoenix/settings/data-retention",
+              "docs/phoenix/settings/custom-ai-providers"
             ]
           },
           {
@@ -1002,7 +1013,7 @@
             ]
           },
           {
-            "group": "Prompt Engineering",
+            "group": "Prompts",
             "icon": "wand-magic-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
@@ -1038,14 +1049,6 @@
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
-            ]
-          },
-          {
-            "group": "Retrieval & Inferences",
-            "icon": "magnifying-glass",
-            "pages": [
-              "docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
-              "docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
             ]
           }
         ]
@@ -1264,7 +1267,7 @@
     "links": [
       {
         "label": "",
-        "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
+        "href": "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g",
         "title": "Community Slack",
         "icon": "users"
       },
@@ -1473,7 +1476,7 @@
     },
     {
       "source": "/docs/phoenix/inferences/use-cases-inferences/embeddings-analysis",
-      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis"
+      "destination": "/docs/phoenix/cookbook"
     },
     {
       "source": "/docs/phoenix/self-hosting/environments",
@@ -1602,10 +1605,6 @@
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/manual-instrumentation",
       "destination": "/docs/phoenix/tracing/how-to-tracing"
-    },
-    {
-      "source": "/docs/phoenix/inferences/use-cases-inferences",
-      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
     },
     {
       "source": "/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",

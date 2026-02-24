@@ -1,4 +1,5 @@
 import { openai } from "@ai-sdk/openai";
+import type { Tracer } from "@opentelemetry/api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFaithfulnessEvaluator } from "../../src/llm/createFaithfulnessEvaluator";
@@ -108,8 +109,6 @@ Is the answer faithful? Respond with "yes" or "no".
     const result = await evaluator.evaluate({
       output: "Arize Phoenix costs $1000 per month.",
       input: "How much does Arize Phoenix cost?",
-      reference:
-        "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
     });
 
     // Verify the function was called with custom template
@@ -221,7 +220,7 @@ Is the answer faithful? Respond with "yes" or "no".
         explanation: "This is a test explanation",
       });
 
-    const customTracer = {} as import("@opentelemetry/api").Tracer; // Mock tracer object
+    const customTracer = {} as Tracer; // Mock tracer object
 
     const evaluator = createFaithfulnessEvaluator({
       model,

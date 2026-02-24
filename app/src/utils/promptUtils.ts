@@ -6,12 +6,14 @@ import {
   findToolCallId,
   findToolCallName,
 } from "@phoenix/schemas";
-import {
+import type {
   TextPart,
-  textPartSchema,
   ToolCallPart,
-  toolCallPartSchema,
   ToolResultPart,
+} from "@phoenix/schemas/promptSchemas";
+import {
+  textPartSchema,
+  toolCallPartSchema,
   toolResultPartSchema,
 } from "@phoenix/schemas/promptSchemas";
 import { generateMessageId } from "@phoenix/store";

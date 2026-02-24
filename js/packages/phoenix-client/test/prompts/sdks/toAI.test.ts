@@ -13,7 +13,7 @@ import {
 
 import { type PartialAIParams, toAI } from "../../../src/prompts/sdks/toAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
-import { PromptVersion } from "../../../src/types/prompts";
+import type { PromptVersion } from "../../../src/types/prompts";
 import { BASE_MOCK_PROMPT_VERSION } from "./data";
 
 describe("toAI type compatibility", () => {

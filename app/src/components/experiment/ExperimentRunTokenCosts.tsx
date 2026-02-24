@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
+import type { TextProps } from "@phoenix/components";
 import {
   Loading,
   RichTooltip,
-  TextProps,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
@@ -34,9 +34,7 @@ export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
   return (
     <TooltipTrigger isDisabled={props.costTotal == null}>
       <Pressable>
-        <TokenCosts size={props.size} aria-role="button">
-          {props.costTotal}
-        </TokenCosts>
+        <TokenCosts size={props.size}>{props.costTotal}</TokenCosts>
       </Pressable>
       <RichTooltip>
         <TooltipArrow />

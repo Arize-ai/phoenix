@@ -1,12 +1,10 @@
 import { css } from "@emotion/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Pressable } from "react-aria-components";
 
 import { Flex } from "@phoenix/components";
-import {
-  Annotation,
-  AnnotationNameAndValue,
-} from "@phoenix/components/annotation";
+import type { Annotation } from "@phoenix/components/annotation";
+import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 
 /**
  * A button that appears like a list item but that is still interactive

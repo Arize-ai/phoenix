@@ -4,7 +4,7 @@ import {
   type ToggleButtonGroupProps as AriaToggleButtonGroupProps,
 } from "react-aria-components";
 
-import { SizingProps, StylableProps } from "@phoenix/components/types";
+import type { SizingProps, StylableProps } from "@phoenix/components/types";
 import { SizeProvider } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils";
 
@@ -28,23 +28,23 @@ const baseToggleButtonGroupCSS = css(`
     }
   }
 
-  & > .ac-toggle-button:not(:first-of-type):not([data-selected="true"]) {
+  & > .toggle-button:not(:first-of-type):not([data-selected="true"]) {
     border-left: none;
   }
     
-  & > .ac-toggle-button[data-selected="true"]:not(:first-of-type) {
+  & > .toggle-button[data-selected="true"]:not(:first-of-type) {
     margin-left: -1px;
   }
 
-  & > .ac-toggle-button:first-of-type {
+  & > .toggle-button:first-of-type {
     border-radius: var(--global-rounding-small) 0 0 var(--global-rounding-small);
   }
 
-  & > .ac-toggle-button:last-of-type {
+  & > .toggle-button:last-of-type {
     border-radius: 0 var(--global-rounding-small) var(--global-rounding-small) 0;
   }
 
-  &:has(.ac-toggle-button[data-focus-visible]) {
+  &:has(.toggle-button[data-focus-visible]) {
     border-radius: var(--global-rounding-small);
     outline: 1px solid var(--global-input-field-border-color-active);
     outline-offset: 1px;
@@ -64,7 +64,7 @@ export const ToggleButtonGroup = ({
     <SizeProvider size={size}>
       <AriaToggleButtonGroup
         data-size={size}
-        className={classNames("ac-toggle-button-group", className)}
+        className={classNames("toggle-button-group", className)}
         css={css(baseToggleButtonGroupCSS, cssProp)}
         selectionMode={selectionMode}
         {...props}

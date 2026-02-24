@@ -44,7 +44,7 @@ export const updatePromptSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   template: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const deletePromptSchema = z.object({

@@ -6,7 +6,17 @@
 
 A partial index on `spans.attributes` for session id is added by migration. Migration run time is estimated at approximately 200 seconds per 100 GiB on a MacBook Pro. Cloud environments may take longer depending on instance size and I/O throughput.
 
-**Large PostgreSQL databases:** The index is created inside a transaction, so it acquires a table lock for the duration of the build. On very large `spans` tables (hundreds of GiB+), this can block reads and writes for an extended period. To avoid this, pre-create the index concurrently before running the migration:
+**Rolling deployments:** If an existing Phoenix instance is still serving traffic while a new instance starts and runs migrations, the default `CREATE INDEX` acquires a table lock that blocks writes from the old instance. To avoid this, set the following environment variable before starting the new instance:
+
+```
+PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true
+```
+
+This uses `CREATE INDEX CONCURRENTLY`, which avoids the table lock but is roughly 2-3x slower. The new instance still blocks on startup until the index build completes.
+
+**Large PostgreSQL databases (hundreds of GiB+):** For very large `spans` tables, even `CONCURRENTLY` can take hours. To make the migration instant, pre-create a no-op index with the same name before upgrading (while the old version is still running):
+
+Step 1 — Create a no-op index (instant, no table scan):
 
 ```sql
 CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_spans_session_id
@@ -14,7 +24,9 @@ ON spans ((attributes #>> '{session,id}'))
 WHERE false;
 ```
 
-The `WHERE false` creates an empty index instantly (no table scan). The migration's `IF NOT EXISTS` will then see the index name and skip creation. You can backfill the real index at your convenience:
+Step 2 — Upgrade Phoenix. The migration's `IF NOT EXISTS` sees the index name and skips.
+
+Step 3 — Backfill the real index at your convenience (while the app is running):
 
 ```sql
 DROP INDEX CONCURRENTLY IF EXISTS ix_spans_session_id;
@@ -44,6 +56,9 @@ AWS Bedrock integration now uses `aioboto3` instead of `boto3` for fully async c
 pip install aioboto3
 ```
 
+### Inferences, dimensions, embeddings, and pointcloud (UMAP)
+
+**Breaking change:** Model inferences, dimensions, embeddings, and the pointcloud (UMAP) visualization have been removed from Phoenix, along with their GraphQL and REST APIs. The UI no longer includes the `/model`, `/dimensions`, or `/embeddings` routes.
 
 ## v11.0.0 to v12.0.0
 

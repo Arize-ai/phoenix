@@ -1,13 +1,15 @@
 import { css } from "@emotion/react";
-import { ReactNode, useCallback } from "react";
+import type { ReactNode } from "react";
+import { useCallback } from "react";
 import {
   ToggleButton as AriaToggleButton,
   type ToggleButtonProps as AriaToggleButtonProps,
   type ToggleButtonRenderProps,
 } from "react-aria-components";
 
-import { buttonCSS, ButtonProps } from "@phoenix/components/button";
-import { StylableProps } from "@phoenix/components/types";
+import type { ButtonProps } from "@phoenix/components/button";
+import { buttonCSS } from "@phoenix/components/button";
+import type { StylableProps } from "@phoenix/components/types";
 import { useSize } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils";
 
@@ -71,7 +73,7 @@ export const ToggleButton = ({
       css={css(baseToggleButtonCSS, cssProp)}
       data-size={size}
       data-childless={!children}
-      className={classNames("ac-toggle-button", className)}
+      className={classNames("toggle-button", className)}
       {...rest}
     >
       {renderContent}

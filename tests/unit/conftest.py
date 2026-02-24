@@ -29,8 +29,6 @@ from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
 from phoenix.client import Client
-from phoenix.config import EXPORT_DIR
-from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -42,8 +40,6 @@ from phoenix.db.engines import (
     set_sqlite_pragma,
 )
 from phoenix.db.insertion.helpers import DataManipulation
-from phoenix.inferences.inferences import EMPTY_INFERENCES
-from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
@@ -300,10 +296,7 @@ async def app(
         await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,
-            model=create_model_from_inferences(EMPTY_INFERENCES, None),
             authentication_enabled=False,
-            export_path=EXPORT_DIR,
-            umap_params=get_umap_parameters(None),
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )

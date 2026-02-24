@@ -3,12 +3,8 @@ import { range } from "lodash";
 import { useMemo, useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import {
-  ImperativePanelHandle,
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-} from "react-resizable-panels";
+import type { ImperativePanelHandle } from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 import {
   Button,
@@ -70,7 +66,7 @@ import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/ut
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { floatFormatter, formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { ExperimentCompareDetailsQuery } from "./__generated__/ExperimentCompareDetailsQuery.graphql";
+import type { ExperimentCompareDetailsQuery } from "./__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunMetadata } from "./ExperimentRunMetadata";
 
 export type ExperimentCompareDetailsProps = {
@@ -706,7 +702,7 @@ function ExperimentSidebarItem({
             onPress={() => setIsCollapsed(!isCollapsed)}
             css={css`
               flex: none;
-              .ac-icon-wrap {
+              .icon-wrap {
                 transform: ${isCollapsed ? "rotate(0deg)" : "rotate(90deg)"};
                 transition: all 0.1s ease-in-out;
               }

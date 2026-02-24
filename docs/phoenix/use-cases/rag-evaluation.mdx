@@ -270,7 +270,7 @@ questions_df = llm_generate(
     dataframe=document_chunks_df,
     template=generate_questions_template,
     model=OpenAIModel(
-        model_name="gpt-3.5-turbo",
+        model="gpt-3.5-turbo",
     ),
     output_parser=output_parser,
     concurrency=20,
@@ -384,7 +384,7 @@ from phoenix.evals import (
     run_evals,
 )
 
-relevance_evaluator = RelevanceEvaluator(OpenAIModel(model_name="gpt-4-turbo-preview"))
+relevance_evaluator = RelevanceEvaluator(OpenAIModel(model="gpt-4-turbo-preview"))
 
 retrieved_documents_relevance_df = run_evals(
     evaluators=[relevance_evaluator],
@@ -553,8 +553,8 @@ from phoenix.evals import (
     run_evals,
 )
 
-qa_evaluator = QAEvaluator(OpenAIModel(model_name="gpt-4-turbo-preview"))
-hallucination_evaluator = HallucinationEvaluator(OpenAIModel(model_name="gpt-4-turbo-preview"))
+qa_evaluator = QAEvaluator(OpenAIModel(model="gpt-4-turbo-preview"))
+hallucination_evaluator = HallucinationEvaluator(OpenAIModel(model="gpt-4-turbo-preview"))
 
 qa_correctness_eval_df, hallucination_eval_df = run_evals(
     evaluators=[qa_evaluator, hallucination_evaluator],

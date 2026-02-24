@@ -1,4 +1,4 @@
-import { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "json-schema";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -22,7 +22,7 @@ import {
   RESPONSE_FORMAT_PARAM_NAME,
 } from "./constants";
 import { openAIResponseFormatJSONSchema } from "./schemas";
-import { PlaygroundInstanceProps } from "./types";
+import type { PlaygroundInstanceProps } from "./types";
 
 /**
  * The minimum height for the editor before it is initialized.

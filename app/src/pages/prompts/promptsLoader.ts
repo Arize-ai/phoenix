@@ -2,7 +2,7 @@ import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import {
+import type {
   promptsLoaderQuery,
   promptsLoaderQuery$variables,
 } from "./__generated__/promptsLoaderQuery.graphql";

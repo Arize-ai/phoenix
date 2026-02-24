@@ -31,17 +31,17 @@
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "test": "pnpm run -r test run",
-    "type:check": "pnpm run -r type:check"
+    "test": "pnpm run -r test",
+    "typecheck": "pnpm run -r typecheck"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
     "oxfmt": "^0.33.0",
     "oxlint": "^1.48.0",
     "pkg-pr-new": "^0.0.39",
-    "rimraf": "^5.0.10",
+    "rimraf": "^6.1.3",
     "tsc-alias": "1.8.11",
-    "typedoc": "^0.27.9",
+    "typedoc": "^0.28.17",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   },
@@ -49,5 +49,10 @@
     "node": ">=10",
     "pnpm": ">=3"
   },
-  "packageManager": "pnpm@10.29.3"
+  "packageManager": "pnpm@10.29.3",
+  "pnpm": {
+    "overrides": {
+      "minimatch": ">=10.2.1"
+    }
+  }
 }

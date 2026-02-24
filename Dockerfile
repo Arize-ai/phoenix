@@ -16,7 +16,7 @@
 # To get support or provide feedback, contact the team in the #phoenix-support
 # channel in the Arize AI Slack community or file an issue on GitHub:
 #
-# - https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
+# - https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g
 # - https://github.com/Arize-ai/phoenix/issues
 
 ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot

@@ -10,7 +10,7 @@ import {
   safelyConvertToolChoiceToProvider,
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
-import { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
+import type { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
 import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import type { toSDKParamsBase, Variables } from "./types";

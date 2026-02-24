@@ -1,4 +1,4 @@
-import { CellContext } from "@tanstack/react-table";
+import type { CellContext } from "@tanstack/react-table";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
 

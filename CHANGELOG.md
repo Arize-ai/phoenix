@@ -1,5 +1,18 @@
 # Changelog
 
+## [13.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.2.0...arize-phoenix-v13.3.0) (2026-02-20)
+
+
+### Features
+
+* **evals:** add conciseness classification evaluator  ([#11437](https://github.com/Arize-ai/phoenix/issues/11437)) ([d43c4ee](https://github.com/Arize-ai/phoenix/commit/d43c4eef5cf24845fdf26f0241f36496abf1a006))
+* Remove model inferences, dimensions, embeddings, and pointcloud UI ([#11589](https://github.com/Arize-ai/phoenix/issues/11589)) ([3dfa6ad](https://github.com/Arize-ai/phoenix/commit/3dfa6ad65b6cbf72114d9f89849d4c01c0e694b8))
+
+
+### Bug Fixes
+
+* Improve JSONDistanceEvaluator error messages ([#11592](https://github.com/Arize-ai/phoenix/issues/11592)) ([4e60cf5](https://github.com/Arize-ai/phoenix/commit/4e60cf545048367ce097cf1f9f162c0b1102b532))
+
 ## [13.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.1.1...arize-phoenix-v13.2.0) (2026-02-19)
 
 

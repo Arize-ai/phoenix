@@ -5,7 +5,8 @@ import { useNavigate } from "react-router";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import type { ManualProjectGuideCreateProjectMutation } from "./__generated__/ManualProjectGuideCreateProjectMutation.graphql";
-import { NewProjectForm, ProjectFormParams } from "./NewProjectForm";
+import type { ProjectFormParams } from "./NewProjectForm";
+import { NewProjectForm } from "./NewProjectForm";
 
 export function ManualProjectGuide({
   refetchProjects,

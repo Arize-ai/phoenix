@@ -1,11 +1,8 @@
 import { css } from "@emotion/react";
-import { ReactNode, useMemo } from "react";
-import {
-  graphql,
-  PreloadedQuery,
-  useFragment,
-  usePreloadedQuery,
-} from "react-relay";
+import type { ReactNode } from "react";
+import { useMemo } from "react";
+import type { PreloadedQuery } from "react-relay";
+import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import {

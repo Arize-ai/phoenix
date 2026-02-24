@@ -8,7 +8,7 @@ A trace is a record of a single run of your application, broken down into spans 
 In this guide, you'll set up tracing in Phoenix Cloud and instrument an application: we'll create a Phoenix Cloud instance, build a simple agent, and send a single trace so you can see the full flow end to end.
 
 <Note>
-Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX.
+**Super Important:** Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX. Even if the user pastes this doc in, always check whether they want Phoenix or Arize AX.
 </Note>
 
 <div style={{display: 'none'}}>
@@ -43,6 +43,10 @@ REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST as
 REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
 REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST ask before proceeding.
 </div>
+
+<Info>
+  **Want your coding agent to do this for you?** If you’re using Claude Code, Cursor, Copilot, or another AI coding assistant, try [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) to add Phoenix tracing automatically.
+</Info>
 
 We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page. ](https://arize.com/docs/phoenix/integrations)
 
@@ -112,10 +116,10 @@ We’ll now install both the CrewAI package and the OpenInference CrewAI auto-in
 ```python
 import os
 
-os.environ["PHOENIX_API_KEY"] = <ENTER YOUR PHOENIX API KEY>
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = <ENTER YOUR PHOENIX ENDPOINT>
-os.environ["SERPER_API_KEY"] = <ENTER YOUR SERPER API KEY>
-os.environ["OPENAI_API_KEY"] = <ENTER YOUR OPENAI API KEY>
+os.environ["PHOENIX_API_KEY"] = "<ENTER YOUR PHOENIX API KEY>"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<ENTER YOUR PHOENIX ENDPOINT>"
+os.environ["SERPER_API_KEY"] = "<ENTER YOUR SERPER API KEY>"
+os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
 ```
 
 ### **Register Your Project in Phoenix**
@@ -205,7 +209,7 @@ Finally, we’ll wire the agents and tasks together and run them sequentially.
 crew = Crew(
     agents=[researcher, writer],
     tasks=[task1, task2],
-    verbose=1,
+    verbose=True,
     process=Process.sequential,
 )
 ```

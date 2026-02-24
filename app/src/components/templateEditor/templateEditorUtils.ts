@@ -6,7 +6,7 @@ import {
   extractVariablesFromMustacheLike,
   formatMustacheLike,
 } from "./language/mustacheLike";
-import { TemplateFormat } from "./types";
+import type { TemplateFormat } from "./types";
 
 /**
  * A function that formats a template with the given variables

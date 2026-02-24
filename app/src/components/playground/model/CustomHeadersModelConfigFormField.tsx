@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "json-schema";
 import { useCallback, useEffect, useState } from "react";
 
 import { Label, Text } from "@phoenix/components";
@@ -10,7 +10,7 @@ import {
   httpHeadersJSONSchema,
   stringToHttpHeadersSchema,
 } from "@phoenix/schemas/httpHeadersSchema";
-import { PlaygroundNormalizedInstance } from "@phoenix/store";
+import type { PlaygroundNormalizedInstance } from "@phoenix/store";
 /**
  * Format headers object for JSON editor with proper indentation and empty state handling
  */
@@ -26,7 +26,7 @@ const formatHeadersForEditor = (
 };
 
 const fieldContainerCSS = css`
-  & .ac-view {
+  & .view {
     width: 100%;
   }
 `;
@@ -64,7 +64,7 @@ export function CustomHeadersModelConfigFormField({
           patch: { customHeaders: result.data },
         });
       } else {
-        const firstError = result.error.errors[0];
+        const firstError = result.error.issues[0];
         setErrorMessage(
           firstError?.message ??
             firstError?.path?.join(".") ??

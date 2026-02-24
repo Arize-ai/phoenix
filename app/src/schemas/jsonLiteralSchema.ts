@@ -18,6 +18,6 @@ export const jsonLiteralSchema: z.ZodType<JSONLiteral> = z.lazy(() =>
   z.union([
     literalSchema,
     z.array(jsonLiteralSchema),
-    z.record(jsonLiteralSchema),
+    z.record(z.string(), jsonLiteralSchema),
   ])
 );

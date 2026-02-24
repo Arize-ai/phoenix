@@ -6,10 +6,8 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
-import {
-  datasetEvaluatorDetailsLoader,
-  DatasetEvaluatorDetailsLoaderData,
-} from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
@@ -30,12 +28,17 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
+import type {
+  DatasetLoaderData,
+  ProjectLoaderData,
+  PromptLoaderData,
+  SpanPlaygroundPageLoaderData,
+} from "./pages";
 import {
   APIsPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
   datasetLoader,
-  DatasetLoaderData,
   DatasetPage,
   DatasetsPage,
   datasetVersionsLoader,
@@ -55,7 +58,6 @@ import {
   ProfilePage,
   ProjectIndexPage,
   projectLoader,
-  ProjectLoaderData,
   ProjectMetricsPage,
   ProjectPage,
   ProjectSessionsPage,
@@ -65,7 +67,6 @@ import {
   ProjectTracesPage,
   PromptConfigPage,
   promptLoader,
-  PromptLoaderData,
   promptsLoader,
   PromptsPage,
   resetPasswordLoader,
@@ -78,12 +79,11 @@ import {
   SettingsPromptsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
-  SpanPlaygroundPageLoaderData,
   SupportPage,
   TracePage,
 } from "./pages";
-import type { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
+import { layoutLoader } from "./pages/layoutLoader";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
@@ -124,65 +124,13 @@ const router = createBrowserRouter(
       />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
-        <Route element={<Layout />}>
+        <Route element={<Layout />} loader={layoutLoader}>
           <Route
             path="/profile"
             handle={{ crumb: () => "profile" }}
             element={<ProfilePage />}
           />
           <Route index loader={homeLoader} />
-          <Route
-            path="/model"
-            lazy={() =>
-              import("./pages/ModelRoot").then((module) => ({
-                handle: { crumb: () => "model" },
-                element: <module.ModelRoot />,
-              }))
-            }
-          >
-            <Route
-              index
-              lazy={() =>
-                import("./pages/model/ModelInferencesPage").then((module) => ({
-                  element: <module.ModelInferencesPage />,
-                }))
-              }
-            />
-            <Route
-              lazy={() =>
-                import("./pages/model/ModelInferencesPage").then((module) => ({
-                  element: <module.ModelInferencesPage />,
-                }))
-              }
-            >
-              <Route path="dimensions">
-                <Route
-                  path=":dimensionId"
-                  lazy={() =>
-                    import("./pages/dimension").then((module) => ({
-                      element: <module.DimensionPage />,
-                      loader: module.dimensionLoader,
-                    }))
-                  }
-                />
-              </Route>
-            </Route>
-            <Route path="embeddings">
-              <Route
-                path=":embeddingDimensionId"
-                lazy={() =>
-                  import("./pages/embedding").then((module) => ({
-                    element: <module.EmbeddingPage />,
-                    loader: module.embeddingLoader,
-                    handle: {
-                      crumb: (data: embeddingLoaderQuery$data) =>
-                        data.embedding.name,
-                    },
-                  }))
-                }
-              />
-            </Route>
-          </Route>
           <Route
             path="/projects"
             handle={{ crumb: () => "Projects" }}

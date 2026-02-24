@@ -1,10 +1,10 @@
 import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
+import type { ButtonProps } from "@phoenix/components";
 import {
   Autocomplete,
   Button,
-  ButtonProps,
   Checkbox,
   Flex,
   Icon,
@@ -25,10 +25,10 @@ import {
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
 import { SearchIcon } from "@phoenix/components/field";
-import { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
-import { Mutable } from "@phoenix/typeUtils";
+import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
+import type { Mutable } from "@phoenix/typeUtils";
 
-import { AssignExamplesToSplitMenuQuery } from "./__generated__/AssignExamplesToSplitMenuQuery.graphql";
+import type { AssignExamplesToSplitMenuQuery } from "./__generated__/AssignExamplesToSplitMenuQuery.graphql";
 
 type AssignExamplesToSplitMenuProps = {
   selectedExampleIds: string[];

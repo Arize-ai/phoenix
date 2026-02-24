@@ -4,7 +4,7 @@ import { generateObject, generateText, jsonSchema } from "ai";
 /* eslint-disable no-console */
 import { createClient } from "../src";
 import { getPrompt, toSDK } from "../src/prompts";
-import { PromptSelector } from "../src/types/prompts";
+import type { PromptSelector } from "../src/types/prompts";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
 const PROMPT_TAG = process.env.PROMPT_TAG!;
@@ -16,7 +16,7 @@ const question = process.argv[2];
 
 if (!question) {
   throw new Error(
-    "Usage: pnpx tsx examples/apply_prompt.ts 'What is the capital of France?'\nAssumes that the prompt has a variable named 'question'\nAssumes that the prompt is openai with an openai model"
+    "Usage: pnpx tsx examples/apply_prompt_vercel.ts 'What is the capital of France?'\nAssumes that the prompt has a variable named 'question'\nAssumes that the prompt is openai with an openai model"
   );
 }
 
@@ -69,21 +69,21 @@ const main = async () => {
   // Apply prompt to a standard text generation call
   // Note: this does not use response format, you must use generateObject or streamObject for that,
   //       see below for an example
-  const { text, toolCalls } = await generateText({
+  const { text } = await generateText({
     model: openai("gpt-4o"),
     ...aiParams,
   });
 
   console.log("Text generation result:");
   console.log(text);
-  console.log("Tool calls:");
-  console.log(toolCalls);
 
   if (prompt.response_format) {
+    const { json_schema } = prompt.response_format;
     // Apply prompt with response format to a generateObject call
     const { object } = await generateObject({
-      model: openai("gpt-4o"),
-      schema: jsonSchema(prompt.response_format.json_schema),
+      model: openai.chat("gpt-4o"),
+      schema: jsonSchema(json_schema.schema ?? {}),
+      schemaName: json_schema.name,
       ...aiParams,
     });
     console.log("Object generation result:");

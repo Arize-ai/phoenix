@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { CSSProperties, PropsWithChildren } from "react";
+import type { CSSProperties, PropsWithChildren } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -15,7 +15,7 @@ import { classNames } from "@phoenix/utils";
 
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
-import { FlexStyleProps, SizingProps, StylableProps } from "../types";
+import type { FlexStyleProps, SizingProps, StylableProps } from "../types";
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
 export type DisclosureGroupProps = AriaDisclosureGroupProps &
@@ -37,7 +37,7 @@ export const DisclosureGroup = ({
   return (
     <AriaDisclosureGroup
       allowsMultipleExpanded
-      className={classNames("ac-disclosure-group", className)}
+      className={classNames("disclosure-group", className)}
       css={css(disclosureGroupCSS, propCSS)}
       data-size={size}
       {...props}
@@ -55,7 +55,7 @@ export type DisclosureProps = AriaDisclosureProps & SizingProps;
 export const Disclosure = ({ size, className, ...props }: DisclosureProps) => {
   return (
     <AriaDisclosure
-      className={classNames("ac-disclosure", className)}
+      className={classNames("disclosure", className)}
       css={disclosureCSS}
       data-size={size}
       defaultExpanded
@@ -77,7 +77,7 @@ export const DisclosurePanel = ({
 }: DisclosurePanelProps) => {
   return (
     <AriaDisclosurePanel
-      className={classNames("ac-disclosure-panel", className)}
+      className={classNames("disclosure__panel", className)}
       {...props}
     />
   );
@@ -106,7 +106,7 @@ export const DisclosureTrigger = ({
   width,
 }: DisclosureTriggerProps) => {
   return (
-    <Heading className="react-aria-Heading ac-disclosure-trigger">
+    <Heading className="react-aria-Heading disclosure__trigger">
       <Button
         slot="trigger"
         data-arrow-position={arrowPosition}

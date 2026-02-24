@@ -1,12 +1,13 @@
-import { createContext, PropsWithChildren, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
-import {
-  createPreferencesStore,
+import type {
   PreferencesProps,
   PreferencesState,
   PreferencesStore,
 } from "@phoenix/store/preferencesStore";
+import { createPreferencesStore } from "@phoenix/store/preferencesStore";
 
 export const PreferencesContext = createContext<PreferencesStore | null>(null);
 

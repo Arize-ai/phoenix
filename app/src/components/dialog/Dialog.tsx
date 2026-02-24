@@ -1,14 +1,18 @@
 import { css } from "@emotion/react";
-import { forwardRef, HTMLAttributes } from "react";
+import type { HTMLAttributes } from "react";
+import { forwardRef } from "react";
 import {
   Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
 } from "react-aria-components";
 
-import { Button, ButtonProps } from "@phoenix/components/button";
-import { Heading, HeadingProps } from "@phoenix/components/content";
+import type { ButtonProps } from "@phoenix/components/button";
+import { Button } from "@phoenix/components/button";
+import type { HeadingProps } from "@phoenix/components/content";
+import { Heading } from "@phoenix/components/content";
 import { Icon, Icons } from "@phoenix/components/icon";
-import { Flex, FlexProps } from "@phoenix/components/layout";
+import type { FlexProps } from "@phoenix/components/layout";
+import { Flex } from "@phoenix/components/layout";
 import { classNames } from "@phoenix/utils";
 
 export type DialogProps = AriaDialogProps;
@@ -60,7 +64,7 @@ export const DialogHeader = ({ children, ...props }: DialogHeaderProps) => {
     <div
       {...props}
       css={dialogHeaderCSS}
-      className={classNames(props.className, "ac-DialogHeader")}
+      className={classNames(props.className, "dialog__header")}
     >
       <Flex
         width="100%"
@@ -83,7 +87,7 @@ export const DialogTitle = ({ children, ...props }: DialogTitleProps) => {
       data-testid="dialog-title"
       slot="title"
       {...props}
-      className={classNames(props.className, "ac-DialogTitle")}
+      className={classNames(props.className, "dialog__title")}
     >
       {children}
     </Heading>
@@ -102,7 +106,7 @@ export const DialogTitleExtra = ({
       alignItems="center"
       data-testid="dialog-title-extra"
       {...props}
-      className={classNames(props.className, "ac-DialogTitleExtra")}
+      className={classNames(props.className, "dialog__title-extra")}
     >
       {children}
     </Flex>
@@ -135,7 +139,7 @@ export const DialogCloseButton = ({
       type="button"
       slot="close"
       {...props}
-      className={classNames(props.className, "ac-DialogCloseButton")}
+      className={classNames(props.className, "dialog__close-button")}
     >
       {children}
     </Button>

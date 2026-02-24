@@ -3,7 +3,7 @@ import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { resetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQuery.graphql";
+import type { resetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQuery.graphql";
 
 /**
  * Makes sure the user is logged in

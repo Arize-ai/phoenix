@@ -1,8 +1,8 @@
-import { MockLanguageModelV2 } from "ai/test";
+import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 
 import { createClassificationEvaluator } from "../../src";
-import { ObjectMapping } from "../../src/types/data";
+import type { ObjectMapping } from "../../src/types/data";
 import { bindEvaluator } from "../../src/utils/bindEvaluator";
 
 // Helper function to create a classification evaluator for testing
@@ -12,10 +12,22 @@ function createTestEvaluator<RecordType extends Record<string, unknown>>(
 ) {
   return createClassificationEvaluator<RecordType>({
     name,
-    model: new MockLanguageModelV2({
+    model: new MockLanguageModelV3({
       doGenerate: async () => ({
-        finishReason: "stop",
-        usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+        finishReason: { unified: "stop", raw: undefined },
+        usage: {
+          inputTokens: {
+            total: 10,
+            noCache: 10,
+            cacheRead: undefined,
+            cacheWrite: undefined,
+          },
+          outputTokens: {
+            total: 20,
+            text: 20,
+            reasoning: undefined,
+          },
+        },
         content: [{ type: "text", text: "valid" }],
         warnings: [],
       }),

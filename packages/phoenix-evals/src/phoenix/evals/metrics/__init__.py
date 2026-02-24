@@ -1,3 +1,4 @@
+from .conciseness import ConcisenessEvaluator
 from .correctness import CorrectnessEvaluator
 from .document_relevance import DocumentRelevanceEvaluator
 from .exact_match import exact_match
@@ -10,6 +11,7 @@ from .tool_response_handling import ToolResponseHandlingEvaluator
 from .tool_selection import ToolSelectionEvaluator
 
 __all__ = [
+    "ConcisenessEvaluator",
     "CorrectnessEvaluator",
     "DocumentRelevanceEvaluator",
     "exact_match",

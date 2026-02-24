@@ -1,9 +1,9 @@
 import { getLocalTimeZone } from "@internationalized/date";
 import { Suspense, useState } from "react";
+import type { PreloadedQuery } from "react-relay";
 import {
   ConnectionHandler,
   graphql,
-  PreloadedQuery,
   useMutation,
   usePreloadedQuery,
   useQueryLoader,
@@ -27,12 +27,13 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { CloneModelButtonMutation } from "./__generated__/CloneModelButtonMutation.graphql";
+import type { CloneModelButtonMutation } from "./__generated__/CloneModelButtonMutation.graphql";
 import type { CloneModelButtonQuery } from "./__generated__/CloneModelButtonQuery.graphql";
-import { ModelForm, ModelFormParams } from "./ModelForm";
+import type { ModelFormParams } from "./ModelForm";
+import { ModelForm } from "./ModelForm";
 
 const ModelQuery = graphql`
   query CloneModelButtonQuery($id: ID!) {

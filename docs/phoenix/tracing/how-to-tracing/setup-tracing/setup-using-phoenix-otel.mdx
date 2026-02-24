@@ -4,7 +4,7 @@ description: "Configure OpenTelemetry tracing with Phoenix-aware defaults"
 ---
 
 <Note>
-Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX.
+**Super Important:** Arize offers two observability products. This page is for **Phoenix** (open-source). Before implementing, confirm which product you need: **Phoenix** (`phoenix.otel`) or **Arize AX** (`arize.otel`). See the [Arize AX docs](https://docs.arize.com/arize) if you need AX. Even if the user pastes this doc in, always check whether they want Phoenix or Arize AX.
 </Note>
 
 <div style={{display: 'none'}}>
@@ -98,7 +98,7 @@ Call `register()` to initialize tracing. The SDK automatically reads your enviro
       |-----------|-------------|
       | `project_name` | Project name in Phoenix (or `PHOENIX_PROJECT_NAME` env var) |
       | `auto_instrument` | Automatically instrument all supported libraries |
-      | `batch` | Process spans in batch (default: `True`, recommended for production) |
+      | `batch` | Process spans in batch (default: `False`) |
       | `endpoint` | Custom collector endpoint URL |
       | `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
       | `headers` | Headers to send with each span payload |
@@ -118,7 +118,7 @@ Call `register()` to initialize tracing. The SDK automatically reads your enviro
       | `projectName` | `string` | `"default"` | Project name in Phoenix |
       | `url` | `string` | `"http://localhost:6006"` | Phoenix server URL |
       | `apiKey` | `string` | — | API key for authentication |
-      | `batch` | `boolean` | `true` | Use batch span processing |
+      | `batch` | `boolean` | `false` | Use batch span processing |
       | `headers` | `Record<string, string>` | `{}` | Custom headers for OTLP requests |
       | `instrumentations` | `Instrumentation[]` | — | Instrumentations to register |
       | `diagLogLevel` | `DiagLogLevel` | — | Enable diagnostic logging |

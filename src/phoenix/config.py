@@ -166,6 +166,22 @@ ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 The schema to use for the PostgresSQL database. (This is ignored for SQLite.)
 See e.g. https://www.postgresql.org/docs/current/ddl-schemas.html
 """
+ENV_PHOENIX_MIGRATE_INDEX_CONCURRENTLY = "PHOENIX_MIGRATE_INDEX_CONCURRENTLY"
+"""
+When set to True, index creation migrations on PostgreSQL will use CREATE INDEX CONCURRENTLY,
+which avoids locking the table for writes during the build.
+
+Enable this for rolling deployments where an existing Phoenix instance is still ingesting
+traces while a new instance starts up and runs migrations. Without this flag, the default
+CREATE INDEX acquires a SHARE lock that blocks writes from the old instance for the duration
+of the index build.
+
+Note: CONCURRENTLY does not speed up the migration — it is roughly 2-3x slower and the new
+instance still blocks on startup until the build completes. For very large tables, consider
+pre-creating indexes manually before upgrading instead. See MIGRATION.md for details.
+
+Defaults to False. Ignored for SQLite.
+"""
 ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
     "PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES"
 )
@@ -2659,7 +2675,6 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
 
 
 ROOT_DIR = RestrictedPath(WORKING_DIR)
-EXPORT_DIR = RestrictedPath(WORKING_DIR / "exports")
 INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
 TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
 
@@ -2678,7 +2693,6 @@ def ensure_working_dir_if_needed() -> None:
     try:
         for path in (
             ROOT_DIR,
-            EXPORT_DIR,
             INFERENCES_DIR,
             TRACE_DATASETS_DIR,
         ):
@@ -2694,25 +2708,6 @@ def ensure_working_dir_if_needed() -> None:
 
 # Invoke ensure_working_dir_if_needed() to ensure the working directory exists
 ensure_working_dir_if_needed()
-
-
-def get_exported_files(directory: Path) -> list[Path]:
-    """
-    Yields the list of paths of exported files.
-
-    Parameters
-    ----------
-    directory: Path
-        Disk location to search exported files.
-
-    Returns
-    -------
-    list: list[Path]
-        List of paths of the exported files.
-    """
-    if _no_local_storage():
-        return []  # Do not attempt to access local storage
-    return list(directory.glob("*.parquet"))
 
 
 def get_env_port() -> int:

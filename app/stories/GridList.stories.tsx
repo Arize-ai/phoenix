@@ -1,10 +1,10 @@
 import { css } from "@emotion/react";
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { GridListProps } from "@phoenix/components";
 import {
   GridList,
   GridListItem,
-  GridListProps,
   GridListSection,
   GridListSectionTitle,
   Icon,
@@ -14,7 +14,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
-import { Annotation } from "@phoenix/components/annotation/types";
+import type { Annotation } from "@phoenix/components/annotation/types";
 
 const meta: Meta = {
   title: "GridList",

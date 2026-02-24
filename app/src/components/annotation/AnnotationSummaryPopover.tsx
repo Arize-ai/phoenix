@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { CSSProperties, ReactNode, useMemo } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { useMemo } from "react";
 import { FocusScope, Pressable } from "react-aria";
 
 import {
@@ -24,7 +25,7 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { Annotation } from "./types";
+import type { Annotation } from "./types";
 
 const customTableCSS = css`
   & thead tr th {
@@ -128,7 +129,7 @@ export function AnnotationSummaryPopover({
                         {filteredAnnotations.map((annotation) => (
                           <tr
                             css={css`
-                              padding-left: var(ac-global-dimensions-size-200);
+                              padding-left: var(--global-dimension-size-200);
                             `}
                             key={annotation.id}
                           >

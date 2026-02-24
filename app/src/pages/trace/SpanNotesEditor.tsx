@@ -11,8 +11,8 @@ import {
 } from "@phoenix/components/chat";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 
-import { SpanNotesEditorAddNoteMutation } from "./__generated__/SpanNotesEditorAddNoteMutation.graphql";
-import { SpanNotesEditorQuery } from "./__generated__/SpanNotesEditorQuery.graphql";
+import type { SpanNotesEditorAddNoteMutation } from "./__generated__/SpanNotesEditorAddNoteMutation.graphql";
+import type { SpanNotesEditorQuery } from "./__generated__/SpanNotesEditorQuery.graphql";
 
 type SpanNotesEditorProps = {
   spanNodeId: string;

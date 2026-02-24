@@ -49,6 +49,15 @@ export const ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT";
 export const ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY";
 
 /**
+ * Environment variable name for the Phoenix log level.
+ * Controls the verbosity of Phoenix client logging.
+ * Valid values: "debug" | "info" | "warn" | "error" | "silent"
+ * @example
+ * process.env[ENV_PHOENIX_LOG_LEVEL] = "debug";
+ */
+export const ENV_PHOENIX_LOG_LEVEL = "PHOENIX_LOG_LEVEL";
+
+/**
  * Retrieves an integer value from an environment variable.
  *
  * @param envKey - The name of the environment variable to read
@@ -147,6 +156,7 @@ export function getEnvironmentConfig() {
       ENV_PHOENIX_COLLECTOR_ENDPOINT
     ),
     [ENV_PHOENIX_API_KEY]: getStrFromEnvironment(ENV_PHOENIX_API_KEY),
+    [ENV_PHOENIX_LOG_LEVEL]: getStrFromEnvironment(ENV_PHOENIX_LOG_LEVEL),
   };
 }
 

@@ -194,7 +194,7 @@ async def bulk_create_dataset_splits(
         return {}
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    records = [
+    records: list[dict[str, Any]] = [
         {
             "name": name,
             "color": "#808080",  # Default gray color

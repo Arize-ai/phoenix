@@ -2,23 +2,21 @@ import invariant from "tiny-invariant";
 
 import { assertUnreachable } from "../../../utils/assertUnreachable";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
-import {
+import type {
   OpenAIChatPart,
   OpenAIChatPartImage,
   OpenAIChatPartText,
 } from "../openai/messagePartSchemas";
-import {
-  OpenAIMessage,
-  openAIMessageRoleSchema,
-} from "../openai/messageSchemas";
-import { OpenAIToolCall } from "../openai/toolCallSchemas";
-import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "../openai/toolSchemas";
-import {
+import type { OpenAIMessage } from "../openai/messageSchemas";
+import { openAIMessageRoleSchema } from "../openai/messageSchemas";
+import type { OpenAIToolCall } from "../openai/toolCallSchemas";
+import type { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
+import type { OpenAIToolDefinition } from "../openai/toolSchemas";
+import type {
   AnthropicMessagePart,
-  anthropicMessagePartSchema,
   AnthropicToolUseBlock,
 } from "./messagePartSchemas";
+import { anthropicMessagePartSchema } from "./messagePartSchemas";
 import { anthropicMessageSchema } from "./messageSchemas";
 import { anthropicToolCallSchema } from "./toolCallSchemas";
 import { anthropicToolChoiceSchema } from "./toolChoiceSchemas";

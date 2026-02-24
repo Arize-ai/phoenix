@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useMemo } from "react";
-import { Outlet } from "react-router";
+import { Suspense, useCallback } from "react";
+import { Outlet, useLoaderData } from "react-router";
 
-import { Flex, Icon, Icons, Loading } from "@phoenix/components";
+import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
@@ -20,6 +20,8 @@ import {
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
+
+import type { LayoutLoaderData } from "./layoutLoader";
 
 const layoutCSS = css`
   display: flex;
@@ -87,9 +89,7 @@ function SideNav() {
   const isSideNavExpanded = usePreferencesContext(
     (state) => state.isSideNavExpanded
   );
-  const hasInferences = useMemo(() => {
-    return window.Config.hasInferences;
-  }, []);
+  const loaderData = useLoaderData<LayoutLoaderData>();
   const { authenticationEnabled } = useFunctionality();
   const onLogout = useCallback(() => {
     window.location.replace(prependBasename("/auth/logout"));
@@ -99,21 +99,16 @@ function SideNav() {
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
-          {hasInferences && (
-            <li key="model">
-              <NavLink
-                to="/model"
-                text="Model"
-                leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
-                isExpanded={isSideNavExpanded}
-              />
-            </li>
-          )}
           <li>
             <NavLink
               to="/projects"
               text="Projects"
               leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              trailingVisual={
+                loaderData?.projectCount != null ? (
+                  <Counter>{loaderData.projectCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -122,6 +117,11 @@ function SideNav() {
               to="/datasets"
               text="Datasets & Experiments"
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              trailingVisual={
+                loaderData?.datasetCount != null ? (
+                  <Counter>{loaderData.datasetCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -138,6 +138,11 @@ function SideNav() {
               to="/evaluators"
               text="Evaluators"
               leadingVisual={<Icon svg={<Icons.Scale />} />}
+              trailingVisual={
+                loaderData?.evaluatorCount != null ? (
+                  <Counter>{loaderData.evaluatorCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -146,6 +151,11 @@ function SideNav() {
               to="/prompts"
               text="Prompts"
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              trailingVisual={
+                loaderData?.promptCount != null ? (
+                  <Counter>{loaderData.promptCount}</Counter>
+                ) : undefined
+              }
               isExpanded={isSideNavExpanded}
             />
           </li>

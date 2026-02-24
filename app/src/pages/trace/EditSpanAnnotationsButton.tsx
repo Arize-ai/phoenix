@@ -1,6 +1,6 @@
+import type { ButtonProps } from "@phoenix/components";
 import {
   Button,
-  ButtonProps,
   DialogTrigger,
   Icon,
   Icons,

@@ -1,5 +1,7 @@
-import { forwardRef, ReactNode } from "react";
-import { ListBoxItem, ListBoxItemProps } from "react-aria-components";
+import type { ReactNode } from "react";
+import { forwardRef } from "react";
+import type { ListBoxItemProps } from "react-aria-components";
+import { ListBoxItem } from "react-aria-components";
 
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";

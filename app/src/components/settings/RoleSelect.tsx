@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 
+import type { SelectProps } from "@phoenix/components";
 import {
   Button,
   FieldError,
@@ -9,7 +10,6 @@ import {
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
-  SelectProps,
   SelectValue,
 } from "@phoenix/components";
 import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
@@ -17,7 +17,7 @@ import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
 const UserRoles = Object.values(UserRole);
 
 const hiddenLabelCSS = css`
-  .ac-field-label {
+  .field__label {
     display: none;
   }
 `;

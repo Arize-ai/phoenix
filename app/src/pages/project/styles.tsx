@@ -10,7 +10,7 @@ export const spansTableCSS = css`
   }
 
   // Style the column selector
-  .ac-dropdown-button {
+  .dropdown__button {
     min-width: var(--global-dimension-static-size-300);
   }
 `;

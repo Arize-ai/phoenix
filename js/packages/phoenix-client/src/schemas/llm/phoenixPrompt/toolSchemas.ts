@@ -1,6 +1,6 @@
 import z from "zod";
 
-import { PromptTool } from "../../../types/prompts";
+import type { PromptTool } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
 
 /**
@@ -12,7 +12,7 @@ export const phoenixToolDefinitionSchema = schemaMatches<PromptTool>()(
     function: z.object({
       name: z.string(),
       description: z.string().optional(),
-      parameters: z.record(z.unknown()).optional(),
+      parameters: z.record(z.string(), z.unknown()).optional(),
       strict: z.boolean().optional(),
     }),
   })

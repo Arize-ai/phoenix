@@ -1,8 +1,8 @@
 import type { LLMEvaluator } from "@arizeai/phoenix-evals";
 
-import { AnnotatorKind } from "./annotations";
-import { Node } from "./core";
-import { Example, ExampleWithId } from "./datasets";
+import type { AnnotatorKind } from "./annotations";
+import type { Node } from "./core";
+import type { Example, ExampleWithId } from "./datasets";
 
 /**
  * An experiment is a set of task runs on a dataset version

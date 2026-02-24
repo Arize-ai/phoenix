@@ -31,17 +31,9 @@ The following command installs the main `arize-phoenix` package and all sub-pack
 uv sync --python 3.10
 ```
 
-Some parts of Phoenix, such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client`, are developed as local packages located under the `packages/` directory. These modules are excluded from the standard build process and are not installed automatically.
+The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located under the packages/ directory are automatically installed in editable mode via the `uv` workspace configuration.
 
-To make these modules available when working from source, run:
-
-```bash
-tox run -e add_symlinks
-```
-
-This command will create symbolic links inside src/phoenix/ pointing to the relevant submodules.
-
-**Second**, install the web build dependencies.
+**Next**, install the web build dependencies.
 
 We recommend installing [nodejs via nvm](https://github.com/nvm-sh/nvm) and then
 installing `pnpm` globally to manage the web frontend dependencies.
@@ -111,7 +103,13 @@ To run unit tests faster using parallel execution:
 tox r -e unit_tests -- -n auto
 ```
 
-Check the output of `tox list` to find commands for type-checks, linters, formatters, etc.
+To run type checking:
+
+```bash
+make typecheck-python
+```
+
+Check the output of `tox list` to find commands for linters, formatters, and other tools.
 
 ## Installing Pre-Commit Hooks
 
@@ -293,6 +291,12 @@ After doing so, consider pasting the following settings into your workspace sett
   "[python]": {
     "editor.codeActionsOnSave": {
       "source.fixAll.ruff": "always"
+    }
+  },
+  "[typescript, typescriptreact]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.oxlint": "always"
     }
   },
   "mypy-type-checker.ignorePatterns": [".tox,.venv,app"],

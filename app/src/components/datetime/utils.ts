@@ -9,7 +9,7 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { LAST_N_TIME_RANGES } from "./constants";
-import { LastNTimeRangeKey, TimeRangeKey } from "./types";
+import type { LastNTimeRangeKey, TimeRangeKey } from "./types";
 
 export function getTimeRangeFromLastNTimeRangeKey(
   key: LastNTimeRangeKey

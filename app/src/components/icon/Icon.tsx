@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
-import { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
-import { ColorValue, StylableProps } from "@phoenix/components/types";
+import type { ColorValue, StylableProps } from "@phoenix/components/types";
 import { colorValue } from "@phoenix/components/utils";
 import { classNames } from "@phoenix/utils";
 
@@ -34,7 +34,7 @@ export const Icon = ({
   const resolvedColor = color === "inherit" ? "inherit" : colorValue(color);
   return (
     <i
-      className={classNames("ac-icon-wrap", className)}
+      className={classNames("icon-wrap", className)}
       css={css(
         css`
           width: 1em;

@@ -1,24 +1,26 @@
 import { css } from "@emotion/react";
 import React from "react";
+import type {
+  ComboBoxProps as AriaComboBoxProps,
+  ListBoxItemProps as AriaListBoxItemProps,
+  ListBoxProps,
+  ValidationResult,
+} from "react-aria-components";
 import {
   Button,
   ComboBox as AriaComboBox,
-  ComboBoxProps as AriaComboBoxProps,
   FieldError,
   Input,
   Label,
   ListBox,
   ListBoxItem,
-  ListBoxItemProps as AriaListBoxItemProps,
-  ListBoxProps,
   Popover,
   Text,
-  ValidationResult,
 } from "react-aria-components";
 
 import { fieldBaseCSS } from "../field/styles";
 import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
-import { SizingProps } from "../types";
+import type { SizingProps } from "../types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>
@@ -80,7 +82,7 @@ export function ComboBox<T extends object>({
     >
       {label && <Label>{label}</Label>}
       <div
-        className="px-combobox-container"
+        className="combobox__container"
         // Prevent interactions with the combobox components from propagating above this element
         // This allows us to nest the combobox within containers that have onClick handlers
         onClick={stopPropagation ? stopPropagationHandler : undefined}
@@ -124,7 +126,7 @@ export function ComboBoxItem(props: ListBoxItemProps) {
             {isSelected && (
               <Icon
                 svg={<Icons.CheckmarkOutline />}
-                className="px-menu-item__selected-checkmark"
+                className="menu-item__selected-checkmark"
               />
             )}
           </>

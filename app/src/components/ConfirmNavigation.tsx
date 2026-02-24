@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { Blocker } from "react-router";
+import type { ReactNode } from "react";
+import type { Blocker } from "react-router";
 
 import {
   Button,

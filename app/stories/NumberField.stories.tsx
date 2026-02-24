@@ -1,12 +1,12 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { NumberFieldProps } from "@phoenix/components";
 import {
   FieldError,
   Flex,
   Input,
   Label,
   NumberField,
-  NumberFieldProps,
   Text,
   View,
 } from "@phoenix/components";

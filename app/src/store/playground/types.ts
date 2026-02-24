@@ -1,18 +1,18 @@
 import { z } from "zod";
 
-import { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
-import { LlmProviderToolDefinition } from "@phoenix/schemas";
-import { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
-import {
+import type { LlmProviderToolDefinition } from "@phoenix/schemas";
+import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import type {
   AnthropicToolChoice,
   GoogleToolChoice,
   OpenaiToolChoice,
 } from "@phoenix/schemas/toolChoiceSchemas";
 
-import { ModelConfigByProvider } from "../preferencesStore";
+import type { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 

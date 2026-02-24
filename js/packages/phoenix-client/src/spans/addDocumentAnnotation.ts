@@ -1,6 +1,7 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { DocumentAnnotation, toDocumentAnnotationData } from "./types";
+import type { ClientFn } from "../types/core";
+import type { DocumentAnnotation } from "./types";
+import { toDocumentAnnotationData } from "./types";
 
 /**
  * Parameters to add a document annotation

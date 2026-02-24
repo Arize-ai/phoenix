@@ -1,9 +1,7 @@
 import { css } from "@emotion/react";
 import { forwardRef } from "react";
-import {
-  Toolbar as AriaToolbar,
-  ToolbarProps as AriaToolbarProps,
-} from "react-aria-components";
+import type { ToolbarProps as AriaToolbarProps } from "react-aria-components";
+import { Toolbar as AriaToolbar } from "react-aria-components";
 
 export type ToolbarProps = AriaToolbarProps;
 

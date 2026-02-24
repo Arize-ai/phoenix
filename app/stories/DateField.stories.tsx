@@ -1,11 +1,10 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { DateFieldProps, DateValue } from "@phoenix/components";
 import {
   DateField,
-  DateFieldProps,
   DateInput,
   DateSegment,
-  DateValue,
   I18nProvider,
   Label,
 } from "@phoenix/components";

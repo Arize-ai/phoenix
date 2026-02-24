@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 /**
  * Simple utility to check if two types are exactly equivalent
@@ -15,7 +15,7 @@ export type AssertEqual<T, U> =
  */
 export const schemaMatches =
   <T>() =>
-  <S extends z.ZodType<T, z.ZodTypeDef, unknown>>(
+  <S extends z.ZodType<T, unknown>>(
     schema: AssertEqual<S["_output"], T> extends true
       ? S
       : S & {

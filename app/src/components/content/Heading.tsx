@@ -1,14 +1,13 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  Heading as AriaHeading,
-  HeadingProps as AriaHeadingProps,
-} from "react-aria-components";
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type { HeadingProps as AriaHeadingProps } from "react-aria-components";
+import { Heading as AriaHeading } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils";
 
 import { headingBaseCSS, textBaseCSS } from "./styles";
-import { Weight } from "./types";
+import type { Weight } from "./types";
 
 export interface HeadingProps extends AriaHeadingProps {
   /**
@@ -28,7 +27,7 @@ function Heading(props: HeadingProps, ref: Ref<HTMLHeadingElement>) {
     <AriaHeading
       {...otherProps}
       css={css(textBaseCSS, headingBaseCSS)}
-      className={classNames("ac-Heading", props.className)}
+      className={classNames("heading", props.className)}
       ref={ref}
       level={level}
       data-level={level}

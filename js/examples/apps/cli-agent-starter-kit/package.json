@@ -46,13 +46,12 @@
     "@arizeai/phoenix-otel": "workspace:*",
     "@clack/prompts": "^1.0.1",
     "ai": "^6.0.84",
-    "zod": "^3.25.76"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/node": "^25.2.3",
-    "glob": "^11.0.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "glob": "^13.0.6",
+    "tsx": "^4.19.2"
   },
   "engines": {
     "node": ">=22"

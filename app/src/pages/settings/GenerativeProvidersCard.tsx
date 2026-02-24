@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -47,7 +47,7 @@ import { useNotifyError, useNotifySuccess, useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import {
+import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";

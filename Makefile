@@ -29,7 +29,7 @@ NC := \033[0m # No Color
 #=============================================================================
 
 .PHONY: help check-tools \
-	setup install-python install-node setup-symlinks \
+	setup install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi codegen-python-client codegen-ts-client \
 	dev dev-backend dev-frontend \
@@ -56,7 +56,6 @@ help: ## Show this help message
 	@echo -e "  check-tools            - Verify required tools are installed"
 	@echo -e "  install-python         - Install Python dependencies"
 	@echo -e "  install-node           - Install Node.js dependencies"
-	@echo -e "  setup-symlinks         - Create Python package symlinks"
 	@echo -e ""
 	@echo -e "$(GREEN)Development:$(NC)"
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
@@ -131,12 +130,7 @@ install-node: ## Install Node.js dependencies
 	@cd $(JS_DIR) && $(PNPM) install --silent
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-setup-symlinks: ## Create Python package symlinks
-	@echo -e "$(CYAN)Creating Python package symlinks...$(NC)"
-	@$(TOX) run -q -e add_symlinks
-	@echo -e "$(GREEN)✓ Done$(NC)"
-
-setup: check-tools install-python install-node setup-symlinks ## Complete development environment setup
+setup: check-tools install-python install-node ## Complete development environment setup
 	@echo -e ""
 	@echo -e "$(GREEN)✓ Phoenix development environment setup complete!$(NC)"
 	@echo -e ""
@@ -219,7 +213,8 @@ test: test-python test-frontend test-ts ## Run all tests (Python + frontend + Ty
 
 typecheck-python: ## Type check Python code
 	@echo -e "$(CYAN)Type checking Python...$(NC)"
-	@$(TOX) run -q -e remove_symlinks,type_check,add_symlinks
+	@$(UV) run mypy
+	@echo -e "$(GREEN)✓ Type check complete$(NC)"
 
 typecheck-python-ty: ## Type check Python with ty (verify expected errors only)
 	@echo -e "$(CYAN)Type checking Python with ty...$(NC)"

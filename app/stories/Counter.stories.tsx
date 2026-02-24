@@ -1,6 +1,7 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
-import { Counter, CounterProps } from "@phoenix/components";
+import type { CounterProps } from "@phoenix/components";
+import { Counter } from "@phoenix/components";
 const meta: Meta = {
   title: "Counter",
   component: Counter,

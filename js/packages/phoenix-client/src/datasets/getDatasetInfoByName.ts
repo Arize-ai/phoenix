@@ -1,6 +1,6 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { DatasetInfo } from "../types/datasets";
+import type { ClientFn } from "../types/core";
+import type { DatasetInfo } from "../types/datasets";
 
 export type GetDatasetParams = ClientFn & {
   datasetName: string;

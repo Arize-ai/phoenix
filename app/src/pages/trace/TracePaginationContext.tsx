@@ -1,10 +1,5 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";

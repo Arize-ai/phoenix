@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { TokenCountDetails } from "../trace/TokenCountDetails";
-import { ExperimentTokenCountDetailsQuery } from "./__generated__/ExperimentTokenCountDetailsQuery.graphql";
+import type { ExperimentTokenCountDetailsQuery } from "./__generated__/ExperimentTokenCountDetailsQuery.graphql";
 
 export function ExperimentTokenCountDetails(props: { experimentId: string }) {
   const data = useLazyLoadQuery<ExperimentTokenCountDetailsQuery>(

@@ -281,8 +281,6 @@ input AzureOpenAICustomProviderConfigInput {
   openaiApiType: OpenAIApiType = RESPONSES
 }
 
-union Bin = NominalBin | IntervalBin | MissingValueBin
-
 type BooleanInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   canonicalName: CanonicalParameterName
@@ -517,35 +515,6 @@ input ClonePromptInput {
   promptId: ID!
   description: String
   metadata: JSON
-}
-
-type Cluster {
-  """The ID of the cluster"""
-  id: ID!
-
-  """The event IDs of the points in the cluster"""
-  eventIds: [ID!]!
-
-  """Ratio of primary points over reference points"""
-  driftRatio: Float
-
-  """Ratio of primary points over corpus points"""
-  primaryToCorpusRatio: Float
-
-  """
-  Data quality metric summarized by the respective datasets of the clustered events
-  """
-  dataQualityMetric(metric: DataQualityMetricInput!): DatasetValues!
-
-  """
-  Performance metric summarized by the respective datasets of the clustered events
-  """
-  performanceMetric(metric: PerformanceMetricInput!): DatasetValues!
-}
-
-input ClusterInput {
-  eventIds: [ID!]!
-  id: ID
 }
 
 type CodeEvaluator implements Evaluator & Node {
@@ -815,30 +784,6 @@ scalar CronExpression
 
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
 
-enum DataQualityMetric {
-  cardinality
-  percentEmpty
-  mean
-  sum
-  min
-  max
-  count
-  p01
-  p25
-  p50
-  p75
-  p99
-}
-
-input DataQualityMetricInput {
-  metric: DataQualityMetric!
-  columnName: String
-}
-
-type DataQualityTimeSeries implements TimeSeries {
-  data: [TimeSeriesDataPoint!]!
-}
-
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1098,11 +1043,6 @@ type DatasetSplitMutationPayloadWithExamples {
   examples: [DatasetExample!]!
 }
 
-type DatasetValues {
-  primaryValue: Float
-  referenceValue: Float
-}
-
 type DatasetVersion implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1269,113 +1209,6 @@ type DeleteUsersPayload {
   userIds: [ID!]!
 }
 
-type Dimension implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-
-  """The name of the dimension (a.k.a. the column name)"""
-  name: String!
-
-  """
-  Whether the dimension represents a feature, tag, prediction, or actual.
-  """
-  type: DimensionType!
-
-  """The data type of the column. Categorical or numeric."""
-  dataType: DimensionDataType!
-
-  """Whether the dimension data is continuous or discrete."""
-  shape: DimensionShape!
-  driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange): Float
-  dataQualityMetric(
-    metric: DataQualityMetric!
-    timeRange: TimeRange
-
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): Float
-
-  """
-  Returns the observed categories of a categorical dimension (usually a dimension of string values) as a list of unique string labels sorted in lexicographical order. Missing values are excluded. Non-categorical dimensions return an empty list.
-  """
-  categories: [String!]!
-
-  """
-  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
-  """
-  dataQualityTimeSeries(
-    metric: DataQualityMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): DataQualityTimeSeries!
-
-  """
-  The time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
-  """
-  driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
-
-  """
-  The segments across both inference sets and returns the counts per segment
-  """
-  segmentsComparison(primaryTimeRange: TimeRange): Segments!
-}
-
-"""A connection to a list of items."""
-type DimensionConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [DimensionEdge!]!
-}
-
-enum DimensionDataType {
-  categorical
-  numeric
-}
-
-"""An edge in a connection."""
-type DimensionEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Dimension!
-}
-
-input DimensionFilter {
-  types: [DimensionType!]
-  shapes: [DimensionShape!]
-  dataTypes: [DimensionDataType!]
-}
-
-input DimensionInput {
-  name: String!
-  type: DimensionType!
-}
-
-enum DimensionShape {
-  continuous
-  discrete
-}
-
-enum DimensionType {
-  feature
-  tag
-  prediction
-  actual
-}
-
-type DimensionWithValue {
-  dimension: Dimension!
-
-  """The string representation of the dimension's value"""
-  value: String
-}
-
 type DocumentAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1469,97 +1302,6 @@ type DocumentRetrievalMetrics {
   Return 1.0 if any score is truthy (i.e. is a hit), e.g. score=1. Otherwise, return `NaN` if any score is non-finite (e.g. `NaN`), or return 0.0 if all scores are falsy, e.g. all scores are 0.
   """
   hit: Float
-}
-
-type DriftTimeSeries implements TimeSeries {
-  data: [TimeSeriesDataPoint!]!
-}
-
-type EmbeddingDimension implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  name: String!
-
-  """
-  Computes a drift metric between all reference data and the primary data belonging to the input time range (inclusive of the time range start and exclusive of the time range end). Returns None if no reference dataset exists, if no primary data exists in the input time range, or if the input time range is invalid.
-  """
-  driftMetric(metric: VectorDriftMetric!, timeRange: TimeRange): Float
-
-  """
-  Computes a retrieval metric between corpus data and the primary data belonging to the input time range (inclusive of the time range start and exclusive of the time range end). Returns None if no reference dataset exists, if no primary data exists in the input time range, or if the input time range is invalid.
-  """
-  retrievalMetric(metric: VectorDriftMetric!, timeRange: TimeRange): Float
-
-  """
-  Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
-  """
-  dataQualityTimeSeries(
-    metric: DataQualityMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-
-    """The dataset (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): DataQualityTimeSeries!
-
-  """
-  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
-  """
-  driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
-
-  """
-  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.           
-  """
-  retrievalMetricTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
-  UMAPPoints(
-    """The time range of the primary dataset to generate the UMAP points for"""
-    timeRange: TimeRange!
-
-    """UMAP target dimension hyperparameter. Must be 2 or 3"""
-    nComponents: Int = 3
-
-    """UMAP minimum distance hyperparameter"""
-    minDist: Float! = 0
-
-    """UMAP N neighbors hyperparameter"""
-    nNeighbors: Int! = 30
-
-    """UMAP N samples"""
-    nSamples: Int! = 500
-
-    """HDBSCAN minimum cluster size"""
-    minClusterSize: Int! = 10
-
-    """HDBSCAN minimum samples"""
-    clusterMinSamples: Int! = 1
-
-    """HDBSCAN cluster selection epsilon"""
-    clusterSelectionEpsilon: Float! = 0
-  ): UMAPPoints!
-}
-
-"""A connection to a list of items."""
-type EmbeddingDimensionConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [EmbeddingDimensionEdge!]!
-}
-
-"""An edge in a connection."""
-type EmbeddingDimensionEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: EmbeddingDimension!
-}
-
-type EmbeddingMetadata {
-  predictionId: String
-  rawData: String
-  linkToData: String
 }
 
 enum EvalAttr {
@@ -1678,26 +1420,6 @@ type EvaluatorPreviewsPayload {
 input EvaluatorSort {
   col: EvaluatorColumn!
   dir: SortDir!
-}
-
-type Event {
-  id: ID!
-  eventMetadata: EventMetadata!
-  dimensions: [DimensionWithValue!]!
-
-  """The prompt and response pair associated with the event"""
-  promptAndResponse: PromptResponse
-
-  """The text of the document if the event is a retrieved document record"""
-  documentText: String
-}
-
-type EventMetadata {
-  predictionId: String
-  predictionScore: Float
-  predictionLabel: String
-  actualScore: Float
-  actualLabel: String
 }
 
 interface ExampleRevision {
@@ -1956,11 +1678,6 @@ input ExperimentRunSort {
   dir: SortDir!
 }
 
-type ExportedFile {
-  """File name without the file extension."""
-  fileName: String!
-}
-
 type FloatInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   canonicalName: CanonicalParameterName
@@ -1988,11 +1705,6 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   repetitionNumber: Int
   name: String!
   arguments: String!
-}
-
-type Functionality {
-  """Model inferences are available for analysis"""
-  modelInferences: Boolean!
 }
 
 input GenerativeCredentialInput {
@@ -2192,89 +1904,13 @@ input GoogleGenAIHttpOptionsInput {
   headers: JSON
 }
 
-"""
-Granularity specifies the distance between points in a time-series and the duration of time (i.e. evaluation window) by which data is aggregated for  each data point. By convention all time intervals are right-open intervals, i.e. the end instant of the evaluation window is excluded from the interval. As a matter of standardization, each point in a time-series aggregates data  corresponding to an interval of time (i.e. the evaluation window) ending at the point's timestamp, and each time-series enumerates its points starting from the end instant of the TimeRange.
-"""
-input Granularity {
-  """
-  Specifies the length of time by which the data are grouped for aggregation. Each point in a time-series will have the same evaluation_window, but the evaluation_window for each point can overlap in real time. For example, when the points are 24 hours apart but the eval window is 72 hours, it means that each point in the time-series is aggregating 72 hours worth of data ending at the point's timestamp.
-  """
-  evaluationWindowMinutes: Int!
-
-  """
-  Specifies the time interval between each point in the time-series. All points in the time-series are separated by the same length of time, and are generated starting from the end time of the time range.
-  """
-  samplingIntervalMinutes: Int!
-}
-
 scalar Identifier
-
-type InferenceModel {
-  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
-  primaryInferences: Inferences!
-  referenceInferences: Inferences
-  corpusInferences: Inferences
-  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
-
-  """Returns exported file names sorted by descending modification time."""
-  exportedFiles: [ExportedFile!]!
-  performanceMetric(
-    metric: PerformanceMetricInput!
-    timeRange: TimeRange
-
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): Float
-
-  """
-  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
-  """
-  performanceTimeSeries(
-    metric: PerformanceMetricInput!
-    timeRange: TimeRange!
-    granularity: Granularity!
-
-    """The inferences (primary or reference) to query"""
-    inferencesRole: InferencesRole = primary
-  ): PerformanceTimeSeries!
-}
-
-type Inferences {
-  """The start bookend of the data"""
-  startTime: DateTime!
-
-  """The end bookend of the data"""
-  endTime: DateTime!
-
-  """The record count of the data"""
-  recordCount: Int!
-
-  """Returns a human friendly name for the inferences."""
-  name: String!
-  events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
-}
-
-enum InferencesRole {
-  primary
-  reference
-}
 
 input InlineLLMEvaluatorInput {
   name: String!
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   description: String = null
-}
-
-input InputCoordinate2D {
-  x: Float!
-  y: Float!
-}
-
-input InputCoordinate3D {
-  x: Float!
-  y: Float!
-  z: Float!
 }
 
 type IntInvocationParameter implements InvocationParameterBase {
@@ -2284,10 +1920,6 @@ type IntInvocationParameter implements InvocationParameterBase {
   required: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: Int
-}
-
-type IntervalBin {
-  range: NumericRange!
 }
 
 enum InvocationInputField {
@@ -2365,10 +1997,6 @@ enum MimeType {
   json
 }
 
-type MissingValueBin {
-  name: String
-}
-
 interface ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey
@@ -2428,16 +2056,6 @@ type Mutation {
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
-
-  """
-  Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
-  """
-  exportEvents(eventIds: [ID!]!, fileName: String): ExportedFile!
-
-  """
-  Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
-  """
-  exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
   deleteGenerativeModelCustomProvider(input: DeleteGenerativeModelCustomProviderMutationInput!): DeleteGenerativeModelCustomProviderMutationPayload!
@@ -2485,15 +2103,6 @@ type Mutation {
 interface Node {
   """The Globally Unique ID of this object"""
   id: ID!
-}
-
-type NominalBin {
-  name: String!
-}
-
-type NumericRange {
-  start: Float!
-  end: Float!
 }
 
 enum OpenAIApiType {
@@ -2636,18 +2245,6 @@ input PatchViewerInput {
   currentPassword: String
 }
 
-enum PerformanceMetric {
-  accuracyScore
-}
-
-input PerformanceMetricInput {
-  metric: PerformanceMetric!
-}
-
-type PerformanceTimeSeries implements TimeSeries {
-  data: [TimeSeriesDataPoint!]!
-}
-
 input PlaygroundEvaluatorInput {
   id: ID!
   name: Identifier!
@@ -2659,19 +2256,6 @@ input PlaygroundEvaluatorInput {
 type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
-}
-
-type Point2D {
-  x: Float!
-  y: Float!
-}
-
-union Point2DPoint3D = Point2D | Point3D
-
-type Point3D {
-  x: Float!
-  y: Float!
-  z: Float!
 }
 
 type Project implements Node {
@@ -3052,14 +2636,6 @@ enum PromptMessageRole {
   TOOL
 }
 
-type PromptResponse {
-  """The prompt submitted to the LLM"""
-  prompt: String
-
-  """The response generated by the LLM"""
-  response: String
-}
-
 type PromptStringTemplate {
   template: String!
 }
@@ -3160,8 +2736,6 @@ type Query {
   compareExperiments(baseExperimentId: ID!, compareExperimentIds: [ID!]!, first: Int = 50, after: String, filterCondition: String): ExperimentComparisonConnection!
   experimentRunMetricComparisons(baseExperimentId: ID!, compareExperimentIds: [ID!]!): ExperimentRunMetricComparisons!
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
-  functionality: Functionality!
-  model: InferenceModel!
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
@@ -3172,26 +2746,6 @@ type Query {
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
-  clusters(clusters: [ClusterInput!]!): [Cluster!]!
-  hdbscanClustering(
-    """Event ID of the coordinates"""
-    eventIds: [ID!]!
-
-    """Point coordinates. Must be either 2D or 3D."""
-    coordinates2d: [InputCoordinate2D!]
-
-    """Point coordinates. Must be either 2D or 3D."""
-    coordinates3d: [InputCoordinate3D!]
-
-    """HDBSCAN minimum cluster size"""
-    minClusterSize: Int! = 10
-
-    """HDBSCAN minimum samples"""
-    clusterMinSamples: Int! = 1
-
-    """HDBSCAN cluster selection epsilon"""
-    clusterSelectionEpsilon: Float! = 0
-  ): [Cluster!]!
   defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
   projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
@@ -3206,6 +2760,10 @@ type Query {
   getTraceByOtelId(traceId: String!): Trace
   getProjectSessionById(sessionId: String!): ProjectSession
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
+  projectCount: Int!
+  datasetCount: Int!
+  promptCount: Int!
+  evaluatorCount: Int!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -3228,22 +2786,10 @@ input ResponseFormatInput {
   definition: JSON!
 }
 
-type Retrieval {
-  queryId: ID!
-  documentId: ID!
-  relevance: Float
-}
-
 enum RevisionKind {
   CREATE
   PATCH
   DELETE
-}
-
-enum ScalarDriftMetric {
-  psi
-  klDivergence
-  jsDistance
 }
 
 type Secret implements Node {
@@ -3282,16 +2828,6 @@ input SecretKeyValueInput {
 
 """A secret string value."""
 scalar SecretString
-
-type Segment {
-  bin: Bin!
-  counts: DatasetValues!
-}
-
-type Segments {
-  segments: [Segment!]!
-  totalCounts: DatasetValues!
-}
 
 type ServerStatus {
   insufficientStorage: Boolean!
@@ -3965,24 +3501,6 @@ type TraceTokenCountTimeSeriesDataPoint {
   totalTokenCount: Float
 }
 
-type UMAPPoint {
-  id: ID!
-
-  """The ID of the event that the point is a projection of"""
-  eventId: ID!
-  coordinates: Point2DPoint3D!
-  embeddingMetadata: EmbeddingMetadata!
-  eventMetadata: EventMetadata!
-}
-
-type UMAPPoints {
-  data: [UMAPPoint!]!
-  referenceData: [UMAPPoint!]!
-  clusters: [Cluster!]!
-  corpusData: [UMAPPoint!]!
-  contextRetrievals: [Retrieval!]!
-}
-
 type UnparsableConfig {
   parseError: String!
 }
@@ -4135,8 +3653,4 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
-}
-
-enum VectorDriftMetric {
-  euclideanDistance
 }

@@ -360,6 +360,10 @@
   </url>
 
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness</loc>
+  </url>
+
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness</loc>
   </url>
 

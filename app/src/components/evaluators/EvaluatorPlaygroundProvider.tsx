@@ -1,12 +1,13 @@
-import { PropsWithChildren, useMemo } from "react";
+import type { PropsWithChildren } from "react";
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { EvaluatorPlaygroundProviderQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorPlaygroundProviderQuery.graphql";
+import type { EvaluatorPlaygroundProviderQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorPlaygroundProviderQuery.graphql";
 import { makeLLMEvaluatorInstance } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
-import { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
-import { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
+import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
 import {

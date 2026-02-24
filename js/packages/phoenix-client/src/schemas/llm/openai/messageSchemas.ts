@@ -24,53 +24,41 @@ export const openAIMessageRoleSchema = z.enum([
 export type OpenAIMessageRole = z.infer<typeof openAIMessageRoleSchema>;
 
 export const openAIMessageSchema = z.discriminatedUnion("role", [
-  z
-    .object({
-      role: z.literal("assistant"),
-      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
-      name: z.string().optional(),
-      tool_call_id: z.string().optional(),
-      tool_calls: z.array(openAIToolCallSchema).optional(),
-    })
-    .passthrough(),
-  z
-    .object({
-      role: z.literal("tool"),
-      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
-      tool_call_id: z.string(),
-    })
-    .passthrough(),
-  z
-    .object({
-      role: z.literal("function"),
-      content: z.string().nullable(),
-      name: z.string(),
-    })
-    .passthrough(),
-  z
-    .object({
-      role: z.literal("user"),
-      content: z.union([
-        z.array(z.union([openaiChatPartTextSchema, openaiChatPartImageSchema])),
-        z.string(),
-      ]),
-      name: z.string().optional(),
-    })
-    .passthrough(),
-  z
-    .object({
-      role: z.literal("system"),
-      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
-      name: z.string().optional(),
-    })
-    .passthrough(),
-  z
-    .object({
-      role: z.literal("developer"),
-      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
-      name: z.string().optional(),
-    })
-    .passthrough(),
+  z.looseObject({
+    role: z.literal("assistant"),
+    content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+    name: z.string().optional(),
+    tool_call_id: z.string().optional(),
+    tool_calls: z.array(openAIToolCallSchema).optional(),
+  }),
+  z.looseObject({
+    role: z.literal("tool"),
+    content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+    tool_call_id: z.string(),
+  }),
+  z.looseObject({
+    role: z.literal("function"),
+    content: z.string().nullable(),
+    name: z.string(),
+  }),
+  z.looseObject({
+    role: z.literal("user"),
+    content: z.union([
+      z.array(z.union([openaiChatPartTextSchema, openaiChatPartImageSchema])),
+      z.string(),
+    ]),
+    name: z.string().optional(),
+  }),
+  z.looseObject({
+    role: z.literal("system"),
+    content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+    name: z.string().optional(),
+  }),
+  z.looseObject({
+    role: z.literal("developer"),
+    content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+    name: z.string().optional(),
+  }),
 ]);
 
 export type OpenAIMessage = z.infer<typeof openAIMessageSchema>;

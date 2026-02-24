@@ -1,4 +1,4 @@
-import { AttributeValue } from "@opentelemetry/api";
+import type { AttributeValue } from "@opentelemetry/api";
 
 export function objectAsAttributes<T extends Record<string, unknown>>(
   obj: T

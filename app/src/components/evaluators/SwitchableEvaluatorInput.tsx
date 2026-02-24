@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
 import { useMemo, useState } from "react";
-import { Key } from "react-aria-components";
-import {
+import type { Key } from "react-aria-components";
+import type {
   Control,
-  Controller,
   FieldValues,
   Path,
   UseFormSetValue,
 } from "react-hook-form";
+import { Controller } from "react-hook-form";
 
 import {
   Button,
@@ -113,7 +113,7 @@ const inputContainerCSS = css`
   min-width: 0;
 
   // ComboBox adjustments within composite field (right element)
-  .px-combobox-container {
+  .combobox__container {
     min-width: 0 !important;
     input {
       min-width: 0 !important;
@@ -123,7 +123,7 @@ const inputContainerCSS = css`
   }
 
   // TextField adjustments within composite field (right element)
-  .ac-textfield {
+  .text-field {
     .react-aria-Input {
       border-top-left-radius: 0;
       border-bottom-left-radius: 0;

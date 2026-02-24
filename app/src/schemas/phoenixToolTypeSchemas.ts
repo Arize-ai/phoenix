@@ -6,7 +6,6 @@
  */
 
 import z from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 import { openAIToolDefinitionSchema } from "@phoenix/schemas/toolSchemas";
 
@@ -22,7 +21,7 @@ export const CategoricalChoiceToolTypeSchema =
     function: openAIToolDefinitionSchema.shape.function.extend({
       parameters: z.object({
         type: z.literal("object"),
-        properties: z.record(
+        properties: z.partialRecord(
           z.union([z.literal("label"), z.literal("explanation")]),
           z.union([
             z.object({
@@ -45,11 +44,8 @@ export type CategoricalChoiceToolType = z.infer<
   typeof CategoricalChoiceToolTypeSchema
 >;
 
-export const CategoricalChoiceToolTypeJSONSchema = zodToJsonSchema(
-  CategoricalChoiceToolTypeSchema,
-  {
-    removeAdditionalStrategy: "passthrough",
-  }
+export const CategoricalChoiceToolTypeJSONSchema = z.toJSONSchema(
+  CategoricalChoiceToolTypeSchema
 );
 
 // export const PhoenixToolTypeSchema = z.union([CategoricalChoiceToolTypeSchema]);

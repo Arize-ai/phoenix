@@ -1,11 +1,9 @@
 import { css } from "@emotion/react";
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
 import { Button } from "../src/components/button/Button";
-import {
-  IconButton,
-  IconButtonProps,
-} from "../src/components/button/IconButton";
+import type { IconButtonProps } from "../src/components/button/IconButton";
+import { IconButton } from "../src/components/button/IconButton";
 import { Icon } from "../src/components/icon/Icon";
 import {
   AlertTriangleOutline,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { TextPart } from "../../src/schemas/llm/phoenixPrompt/messagePartSchemas";
-import { PromptChatMessage } from "../../src/types/prompts";
+import type { TextPart } from "../../src/schemas/llm/phoenixPrompt/messagePartSchemas";
+import type { PromptChatMessage } from "../../src/types/prompts";
 import { formatPromptMessages } from "../../src/utils/formatPromptMessages";
 
 describe("formatPromptMessages", () => {

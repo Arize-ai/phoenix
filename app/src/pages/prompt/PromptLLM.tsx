@@ -1,4 +1,4 @@
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
@@ -12,7 +12,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
-import { PromptLLM__main$key } from "@phoenix/pages/prompt/__generated__/PromptLLM__main.graphql";
+import type { PromptLLM__main$key } from "@phoenix/pages/prompt/__generated__/PromptLLM__main.graphql";
 
 const ModelProviderItem = ({
   keyName,

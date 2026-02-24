@@ -12,7 +12,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { AnnotationConfig } from "@phoenix/components/annotation";
+import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
@@ -20,15 +20,15 @@ import {
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { ComponentSize, SizingProps } from "@phoenix/components/types";
+import type { ComponentSize, SizingProps } from "@phoenix/components/types";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-import { Mutable } from "@phoenix/typeUtils";
+import type { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
-import { AnnotationSummaryQuery } from "./__generated__/AnnotationSummaryQuery.graphql";
-import { AnnotationSummaryValueFragment$key } from "./__generated__/AnnotationSummaryValueFragment.graphql";
+import type { AnnotationSummaryQuery } from "./__generated__/AnnotationSummaryQuery.graphql";
+import type { AnnotationSummaryValueFragment$key } from "./__generated__/AnnotationSummaryValueFragment.graphql";
 
 type AnnotationSummaryProps = {
   annotationName: string;

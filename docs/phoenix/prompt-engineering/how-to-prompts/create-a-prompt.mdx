@@ -124,7 +124,7 @@ Creating a prompt in code can be useful if you want a programmatic way to sync p
     Below is an example prompt for summarizing articles as bullet points. Use the Phoenix client to store the prompt in the Phoenix server. The name of the prompt is an identifier with lowercase alphanumeric characters plus hyphens and underscores (no spaces).
 
     ```javascript
-    import { createPrompt, promptVersion } from "@arizeai/phoenix-client";
+    import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
     const promptTemplate = `
     You're an expert educator in {{ topic }}. Summarize the following article
@@ -153,14 +153,14 @@ Creating a prompt in code can be useful if you want a programmatic way to sync p
     ```javascript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-    const prompt = await getPrompt({ name: "article-bullet-summarizer" });
+    const prompt = await getPrompt({ prompt: { name: "article-bullet-summarizer" } });
     // ^ you now have a strongly-typed prompt object, in the Phoenix SDK Prompt type
     ```
 
     If a version is [tagged](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) with, e.g. "production", it can retrieved as follows.
 
     ```javascript
-    const promptByTag = await getPrompt({ tag: "production", name: "article-bullet-summarizer" });
+    const promptByTag = await getPrompt({ prompt: { tag: "production", name: "article-bullet-summarizer" } });
     // ^ you can optionally specify a tag to filter by
     ```
 

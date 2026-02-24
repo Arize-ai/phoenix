@@ -1,11 +1,8 @@
-import { Key, Suspense, useCallback, useEffect } from "react";
+import type { Key } from "react";
+import { Suspense, useCallback, useEffect } from "react";
 import { useMutation, useRelayEnvironment } from "react-relay";
-import {
-  graphql,
-  GraphQLSubscriptionConfig,
-  PayloadError,
-  requestSubscription,
-} from "relay-runtime";
+import type { GraphQLSubscriptionConfig, PayloadError } from "relay-runtime";
+import { graphql, requestSubscription } from "relay-runtime";
 
 import {
   Card,
@@ -31,11 +28,8 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import {
-  ChatMessage,
-  generateMessageId,
-  PlaygroundRepetition,
-} from "@phoenix/store";
+import type { ChatMessage, PlaygroundRepetition } from "@phoenix/store";
+import { generateMessageId } from "@phoenix/store";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   getErrorMessagesFromRelayMutationError,
@@ -43,24 +37,24 @@ import {
 } from "@phoenix/utils/errorUtils";
 
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
-import PlaygroundOutputMutation, {
+import type {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
   PlaygroundOutputMutation$data,
 } from "./__generated__/PlaygroundOutputMutation.graphql";
-import PlaygroundOutputSubscription, {
+import PlaygroundOutputMutation from "./__generated__/PlaygroundOutputMutation.graphql";
+import type {
   PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
   PlaygroundOutputSubscription$data,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import PlaygroundOutputSubscription from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundOutputMoveButton } from "./PlaygroundOutputMoveButton";
-import {
-  PartialOutputToolCall,
-  PlaygroundToolCall,
-} from "./PlaygroundToolCall";
+import type { PartialOutputToolCall } from "./PlaygroundToolCall";
+import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import { getChatCompletionInput, isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
-import { PlaygroundInstanceProps } from "./types";
+import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 

@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
 import { TextArea } from "react-aria-components";
 
-import { Flex, Text, TextField, TextFieldProps } from "@phoenix/components";
+import type { TextFieldProps } from "@phoenix/components";
+import { Flex, Text, TextField } from "@phoenix/components";
 import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
 
 import type {

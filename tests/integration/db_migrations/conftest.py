@@ -3,7 +3,7 @@ from pathlib import Path
 from secrets import token_hex
 
 import pytest
-import sqlean  # type: ignore[import-untyped]
+import sqlean
 from alembic.config import Config
 from pytest import TempPathFactory
 from sqlalchemy import URL, Engine, NullPool, create_engine, event

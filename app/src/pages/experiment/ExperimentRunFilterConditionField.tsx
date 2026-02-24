@@ -1,12 +1,13 @@
-import {
-  autocompletion,
+import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
+import { autocompletion } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
+import type { EditorView } from "@uiw/react-codemirror";
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
 import {
   startTransition,
   useDeferredValue,
@@ -36,7 +37,7 @@ import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
-import { ExperimentRunFilterConditionFieldValidationQuery } from "./__generated__/ExperimentRunFilterConditionFieldValidationQuery.graphql";
+import type { ExperimentRunFilterConditionFieldValidationQuery } from "./__generated__/ExperimentRunFilterConditionFieldValidationQuery.graphql";
 import { useExperimentRunFilterCondition } from "./ExperimentRunFilterConditionContext";
 
 const codeMirrorCSS = css`
@@ -83,7 +84,7 @@ function filterConditionCompletions(
   const word = context.matchBefore(/\w*/);
   if (!word) return null;
 
-  if (word.from == word.to && !context.explicit) return null;
+  if (word.from === word.to && !context.explicit) return null;
 
   return {
     from: word.from,
@@ -333,7 +334,7 @@ export function ExperimentRunFilterConditionField(
       </Flex>
       <TooltipTrigger isOpen={hasError && isFocused}>
         <Tooltip placement="bottom" triggerRef={filterConditionFieldRef}>
-          {errorMessage != "" ? (
+          {errorMessage !== "" ? (
             <Text color="danger">{errorMessage}</Text>
           ) : (
             <Text color="success">Valid Expression</Text>

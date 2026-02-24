@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { PreloadedQuery, usePreloadedQuery } from "react-relay";
+import type { PreloadedQuery } from "react-relay";
+import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
@@ -12,7 +13,7 @@ import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
-import { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
+import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 
 function SessionsTabContent({
   queryReference,

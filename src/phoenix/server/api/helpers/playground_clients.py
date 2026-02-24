@@ -8,7 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import wraps
 from itertools import chain
 from secrets import token_hex
@@ -2143,13 +2143,19 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             async for event in stream:
                 # Update token counts if usage_metadata is present
                 if event.usage_metadata:
-                    span.set_attributes(
-                        {
-                            LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                            LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                            LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                        }
-                    )
+                    token_counts = {}
+                    if event.usage_metadata.prompt_token_count is not None:
+                        token_counts[LLM_TOKEN_COUNT_PROMPT] = (
+                            event.usage_metadata.prompt_token_count
+                        )
+                    if event.usage_metadata.candidates_token_count is not None:
+                        token_counts[LLM_TOKEN_COUNT_COMPLETION] = (
+                            event.usage_metadata.candidates_token_count
+                        )
+                    if event.usage_metadata.total_token_count is not None:
+                        token_counts[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
+                    if token_counts:
+                        span.set_attributes(token_counts)
 
                 if event.candidates:
                     candidate = event.candidates[0]
@@ -2287,6 +2293,7 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
 ]
@@ -2672,10 +2679,13 @@ async def _get_builtin_provider_client(
                 "Set the GEMINI_API_KEY environment variable or use a custom provider."
             )
 
-        # Create factory that returns fresh Google GenAI async client (native async context manager)
-        # Note: Client(api_key).aio returns the AsyncClient which is an async context manager
-        def create_google_client() -> "GoogleAsyncClient":
-            return GoogleGenAIClient(api_key=api_key).aio
+        # Wrapped with @asynccontextmanager because Google's AsyncClient has
+        # a non-standard __aexit__ signature that doesn't conform to
+        # AbstractAsyncContextManager (returns None instead of bool | None).
+        @asynccontextmanager
+        async def create_google_client() -> "AsyncIterator[GoogleAsyncClient]":
+            async with GoogleGenAIClient(api_key=api_key).aio as client:
+                yield client
 
         client_factory = create_google_client
         if model_name in GEMINI_2_0_MODELS:

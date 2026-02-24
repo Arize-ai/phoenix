@@ -1,6 +1,6 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { ExperimentRunsMap, RanExperiment } from "../types/experiments";
+import type { ClientFn } from "../types/core";
+import type { ExperimentRunsMap, RanExperiment } from "../types/experiments";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentRuns } from "./getExperimentRuns";
 

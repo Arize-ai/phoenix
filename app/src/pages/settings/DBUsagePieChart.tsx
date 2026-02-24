@@ -1,20 +1,14 @@
 import { schemePaired } from "d3-scale-chromatic";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  TooltipContentProps,
-} from "recharts";
+import type { TooltipContentProps } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { ChartTooltip, ChartTooltipItem } from "@phoenix/components/chart";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
-import { DBUsagePieChart_data$key } from "./__generated__/DBUsagePieChart_data.graphql";
+import type { DBUsagePieChart_data$key } from "./__generated__/DBUsagePieChart_data.graphql";
 
 const REMAINING_TEXT = "remaining";
 function TooltipContent({

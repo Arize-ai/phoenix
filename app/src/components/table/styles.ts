@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
-import { Column } from "@tanstack/react-table";
-import { CSSProperties } from "react";
+import type { Column } from "@tanstack/react-table";
+import type { CSSProperties } from "react";
 
 export const tableCSS = css`
   // fixes table row sizing issues with full height cell children
@@ -65,7 +65,7 @@ export const tableCSS = css`
           }
         }
         // Style action menu buttons in the header
-        .ac-button[data-size="compact"][data-childless="true"] {
+        .button[data-size="compact"][data-childless="true"] {
           padding: 0;
           border: none;
           background-color: transparent;

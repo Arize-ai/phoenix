@@ -1,4 +1,4 @@
-import { CellContext } from "@tanstack/react-table";
+import type { CellContext } from "@tanstack/react-table";
 
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { isStringOrNullOrUndefined } from "@phoenix/typeUtils";

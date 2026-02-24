@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
-import { CSSProperties, forwardRef, ReactNode, Ref } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
+import { forwardRef } from "react";
 import { Tooltip as AriaTooltip } from "react-aria-components";
 
 import { Heading, Text } from "../content";
 import { View } from "../view";
 import { richTooltipCSS } from "./styles";
-import { TooltipProps } from "./types";
+import type { TooltipProps } from "./types";
 export interface RichTooltipProps extends TooltipProps {
   /**
    * The width of the tooltip. If not provided, the tooltip will grow up to 300px to fit the content.

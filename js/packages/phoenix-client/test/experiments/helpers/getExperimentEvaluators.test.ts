@@ -1,10 +1,10 @@
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-import { MockLanguageModelV2 } from "ai/test";
+import { MockLanguageModelV3 } from "ai/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fromPhoenixLLMEvaluator } from "../../../src/experiments/helpers/fromPhoenixLLMEvaluator";
 import { getExperimentEvaluators } from "../../../src/experiments/helpers/getExperimentEvaluators";
-import { Evaluator } from "../../../src/types/experiments";
+import type { Evaluator } from "../../../src/types/experiments";
 
 // Mock the fromPhoenixLLMEvaluator function
 const mockFromPhoenixEvaluator = vi.fn();
@@ -27,10 +27,18 @@ describe("getExperimentEvaluators", () => {
     it("should convert a valid ClassificationEvaluator", () => {
       const classificationEvaluator = createClassificationEvaluator({
         name: "test-classifier",
-        model: new MockLanguageModelV2({
+        model: new MockLanguageModelV3({
           doGenerate: async () => ({
-            finishReason: "stop",
-            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 10,
+                noCache: 10,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 20, text: 20, reasoning: undefined },
+            },
             content: [
               {
                 type: "text",
@@ -63,10 +71,18 @@ describe("getExperimentEvaluators", () => {
     it("should handle multiple ClassificationEvaluators", () => {
       const evaluator1 = createClassificationEvaluator({
         name: "evaluator-1",
-        model: new MockLanguageModelV2({
+        model: new MockLanguageModelV3({
           doGenerate: async () => ({
-            finishReason: "stop",
-            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 10,
+                noCache: 10,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 20, text: 20, reasoning: undefined },
+            },
             content: [
               {
                 type: "text",
@@ -82,10 +98,18 @@ describe("getExperimentEvaluators", () => {
 
       const evaluator2 = createClassificationEvaluator({
         name: "evaluator-2",
-        model: new MockLanguageModelV2({
+        model: new MockLanguageModelV3({
           doGenerate: async () => ({
-            finishReason: "stop",
-            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 10,
+                noCache: 10,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 20, text: 20, reasoning: undefined },
+            },
             content: [
               {
                 type: "text",
@@ -165,10 +189,18 @@ describe("getExperimentEvaluators", () => {
     it("should handle a mix of ClassificationEvaluator and Evaluator", () => {
       const classificationEvaluator = createClassificationEvaluator({
         name: "classification-eval",
-        model: new MockLanguageModelV2({
+        model: new MockLanguageModelV3({
           doGenerate: async () => ({
-            finishReason: "stop",
-            usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 10,
+                noCache: 10,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 20, text: 20, reasoning: undefined },
+            },
             content: [
               {
                 type: "text",
@@ -316,10 +348,18 @@ describe("getExperimentEvaluators", () => {
         // This tests the type guard logic indirectly
         const classificationEvaluator = createClassificationEvaluator({
           name: "classification-eval",
-          model: new MockLanguageModelV2({
+          model: new MockLanguageModelV3({
             doGenerate: async () => ({
-              finishReason: "stop",
-              usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+              finishReason: { unified: "stop", raw: undefined },
+              usage: {
+                inputTokens: {
+                  total: 10,
+                  noCache: 10,
+                  cacheRead: undefined,
+                  cacheWrite: undefined,
+                },
+                outputTokens: { total: 20, text: 20, reasoning: undefined },
+              },
               content: [
                 {
                   type: "text",

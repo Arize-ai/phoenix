@@ -1,6 +1,6 @@
+import type { PropsWithChildren } from "react";
 import {
   createContext,
-  PropsWithChildren,
   useCallback,
   useContext,
   useEffect,
@@ -131,11 +131,11 @@ export function ThemeProvider(
   useEffect(() => {
     if (props.disableBodyTheme) return;
     // When the theme changes, set a class on the body to override the default theme
-    document.body.classList.add(`ac-theme--${theme}`);
-    document.body.classList.add(`ac-theme`);
+    document.body.classList.add(`theme--${theme}`);
+    document.body.classList.add(`theme`);
     return () => {
-      document.body.classList.remove(`ac-theme--${theme}`);
-      document.body.classList.remove(`ac-theme`);
+      document.body.classList.remove(`theme--${theme}`);
+      document.body.classList.remove(`theme`);
     };
   }, [theme, props.disableBodyTheme]);
 

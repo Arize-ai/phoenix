@@ -1,6 +1,6 @@
 import { useMatches, useRouteLoaderData } from "react-router";
 
-import { PromptLoaderData } from "./promptLoader";
+import type { PromptLoaderData } from "./promptLoader";
 
 /**
  * Returns the loader data for the prompt/:promptId route.

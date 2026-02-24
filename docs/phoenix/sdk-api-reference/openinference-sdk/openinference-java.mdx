@@ -59,7 +59,7 @@ Span span = tracer.llmSpanBuilder("chat", "gpt-4")
 This package provides auto-instrumentation for LangChain4j applications, automatically capturing traces from LangChain4j components:
 
 ```java
-import io.openinference.instrumentation.langchain4j.LangChain4jInstrumenter;
+import io.openinference.instrumentation.langchain4j.LangChain4jInstrumentor;
 
 LangChain4jInstrumentor.instrument();
 ```
@@ -98,17 +98,17 @@ Add the dependencies to your `pom.xml`:
     <dependency>
         <groupId>io.openinference</groupId>
         <artifactId>openinference-semantic-conventions</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </dependency>
     <dependency>
         <groupId>io.openinference</groupId>
         <artifactId>openinference-instrumentation</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </dependency>
     <dependency>
         <groupId>io.openinference</groupId>
         <artifactId>openinference-instrumentation-langchain4j</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </dependency>
 </dependencies>
 ```
@@ -190,7 +190,7 @@ private static void initializeOpenTelemetry() {
 
         String apiKey = System.getenv("PHOENIX_API_KEY");
         OtlpGrpcSpanExporterBuilder otlpExporterBuilder = OtlpGrpcSpanExporter.builder()
-                .setEndpoint("http://localhost:4317") # adjust as needed
+                .setEndpoint("http://localhost:4317") // adjust as needed
                 .setTimeout(Duration.ofSeconds(2));
         OtlpGrpcSpanExporter otlpExporter = null;
         if (apiKey != null && !apiKey.isEmpty()) {

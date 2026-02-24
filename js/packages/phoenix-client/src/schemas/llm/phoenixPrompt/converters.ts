@@ -1,17 +1,16 @@
 import { assertUnreachable } from "../../../utils/assertUnreachable";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
 import { jsonSchemaZodSchema } from "../../jsonSchema";
-import { OpenAIChatPartText } from "../openai/messagePartSchemas";
-import { OpenAIMessage } from "../openai/messageSchemas";
-import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
-import { OpenAIToolCall } from "../openai/toolCallSchemas";
-import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "../openai/toolSchemas";
+import type { OpenAIChatPartText } from "../openai/messagePartSchemas";
+import type { OpenAIMessage } from "../openai/messageSchemas";
+import type { OpenAIResponseFormat } from "../openai/responseFormatSchema";
+import type { OpenAIToolCall } from "../openai/toolCallSchemas";
+import type { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
+import type { OpenAIToolDefinition } from "../openai/toolSchemas";
+import type { ToolCallPart, ToolResultPart } from "./messagePartSchemas";
 import {
   asToolResultPart,
   phoenixContentPartSchema,
-  ToolCallPart,
-  ToolResultPart,
 } from "./messagePartSchemas";
 import { phoenixMessageSchema } from "./messageSchemas";
 import { phoenixResponseFormatSchema } from "./responseFormatSchema";

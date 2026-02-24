@@ -1,6 +1,6 @@
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { GenAIOperationType } from "@phoenix/store";
+import type { GenAIOperationType } from "@phoenix/store";
 
 function isGenAIOperationType(v: string): v is GenAIOperationType {
   return v === "chat" || v === "text_completion";
@@ -20,7 +20,7 @@ export function PlaygroundOperationTypeRadioGroup() {
           return;
         }
         const type = v.keys().next().value;
-        if (isGenAIOperationType(type)) {
+        if (typeof type === "string" && isGenAIOperationType(type)) {
           setOperationType(type);
         }
       }}

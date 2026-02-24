@@ -17,7 +17,7 @@ class TestLoadSubstitutions:
         """Test that the loaded substitutions contain the expected substitution names."""
         substitutions = load_substitutions()
         assert "available_tools_list" in substitutions
-        assert "tool_calls_to_string" in substitutions
+        assert "output_with_tool_calls" in substitutions
 
 
 class TestExpandTemplatePlaceholders:

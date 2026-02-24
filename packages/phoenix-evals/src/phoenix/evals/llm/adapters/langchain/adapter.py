@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Type, Union, cast
 
 from phoenix.evals.legacy.templates import MultimodalPrompt
 
-from ...prompts import ContentPart, Message, MessageRole, PromptLike, TextContentPart
+from ...prompts import ContentPart, Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import (
@@ -313,7 +313,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 text_parts = []
                 for part in content:
                     if self._is_text_content_part(part):
-                        text_parts.append(cast(TextContentPart, part)["text"])
+                        text_parts.append(part["text"])
                 text_content = "\n".join(text_parts)
 
             # Map MessageRole enum to LangChain message classes
@@ -366,7 +366,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                         text_parts = []
                         for part in content:
                             if self._is_text_content_part(part):
-                                text_parts.append(cast(TextContentPart, part)["text"])
+                                text_parts.append(part["text"])
                         text_content = "\n".join(text_parts)
 
                     if role == "user":

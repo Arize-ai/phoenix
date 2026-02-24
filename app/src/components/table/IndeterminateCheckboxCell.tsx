@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
 import { useRef, useState } from "react";
 
-import { Checkbox, CheckboxProps } from "@phoenix/components/checkbox";
+import type { CheckboxProps } from "@phoenix/components/checkbox";
+import { Checkbox } from "@phoenix/components/checkbox";
 
 type IndeterminateCheckboxCellProps = CheckboxProps & {
   /**

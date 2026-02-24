@@ -42,7 +42,6 @@ export const toastQueue = new ToastQueue<NotificationParams>({
   // Wrap state updates in a CSS view transition.
   wrapUpdate(fn) {
     if ("startViewTransition" in document) {
-      // @ts-expect-error this will error until we upgrade our version of typescript
       document?.startViewTransition(() => {
         flushSync(fn);
       });

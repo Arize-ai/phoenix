@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { forwardRef, PropsWithChildren, Ref } from "react";
+import type { PropsWithChildren, Ref } from "react";
+import { forwardRef } from "react";
 
 import { classNames } from "@phoenix/utils";
 
@@ -24,7 +25,7 @@ export const Keyboard = forwardRef(function Keyboard(
     <kbd
       ref={ref}
       css={keyboardCSS}
-      className={classNames("ac-keyboard", className)}
+      className={classNames("keyboard", className)}
       {...props}
     >
       {children}

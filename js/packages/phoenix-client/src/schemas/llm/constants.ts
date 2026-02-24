@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PromptProviderSDKs } from "../../types/prompts";
+import type { PromptProviderSDKs } from "../../types/prompts";
 import {
   anthropicMessagePartToOpenAI,
   anthropicMessageToOpenAI,

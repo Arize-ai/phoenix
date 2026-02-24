@@ -7,10 +7,8 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/dialog";
 
-import {
-  SpanAnnotationsEditor,
-  SpanAnnotationsEditorProps,
-} from "./SpanAnnotationsEditor";
+import type { SpanAnnotationsEditorProps } from "./SpanAnnotationsEditor";
+import { SpanAnnotationsEditor } from "./SpanAnnotationsEditor";
 
 type EditSpanAnnotationsDialogProps = SpanAnnotationsEditorProps;
 export function EditSpanAnnotationsDialog(

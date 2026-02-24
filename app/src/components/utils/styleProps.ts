@@ -1,7 +1,7 @@
-import { CSSProperties, HTMLAttributes } from "react";
+import type { CSSProperties, HTMLAttributes } from "react";
 import { useLocale } from "react-aria-components";
 
-import {
+import type {
   BackgroundColorValue,
   BorderColorValue,
   BorderRadiusValue,

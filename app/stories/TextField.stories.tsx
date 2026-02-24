@@ -1,5 +1,6 @@
-import { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn } from "@storybook/react";
 
+import type { TextFieldProps } from "@phoenix/components";
 import {
   FieldError,
   Flex,
@@ -7,7 +8,6 @@ import {
   Label,
   Text,
   TextField,
-  TextFieldProps,
 } from "@phoenix/components";
 import { FieldDangerIcon, FieldSuccessIcon } from "@phoenix/components/field";
 

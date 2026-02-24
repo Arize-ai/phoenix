@@ -194,7 +194,7 @@ class TraceDataset:
                 .to_dict()
             )
             end_time: Optional[datetime] = cast(datetime, row.get("end_time"))
-            if end_time is pd.NaT:
+            if end_time is pd.NaT:  # type: ignore[comparison-overlap]
                 end_time = None
             events = cast(Any, row.get("events"))
             if isinstance(events, np.ndarray):

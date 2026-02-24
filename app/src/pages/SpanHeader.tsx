@@ -10,7 +10,7 @@ import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
 
-import { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
+import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
 
 type SpanHeaderProps = {
   span: SpanHeader_span$key;

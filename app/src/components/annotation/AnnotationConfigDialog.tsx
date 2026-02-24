@@ -22,7 +22,7 @@ import {
   View,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import {
+import type {
   AnnotationConfig,
   AnnotationConfigCategorical,
   AnnotationConfigContinuous,

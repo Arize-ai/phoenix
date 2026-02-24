@@ -1,13 +1,14 @@
 import { css } from "@emotion/react";
-import { forwardRef, Ref } from "react";
-import {
-  DateField as AriaDateField,
+import type { Ref } from "react";
+import { forwardRef } from "react";
+import type {
   DateFieldProps as AriaDateFieldProps,
   DateValue,
 } from "react-aria-components";
+import { DateField as AriaDateField } from "react-aria-components";
 
 import { fieldBaseCSS } from "../field/styles";
-import { StylableProps } from "../types";
+import type { StylableProps } from "../types";
 
 export interface DateFieldProps<T extends DateValue>
   extends AriaDateFieldProps<T>, StylableProps {}

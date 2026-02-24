@@ -23,12 +23,11 @@
     "autoevals": "^0.0.111",
     "dotenv": "^16.4.7",
     "openai": "^6.9.1",
-    "zod": "^4.1.13"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
-    "rimraf": "^5.0.10",
-    "tsx": "^4.19.1",
-    "typescript": "^5.7.2"
+    "rimraf": "^6.1.3",
+    "tsx": "^4.19.1"
   }
 }

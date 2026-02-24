@@ -1,0 +1,209 @@
+---
+title: "Built-in Evaluators"
+description: "Server-side code evaluators that label and score experiment outputs without requiring an LLM, API keys, or any installation."
+---
+
+Built-in evaluators run server-side and are always available to add to any dataset. Configure them in the Phoenix UI and they label and score each output automatically when an experiment runs.
+
+## Available Evaluators
+
+| Evaluator | Output Type | What It Checks | Configuration Options |
+|-----------|-------------|----------------|-----------------------|
+| [`contains`](#contains) | Categorical (`true` / `false`) | Whether a text contains one or more words | Case sensitivity, require all words |
+| [`exact_match`](#exact_match) | Categorical (`true` / `false`) | Whether two strings match exactly | Case sensitivity |
+| [`regex`](#regex) | Categorical (`true` / `false`) | Whether a text matches a regular expression | Full match vs. partial match |
+| [`levenshtein_distance`](#levenshtein_distance) | Continuous (≥ 0) | Edit distance between two strings | Case sensitivity |
+| [`json_distance`](#json_distance) | Continuous (≥ 0) | Number of structural differences between two JSON values | Parse strings as JSON |
+
+---
+
+## Configuring Inputs
+
+Each evaluator parameter can be set to either a **path** (a JSONPath expression that extracts a value from the evaluation parameters) or a **literal** (a fixed value typed directly). Use paths to pull from dataset inputs, task outputs, reference data, or metadata. Use literals for static configuration like regex patterns or word lists.
+
+See [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for full details on mapping modes, resolution order, and examples.
+
+---
+
+## contains
+
+Checks whether a text contains one or more specified words. Returns `true` if the match condition is met, `false` otherwise.
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `words` | string | Yes | — | Comma-separated list of words to search for (e.g., `"yes, no, maybe"`) |
+| `text` | string | Yes | — | The text to search |
+| `case_sensitive` | boolean | No | `false` | Whether the search is case-sensitive |
+| `require_all` | boolean | No | `false` | If `true`, all words must be present; if `false`, any single word is sufficient |
+
+### Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `true` or `false` | Whether the match condition was satisfied |
+| `score` | `1.0` or `0.0` | Numeric score (`1.0` = match, `0.0` = no match) |
+| Optimization | Maximize | Higher scores are better |
+
+### Usage Examples
+
+**Compliance disclaimer enforcement** — A support chatbot must include a required legal phrase in every response. **Text** receives the model's full output from the experiment — typically `output` or a nested path like `output.response`. **Words** is the required phrase, set as a literal value. If the required disclaimer varies per dataset example, map **Words** to a reference field instead.
+
+**Required keyword presence** — A pipeline that verifies responses include at least one of several acceptable phrases. **Text** receives the model's response; **Words** is a comma-separated list of all acceptable phrases. Enable **Require all** if every phrase must appear rather than any one of them.
+
+**Refusal detection** — Testing whether an agent correctly declines out-of-scope requests. **Text** is the model's response; **Words** is a set of terms associated with refusal (e.g., `"sorry, cannot, decline"`). Disable **Case sensitive** to catch varied capitalizations across responses.
+
+### Notes
+
+<Note>
+If `words` is empty or contains only whitespace after splitting on commas, the evaluator returns `false` rather than `true`. This guards against the empty-list edge case where "all of nothing" would otherwise trivially pass.
+</Note>
+
+---
+
+## exact_match
+
+Checks whether two strings are identical. Returns `true` if they match, `false` otherwise.
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `expected` | string | Yes | — | The reference value to match against |
+| `actual` | string | Yes | — | The value to evaluate |
+| `case_sensitive` | boolean | No | `true` | Whether the comparison is case-sensitive |
+
+### Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `true` or `false` | Whether the strings are identical |
+| `score` | `1.0` or `0.0` | Numeric score (`1.0` = match, `0.0` = no match) |
+| Optimization | Maximize | Higher scores are better |
+
+### Usage Examples
+
+**Classification label validation** — A model that must output exactly one of a fixed set of labels (e.g., `"positive"`, `"negative"`, `"neutral"`), where any deviation indicates a problem. **Actual** is the model's output — use `output` for a plain string response, or `output.label` if the response is a JSON object with a label field. **Expected** is the ground-truth label stored per-example in your dataset, typically a path like `reference.label` or `reference.expected`.
+
+**Templated response checking** — A pipeline that should return a fixed string for certain inputs (a canned reply, a status code, or a pass-through value). **Actual** is the model's output; **Expected** can be typed as a literal value if every example uses the same target string, or mapped to a dataset field if the expected value varies per example.
+
+### Notes
+
+<Note>
+The comparison is whitespace-sensitive. Leading/trailing spaces and different line endings will cause a mismatch. If your dataset fields may have inconsistent whitespace, consider using `contains` or `regex` instead.
+</Note>
+
+---
+
+## regex
+
+Checks whether a text matches a regular expression pattern. By default, the pattern is searched anywhere in the text (partial match). Returns `true` if the pattern matches, `false` otherwise.
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `pattern` | string | Yes | — | The regular expression pattern to match |
+| `text` | string | Yes | — | The text to search |
+| `full_match` | boolean | No | `false` | If `true`, the pattern must match the entire string; if `false`, a match anywhere in the text is sufficient |
+
+### Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `true` or `false` | Whether the pattern matched |
+| `score` | `1.0` or `0.0` | Numeric score (`1.0` = match, `0.0` = no match) |
+| Optimization | Maximize | Higher scores are better |
+
+### Usage Examples
+
+**Format compliance** — A model that must produce output in a specific structural format (a date, phone number, or identifier). **Pattern** is the regular expression defining the required format, set as a literal value. **Text** is the model's output field — use a direct path for a plain string response, or a nested path like `output.date` if the target value is embedded in a JSON object.
+
+**Citation or reference checking** — A RAG pipeline that must include a URL, citation marker, or other structured element in every response. **Pattern** matches the expected element (e.g., a URL regex or citation format); **Text** is the model's full response. Partial match mode (the default) passes as long as the pattern appears anywhere in the output.
+
+**Output type gating** — A code assistant whose output should contain a function definition rather than prose. **Pattern** is anchored to the expected code structure; **Text** is the response field. If your model returns structured JSON with a `code` key, map **Text** to `output.code` rather than the entire response.
+
+### Notes
+
+<Warning>
+Complex regex patterns can be slow on long inputs. Avoid patterns with nested quantifiers or excessive backtracking (e.g., `(a+)+`, `.*.*`). Prefer anchored patterns and specific character classes over broad wildcards. Test your pattern against representative inputs before deploying to a large dataset.
+</Warning>
+
+---
+
+## levenshtein_distance
+
+Calculates the [Levenshtein (edit) distance](https://en.wikipedia.org/wiki/Levenshtein_distance) between two strings — the minimum number of single-character insertions, deletions, or substitutions needed to transform one string into the other. A score of `0` means the strings are identical; higher scores indicate more differences.
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `expected` | string | Yes | — | The reference string |
+| `actual` | string | Yes | — | The string to evaluate |
+| `case_sensitive` | boolean | No | `true` | Whether the comparison is case-sensitive |
+
+### Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `score` | Integer ≥ 0 | Number of edits required; `0` = identical strings |
+| Optimization | Minimize | Lower scores are better |
+
+### Usage Examples
+
+**Answer closeness** — A QA model where small paraphrasing is acceptable but significant divergence is not. **Actual** receives the model's text response; **Expected** receives the reference answer from your dataset, typically a path like `reference.answer`. Comparing average edit distance across experiment runs shows whether prompt changes are moving outputs closer to reference.
+
+**Entity extraction quality** — A pipeline that extracts a specific named value (a product name, location, or identifier). **Actual** is the extracted value from the model's output — often a nested path like `output.entity` if the response is structured JSON. **Expected** is the ground-truth value per example in your dataset. Edit distance reveals whether extraction is improving as you iterate on prompts or model configuration.
+
+**Comparative prompt evaluation** — Two prompt variants tested against the same dataset. **Actual** receives the response field from each run; **Expected** stays fixed, pointing to the same reference column. The variant with the lower average Levenshtein score is closer to the reference outputs.
+
+### Notes
+
+<Note>
+The algorithm runs in O(n×m) time, where n and m are the lengths of the two strings. Performance degrades quadratically on very long inputs. Keep inputs under a few thousand characters for predictable evaluation times.
+</Note>
+
+---
+
+## json_distance
+
+Compares two JSON structures and returns the number of value differences between them. A score of `0` means the structures are identical; higher scores indicate more differing fields or elements.
+
+By default, inputs are assumed to be strings and are parsed as JSON before comparison, so you can pass raw JSON strings from your dataset fields directly.
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `expected` | any | Yes | — | The reference JSON structure (object, array, or scalar) |
+| `actual` | any | Yes | — | The JSON structure to evaluate |
+| `parse_strings` | boolean | No | `true` | If `true`, string inputs are parsed as JSON before comparison; if `false`, inputs are compared as-is |
+
+### Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `score` | Integer ≥ 0, or `null` on error | Number of differing values; `0` = identical structures |
+| Optimization | Minimize | Lower scores are better |
+
+### Input Mapping Examples
+
+**Structured output accuracy** — A model that extracts or generates a JSON object (invoice fields, entity records, form data). **Actual** is the model's JSON output — if your model returns a plain JSON string, map it to `output` and leave **Parse strings as JSON** enabled. **Expected** is the ground-truth JSON structure from your dataset, typically stored as a JSON string in a reference column. Each differing field or value counts as one point of distance.
+
+**Tool call argument validation** — An agent that produces structured tool call arguments. **Actual** contains the argument object — if it's nested inside a larger output (e.g., at `output.tool_calls[0].arguments`), use a nested path to isolate it. **Expected** contains the correct argument values from your dataset. Each mismatched field is counted separately, giving you field-level precision on where the agent diverges.
+
+**Prompt change regression tracking** — Running the same dataset against two different prompt versions. **Actual** receives the JSON output from each run; **Expected** stays fixed, pointing to the reference JSON in your dataset. Comparing average distance across runs reveals whether a prompt change introduced new structural errors.
+
+### Notes
+
+<Warning>
+If either input cannot be parsed as JSON (when `parse_strings` is `true`), the evaluator returns a `null` score with an error explanation rather than a numeric result. Ensure your dataset fields contain valid JSON strings when using this evaluator with path mappings.
+</Warning>
+
+<Note>
+**Type comparison behavior:**
+- `true` and `false` are treated as booleans, not integers — `{"flag": true}` vs. `{"flag": 1}` counts as 1 difference.
+- Numeric types (`int` and `float`) with the same value are treated as equal — `{"n": 1}` vs. `{"n": 1.0}` counts as 0 differences.
+</Note>

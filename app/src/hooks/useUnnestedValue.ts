@@ -1,9 +1,7 @@
 import { useMemo } from "react";
 
-import {
-  UnnestResult,
-  unnestSingleStringValue,
-} from "@phoenix/utils/jsonUtils";
+import type { UnnestResult } from "@phoenix/utils/jsonUtils";
+import { unnestSingleStringValue } from "@phoenix/utils/jsonUtils";
 
 /**
  * Unnests a JSON value if it's an object with a single string key whose value is a string.

@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
-import {
+import type {
   CreateDatasetFormMutation,
   CreateDatasetFormMutation$data,
 } from "./__generated__/CreateDatasetFormMutation.graphql";
-import { DatasetForm, DatasetFormParams } from "./DatasetForm";
+import type { DatasetFormParams } from "./DatasetForm";
+import { DatasetForm } from "./DatasetForm";
 
 export type CreateDatasetFormProps = {
   onDatasetCreated: (

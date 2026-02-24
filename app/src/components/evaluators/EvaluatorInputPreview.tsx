@@ -4,7 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@phoenix/components";
-import { EvaluatorInputPreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputPreviewContentQuery.graphql";
+import type { EvaluatorInputPreviewContentQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorInputPreviewContentQuery.graphql";
 import { EvaluatorMappingSourceEditor } from "@phoenix/components/evaluators/EvaluatorMappingSourceEditor";
 import { datasetExampleToEvaluatorInput } from "@phoenix/components/evaluators/utils";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";

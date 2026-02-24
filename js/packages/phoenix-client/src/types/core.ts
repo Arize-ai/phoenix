@@ -1,4 +1,4 @@
-import { PhoenixClient } from "../client";
+import type { PhoenixClient } from "../client";
 /**
  * A uniquely identifiable node in Phoenix
  */

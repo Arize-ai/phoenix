@@ -1,10 +1,11 @@
 import { css } from "@emotion/react";
-import React, { forwardRef, HTMLProps, Ref } from "react";
+import type { HTMLProps, Ref } from "react";
+import React, { forwardRef } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 
 import { Icon, Icons } from "../icon";
-import { SizingProps, StylableProps } from "../types";
+import type { SizingProps, StylableProps } from "../types";
 
 interface TokenProps
   extends
@@ -63,7 +64,7 @@ const tokenBaseCSS = css`
   user-select: none;
   max-width: var(--token-max-width);
 
-  .ac-token__text {
+  .token__text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -205,7 +206,7 @@ function Token(
     </button>
   ) : null;
 
-  const textContent = <span className="ac-token__text">{children}</span>;
+  const textContent = <span className="token__text">{children}</span>;
 
   const renderContent = () => {
     if (onPress && onRemove) {

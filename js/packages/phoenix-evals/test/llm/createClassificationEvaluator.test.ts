@@ -1,4 +1,4 @@
-import { MockLanguageModelV2 } from "ai/test";
+import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { createClassificationEvaluator } from "../../src";
@@ -6,10 +6,22 @@ describe("createClassificationEvaluator", () => {
   it("should support the passed in type signature", () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({
       name: "isValid",
-      model: new MockLanguageModelV2({
+      model: new MockLanguageModelV3({
         doGenerate: async () => ({
-          finishReason: "stop",
-          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 10,
+              noCache: 10,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: {
+              total: 20,
+              text: 20,
+              reasoning: undefined,
+            },
+          },
           content: [{ type: "text", text: "valid" }],
           warnings: [],
         }),
@@ -24,10 +36,22 @@ describe("createClassificationEvaluator", () => {
   it("should have the correct prompt template variables", () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({
       name: "isValid",
-      model: new MockLanguageModelV2({
+      model: new MockLanguageModelV3({
         doGenerate: async () => ({
-          finishReason: "stop",
-          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 10,
+              noCache: 10,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: {
+              total: 30,
+              text: 30,
+              reasoning: undefined,
+            },
+          },
           content: [{ type: "text", text: "valid" }],
           warnings: [],
         }),
@@ -40,10 +64,22 @@ describe("createClassificationEvaluator", () => {
   it("should support message templates", async () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({
       name: "isValid",
-      model: new MockLanguageModelV2({
+      model: new MockLanguageModelV3({
         doGenerate: async () => ({
-          finishReason: "stop",
-          usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 10,
+              noCache: 10,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: {
+              total: 20,
+              text: 20,
+              reasoning: undefined,
+            },
+          },
           content: [
             {
               type: "text",
@@ -81,7 +117,7 @@ describe("createClassificationEvaluator", () => {
       ],
       warnings: [],
     });
-    const mockModel = new MockLanguageModelV2({ doGenerate });
+    const mockModel = new MockLanguageModelV3({ doGenerate });
 
     const evaluator = createClassificationEvaluator<{ question: string }>({
       name: "isValid",
