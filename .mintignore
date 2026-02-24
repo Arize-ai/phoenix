@@ -9,3 +9,6 @@
 # allow docs tree
 !docs
 !docs/**
+
+# allow schemas
+!schemas/openapi.json
