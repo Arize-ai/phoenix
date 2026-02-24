@@ -44,7 +44,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          python-version: "3.14"
+          python-version: "3.13"
 
       - name: Run Helm chart tests
         run: make test-helm
