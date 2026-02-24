@@ -149,6 +149,37 @@ All formats support variable substitution. Python supports both f-string (`{vari
   </Tab>
 </Tabs>
 
+# Using Phoenix Prompt Versions as Eval Templates (Python)
+
+If your prompt is already stored in Phoenix Prompt Management, you can convert it directly into an evals `PromptTemplate` with `phoenix_prompt_to_prompt_template`.
+
+```python
+from phoenix.client import Client
+from phoenix.evals import (
+    ClassificationEvaluator,
+    LLM,
+    phoenix_prompt_to_prompt_template,
+)
+
+client = Client(base_url="http://localhost:6006")
+prompt_version = client.prompts.get(prompt_identifier="test-prompt")
+
+prompt_template = phoenix_prompt_to_prompt_template(prompt_version)
+
+evaluator = ClassificationEvaluator(
+    name="recipe_quality",
+    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    prompt_template=prompt_template,
+    choices=["good", "bad"],
+)
+```
+
+Notes:
+
+* This utility accepts either a Phoenix `PromptVersion` object or a PromptVersionData-like dictionary.
+* Role normalization supports Phoenix role aliases (`ai`/`model` -> `assistant`, `developer` -> `system`), including mixed-case role names.
+* For structured content parts, only text parts are currently supported (`{"type": "text", "text": ...}`).
+
 # Client-Specific Behavior
 
 <Tabs>

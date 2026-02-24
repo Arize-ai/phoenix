@@ -34,7 +34,7 @@ One approach is using a flattened schema. Let's say you're dealing with extracti
 
 As the application designer, the schema you may care about here for downstream usage could be a flattened representation looking something like:
 
-```js
+```python
 {
     budget: "low",
     location: "San Francisco",
@@ -48,7 +48,7 @@ With the above extracted attributes, your downstream application can now constru
 
 Structured extraction is a place where it’s simplest to work directly with the [OpenAI function calling API](https://openai.com/blog/function-calling-and-other-api-updates). Open AI functions for structured data extraction recommends providing the following JSON schema object in the form of`parameters_schema`(the desired fields for structured data output).
 
-```js expandable
+```python expandable
 parameters_schema = {
     "type": "object",
     "properties": {
@@ -81,7 +81,7 @@ system_message = (
 
 The `ChatCompletion` call to Open AI would look like
 
-```js
+```python
 response = openai.ChatCompletion.create(
     model=model,
     messages=[

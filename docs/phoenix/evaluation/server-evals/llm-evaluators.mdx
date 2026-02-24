@@ -102,17 +102,27 @@ Evaluation quality depends heavily on prompt quality, and prompt quality improve
 
 ### How Versioning Works
 
-Each time you save changes to an evaluator's prompt — whether updating the template text, switching models, or adjusting invocation parameters — Phoenix creates a new prompt version. The evaluator's prompt version tag is automatically updated to point to the new version.
+Each time you save changes to an evaluator's prompt — whether updating the template text, switching models, or adjusting invocation parameters — Phoenix creates a new prompt version. Previous versions are preserved and can be viewed on the prompt's **Versions** tab.
+
+<Frame caption="Prompt version history showing versions and tags">
+  ![Prompt version history](https://storage.googleapis.com/arize-phoenix-assets/assets/images/evaluator-prompt-version-history.png)
+</Frame>
 
 ### Tagging
 
-Every LLM evaluator has a **prompt version tag** that determines which version of the prompt is used at evaluation time. This tag is a named pointer within Phoenix's prompt management system.
+Every LLM evaluator has a **prompt version tag** that determines which version of the prompt is used at evaluation time. This tag is a named pointer within Phoenix's prompt management system. When you create an evaluator, Phoenix auto-generates a tag named after the evaluator (e.g. `correctness-evaluator-932646b7`).
 
 The workflow:
 
 1. **Create an evaluator** — Phoenix creates a prompt and a tag pointing to the initial version.
 2. **Iterate** — Edit the prompt in the playground, test it against sample data, and compare versions.
-3. **Promote** — When satisfied, save the evaluator. The tag advances to the new version.
+3. **Promote** — When satisfied, save the prompt and advance the tag. The evaluator now uses the new version.
+
+When you click **Save Prompt** in the playground, a modal shows checkboxes for available tags. To advance the evaluator's tag to the new version, **check the tag that starts with the evaluator's name** (e.g. `correctness-evaluator-932646b7`). If you leave it unchecked, the new version is saved but the evaluator continues using the previously tagged version.
+
+<Frame caption="The Save Prompt modal. Check the evaluator's tag to advance it to the new version.">
+  ![Save Prompt modal with tag checkboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/evaluator-save-prompt-modal-tags.png)
+</Frame>
 
 If the evaluator has no tag (or the tag is removed), Phoenix falls back to the latest prompt version.
 

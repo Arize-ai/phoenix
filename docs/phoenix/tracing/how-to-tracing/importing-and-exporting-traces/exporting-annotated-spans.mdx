@@ -56,7 +56,7 @@ spans = client.spans.get_spans_dataframe(
 
 This spans dataframe can be used to pull associated annotations.
 
-```javascript
+```python
 annotations = client.spans.get_span_annotations_dataframe(
     spans_dataframe=spans,
     project_identifier="default",
@@ -65,7 +65,7 @@ annotations = client.spans.get_span_annotations_dataframe(
 
 Instead of an input dataframe, you can also pass in a list of ids:
 
-```javascript
+```python
 annotations = client.spans.get_span_annotations_dataframe(
     span_ids=list(spans.index),
     project_identifier="default",

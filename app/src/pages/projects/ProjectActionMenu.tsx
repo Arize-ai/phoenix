@@ -4,7 +4,6 @@ import { graphql, useMutation } from "react-relay";
 import {
   Button,
   Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -120,7 +119,7 @@ export function ProjectActionMenu({
           size="S"
           leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
         />
-        <Popover>
+        <Popover placement="bottom end">
           <Menu
             aria-label="Project Actions Menu"
             onAction={(action) => {
@@ -194,121 +193,109 @@ export function ProjectActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
-      <DialogTrigger
+      <ModalOverlay
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
       >
-        <ModalOverlay>
-          <Modal size="M">
-            <Dialog>
-              {({ close }) => (
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Delete Project</DialogTitle>
-                    <DialogTitleExtra>
-                      <DialogCloseButton slot="close" />
-                    </DialogTitleExtra>
-                  </DialogHeader>
-                  <View padding="size-200">
-                    <Text color="danger">
-                      {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
-                    </Text>
-                  </View>
-                  <View
-                    paddingEnd="size-200"
-                    paddingTop="size-100"
-                    paddingBottom="size-100"
-                    borderTopColor="light"
-                    borderTopWidth="thin"
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Project</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text color="danger">
+                  {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="light"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end">
+                  <Button
+                    variant="danger"
+                    onPress={() => {
+                      handleDelete();
+                      setShowDeleteDialog(false);
+                    }}
                   >
-                    <Flex direction="row" justifyContent="end">
-                      <Button
-                        variant="danger"
-                        onPress={() => {
-                          handleDelete();
-                          close();
-                        }}
-                      >
-                        Delete Project
-                      </Button>
-                    </Flex>
-                  </View>
-                </DialogContent>
-              )}
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-      <DialogTrigger isOpen={showClearDialog} onOpenChange={setShowClearDialog}>
-        <ModalOverlay>
-          <Modal size="M">
-            <Dialog>
-              {({ close }) => (
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Clear Project</DialogTitle>
-                    <DialogTitleExtra>
-                      <DialogCloseButton slot="close" />
-                    </DialogTitleExtra>
-                  </DialogHeader>
-                  <View padding="size-200">
-                    <Text color="danger">
-                      {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
-                    </Text>
-                  </View>
-                  <View
-                    paddingEnd="size-200"
-                    paddingTop="size-100"
-                    paddingBottom="size-100"
-                    borderTopColor="light"
-                    borderTopWidth="thin"
+                    Delete Project
+                  </Button>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay isOpen={showClearDialog} onOpenChange={setShowClearDialog}>
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Clear Project</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text color="danger">
+                  {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="light"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end">
+                  <Button
+                    variant="danger"
+                    onPress={() => {
+                      handleClear();
+                      setShowClearDialog(false);
+                    }}
                   >
-                    <Flex direction="row" justifyContent="end">
-                      <Button
-                        variant="danger"
-                        onPress={() => {
-                          handleClear();
-                          close();
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    </Flex>
-                  </View>
-                </DialogContent>
-              )}
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
-      <DialogTrigger
+                    Clear
+                  </Button>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+      <ModalOverlay
         isOpen={showRemoveDataDialog}
         onOpenChange={setShowRemoveDataDialog}
       >
-        <ModalOverlay>
-          <Modal size="M">
-            <Dialog>
-              {({ close }) => (
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Remove Data</DialogTitle>
-                    <DialogTitleExtra>
-                      <DialogCloseButton slot="close" />
-                    </DialogTitleExtra>
-                  </DialogHeader>
-                  <RemoveProjectDataForm
-                    projectId={projectId}
-                    onComplete={() => {
-                      onProjectRemoveData();
-                      close();
-                    }}
-                  />
-                </DialogContent>
-              )}
-            </Dialog>
-          </Modal>
-        </ModalOverlay>
-      </DialogTrigger>
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Remove Data</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <RemoveProjectDataForm
+                projectId={projectId}
+                onComplete={() => {
+                  onProjectRemoveData();
+                  setShowRemoveDataDialog(false);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </StopPropagation>
   );
 }
