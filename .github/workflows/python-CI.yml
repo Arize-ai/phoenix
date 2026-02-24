@@ -385,7 +385,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10"]
         db: [sqlite, postgresql]
     steps:
       - name: Checkout repository
@@ -432,7 +432,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10"]
         db: [sqlite, postgresql]
         os: [oss-4-core-runner]
     env:

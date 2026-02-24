@@ -25,16 +25,29 @@ jobs:
           branches=$(gh api repos/${{ github.repository }}/branches --paginate | jq -c -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
-  unit-tests-non-linux:
+  unit-tests:
     name: Unit Tests (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.db }}, ${{ matrix.py }})
     runs-on: ${{ matrix.os }}
     needs: discover-branches
+    if: ${{ needs.discover-branches.outputs.branches != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        db: [sqlite, postgresql]
         py: ["3.10", "3.13"]
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        exclude:
+          - os: windows-latest
+            db: postgresql
+          - os: macos-latest
+            db: postgresql
+          - os: ubuntu-latest
+            py: "3.10"
+            db: sqlite
+          - os: ubuntu-latest
+            py: "3.10"
+            db: postgresql
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,7 +75,7 @@ jobs:
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install PostgreSQL
-        if: matrix.db == 'postgresql'
+        if: matrix.db == 'postgresql' && runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
@@ -73,7 +86,7 @@ jobs:
         timeout-minutes: 60
         run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
 
-  integration-tests-non-linux:
+  integration-tests:
     name: Integration Tests (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
     runs-on: ${{ matrix.os }}
     needs: discover-branches
@@ -82,8 +95,33 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
+        db: [sqlite, postgresql]
         py: ["3.10", "3.13"]
-        os: [windows-latest]
+        os: [windows-latest, ubuntu-latest]
+        exclude:
+          - os: windows-latest
+            db: postgresql
+          - os: ubuntu-latest
+            py: "3.10"
+            db: sqlite
+          - os: ubuntu-latest
+            py: "3.10"
+            db: postgresql
+    env:
+      CI_TEST_DB_BACKEND: ${{ matrix.db }}
+    services:
+      postgres:
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -113,7 +151,7 @@ jobs:
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
-  
+
   phoenix-client-non-linux:
     name: Phoenix Client (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
     runs-on: ${{ matrix.os }}
@@ -192,7 +230,7 @@ jobs:
   slack-notification:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [discover-branches, unit-tests-non-linux, integration-tests-non-linux, phoenix-client-non-linux, phoenix-evals-non-linux, phoenix-otel-non-linux]
+    needs: [discover-branches, unit-tests, integration-tests, phoenix-client-non-linux, phoenix-evals-non-linux, phoenix-otel-non-linux]
     if: failure()
     steps:
       - uses: slackapi/slack-github-action@v1
