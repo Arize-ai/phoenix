@@ -311,6 +311,8 @@ jobs:
         with:
           version: "0.9.18"
       - name: Sync and commit lockfile
+        env:
+          BRANCH_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           uv lock
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -320,7 +322,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: update uv.lock"
-            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+            git push origin "HEAD:${BRANCH_REF}"
           fi
 
   ruff:
