@@ -28,11 +28,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            helm
-            scripts/ci/test_helm.py
-            Makefile
 
       - name: Install Helm
         uses: azure/setup-helm@v3
