@@ -160,13 +160,13 @@ Phoenix documentation is built using [Mintlify](https://mintlify.com/). The docu
 npm i -g mint
 ```
 
-1. Run the local development server:
+2. Run the local development server:
 
 ```bash
 mint dev
 ```
 
-1. Open your browser to `http://localhost:3000` to preview your changes.
+3. Open your browser to `http://localhost:3000` to preview your changes.
 
 ### Making Changes
 
