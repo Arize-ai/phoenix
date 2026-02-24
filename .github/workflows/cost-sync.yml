@@ -25,7 +25,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Sync model cost manifest with LiteLLM
-        run: uvx tox run -e sync_models
+        run: |
+          uv venv
+          uv pip install pydantic
+          uv run python .github/.scripts/sync_models.py
 
       - name: Check for changes
         id: verify-changed-files

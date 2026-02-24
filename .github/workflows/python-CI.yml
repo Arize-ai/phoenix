@@ -175,7 +175,16 @@ jobs:
             requirements/clean-jupyter-notebooks.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
-        run: uvx tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+        run: |
+          uv venv
+          uv pip install --strict -U -r requirements/clean-jupyter-notebooks.txt
+          find . -type f -name "*.ipynb" \
+            -not -path "*/tutorials/evals/*" \
+            -not -path "*/tutorials/ai_evals_course/*" \
+            -exec uv run jupyter nbconvert \
+              --ClearOutputPreprocessor.enabled=True \
+              --ClearMetadataPreprocessor.enabled=True \
+              --inplace {} \;
       - run: git diff --exit-code
 
   build-graphql-schema:
@@ -204,7 +213,12 @@ jobs:
             requirements/build-graphql-schema.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build GraphQL schema
-        run: uvx tox run -e build_graphql_schema
+        run: |
+          uv venv
+          uv pip install --strict -U -r requirements/build-graphql-schema.txt
+          uv pip install --no-sources --strict --reinstall-package arize-phoenix .
+          uv pip install 'libcst<1.8'
+          cd app && uv run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o schema.graphql
       - run: git diff --exit-code
 
   build-openapi-schema:
@@ -232,7 +246,10 @@ jobs:
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
-        run: uvx tox run -e build_openapi_schema
+        run: |
+          uv venv
+          uv pip install --no-sources --strict --reinstall-package arize-phoenix .
+          cd schemas && uv run python -m phoenix.server.api.openapi.main -o openapi.json
       - run: git diff --exit-code
 
   compile-protobuf:
@@ -261,7 +278,10 @@ jobs:
             requirements/compile-protobuf.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
-        run: uvx tox run -e compile_protobuf
+        run: |
+          uv venv
+          uv pip install --strict -U -r requirements/compile-protobuf.txt
+          uv run python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
       - run: git diff --exit-code
 
   compile-prompts:
@@ -285,7 +305,15 @@ jobs:
         with:
           version: "0.9.18"
       - name: Compile Prompts
-        run: uvx tox run -e compile_prompts
+        run: |
+          uv venv
+          uv pip install pyyaml jinja2 pydantic
+          uv run python scripts/prompts/compile_python_prompts.py src/phoenix/__generated__/classification_evaluator_configs
+          uv run python scripts/prompts/compile_python_prompts.py packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+          uvx ruff@0.12.5 format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+          uvx ruff@0.12.5 check --fix src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+          uv run python scripts/prompts/compile_typescript_prompts.py js/packages/phoenix-evals/src/__generated__/default_templates
+          uv run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/api/helpers/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
       - name: Check for changes
         run: git diff --exit-code
 
@@ -333,7 +361,9 @@ jobs:
         with:
           version: "0.9.18"
       - name: Run `ruff`
-        run: uvx tox run -e ruff
+        run: |
+          uvx ruff@0.12.5 format
+          uvx ruff@0.12.5 check --fix
       - run: git diff --exit-code
 
   type-check:
@@ -375,7 +405,8 @@ jobs:
       - name: Type check all Python code
         run: uv run mypy
       - name: Ensure GraphQL mutations have permission classes
-        run: uvx tox run -e ensure_graphql_mutations_have_permission_classes
+        working-directory: src/phoenix/server/api
+        run: uv run python $GITHUB_WORKSPACE/scripts/ci/ensure_graphql_mutations_have_permission_classes.py
 
   unit-tests:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})

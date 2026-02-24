@@ -45,5 +45,8 @@ jobs:
           version: "0.9.18"
 
       - name: Run Helm chart tests
-        run: uvx tox r -e helm_tests
+        run: |
+          uv venv
+          uv pip install ty PyYAML>=6.0
+          cd scripts/ci && uv run ty check test_helm.py && uv run python test_helm.py
 
