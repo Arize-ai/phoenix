@@ -13,15 +13,6 @@ repos:
         files: \.py$
   - repo: local
     hooks:
-      - id: clean-notebooks
-        name: clean-notebooks
-        files: \.ipynb$
-        exclude: ^tutorials/evals/.*\.ipynb$
-        stages: [pre-commit]
-        language: system
-        entry: uv run jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
-  - repo: local
-    hooks:
       - id: oxfmt-app
         name: oxfmt (app)
         entry: pnpm --dir app run fmt:check
