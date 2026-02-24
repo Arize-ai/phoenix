@@ -83,9 +83,9 @@ Once you have Phoenix Cloud configured, set your keys:
     ```python
     import os
 
-    os.environ["PHOENIX_API_KEY"] = <ENTER YOUR PHOENIX API KEY>
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = <ENTER YOUR PHOENIX ENDPOINT>
-    os.environ["OPENAI_API_KEY"] = <ENTER YOUR OPENAI API KEY>
+    os.environ["PHOENIX_API_KEY"] = "<ENTER YOUR PHOENIX API KEY>"
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<ENTER YOUR PHOENIX ENDPOINT>"
+    os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
     ```
   </Tab>
 </Tabs>
@@ -395,7 +395,7 @@ To see all operations for a single request as one trace, wrap them in a parent s
   <Tab title="Python" icon="python">
     ```python
     from opentelemetry import trace
-    from openinference.semantic_conventions import SpanAttributes
+    from openinference.semconv.trace import SpanAttributes
 
     def handle_support_query(user_query: str) -> AgentResponse:
         tracer = trace.get_tracer("support-agent")

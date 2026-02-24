@@ -11,7 +11,7 @@ Here's how to fix it:
     Increase `max_tokens`: Update the model configuration as follows:
 
     ```python
-    pythonCopy codellm_judge_model = OpenAIModel(
+    llm_judge_model = OpenAIModel(
         api_key=getpass("Enter your OpenAI API key..."),
         model="gpt-4o-2024-08-06",
         temperature=0.2,

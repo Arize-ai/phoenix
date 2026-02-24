@@ -21,7 +21,7 @@ from phoenix.otel import register
 tracer_provider = register()
 ```
 
-That's it! By default, `register` sends spans to `http://localhost:4317` using gRPC.
+That's it! By default, `register` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, falling back to `http://localhost:4317` using gRPC if the variable is not set.
 
 ## Configuration
 
@@ -76,7 +76,7 @@ When using the `endpoint` argument, you must specify the fully qualified URL. HT
 | `endpoint` | Collector endpoint URL |
 | `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
 | `headers` | Custom headers for requests |
-| `batch` | Process spans in batch (default: `True`) |
+| `batch` | Process spans in batch (default: `False`) |
 | `auto_instrument` | Auto-instrument supported libraries |
 
 ```python

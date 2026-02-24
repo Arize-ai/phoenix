@@ -102,7 +102,7 @@ We are continually iterating our templates, view the most up-to-date template [o
 ```python
 rails = list(SQL_GEN_EVAL_PROMPT_RAILS_MAP.values())
 model = OpenAIModel(
-    model_name="gpt-4",
+    model="gpt-4",
     temperature=0.0,
 )
 relevance_classifications = llm_classify(
