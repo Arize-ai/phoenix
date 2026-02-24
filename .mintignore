@@ -9,3 +9,7 @@
 # allow docs tree
 !docs
 !docs/**
+
+# allow schemas
+!schemas
+!schemas/**
