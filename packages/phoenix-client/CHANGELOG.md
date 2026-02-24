@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.29.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.29.0...arize-phoenix-client-v1.29.1) (2026-02-24)
+
+
+### Bug Fixes
+
+* add parameter for deleting project after deleting experiment ([#11569](https://github.com/Arize-ai/phoenix/issues/11569)) ([57b7576](https://github.com/Arize-ai/phoenix/commit/57b7576408bc21b46ea03009f741c9ebb0a55ca1))
+* Update README snippets for JS and Python packages ([#11479](https://github.com/Arize-ai/phoenix/issues/11479)) ([76de803](https://github.com/Arize-ai/phoenix/commit/76de8039d86e81cf3a1749aef3da0128977aa4e7))
+* update slack invitation link ([#11612](https://github.com/Arize-ai/phoenix/issues/11612)) ([316833e](https://github.com/Arize-ai/phoenix/commit/316833e629baf1b9185d7c712d8816b927d69a96))
+
 ## [1.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.28.1...arize-phoenix-client-v1.29.0) (2026-02-13)
 
 
