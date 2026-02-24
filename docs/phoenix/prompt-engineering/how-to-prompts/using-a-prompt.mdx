@@ -84,7 +84,7 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
     const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
@@ -128,7 +128,7 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
     const promptByVersionId = await getPrompt({ prompt: { versionId: "b5678" } })
@@ -170,7 +170,7 @@ Pulling by prompt by tag is most useful when you want a particular version of a 
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
     const promptByTag = await getPrompt({ prompt: { tag: "staging", name: "my-prompt" } });
@@ -208,7 +208,7 @@ The Phoenix Client libraries make it simple to transform prompts to the SDK that
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
     import OpenAI from "openai";
 

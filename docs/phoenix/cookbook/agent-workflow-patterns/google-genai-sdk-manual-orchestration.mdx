@@ -16,7 +16,7 @@ That said, because of the relative simplicity of the GenAI SDK, this guide serve
 
 GenAI SDK uses `contents` to represent user messages, files, system messages, function calls, and invocation parameters. That creates relatively simple generation calls:
 
-```csharp
+```python
 file = client.files.upload(file='a11.txt')
 response = client.models.generate_content(
     model='gemini-2.0-flash-001',
@@ -27,7 +27,7 @@ print(response.text)
 
 Content objections can also be composed together in a list:
 
-```php
+```python
 [
   types.UserContent(
     parts=[

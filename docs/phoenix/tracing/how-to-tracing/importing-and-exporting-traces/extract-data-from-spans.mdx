@@ -155,7 +155,7 @@ px.Client().query_spans(query)
 
 In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `reference` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
 
-```javascript
+```python
 query = SpanQuery().explode(
     "retrieval.documents",
     reference="document.content",
@@ -257,7 +257,7 @@ query = SpanQuery().select(**{
 
 The document contents can also be concatenated together. The query below concatenates the list of `document.content` with (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
 
-```javascript
+```python
 query = SpanQuery().concat(
     "retrieval.documents",
     reference="document.content",
@@ -268,7 +268,7 @@ query = SpanQuery().concat(
 
 If a different separator is desired, say `\n************`, it can be specified as follows.
 
-```swift
+```python
 query = SpanQuery().concat(
     "retrieval.documents",
     reference="document.content",
@@ -311,7 +311,7 @@ pd.concat(
 
 To learn more about extracting span attributes, see [How to Extract Attributes](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-extract-attributes).
 
-```bash
+```python
 from phoenix.trace.dsl import SpanQuery
 
 query = SpanQuery().where(
