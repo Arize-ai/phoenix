@@ -153,8 +153,8 @@ Now, let's optimize our prompt and push the optimized version back to Phoenix.
     )
     
     # Preserve invocation parameters if any
-    if unoptimied_prompt._invocation_parameters:
-        new_version._invocation_parameters = original_prompt._invocation_parameters
+    if unoptimized_prompt._invocation_parameters:
+        new_version._invocation_parameters = unoptimized_prompt._invocation_parameters
     
     # Push to Phoenix
     optimized_prompt = px_client.prompts.create(

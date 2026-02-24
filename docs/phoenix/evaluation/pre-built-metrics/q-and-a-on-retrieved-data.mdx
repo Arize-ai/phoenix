@@ -78,7 +78,7 @@ answer.
 ## How To Run the Q\&A Eval
 
 ```python
-import phoenix.evals.templates.default_templates as templates
+import phoenix.evals.default_templates as templates
 from phoenix.evals import (
     OpenAIModel,
     download_benchmark_dataset,
@@ -86,7 +86,7 @@ from phoenix.evals import (
 )
 
 model = OpenAIModel(
-    model_name="gpt-4",
+    model="gpt-4",
     temperature=0.0,
 )
 

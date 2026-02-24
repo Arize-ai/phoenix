@@ -78,7 +78,7 @@ All evals templates are tested against golden data that are available as part of
 The models are instantiated and usable in the LLM Eval function. The models are also directly callable with strings.
 
 ```python
-model = OpenAIModel(model_name="gpt-4",temperature=0.6)
+model = OpenAIModel(model="gpt-4",temperature=0.6)
 model("What is the largest costal city in France?")
 ```
 

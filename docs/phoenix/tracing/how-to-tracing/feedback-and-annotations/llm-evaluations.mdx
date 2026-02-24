@@ -36,9 +36,9 @@ The evaluations dataframe can be sent to Phoenix as follows.
 Note that the name and kind of the evaluation can be supplied through the `annotation_name` `annotator_kind` parameters, or as columns with the same names in the dataframe.
 
 ```python
-from phoenix.client import Client()
+from phoenix.client import Client
 
-Client().log_span_annotations(
+Client().spans.log_span_annotations_dataframe(
     dataframe=qa_correctness_eval_df,
     annotation_name="Q&A Correctness",
     annotator_kind="LLM",

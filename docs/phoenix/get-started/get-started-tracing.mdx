@@ -116,10 +116,10 @@ We’ll now install both the CrewAI package and the OpenInference CrewAI auto-in
 ```python
 import os
 
-os.environ["PHOENIX_API_KEY"] = <ENTER YOUR PHOENIX API KEY>
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = <ENTER YOUR PHOENIX ENDPOINT>
-os.environ["SERPER_API_KEY"] = <ENTER YOUR SERPER API KEY>
-os.environ["OPENAI_API_KEY"] = <ENTER YOUR OPENAI API KEY>
+os.environ["PHOENIX_API_KEY"] = "<ENTER YOUR PHOENIX API KEY>"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<ENTER YOUR PHOENIX ENDPOINT>"
+os.environ["SERPER_API_KEY"] = "<ENTER YOUR SERPER API KEY>"
+os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
 ```
 
 ### **Register Your Project in Phoenix**
@@ -209,7 +209,7 @@ Finally, we’ll wire the agents and tasks together and run them sequentially.
 crew = Crew(
     agents=[researcher, writer],
     tasks=[task1, task2],
-    verbose=1,
+    verbose=True,
     process=Process.sequential,
 )
 ```
