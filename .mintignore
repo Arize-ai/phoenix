@@ -11,4 +11,5 @@
 !docs/**
 
 # allow schemas
-!schemas/openapi.json
+!schemas
+!schemas/**
