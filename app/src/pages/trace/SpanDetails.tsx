@@ -54,8 +54,13 @@ import {
   Token,
   View,
 } from "@phoenix/components";
-import { DocumentAnnotationForm } from "@phoenix/pages/trace/DocumentAnnotationForm";
+import { DocumentAnnotationActionMenu } from "@phoenix/pages/trace/DocumentAnnotationActionMenu";
+import {
+  DocumentAnnotationForm,
+  type DocumentAnnotation,
+} from "@phoenix/pages/trace/DocumentAnnotationForm";
 import { AttributesJSONBlock } from "@phoenix/components/code";
+import { Tooltip, TooltipTrigger } from "@phoenix/components/tooltip";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -1291,13 +1296,9 @@ function DocumentItem({
   const metadata = document[DocumentAttributePostfixes.metadata];
   const hasEvaluations = documentEvaluations && documentEvaluations.length;
   const documentContent = document[DocumentAttributePostfixes.content];
-  const canAnnotate =
-    spanNodeId != null && documentPosition != null;
+  const canAnnotate = spanNodeId != null && documentPosition != null;
   const humanAnnotation = useMemo(
-    () =>
-      documentEvaluations?.find(
-        (e) => e.annotatorKind === "HUMAN" && e.name === "relevance"
-      ) ?? null,
+    () => documentEvaluations?.find((e) => e.annotatorKind === "HUMAN") ?? null,
     [documentEvaluations]
   );
   const [isAnnotating, setIsAnnotating] = useState(
@@ -1307,7 +1308,15 @@ function DocumentItem({
     <Card
       {...defaultCardProps}
       backgroundColor={backgroundColor}
-      borderColor={borderColor}
+      borderColor={isAnnotating ? undefined : borderColor}
+      css={
+        isAnnotating
+          ? css`
+              border-color: var(--global-color-primary);
+              border-width: 2px;
+            `
+          : undefined
+      }
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.FileOutline />} />
@@ -1325,17 +1334,28 @@ function DocumentItem({
               )}`}
             </Token>
           )}
-          {canAnnotate && (
-            <Button
-              size="S"
-              variant={isAnnotating ? "primary" : "default"}
-              leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
-              onPress={() => setIsAnnotating((prev) => !prev)}
-              aria-label="Annotate document"
-            >
-              Annotate
-            </Button>
-          )}
+          {canAnnotate &&
+            (isAnnotating ? (
+              <TooltipTrigger delay={0}>
+                <Button
+                  size="S"
+                  onPress={() => setIsAnnotating(false)}
+                  aria-label="Close annotation form"
+                >
+                  Cancel
+                </Button>
+                <Tooltip offset={5}>Close annotation form</Tooltip>
+              </TooltipTrigger>
+            ) : (
+              <Button
+                size="S"
+                leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
+                onPress={() => setIsAnnotating(true)}
+                aria-label="Annotate document"
+              >
+                Annotate
+              </Button>
+            ))}
         </Flex>
       }
     >
@@ -1368,9 +1388,9 @@ function DocumentItem({
           >
             <Flex direction="column" gap="size-100">
               <Heading level={3} weight="heavy">
-                Evaluations
+                Document Annotations
               </Heading>
-              <ul>
+              <Flex direction="column" gap="size-100" elementType="ul">
                 {documentEvaluations.map((documentEvaluation, idx) => {
                   // Highlight the label as danger if it is a danger classification
                   const evalTokenColor =
@@ -1389,36 +1409,57 @@ function DocumentItem({
                         borderRadius="medium"
                       >
                         <Flex direction="column" gap="size-50">
-                          <Flex direction="row" gap="size-100">
-                            <Text weight="heavy" elementType="h5">
-                              {documentEvaluation.name}
-                            </Text>
-                            {documentEvaluation.label && (
-                              <Token color={evalTokenColor}>
-                                {documentEvaluation.label}
-                              </Token>
-                            )}
-                            {typeof documentEvaluation.score === "number" && (
-                              <Token color={evalTokenColor}>
-                                <Flex direction="row" gap="size-50">
-                                  <Text
-                                    size="XS"
-                                    weight="heavy"
-                                    color="inherit"
-                                  >
-                                    score
-                                  </Text>
-                                  <Text size="XS">
-                                    {formatFloat(documentEvaluation.score)}
-                                  </Text>
-                                </Flex>
-                              </Token>
-                            )}
+                          <Flex
+                            direction="row"
+                            gap="size-100"
+                            alignItems="center"
+                            justifyContent="space-between"
+                          >
+                            <Flex
+                              direction="row"
+                              gap="size-100"
+                              alignItems="center"
+                            >
+                              <Text weight="heavy" elementType="h5">
+                                {documentEvaluation.name}
+                              </Text>
+                              {documentEvaluation.label && (
+                                <Token color={evalTokenColor}>
+                                  {documentEvaluation.label}
+                                </Token>
+                              )}
+                              {typeof documentEvaluation.score === "number" && (
+                                <Token color={evalTokenColor}>
+                                  <Flex direction="row" gap="size-50">
+                                    <Text
+                                      size="XS"
+                                      weight="heavy"
+                                      color="inherit"
+                                    >
+                                      score
+                                    </Text>
+                                    <Text size="XS">
+                                      {formatFloat(documentEvaluation.score)}
+                                    </Text>
+                                  </Flex>
+                                </Token>
+                              )}
+                            </Flex>
+                            {documentEvaluation.annotatorKind === "HUMAN" &&
+                              spanNodeId && (
+                                <DocumentAnnotationActionMenu
+                                  annotationId={documentEvaluation.id}
+                                  annotationName={documentEvaluation.name}
+                                  spanNodeId={spanNodeId}
+                                />
+                              )}
                           </Flex>
                           {documentEvaluation.explanation ? (
                             <p
                               css={css`
-                                margin-top: var(--global-dimension-static-size-100);
+                                margin-top: var(
+                                  --global-dimension-static-size-100
+                                );
                                 margin-bottom: 0;
                               `}
                             >
@@ -1430,7 +1471,7 @@ function DocumentItem({
                     </li>
                   );
                 })}
-              </ul>
+              </Flex>
             </Flex>
           </View>
         )}
@@ -1439,7 +1480,7 @@ function DocumentItem({
             <DocumentAnnotationForm
               spanNodeId={spanNodeId}
               documentPosition={documentPosition}
-              existingAnnotation={humanAnnotation}
+              existingAnnotation={humanAnnotation as DocumentAnnotation | null}
               onDismiss={() => setIsAnnotating(false)}
             />
           </View>
@@ -1568,7 +1609,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       css={
                         idx === 0
                           ? css`
-                              border-top: 1px solid var(--global-border-color-default);
+                              border-top: 1px solid
+                                var(--global-border-color-default);
                             `
                           : null
                       }

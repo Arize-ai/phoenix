@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d85e86e55437ddfb21ded176244c7031>>
+ * @generated SignedSource<<391305d3892dab4c34541ed549d8f88c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,11 +13,11 @@ export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type DeleteAnnotationsInput = {
   annotationIds: ReadonlyArray<string>;
 };
-export type DocumentAnnotationFormDeleteMutation$variables = {
+export type DocumentAnnotationActionMenuDeleteMutation$variables = {
   input: DeleteAnnotationsInput;
   spanId: string;
 };
-export type DocumentAnnotationFormDeleteMutation$data = {
+export type DocumentAnnotationActionMenuDeleteMutation$data = {
   readonly deleteDocumentAnnotations: {
     readonly query: {
       readonly node: {
@@ -34,9 +34,9 @@ export type DocumentAnnotationFormDeleteMutation$data = {
     };
   };
 };
-export type DocumentAnnotationFormDeleteMutation = {
-  response: DocumentAnnotationFormDeleteMutation$data;
-  variables: DocumentAnnotationFormDeleteMutation$variables;
+export type DocumentAnnotationActionMenuDeleteMutation = {
+  response: DocumentAnnotationActionMenuDeleteMutation$data;
+  variables: DocumentAnnotationActionMenuDeleteMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -139,7 +139,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DocumentAnnotationFormDeleteMutation",
+    "name": "DocumentAnnotationActionMenuDeleteMutation",
     "selections": [
       {
         "alias": null,
@@ -183,7 +183,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "DocumentAnnotationFormDeleteMutation",
+    "name": "DocumentAnnotationActionMenuDeleteMutation",
     "selections": [
       {
         "alias": null,
@@ -230,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "26cd8aca381f7131ddc92cc0d27a7da8",
+    "cacheID": "d6a43f135232b4d39a78f4cf5887009d",
     "id": null,
     "metadata": {},
-    "name": "DocumentAnnotationFormDeleteMutation",
+    "name": "DocumentAnnotationActionMenuDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation DocumentAnnotationFormDeleteMutation(\n  $input: DeleteAnnotationsInput!\n  $spanId: ID!\n) {\n  deleteDocumentAnnotations(input: $input) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          documentEvaluations {\n            id\n            annotatorKind\n            documentPosition\n            name\n            label\n            score\n            explanation\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation DocumentAnnotationActionMenuDeleteMutation(\n  $input: DeleteAnnotationsInput!\n  $spanId: ID!\n) {\n  deleteDocumentAnnotations(input: $input) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          documentEvaluations {\n            id\n            annotatorKind\n            documentPosition\n            name\n            label\n            score\n            explanation\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4791f14fb6bea76c8fa30c8fad422e63";
+(node as any).hash = "4ffc8c0128130b08edd7a62d0ac535ef";
 
 export default node;

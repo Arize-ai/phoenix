@@ -1,36 +1,39 @@
 import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
-import { TextArea } from "react-aria-components";
+import type { Key} from "react-aria-components";
+import { Input, TextArea } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 
 import {
   Button,
   Flex,
-  Heading,
-  Icon,
-  Icons,
-  Text,
+  Label,
   TextField,
   View,
 } from "@phoenix/components";
+import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import type { DocumentAnnotationFormCreateMutation } from "./__generated__/DocumentAnnotationFormCreateMutation.graphql";
-import type { DocumentAnnotationFormDeleteMutation } from "./__generated__/DocumentAnnotationFormDeleteMutation.graphql";
 import type { DocumentAnnotationFormPatchMutation } from "./__generated__/DocumentAnnotationFormPatchMutation.graphql";
 
-type DocumentAnnotation = {
+export type DocumentAnnotation = {
   id: string;
+  name: string;
   label: string | null;
   score: number | null;
   explanation: string | null;
 };
 
-const ANNOTATION_NAME = "relevance";
+const LABEL_SCORE_MAP: Record<string, number> = {
+  relevant: 1,
+  irrelevant: 0,
+};
 
-const relevanceButtonCSS = css`
-  min-width: 90px;
-`;
+const PRESET_LABELS = [
+  { id: "relevant", name: "relevant" },
+  { id: "irrelevant", name: "irrelevant" },
+];
 
 export function DocumentAnnotationForm({
   spanNodeId,
@@ -46,16 +49,17 @@ export function DocumentAnnotationForm({
   const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
 
-  const [selectedRelevance, setSelectedRelevance] = useState<
-    "relevant" | "irrelevant" | null
-  >(
-    existingAnnotation?.label === "relevant"
-      ? "relevant"
-      : existingAnnotation?.label === "irrelevant"
-        ? "irrelevant"
-        : null
+  const [name, setName] = useState(existingAnnotation?.name ?? "relevance");
+  const [label, setLabel] = useState<string | null>(
+    existingAnnotation?.label ?? null
   );
-  const [note, setNote] = useState(existingAnnotation?.explanation ?? "");
+  const [score, setScore] = useState<string>(
+    existingAnnotation?.score != null ? String(existingAnnotation.score) : ""
+  );
+  const [scoreManuallyEdited, setScoreManuallyEdited] = useState(false);
+  const [explanation, setExplanation] = useState(
+    existingAnnotation?.explanation ?? ""
+  );
 
   const [commitCreate, isCreating] =
     useMutation<DocumentAnnotationFormCreateMutation>(graphql`
@@ -109,41 +113,34 @@ export function DocumentAnnotationForm({
       }
     `);
 
-  const [commitDelete, isDeleting] =
-    useMutation<DocumentAnnotationFormDeleteMutation>(graphql`
-      mutation DocumentAnnotationFormDeleteMutation(
-        $input: DeleteAnnotationsInput!
-        $spanId: ID!
-      ) {
-        deleteDocumentAnnotations(input: $input) {
-          query {
-            node(id: $spanId) {
-              ... on Span {
-                documentEvaluations {
-                  id
-                  annotatorKind
-                  documentPosition
-                  name
-                  label
-                  score
-                  explanation
-                }
-              }
-            }
-          }
+  const isBusy = isCreating || isPatching;
+
+  const handleLabelChange = useCallback(
+    (value: string | null) => {
+      setLabel(value);
+      if (!scoreManuallyEdited && value != null) {
+        const mapped = LABEL_SCORE_MAP[value];
+        if (mapped != null) {
+          setScore(String(mapped));
         }
       }
-    `);
+    },
+    [scoreManuallyEdited]
+  );
 
-  const isBusy = isCreating || isPatching || isDeleting;
+  const handleScoreChange = useCallback((value: string) => {
+    setScoreManuallyEdited(true);
+    setScore(value);
+  }, []);
 
   const handleSave = useCallback(() => {
-    if (selectedRelevance == null) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       return;
     }
-    const label = selectedRelevance;
-    const score = selectedRelevance === "relevant" ? 1 : 0;
-    const explanation = note.trim() || null;
+    const parsedScore = score !== "" ? Number(score) : null;
+    const finalLabel = label?.trim() || null;
+    const finalExplanation = explanation.trim() || null;
 
     if (existingAnnotation) {
       commitPatch({
@@ -151,10 +148,10 @@ export function DocumentAnnotationForm({
           input: [
             {
               annotationId: existingAnnotation.id,
-              name: ANNOTATION_NAME,
-              label,
-              score,
-              explanation,
+              name: trimmedName,
+              label: finalLabel,
+              score: parsedScore,
+              explanation: finalExplanation,
               annotatorKind: "HUMAN",
               source: "APP",
             },
@@ -181,11 +178,11 @@ export function DocumentAnnotationForm({
             {
               spanId: spanNodeId,
               documentPosition,
-              name: ANNOTATION_NAME,
+              name: trimmedName,
               annotatorKind: "HUMAN",
-              label,
-              score,
-              explanation,
+              label: finalLabel,
+              score: parsedScore,
+              explanation: finalExplanation,
               metadata: {},
               source: "APP",
             },
@@ -207,8 +204,10 @@ export function DocumentAnnotationForm({
       });
     }
   }, [
-    selectedRelevance,
-    note,
+    name,
+    label,
+    score,
+    explanation,
     existingAnnotation,
     commitPatch,
     commitCreate,
@@ -218,107 +217,80 @@ export function DocumentAnnotationForm({
     notifyError,
   ]);
 
-  const handleDelete = useCallback(() => {
-    if (!existingAnnotation) {
-      return;
-    }
-    commitDelete({
-      variables: {
-        input: {
-          annotationIds: [existingAnnotation.id],
-        },
-        spanId: spanNodeId,
-      },
-      onCompleted: () => {
-        notifySuccess({
-          title: "Annotation deleted",
-          message: "Document annotation removed.",
-        });
-        onDismiss?.();
-      },
-      onError: (error) => {
-        notifyError({
-          title: "Error deleting annotation",
-          message: error.message,
-        });
-      },
-    });
-  }, [
-    existingAnnotation,
-    commitDelete,
-    spanNodeId,
-    notifySuccess,
-    notifyError,
-    onDismiss,
-  ]);
-
   return (
     <View padding="size-200">
       <Flex direction="column" gap="size-100">
-        <Heading level={4} weight="heavy">
-          Annotation
-        </Heading>
-        <Flex direction="column" gap="size-100">
-          <Text size="S" weight="heavy">
-            Relevance
-          </Text>
-          <Flex direction="row" gap="size-100">
-            <Button
-              css={relevanceButtonCSS}
-              variant={
-                selectedRelevance === "relevant" ? "primary" : "default"
+        <TextField size="S" value={name} onChange={setName}>
+          <Label>Name</Label>
+          <Input placeholder="e.g. relevance" />
+        </TextField>
+        <Flex direction="row" gap="size-100" alignItems="end">
+          <ComboBox
+            label="Label"
+            placeholder="Select or type a label"
+            allowsCustomValue
+            selectedKey={label as Key}
+            inputValue={label ?? ""}
+            onInputChange={handleLabelChange}
+            onSelectionChange={(key) => {
+              if (key != null) {
+                handleLabelChange(String(key));
               }
-              size="S"
-              onPress={() => setSelectedRelevance("relevant")}
-            >
-              Relevant
-            </Button>
-            <Button
-              css={relevanceButtonCSS}
-              variant={
-                selectedRelevance === "irrelevant" ? "danger" : "default"
+            }}
+            size="M"
+            css={css`
+              flex: 1 1 0%;
+              min-width: 0;
+              .combobox__container {
+                min-width: 0;
               }
-              size="S"
-              onPress={() => setSelectedRelevance("irrelevant")}
-            >
-              Irrelevant
-            </Button>
-          </Flex>
+            `}
+          >
+            {PRESET_LABELS.map((item) => (
+              <ComboBoxItem key={item.id} id={item.id} textValue={item.name}>
+                {item.name}
+              </ComboBoxItem>
+            ))}
+          </ComboBox>
+          <TextField
+            size="S"
+            value={score}
+            onChange={handleScoreChange}
+            css={css`
+              flex: 1 1 0%;
+              min-width: 0;
+            `}
+          >
+            <Label>Score</Label>
+            <Input type="number" placeholder="e.g. 1" />
+          </TextField>
         </Flex>
         <TextField
-          value={note}
-          onChange={setNote}
+          size="S"
+          value={explanation}
+          onChange={setExplanation}
           css={css`
             width: 100%;
+            & .react-aria-TextArea {
+              resize: vertical;
+              transition: none;
+            }
           `}
         >
-          <Text size="S" weight="heavy">
-            Note
-          </Text>
-          <TextArea
-            rows={2}
-            css={css`
-              resize: vertical;
-            `}
-          />
+          <Label>Explanation</Label>
+          <TextArea rows={2} placeholder="Optional explanation" />
         </TextField>
         <Flex direction="row" gap="size-100" justifyContent="end">
-          {existingAnnotation && (
-            <Button
-              variant="danger"
-              size="S"
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-              onPress={handleDelete}
-              isDisabled={isBusy}
-            >
-              Delete
+          {onDismiss && (
+            <Button size="S" onPress={onDismiss}>
+              Cancel
             </Button>
           )}
           <Button
             variant="primary"
             size="S"
             onPress={handleSave}
-            isDisabled={selectedRelevance == null || isBusy}
+            isDisabled={!name.trim() || isBusy}
           >
             Save
           </Button>
