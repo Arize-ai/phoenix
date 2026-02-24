@@ -22,11 +22,10 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { PythonProjectGuide } from "@phoenix/features/project/components/PythonProjectGuide";
+import { TypeScriptProjectGuide } from "@phoenix/features/project/components/TypeScriptProjectGuide";
 import { ManualProjectGuide } from "@phoenix/pages/projects/ManualProjectGuide";
-
-import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];

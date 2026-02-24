@@ -3,7 +3,7 @@ import invariant from "tiny-invariant";
 import { createStore } from "zustand";
 import { devtools } from "zustand/middleware";
 
-import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
+import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/features/experiments/components/evaluators/templates/defaultEvaluatorTemplate";
 import type {
   ClassificationChoice,
   ClassificationEvaluatorAnnotationConfig,

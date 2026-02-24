@@ -6,27 +6,38 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
-import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
-import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
-import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
-import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
-import { DatasetEvaluatorsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsPage";
+import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/features/datasets/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { datasetEvaluatorDetailsLoader } from "@phoenix/features/datasets/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
+import { DatasetEvaluatorDetailsPage } from "@phoenix/features/datasets/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
+import { datasetEvaluatorsLoader } from "@phoenix/features/datasets/pages/dataset/evaluators/datasetEvaluatorsLoader";
+import { DatasetEvaluatorsPage } from "@phoenix/features/datasets/pages/dataset/evaluators/DatasetEvaluatorsPage";
 import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
-} from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
-import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
-import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+} from "@phoenix/features/datasets/pages/dataset/evaluators/EvaluatorTracePage";
+import { EvaluatorsPage } from "@phoenix/features/experiments/pages/evaluators/EvaluatorsPage";
+import { evaluatorsPageLoader } from "@phoenix/features/experiments/pages/evaluators/evaluatorsPageLoader";
+import { ProjectConfigPage } from "@phoenix/features/project/pages/ProjectConfigPage";
+import { ProjectRoot } from "@phoenix/features/project/pages/ProjectRoot";
+import { promptConfigLoader } from "@phoenix/features/prompts-settings/pages/prompt/promptConfigLoader";
+import { PromptIndexPage } from "@phoenix/features/prompts-settings/pages/prompt/PromptIndexPage";
+import { PromptLayout } from "@phoenix/features/prompts-settings/pages/prompt/PromptLayout";
+import { PromptVersionDetailsPage } from "@phoenix/features/prompts-settings/pages/prompt/PromptVersionDetailsPage";
+import { promptVersionLoader } from "@phoenix/features/prompts-settings/pages/prompt/promptVersionLoader";
+import { promptVersionsLoader } from "@phoenix/features/prompts-settings/pages/prompt/promptVersionsLoader";
+import { PromptVersionsPage } from "@phoenix/features/prompts-settings/pages/prompt/PromptVersionsPage";
+import { settingsPromptsPageLoader } from "@phoenix/features/prompts-settings/pages/settings/prompts/settingsPromptsPageLoader";
+import { SettingsAIProvidersPage } from "@phoenix/features/prompts-settings/pages/settings/SettingsAIProvidersPage";
+import { settingsAIProvidersPageLoader } from "@phoenix/features/prompts-settings/pages/settings/settingsAIProvidersPageLoader";
+import { SettingsAnnotationsPage } from "@phoenix/features/prompts-settings/pages/settings/SettingsAnnotationsPage";
+import { settingsAnnotationsPageLoader } from "@phoenix/features/prompts-settings/pages/settings/settingsAnnotationsPageLoader";
+import { SettingsDataPage } from "@phoenix/features/prompts-settings/pages/settings/SettingsDataPage";
+import { settingsDataPageLoader } from "@phoenix/features/prompts-settings/pages/settings/settingsDataPageLoader";
+import { SettingsGeneralPage } from "@phoenix/features/prompts-settings/pages/settings/SettingsGeneralPage";
+import { settingsModelsLoader } from "@phoenix/features/prompts-settings/pages/settings/settingsModelsLoader";
+import { SettingsModelsPage } from "@phoenix/features/prompts-settings/pages/settings/SettingsModelsPage";
+import { sessionLoader } from "@phoenix/features/trace/pages/sessionLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
-import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
-import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
-import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
-import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
-import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
-import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
-import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
-import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
-import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
 import type {
   DatasetLoaderData,
@@ -84,21 +95,10 @@ import {
 } from "./pages";
 import { Layout } from "./pages/Layout";
 import { layoutLoader } from "./pages/layoutLoader";
-import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
-import { ProjectRoot } from "./pages/project/ProjectRoot";
-import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
-import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
-import { PromptLayout } from "./pages/prompt/PromptLayout";
-import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
-import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
-import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
-import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
-import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
-import { sessionLoader } from "./pages/trace/sessionLoader";
 
 const router = createBrowserRouter(
   createRoutesFromElements(

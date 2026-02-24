@@ -1,0 +1,161 @@
+import { useCallback, useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { useShallow } from "zustand/react/shallow";
+
+import { Flex, Label, Switch, Text } from "@phoenix/components";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext/useEvaluatorStore";
+import { BuiltInEvaluatorOutputConfig } from "@phoenix/features/experiments/components/evaluators/BuiltInEvaluatorOutputConfig";
+import { ContainsEvaluatorCodeBlock } from "@phoenix/features/experiments/components/evaluators/ContainsEvaluatorCodeBlock";
+import { useFlattenedEvaluatorInputKeys } from "@phoenix/features/experiments/components/evaluators/EvaluatorInputMapping";
+import { SwitchableEvaluatorInput } from "@phoenix/features/experiments/components/evaluators/SwitchableEvaluatorInput";
+
+const useContainsEvaluatorForm = () => {
+  const store = useEvaluatorStoreInstance();
+  const { pathMapping, literalMapping } = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
+  );
+  const form = useForm({
+    defaultValues: { pathMapping, literalMapping },
+    mode: "onChange",
+  });
+  const subscribe = form.subscribe;
+  useEffect(() => {
+    return subscribe({
+      formState: { isValid: true, values: true },
+      callback({ values: { pathMapping, literalMapping }, isValid }) {
+        if (!isValid) {
+          return;
+        }
+        const { setPathMapping, setLiteralMapping } = store.getState();
+        setPathMapping({ ...pathMapping });
+        setLiteralMapping({ ...literalMapping });
+      },
+    });
+  }, [subscribe, store]);
+  return form;
+};
+
+export const ContainsEvaluatorForm = () => {
+  const { control, getValues, setValue, trigger } = useContainsEvaluatorForm();
+  const store = useEvaluatorStoreInstance();
+  const [containsTextPath, setContainsTextPath] = useState<string>(
+    () => getValues("pathMapping.text") ?? ""
+  );
+  const { evaluatorMappingSource } = useEvaluatorStore(
+    useShallow((state) => ({
+      evaluatorMappingSource: state.evaluatorMappingSource,
+    }))
+  );
+  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+
+  // Register validator for required SwitchableEvaluatorInput fields.
+  // Triggering both path and literal names is safe because only the
+  // mounted Controller is registered with RHF at any time.
+  const triggerValidation = useCallback(async () => {
+    return trigger([
+      "pathMapping.text",
+      "literalMapping.text",
+      "pathMapping.words",
+      "literalMapping.words",
+    ]);
+  }, [trigger]);
+  useEffect(() => {
+    const unregister = store
+      .getState()
+      .registerValidator("containsFields", triggerValidation);
+    return unregister;
+  }, [store, triggerValidation]);
+
+  // Determine initial mode based on existing values
+  const textDefaultMode =
+    getValues("literalMapping.text") != null ? "literal" : "path";
+  const wordsDefaultMode =
+    getValues("pathMapping.words") != null ? "path" : "literal";
+
+  return (
+    <Flex direction="column" gap="size-200">
+      <Flex direction="column" gap="size-100">
+        <SwitchableEvaluatorInput
+          fieldName="text"
+          label="Text"
+          description="The text to search for the words in."
+          defaultMode={textDefaultMode}
+          control={control}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Text"
+          literalPlaceholder="Enter literal text value"
+          pathInputValue={containsTextPath}
+          onPathInputChange={setContainsTextPath}
+          isRequired
+        />
+        <SwitchableEvaluatorInput
+          fieldName="words"
+          label="Words"
+          description="A comma separated list of words to search for in the text."
+          defaultMode={wordsDefaultMode}
+          control={control}
+          setValue={setValue}
+          pathOptions={allExampleKeys}
+          pathPlaceholder="Map an example field to Words"
+          literalPlaceholder="e.g. word1, word2, word3"
+          isRequired
+        />
+        <Controller
+          name="literalMapping.case_sensitive"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <Switch
+              {...field}
+              value={String(field.value ?? "")}
+              onChange={(value) => field.onChange(value)}
+              isSelected={Boolean(
+                typeof field.value === "boolean"
+                  ? field.value
+                  : typeof field.value === "string"
+                    ? field.value.toLowerCase() === "true"
+                    : false
+              )}
+            >
+              <Label>Case sensitive</Label>
+              <Text slot="description">
+                Whether to match the words case sensitive.
+              </Text>
+            </Switch>
+          )}
+        />
+        <Controller
+          name="literalMapping.require_all"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <Switch
+              {...field}
+              value={String(field.value ?? "")}
+              onChange={(value) => field.onChange(value)}
+              isSelected={Boolean(
+                typeof field.value === "boolean"
+                  ? field.value
+                  : typeof field.value === "string"
+                    ? field.value.toLowerCase() === "true"
+                    : false
+              )}
+            >
+              <Label>Require all</Label>
+              <Text slot="description">
+                Whether to require all words in the list to be present in the
+                text. If false, any word in the list can be present in the text.
+              </Text>
+            </Switch>
+          )}
+        />
+      </Flex>
+      <BuiltInEvaluatorOutputConfig />
+      <ContainsEvaluatorCodeBlock />
+    </Flex>
+  );
+};

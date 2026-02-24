@@ -2,7 +2,7 @@ import type { StoreApi } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { ProjectTab } from "@phoenix/pages/project/constants";
+import type { ProjectTab } from "@phoenix/features/project/pages/constants";
 
 export interface ProjectState {
   defaultTab: ProjectTab;

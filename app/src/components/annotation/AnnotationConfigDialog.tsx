@@ -29,7 +29,7 @@ import type {
   AnnotationConfigFreeform,
   AnnotationConfigOptimizationDirection,
   AnnotationConfigType,
-} from "@phoenix/pages/settings/types";
+} from "@phoenix/features/prompts-settings/pages/settings/types";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
