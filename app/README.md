@@ -71,7 +71,6 @@ The app is written in `typescript` and leverages [esbuild](https://esbuild.githu
 
 The web build ensures that the UI as well as the data-fetching layer is fully type safe with regards to the GraphQL schema. The type safety of the application is statically validated via the typescript CI pipeline.
 
-
 ## Test
 
 The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [oxlint](https://oxc.rs/docs/guide/usage/linter), and the formatting is enforced via the `oxfmt` code formatter. For unit testing, the app leverages [vitest](https://vitest.dev/) as a unit testing framework. Lastly, for integration tests (e.g. end-to-end or e2e), [playwright](playwright.dev) is used. The following `pnpm` commands correspond to the above safeguards.

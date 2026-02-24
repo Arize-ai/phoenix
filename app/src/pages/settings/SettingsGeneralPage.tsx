@@ -64,7 +64,7 @@ export function SettingsGeneralPage() {
               </Flex>
               <Flex direction="row" gap="size-100" alignItems="end">
                 <TextField
-                  value={`pip install 'arize-phoenix==${VERSION}'`}
+                  value={`pip install "arize-phoenix==${VERSION}"`}
                   isReadOnly
                 >
                   <Label>Installation Instructions</Label>
@@ -74,7 +74,7 @@ export function SettingsGeneralPage() {
                   </Text>
                 </TextField>
                 <CopyToClipboardButtonWithPadding
-                  text={`pip install 'arize-phoenix==${VERSION}'`}
+                  text={`pip install "arize-phoenix==${VERSION}"`}
                 />
               </Flex>
             </form>
