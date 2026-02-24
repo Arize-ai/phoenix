@@ -242,7 +242,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ Python tests passed ✅\n${{ env.ACTIONS_RUN_URL }}"
+              "text": "Python tests passed\n${{ env.ACTIONS_RUN_URL }}"
             }
       - name: Notify failure
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
