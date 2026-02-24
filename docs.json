@@ -491,6 +491,13 @@
                 ]
               },
               {
+                "group": "Claude Agent SDK",
+                "pages": [
+                  "docs/phoenix/integrations/typescript/claude-agent-sdk",
+                  "docs/phoenix/integrations/typescript/claude-agent-sdk/claude-agent-sdk-tracing-ts"
+                ]
+              },
+              {
                 "group": "LangChain",
                 "pages": [
                   "docs/phoenix/integrations/typescript/langchain",

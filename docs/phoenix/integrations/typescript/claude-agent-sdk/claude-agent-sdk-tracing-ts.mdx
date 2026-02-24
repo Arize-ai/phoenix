@@ -1,0 +1,99 @@
+---
+title: "Claude Agent SDK Tracing (TypeScript)"
+description: Trace Anthropic's Claude Agent SDK applications in TypeScript/Node.js
+---
+
+[![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-claude-agent-sdk.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-claude-agent-sdk)
+
+This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for [Anthropic's Claude Agent SDK](https://docs.anthropic.com/en/docs/agents/claude-agent-sdk), automatically capturing **AGENT** and **TOOL** spans that follow OpenInference semantic conventions.
+
+## Install
+
+```bash
+npm install @arizeai/openinference-instrumentation-claude-agent-sdk @arizeai/phoenix-otel
+```
+
+## Setup
+
+To instrument your Claude Agent SDK application, use the `register` function from `@arizeai/phoenix-otel` and set up the Claude Agent SDK instrumentation.
+
+Create the `instrumentation.ts` file:
+
+```typescript expandable
+import { register } from "@arizeai/phoenix-otel";
+import { ClaudeAgentSDKInstrumentation } from "@arizeai/openinference-instrumentation-claude-agent-sdk";
+import * as ClaudeAgentSDK from "@anthropic-ai/claude-agent-sdk";
+
+// Initialize Phoenix tracing
+const tracerProvider = register({
+  projectName: "claude-agent-sdk-app",
+  // If using Phoenix Cloud:
+  // url: "https://app.phoenix.arize.com/s/your-space-name",
+  // apiKey: process.env.PHOENIX_API_KEY,
+  // If using self-hosted Phoenix:
+  // url: "http://localhost:6006",
+});
+
+// Set up Claude Agent SDK instrumentation
+const instrumentation = new ClaudeAgentSDKInstrumentation();
+instrumentation.manuallyInstrument(ClaudeAgentSDK);
+
+console.log("Claude Agent SDK instrumentation registered");
+```
+
+<Note>
+The Claude Agent SDK is ESM-only, so `manuallyInstrument()` is used instead of `enable()` to ensure compatibility. You must import the SDK namespace and pass it to `manuallyInstrument()`.
+</Note>
+
+## Usage
+
+```typescript expandable
+import "./instrumentation.js";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+async function main() {
+  for await (const message of query({
+    prompt: "What is the weather in San Francisco?",
+    options: {
+      model: "claude-sonnet-4-5-20250514",
+    },
+  })) {
+    if (message.type === "assistant") {
+      console.log(message.content);
+    }
+  }
+}
+
+main();
+```
+
+## Observe
+
+With instrumentation enabled, you will see the following in Phoenix:
+
+- **AGENT spans** wrapping the full `query()` call, capturing the prompt and final response
+- **TOOL spans** for each tool invocation made by the agent during execution
+
+These spans follow [OpenInference semantic conventions](https://github.com/Arize-ai/openinference), making them fully compatible with Phoenix's trace visualization and evaluation features.
+
+## Privacy Configuration
+
+You can configure the instrumentation to hide sensitive data using `traceConfig`:
+
+```typescript
+const instrumentation = new ClaudeAgentSDKInstrumentation({
+  traceConfig: {
+    hideInputs: true, // Omit input content from spans
+    hideOutputs: true, // Omit output content from spans
+  },
+});
+instrumentation.manuallyInstrument(ClaudeAgentSDK);
+```
+
+## Resources
+
+* [NPM Package](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-claude-agent-sdk)
+
+* [OpenInference package for Claude Agent SDK](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-claude-agent-sdk)
+
+* [Claude Agent SDK Documentation](https://docs.anthropic.com/en/docs/agents/claude-agent-sdk)
