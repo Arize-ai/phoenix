@@ -254,7 +254,7 @@ from phoenix.client.experiments import async_run_experiment
 experiment = await async_run_experiment(
     dataset=support_query_dataset,
     task=task,
-    evaluators=[ground_truth_evaluator, analysis_evaluator],
+    evaluators=[ground_truth_evaluator, output_evaluator],
 )
 ```
 

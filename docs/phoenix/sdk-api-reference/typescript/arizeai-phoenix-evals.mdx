@@ -23,7 +23,7 @@ npm install @arizeai/phoenix-evals
 Create custom evaluators for tasks like faithfulness detection, relevance scoring, or any binary/multi-class classification:
 
 ```javascript 
-import { createClassifier } from "@arizeai/phoenix-evals/llm";
+import { createClassifierFn } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
 const model = openai("gpt-4o-mini");
@@ -52,7 +52,7 @@ Is the response above faithful or unfaithful based on the query and context?
 `;
 
 // Create the classifier
-const evaluator = await createClassifier({
+const evaluator = createClassifierFn({
   model,
   choices: { faithful: 1, unfaithful: 0 },
   promptTemplate: promptTemplate,
@@ -160,7 +160,7 @@ const faithfulnessCheck = asEvaluator({
 });
 
 // Run the experiment with automatic tracing
-runExperiment({
+await runExperiment({
   experimentName: "faithfulness-eval",
   experimentDescription: "Evaluate the faithfulness of the model",
   dataset: dataset,

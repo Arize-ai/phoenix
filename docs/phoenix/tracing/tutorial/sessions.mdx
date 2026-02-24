@@ -116,7 +116,7 @@ Here's how to modify your support agent to support sessions:
     ```python
     from opentelemetry import trace
     from openinference.instrumentation import using_session
-    from openinference.semantic_conventions import SpanAttributes
+    from openinference.semconv.trace import SpanAttributes
 
     tracer = trace.get_tracer("support-agent")
 
@@ -491,7 +491,7 @@ Here's the full evaluation flow. First, fetch spans from Phoenix and group them 
     import json
     from typing import Dict, List, Any
     from phoenix.client.resources.spans import SpanAnnotationData
-    from openinference.semantic_conventions import SpanAttributes
+    from openinference.semconv.trace import SpanAttributes
 
     # Fetch all agent spans
     spans = phoenix_client.spans.get_spans(

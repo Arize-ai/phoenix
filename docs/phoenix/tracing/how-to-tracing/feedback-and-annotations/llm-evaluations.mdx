@@ -38,7 +38,7 @@ Note that the name and kind of the evaluation can be supplied through the `annot
 ```python
 from phoenix.client import Client
 
-Client().log_span_annotations(
+Client().spans.log_span_annotations_dataframe(
     dataframe=qa_correctness_eval_df,
     annotation_name="Q&A Correctness",
     annotator_kind="LLM",

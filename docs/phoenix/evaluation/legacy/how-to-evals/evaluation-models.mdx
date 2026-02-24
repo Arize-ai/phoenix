@@ -88,7 +88,7 @@ All models newer than GPT 3.5 Turbo are tested regularly. If you're using an old
 To authenticate with OpenAI you will need, at a minimum, an API key. The model class will look for it in your environment, or you can pass it via argument as shown above. In addition, you can choose the specific name of the model you want to use and its configuration parameters. The default values specified above are common default values from OpenAI. Quickly instantiate your model as follows:
 
 ```python
-model = OpenAI()
+model = OpenAIModel()
 model("Hello there, this is a test if you are working?")
 # Output: "Hello! I'm working perfectly. How can I assist you today?"
 ```
@@ -262,7 +262,7 @@ print(response)  # "The capital of France is Paris."
 
 ```python
 import base64
-from phoenix.evals.templates import MultimodalPrompt, PromptPart, PromptPartContentType
+from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPart, PromptPartContentType
 
 # Load and encode an image
 with open("image.jpg", "rb") as f:
@@ -428,7 +428,7 @@ class MistralAIModel(BaseModel):
 Need to install the extra dependency `litellm>=1.0.3`
 
 ```python
-class LiteLLMModel(BaseEvalModel):
+class LiteLLMModel(BaseModel):
     model: str = "gpt-3.5-turbo"
     """The model name to use."""
     temperature: float = 0.0

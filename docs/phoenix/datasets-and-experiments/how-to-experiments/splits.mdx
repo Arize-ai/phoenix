@@ -137,7 +137,7 @@ import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import type { DatasetSelector } from "@arizeai/phoenix-client/types/datasets";
 
 const myTask: ExperimentTask = (example) => {
-  return `Hello, ${example?.name ?? "stranger"}!`
+  return `Hello, ${(example.input as any).name ?? "stranger"}!`
 }
 
 // Create a dataset selector that can be used to fetch a dataset
@@ -150,7 +150,7 @@ runExperiment({
   // runExperiment will perform a just-in-time fetch of the dataset "my-dataset"
   // with its examples filtered by the provided splits
   dataset: datasetSelector,
-  task,
+  task: myTask,
   experimentName: "greeting-experiment"
 })
 ```
