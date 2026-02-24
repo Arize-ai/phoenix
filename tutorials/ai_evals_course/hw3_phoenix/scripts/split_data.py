@@ -8,9 +8,8 @@ stratified train/dev/test sets.
 from typing import Any, Dict, List, Tuple
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
-
 from phoenix.client import Client
+from sklearn.model_selection import train_test_split
 
 phoenix_client = Client()
 

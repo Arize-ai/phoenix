@@ -3,7 +3,6 @@ import asyncio
 from agents import Agent, Runner
 from agents.mcp import MCPServer, MCPServerStdio
 from dotenv import load_dotenv
-
 from phoenix.otel import register
 
 load_dotenv()

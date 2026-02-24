@@ -18,14 +18,6 @@ from groq.types.chat import (
 from groq.types.chat.chat_completion_content_part_image_param import ImageURL
 from groq.types.chat.chat_completion_message_tool_call_param import Function
 from groq.types.shared_params import FunctionDefinition
-
-from phoenix.client.__generated__.v1 import (
-    ImageContentPart,
-    PromptMessage,
-    TextContentPart,
-    TextContentValue,
-    ToolCallContentPart,
-)
 from phoenix.client.helpers.sdk.groq.chat import (
     _from_image,
     _from_message,
@@ -37,6 +29,14 @@ from phoenix.client.helpers.sdk.groq.chat import (
     _to_text,
     _to_tool_call,
     _to_tools,
+)
+
+from phoenix.client.__generated__.v1 import (
+    ImageContentPart,
+    PromptMessage,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 

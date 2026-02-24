@@ -69,8 +69,9 @@ def run_autogen_agents(query, parent_context):
         )
         user_proxy_agent = UserProxyAgent(
             name="User_Proxy",
-            is_termination_msg=lambda msg: msg.get("content") is not None
-            and "TERMINATE" in msg["content"],
+            is_termination_msg=lambda msg: (
+                msg.get("content") is not None and "TERMINATE" in msg["content"]
+            ),
             human_input_mode="NEVER",
             max_consecutive_auto_reply=10,
             code_execution_config={
