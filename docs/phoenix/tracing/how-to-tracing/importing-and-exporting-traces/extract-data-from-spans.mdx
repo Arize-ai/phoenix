@@ -189,7 +189,7 @@ query = SpanQuery().where(
 
 ```python
 query = SpanQuery().where(
-    "metadata["topic"] == 'programming'"
+    'metadata["topic"] == \'programming\''
 )
 ```
 
@@ -199,7 +199,7 @@ Note that Python strings do not have a `contain` method, and substring search is
 
 ```python
 query = SpanQuery().where(
-    "'programming' in metadata["topic"]"
+    "'programming' in metadata['topic']"
 )
 ```
 
@@ -318,7 +318,7 @@ query = SpanQuery().where(
     "span_kind == 'LLM'",
 ).select(
     input="input.value",
-    output="output.value,
+    output="output.value",
 )
 
 # The Phoenix Client can take this query and return a dataframe.

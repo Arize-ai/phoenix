@@ -190,7 +190,7 @@ private static void initializeOpenTelemetry() {
 
         String apiKey = System.getenv("PHOENIX_API_KEY");
         OtlpGrpcSpanExporterBuilder otlpExporterBuilder = OtlpGrpcSpanExporter.builder()
-                .setEndpoint("http://localhost:4317") # adjust as needed
+                .setEndpoint("http://localhost:4317") // adjust as needed
                 .setTimeout(Duration.ofSeconds(2));
         OtlpGrpcSpanExporter otlpExporter = null;
         if (apiKey != null && !apiKey.isEmpty()) {

@@ -12,7 +12,7 @@ def run_evals(
     provide_explanation: bool = False,
     use_function_calling_if_available: bool = True,
     verbose: bool = False,
-    concurrency: int = 20,
+    concurrency: Optional[int] = None,
 ) -> List[pd.DataFrame]
 ```
 
@@ -66,7 +66,7 @@ from phoenix.evals import (
 )
 
 api_key = None  # set your api key here or with the OPENAI_API_KEY environment variable
-eval_model = OpenAIModel(model_name="gpt-4-turbo-preview", api_key=api_key)
+eval_model = OpenAIModel(model="gpt-4-turbo-preview", api_key=api_key)
 
 hallucination_evaluator = HallucinationEvaluator(eval_model)
 qa_correctness_evaluator = QAEvaluator(eval_model)
@@ -154,8 +154,8 @@ Note that once you initialize the `PromptTemplate` class, you don't need to worr
 
 ```python
 def llm_classify(
-    dataframe: pd.DataFrame,
-    model: BaseEvalModel,
+    data: pd.DataFrame,
+    model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
@@ -173,7 +173,7 @@ Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.Dat
 
 * **template (ClassificationTemplate, or str):** The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `.format` can be made to substitute variable values.
 
-* **model (BaseEvalModel):** An LLM model class instance
+* **model (BaseModel):** An LLM model class instance
 
 * **rails (List\[str]):** A list of strings representing the possible output classes of the model's predictions.
 
@@ -195,7 +195,7 @@ Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.Dat
 def llm_generate(
     dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
-    model: Optional[BaseEvalModel] = None,
+    model: Optional[BaseModel] = None,
     system_instruction: Optional[str] = None,
     output_parser: Optional[Callable[[str, int], Dict[str, Any]]] = None,
 ) -> List[str]
@@ -209,7 +209,7 @@ Generates a text using a template using an LLM. This function is useful if you w
 
 * **template (Union\[PromptTemplate, str])**: The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `format` can be made to substitute variable values.
 
-* **model (BaseEvalModel)**: An LLM model class.
+* **model (BaseModel)**: An LLM model class.
 
 * **system\_instruction (Optional\[str], optional):** An optional system message.
 
@@ -240,7 +240,7 @@ countries_df = pd.DataFrame(
 capitals_df = llm_generate(
     dataframe=countries_df,
     template="The capital of {country} is ",
-    model=OpenAIModel(model_name="gpt-4"),
+    model=OpenAIModel(model="gpt-4"),
     verbose=True,
 )
 ```
@@ -282,7 +282,7 @@ capitals_df = llm_generate(
     dataframe=countries_df,
     template=template,
     model=OpenAIModel(
-        model_name="gpt-4-turbo-preview",
+        model="gpt-4-turbo-preview",
         model_kwargs={
             "response_format": {"type": "json_object"}
         }
