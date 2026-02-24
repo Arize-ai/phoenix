@@ -1,4 +1,3 @@
-import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
 import type { FetchFunction } from "relay-runtime";
 import {
   Environment,
@@ -12,6 +11,7 @@ import invariant from "tiny-invariant";
 import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
 
+import { createFetchMultipartSubscription } from "./fetchMultipartSubscription";
 import { isObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";

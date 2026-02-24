@@ -82,22 +82,161 @@ export default defineConfig(() => {
         output: {
           advancedChunks: {
             groups: [
+              // === Vendor groups ===
+              // includeDependenciesRecursively: true (default) makes each
+              // group self-contained. Most-shared packages get the highest
+              // priority so they're captured first. NO maxSize on vendor
+              // groups (it causes execution order issues with ESM init).
+
+              // React core (shared by almost everything)
               {
-                name: "vendor-codemirror",
-                test: /codemirror/,
+                name: "vendor-react",
+                test: /[\\/]node_modules[\\/](react[\\/]|react-dom[\\/]|scheduler[\\/]|react-is[\\/])/,
+                priority: 40,
               },
+              // CodeMirror state (shared core)
+              {
+                name: "vendor-codemirror-state",
+                test: /[\\/]node_modules[\\/]@codemirror[\\/]state/,
+                priority: 36,
+              },
+              // CodeMirror view/UI + extensions
+              {
+                name: "vendor-codemirror-view",
+                test: /[\\/]node_modules[\\/](@codemirror[\\/](view|autocomplete|commands|lint|search)|@uiw[\\/]|codemirror[\\/])/,
+                priority: 35,
+              },
+              // Lezer parsing infrastructure (grammars + core)
+              {
+                name: "vendor-lezer",
+                test: /[\\/]node_modules[\\/]@lezer[\\/]/,
+                priority: 34,
+              },
+              // CodeMirror language integration + lang-* packages
+              {
+                name: "vendor-codemirror-lang",
+                test: /[\\/]node_modules[\\/](@codemirror[\\/](lang-|language)|codemirror-json)/,
+                priority: 33,
+              },
+              // React Aria UI primitives
+              {
+                name: "vendor-aria",
+                test: /[\\/]node_modules[\\/](@react-aria|react-aria|@react-stately|react-stately|@react-types|@internationalized)/,
+                priority: 30,
+              },
+              // Recharts charting library + D3 deps
               {
                 name: "vendor-recharts",
-                test: /recharts/,
+                test: /[\\/]node_modules[\\/](recharts|d3-|internmap)/,
+                priority: 30,
               },
+              // Shiki syntax highlighter
               {
                 name: "vendor-shiki",
-                test: /shiki/,
+                test: /[\\/]node_modules[\\/](@shikijs|shiki)/,
+                priority: 30,
               },
-              // Catch-all for remaining node_modules
+              // GraphQL data layer (Relay)
+              {
+                name: "vendor-graphql",
+                test: /[\\/]node_modules[\\/](relay-runtime|react-relay)/,
+                priority: 25,
+              },
+              // React Router
+              {
+                name: "vendor-router",
+                test: /[\\/]node_modules[\\/](react-router|turbo-stream|cookie|set-cookie-parser)/,
+                priority: 20,
+              },
+              // Table/virtualisation (@tanstack)
+              {
+                name: "vendor-tanstack",
+                test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+                priority: 20,
+              },
+              // Markdown rendering pipeline
+              {
+                name: "vendor-markdown",
+                test: /[\\/]node_modules[\\/](react-markdown|remark-|mdast-|micromark|unified|hast-|unist-|rehype-)/,
+                priority: 20,
+              },
+              // Forms + validation
+              {
+                name: "vendor-forms",
+                test: /[\\/]node_modules[\\/](react-hook-form|@hookform|zod[\\/])/,
+                priority: 20,
+              },
+              // Remaining node_modules
               {
                 name: "vendor",
-                test: /node_modules/,
+                test: /[\\/]node_modules[\\/]/,
+                priority: 10,
+              },
+
+              // === App code groups ===
+              // With includeDependenciesRecursively: true, higher-priority
+              // groups "claim" their modules first, preventing lower-priority
+              // groups from pulling them in as transitive deps.
+              //
+              // Priority order (high→low):
+              //   p9: shared infra (claimed first, used by everything)
+              //   p8: shared UI components (claimed next, used by pages)
+              //   p7: feature groups (pages + feature-specific components)
+              //   p1: remaining root files
+
+              // Shared infrastructure
+              {
+                name: "app-infra",
+                test: /[\\/]src[\\/](contexts|hooks|utils|store|constants|types|openInference|analytics)[\\/]/,
+                priority: 9,
+              },
+              // Shared UI components (excludes feature-specific subdirs)
+              {
+                name: "app-components",
+                test: /[\\/]src[\\/]components[\\/](?!(project|trace|dataset|datasetSplit|experiment|evaluators|playground|prompt|settings|templateEditor)[\\/])/,
+                priority: 8,
+              },
+              // Feature: project tracing
+              {
+                name: "app-project",
+                test: /[\\/]src[\\/](pages[\\/]project|components[\\/]project)[\\/]/,
+                priority: 7,
+              },
+              // Feature: trace/session viewer
+              {
+                name: "app-trace",
+                test: /[\\/]src[\\/](pages[\\/]trace|components[\\/]trace)[\\/]/,
+                priority: 7,
+              },
+              // Feature: datasets + examples
+              {
+                name: "app-datasets",
+                test: /[\\/]src[\\/](pages[\\/](dataset|datasets|examples|example)|components[\\/](dataset|datasetSplit))[\\/]/,
+                priority: 7,
+              },
+              // Feature: experiments + evaluators
+              {
+                name: "app-experiments",
+                test: /[\\/]src[\\/](pages[\\/](experiments|experiment|evaluators)|components[\\/](experiment|evaluators))[\\/]/,
+                priority: 7,
+              },
+              // Feature: playground
+              {
+                name: "app-playground",
+                test: /[\\/]src[\\/](pages[\\/]playground|components[\\/]playground|store[\\/]playground|schemas)[\\/]/,
+                priority: 7,
+              },
+              // Feature: prompts + settings
+              {
+                name: "app-prompts-settings",
+                test: /[\\/]src[\\/](pages[\\/](prompt|prompts|settings)|components[\\/](prompt|settings|templateEditor))[\\/]/,
+                priority: 7,
+              },
+              // Remaining app code (root files, misc)
+              {
+                name: "app",
+                test: /[\\/]src[\\/]/,
+                priority: 1,
               },
             ],
           },
