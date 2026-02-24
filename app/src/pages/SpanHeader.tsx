@@ -3,11 +3,11 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
-import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { LatencyText } from "@phoenix/features/trace/components/LatencyText";
+import { SpanKindToken } from "@phoenix/features/trace/components/SpanKindToken";
+import { SpanStatusCodeIcon } from "@phoenix/features/trace/components/SpanStatusCodeIcon";
+import { SpanTokenCosts } from "@phoenix/features/trace/components/SpanTokenCosts";
+import { SpanTokenCount } from "@phoenix/features/trace/components/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";

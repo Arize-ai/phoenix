@@ -1,0 +1,161 @@
+import { Heading } from "react-aria-components";
+import { graphql, useFragment, usePreloadedQuery } from "react-relay";
+
+import { Flex, Text, View } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
+import { PromptChatMessagesCard } from "@phoenix/features/prompts-settings/components/prompt/PromptChatMessagesCard";
+import { PromptLabelConfigButton } from "@phoenix/features/prompts-settings/pages/prompt/PromptLabelConfigButton";
+import { PromptLabels } from "@phoenix/features/prompts-settings/pages/prompt/PromptLabels";
+import { PromptModelConfigurationCard } from "@phoenix/features/prompts-settings/pages/prompt/PromptModelConfigurationCard";
+
+import type { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
+import type { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
+import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
+import { EditPromptButton } from "./EditPromptButton";
+import { PromptCodeExportCard } from "./PromptCodeExportCard";
+import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
+import { promptLoaderQuery } from "./promptLoader";
+import { usePromptIdLoader } from "./usePromptIdLoader";
+
+export function PromptIndexPage() {
+  const loaderData = usePromptIdLoader();
+  const data = usePreloadedQuery<promptLoaderQueryType>(
+    promptLoaderQuery,
+    loaderData.queryRef
+  );
+  return <PromptIndexPageContent prompt={data.prompt} />;
+}
+
+export function PromptIndexPageContent({
+  prompt,
+}: {
+  prompt: PromptIndexPage__main$key;
+}) {
+  const data = useFragment<PromptIndexPage__main$key>(
+    graphql`
+      fragment PromptIndexPage__main on Prompt {
+        promptVersions {
+          edges {
+            node {
+              ...PromptInvocationParameters__main
+              ...PromptChatMessagesCard__main
+              ...PromptCodeExportCard__main
+              ...PromptModelConfigurationCard__main
+            }
+          }
+        }
+        ...PromptIndexPage__aside
+      }
+    `,
+    prompt
+  );
+
+  const latestVersion = data?.promptVersions?.edges?.[0]?.node;
+  return (
+    <Flex direction="row" height="100%">
+      <View
+        height="100%"
+        overflow="auto"
+        width="100%"
+        data-testid="scroll-container"
+      >
+        <View padding="size-200">
+          <Flex
+            direction="column"
+            gap="size-200"
+            marginStart="auto"
+            marginEnd="auto"
+            maxWidth={900}
+          >
+            <PromptChatMessagesCard
+              title="Prompt Template"
+              promptVersion={latestVersion}
+            />
+            <PromptModelConfigurationCard promptVersion={latestVersion} />
+            <PromptCodeExportCard promptVersion={latestVersion} />
+          </Flex>
+        </View>
+      </View>
+      <PromptIndexPageAside prompt={data} />
+    </Flex>
+  );
+}
+
+/**
+ * The aside content for the prompt details. Displays the description,
+ * tags, and history
+ */
+function PromptIndexPageAside({
+  prompt,
+}: {
+  prompt: PromptIndexPage__aside$key;
+}) {
+  const data = useFragment(
+    graphql`
+      fragment PromptIndexPage__aside on Prompt {
+        id
+        name
+        description
+        metadata
+        ...PromptLatestVersionsListFragment
+        ...EditPromptButton_data
+        ...PromptLabels
+      }
+    `,
+    prompt
+  );
+  const hasDescription = Boolean(data?.description);
+  return (
+    <View
+      flex="none"
+      width={400}
+      borderStartColor="dark"
+      borderStartWidth="thin"
+    >
+      <View padding="size-200">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Heading level={3}>Description</Heading>
+          <EditPromptButton prompt={data} />
+        </Flex>
+        {/* TODO: Add a markdown view here */}
+        <Text color={hasDescription ? "text-900" : "text-700"}>
+          {data.description || "No Description"}
+        </Text>
+        <section>
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={3}>Labels</Heading>
+            <PromptLabelConfigButton promptId={data.id} />
+          </Flex>
+          <PromptLabels prompt={data} />
+        </section>
+        <section>
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={3}>Metadata</Heading>
+            <EditPromptButton prompt={data} />
+          </Flex>
+          <JSONBlock
+            value={
+              data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}"
+            }
+          />
+        </section>
+        <section>
+          <Heading level={3}>Latest Versions</Heading>
+          <PromptLatestVersionsList prompt={data} />
+        </section>
+      </View>
+    </View>
+  );
+}

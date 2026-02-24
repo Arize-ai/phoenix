@@ -10,8 +10,8 @@ import {
   Summary,
   SummaryValue,
   SummaryValuePreview,
-} from "@phoenix/pages/project/AnnotationSummary";
-import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+} from "@phoenix/features/project/pages/AnnotationSummary";
+import type { AnnotationConfigCategorical } from "@phoenix/features/prompts-settings/pages/settings/types";
 
 const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
   const data = useFragment<AnnotationSummaryGroup$key>(

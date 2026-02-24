@@ -22,7 +22,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
-import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { AnnotationTooltipFilterActions } from "@phoenix/features/project/pages/AnnotationTooltipFilterActions";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import type { Annotation } from "./types";

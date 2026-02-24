@@ -181,7 +181,7 @@ export default defineConfig(() => {
               // Priority order (high→low):
               //   p9: shared infra (claimed first, used by everything)
               //   p8: shared UI components (claimed next, used by pages)
-              //   p7: feature groups (pages + feature-specific components)
+              //   p7: feature groups (self-contained under features/)
               //   p1: remaining root files
 
               // Shared infrastructure
@@ -190,49 +190,44 @@ export default defineConfig(() => {
                 test: /[\\/]src[\\/](contexts|hooks|utils|store|constants|types|openInference|analytics)[\\/]/,
                 priority: 9,
               },
-              // Shared UI components (excludes feature-specific subdirs)
+              // Shared UI components - the ENTIRE directory, no exclusions
               {
                 name: "app-components",
-                test: /[\\/]src[\\/]components[\\/](?!(project|trace|dataset|datasetSplit|experiment|evaluators|playground|prompt|settings|templateEditor)[\\/])/,
+                test: /[\\/]src[\\/]components[\\/]/,
                 priority: 8,
               },
-              // Feature: project tracing
+              // Feature groups - one directory each
               {
                 name: "app-project",
-                test: /[\\/]src[\\/](pages[\\/]project|components[\\/]project)[\\/]/,
+                test: /[\\/]src[\\/]features[\\/]project[\\/]/,
                 priority: 7,
               },
-              // Feature: trace/session viewer
               {
                 name: "app-trace",
-                test: /[\\/]src[\\/](pages[\\/]trace|components[\\/]trace)[\\/]/,
+                test: /[\\/]src[\\/]features[\\/]trace[\\/]/,
                 priority: 7,
               },
-              // Feature: datasets + examples
               {
                 name: "app-datasets",
-                test: /[\\/]src[\\/](pages[\\/](dataset|datasets|examples|example)|components[\\/](dataset|datasetSplit))[\\/]/,
+                test: /[\\/]src[\\/]features[\\/]datasets[\\/]/,
                 priority: 7,
               },
-              // Feature: experiments + evaluators
               {
                 name: "app-experiments",
-                test: /[\\/]src[\\/](pages[\\/](experiments|experiment|evaluators)|components[\\/](experiment|evaluators))[\\/]/,
+                test: /[\\/]src[\\/]features[\\/]experiments[\\/]/,
                 priority: 7,
               },
-              // Feature: playground
               {
                 name: "app-playground",
-                test: /[\\/]src[\\/](pages[\\/]playground|components[\\/]playground|store[\\/]playground|schemas)[\\/]/,
+                test: /[\\/]src[\\/]features[\\/]playground[\\/]/,
                 priority: 7,
               },
-              // Feature: prompts + settings
               {
                 name: "app-prompts-settings",
-                test: /[\\/]src[\\/](pages[\\/](prompt|prompts|settings)|components[\\/](prompt|settings|templateEditor))[\\/]/,
+                test: /[\\/]src[\\/]features[\\/]prompts-settings[\\/]/,
                 priority: 7,
               },
-              // Remaining app code (root files, misc)
+              // Remaining app code (root files, non-feature pages, misc)
               {
                 name: "app",
                 test: /[\\/]src[\\/]/,

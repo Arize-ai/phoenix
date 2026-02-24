@@ -1,0 +1,404 @@
+import { css } from "@emotion/react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import type { BlockerFunction } from "react-router";
+import { useBlocker, useSearchParams } from "react-router";
+
+import {
+  Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  PageHeader,
+  View,
+} from "@phoenix/components";
+import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import {
+  PlaygroundProvider,
+  usePlaygroundContext,
+} from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { PlaygroundExamplePage } from "@phoenix/features/playground/pages/PlaygroundExamplePage";
+import type { PromptParam } from "@phoenix/features/playground/pages/playgroundURLSearchParamsUtils";
+import { setPromptParams } from "@phoenix/features/playground/pages/playgroundURLSearchParamsUtils";
+import { TemplateFormats } from "@phoenix/features/prompts-settings/components/templateEditor/constants";
+import type { PlaygroundProps } from "@phoenix/store";
+
+import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
+import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { NoInstalledProvider } from "./NoInstalledProvider";
+import { PlaygroundConfigButton } from "./PlaygroundConfigButton";
+import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
+import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
+import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
+import { PlaygroundInput } from "./PlaygroundInput";
+import { PlaygroundOutput } from "./PlaygroundOutput";
+import { PlaygroundRunButton } from "./PlaygroundRunButton";
+import { PlaygroundTemplate } from "./PlaygroundTemplate";
+import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
+
+const playgroundWrapCSS = css`
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+  height: 100%;
+`;
+
+export function Playground(props: Partial<PlaygroundProps>) {
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
+
+  const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
+    graphql`
+      query PlaygroundQuery {
+        modelProviders {
+          name
+          dependenciesInstalled
+          dependencies
+        }
+      }
+    `,
+    {}
+  );
+
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
+
+  const playgroundStreamingEnabled = usePreferencesContext(
+    (state) => state.playgroundStreamingEnabled
+  );
+  const hasInstalledProvider = modelProviders.some(
+    (provider) => provider.dependenciesInstalled
+  );
+
+  if (!hasInstalledProvider) {
+    return <NoInstalledProvider availableProviders={modelProviders} />;
+  }
+  return (
+    <PlaygroundProvider
+      datasetId={datasetId}
+      {...props}
+      streaming={playgroundStreamingEnabled}
+      modelConfigByProvider={modelConfigByProvider}
+    >
+      <div css={playgroundWrapCSS}>
+        <View borderBottomColor="dark" borderBottomWidth="thin">
+          <PageHeader
+            title="Playground"
+            extra={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <PlaygroundCredentialsDropdown />
+                <PlaygroundConfigButton />
+                <PlaygroundRunButton />
+              </Flex>
+            }
+          />
+        </View>
+        <PlaygroundContent />
+      </div>
+      <Suspense>
+        <PlaygroundExamplePage />
+      </Suspense>
+    </PlaygroundProvider>
+  );
+}
+
+function AddPromptButton() {
+  const addInstance = usePlaygroundContext((state) => state.addInstance);
+  const instances = usePlaygroundContext((state) => state.instances);
+  const numInstances = instances.length;
+  const isRunning = instances.some((instance) => instance.activeRunId != null);
+  return (
+    <Button
+      size="S"
+      aria-label="add prompt"
+      leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+      isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
+      onPress={() => {
+        addInstance();
+      }}
+    >
+      Compare
+    </Button>
+  );
+}
+
+const playgroundPromptPanelContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  & > .disclosure-group {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex: 1 1 auto;
+    & > .disclosure {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      flex: 1 1 auto;
+      // prevent the accordion item header from growing to fill the accordion item
+      // using two selectors as fallback just incase the component lib changes subtly
+      & > [role="button"],
+      & > #prompts-heading {
+        flex: 0 0 auto;
+      }
+      .disclosure__panel {
+        height: 100%;
+        overflow: hidden;
+        flex: 1 1 auto;
+      }
+    }
+  }
+`;
+
+const promptsWrapCSS = css`
+  padding: var(--global-dimension-size-200);
+  scrollbar-gutter: stable;
+  height: 100%;
+  flex: 1 1 auto;
+  overflow: auto;
+  box-sizing: border-box;
+`;
+
+const playgroundInputOutputPanelContentCSS = css`
+  height: 100%;
+  overflow: auto;
+`;
+
+/**
+ * This width accomodates the model config button min-width, as well as chat message accordion
+ * header contents such as the chat message mode radio group for AI messages
+ */
+const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
+
+const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
+const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
+
+function PlaygroundContent() {
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
+  // Only depend on the split-id subset of query params.
+  const serializedSplitIds = searchParams.getAll("splitId").join("\0");
+  // Keep splitIds referentially stable unless split-id values actually change.
+  const splitIds = useMemo(() => {
+    // Pass undefined instead of empty array to indicate "no filter"
+    if (serializedSplitIds.length === 0) {
+      return undefined;
+    }
+    return serializedSplitIds.split("\0");
+  }, [serializedSplitIds]);
+  const isDatasetMode = datasetId != null;
+  const isRunning = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.activeRunId != null)
+  );
+  const anyDirtyPromptInstances = usePlaygroundContext((state) =>
+    Object.values(state.dirtyInstances).some((dirty) => dirty)
+  );
+  const instanceIds = usePlaygroundContext(
+    (state) => state.instances.map((instance) => instance.id),
+    // only re-render when the instance ids change, not when the array is re-created
+    (left, right) =>
+      left.length === right.length &&
+      left.every((id, index) => id === right[index])
+  );
+
+  const playgroundDatasetStateByDatasetId = usePlaygroundContext(
+    (state) => state.stateByDatasetId
+  );
+  const playgroundDatasetState = datasetId
+    ? playgroundDatasetStateByDatasetId[datasetId]
+    : null;
+  const { appendedMessagesPath, availablePaths } = playgroundDatasetState ?? {};
+
+  // Derive prompt params from all instances for URL sync.
+  // Only re-render when the prompt params actually change.
+  const instancePromptParams = usePlaygroundContext(
+    (state) =>
+      state.instances
+        .map((instance): PromptParam | null =>
+          instance.prompt
+            ? {
+                promptId: instance.prompt.id,
+                promptVersionId: instance.prompt.version,
+                tagName: instance.prompt.tag,
+              }
+            : null
+        )
+        .filter((param): param is PromptParam => param != null),
+    (left, right) =>
+      left.length === right.length &&
+      left.every(
+        (param, index) =>
+          param.promptId === right[index].promptId &&
+          param.promptVersionId === right[index].promptVersionId &&
+          param.tagName === right[index].tagName
+      )
+  );
+
+  // Sync prompt state from the store to URL search params.
+  // Uses replace to avoid polluting browser history.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        setPromptParams({ searchParams: next, prompts: instancePromptParams });
+        return next;
+      },
+      { replace: true }
+    );
+  }, [instancePromptParams, setSearchParams]);
+
+  // Soft block at the router level when a run is in progress or there are dirty instances
+  // Handles blocking navigation when a run is in progress
+  const shouldBlockUnload = useCallback(
+    ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
+      const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
+      return (isRunning || anyDirtyPromptInstances) && goingToNewPage;
+    },
+    [isRunning, anyDirtyPromptInstances]
+  );
+  const blocker = useBlocker(shouldBlockUnload);
+
+  // Hard block at the browser level when a run is in progress
+  // Handles blocking page reloads when a run is in progress
+  useEffect(() => {
+    const shouldBlock = isRunning;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // This is deprecated but still necessary for cross-browser compatibility
+      e.returnValue = true;
+    };
+
+    if (shouldBlock) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    }
+  }, [isRunning]);
+
+  return (
+    <Fragment key="playground-content">
+      <PanelGroup direction="vertical" autoSaveId="playground-panels">
+        <Panel>
+          <div css={playgroundPromptPanelContentCSS}>
+            <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
+              <Disclosure id="prompts" size="L">
+                <DisclosureTrigger
+                  arrowPosition="start"
+                  justifyContent="space-between"
+                >
+                  Prompts
+                  <StopPropagation>
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <TemplateFormatRadioGroup size="S" />
+                      <AddPromptButton />
+                    </Flex>
+                  </StopPropagation>
+                </DisclosureTrigger>
+                <DisclosurePanel>
+                  <div css={promptsWrapCSS}>
+                    <Flex direction="row" gap="size-200" maxWidth="100%">
+                      {instanceIds.map((instanceId) => (
+                        <View
+                          flex="1 1 0px"
+                          key={`${instanceId}-prompt`}
+                          minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
+                        >
+                          <PlaygroundTemplate
+                            playgroundInstanceId={instanceId}
+                            appendedMessagesPath={appendedMessagesPath}
+                            availablePaths={availablePaths}
+                          />
+                        </View>
+                      ))}
+                    </Flex>
+                  </div>
+                </DisclosurePanel>
+              </Disclosure>
+            </DisclosureGroup>
+          </div>
+        </Panel>
+        <PanelResizeHandle css={compactResizeHandleCSS} />
+        <Panel>
+          {isDatasetMode ? (
+            <Suspense fallback={<Loading />}>
+              <PlaygroundDatasetSection
+                key={datasetId} // reset evaluator selection when dataset changes
+                datasetId={datasetId}
+                splitIds={splitIds}
+              />
+            </Suspense>
+          ) : (
+            <div css={playgroundInputOutputPanelContentCSS}>
+              <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PARAMS}>
+                {templateFormat !== TemplateFormats.NONE ? (
+                  <Disclosure id="input" size="L">
+                    <DisclosureTrigger arrowPosition="start">
+                      <Flex
+                        direction="row"
+                        gap="size-100"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        width="100%"
+                      >
+                        Inputs
+                        <PlaygroundDatasetSelect />
+                      </Flex>
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <View padding="size-200" height={"100%"}>
+                        <PlaygroundInput />
+                      </View>
+                    </DisclosurePanel>
+                  </Disclosure>
+                ) : null}
+                <Disclosure id="output" size="L">
+                  <DisclosureTrigger arrowPosition="start">
+                    Output
+                  </DisclosureTrigger>
+                  <DisclosurePanel>
+                    <View padding="size-200" height="100%">
+                      <Flex direction="row" gap="size-200">
+                        {instanceIds.map((instanceId) => (
+                          <View key={`${instanceId}-output`} flex="1 1 0px">
+                            <PlaygroundOutput
+                              playgroundInstanceId={instanceId}
+                            />
+                          </View>
+                        ))}
+                      </Flex>
+                    </View>
+                  </DisclosurePanel>
+                </Disclosure>
+              </DisclosureGroup>
+            </div>
+          )}
+        </Panel>
+      </PanelGroup>
+      <ConfirmNavigationDialog
+        blocker={blocker}
+        message={
+          isRunning
+            ? "Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+            : "You have unsaved changes. Are you sure you want to leave?"
+        }
+      />
+    </Fragment>
+  );
+}

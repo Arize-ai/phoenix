@@ -14,14 +14,14 @@ import type {
   AnthropicToolChoice,
   GoogleToolChoice,
   OpenaiToolChoice,
-} from "@phoenix/schemas/toolChoiceSchemas";
+} from "@phoenix/features/playground/schemas/toolChoiceSchemas";
 import {
   findToolChoiceName,
   makeAnthropicToolChoice,
   makeAwsToolChoice,
   makeGoogleToolChoice,
   makeOpenAIToolChoice,
-} from "@phoenix/schemas/toolChoiceSchemas";
+} from "@phoenix/features/playground/schemas/toolChoiceSchemas";
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
 /**

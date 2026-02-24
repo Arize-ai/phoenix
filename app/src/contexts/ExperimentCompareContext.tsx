@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import type { AnnotationConfig } from "@phoenix/components/annotation";
-import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import type { ExperimentCompareDetailsQuery$data } from "@phoenix/features/experiments/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]

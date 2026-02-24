@@ -15,7 +15,7 @@ import { AnnotationInputExplanation } from "@phoenix/components/annotation/Annot
 import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import type { SelectProps } from "@phoenix/components/select";
-import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+import type { AnnotationConfigCategorical } from "@phoenix/features/prompts-settings/pages/settings/types";
 
 import type { AnnotationInputPropsBase } from "./types";
 
