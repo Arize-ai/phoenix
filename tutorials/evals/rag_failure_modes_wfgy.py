@@ -10,10 +10,15 @@ plus a short free-form comment.
 The scoring rubric is adapted from the open-source WFGY 16-problem
 ProblemMap (MIT licensed) as a lightweight example of incident-style
 RAG diagnostics.
+
+The goal is to show how you can attach simple, human-readable
+"failure labels" to each RAG run, which can later be logged,
+visualized, or combined with Phoenix evals.
 """
 
-# If you are running this inside a notebook (e.g. Colab) and want a
-# single cell to install dependencies, you can uncomment the line below:
+# If you are running this inside a notebook (for example, Colab) and want
+# a single cell to install dependencies, you can uncomment the line below.
+# In the Phoenix repo this line should stay commented out.
 # !pip install -q "openai>=1.58.1" "pandas>=2.0.0"
 
 import os
@@ -25,14 +30,18 @@ from openai import OpenAI
 import pandas as pd
 
 
-# ---- 1. Ask for API key at runtime ----
+# ---- 1. Ask for API key at runtime -----------------------------------------
+# The API key is requested interactively so that it is never hard-coded
+# into the file. This makes the example safe to commit to a public repo.
 api_key = getpass.getpass("Enter your OpenAI API key: ")
 os.environ["OPENAI_API_KEY"] = api_key
 
 client = OpenAI()
 
 
-# ---- 2. Tiny fake knowledge base for a RAG demo ----
+# ---- 2. Tiny fake knowledge base for a RAG demo ----------------------------
+# In a real application this would be a vector store or document collection.
+# Here we keep it as three short FAQ entries for clarity.
 KB = {
     "faq_1": (
         "We accept credit cards and PayPal for subscription payments. "
@@ -50,23 +59,26 @@ KB = {
 
 def simple_retriever(query: str):
     """
-    Extremely naive retriever.
+    Extremely naive retriever used only for this tutorial.
 
-    For demonstration purposes only. It ignores the query and always
-    returns faq_1 and faq_2 so that the failure mode is controlled by
-    the answer logic and the evaluator rubric, not by the retriever.
+    For demonstration purposes it ignores the query and always returns the
+    same two FAQ entries (faq_1 and faq_2). This keeps the example focused
+    on how we score failure modes, rather than on retrieval quality itself.
     """
     retrieved_ids = ["faq_1", "faq_2"]
     contexts = [KB[_id] for _id in retrieved_ids]
     return retrieved_ids, contexts
 
 
-# ---- 3. Run a toy RAG pipeline ----
+# ---- 3. Run a toy RAG pipeline --------------------------------------------
+# We simulate a single RAG request: a user asking about Bitcoin payments.
 query = "Can I pay my subscription with Bitcoin?"
 
+# Retrieve a couple of FAQ entries and join them into a single context block.
 retrieved_ids, contexts = simple_retriever(query)
 rag_context = "\n\n".join(contexts)
 
+# Ask the model to answer strictly from the provided context.
 answer_completion = client.chat.completions.create(
     model="gpt-4o-mini",
     temperature=0.0,
@@ -93,7 +105,19 @@ answer_completion = client.chat.completions.create(
 answer = answer_completion.choices[0].message.content.strip()
 
 
-# ---- 4. Ask the LLM to score this RAG run (WFGY-style) ----
+# ---- 4. Ask the LLM to score this RAG run (WFGY-style) --------------------
+# Here we reuse an LLM as a grader. It looks at:
+#   - the original user question
+#   - the retrieved context
+#   - the model answer
+# and then assigns two integer scores plus a short comment.
+#
+# The two scores are aligned with the WFGY ProblemMap philosophy:
+#   - retrieval_relevance: how good the retrieved context was
+#   - answer_hallucination: how grounded the answer was in that context
+#
+# This is intentionally coarse-grained, so it can be used as a quick
+# "incident tag" for each run, not as a full evaluation framework.
 eval_prompt = textwrap.dedent(
     f"""
     You are evaluating a Retrieval-Augmented Generation (RAG) answer.
@@ -122,7 +146,7 @@ eval_prompt = textwrap.dedent(
       3 = severe hallucination, conflicts with the context or makes things up
 
     - "comment": one short English sentence explaining what went well
-      or wrong.
+      or what went wrong in this RAG run.
 
     Return only valid JSON. Do not add any extra text.
     """
@@ -147,7 +171,9 @@ eval_completion = client.chat.completions.create(
 scores = json.loads(eval_completion.choices[0].message.content)
 
 
-# ---- 5. Pack everything into a small dataframe summary ----
+# ---- 5. Pack everything into a small dataframe summary ---------------------
+# For convenience we put all fields into a single-row dataframe so that it can
+# be printed as a markdown table, logged, or later ingested by Phoenix.
 result_df = pd.DataFrame(
     [
         {
