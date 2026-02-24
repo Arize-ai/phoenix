@@ -70,7 +70,7 @@ help: ## Show this help message
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
-	@echo -e "  test-helm              - Run Helm chart tests (use ARGS= for arguments)"
+	@echo -e "  test-helm              - Run Helm chart tests
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
@@ -393,10 +393,9 @@ check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have pe
 	@cd src/phoenix/server/api && $(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-test-helm: ## Run comprehensive Helm chart tests (use ARGS= to pass arguments)
+test-helm: ## Run comprehensive Helm chart tests
 	@echo -e "$(CYAN)Running Helm chart tests...$(NC)"
-	@$(UV) pip install ty PyYAML>=6.0
-	@cd scripts/ci && $(UV) run ty check test_helm.py $(ARGS) && $(UV) run python test_helm.py $(ARGS)
+	$(UV) run python scripts/ci/test_helm.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, default: up)
