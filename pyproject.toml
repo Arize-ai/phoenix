@@ -166,6 +166,7 @@ dev = [
   "vcrpy",
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
+  "libcst>=1.8.6",
 ]
 
 [project.optional-dependencies]

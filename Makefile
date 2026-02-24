@@ -157,10 +157,7 @@ setup: check-tools install-python install-node ## Complete development environme
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
-	@$(UV) pip install --strict -U -r requirements/build-graphql-schema.txt
-	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
-	@$(UV) pip install 'libcst<1.8'
-	@cd $(APP_DIR) && $(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o schema.graphql
+	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o app/schema.graphql
 	@echo -e "$(GREEN)✓ app/schema.graphql$(NC)"
 
 relay-build: ## Build Relay from GraphQL schema
