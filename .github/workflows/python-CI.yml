@@ -362,8 +362,8 @@ jobs:
           version: "0.9.18"
       - name: Run formatter and linter
         run: |
-          make python-format
-          make python-lint
+          make format-python
+          make lint-python
       - run: git diff --exit-code
 
   type-check:
