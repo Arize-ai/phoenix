@@ -341,8 +341,8 @@ jobs:
       - name: Check lockfile is up to date
         run: uv lock --check
 
-  ruff:
-    name: Ruff
+  format-and-lint:
+    name: Format and Lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -360,10 +360,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-      - name: Run `ruff`
+      - name: Run formatter and linter
         run: |
-          uvx ruff@0.12.5 format
-          uvx ruff@0.12.5 check --fix
+          make python-format
+          make python-lint
       - run: git diff --exit-code
 
   type-check:
@@ -627,7 +627,7 @@ jobs:
   ci-required:
     name: CI Required
     needs:
-      - ruff
+      - format-and-lint
       - changes
       - phoenix-client
       - phoenix-evals

@@ -279,8 +279,7 @@ typecheck: typecheck-python typecheck-frontend typecheck-ts ## Type check all co
 
 format-python: ## Format Python code with ruff
 	@echo -e "$(CYAN)Formatting Python code...$(NC)"
-	@uvx ruff@0.12.5 format
-	@uvx ruff@0.12.5 check --fix
+	@$(UV) run ruff format
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 format-frontend: ## Format frontend (app/)
@@ -310,8 +309,7 @@ clean-notebooks: ## Clean Jupyter notebook metadata
 
 lint-python: ## Lint Python code with ruff
 	@echo -e "$(CYAN)Linting Python code...$(NC)"
-	@uvx ruff@0.12.5 format
-	@uvx ruff@0.12.5 check --fix
+	@$(UV) run ruff check --fix
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint-frontend: ## Lint frontend (app/)
