@@ -17,11 +17,11 @@ QA_TEMPLATE = """You are given a question, an answer and reference text. You mus
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {question}
+    [Question]: {input}
     ************
-    [Reference]: {context}
+    [Reference]: {reference}
     ************
-    [Answer]: {sampled_answer}
+    [Answer]: {output}
     [END DATA]
 "correct" means that the question is correctly and fully answered by the answer.
 "incorrect" means that the question is not correctly or only partially answered by the answer."""
@@ -34,9 +34,9 @@ qa_evaluator = ClassificationEvaluator(
 )
 
 result = qa_evaluator.evaluate({
-    "question": "What is the capital of France?",
-    "context": "Paris is the capital and largest city of France.",
-    "sampled_answer": "The capital of France is Paris."
+    "input": "What is the capital of France?",
+    "reference": "Paris is the capital and largest city of France.",
+    "output": "The capital of France is Paris."
 })
 ```
 </Accordion>
@@ -45,9 +45,9 @@ result = qa_evaluator.evaluate({
 
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
 
-- **question**: This is the question the Q\&A system is running against
-- **sampled_answer**: This is the answer from the Q\&A system.
-- **context**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
+- **input**: This is the question the Q\&A system is running against
+- **output**: This is the answer from the Q\&A system.
+- **reference**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
 
 ## Q\&A Eval Template
 
@@ -56,11 +56,11 @@ You are given a question, an answer and reference text. You must determine wheth
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {question}
+    [Question]: {input}
     ************
-    [Reference]: {context}
+    [Reference]: {reference}
     ************
-    [Answer]: {sampled_answer}
+    [Answer]: {output}
     [END DATA]
 Your response must be a single word, either "correct" or "incorrect",
 and should not contain any text or characters aside from that word.
@@ -72,7 +72,7 @@ answer.
 <Info>
   We are continually iterating our templates, view the most up-to-date template
   [on
-  GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/span_templates.py#L104).
+  GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/legacy/span_templates.py#L104).
 </Info>
 
 ## How To Run the Q\&A Eval
