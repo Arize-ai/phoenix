@@ -53,7 +53,7 @@ There is no limit to the number of label choices you can provide, and you can sp
 For the relevance evaluation, we define the evaluator as follows:
 
 ```python
-from phoenix.evals ClassificationEvaluator
+from phoenix.evals import ClassificationEvaluator
 from phoenix.evals.llm import LLM
 
 choices = {"irrelevant": 0, "relevant": 1}
@@ -103,7 +103,7 @@ Please rate the percentage of errors in the context on a scale from 1 to 10.
 This numeric rating task can be framed as a classification task where the set of labels is the set of numbers on the rating scale (here, 1-10). Then we can set up a custom `ClassificationEvaluator` for our evaluation task, similar to how we did above. Make sure to set the optimization `direction = "minimize"` here since a lower score is better on this task (fewer spelling errors).
 
 ```python
-from phoenix.evals ClassificationEvaluator
+from phoenix.evals import ClassificationEvaluator
 from phoenix.evals.llm import LLM
 
 choices = {i: str(i) for i in range(1, 11)} # choices are {"1": 1, "2": 2, etc...}
@@ -112,7 +112,7 @@ spelling_classifier = ClassificationEvaluator(
     name="spelling",
     prompt_template=SCORE_TEMPLATE,
     model=LLM(provider="openai", model="gpt-4o"),
-    choices=choices
+    choices=choices,
     direction="minimize" # lower scores = better, so direction = minimize
 )
 spelling_classifier.evaluate({"context": "This is a test. There are is some typo in this sentence."})
