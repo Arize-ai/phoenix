@@ -36,7 +36,7 @@ df = pd.DataFrame(
     }
 )
 
-result = evaluate_dataframe(df, [precision_recall_fscore])
+result = evaluate_dataframe(dataframe=df, evaluators=[precision_recall_fscore])
 result.head()
 ```
 
@@ -68,7 +68,7 @@ faithfulness_evaluator = bind_evaluator(
     FaithfulnessEvaluator(llm=llm), {"input": "query", "output": "response"}
 )
 
-result = evaluate_dataframe(df, [exact_match, faithfulness_evaluator])
+result = evaluate_dataframe(dataframe=df, evaluators=[exact_match, faithfulness_evaluator])
 result.head()
 ```
 
@@ -94,7 +94,7 @@ df = pd.DataFrame(
 llm = LLM(provider="openai", model="gpt-4o")
 faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
-result = await async_evaluate_dataframe(df, [faithfulness_evaluator], concurrency=5)
+result = await async_evaluate_dataframe(dataframe=df, evaluators=[faithfulness_evaluator], concurrency=5)
 result.head()
 ```
 

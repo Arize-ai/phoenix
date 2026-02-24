@@ -209,7 +209,7 @@ Finally, we’ll wire the agents and tasks together and run them sequentially.
 crew = Crew(
     agents=[researcher, writer],
     tasks=[task1, task2],
-    verbose=1,
+    verbose=True,
     process=Process.sequential,
 )
 ```
