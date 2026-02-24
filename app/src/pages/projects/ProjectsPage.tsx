@@ -49,17 +49,17 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
-import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   useNotifySuccess,
   usePreferencesContext,
   useViewerCanModify,
 } from "@phoenix/contexts";
+import { GradientCircle } from "@phoenix/features/project/components/GradientCircle";
+import { LatencyText } from "@phoenix/features/trace/components/LatencyText";
 import type {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,

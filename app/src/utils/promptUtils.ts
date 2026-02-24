@@ -1,21 +1,21 @@
 import { graphql, readInlineData } from "react-relay";
 
-import { getChatRole } from "@phoenix/pages/playground/playgroundUtils";
+import { getChatRole } from "@phoenix/features/playground/pages/playgroundUtils";
 import {
   findToolCallArguments,
   findToolCallId,
   findToolCallName,
-} from "@phoenix/schemas";
+} from "@phoenix/features/playground/schemas";
 import type {
   TextPart,
   ToolCallPart,
   ToolResultPart,
-} from "@phoenix/schemas/promptSchemas";
+} from "@phoenix/features/playground/schemas/promptSchemas";
 import {
   textPartSchema,
   toolCallPartSchema,
   toolResultPartSchema,
-} from "@phoenix/schemas/promptSchemas";
+} from "@phoenix/features/playground/schemas/promptSchemas";
 import { generateMessageId } from "@phoenix/store";
 import type { promptUtils_promptMessages$key } from "@phoenix/utils/__generated__/promptUtils_promptMessages.graphql";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";

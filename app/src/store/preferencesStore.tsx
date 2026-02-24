@@ -3,10 +3,9 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+import type { ModelConfig } from "@phoenix/features/playground/store";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
-
-import type { ModelConfig } from "./playground";
 
 export type MarkdownDisplayMode = "text" | "markdown";
 

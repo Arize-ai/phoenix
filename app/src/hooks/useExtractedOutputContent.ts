@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import {
   extractAssistantContent,
   parseChatMessageOutput,
-} from "@phoenix/schemas/experimentOutputSchemas";
+} from "@phoenix/features/playground/schemas/experimentOutputSchemas";
 
 import { useUnnestedValue } from "./useUnnestedValue";
 

@@ -17,7 +17,7 @@ import {
   GradientCircle,
   GradientCircleRadio,
   GradientCircleRadioGroup,
-} from "@phoenix/components/project";
+} from "@phoenix/features/project/components";
 
 export type ProjectFormParams = {
   name: string;

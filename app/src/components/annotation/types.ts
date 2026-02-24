@@ -1,11 +1,11 @@
-import type { AnnotationConfig } from "@phoenix/pages/settings/types";
+import type { AnnotationConfig } from "@phoenix/features/prompts-settings/pages/settings/types";
 
 export type {
   AnnotationConfig,
   AnnotationConfigCategorical,
   AnnotationConfigContinuous,
   AnnotationConfigFreeform,
-} from "@phoenix/pages/settings/types";
+} from "@phoenix/features/prompts-settings/pages/settings/types";
 
 export interface Annotation {
   id?: string;
