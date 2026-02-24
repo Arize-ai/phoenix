@@ -29,7 +29,7 @@ class OpenAIModel:
     """Model name to use. In of azure, this is the deployment name such as gpt-35-instant"""
     temperature: float = 0.0
     """What sampling temperature to use."""
-    max_tokens: int = 256
+    max_tokens: Optional[int] = None
     """The maximum number of tokens to generate in the completion.
     -1 returns as many tokens as possible given the prompt and
     the models maximal context size."""
@@ -43,9 +43,7 @@ class OpenAIModel:
     """How many completions to generate for each prompt."""
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     """Holds any model parameters valid for `create` call not explicitly specified."""
-    batch_size: int = 20
-    """Batch size to use when passing multiple documents to generate."""
-    request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    request_timeout: float = 30
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
 ```
 
@@ -57,7 +55,7 @@ All models newer than GPT 3.5 Turbo are tested regularly. If you're using an old
 To authenticate with OpenAI you will need, at a minimum, an API key. The model class will look for it in your environment, or you can pass it via argument as shown above. In addition, you can choose the specific name of the model you want to use and its configuration parameters. The default values specified above are common default values from OpenAI. Quickly instantiate your model as follows:
 
 ```python
-model = OpenAI()
+model = OpenAIModel()
 model("Hello there, this is a test if you are working?")
 # Output: "Hello! I'm working perfectly. How can I assist you today?"
 ```

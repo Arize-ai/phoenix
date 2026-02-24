@@ -97,7 +97,7 @@ $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/my-app
 #### 2. Authenticate Docker to ECR
 
 ```bash
-ecr get-login-password --region $REGION \
+aws ecr get-login-password --region $REGION \
   | docker login \
     --username AWS \
     --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
@@ -245,7 +245,7 @@ You can now reference these secrets in your downstream CloudFormation templates 
 
 **Copy this CloudFormation template:** [**app.yml**](https://github.com/Arize-ai/phoenix/blob/main/tutorials/deployment/AWS%20Cloudformation/app.yml)
 
-This CloudFormation stack (`app.yaml`) launches:
+This CloudFormation stack (`app.yml`) launches:
 * An ECS **Cluster**
 * An **IAM Task Execution Role** & **Task Role** (to pull images, read secrets)
 * A **Security Group** that allows outbound Internet access
