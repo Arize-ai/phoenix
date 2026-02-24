@@ -67,14 +67,13 @@ export function SettingsGeneralPage() {
                   value={`pip install 'arize-phoenix==${VERSION}'`}
                   isReadOnly
                 >
-                  <Label>Python Version</Label>
+                  <Label>Installation Instructions</Label>
                   <Input />
                   <Text slot="description">
-                    The version of the Python client library to use to connect
-                    to this Phoenix
+                    The command to install the Phoenix Python package
                   </Text>
                 </TextField>
-                <CopyToClipboardButtonWithPadding text={VERSION} />
+                <CopyToClipboardButtonWithPadding text={`pip install 'arize-phoenix==${VERSION}'`} />
               </Flex>
             </form>
           </Card>
