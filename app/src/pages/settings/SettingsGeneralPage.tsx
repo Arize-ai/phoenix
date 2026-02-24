@@ -73,7 +73,9 @@ export function SettingsGeneralPage() {
                     The command to install the Phoenix Python package
                   </Text>
                 </TextField>
-                <CopyToClipboardButtonWithPadding text={`pip install 'arize-phoenix==${VERSION}'`} />
+                <CopyToClipboardButtonWithPadding
+                  text={`pip install 'arize-phoenix==${VERSION}'`}
+                />
               </Flex>
             </form>
           </Card>
