@@ -289,29 +289,39 @@ jobs:
       - name: Check for changes
         run: git diff --exit-code
 
-  check-lockfile:
-    name: Check uv.lock is up to date
-    runs-on: ${{ matrix.os }}
-    needs: changes
-    if: ${{ needs.changes.outputs.uv_lock == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        py: ["3.10", "3.13"]
-        os: [ubuntu-latest]
+  sync-lockfile:
+    name: Sync uv.lock
+    runs-on: ubuntu-latest
+    # Don't run on PRs from forks (they don't have write access)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.py }}
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.py }}
+          python-version: "3.13"
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-      - name: Check lockfile is up to date
-        run: uv lock --check
+      - name: Sync and commit lockfile
+        run: |
+          uv lock
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add uv.lock
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update uv.lock"
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
 
   ruff:
     name: Ruff
@@ -606,7 +616,6 @@ jobs:
       - build-openapi-schema
       - compile-protobuf
       - compile-prompts
-      - check-lockfile
       - type-check
       - unit-tests
       - integration-tests
