@@ -167,6 +167,7 @@ dev = [
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
+  "datamodel-code-generator==0.32.0",
 ]
 
 [project.optional-dependencies]

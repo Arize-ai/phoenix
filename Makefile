@@ -16,6 +16,7 @@ APP_DIR := app
 JS_DIR := js
 SCHEMAS_DIR := schemas
 PACKAGES_DIR := packages
+PHOENIX_CLIENT_GENERATED := packages/phoenix-client/src/phoenix/client/__generated__
 
 # Colors for output
 CYAN := \033[0;36m
@@ -175,28 +176,24 @@ schema-openapi: ## Generate OpenAPI schema from Python
 
 codegen-python-client: ## Generate Python client types from OpenAPI
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
-	@$(UV) pip install datamodel-code-generator==0.32.0 pydantic==2.11.0
-	@cd packages/phoenix-client/src/phoenix/client/__generated__ && \
-		$(UV) run python -c "import pathlib; pathlib.Path('v1/__init__.py').unlink(missing_ok=True)" && \
-		$(UV) run datamodel-codegen \
-			--input $(CURDIR)/schemas/openapi.json \
-			--input-file-type openapi \
-			--output v1/.dataclass.py \
-			--output-model-type dataclasses.dataclass \
-			--collapse-root-models \
-			--enum-field-as-literal all \
-			--target-python-version 3.10 \
-			--use-default-kwarg \
-			--use-double-quotes \
-			--use-generic-container-types \
-			--wrap-string-literal \
-			--disable-timestamp && \
-		$(UV) run python -c "import re; file = 'v1/.dataclass.py'; lines = [re.sub(r'\\bSequence]', 'Sequence[Any]]', line) for line in open(file).readlines()]; open(file, 'w').writelines(lines)" && \
-		$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py v1 && \
-		uvx ruff@0.12.5 format v1 && \
-		uvx ruff@0.12.5 check --fix v1
-	@$(UV) pip install --strict --reinstall-package arize-phoenix-client packages/phoenix-client
-	@cd packages/phoenix-client/src/phoenix/client/__generated__ && $(UV) run python -c "import phoenix.client.__generated__.v1"
+	@rm -f $(PHOENIX_CLIENT_GENERATED)/v1/__init__.py
+	@$(UV) run datamodel-codegen \
+		--input $(CURDIR)/schemas/openapi.json \
+		--input-file-type openapi \
+		--output $(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py \
+		--output-model-type dataclasses.dataclass \
+		--collapse-root-models \
+		--enum-field-as-literal all \
+		--target-python-version 3.10 \
+		--use-default-kwarg \
+		--use-double-quotes \
+		--use-generic-container-types \
+		--wrap-string-literal \
+		--disable-timestamp
+	@$(UV) run python -c "import re; file = '$(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py'; lines = [re.sub(r'\\bSequence]', 'Sequence[Any]]', line) for line in open(file).readlines()]; open(file, 'w').writelines(lines)"
+	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 codegen-ts-client: ## Generate TypeScript client types from OpenAPI
