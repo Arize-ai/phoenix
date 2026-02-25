@@ -346,8 +346,11 @@ alembic: ## Run alembic database migration commands (use ARGS= e.g. ARGS="upgrad
 
 compile-protobuf: ## Compile protobuf files
 	@echo -e "$(CYAN)Compiling protobuf files...$(NC)"
-	@$(UV) pip install --strict -U -r requirements/compile-protobuf.txt
-	@$(UV) run python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
+	$(UV) run python -m grpc_tools.protoc \
+		-I src/phoenix/proto \
+		--python_out=src/phoenix \
+		--mypy_out=src/phoenix \
+		src/phoenix/proto/trace/v1/evaluation.proto
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 compile-prompts: ## Compile YAML prompts to Python and TypeScript code

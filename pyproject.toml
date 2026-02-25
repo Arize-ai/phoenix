@@ -168,6 +168,8 @@ dev = [
   "ruff>=0.15.2",
   "libcst>=1.8.6",
   "datamodel-code-generator==0.32.0",
+  "grpcio-tools>=1.78.0",
+  "mypy-protobuf>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -338,6 +340,7 @@ exclude = [
   "*_pb2.py*",
   "*.pyi",
   "docs/",
+  "src/phoenix/trace/v1/evaluation_pb2.py*",
 ]
 line-length = 100
 target-version = "py310"

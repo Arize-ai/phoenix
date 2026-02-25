@@ -4,13 +4,15 @@ repos:
       - id: format-python
         name: format python
         language: system
-        entry: uv run ruff format
+        entry: make format-python
         files: \.py$
+        pass_filenames: false
       - id: lint-python
         name: lint python
         language: system
-        entry: uv run ruff check --fix
+        entry: make lint-python
         files: \.py$
+        pass_filenames: false
   - repo: local
     hooks:
       - id: oxfmt-app
