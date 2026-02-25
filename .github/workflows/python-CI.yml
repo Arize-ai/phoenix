@@ -476,7 +476,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 16
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 8
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
