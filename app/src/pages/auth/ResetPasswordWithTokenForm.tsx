@@ -124,7 +124,6 @@ export function ResetPasswordWithTokenForm({
           rules={{
             required: "Password is required",
             validate: {
-              complexity: validatePasswordComplexity,
               match: (value, formValues) =>
                 value === formValues.newPassword || "Passwords do not match",
             },
