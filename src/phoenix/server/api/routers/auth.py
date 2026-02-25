@@ -126,6 +126,7 @@ async def _login(request: Request) -> Response:
     email = sanitize_email(email)
 
     max_attempts = get_env_max_login_attempts()
+    login_error: HTTPException | None = None
 
     async with request.app.state.db() as session:
         user = await session.scalar(
@@ -162,13 +163,19 @@ async def _login(request: Request) -> Response:
                         minutes=lockout_minutes
                     )
                 await session.flush()
-            raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+            # Defer raising HTTPException until after the transaction commits
+            login_error = HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+        else:
+            # Reset lockout state on successful login
+            if max_attempts > 0 and (
+                user.failed_login_attempts > 0 or user.locked_until is not None
+            ):
+                user.failed_login_attempts = 0
+                user.locked_until = None
+                await session.flush()
 
-        # Reset lockout state on successful login
-        if max_attempts > 0 and (user.failed_login_attempts > 0 or user.locked_until is not None):
-            user.failed_login_attempts = 0
-            user.locked_until = None
-            await session.flush()
+    if login_error is not None:
+        raise login_error
 
     return await _create_auth_response(request, user)
 
