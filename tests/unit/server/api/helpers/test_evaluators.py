@@ -693,7 +693,7 @@ class TestApplyInputMapping:
         context = {"response": "Hello, world!"}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"output": "Hello, world!"}
@@ -711,7 +711,7 @@ class TestApplyInputMapping:
         context = {"data": {"nested": {"value": "deep content"}}}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"text": "deep content"}
@@ -729,7 +729,7 @@ class TestApplyInputMapping:
         context = {"from_path": "path_value"}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"key": "literal_value"}
@@ -750,7 +750,7 @@ class TestApplyInputMapping:
         context = {"input": "user input", "output": "model output"}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"input": "user input", "output": "model output"}
@@ -781,7 +781,7 @@ class TestApplyInputMapping:
         ):
             apply_input_mapping(
                 input_schema=input_schema,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 context=context,
             )
 
@@ -798,7 +798,7 @@ class TestApplyInputMapping:
         context = {"a": "value_a", "b": "value_b", "c": "value_c"}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         # Only keys in schema are included
@@ -821,7 +821,7 @@ class TestApplyInputMapping:
         context = {"extracted": "path_result", "from_fallback": "context_value"}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {
@@ -843,7 +843,7 @@ class TestApplyInputMapping:
         context = {"items": ["first", "second", "third"]}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"item": ["first", "second", "third"]}
@@ -866,7 +866,7 @@ class TestApplyInputMapping:
         context = {"data": [1, 2, 3]}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"list": [1, 2, 3]}
@@ -892,7 +892,7 @@ class TestApplyInputMapping:
         context = {"nested": {"a": 1, "b": 2}}
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"obj": {"a": 1, "b": 2}}
@@ -925,7 +925,7 @@ class TestApplyInputMapping:
         )
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"content": "4"}
@@ -951,7 +951,7 @@ class TestApplyInputMapping:
         )
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"messages": ["Hello", "Hi there!", "How are you?"]}
@@ -987,7 +987,7 @@ class TestApplyInputMapping:
         )
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {
@@ -1017,7 +1017,7 @@ class TestApplyInputMapping:
         ):
             apply_input_mapping(
                 input_schema=input_schema,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 context=context,
             )
 
@@ -1055,7 +1055,7 @@ class TestApplyInputMapping:
         )
         result = apply_input_mapping(
             input_schema=input_schema,
-            input_mapping=input_mapping,
+            input_mapping=input_mapping.to_orm(),
             context=context,
         )
         assert result == {"function_name": "get_weather"}
@@ -1376,7 +1376,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -1407,7 +1407,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -1435,7 +1435,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="exact_match",
                 output_configs=[output_config],
             )
@@ -1465,7 +1465,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="exact_match",
                 output_configs=[output_config],
             )
@@ -1504,7 +1504,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1531,7 +1531,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -1559,7 +1559,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="levenshtein_distance",
                 output_configs=[output_config],
             )
@@ -1588,7 +1588,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="regex",
                 output_configs=[output_config],
             )
@@ -1618,7 +1618,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -1644,7 +1644,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -1660,7 +1660,9 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context={"words": "cumin,", "text": "no spices here"},
-                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                input_mapping=EvaluatorInputMappingInput(
+                    path_mapping={}, literal_mapping={}
+                ).to_orm(),
                 name="contains",
                 output_configs=[evaluator.output_configs[0]],
             )
@@ -1676,7 +1678,9 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context={"words": "cumin,paprika", "text": "The recipe uses cumin and paprika"},
-                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                input_mapping=EvaluatorInputMappingInput(
+                    path_mapping={}, literal_mapping={}
+                ).to_orm(),
                 name="contains",
                 output_configs=[evaluator.output_configs[0]],
             )
@@ -1695,7 +1699,9 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         result = (
             await evaluator.evaluate(
                 context={"words": ",", "text": "any text", "require_all": True},
-                input_mapping=EvaluatorInputMappingInput(path_mapping={}, literal_mapping={}),
+                input_mapping=EvaluatorInputMappingInput(
+                    path_mapping={}, literal_mapping={}
+                ).to_orm(),
                 name="contains",
                 output_configs=[evaluator.output_configs[0]],
             )
@@ -1730,7 +1736,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1762,7 +1768,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1793,7 +1799,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1820,7 +1826,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1847,7 +1853,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1874,7 +1880,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1904,7 +1910,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1937,7 +1943,7 @@ class TestJSONDistanceParseStringsToggle:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="json_distance",
                 output_configs=[output_config],
             )
@@ -1988,7 +1994,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="My Custom Contains",
                 output_configs=[output_config],
             )
@@ -2007,7 +2013,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -2026,7 +2032,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="contains",
                 output_configs=[output_config],
             )
@@ -2054,7 +2060,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="Exact Match Custom",
                 output_configs=[custom_config],
             )
@@ -2083,7 +2089,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="Regex Custom",
                 output_configs=[custom_config],
             )
@@ -2111,7 +2117,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result_match = (
             await evaluator.evaluate(
                 context={"words": "hello", "text": "hello world"},
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="Contains Custom",
                 output_configs=[custom_config],
             )
@@ -2122,7 +2128,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result_no_match = (
             await evaluator.evaluate(
                 context={"words": "goodbye", "text": "hello world"},
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="Contains Custom",
                 output_configs=[custom_config],
             )
@@ -2141,7 +2147,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="Edit Distance",
                 output_configs=[output_config],
             )
@@ -2166,7 +2172,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         result = (
             await evaluator.evaluate(
                 context=context,
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="JSON Diff",
                 output_configs=[output_config],
             )
@@ -2448,7 +2454,7 @@ class TestLLMEvaluator:
             evaluation_result = (
                 await llm_evaluator.evaluate(
                     context={"input": "What is 2 + 2?", "output": "4"},
-                    input_mapping=input_mapping,
+                    input_mapping=input_mapping.to_orm(),
                     name="correctness",
                     output_configs=[output_config],
                     tracer=tracer,
@@ -2820,7 +2826,7 @@ class TestLLMEvaluator:
         evaluation_result = (
             await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="correctness",
                 output_configs=[output_config],
                 tracer=tracer,
@@ -2925,7 +2931,7 @@ class TestLLMEvaluator:
             evaluation_result = (
                 await llm_evaluator.evaluate(
                     context={"input": "What is 2 + 2?", "output": "4"},
-                    input_mapping=input_mapping,
+                    input_mapping=input_mapping.to_orm(),
                     name="correctness",
                     output_configs=[output_config],
                     tracer=tracer,
@@ -3166,7 +3172,7 @@ class TestLLMEvaluator:
             )
             evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="correctness",
                 output_configs=[output_config],
                 tracer=tracer,
@@ -3337,7 +3343,7 @@ class TestLLMEvaluator:
             )
             evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
-                input_mapping=input_mapping,
+                input_mapping=input_mapping.to_orm(),
                 name="correctness",
                 output_configs=[output_config],
                 tracer=tracer,
@@ -3376,7 +3382,7 @@ class TestLLMEvaluator:
             evaluation_result = (
                 await multipart_llm_evaluator.evaluate(
                     context={"input": "What is 2 + 2?", "output": "4"},
-                    input_mapping=input_mapping,
+                    input_mapping=input_mapping.to_orm(),
                     name="correctness",
                     output_configs=[output_config],
                     tracer=tracer,

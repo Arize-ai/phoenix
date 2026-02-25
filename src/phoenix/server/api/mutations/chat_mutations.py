@@ -416,7 +416,7 @@ class ChatCompletionMutationMixin:
 
                     eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
                         context=context_dict,
-                        input_mapping=evaluator_input.input_mapping,
+                        input_mapping=evaluator_input.input_mapping.to_orm(),
                         name=name,
                         output_configs=configs,
                         tracer=tracer,
@@ -531,7 +531,7 @@ class ChatCompletionMutationMixin:
                     configs = get_evaluator_output_configs(evaluator_input, evaluator)
                     eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
                         context=context_dict,
-                        input_mapping=evaluator_input.input_mapping,
+                        input_mapping=evaluator_input.input_mapping.to_orm(),
                         name=name,
                         output_configs=configs,
                     )
@@ -600,7 +600,7 @@ class ChatCompletionMutationMixin:
 
                 eval_results = await builtin_evaluator.evaluate(
                     context=context,
-                    input_mapping=input_mapping,
+                    input_mapping=input_mapping.to_orm(),
                     name=builtin_evaluator.name,
                     output_configs=builtin_evaluator.output_configs,
                 )
@@ -700,7 +700,7 @@ class ChatCompletionMutationMixin:
 
                 eval_results = await evaluator.evaluate(
                     context=context,
-                    input_mapping=input_mapping,
+                    input_mapping=input_mapping.to_orm(),
                     name=evaluator.name,
                     output_configs=categorical_configs,
                 )

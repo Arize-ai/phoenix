@@ -1658,7 +1658,7 @@ class Query:
             try:
                 variables = apply_input_mapping(
                     input_schema=input_schema,
-                    input_mapping=input_mapping,
+                    input_mapping=input_mapping.to_orm(),
                     context=variables,
                 )
             except ValueError as error:
