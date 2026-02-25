@@ -82,7 +82,7 @@ setup(
       baseURL,
       email: "admin@localhost",
       oldPassword: "admin",
-      newPassword: "admin123",
+      newPassword: "Admin123!",
     });
     await page.goto(`${baseURL}/settings/general`);
     await page.waitForURL("**/settings/general");
@@ -91,8 +91,8 @@ setup(
     await page.getByRole("button", { name: "Add User" }).click();
     await page.getByLabel("Email").fill("member@localhost.com");
     await page.getByLabel("Username").fill("member");
-    await page.getByLabel("Password", { exact: true }).fill("member");
-    await page.getByLabel("Confirm Password").fill("member");
+    await page.getByLabel("Password", { exact: true }).fill("Member1!");
+    await page.getByLabel("Confirm Password").fill("Member1!");
     await page
       .getByRole("dialog")
       .getByLabel("member", { exact: true })
@@ -108,8 +108,8 @@ setup(
     await page.getByRole("button", { name: "Add User" }).click();
     await page.getByLabel("Email").fill("viewer@localhost.com");
     await page.getByLabel("Username").fill("viewer");
-    await page.getByLabel("Password", { exact: true }).fill("viewer");
-    await page.getByLabel("Confirm Password").fill("viewer");
+    await page.getByLabel("Password", { exact: true }).fill("Viewer1!");
+    await page.getByLabel("Confirm Password").fill("Viewer1!");
     await page
       .getByRole("dialog")
       .getByLabel("member", { exact: true })
@@ -127,14 +127,14 @@ setup(
       page,
       baseURL,
       email: "member@localhost.com",
-      password: "member",
+      password: "Member1!",
     });
     await resetPasswordAndReLogin({
       page,
       baseURL,
       email: "member@localhost.com",
-      oldPassword: "member",
-      newPassword: "member123",
+      oldPassword: "Member1!",
+      newPassword: "Member123!",
     });
     await page.getByRole("button", { name: "Log Out" }).click();
 
@@ -142,14 +142,14 @@ setup(
       page,
       baseURL,
       email: "viewer@localhost.com",
-      password: "viewer",
+      password: "Viewer1!",
     });
     await resetPasswordAndReLogin({
       page,
       baseURL,
       email: "viewer@localhost.com",
-      oldPassword: "viewer",
-      newPassword: "viewer123",
+      oldPassword: "Viewer1!",
+      newPassword: "Viewer123!",
     });
     await bootstrapContext.close();
 
@@ -179,17 +179,17 @@ setup(
 
     await saveStorageStateForUser({
       email: "admin@localhost",
-      password: "admin123",
+      password: "Admin123!",
       storageStatePath: ADMIN_STORAGE_STATE,
     });
     await saveStorageStateForUser({
       email: "member@localhost.com",
-      password: "member123",
+      password: "Member123!",
       storageStatePath: MEMBER_STORAGE_STATE,
     });
     await saveStorageStateForUser({
       email: "viewer@localhost.com",
-      password: "viewer123",
+      password: "Viewer123!",
       storageStatePath: VIEWER_STORAGE_STATE,
     });
   }
