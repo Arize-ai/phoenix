@@ -141,13 +141,17 @@ async def _login(request: Request) -> Response:
         ):
             raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
-        # Check if account is locked
-        if (
-            max_attempts > 0
-            and user.locked_until is not None
-            and user.locked_until.timestamp() > datetime.now(timezone.utc).timestamp()
-        ):
-            raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+        # Check if account is locked or if a previous lockout has expired.
+        # When a lockout period has passed, reset the counters to give the user
+        # a fresh set of attempts instead of immediately re-locking the account.
+        current_time = datetime.now(timezone.utc)
+        if max_attempts > 0 and user.locked_until is not None:
+            if user.locked_until.timestamp() > current_time.timestamp():
+                raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+            # Lockout window has expired – clear lock state before processing this login.
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            await session.flush()
 
         loop = asyncio.get_running_loop()
         password_is_valid = partial(
