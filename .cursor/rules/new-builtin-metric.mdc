@@ -52,7 +52,7 @@ Common placeholders:
 Run to generate Python and TypeScript types:
 
 ```bash
-make compile-prompts
+make codegen-prompts
 ```
 
 This generates:
@@ -402,7 +402,7 @@ Create documentation page at `docs/phoenix/evaluation/pre-built-metrics/{metric-
 ## Checklist
 
 - [ ] YAML config created with clear criteria
-- [ ] `make compile-prompts` run successfully
+- [ ] `make codegen-prompts` run successfully
 - [ ] Python evaluator class with docstrings and examples
 - [ ] TypeScript evaluator wrapper with types
 - [ ] Export added to `llm/index.ts`

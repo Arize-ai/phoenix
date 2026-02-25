@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	compile-protobuf compile-prompts sync-models compile-schema-ddl check-graphql-permissions \
+	codegen-protobuf codegen-prompts sync-models schema-ddl check-graphql-permissions \
 	clean clean-all
 
 help: ## Show this help message
@@ -91,10 +91,10 @@ help: ## Show this help message
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
-	@echo -e "  compile-protobuf       - Compile protobuf files"
-	@echo -e "  compile-prompts        - Compile YAML prompts to Python and TypeScript"
+	@echo -e "  codegen-protobuf       - Compile protobuf files"
+	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
-	@echo -e "  compile-schema-ddl     - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
+	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -337,7 +337,7 @@ build: build-python build-frontend build-ts ## Build everything (Python + fronte
 # Utilities
 #=============================================================================
 
-compile-protobuf: ## Compile protobuf files
+codegen-protobuf: ## Generate protobuf files
 	@echo -e "$(CYAN)Compiling protobuf files...$(NC)"
 	$(UV) run python -m grpc_tools.protoc \
 		-I src/phoenix/proto \
@@ -346,8 +346,8 @@ compile-protobuf: ## Compile protobuf files
 		src/phoenix/proto/trace/v1/evaluation.proto
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-compile-prompts: ## Compile YAML prompts to Python and TypeScript code
-	@echo -e "$(CYAN)Compiling prompts...$(NC)"
+codegen-prompts: ## Generate prompts code from YAML files
+	@echo -e "$(CYAN)Generating prompts code...$(NC)"
 	@$(UV) run python scripts/prompts/compile_python_prompts.py src/phoenix/__generated__/classification_evaluator_configs
 	@$(UV) run python scripts/prompts/compile_python_prompts.py packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
 	@$(UV) run ruff format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
@@ -362,7 +362,7 @@ sync-models: ## Sync model cost manifest from remote sources
 	@$(UV) run python .github/.scripts/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-compile-schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass arguments)
+schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass arguments)
 	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
 	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
 	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .

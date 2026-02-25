@@ -233,7 +233,7 @@ jobs:
         run: make schema-openapi
       - run: git diff --exit-code
 
-  compile-protobuf:
+  codegen-protobuf:
     name: Compile Protobuf
     needs: changes
     if: ${{ needs.changes.outputs.proto == 'true' }}
@@ -258,10 +258,10 @@ jobs:
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
-        run: make compile-protobuf
+        run: make codegen-protobuf
       - run: git diff --exit-code
 
-  compile-prompts:
+  codegen-prompts:
     name: Compile Prompts
     needs: changes
     if: ${{ needs.changes.outputs.prompts == 'true' }}
@@ -282,7 +282,7 @@ jobs:
         with:
           version: "0.9.18"
       - name: Compile Prompts
-        run: make compile-prompts
+        run: make codegen-prompts
       - name: Check for changes
         run: git diff --exit-code
 
@@ -603,8 +603,8 @@ jobs:
       - clean-jupyter-notebooks
       - build-graphql-schema
       - build-openapi-schema
-      - compile-protobuf
-      - compile-prompts
+      - codegen-protobuf
+      - codegen-prompts
       - check-lockfile
       - type-check
       - unit-tests

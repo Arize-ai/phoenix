@@ -62,8 +62,8 @@ make format-python                                       # Format Python with ru
 make lint-python                                         # Lint Python with ruff
 make schema-graphql                                      # Generate GraphQL schema
 make schema-openapi                                      # Generate OpenAPI schema
-make compile-protobuf                                    # Compile protobuf files
-make compile-prompts                                     # Compile YAML prompts to Python and TypeScript
+make codegen-protobuf                                    # Compile protobuf files
+make codegen-prompts                                     # Compile YAML prompts to Python and TypeScript
 make clean-notebooks                                     # Clean Jupyter notebook metadata
 ```
 
