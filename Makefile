@@ -212,6 +212,7 @@ test: test-python test-frontend test-ts ## Run all tests (Python + frontend + Ty
 	@echo -e "$(GREEN)✓ All tests complete$(NC)"
 
 typecheck-python: ## Type check Python code
+	@$(UV) sync
 	@echo -e "$(CYAN)Type checking Python...$(NC)"
 	@$(UV) run mypy
 	@echo -e "$(GREEN)✓ Type check complete$(NC)"
