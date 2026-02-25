@@ -180,7 +180,6 @@ export function UserForm({
                 rules={{
                   required: "Please confirm your password",
                   validate: {
-                    complexity: validatePasswordComplexity,
                     match: (value, formValues) =>
                       value === formValues.password || "Passwords do not match",
                   },
