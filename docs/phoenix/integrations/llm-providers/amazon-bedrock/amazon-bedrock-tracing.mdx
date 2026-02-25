@@ -29,7 +29,7 @@ tracer_provider = register(
 
 After connecting to your Phoenix server, instrument `boto3` prior to initializing a `bedrock-runtime` client. All clients created after instrumentation will send traces on all calls to `invoke_model`.
 
-```java
+```python
 import boto3
 
 session = boto3.session.Session()
@@ -40,7 +40,7 @@ client = session.client("bedrock-runtime")
 
 From here you can run Bedrock as normal
 
-```swift
+```python
 prompt = (
     b'{"prompt": "Human: Hello there, how are you? Assistant:", "max_tokens_to_sample": 1024}'
 )

@@ -52,6 +52,11 @@ export default defineConfig(() => {
     publicDir: resolve(__dirname, "static"),
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
+      headers: {
+        // Prevent browser caching during development to ensure fresh assets
+        // after code changes. This fixes 304 responses causing stale files.
+        "Cache-Control": "no-store",
+      },
     },
     preview: {
       port: 6006,
@@ -77,25 +82,29 @@ export default defineConfig(() => {
       outDir: resolve(__dirname, "../src/phoenix/server/static"),
       emptyOutDir: true,
       sourcemap: enableSourceMap,
-      rollupOptions: {
+      rolldownOptions: {
         input: resolve(__dirname, "src/index.tsx"),
         output: {
-          manualChunks: (id) => {
-            if (id.includes("node_modules")) {
-              if (id.includes("three/build")) {
-                return "vendor-three";
-              }
-              if (id.includes("recharts")) {
-                return "vendor-recharts";
-              }
-              if (id.includes("shiki")) {
-                return "vendor-shiki";
-              }
-              if (id.includes("codemirror")) {
-                return "vendor-codemirror";
-              }
-              return "vendor";
-            }
+          advancedChunks: {
+            groups: [
+              {
+                name: "vendor-codemirror",
+                test: /codemirror/,
+              },
+              {
+                name: "vendor-recharts",
+                test: /recharts/,
+              },
+              {
+                name: "vendor-shiki",
+                test: /shiki/,
+              },
+              // Catch-all for remaining node_modules
+              {
+                name: "vendor",
+                test: /node_modules/,
+              },
+            ],
           },
         },
       },

@@ -75,7 +75,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
 
     If you'd like to collect feedback on currently instrumented code, you can get the current span using the `opentelemetry` SDK.
 
-    ```javascript
+    ```python
     from opentelemetry.trace import format_span_id, get_current_span
 
     span = get_current_span()
@@ -84,7 +84,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
 
     You can use the span\_id to send an annotation associated with that span.
 
-    ```javascript
+    ```python
     from phoenix.client import Client
 
     client = Client()
@@ -114,7 +114,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
 
     You can use the spanId to send an annotation associated with that span.
 
-    ```php
+    ```typescript
     import { createClient } from '@arizeai/phoenix-client';
 
     const PHOENIX_API_KEY = 'your_api_key';
@@ -174,7 +174,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
       'https://app.phoenix.arize.com/v1/span_annotations?sync=false' \
       -H 'accept: application/json' \
       -H 'Content-Type: application/json' \
-      -H 'api_key: <your phoenix api key> \
+      -H 'api_key: <your phoenix api key>' \
       -d '{
       "data": [
         {

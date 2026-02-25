@@ -69,7 +69,7 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
     # Initialize a phoenix client with your phoenix endpoint
     # By default it will read from your environment variables
     client = Client(
-    # endpoint="https://my-phoenix.com",
+    # base_url="https://my-phoenix.com",
     )
 
     # Pulling a prompt by name
@@ -84,13 +84,13 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-    const prompt = await getPrompt({ name: "my-prompt" });
+    const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
     // ^ the latest version of the prompt named "my-prompt"
 
-    const promptById = await getPrompt({ promptId: "a1234" })
+    const promptById = await getPrompt({ prompt: { promptId: "a1234" } })
     // ^ the latest version of the prompt with Id "a1234"
     ```
     
@@ -116,7 +116,7 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
     # Initialize a phoenix client with your phoenix endpoint
     # By default it will read from your environment variables
     client = Client(
-    # endpoint="https://my-phoenix.com",
+    # base_url="https://my-phoenix.com",
     )
 
     # The version ID can be found in the versions tab in the UI
@@ -128,10 +128,10 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-    const promptByVersionId = await getPrompt({ versionId: "b5678" })
+    const promptByVersionId = await getPrompt({ prompt: { versionId: "b5678" } })
     // ^ the latest version of the prompt with Id "a1234"
     ```
 
@@ -155,7 +155,7 @@ Pulling by prompt by tag is most useful when you want a particular version of a 
     ```python
     # By default it will read from your environment variables
     client = Client(
-    # endpoint="https://my-phoenix.com",
+    # base_url="https://my-phoenix.com",
     )
 
     # Since tags don't uniquely identify a prompt version
@@ -170,10 +170,10 @@ Pulling by prompt by tag is most useful when you want a particular version of a 
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-    const promptByTag = await getPrompt({ tag: "staging", name: "my-prompt" });
+    const promptByTag = await getPrompt({ prompt: { tag: "staging", name: "my-prompt" } });
     // ^ the specific prompt version tagged "production", for prompt "my-prompt"
     ```
 
@@ -208,19 +208,19 @@ The Phoenix Client libraries make it simple to transform prompts to the SDK that
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
+    ```typescript
     import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
     import OpenAI from "openai";
 
     const openai = new OpenAI()
-    const prompt = await getPrompt({ name: "my-prompt" });
+    const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 
     // openaiParameters is fully typed, and safe to use directly in the openai client
     const openaiParameters = toSDK({
       // sdk does not have to match the provider saved in your prompt
       // if it differs, we will apply a best effort conversion between providers automatically
       sdk: "openai",
-      prompt: questionAskerPrompt,
+      prompt,
       // variables within your prompt template can be replaced across messages
       variables: { question: "How do I write 'Hello World' in JavaScript?" }
     });

@@ -264,7 +264,7 @@ Supported Context Attributes include:
 
     We provide a `using_attributes` context manager to add attributes to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the attributes fields as span attributes, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). This is a convenient context manager to use if you find yourself using many of the previous ones in conjunction.
 
-    ```swift expandable
+    ```python expandable
     from openinference.instrumentation import using_attributes
     tags = ["tag_1", "tag_2", ...]
     metadata = {
@@ -297,7 +297,7 @@ Supported Context Attributes include:
 
     The previous example is equivalent to doing the following, making `using_attributes` a very convenient tool for the more complex settings.
 
-    ```swift expandable
+    ```python expandable
     with (
         using_session("my-session-id"),
         using_user("my-user-id"),
@@ -322,7 +322,7 @@ Supported Context Attributes include:
 
     It can also be used as a decorator:
 
-    ```swift expandable
+    ```python expandable
     @using_attributes(
         session_id="my-session-id",
         user_id="my-user-id",

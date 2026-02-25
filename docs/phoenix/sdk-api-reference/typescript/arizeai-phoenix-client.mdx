@@ -57,7 +57,7 @@ Use `createPrompt` to create a prompt in Phoenix for version control and reuse:
 ```javascript
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
-const version = createPrompt({
+const version = await createPrompt({
   name: "my-prompt",
   description: "test-description",
   version: promptVersion({
@@ -86,14 +86,14 @@ Use `getPrompt` to pull a prompt from Phoenix:
 ```javascript
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 // Returns a strongly-typed prompt object
 
-const promptByTag = await getPrompt({ tag: "production", name: "my-prompt" });
+const promptByTag = await getPrompt({ prompt: { tag: "production", name: "my-prompt" } });
 // Filter by tag
 
 const promptByVersionId = await getPrompt({
-  versionId: "1234567890",
+  prompt: { versionId: "1234567890" },
 });
 // Filter by prompt version ID
 ```
