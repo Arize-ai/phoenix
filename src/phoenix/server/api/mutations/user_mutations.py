@@ -206,12 +206,15 @@ class UserMutationMixin:
                 if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
-                await check_password_history(
-                    session=session,
-                    user=user,
-                    new_password=Secret(password),
-                    hash_fn=info.context.hash_password,
-                )
+                try:
+                    await check_password_history(
+                        session=session,
+                        user=user,
+                        new_password=Secret(password),
+                        hash_fn=info.context.hash_password,
+                    )
+                except ValueError as exc:
+                    raise BadRequest(str(exc))
                 await save_to_password_history(session=session, user=user)
                 salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_salt = salt
@@ -252,12 +255,15 @@ class UserMutationMixin:
                 ) or not await info.context.is_valid_password(Secret(current_password), user):
                     raise Conflict("Valid current password is required to modify password")
                 validate_password_format(password)
-                await check_password_history(
-                    session=session,
-                    user=user,
-                    new_password=Secret(password),
-                    hash_fn=info.context.hash_password,
-                )
+                try:
+                    await check_password_history(
+                        session=session,
+                        user=user,
+                        new_password=Secret(password),
+                        hash_fn=info.context.hash_password,
+                    )
+                except ValueError as exc:
+                    raise BadRequest(str(exc))
                 await save_to_password_history(session=session, user=user)
                 salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_salt = salt

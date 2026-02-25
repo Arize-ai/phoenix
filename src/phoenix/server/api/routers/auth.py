@@ -317,12 +317,15 @@ async def _reset_password(request: Request) -> Response:
             # Withold privileged information
             return Response(status_code=204)
         validate_password_format(password)
-        await check_password_history(
-            session=session,
-            user=user,
-            new_password=Secret(password),
-            hash_fn=_hash_password,
-        )
+        try:
+            await check_password_history(
+                session=session,
+                user=user,
+                new_password=Secret(password),
+                hash_fn=_hash_password,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
         await save_to_password_history(session=session, user=user)
         user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
         loop = asyncio.get_running_loop()
