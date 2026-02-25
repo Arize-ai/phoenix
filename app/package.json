@@ -44,6 +44,7 @@
     "@codemirror/lang-json": "6.0.2",
     "@codemirror/lang-python": "6.2.1",
     "@codemirror/language": "^6.12.1",
+    "@codemirror/legacy-modes": "^6.5.2",
     "@codemirror/lint": "^6.9.4",
     "@codemirror/state": "^6.5.4",
     "@dnd-kit/core": "^6.3.1",

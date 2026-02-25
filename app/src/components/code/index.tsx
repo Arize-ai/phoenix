@@ -2,6 +2,8 @@ export * from "./PreBlock";
 export * from "./JSONEditor";
 export * from "./JSONBlock";
 export * from "./AttributesJSONBlock";
+export * from "./BashBlock";
+export * from "./BashBlockWithCopy";
 export * from "./PythonBlock";
 export * from "./PythonBlockWithCopy";
 export * from "./CodeWrap";

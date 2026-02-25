@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
@@ -115,7 +116,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
         </Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={INSTALL_PHOENIX_OTEL_PYTHON} />
+        <BashBlockWithCopy value={INSTALL_PHOENIX_OTEL_PYTHON} />
       </CodeWrap>
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">
@@ -147,7 +148,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
         </Flex>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={environmentVariablesPython} />
+        <BashBlockWithCopy value={environmentVariablesPython} />
       </CodeWrap>
       {isAuthEnabled ? (
         <View paddingBottom="size-100" paddingTop="size-100">
@@ -242,7 +243,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
                 instrumentation as well as <b>openai</b>
               </p>
               <CodeWrap>
-                <PythonBlockWithCopy
+                <BashBlockWithCopy
                   value={INSTALL_OPENAI_INSTRUMENTATION_PYTHON}
                 />
               </CodeWrap>

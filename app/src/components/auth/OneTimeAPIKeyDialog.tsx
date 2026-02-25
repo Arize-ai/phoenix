@@ -14,6 +14,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
+import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
 import {
   DialogCloseButton,
@@ -68,7 +69,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
               </Text>
             </View>
             <CodeWrap>
-              <PythonBlockWithCopy value={`PHOENIX_API_KEY=${jwt}`} />
+              <BashBlockWithCopy value={`PHOENIX_API_KEY=${jwt}`} />
             </CodeWrap>
             <View paddingBottom="size-100" paddingTop="size-100">
               <Text>
@@ -76,7 +77,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
               </Text>
             </View>
             <CodeWrap>
-              <PythonBlockWithCopy
+              <BashBlockWithCopy
                 value={`OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer ${jwt}'`}
               />
             </CodeWrap>
