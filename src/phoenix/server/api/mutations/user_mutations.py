@@ -220,6 +220,8 @@ class UserMutationMixin:
                 user.password_salt = salt
                 user.password_hash = await info.context.hash_password(Secret(password), salt)
                 user.reset_password = True
+                user.failed_login_attempts = 0
+                user.locked_until = None
                 should_log_out = True
             if username := input.new_username:
                 user.username = username
@@ -269,6 +271,8 @@ class UserMutationMixin:
                 user.password_salt = salt
                 user.password_hash = await info.context.hash_password(Secret(password), salt)
                 user.reset_password = False
+                user.failed_login_attempts = 0
+                user.locked_until = None
             if username := input.new_username:
                 user.username = username
             assert user in session.dirty

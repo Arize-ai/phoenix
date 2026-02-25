@@ -337,6 +337,8 @@ async def _reset_password(request: Request) -> Response:
             None, partial(compute_password_hash, password=password, salt=user.password_salt)
         )
         user.reset_password = False
+        user.failed_login_attempts = 0
+        user.locked_until = None
         await session.flush()
     response = Response(status_code=204)
     assert (token_id := claims.token_id)
