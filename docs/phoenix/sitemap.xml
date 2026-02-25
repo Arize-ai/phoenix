@@ -733,6 +733,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/claude-agent-sdk</loc>
+    <lastmod>2026-02-24T23:37:19+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/claude-agent-sdk/claude-agent-sdk-tracing-ts</loc>
+    <lastmod>2026-02-24T23:37:19+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/langchain</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
