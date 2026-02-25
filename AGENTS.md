@@ -55,10 +55,21 @@ uv run mypy tests/unit         # Type check unit tests
 uv run mypy tests/integration  # Type check integration tests
 ```
 
-Other commands can be managed through tox
+Most commands are available via `make`. Run `make help` to see all targets.
 
 ```bash
-tox run -e ruff                                          # Format and lint
+make format-python                                       # Format Python with ruff
+make lint-python                                         # Lint Python with ruff
+make schema-graphql                                      # Generate GraphQL schema
+make schema-openapi                                      # Generate OpenAPI schema
+make compile-protobuf                                    # Compile protobuf files
+make compile-prompts                                     # Compile YAML prompts to Python and TypeScript
+make clean-notebooks                                     # Clean Jupyter notebook metadata
+```
+
+Sub-package tests are still run via tox:
+
+```bash
 tox run -e phoenix_client                                # Test sub-package
 tox list                                                 # List all environments
 ```
@@ -89,17 +100,16 @@ pnpm changeset                           # Create version changeset (required fo
 ### Other
 
 ```bash
-tox run -e clean_jupyter_notebooks       # Clean notebook metadata
-tox -e alembic -- upgrade head           # Run migrations
+make clean-notebooks                     # Clean notebook metadata
 hatch build                              # Build Python package
 ```
 
 ### Running Phoenix
 
 ```bash
-cd app && pnpm dev                       # Full dev environment (server + UI)
-tox run -e phoenix_main                  # Server only
-PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev  # Fresh in-memory database
+make dev                                 # Full dev environment (server + UI)
+make dev-backend                         # Server only
+PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: make dev  # Fresh in-memory database
 ```
 
 ## Project Structure
@@ -159,9 +169,9 @@ Phoenix includes specialized skills in the `skills/` directory that teach AI age
 
 1. **Database Tests**: Default is SQLite only. Use `--run-postgres` flag for PostgreSQL tests.
 
-2. **Notebook Metadata**: Run `tox run -e clean_jupyter_notebooks` after editing notebooks.
+2. **Notebook Metadata**: Run `make clean-notebooks` after editing notebooks.
 
-3. **GraphQL Schema**: After modifying schema in Python, rebuild with `tox run -e build_graphql_schema`.
+3. **GraphQL Schema**: After modifying schema in Python, rebuild with `make schema-graphql` (or `make graphql` to also rebuild Relay).
 
 4. **Changesets**: Any change inside `js/` requires a changeset via `pnpm changeset` (including dependency updates, code changes, and config updates).
 
