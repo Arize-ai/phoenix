@@ -58,6 +58,11 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
+    CategoricalOutputConfig,
+    OutputConfigType,
+)
+from phoenix.db.types.annotation_configs import (
+    OutputConfig as OutputConfigModel,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
@@ -425,24 +430,54 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
 
-class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
+class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[list[AnnotationConfigType]], _: Dialect
+        self, value: Optional[list[OutputConfigType]], _: Dialect
     ) -> Optional[list[dict[str, Any]]]:
         if value is None:
             return None
-        return [AnnotationConfigModel(root=config).model_dump() for config in value]
+        seen = set()
+        for config in value:
+            if config.name in seen:
+                raise ValueError(f"Duplicate name: {config.name}")
+            seen.add(config.name)
+        return [OutputConfigModel(root=config).model_dump() for config in value]
 
     def process_result_value(
         self, value: Optional[list[dict[str, Any]]], _: Dialect
-    ) -> Optional[list[AnnotationConfigType]]:
+    ) -> Optional[list[OutputConfigType]]:
         if value is None:
             return None
-        return [AnnotationConfigModel.model_validate(config).root for config in value]
+        return [OutputConfigModel.model_validate(config).root for config in value]
+
+
+class _CategoricalOutputConfigList(TypeDecorator[list[CategoricalOutputConfig]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[CategoricalOutputConfig]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            return None
+        seen = set()
+        for config in value:
+            if config.name in seen:
+                raise ValueError(f"Duplicate name: {config.name}")
+            seen.add(config.name)
+        return [config.model_dump() for config in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[CategoricalOutputConfig]]:
+        if value is None:
+            return None
+        return [CategoricalOutputConfig.model_validate(config) for config in value]
 
 
 class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
@@ -2298,8 +2333,8 @@ class LLMEvaluator(Evaluator):
         ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
         index=True,
     )
-    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        _AnnotationConfigList, nullable=False
+    output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
+        _CategoricalOutputConfigList, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2367,8 +2402,8 @@ class BuiltinEvaluator(Evaluator):
 
     key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        _AnnotationConfigList, nullable=False
+    output_configs: Mapped[list[OutputConfigType]] = mapped_column(
+        _OutputConfigList, nullable=False
     )
 
     # Track when this was last synced from the registry
@@ -2403,8 +2438,8 @@ class DatasetEvaluators(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    output_configs: Mapped[Optional[list[AnnotationConfigType]]] = mapped_column(
-        _AnnotationConfigList, nullable=True
+    output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
+        _OutputConfigList, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(

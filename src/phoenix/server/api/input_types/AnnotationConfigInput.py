@@ -19,6 +19,11 @@ class CategoricalAnnotationConfigInput:
     optimization_direction: OptimizationDirection
     values: list[CategoricalAnnotationConfigValueInput]
 
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise BadRequest("Name cannot be empty")
+        self.name = self.name.strip()
+
 
 @strawberry.input
 class ContinuousAnnotationConfigInput:
@@ -28,11 +33,21 @@ class ContinuousAnnotationConfigInput:
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
 
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise BadRequest("Name cannot be empty")
+        self.name = self.name.strip()
+
 
 @strawberry.input
 class FreeformAnnotationConfigInput:
     name: str
     description: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise BadRequest("Name cannot be empty")
+        self.name = self.name.strip()
 
 
 @strawberry.input(one_of=True)

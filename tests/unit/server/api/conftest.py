@@ -6,8 +6,8 @@ from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    CategoricalOutputConfig,
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -891,7 +891,7 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
             description="evaluates the correctness of the output",
             kind="LLM",
             output_configs=[
-                CategoricalAnnotationConfig(
+                CategoricalOutputConfig(
                     type="CATEGORICAL",
                     name="correctness",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
