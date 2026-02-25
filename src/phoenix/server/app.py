@@ -68,6 +68,7 @@ from phoenix.config import (
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
     get_env_host,
+    get_env_log_sql,
     get_env_max_spans_queue_size,
     get_env_port,
     get_env_support_email,
@@ -917,7 +918,7 @@ def create_engine_and_run_migrations(
         return create_engine(
             connection_str=database_url,
             migrate=not Settings.disable_migrations,
-            log_to_stdout=False,
+            log_to_stdout=get_env_log_sql(),
         )
     except PhoenixMigrationError as e:
         msg = (
