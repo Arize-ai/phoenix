@@ -776,6 +776,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get session by ID or session_id */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sessions for a project */
+        get: operations["listProjectSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/session_annotations": {
         parameters: {
             query?: never;
@@ -1478,6 +1512,17 @@ export interface components {
         GetPromptsResponseBody: {
             /** Data */
             data: components["schemas"]["Prompt"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetSessionResponseBody */
+        GetSessionResponseBody: {
+            data: components["schemas"]["SessionData"];
+        };
+        /** GetSessionsResponseBody */
+        GetSessionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["SessionData"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -2514,6 +2559,44 @@ export interface components {
             data: components["schemas"]["SessionAnnotation"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** SessionData */
+        SessionData: {
+            /** Id */
+            id: string;
+            /** Session Id */
+            session_id: string;
+            /** Project Id */
+            project_id: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+            /** Traces */
+            traces: components["schemas"]["SessionTraceData"][];
+        };
+        /** SessionTraceData */
+        SessionTraceData: {
+            /** Id */
+            id: string;
+            /** Trace Id */
+            trace_id: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
         };
         /** Span */
         Span: {
@@ -5588,6 +5671,111 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The session identifier: either a GlobalID or user-provided session_id string. */
+                session_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetSessionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listProjectSessions: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (session ID) */
+                cursor?: string | null;
+                /** @description The max number of sessions to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetSessionsResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
