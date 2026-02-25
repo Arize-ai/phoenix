@@ -1,5 +1,4 @@
 -r ci.txt
--r type-check.txt
 Faker>=30.1.0
 arize>=8.1.0
 asgi-lifespan

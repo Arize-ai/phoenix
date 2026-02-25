@@ -1,5 +1,4 @@
 -r ci.txt
--r type-check.txt
 aioboto3
 asyncpg
 beautifulsoup4
