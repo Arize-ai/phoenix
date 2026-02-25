@@ -338,12 +338,6 @@ build: build-python build-frontend build-ts ## Build everything (Python + fronte
 # Utilities
 #=============================================================================
 
-alembic: ## Run alembic database migration commands (use ARGS= e.g. ARGS="upgrade head")
-	@echo -e "$(CYAN)Running alembic...$(NC)"
-	@$(UV) pip install asyncpg
-	@$(UV) pip install --no-sources -q --strict --reinstall-package arize-phoenix .
-	@cd src/phoenix/db && $(UV) run alembic $(ARGS)
-
 compile-protobuf: ## Compile protobuf files
 	@echo -e "$(CYAN)Compiling protobuf files...$(NC)"
 	$(UV) run python -m grpc_tools.protoc \
