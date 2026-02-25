@@ -257,13 +257,9 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
-            requirements/compile-protobuf.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
-        run: |
-          uv venv
-          uv pip install --strict -U -r requirements/compile-protobuf.txt
-          uv run python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
+        run: make compile-protobuf
       - run: git diff --exit-code
 
   compile-prompts:
@@ -287,15 +283,7 @@ jobs:
         with:
           version: "0.9.18"
       - name: Compile Prompts
-        run: |
-          uv venv
-          uv pip install pyyaml jinja2 pydantic
-          uv run python scripts/prompts/compile_python_prompts.py src/phoenix/__generated__/classification_evaluator_configs
-          uv run python scripts/prompts/compile_python_prompts.py packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
-          uvx ruff@0.12.5 format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
-          uvx ruff@0.12.5 check --fix src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
-          uv run python scripts/prompts/compile_typescript_prompts.py js/packages/phoenix-evals/src/__generated__/default_templates
-          uv run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/api/helpers/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
+        run: make compile-prompts
       - name: Check for changes
         run: git diff --exit-code
 
@@ -388,7 +376,7 @@ jobs:
         run: uv run mypy
       - name: Ensure GraphQL mutations have permission classes
         working-directory: src/phoenix/server/api
-        run: uv run python $GITHUB_WORKSPACE/scripts/ci/ensure_graphql_mutations_have_permission_classes.py
+        run: make check-graphql-mutations
 
   unit-tests:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})

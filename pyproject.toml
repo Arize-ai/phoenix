@@ -170,6 +170,7 @@ dev = [
   "datamodel-code-generator==0.32.0",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
+  "jinja2>=3.1.6",
 ]
 
 [project.optional-dependencies]
