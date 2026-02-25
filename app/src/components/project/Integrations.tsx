@@ -13,14 +13,15 @@ import {
   GroqSVG,
   HaystackSVG,
   HuggingFaceSVG,
-  IntegrationSVG,
   LangChainSVG,
+  LiteLLMSVG,
   LlamaIndexSVG,
   MastraSVG,
   McpSVG,
   MistralAISVG,
   NodeJSSVG,
   OpenAISVG,
+  PortkeySVG,
   PydanticAISVG,
   VercelSVG,
   VertexAISVG,
@@ -244,14 +245,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
       "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
-    icon: <IntegrationSVG />,
+    icon: <LiteLLMSVG />,
   },
   {
     name: "PortKey",
     docsHref: "https://arize.com/docs/phoenix/integrations/python/portkey",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-portkey",
-    icon: <IntegrationSVG />,
+    icon: <PortkeySVG />,
   },
   {
     name: "MCP",
