@@ -127,7 +127,7 @@ class TestClientForSpanAnnotationsRetrieval:
             res = anno["result"]
             assert isinstance(res, dict)
             assert res.get("label") == expected_label
-            assert abs(float(res.get("score", 0.0)) - expected_score) < 1e-6
+            assert abs((res.get("score") or 0.0) - expected_score) < 1e-6
             assert res.get("explanation") == expected_explanation
 
         spans_input_df = pd.DataFrame({"context.span_id": [span_id1, span_id2]})
@@ -607,7 +607,11 @@ class TestClientForSpansRetrieval:
         # Verify they are the correct spans
         found_indices: set[int] = set()
         for span in our_middle_spans:
-            if "attributes" in span and "time_index" in span["attributes"]:
+            if (
+                "attributes" in span
+                and span["attributes"] is not None
+                and "time_index" in span["attributes"]
+            ):
                 found_indices.add(span["attributes"]["time_index"])
 
         assert found_indices == {1, 2, 3}, f"Expected indices {{1, 2, 3}} but got {found_indices}"

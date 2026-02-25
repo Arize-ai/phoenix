@@ -2242,7 +2242,7 @@ class TestResumeOperations:
         runs = helper.get_runs(exp["id"])
         assert len([r for r in runs if r.get("error")]) == 3, "All runs should still have errors"
         for run in runs:
-            error_msg = run.get("error", "")
+            error_msg = run.get("error") or ""
             assert "Task still fails on resume" in error_msg, (
                 f"Expected new error message, got: {error_msg}"
             )
