@@ -1,11 +1,14 @@
 from collections.abc import AsyncIterable
 from datetime import datetime
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
+
+if TYPE_CHECKING:
+    from phoenix.server.api.types.ExperimentJob import ExperimentJob
 
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import joinedload, with_polymorphic
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.sqltypes import String
 from strawberry import UNSET
@@ -28,6 +31,7 @@ from phoenix.server.api.types.DatasetSplit import DatasetSplit
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -293,7 +297,7 @@ class Dataset(Node):
                     models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
             )
-            .order_by(models.DatasetExample.id.desc())
+            .order_by(models.DatasetExample.id.asc())
         )
 
         # Filter by split IDs if provided
@@ -418,6 +422,33 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    async def experiment_jobs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[ExperimentJob]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            stmt = (
+                select(models.ExperimentExecutionConfig)
+                .join(models.Experiment)
+                .where(models.Experiment.dataset_id == self.id)
+                .options(joinedload(models.ExperimentExecutionConfig.experiment))
+                .order_by(models.ExperimentExecutionConfig.created_at.desc())
+            )
+            results = await session.scalars(stmt)
+            jobs = [ExperimentJob(id=config.id, db_record=config) for config in results]
+        return connection_from_list(data=jobs, args=args)
 
     @strawberry.field
     async def experiment_annotation_summaries(

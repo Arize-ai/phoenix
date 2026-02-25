@@ -803,6 +803,25 @@ CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
 
 
+-- Table: experiment_execution_configs
+-- -----------------------------------
+CREATE TABLE public.experiment_execution_configs (
+    id BIGINT NOT NULL,
+    task_config JSONB,
+    evaluator_configs JSONB,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    toggled_at TIMESTAMP WITH TIME ZONE,
+    last_error VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_experiment_execution_configs PRIMARY KEY (id),
+    CONSTRAINT fk_experiment_execution_configs_id_experiments FOREIGN KEY
+        (id)
+        REFERENCES public.experiments (id)
+        ON DELETE CASCADE
+);
+
+
 -- Table: experiment_runs
 -- ----------------------
 CREATE TABLE public.experiment_runs (

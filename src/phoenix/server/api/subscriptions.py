@@ -19,7 +19,9 @@ from typing import (
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, insert, select
+from sqlalchemy import func as sa_func
 from sqlalchemy.orm import load_only
+from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
@@ -31,6 +33,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -76,7 +79,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -797,6 +800,216 @@ class Subscription:
                                 repetition_number=repetition_number,
                             )
                             yield evaluation_chunk
+
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def chat_completion_over_dataset_new(
+        self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        """
+        Run experiment in background via daemon.
+
+        Drop-in replacement for chat_completion_over_dataset with same signature.
+        Delegates actual execution to ExperimentRunner.
+        """
+        # === Validation (same as chat_completion_over_dataset) ===
+        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+            )
+            if input.dataset_version_id
+            else None
+        )
+
+        async with info.context.db() as session:
+            # Validate dataset exists
+            if (
+                await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
+            ) is None:
+                raise NotFound(f"Could not find dataset with ID {dataset_id}")
+
+            # Resolve version ID
+            if version_id is None:
+                if (
+                    resolved_version_id := await session.scalar(
+                        select(models.DatasetVersion.id)
+                        .where(models.DatasetVersion.dataset_id == dataset_id)
+                        .order_by(models.DatasetVersion.id.desc())
+                        .limit(1)
+                    )
+                ) is None:
+                    raise NotFound(f"No versions found for dataset with ID {dataset_id}")
+            else:
+                if (
+                    resolved_version_id := await session.scalar(
+                        select(models.DatasetVersion.id).where(
+                            and_(
+                                models.DatasetVersion.dataset_id == dataset_id,
+                                models.DatasetVersion.id == version_id,
+                            )
+                        )
+                    )
+                ) is None:
+                    raise NotFound(f"Could not find dataset version with ID {version_id}")
+
+            # Parse split IDs if provided
+            resolved_split_ids: Optional[list[int]] = None
+            if input.split_ids is not None and len(input.split_ids) > 0:
+                resolved_split_ids = [
+                    from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
+                    for split_id in input.split_ids
+                ]
+
+            # Validate at least one example exists (don't load all - daemon will paginate)
+            example_count = await session.scalar(
+                select(sa_func.count()).select_from(
+                    get_dataset_example_revisions(
+                        resolved_version_id,
+                        split_ids=resolved_split_ids,
+                    ).subquery()
+                )
+            )
+            if not example_count:
+                raise NotFound("No examples found for the given dataset and version")
+
+            # === Create project (same as chat_completion_over_dataset) ===
+            project_name = generate_experiment_project_name()
+            if (
+                await session.scalar(
+                    select(models.Project.id).where(models.Project.name == project_name)
+                )
+            ) is None:
+                await session.scalar(
+                    insert(models.Project)
+                    .returning(models.Project.id)
+                    .values(
+                        name=project_name,
+                        description="Traces from prompt playground",
+                    )
+                )
+
+            # === Create experiment (same as chat_completion_over_dataset) ===
+            user_id = get_user(info)
+            experiment = models.Experiment(
+                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
+                dataset_version_id=resolved_version_id,
+                name=input.experiment_name
+                or _default_playground_experiment_name(input.prompt_name),
+                description=input.experiment_description,
+                repetitions=input.repetitions,
+                metadata_=input.experiment_metadata or dict(),
+                project_name=project_name,
+                user_id=user_id,
+            )
+            if resolved_split_ids:
+                experiment.experiment_dataset_splits = [
+                    models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                    for split_id in resolved_split_ids
+                ]
+            await insert_experiment_with_examples_snapshot(session, experiment)
+
+            # === Create execution config (NEW: freeze request) ===
+            from phoenix.db.types.experiment_config import EvaluatorConfig, EvaluatorConfigs
+            from phoenix.server.api.helpers.experiment_config_converters import create_task_config
+
+            # Resolve evaluators so we can store full output config when user provides one
+            # (mirrors regular evals)
+            evaluator_node_ids = [e.id for e in input.evaluators]
+            evaluators_list = (
+                await get_evaluators(
+                    dataset_evaluator_node_ids=evaluator_node_ids,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+                if evaluator_node_ids
+                else []
+            )
+
+            # Get provider and model info for normalization
+            custom_provider_id: int | None = None
+            if input.model.builtin:
+                model_provider = input.model.builtin.provider_key.to_model_provider()
+                model_name = input.model.builtin.name
+            elif input.model.custom:
+                # Look up the custom provider to get its SDK type
+                custom_provider_id = from_global_id_with_expected_type(
+                    global_id=input.model.custom.provider_id,
+                    expected_type_name=models.GenerativeModelCustomProvider.__name__,
+                )
+                custom_provider = await session.get(
+                    models.GenerativeModelCustomProvider, custom_provider_id
+                )
+                if custom_provider is None:
+                    raise NotFound(f"Custom provider with ID '{custom_provider_id}' not found")
+                # Map SDK to ModelProvider for normalization
+                sdk_to_provider = {
+                    "openai": ModelProvider.OPENAI,
+                    "azure_openai": ModelProvider.AZURE_OPENAI,
+                    "anthropic": ModelProvider.ANTHROPIC,
+                    "google_genai": ModelProvider.GOOGLE,
+                    "aws_bedrock": ModelProvider.AWS,
+                }
+                model_provider = sdk_to_provider.get(custom_provider.sdk, ModelProvider.OPENAI)
+                model_name = input.model.custom.model_name
+            else:
+                raise ValueError("Model must have either builtin or custom configuration")
+
+            execution_config = models.ExperimentExecutionConfig(
+                id=experiment.id,
+                # claimed_at=NULL means not running; start_experiment() will claim it
+                task_config=create_task_config(
+                    messages=input.messages,
+                    template_format=input.template_format,
+                    template_variables_path=input.template_variables_path,
+                    invocation_parameters=input.invocation_parameters or [],
+                    tools=input.tools if input.tools else None,
+                    model_provider=model_provider,
+                    model_name=model_name,
+                    custom_provider_id=custom_provider_id,
+                    appended_messages_path=input.appended_messages_path,
+                ),
+                evaluator_configs=EvaluatorConfigs(
+                    evaluators=[
+                        EvaluatorConfig(
+                            dataset_evaluator_id=from_global_id(e.id)[1],  # Extract numeric ID
+                            input_mapping=e.input_mapping.to_orm(),
+                            output_config=(
+                                [configs[0]]
+                                if e.output_configs
+                                and idx < len(evaluators_list)
+                                and (
+                                    configs := get_evaluator_output_configs(e, evaluators_list[idx])
+                                )
+                                else None
+                            ),
+                        )
+                        for idx, e in enumerate(input.evaluators)
+                    ]
+                ),
+            )
+            session.add(execution_config)
+
+        # === Yield experiment immediately ===
+        yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
+
+        # === Register with daemon and stream results ===
+        # Pass credentials as ephemeral data (not stored in DB)
+        credentials = input.credentials if input.credentials is not UNSET else None
+        running_exp, receive_stream = await info.context.experiment_runner.start_experiment(
+            execution_config,
+            credentials=credentials,
+            subscribe=True,
+        )
+
+        # Stream results until producer closes the stream (signals completion via EndOfStream)
+        try:
+            async for payload in receive_stream:
+                yield payload
+        finally:
+            # Close the receive stream - experiment continues in background
+            # User must explicitly cancel via mutation if they want to stop it
+            await receive_stream.aclose()
 
 
 async def _stream_chat_completion_over_dataset_example(
