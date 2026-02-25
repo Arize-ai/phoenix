@@ -1440,11 +1440,12 @@ class Query:
 
         gql_configs: list[ClassificationEvaluatorConfig] = []
         for config in pydantic_configs:
-            optimization_direction = (
-                OptimizationDirection.MAXIMIZE
-                if config.optimization_direction == "maximize"
-                else OptimizationDirection.MINIMIZE
-            )
+            if config.optimization_direction == "maximize":
+                optimization_direction = OptimizationDirection.MAXIMIZE
+            elif config.optimization_direction == "minimize":
+                optimization_direction = OptimizationDirection.MINIMIZE
+            else:
+                optimization_direction = OptimizationDirection.NONE
 
             gql_messages: list[PromptMessage] = []
             for msg in config.messages:

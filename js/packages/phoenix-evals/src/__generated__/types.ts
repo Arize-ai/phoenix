@@ -5,7 +5,7 @@ import type { PromptTemplate } from "../types/templating";
 export type ClassificationEvaluatorConfig = {
   name: string;
   description: string;
-  optimizationDirection: "MINIMIZE" | "MAXIMIZE";
+  optimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NEUTRAL";
   template: PromptTemplate;
   choices: Record<string, number>;
 };
