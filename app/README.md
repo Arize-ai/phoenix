@@ -78,7 +78,7 @@ The Phoenix app is statically analyzed for type safety via `typescript`, statica
 ```shell
 pnpm run typecheck
 pnpm run lint
-pnpm run fmt:check
+pnpm run fmt:check  # Or `pnpm run fmt` to fix formatting issues
 pnpm test
 pnpm run test:e2e
 ```
