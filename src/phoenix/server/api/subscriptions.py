@@ -753,7 +753,7 @@ class Subscription:
 
                         eval_results: list[EvaluationResult] = await evaluator.evaluate(
                             context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
+                            input_mapping=evaluator_input.input_mapping.to_orm(),
                             name=name,
                             output_configs=configs,
                             tracer=tracer,
