@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
@@ -2303,8 +2303,9 @@ async def evaluators_for_querying(
             metadata_={},
             prompt_id=prompt.id,
             output_configs=[
-                CategoricalAnnotationConfig(
+                CategoricalAnnotationConfigWithName(
                     type="CATEGORICAL",
+                    name="result",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
                     values=[
                         CategoricalAnnotationValue(label="good", score=1.0),
@@ -2393,11 +2394,12 @@ class TestEvaluatorsQuery:
                 key="orphan_key",
                 input_schema={"type": "object"},
                 output_configs=[
-                    {
-                        "type": "CATEGORICAL",
-                        "optimization_direction": "MAXIMIZE",
-                        "values": [{"label": "a"}],
-                    }
+                    CategoricalAnnotationConfigWithName(
+                        type="CATEGORICAL",
+                        name="a",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[CategoricalAnnotationValue(label="a", score=1.0)],
+                    )
                 ],
             )
             session.add(orphan_builtin)

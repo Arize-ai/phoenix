@@ -19,9 +19,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
-)
+from phoenix.db.types.annotation_configs import CategoricalAnnotationConfigWithName
 from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
 )
@@ -671,9 +669,9 @@ class ChatCompletionMutationMixin:
                 all_configs = _convert_output_config_inputs_to_pydantic(
                     inline_llm_evaluator.output_configs
                 )
-                categorical_configs: list[CategoricalAnnotationConfig] = []
+                categorical_configs: list[CategoricalAnnotationConfigWithName] = []
                 for config in all_configs:
-                    if not isinstance(config, CategoricalAnnotationConfig):
+                    if not isinstance(config, CategoricalAnnotationConfigWithName):
                         raise BadRequest(
                             "Only categorical annotation configs "
                             "are supported for LLM evaluator previews"

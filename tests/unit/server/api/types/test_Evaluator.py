@@ -6,8 +6,9 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
     CategoricalAnnotationValue,
+    ContinuousAnnotationConfigWithName,
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -228,7 +229,7 @@ class TestDatasetEvaluatorDescriptionFallback:
                 prompt_id=prompt.id,
                 description="Base evaluator description",
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="result",
                         optimization_direction=OptimizationDirection.MINIMIZE,
@@ -275,7 +276,7 @@ class TestDatasetEvaluatorDescriptionFallback:
                 prompt_id=prompt.id,
                 description=None,
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="result2",
                         optimization_direction=OptimizationDirection.MINIMIZE,
@@ -492,10 +493,6 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
         """Create test data: dataset with builtin evaluator assignments."""
         from sqlalchemy import select
 
-        from phoenix.db.types.annotation_configs import (
-            ContinuousAnnotationConfig,
-        )
-
         async with db() as session:
             project = models.Project(name=f"test-project-{token_hex(4)}")
             session.add(project)
@@ -537,7 +534,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 name=Identifier("contains_with_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="contains",
                         optimization_direction=OptimizationDirection.MINIMIZE,
@@ -570,7 +567,7 @@ class TestDatasetEvaluatorBuiltinOutputConfig:
                 name=Identifier("levenshtein_with_override"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[
-                    ContinuousAnnotationConfig(
+                    ContinuousAnnotationConfigWithName(
                         type="CONTINUOUS",
                         name="levenshtein_distance",
                         optimization_direction=OptimizationDirection.MINIMIZE,
@@ -867,10 +864,6 @@ class TestBuiltInEvaluatorMultiOutput:
         """Verify output_configs are correctly stored for builtin evaluators."""
         from sqlalchemy import select
 
-        from phoenix.db.types.annotation_configs import (
-            ContinuousAnnotationConfig,
-        )
-
         async with db() as session:
             # Create dataset
             dataset = models.Dataset(
@@ -906,7 +899,7 @@ class TestBuiltInEvaluatorMultiOutput:
                 name=Identifier("contains_overridden"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="contains",
                         optimization_direction=OptimizationDirection.MINIMIZE,
@@ -933,7 +926,7 @@ class TestBuiltInEvaluatorMultiOutput:
                 name=Identifier("levenshtein_overridden"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[
-                    ContinuousAnnotationConfig(
+                    ContinuousAnnotationConfigWithName(
                         type="CONTINUOUS",
                         name="levenshtein_distance",
                         optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -1106,7 +1099,7 @@ class TestLLMEvaluatorOutputConfigs:
                 prompt_id=prompt.id,
                 description="Multi-output LLM evaluator",
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="quality",
                         description="Quality assessment",
@@ -1116,7 +1109,7 @@ class TestLLMEvaluatorOutputConfigs:
                             CategoricalAnnotationValue(label="low", score=0.0),
                         ],
                     ),
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="relevance",
                         description="Relevance assessment",

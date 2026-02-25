@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
@@ -970,7 +970,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             name=Identifier("evaluator-1"),
             description="First evaluator",
             output_configs=[
-                CategoricalAnnotationConfig(
+                CategoricalAnnotationConfigWithName(
                     type="CATEGORICAL",
                     name="goodness",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -987,7 +987,7 @@ async def dataset_with_evaluators(db: DbSessionFactory) -> None:
             name=Identifier("evaluator-2"),
             description="Second evaluator",
             output_configs=[
-                CategoricalAnnotationConfig(
+                CategoricalAnnotationConfigWithName(
                     type="CATEGORICAL",
                     name="correctness",
                     optimization_direction=OptimizationDirection.MAXIMIZE,

@@ -22,6 +22,7 @@ from phoenix.db.types.model_provider import (
     OpenAIClientKwargs,
     OpenAICustomProviderConfig,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
 
 
@@ -319,7 +320,7 @@ class GenerativeModelCustomerProviderConfigInput:
             )
             != 1
         ):
-            raise ValueError(
+            raise BadRequest(
                 "Exactly one of openai, azure_openai, anthropic, aws_bedrock, "
                 "google_genai must be provided"
             )

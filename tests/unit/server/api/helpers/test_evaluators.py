@@ -19,7 +19,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
     CategoricalAnnotationValue,
     OptimizationDirection,
 )
@@ -76,7 +76,7 @@ from tests.unit.vcr import CustomVCR
 
 def validate_consistent_llm_evaluator_and_prompt_version(
     prompt_version: models.PromptVersion,
-    output_config: CategoricalAnnotationConfig,
+    output_config: CategoricalAnnotationConfigWithName,
     description: Optional[str] = None,
 ) -> None:
     """Test helper that wraps validate_evaluator_prompt_and_configs."""
@@ -91,7 +91,7 @@ def validate_consistent_llm_evaluator_and_prompt_version(
 class TestValidateConsistentLLMEvaluatorAndPromptVersion:
     def test_both_descriptions_null_does_not_raise(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         validate_consistent_llm_evaluator_and_prompt_version(
@@ -100,7 +100,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_both_descriptions_strings_do_not_raise(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         description = "evaluates the correctness of the output"
@@ -112,7 +112,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_string_evaluator_description_and_null_function_description_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         with pytest.raises(
@@ -127,7 +127,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_null_evaluator_description_and_string_function_description_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -144,7 +144,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_non_null_response_format_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         prompt_version.response_format = PromptResponseFormatJSONSchema(
@@ -162,7 +162,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_null_tools_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         prompt_version.tools = None
@@ -174,7 +174,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_empty_tools_list_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -189,7 +189,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_multiple_tools_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -221,7 +221,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_null_tool_choice_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -234,7 +234,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_zero_or_more_tool_choice_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -247,7 +247,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_specific_function_tool_choice_with_matching_name_does_not_raise(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -258,7 +258,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_specific_function_tool_choice_with_mismatched_name_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -273,7 +273,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_function_parameters_type_not_object_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -286,7 +286,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_empty_function_parameters_properties_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -299,7 +299,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_missing_label_property_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -322,7 +322,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_property_type_not_string_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -345,7 +345,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_enum_less_than_two_items_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -368,7 +368,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_missing_enum_field_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -390,7 +390,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_missing_description_field_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -412,7 +412,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_duplicate_function_parameters_required_values_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -428,7 +428,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_defined_but_not_required_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -453,7 +453,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_and_explanation_defined_but_only_label_required_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -482,7 +482,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_unexpected_required_property_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -505,7 +505,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_label_description_mismatch_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -528,7 +528,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_choices_mismatch_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -543,7 +543,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_with_explanation_property_does_not_raise(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -566,7 +566,7 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
 
     def test_explanation_property_explicitly_set_to_none_raises(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         assert prompt_version.tools is not None
@@ -599,7 +599,7 @@ class TestMultiConfigValidation:
 
     def test_multi_config_with_matching_tools_does_not_raise(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         """When each config has a matching tool definition (by name), validation
@@ -609,7 +609,7 @@ class TestMultiConfigValidation:
         )
 
         # Build a second config that matches a second tool
-        second_config = CategoricalAnnotationConfig(
+        second_config = CategoricalAnnotationConfigWithName(
             type="CATEGORICAL",
             name="hallucination",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -652,17 +652,17 @@ class TestMultiConfigValidation:
 
     def test_multi_config_all_categorical_required(
         self,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         prompt_version: models.PromptVersion,
     ) -> None:
         """All configs must be CategoricalAnnotationConfig, even if only the primary
         config is validated against the prompt tool."""
-        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfig
+        from phoenix.db.types.annotation_configs import ContinuousAnnotationConfigWithName
         from phoenix.server.api.helpers.evaluators import (
             validate_consistent_llm_evaluator_and_prompt_version as validate_fn,
         )
 
-        non_categorical_config = ContinuousAnnotationConfig(
+        non_categorical_config = ContinuousAnnotationConfigWithName(
             type="CONTINUOUS",
             name="score",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -2046,7 +2046,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
 
         evaluator = ExactMatchEvaluator()
         # Create a custom output config with different labels
-        custom_config = CategoricalAnnotationConfig(
+        custom_config = CategoricalAnnotationConfigWithName(
             type="CATEGORICAL",
             name="exact",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -2075,7 +2075,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
 
         evaluator = RegexEvaluator()
         # Create a custom output config with different labels
-        custom_config = CategoricalAnnotationConfig(
+        custom_config = CategoricalAnnotationConfigWithName(
             type="CATEGORICAL",
             name="regex",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -2103,7 +2103,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         from phoenix.server.api.evaluators import ContainsEvaluator
 
         evaluator = ContainsEvaluator()
-        custom_config = CategoricalAnnotationConfig(
+        custom_config = CategoricalAnnotationConfigWithName(
             type="CATEGORICAL",
             name="contains_custom_scores",
             optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -2315,7 +2315,7 @@ class TestLLMEvaluator:
     def llm_evaluator(
         self,
         llm_evaluator_prompt_version: models.PromptVersion,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         openai_streaming_client: "OpenAIStreamingClient",
     ) -> LLMEvaluator:
         template = llm_evaluator_prompt_version.template
@@ -2418,7 +2418,7 @@ class TestLLMEvaluator:
     def multipart_llm_evaluator(
         self,
         multipart_llm_evaluator_prompt_version: models.PromptVersion,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         openai_streaming_client: "OpenAIStreamingClient",
     ) -> LLMEvaluator:
         template = multipart_llm_evaluator_prompt_version.template
@@ -2445,7 +2445,7 @@ class TestLLMEvaluator:
         project: models.Project,
         tracer: Tracer,
         llm_evaluator: LLMEvaluator,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         input_mapping: EvaluatorInputMappingInput,
         custom_vcr: CustomVCR,
         gpt_4o_mini_generative_model: models.GenerativeModel,
@@ -2800,7 +2800,7 @@ class TestLLMEvaluator:
         project: models.Project,
         tracer: Tracer,
         llm_evaluator: LLMEvaluator,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
     ) -> None:
         # Invalid JSONPath expressions are now validated at construction time
         with pytest.raises(BadRequest) as exc_info:
@@ -2816,7 +2816,7 @@ class TestLLMEvaluator:
         project: models.Project,
         tracer: Tracer,
         llm_evaluator: LLMEvaluator,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
     ) -> None:
         # Valid JSONPath syntax but path doesn't exist in context
         input_mapping = EvaluatorInputMappingInput(
@@ -2923,7 +2923,7 @@ class TestLLMEvaluator:
         project: models.Project,
         tracer: Tracer,
         llm_evaluator: LLMEvaluator,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         input_mapping: EvaluatorInputMappingInput,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -3144,7 +3144,7 @@ class TestLLMEvaluator:
         project: models.Project,
         tracer: Tracer,
         llm_evaluator: LLMEvaluator,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
         text_response_body = (
@@ -3312,7 +3312,7 @@ class TestLLMEvaluator:
         project: models.Project,
         tracer: Tracer,
         llm_evaluator: LLMEvaluator,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
         tool_call_response_body = (
@@ -3372,7 +3372,7 @@ class TestLLMEvaluator:
         db: DbSessionFactory,
         project: models.Project,
         tracer: Tracer,
-        output_config: CategoricalAnnotationConfig,
+        output_config: CategoricalAnnotationConfigWithName,
         input_mapping: EvaluatorInputMappingInput,
         multipart_llm_evaluator: LLMEvaluator,
         custom_vcr: CustomVCR,
@@ -3655,8 +3655,8 @@ class TestGetEvaluators:
 
 
 @pytest.fixture
-def output_config() -> CategoricalAnnotationConfig:
-    return CategoricalAnnotationConfig(
+def output_config() -> CategoricalAnnotationConfigWithName:
+    return CategoricalAnnotationConfigWithName(
         type="CATEGORICAL",
         name="correctness",
         optimization_direction=OptimizationDirection.MAXIMIZE,
