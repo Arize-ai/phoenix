@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from typing import Iterator
 
 from sqlalchemy import create_engine, text
 
-from tests.integration._helpers import _AppInfo, _LoggedInTokens, _Profile, _User, _httpx_client
+from tests.integration._helpers import (
+    _AppInfo,
+    _httpx_client,
+    _Profile,
+    _UserFactory,
+)
 
 
 def _expire_lockout(app: _AppInfo, email: str) -> None:
@@ -16,11 +22,7 @@ def _expire_lockout(app: _AppInfo, email: str) -> None:
             if schema := app.env.get("PHOENIX_SQL_DATABASE_SCHEMA"):
                 conn.execute(text(f'SET search_path TO "{schema}"'))
             conn.execute(
-                text(
-                    "UPDATE users "
-                    "SET locked_until = :locked_until "
-                    "WHERE email = :email"
-                ),
+                text("UPDATE users SET locked_until = :locked_until WHERE email = :email"),
                 {
                     "locked_until": datetime.now(timezone.utc) - timedelta(minutes=1),
                     "email": email,
@@ -30,42 +32,16 @@ def _expire_lockout(app: _AppInfo, email: str) -> None:
         engine.dispose()
 
 
-def _create_local_user(app: _AppInfo, profile: _Profile) -> _User:
-    client = _httpx_client(app, app.admin_secret)
-    json_ = {
-        "user": {
-            "email": profile.email,
-            "username": profile.username,
-            "role": "MEMBER",
-            "auth_method": "LOCAL",
-            "password": profile.password,
-        },
-        "send_welcome_email": False,
-    }
-    resp = client.post("v1/users", json=json_)
-    resp.raise_for_status()
-    data = resp.json()["data"]
-    from tests.integration._helpers import _GqlId  # avoids circular import in helpers
-
-    return _User(
-        gid=_GqlId(data["id"]),
-        role=user_role := user_role,  # placeholder to satisfy type checker; unused at runtime
-        profile=profile,
-        profile_picture_url=None,
-    )
-
-
 def test_expired_lockout_allows_fresh_attempts(
     _app: _AppInfo,
-    _profiles: list[_Profile],
+    _new_user: _UserFactory,
+    _profiles: Iterator[_Profile],
 ) -> None:
     app = _app
-    profile = _profiles[0]
+    profile = next(_profiles)
 
     # Create a LOCAL user with a known password.
-    from tests.integration._helpers import _new_user  # reuse existing user factory
-
-    user = _new_user(app, role=user_role, profile=profile)  # type: ignore[name-defined]
+    user = _new_user(app, profile=profile)
     email = user.email
     correct_password = user.password
     wrong_password = correct_password + "wrong"
@@ -91,4 +67,3 @@ def test_expired_lockout_allows_fresh_attempts(
     assert resp.status_code == 204
     assert resp.cookies.get("phoenix-access-token")
     assert resp.cookies.get("phoenix-refresh-token")
-
