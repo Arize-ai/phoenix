@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	compile-protobuf compile-prompts sync-models ddl-extract check-graphql-permissions alembic \
+	compile-protobuf compile-prompts sync-models compile-schema-ddl check-graphql-permissions alembic \
 	clean clean-all
 
 help: ## Show this help message
@@ -95,7 +95,7 @@ help: ## Show this help message
 	@echo -e "  compile-protobuf       - Compile protobuf files"
 	@echo -e "  compile-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
-	@echo -e "  ddl-extract            - Extract DDL schema from PostgreSQL (use ARGS= for arguments)"
+	@echo -e "  compile-schema-ddl     - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -370,8 +370,8 @@ sync-models: ## Sync model cost manifest from remote sources
 	@$(UV) run python .github/.scripts/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-ddl-extract: ## Extract DDL schema from PostgreSQL database (use ARGS= to pass arguments)
-	@echo -e "$(CYAN)Extracting DDL schema...$(NC)"
+compile-schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass arguments)
+	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
 	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
 	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
 	@cd scripts/ddl && $(UV) run ty check generate_ddl_postgresql.py && $(UV) run python generate_ddl_postgresql.py $(ARGS)
