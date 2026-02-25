@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	compile-protobuf compile-prompts sync-models compile-schema-ddl check-graphql-permissions alembic \
+	compile-protobuf compile-prompts sync-models compile-schema-ddl check-graphql-permissions \
 	clean clean-all
 
 help: ## Show this help message
@@ -91,7 +91,6 @@ help: ## Show this help message
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
-	@echo -e "  alembic                - Run alembic migrations (use ARGS= e.g. ARGS=\"upgrade head\")"
 	@echo -e "  compile-protobuf       - Compile protobuf files"
 	@echo -e "  compile-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
@@ -372,7 +371,7 @@ compile-schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to
 
 check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
 	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
-	@cd src/phoenix/server/api && $(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py
+	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 test-helm: ## Run comprehensive Helm chart tests
