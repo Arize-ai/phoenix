@@ -360,7 +360,7 @@ force-single-line = false
 line-ending = "native"
 
 [tool.alembic]
-script_location = "src/phoenix/db/migrations"
+script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
 required-version = "==0.9.18"  # When updating this version, also update the `backend-builder` image in the Dockerfile
