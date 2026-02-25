@@ -27,6 +27,7 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import type { DocumentAnnotationActionMenuDeleteMutation } from "./__generated__/DocumentAnnotationActionMenuDeleteMutation.graphql";
 
 enum AnnotationAction {
+  EDIT = "editAnnotation",
   DELETE = "deleteAnnotation",
 }
 
@@ -34,10 +35,12 @@ export function DocumentAnnotationActionMenu({
   annotationId,
   annotationName,
   spanNodeId,
+  onEdit,
 }: {
   annotationId: string;
   annotationName: string;
   spanNodeId: string;
+  onEdit?: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
@@ -61,6 +64,12 @@ export function DocumentAnnotationActionMenu({
                   label
                   score
                   explanation
+                  createdAt
+                  updatedAt
+                  user {
+                    username
+                    profilePictureUrl
+                  }
                 }
               }
             }
@@ -113,6 +122,25 @@ export function DocumentAnnotationActionMenu({
           <Dialog>
             {({ close }) => (
               <ListBox style={{ minHeight: "auto" }}>
+                {onEdit && (
+                  <ListBoxItem
+                    id={AnnotationAction.EDIT}
+                    onAction={() => {
+                      onEdit();
+                      close();
+                    }}
+                  >
+                    <Flex
+                      direction="row"
+                      gap="size-75"
+                      justifyContent="start"
+                      alignItems="center"
+                    >
+                      <Icon svg={<Icons.EditOutline />} />
+                      <Text>Edit</Text>
+                    </Flex>
+                  </ListBoxItem>
+                )}
                 <ListBoxItem
                   id={AnnotationAction.DELETE}
                   onAction={() => {

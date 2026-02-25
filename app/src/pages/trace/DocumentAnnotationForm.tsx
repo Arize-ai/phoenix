@@ -1,16 +1,10 @@
 import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
-import type { Key} from "react-aria-components";
+import type { Key } from "react-aria-components";
 import { Input, TextArea } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Button,
-  Flex,
-  Label,
-  TextField,
-  View,
-} from "@phoenix/components";
+import { Button, Flex, Label, TextField, View } from "@phoenix/components";
 import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
@@ -39,12 +33,14 @@ export function DocumentAnnotationForm({
   spanNodeId,
   documentPosition,
   existingAnnotation,
-  onDismiss,
+  onSaved,
+  onCancel,
 }: {
   spanNodeId: string;
   documentPosition: number;
   existingAnnotation?: DocumentAnnotation | null;
-  onDismiss?: () => void;
+  onSaved?: () => void;
+  onCancel: () => void;
 }) {
   const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
@@ -163,6 +159,7 @@ export function DocumentAnnotationForm({
             title: "Annotation updated",
             message: "Document annotation saved successfully.",
           });
+          onSaved?.();
         },
         onError: (error) => {
           notifyError({
@@ -194,6 +191,7 @@ export function DocumentAnnotationForm({
             title: "Annotation created",
             message: "Document annotation saved successfully.",
           });
+          onSaved?.();
         },
         onError: (error) => {
           notifyError({
@@ -215,6 +213,7 @@ export function DocumentAnnotationForm({
     documentPosition,
     notifySuccess,
     notifyError,
+    onSaved,
   ]);
 
   return (
@@ -281,16 +280,14 @@ export function DocumentAnnotationForm({
           <TextArea rows={2} placeholder="Optional explanation" />
         </TextField>
         <Flex direction="row" gap="size-100" justifyContent="end">
-          {onDismiss && (
-            <Button size="S" onPress={onDismiss}>
-              Cancel
-            </Button>
-          )}
+          <Button size="S" onPress={onCancel}>
+            Cancel
+          </Button>
           <Button
             variant="primary"
             size="S"
             onPress={handleSave}
-            isDisabled={!name.trim() || isBusy}
+            isDisabled={isBusy || !name.trim()}
           >
             Save
           </Button>
