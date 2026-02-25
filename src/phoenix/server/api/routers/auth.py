@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import joinedload
 from starlette.datastructures import Secret
 
@@ -158,14 +158,24 @@ async def _login(request: Request) -> Response:
             is_valid_password, password=password, salt=salt, password_hash=password_hash
         )
         if not await loop.run_in_executor(None, password_is_valid):
-            # Increment failed login attempts and lock if threshold reached
             if max_attempts > 0:
-                user.failed_login_attempts += 1
-                if user.failed_login_attempts >= max_attempts:
-                    lockout_minutes = get_env_login_lockout_duration_minutes()
-                    user.locked_until = datetime.now(timezone.utc) + timedelta(
-                        minutes=lockout_minutes
+                # Increment failed login attempts and lock if threshold reached using an
+                # atomic database-side update to avoid lost updates under concurrency.
+                lockout_minutes = get_env_login_lockout_duration_minutes()
+                lockout_until = datetime.now(timezone.utc) + timedelta(minutes=lockout_minutes)
+                incremented_attempts = models.User.failed_login_attempts + 1
+                stmt = (
+                    update(models.User)
+                    .where(models.User.id == user.id)
+                    .values(
+                        failed_login_attempts=incremented_attempts,
+                        locked_until=case(
+                            (incremented_attempts >= max_attempts, lockout_until),
+                            else_=models.User.locked_until,
+                        ),
                     )
+                )
+                await session.execute(stmt)
                 await session.flush()
             # Defer raising HTTPException until after the transaction commits
             login_error = HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
