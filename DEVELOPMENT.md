@@ -6,6 +6,8 @@
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
   - [Contributing Notebooks](#contributing-notebooks)
   - [Contributing Documentation](#contributing-documentation)
+    - [Getting Started](#getting-started)
+    - [Making Changes](#making-changes)
   - [Building the Package](#building-the-package)
   - [Installing a Phoenix Build](#installing-a-phoenix-build)
   - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
@@ -18,6 +20,8 @@
       - [Query Parameters](#query-parameters)
       - [Pagination](#pagination)
       - [Response Format](#response-format)
+  - [Cursor / VS Code](#cursor--vs-code)
+    - [Debugging the Python Server](#debugging-the-python-server)
 
 ## Setting Up Your macOS Development Environment
 
@@ -50,12 +54,22 @@ nvm alias default <version-that-was-installed>
 npm i -g pnpm@9.15.5
 ```
 
-Then we will build the web app. Change directory to `app` and run:
+Then we will build the web app. 
+
+Change directory to `app`:
+
+```bash
+cd app
+```
+
+and run:
 
 ```bash
 pnpm install
 pnpm run build
 ```
+
+Check out the `README.md` file in the `app` directory for more information on developing the web application.
 
 ## Testing and Linting
 
@@ -319,8 +333,7 @@ After doing so, consider pasting the following settings into your workspace sett
 The dev server runs with `debugpy` enabled, allowing you to attach a debugger from VS Code or Cursor.
 
 1. **Create a launch configuration** at `.vscode/launch.json`:
-
-   ```json
+  ```json
    {
      "version": "0.2.0",
      "configurations": [
@@ -336,48 +349,40 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
        }
      ]
    }
-   ```
-
-   > **Note:** The default debugpy port is 5678. If you customize it via the `DEBUGPY_PORT` environment variable, update the `port` value in the launch configuration to match.
-
+  ```
+  > **Note:** The default debugpy port is 5678. If you customize it via the `DEBUGPY_PORT` environment variable, update the `port` value in the launch configuration to match.
 2. **Start the dev environment** from the `app` directory:
-
-   ```bash
+  ```bash
    pnpm dev
-   ```
-
+  ```
    This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
-
-   > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
-   >
-   > ```bash
-   > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
-   > ```
-   >
-   > **💡 Tip:** Customize ports via environment variables:
-   >
-   > ```bash
-   > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
-   > ```
-   >
-   > Or add to `app/.env`:
-   >
-   > ```
-   > VITE_PORT=3000
-   > DEBUGPY_PORT=5679
-   > ```
-
+  > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
+  >
+  > ```bash
+  > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
+  > ```
+  >
+  > **💡 Tip:** Customize ports via environment variables:
+  >
+  > ```bash
+  > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
+  > ```
+  >
+  > Or add to `app/.env`:
+  >
+  > ```
+  > VITE_PORT=3000
+  > DEBUGPY_PORT=5679
+  > ```
 3. **Set breakpoints** by clicking in the gutter (left of line numbers) in any Python file.
-
 4. **Attach the debugger**:
-   - Press `⇧⌘D` (macOS) or `Ctrl+Shift+D` (Windows/Linux) to open the Run and Debug panel
-   - Select **"Attach to Phoenix Dev Server"** from the dropdown
-   - Press `F5` or click the green play button
-
+  - Press `⇧⌘D` (macOS) or `Ctrl+Shift+D` (Windows/Linux) to open the Run and Debug panel
+  - Select **"Attach to Phoenix Dev Server"** from the dropdown
+  - Press `F5` or click the green play button
 5. **Trigger your code** by making a request to the server via the UI or API.
-
 6. **Debug**: When a breakpoint is hit, use the debug toolbar to step through code:
-   - `F10` — Step over
-   - `F11` — Step into
-   - `F5` — Continue
-   - Inspect variables in the left panel or evaluate expressions in the Debug Console
+  - `F10` — Step over
+  - `F11` — Step into
+  - `F5` — Continue
+  - Inspect variables in the left panel or evaluate expressions in the Debug Console
+
