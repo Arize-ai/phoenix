@@ -374,8 +374,7 @@ jobs:
       - name: Type check all Python code
         run: uv run mypy
       - name: Ensure GraphQL mutations have permission classes
-        working-directory: src/phoenix/server/api
-        run: make check-graphql-mutations
+        run: make check-graphql-permissions
 
   unit-tests:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
