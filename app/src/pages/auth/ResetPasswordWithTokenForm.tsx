@@ -15,7 +15,7 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  MIN_PASSWORD_LENGTH,
+  PASSWORD_REQUIREMENTS_MESSAGE,
   validatePasswordComplexity,
 } from "@phoenix/utils/passwordValidation";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -113,9 +113,7 @@ export function ResetPasswordWithTokenForm({
               {error ? (
                 <FieldError>{error?.message}</FieldError>
               ) : (
-                <Text slot="description">
-                  Password must be at least {MIN_PASSWORD_LENGTH} characters
-                </Text>
+                <Text slot="description">{PASSWORD_REQUIREMENTS_MESSAGE}</Text>
               )}
             </TextField>
           )}

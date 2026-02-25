@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
 import {
-  MIN_PASSWORD_LENGTH,
+  PASSWORD_REQUIREMENTS_MESSAGE,
   validatePasswordComplexity,
 } from "@phoenix/utils/passwordValidation";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
@@ -166,9 +166,7 @@ export function ResetPasswordForm(props: {
             {error ? (
               <FieldError>{error?.message}</FieldError>
             ) : (
-              <Text slot="description">
-                Password must be at least {MIN_PASSWORD_LENGTH} characters
-              </Text>
+              <Text slot="description">{PASSWORD_REQUIREMENTS_MESSAGE}</Text>
             )}
           </TextField>
         )}

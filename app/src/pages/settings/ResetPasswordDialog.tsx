@@ -21,7 +21,7 @@ import {
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import {
-  MIN_PASSWORD_LENGTH,
+  PASSWORD_REQUIREMENTS_MESSAGE,
   validatePasswordComplexity,
 } from "@phoenix/utils/passwordValidation";
 
@@ -127,8 +127,7 @@ export function ResetPasswordDialog({
                       <FieldError>{error.message}</FieldError>
                     ) : (
                       <Text slot="description">
-                        Password must be at least {MIN_PASSWORD_LENGTH}{" "}
-                        characters
+                        {PASSWORD_REQUIREMENTS_MESSAGE}
                       </Text>
                     )}
                   </TextField>

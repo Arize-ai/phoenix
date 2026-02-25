@@ -14,7 +14,7 @@ import {
 } from "@phoenix/components";
 import { UserRole } from "@phoenix/constants";
 import {
-  MIN_PASSWORD_LENGTH,
+  PASSWORD_REQUIREMENTS_MESSAGE,
   validatePasswordComplexity,
 } from "@phoenix/utils/passwordValidation";
 
@@ -168,8 +168,7 @@ export function UserForm({
                       <FieldError>{error?.message}</FieldError>
                     ) : (
                       <Text slot="description">
-                        Password must be at least {MIN_PASSWORD_LENGTH}{" "}
-                        characters
+                        {PASSWORD_REQUIREMENTS_MESSAGE}
                       </Text>
                     )}
                   </TextField>
