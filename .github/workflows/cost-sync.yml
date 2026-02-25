@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "0 13 * * 1"  # once a week monday mornings
+    - cron: "0 13 * * 1-5"  # every weekday morning
 
 jobs:
   sync-model-pricing:
@@ -25,10 +25,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Sync model cost manifest with LiteLLM
-        run: |
-          uv venv
-          uv pip install pydantic
-          uv run python .github/.scripts/sync_models.py
+        run: make sync-models
 
       - name: Check for changes
         id: verify-changed-files
