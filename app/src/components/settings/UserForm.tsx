@@ -13,10 +13,12 @@ import {
   View,
 } from "@phoenix/components";
 import { UserRole } from "@phoenix/constants";
+import {
+  MIN_PASSWORD_LENGTH,
+  validatePasswordComplexity,
+} from "@phoenix/utils/passwordValidation";
 
 import { RoleSelect } from "./RoleSelect";
-
-const MIN_PASSWORD_LENGTH = 4;
 
 export type UserFormParams = {
   email: string;
@@ -144,10 +146,7 @@ export function UserForm({
                 control={control}
                 rules={{
                   required: "Password is required",
-                  minLength: {
-                    value: MIN_PASSWORD_LENGTH,
-                    message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-                  },
+                  validate: validatePasswordComplexity,
                 }}
                 render={({
                   field: { name, onChange, onBlur, value },
@@ -169,7 +168,8 @@ export function UserForm({
                       <FieldError>{error?.message}</FieldError>
                     ) : (
                       <Text slot="description">
-                        Password must be at least 4 characters
+                        Password must be at least {MIN_PASSWORD_LENGTH}{" "}
+                        characters
                       </Text>
                     )}
                   </TextField>
@@ -180,12 +180,11 @@ export function UserForm({
                 control={control}
                 rules={{
                   required: "Please confirm your password",
-                  minLength: {
-                    value: MIN_PASSWORD_LENGTH,
-                    message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+                  validate: {
+                    complexity: validatePasswordComplexity,
+                    match: (value, formValues) =>
+                      value === formValues.password || "Passwords do not match",
                   },
-                  validate: (value, formValues) =>
-                    value === formValues.password || "Passwords do not match",
                 }}
                 render={({
                   field: { name, onChange, onBlur, value },

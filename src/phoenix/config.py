@@ -314,6 +314,21 @@ ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_
 """
 The duration, in minutes, before password reset tokens expire.
 """
+ENV_PHOENIX_MAX_LOGIN_ATTEMPTS = "PHOENIX_MAX_LOGIN_ATTEMPTS"
+"""
+The maximum number of consecutive failed login attempts before locking the account.
+Set to 0 to disable account lockout. Defaults to 5.
+"""
+ENV_PHOENIX_LOGIN_LOCKOUT_DURATION_MINUTES = "PHOENIX_LOGIN_LOCKOUT_DURATION_MINUTES"
+"""
+The duration, in minutes, that an account remains locked after exceeding the maximum
+number of failed login attempts. Defaults to 30.
+"""
+ENV_PHOENIX_PASSWORD_HISTORY_SIZE = "PHOENIX_PASSWORD_HISTORY_SIZE"
+"""
+The number of previous passwords to remember. Users cannot reuse any of these passwords.
+Set to 0 to disable password history checking. Defaults to 3.
+"""
 ENV_PHOENIX_CSRF_TRUSTED_ORIGINS = "PHOENIX_CSRF_TRUSTED_ORIGINS"
 """
 A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF)
@@ -1206,6 +1221,32 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+def get_env_max_login_attempts() -> int:
+    """
+    Gets the maximum number of consecutive failed login attempts before locking the account.
+    Returns 0 if account lockout is disabled. Defaults to 5.
+    """
+    return _int_val(ENV_PHOENIX_MAX_LOGIN_ATTEMPTS, 5)
+
+
+def get_env_login_lockout_duration_minutes() -> int:
+    """
+    Gets the duration in minutes that an account remains locked after exceeding
+    the maximum number of failed login attempts. Defaults to 30.
+    """
+    value = _int_val(ENV_PHOENIX_LOGIN_LOCKOUT_DURATION_MINUTES, 30)
+    assert value > 0
+    return value
+
+
+def get_env_password_history_size() -> int:
+    """
+    Gets the number of previous passwords to remember for reuse prevention.
+    Returns 0 if password history checking is disabled. Defaults to 3.
+    """
+    return _int_val(ENV_PHOENIX_PASSWORD_HISTORY_SIZE, 3)
 
 
 def get_env_csrf_trusted_origins() -> list[str]:

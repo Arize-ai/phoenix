@@ -1590,6 +1590,9 @@ class User(HasId):
     oauth2_user_id: Mapped[Optional[str]]
     # LDAP-specific field (only used by LDAP users)
     ldap_unique_id: Mapped[Optional[str]]
+    # Account lockout fields
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    locked_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     auth_method: Mapped[AuthMethod] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')", name="valid_auth_method")
     )
@@ -1607,6 +1610,9 @@ class User(HasId):
         "RefreshToken", back_populates="user"
     )
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
+    password_history: Mapped[list["PasswordHistory"]] = relationship(
+        "PasswordHistory", back_populates="user", cascade="all, delete-orphan"
+    )
 
     __mapper_args__ = {
         "polymorphic_on": "auth_method",
@@ -1777,6 +1783,19 @@ class PasswordResetToken(HasId):
     user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class PasswordHistory(HasId):
+    __tablename__ = "password_history"
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="password_history")
+    password_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    password_salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 

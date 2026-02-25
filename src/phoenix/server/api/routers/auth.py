@@ -9,6 +9,7 @@ from urllib.parse import urlencode, urlparse, urlunparse
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
+from starlette.datastructures import Secret
 
 from phoenix.auth import (
     DEFAULT_SECRET_LENGTH,
@@ -30,8 +31,14 @@ from phoenix.config import (
     get_base_url,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
+    get_env_login_lockout_duration_minutes,
+    get_env_max_login_attempts,
 )
 from phoenix.db import models
+from phoenix.server.api.helpers.password_history import (
+    check_password_history,
+    save_to_password_history,
+)
 from phoenix.server.api.routers.ldap import get_or_create_ldap_user
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
@@ -118,6 +125,8 @@ async def _login(request: Request) -> Response:
     # Sanitize email by trimming and lowercasing
     email = sanitize_email(email)
 
+    max_attempts = get_env_max_login_attempts()
+
     async with request.app.state.db() as session:
         user = await session.scalar(
             select(models.User)
@@ -131,12 +140,35 @@ async def _login(request: Request) -> Response:
         ):
             raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
-    loop = asyncio.get_running_loop()
-    password_is_valid = partial(
-        is_valid_password, password=password, salt=salt, password_hash=password_hash
-    )
-    if not await loop.run_in_executor(None, password_is_valid):
-        raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+        # Check if account is locked
+        if (
+            max_attempts > 0
+            and user.locked_until is not None
+            and user.locked_until.timestamp() > datetime.now(timezone.utc).timestamp()
+        ):
+            raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+
+        loop = asyncio.get_running_loop()
+        password_is_valid = partial(
+            is_valid_password, password=password, salt=salt, password_hash=password_hash
+        )
+        if not await loop.run_in_executor(None, password_is_valid):
+            # Increment failed login attempts and lock if threshold reached
+            if max_attempts > 0:
+                user.failed_login_attempts += 1
+                if user.failed_login_attempts >= max_attempts:
+                    lockout_minutes = get_env_login_lockout_duration_minutes()
+                    user.locked_until = datetime.now(timezone.utc) + timedelta(
+                        minutes=lockout_minutes
+                    )
+                await session.flush()
+            raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
+
+        # Reset lockout state on successful login
+        if max_attempts > 0 and (user.failed_login_attempts > 0 or user.locked_until is not None):
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            await session.flush()
 
     return await _create_auth_response(request, user)
 
@@ -249,6 +281,13 @@ async def _initiate_password_reset(request: Request) -> Response:
     return Response(status_code=204)
 
 
+async def _hash_password(password: Secret, salt: bytes) -> bytes:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, partial(compute_password_hash, password=password, salt=salt)
+    )
+
+
 async def _reset_password(request: Request) -> Response:
     """Reset user password using a valid reset token."""
     if get_env_disable_basic_auth():
@@ -267,18 +306,23 @@ async def _reset_password(request: Request) -> Response:
     assert (user_id := claims.subject)
     async with request.app.state.db() as session:
         user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
-    if user is None or user.auth_method != "LOCAL":
-        # Withold privileged information
-        return Response(status_code=204)
-    validate_password_format(password)
-    user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-    loop = asyncio.get_running_loop()
-    user.password_hash = await loop.run_in_executor(
-        None, partial(compute_password_hash, password=password, salt=user.password_salt)
-    )
-    user.reset_password = False
-    async with request.app.state.db() as session:
-        session.add(user)
+        if user is None or user.auth_method != "LOCAL":
+            # Withold privileged information
+            return Response(status_code=204)
+        validate_password_format(password)
+        await check_password_history(
+            session=session,
+            user=user,
+            new_password=Secret(password),
+            hash_fn=_hash_password,
+        )
+        await save_to_password_history(session=session, user=user)
+        user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+        loop = asyncio.get_running_loop()
+        user.password_hash = await loop.run_in_executor(
+            None, partial(compute_password_hash, password=password, salt=user.password_salt)
+        )
+        user.reset_password = False
         await session.flush()
     response = Response(status_code=204)
     assert (token_id := claims.token_id)
@@ -314,6 +358,12 @@ async def _ldap_login(request: Request) -> Response:
     # Get or create user in Phoenix database
     async with request.app.state.db() as session:
         user = await get_or_create_ldap_user(session, user_info, authenticator.config)
+        # Reset lockout state on successful LDAP login
+        max_attempts = get_env_max_login_attempts()
+        if max_attempts > 0 and (user.failed_login_attempts > 0 or user.locked_until is not None):
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            await session.flush()
 
     return await _create_auth_response(request, user)
 

@@ -14,9 +14,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import {
+  MIN_PASSWORD_LENGTH,
+  validatePasswordComplexity,
+} from "@phoenix/utils/passwordValidation";
 import { prependBasename } from "@phoenix/utils/routingUtils";
-
-const MIN_PASSWORD_LENGTH = 4;
 
 export type ResetPasswordWithTokenFormParams = {
   resetToken: string;
@@ -88,10 +90,7 @@ export function ResetPasswordWithTokenForm({
           control={control}
           rules={{
             required: "Password is required",
-            minLength: {
-              value: MIN_PASSWORD_LENGTH,
-              message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-            },
+            validate: validatePasswordComplexity,
           }}
           render={({
             field: { name, onChange, onBlur, value },
@@ -126,12 +125,11 @@ export function ResetPasswordWithTokenForm({
           control={control}
           rules={{
             required: "Password is required",
-            minLength: {
-              value: MIN_PASSWORD_LENGTH,
-              message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+            validate: {
+              complexity: validatePasswordComplexity,
+              match: (value, formValues) =>
+                value === formValues.newPassword || "Passwords do not match",
             },
-            validate: (value, formValues) =>
-              value === formValues.newPassword || "Passwords do not match",
           }}
           render={({
             field: { name, onChange, onBlur, value },

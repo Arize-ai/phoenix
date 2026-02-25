@@ -30,6 +30,10 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
+from phoenix.server.api.helpers.password_history import (
+    check_password_history,
+    save_to_password_history,
+)
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -202,6 +206,13 @@ class UserMutationMixin:
                 if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
+                await check_password_history(
+                    session=session,
+                    user=user,
+                    new_password=Secret(password),
+                    hash_fn=info.context.hash_password,
+                )
+                await save_to_password_history(session=session, user=user)
                 salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_salt = salt
                 user.password_hash = await info.context.hash_password(Secret(password), salt)
@@ -241,6 +252,13 @@ class UserMutationMixin:
                 ) or not await info.context.is_valid_password(Secret(current_password), user):
                     raise Conflict("Valid current password is required to modify password")
                 validate_password_format(password)
+                await check_password_history(
+                    session=session,
+                    user=user,
+                    new_password=Secret(password),
+                    hash_fn=info.context.hash_password,
+                )
+                await save_to_password_history(session=session, user=user)
                 salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_salt = salt
                 user.password_hash = await info.context.hash_password(Secret(password), salt)

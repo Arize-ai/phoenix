@@ -372,6 +372,8 @@ CREATE TABLE public.users (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     auth_method VARCHAR NOT NULL,
     ldap_unique_id VARCHAR,
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_users PRIMARY KEY (id),
     CHECK ((((auth_method)::text <> 'LDAP'::text) OR ((oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND ((email IS NOT NULL) OR (ldap_unique_id IS NOT NULL))))),
     CHECK ((((auth_method)::text <> 'LOCAL'::text) OR ((password_hash IS NOT NULL) AND (password_salt IS NOT NULL) AND (oauth2_client_id IS NULL) AND (oauth2_user_id IS NULL) AND (ldap_unique_id IS NULL)))),
@@ -971,6 +973,25 @@ CREATE TABLE public.generative_model_custom_providers (
         REFERENCES public.users (id)
         ON DELETE SET NULL
 );
+
+
+-- Table: password_history
+-- -----------------------
+CREATE TABLE public.password_history (
+    id serial NOT NULL,
+    user_id INTEGER NOT NULL,
+    password_hash BYTEA NOT NULL,
+    password_salt BYTEA NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_password_history PRIMARY KEY (id),
+    CONSTRAINT fk_password_history_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_password_history_user_id ON public.password_history
+    USING btree (user_id);
 
 
 -- Table: password_reset_tokens

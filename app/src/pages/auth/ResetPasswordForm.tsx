@@ -15,12 +15,14 @@ import {
   VisuallyHidden,
 } from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
+import {
+  MIN_PASSWORD_LENGTH,
+  validatePasswordComplexity,
+} from "@phoenix/utils/passwordValidation";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import type { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
 import type { ResetPasswordFormQuery$key } from "./__generated__/ResetPasswordFormQuery.graphql";
-
-const MIN_PASSWORD_LENGTH = 4;
 
 export type ResetPasswordFormParams = {
   currentPassword: string;
@@ -137,13 +139,12 @@ export function ResetPasswordForm(props: {
         control={control}
         rules={{
           required: "Password is required",
-          minLength: {
-            value: MIN_PASSWORD_LENGTH,
-            message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+          validate: {
+            complexity: validatePasswordComplexity,
+            different: (value, formValues) =>
+              value !== formValues.currentPassword ||
+              "New password must be different",
           },
-          validate: (value, formValues) =>
-            value !== formValues.currentPassword ||
-            "New password must be different",
         }}
         render={({
           field: { name, onChange, onBlur, value },
@@ -177,12 +178,11 @@ export function ResetPasswordForm(props: {
         control={control}
         rules={{
           required: "Password is required",
-          minLength: {
-            value: MIN_PASSWORD_LENGTH,
-            message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+          validate: {
+            complexity: validatePasswordComplexity,
+            match: (value, formValues) =>
+              value === formValues.newPassword || "Passwords do not match",
           },
-          validate: (value, formValues) =>
-            value === formValues.newPassword || "Passwords do not match",
         }}
         render={({
           field: { name, onChange, onBlur, value },
