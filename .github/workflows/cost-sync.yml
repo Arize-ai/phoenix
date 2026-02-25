@@ -6,7 +6,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "0 13 * * 1"  # once a week monday mornings
+    - cron: "0 13 * * 1-5"  # every weekday morning
 
 jobs:
   sync-model-pricing:
@@ -25,7 +25,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Sync model cost manifest with LiteLLM
-        run: uvx tox run -e sync_models
+        run: make sync-models
 
       - name: Check for changes
         id: verify-changed-files

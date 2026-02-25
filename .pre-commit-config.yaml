@@ -1,27 +1,18 @@
 repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.12.5"
-    hooks:
-      - id: ruff-format
-      - id: ruff
-        args: [--fix]
   - repo: local
     hooks:
-      - id: clean-notebooks
-        name: clean-notebooks
-        files: \.ipynb$
-        exclude: ^tutorials/evals/.*\.ipynb$
-        stages: [pre-commit]
+      - id: format-python
+        name: format python
         language: system
-        entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
-  - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.9.1
-    hooks:
-      - id: nbqa-ruff
-        name: format-notebooks
-        files: \.ipynb$
-        stages: [pre-commit]
-        args: ["--fix", "--ignore=E402", "--ignore=E501", "--ignore=F704"]
+        entry: make format-python
+        files: \.py$
+        pass_filenames: false
+      - id: lint-python
+        name: lint python
+        language: system
+        entry: make lint-python
+        files: \.py$
+        pass_filenames: false
   - repo: local
     hooks:
       - id: oxfmt-app

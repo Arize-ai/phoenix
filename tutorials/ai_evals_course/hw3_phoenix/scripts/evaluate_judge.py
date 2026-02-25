@@ -16,11 +16,10 @@ import litellm
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-from rich.console import Console
-
 from phoenix.client import Client
 from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
+from rich.console import Console
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

@@ -587,9 +587,11 @@ class PostgresQueryAnalyzer:
         """Get results sorted by query number."""
         return sorted(
             self.results.values(),
-            key=lambda x: int(x.query_name.split()[-1])
-            if x.query_name.split()[-1].isdigit()
-            else float("inf"),
+            key=lambda x: (
+                int(x.query_name.split()[-1])
+                if x.query_name.split()[-1].isdigit()
+                else float("inf")
+            ),
         )
 
 

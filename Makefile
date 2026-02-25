@@ -16,6 +16,7 @@ APP_DIR := app
 JS_DIR := js
 SCHEMAS_DIR := schemas
 PACKAGES_DIR := packages
+PHOENIX_CLIENT_GENERATED := packages/phoenix-client/src/phoenix/client/__generated__
 
 # Colors for output
 CYAN := \033[0;36m
@@ -32,10 +33,11 @@ NC := \033[0m # No Color
 	setup install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi codegen-python-client codegen-ts-client \
-	dev dev-backend dev-frontend \
-	test test-python test-frontend test-ts typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	dev dev-backend dev-frontend dev-docker dev-mock-llm \
+	test test-python test-frontend test-ts test-helm typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
+	codegen-protobuf codegen-prompts sync-models schema-ddl check-graphql-permissions \
 	clean clean-all
 
 help: ## Show this help message
@@ -61,12 +63,15 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
 	@echo -e "  dev-backend            - Backend only (FastAPI server)"
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
+	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
+	@echo -e "  dev-mock-llm           - Start the mock LLM server"
 	@echo -e ""
 	@echo -e "$(GREEN)Testing:$(NC)"
 	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + frontend + TypeScript)"
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
+	@echo -e "  test-helm              - Run Helm chart tests
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
@@ -83,6 +88,13 @@ help: ## Show this help message
 	@echo -e "  lint-python            - Lint Python with ruff"
 	@echo -e "  lint-frontend          - Lint frontend (app/)"
 	@echo -e "  lint-ts                - Lint TypeScript packages (js/)"
+	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
+	@echo -e ""
+	@echo -e "$(GREEN)Utilities:$(NC)"
+	@echo -e "  codegen-protobuf       - Compile protobuf files"
+	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
+	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
+	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -145,7 +157,7 @@ setup: check-tools install-python install-node ## Complete development environme
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
-	@$(TOX) run -q -e build_graphql_schema
+	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o $(APP_DIR)/schema.graphql
 	@echo -e "$(GREEN)✓ app/schema.graphql$(NC)"
 
 relay-build: ## Build Relay from GraphQL schema
@@ -158,12 +170,29 @@ graphql: schema-graphql relay-build ## Generate GraphQL schema and build Relay (
 
 schema-openapi: ## Generate OpenAPI schema from Python
 	@echo -e "$(CYAN)Generating OpenAPI schema...$(NC)"
-	@$(TOX) run -q -e build_openapi_schema
+	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
-	@$(TOX) run -q -e openapi_codegen_for_python_client
+	@rm -f $(PHOENIX_CLIENT_GENERATED)/v1/__init__.py
+	@$(UV) run datamodel-codegen \
+		--input $(CURDIR)/schemas/openapi.json \
+		--input-file-type openapi \
+		--output $(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py \
+		--output-model-type dataclasses.dataclass \
+		--collapse-root-models \
+		--enum-field-as-literal all \
+		--target-python-version 3.10 \
+		--use-default-kwarg \
+		--use-double-quotes \
+		--use-generic-container-types \
+		--wrap-string-literal \
+		--disable-timestamp
+	@$(UV) run python -c "import re; file = '$(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py'; lines = [re.sub(r'\\bSequence]', 'Sequence[Any]]', line) for line in open(file).readlines()]; open(file, 'w').writelines(lines)"
+	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 codegen-ts-client: ## Generate TypeScript client types from OpenAPI
@@ -184,8 +213,7 @@ dev: ## Full dev environment (backend + frontend with hot reload)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"
-	$(TOX) run -e phoenix_main
-
+	$(UV) run phoenix serve
 dev-frontend: ## Frontend only (React dev server)
 	@echo -e "$(CYAN)Starting frontend dev server...$(NC)"
 	cd $(APP_DIR) && $(PNPM) run dev:ui
@@ -238,7 +266,7 @@ typecheck: typecheck-python typecheck-frontend typecheck-ts ## Type check all co
 
 format-python: ## Format Python code with ruff
 	@echo -e "$(CYAN)Formatting Python code...$(NC)"
-	@$(TOX) run -q -e ruff
+	@$(UV) run ruff format
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 format-frontend: ## Format frontend (app/)
@@ -254,14 +282,20 @@ format-ts: ## Format TypeScript packages (js/)
 format: format-python format-frontend format-ts ## Format all code (Python + frontend + TypeScript)
 	@echo -e "$(GREEN)✓ Code formatting complete$(NC)"
 
-clean-notebooks: ## Clean Jupyter notebook metadata
+clean-notebooks: ## Clean Jupyter notebook output and metadata
 	@echo -e "$(CYAN)Cleaning Jupyter notebook metadata...$(NC)"
-	@$(TOX) run -q -e clean_jupyter_notebooks
+	@find . -type f -name "*.ipynb" \
+		-not -path "*/tutorials/evals/*" \
+		-not -path "*/tutorials/ai_evals_course/*" \
+		-exec uv run jupyter nbconvert \
+			--ClearOutputPreprocessor.enabled=True \
+			--ClearMetadataPreprocessor.enabled=True \
+			--inplace {} +
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint-python: ## Lint Python code with ruff
 	@echo -e "$(CYAN)Linting Python code...$(NC)"
-	@$(TOX) run -q -e ruff
+	@$(UV) run ruff check --fix
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 lint-frontend: ## Lint frontend (app/)
@@ -298,6 +332,59 @@ build-ts: ## Build TypeScript packages
 
 build: build-python build-frontend build-ts ## Build everything (Python + frontend + TypeScript packages)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
+
+#=============================================================================
+# Utilities
+#=============================================================================
+
+codegen-protobuf: ## Generate protobuf files
+	@echo -e "$(CYAN)Compiling protobuf files...$(NC)"
+	$(UV) run python -m grpc_tools.protoc \
+		-I src/phoenix/proto \
+		--python_out=src/phoenix \
+		--mypy_out=src/phoenix \
+		src/phoenix/proto/trace/v1/evaluation.proto
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+codegen-prompts: ## Generate prompts code from YAML files
+	@echo -e "$(CYAN)Generating prompts code...$(NC)"
+	@$(UV) run python scripts/prompts/compile_python_prompts.py src/phoenix/__generated__/classification_evaluator_configs
+	@$(UV) run python scripts/prompts/compile_python_prompts.py packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+	@$(UV) run ruff format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+	@$(UV) run ruff check --fix src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+	@$(UV) run python scripts/prompts/compile_typescript_prompts.py js/packages/phoenix-evals/src/__generated__/default_templates
+	@$(UV) run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/api/helpers/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+sync-models: ## Sync model cost manifest from remote sources
+	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
+	@$(UV) pip install pydantic
+	@$(UV) run python .github/.scripts/sync_models.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass arguments)
+	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
+	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
+	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
+	@cd scripts/ddl && $(UV) run ty check generate_ddl_postgresql.py && $(UV) run python generate_ddl_postgresql.py $(ARGS)
+
+check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
+	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-helm: ## Run comprehensive Helm chart tests
+	@echo -e "$(CYAN)Running Helm chart tests...$(NC)"
+	$(UV) run python scripts/ci/test_helm.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, default: up)
+	@echo -e "$(CYAN)Starting Docker devops environment...$(NC)"
+	cd scripts/docker/devops && bash dev.sh $(or $(ARGS),up)
+
+dev-mock-llm: ## Start the mock LLM server
+	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
+	cd scripts/mock-llm-server && $(PNPM) install --frozen-lockfile && $(PNPM) run build:all && $(PNPM) start
 
 #=============================================================================
 # Cleanup
