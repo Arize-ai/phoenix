@@ -22,9 +22,9 @@ from typing_extensions import TypedDict, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
     CategoricalAnnotationValue,
-    ContinuousAnnotationConfig,
+    ContinuousAnnotationConfigWithName,
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -91,7 +91,9 @@ class EvaluationResult(TypedDict):
     end_time: datetime
 
 
-EvaluatorOutputConfig: TypeAlias = CategoricalAnnotationConfig | ContinuousAnnotationConfig
+EvaluatorOutputConfig: TypeAlias = (
+    CategoricalAnnotationConfigWithName | ContinuousAnnotationConfigWithName
+)
 
 
 class BaseEvaluator(ABC):
@@ -244,18 +246,18 @@ class LLMEvaluator(BaseEvaluator):
         start_time = datetime.now(timezone.utc)
 
         # LLMEvaluator only supports categorical output configs
-        categorical_configs: list[CategoricalAnnotationConfig] = []
+        categorical_configs: list[CategoricalAnnotationConfigWithName] = []
         for config in output_configs:
-            if not isinstance(config, CategoricalAnnotationConfig):
+            if not isinstance(config, CategoricalAnnotationConfigWithName):
                 raise ValueError(
-                    f"LLMEvaluator only supports CategoricalAnnotationConfig, "
+                    f"LLMEvaluator only supports CategoricalAnnotationConfigWithName, "
                     f"got {type(config).__name__}"
                 )
             categorical_configs.append(config)
 
         multi_output = len(categorical_configs) > 1
-        configs_by_name: dict[str, CategoricalAnnotationConfig] = {
-            config.name or "": config for config in categorical_configs
+        configs_by_name: dict[str, CategoricalAnnotationConfigWithName] = {
+            config.name: config for config in categorical_configs
         }
 
         tracer_ = tracer or NoOpTracer()
@@ -577,7 +579,7 @@ class BuiltInEvaluator(BaseEvaluator):
         - values[0] is the "matched/pass" case
         - values[1] is the "not matched/fail" case
         """
-        if isinstance(output_config, CategoricalAnnotationConfig):
+        if isinstance(output_config, CategoricalAnnotationConfigWithName):
             index = 0 if matched else 1
             if index < len(output_config.values):
                 value = output_config.values[index]
@@ -775,7 +777,9 @@ async def _get_llm_evaluators(
             output_configs=[
                 cfg
                 for cfg in llm_evaluator_orm.output_configs
-                if isinstance(cfg, (CategoricalAnnotationConfig, ContinuousAnnotationConfig))
+                if isinstance(
+                    cfg, (CategoricalAnnotationConfigWithName, ContinuousAnnotationConfigWithName)
+                )
             ],
             prompt_name=prompt.name.root,
         )
@@ -1195,7 +1199,7 @@ class ContainsEvaluator(BuiltInEvaluator):
     @property
     def output_configs(self) -> list[EvaluatorOutputConfig]:
         return [
-            CategoricalAnnotationConfig(
+            CategoricalAnnotationConfigWithName(
                 type="CATEGORICAL",
                 name="contains",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -1443,7 +1447,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
     @property
     def output_configs(self) -> list[EvaluatorOutputConfig]:
         return [
-            CategoricalAnnotationConfig(
+            CategoricalAnnotationConfigWithName(
                 type="CATEGORICAL",
                 name="exact_match",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -1645,7 +1649,7 @@ class RegexEvaluator(BuiltInEvaluator):
     @property
     def output_configs(self) -> list[EvaluatorOutputConfig]:
         return [
-            CategoricalAnnotationConfig(
+            CategoricalAnnotationConfigWithName(
                 type="CATEGORICAL",
                 name="regex",
                 optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -1874,7 +1878,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
     @property
     def output_configs(self) -> list[EvaluatorOutputConfig]:
         return [
-            ContinuousAnnotationConfig(
+            ContinuousAnnotationConfigWithName(
                 type="CONTINUOUS",
                 name="levenshtein_distance",
                 optimization_direction=OptimizationDirection.MINIMIZE,
@@ -2094,7 +2098,7 @@ class JSONDistanceEvaluator(BuiltInEvaluator):
     @property
     def output_configs(self) -> list[EvaluatorOutputConfig]:
         return [
-            ContinuousAnnotationConfig(
+            ContinuousAnnotationConfigWithName(
                 type="CONTINUOUS",
                 name="json_distance",
                 optimization_direction=OptimizationDirection.MINIMIZE,

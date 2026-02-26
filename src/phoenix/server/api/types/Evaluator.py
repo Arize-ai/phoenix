@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import sqlalchemy as sa
 import strawberry
@@ -13,10 +13,13 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+    AnnotationConfigWithNameType,
 )
 from phoenix.db.types.annotation_configs import (
-    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+    CategoricalAnnotationConfigWithName as CategoricalAnnotationConfigWithNameModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfigWithName as ContinuousAnnotationConfigWithNameModel,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
@@ -303,13 +306,14 @@ class LLMEvaluator(Evaluator, Node):
         return [
             _to_gql_output_config(
                 config=config,
-                annotation_name=config.name or "",
+                annotation_name=config.name,
                 id_prefix="Evaluator",
                 evaluator_id=self.id,
             )
             for config in configs
             if isinstance(
-                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+                config,
+                (CategoricalAnnotationConfigWithNameModel, ContinuousAnnotationConfigWithNameModel),
             )
         ]
 
@@ -539,13 +543,14 @@ class BuiltInEvaluator(Evaluator, Node):
         return [
             _to_gql_output_config(
                 config,
-                config.name or evaluator_class.name,  # type: ignore[attr-defined]
+                config.name,  # type: ignore[attr-defined]
                 id_prefix="BuiltInEvaluator",
                 evaluator_id=self.id,
             )
             for config in base_configs
             if isinstance(
-                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+                config,
+                (CategoricalAnnotationConfigWithNameModel, ContinuousAnnotationConfigWithNameModel),
             )
         ]
 
@@ -562,7 +567,7 @@ def _generate_output_config_id(id_prefix: str, evaluator_id: int, config_name: s
 
 
 def _to_gql_categorical_annotation_config(
-    config: CategoricalAnnotationConfigModel,
+    config: CategoricalAnnotationConfigWithNameModel,
     annotation_name: str,
     id_prefix: str,
     evaluator_id: int,
@@ -585,7 +590,7 @@ def _to_gql_categorical_annotation_config(
 
 
 def _to_gql_continuous_annotation_config(
-    config: ContinuousAnnotationConfigModel,
+    config: ContinuousAnnotationConfigWithNameModel,
     annotation_name: str,
     id_prefix: str,
     evaluator_id: int,
@@ -602,12 +607,14 @@ def _to_gql_continuous_annotation_config(
 
 
 def _to_gql_output_config(
-    config: Union[CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel],
+    config: Union[
+        CategoricalAnnotationConfigWithNameModel, ContinuousAnnotationConfigWithNameModel
+    ],
     annotation_name: str,
     id_prefix: str,
     evaluator_id: int,
 ) -> BuiltInEvaluatorOutputConfig:
-    if isinstance(config, CategoricalAnnotationConfigModel):
+    if isinstance(config, CategoricalAnnotationConfigWithNameModel):
         return _to_gql_categorical_annotation_config(
             config, annotation_name, id_prefix, evaluator_id
         )
@@ -724,7 +731,7 @@ class DatasetEvaluator(Node):
                 if evaluator is None:
                     return []
                 if isinstance(evaluator, models.LLMEvaluator):
-                    configs = evaluator.output_configs
+                    configs = cast(list[AnnotationConfigWithNameType], evaluator.output_configs)
                 elif isinstance(evaluator, models.BuiltinEvaluator):
                     builtin = get_builtin_evaluator_by_key(evaluator.key)
                     if builtin is None:
@@ -732,16 +739,18 @@ class DatasetEvaluator(Node):
                     configs = list(builtin().output_configs)
                 else:
                     return []
+        configs_list: list[AnnotationConfigWithNameType] = configs if configs is not None else []
         return [
             _to_gql_output_config(
                 config,
-                config.name or "",
+                config.name,
                 id_prefix="DatasetEvaluator",
                 evaluator_id=self.id,
             )
-            for config in configs
+            for config in configs_list
             if isinstance(
-                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+                config,
+                (CategoricalAnnotationConfigWithNameModel, ContinuousAnnotationConfigWithNameModel),
             )
         ]
 

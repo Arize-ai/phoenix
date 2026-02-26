@@ -11,9 +11,8 @@ from typing_extensions import Self, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
-    AnnotationConfigType,
-    CategoricalAnnotationConfig,
-    ContinuousAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
+    ContinuousAnnotationConfigWithName,
 )
 from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
@@ -35,7 +34,7 @@ def validate_evaluator_prompt_and_configs(
     *,
     prompt_tools: Optional[PromptTools],
     prompt_response_format: Optional[PromptResponseFormat],
-    evaluator_output_configs: list[CategoricalAnnotationConfig],
+    evaluator_output_configs: list[CategoricalAnnotationConfigWithName],
     evaluator_description: Optional[str] = None,
 ) -> None:
     """
@@ -70,7 +69,7 @@ def validate_evaluator_prompt_and_configs(
 
     # Validate each config against its matched tool
     for config in evaluator_output_configs:
-        config_name = config.name or ""
+        config_name = config.name
         prompt_tool = tools_by_name.get(config_name)
         if prompt_tool is None:
             raise ValueError(
@@ -88,7 +87,7 @@ def _validate_tool_and_config(
     *,
     prompt_tool: PromptToolFunction,
     evaluator_annotation_name: str,
-    evaluator_output_config: CategoricalAnnotationConfig,
+    evaluator_output_config: CategoricalAnnotationConfigWithName,
     evaluator_description: Optional[str] = None,
 ) -> None:
     """Validate a single tool definition against its matched output config."""
@@ -153,9 +152,9 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     if not output_configs:
         raise ValueError("LLM evaluator must have at least one output config")
     # Validate all configs are categorical
-    categorical_configs: list[CategoricalAnnotationConfig] = []
+    categorical_configs: list[CategoricalAnnotationConfigWithName] = []
     for output_config in output_configs:
-        if not isinstance(output_config, CategoricalAnnotationConfig):
+        if not isinstance(output_config, CategoricalAnnotationConfigWithName):
             raise ValueError("LLM evaluator output config must be a CategoricalAnnotationConfig")
         categorical_configs.append(output_config)
     validate_evaluator_prompt_and_configs(
@@ -308,13 +307,13 @@ def validate_unique_config_names(
 class LLMEvaluatorOutputConfigs(BaseModel):
     """Validated output configs for LLM evaluators (categorical only)."""
 
-    configs: list[CategoricalAnnotationConfig] = Field(min_length=1)
+    configs: list[CategoricalAnnotationConfigWithName] = Field(min_length=1)
 
     @field_validator("configs")
     @classmethod
     def check_unique_names(
-        cls, configs: list[CategoricalAnnotationConfig]
-    ) -> list[CategoricalAnnotationConfig]:
+        cls, configs: list[CategoricalAnnotationConfigWithName]
+    ) -> list[CategoricalAnnotationConfigWithName]:
         names = [c.name for c in configs]
         if len(names) != len(set(names)):
             duplicates = [n for n in names if names.count(n) > 1]
@@ -331,12 +330,12 @@ class LLMEvaluatorOutputConfigs(BaseModel):
             CategoricalAnnotationValue,
         )
 
-        configs: list[CategoricalAnnotationConfig] = []
+        configs: list[CategoricalAnnotationConfigWithName] = []
         for input_ in inputs:
             if input_.categorical is not None and input_.categorical is not strawberry.UNSET:
                 cat = input_.categorical
                 configs.append(
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type=AnnotationType.CATEGORICAL.value,
                         name=cat.name,
                         description=cat.description,
@@ -358,17 +357,15 @@ class LLMEvaluatorOutputConfigs(BaseModel):
 def get_evaluator_output_configs(
     evaluator_input: "PlaygroundEvaluatorInput",
     evaluator: "BaseEvaluator",
-) -> list[CategoricalAnnotationConfig | ContinuousAnnotationConfig]:
+) -> list[CategoricalAnnotationConfigWithName | ContinuousAnnotationConfigWithName]:
     """
     Get the output configs for an evaluator run. Uses configs from the evaluator input
     if provided, otherwise falls back to the base evaluator's stored output configs.
 
     Returns only categorical or continuous configs (the types supported by evaluators).
-    Raises ValueError if any freeform configs are encountered.
     """
-    from phoenix.db.types.annotation_configs import FreeformAnnotationConfig
 
-    configs: list[AnnotationConfigType]
+    configs: list[CategoricalAnnotationConfigWithName | ContinuousAnnotationConfigWithName]
     if evaluator_input.output_configs:
         from phoenix.server.api.mutations.evaluator_mutations import (
             _convert_output_config_inputs_to_pydantic,
@@ -378,11 +375,4 @@ def get_evaluator_output_configs(
     else:
         configs = list(evaluator.output_configs)
 
-    narrowed: list[CategoricalAnnotationConfig | ContinuousAnnotationConfig] = []
-    for config in configs:
-        if isinstance(config, FreeformAnnotationConfig):
-            raise ValueError(
-                "Freeform annotation configs are not supported as evaluator output configs"
-            )
-        narrowed.append(config)
-    return narrowed
+    return configs

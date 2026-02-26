@@ -10,6 +10,7 @@ from strawberry.relay.types import GlobalID
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
+    CategoricalAnnotationConfigWithName,
     CategoricalAnnotationValue,
     FreeformAnnotationConfig,
     OptimizationDirection,
@@ -2629,7 +2630,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             description="test llm evaluator",
             kind="LLM",
             output_configs=[
-                CategoricalAnnotationConfig(
+                CategoricalAnnotationConfigWithName(
                     type="CATEGORICAL",
                     name="test",
                     optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -2893,7 +2894,7 @@ async def llm_evaluator(
         description=evaluator_description,
         kind="LLM",
         output_configs=[
-            CategoricalAnnotationConfig(
+            CategoricalAnnotationConfigWithName(
                 type="CATEGORICAL",
                 name=annotation_name,
                 optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -3054,7 +3055,7 @@ class TestDeleteDatasetEvaluators:
                 description="test llm evaluator for deletion",
                 kind="LLM",
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="correctness",
                         optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -3180,7 +3181,7 @@ class TestDeleteDatasetEvaluators:
                 description="test llm evaluator for batch deletion",
                 kind="LLM",
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="correctness",
                         optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -3341,7 +3342,7 @@ class TestDeleteDatasetEvaluators:
                 description="test llm evaluator for prompt deletion",
                 kind="LLM",
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="correctness",
                         optimization_direction=OptimizationDirection.MAXIMIZE,
@@ -3453,7 +3454,7 @@ class TestDeleteDatasetEvaluators:
                 description="test llm evaluator to keep prompt",
                 kind="LLM",
                 output_configs=[
-                    CategoricalAnnotationConfig(
+                    CategoricalAnnotationConfigWithName(
                         type="CATEGORICAL",
                         name="correctness",
                         optimization_direction=OptimizationDirection.MAXIMIZE,

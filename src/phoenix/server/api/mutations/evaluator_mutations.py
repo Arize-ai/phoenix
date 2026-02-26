@@ -15,7 +15,11 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.models import EvaluatorKind
-from phoenix.db.types.annotation_configs import AnnotationConfigType
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfigWithNameType,
+    CategoricalAnnotationConfigWithName,
+    ContinuousAnnotationConfigWithName,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -46,22 +50,19 @@ from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.bearer_auth import PhoenixUser
 
 
-def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> AnnotationConfigType:
+def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> AnnotationConfigWithNameType:
     """
     Convert AnnotationConfigInput to pydantic for evaluator output configs.
     Always includes name.
     """
     from phoenix.db.types.annotation_configs import (
         AnnotationType,
-        CategoricalAnnotationConfig,
         CategoricalAnnotationValue,
-        ContinuousAnnotationConfig,
-        FreeformAnnotationConfig,
     )
 
     if input.categorical is not None and input.categorical is not UNSET:
         cat = input.categorical
-        return CategoricalAnnotationConfig(
+        return CategoricalAnnotationConfigWithName(
             type=AnnotationType.CATEGORICAL.value,
             name=cat.name,
             description=cat.description,
@@ -70,7 +71,7 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> Annotation
         )
     elif input.continuous is not None and input.continuous is not UNSET:
         cont = input.continuous
-        return ContinuousAnnotationConfig(
+        return ContinuousAnnotationConfigWithName(
             type=AnnotationType.CONTINUOUS.value,
             name=cont.name,
             description=cont.description,
@@ -78,20 +79,12 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> Annotation
             lower_bound=cont.lower_bound,
             upper_bound=cont.upper_bound,
         )
-    elif input.freeform is not None and input.freeform is not UNSET:
-        ff = input.freeform
-        return FreeformAnnotationConfig(
-            type=AnnotationType.FREEFORM.value,
-            name=ff.name,
-            description=ff.description,
-        )
-    else:
-        raise BadRequest("No annotation config provided in output config input")
+    raise BadRequest("Invalid output config input")
 
 
 def _convert_output_config_inputs_to_pydantic(
     configs: list[AnnotationConfigInput],
-) -> list[AnnotationConfigType]:
+) -> list[AnnotationConfigWithNameType]:
     """Convert a list of AnnotationConfigInput to pydantic models for evaluator output configs."""
     return [_output_config_input_to_pydantic(c) for c in configs]
 
@@ -303,7 +296,7 @@ class EvaluatorMutationMixin:
             validated_configs = LLMEvaluatorOutputConfigs.from_inputs(input.output_configs)
         except (ValueError, ValidationError) as e:
             raise BadRequest(str(e))
-        output_configs: list[AnnotationConfigType] = list(validated_configs.configs)
+        output_configs: list[CategoricalAnnotationConfigWithName] = list(validated_configs.configs)
         try:
             validated_name = IdentifierModel.model_validate(input.name)
         except ValidationError as error:
@@ -451,7 +444,7 @@ class EvaluatorMutationMixin:
             validated_configs = LLMEvaluatorOutputConfigs.from_inputs(input.output_configs)
         except (ValueError, ValidationError) as e:
             raise BadRequest(str(e))
-        output_configs: list[AnnotationConfigType] = list(validated_configs.configs)
+        output_configs: list[CategoricalAnnotationConfigWithName] = list(validated_configs.configs)
 
         try:
             prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
@@ -552,7 +545,7 @@ class EvaluatorMutationMixin:
             dataset_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
-            dataset_evaluator.output_configs = output_configs
+            dataset_evaluator.output_configs = list(output_configs)
             dataset_evaluator.input_mapping = (
                 input.input_mapping.to_orm()
                 if input.input_mapping is not None
@@ -563,7 +556,7 @@ class EvaluatorMutationMixin:
             llm_evaluator.description = (
                 input.description if isinstance(input.description, str) else None
             )
-            llm_evaluator.output_configs = output_configs
+            llm_evaluator.output_configs = list(output_configs)
             llm_evaluator.updated_at = datetime.now(timezone.utc)
             llm_evaluator.user_id = user_id
 
@@ -790,7 +783,7 @@ class EvaluatorMutationMixin:
 
                 # If output_configs provided, convert them; otherwise store None
                 # (resolver falls back to base evaluator configs at runtime)
-                output_configs: Optional[list[AnnotationConfigType]] = None
+                output_configs: Optional[list[AnnotationConfigWithNameType]] = None
                 if input.output_configs is not None:
                     output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 

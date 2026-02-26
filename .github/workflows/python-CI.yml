@@ -443,6 +443,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
+          --name postgres
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
@@ -460,6 +461,12 @@ jobs:
             tests/integration/
             tests/__generated__/
             tests/__init__.py
+      - name: Increase PostgreSQL max_connections
+        if: matrix.db == 'postgresql'
+        run: |
+          docker exec postgres sed -i 's/^max_connections = .*/max_connections = 300/' /var/lib/postgresql/data/postgresql.conf
+          docker restart postgres
+          until docker exec postgres pg_isready -U postgres; do sleep 1; done
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -476,7 +483,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 8
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 16
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
