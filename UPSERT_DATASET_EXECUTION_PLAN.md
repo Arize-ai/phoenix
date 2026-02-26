@@ -141,7 +141,7 @@ const expV2 = await runExperiment({
 - [x] STEP-03: Python client upsert with implicit hashing
 - [x] STEP-04: TypeScript client upsert with implicit hashing
 - [x] STEP-05: Cross-SDK hash parity tests
-- [ ] STEP-06: End-to-end Python + TypeScript integrated examples
+- [x] STEP-06: End-to-end Python + TypeScript integrated examples
 - [ ] STEP-07: Final validation and cleanup
 
 ---
@@ -285,8 +285,8 @@ Commit: HEAD
 ---
 
 ## STEP-06: End-to-end Python + TypeScript integrated examples
-Status: Not completed
-Commit: _(fill when done)_
+Status: Completed
+Commit: HEAD
 
 ### Scope
 - Add integrated examples that demonstrate:

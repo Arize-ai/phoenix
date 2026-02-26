@@ -60,3 +60,11 @@ Add one section per finding:
 - Impact: parity tests can fail for fixture-encoding mistakes instead of true SDK canonicalization mismatches.
 - Action taken: regenerated the fixture programmatically from source payloads so `canonical_json` and `expected_hash` are derived together.
 - Follow-up: keep fixture generation script pattern in mind for future hash vector additions.
+
+### 2026-02-26 — STEP-06 — Single-file `tsc` checks are noisy in this workspace
+- Category: `unexpected`
+- Context: verification for the new TypeScript integrated example in `js/packages/phoenix-client/examples/`.
+- Observation: running `tsc` directly against one example file (`tsc --noEmit <file>`) produced many unrelated workspace typing errors due config/lib resolution, even though the example itself runs correctly with `tsx`.
+- Impact: step verification can look broken when using ad-hoc single-file TypeScript compilation in this monorepo.
+- Action taken: used documented smoke-run verification (`tsx ... --smoke-run`) plus lint checks for the touched example files.
+- Follow-up: if strict compile validation for examples is needed later, add a dedicated examples tsconfig that scopes only example files with stable compiler options.
