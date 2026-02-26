@@ -20,6 +20,7 @@ from typing import (
     Sequence,
     TypedDict,
     Union,
+    cast,
 )
 from urllib.parse import quote
 
@@ -99,9 +100,9 @@ def _normalize_example_splits(splits: Optional[Union[str, list[str]]]) -> list[s
         return []
     if isinstance(splits, str):
         return [splits]
-    if not isinstance(splits, list):
+    if not isinstance(splits, list):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("example 'splits' must be a string, list of strings, or None")
-    if not all(isinstance(split, str) for split in splits):
+    if not all(isinstance(split, str) for split in splits):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("example 'splits' must contain only strings")
     return splits
 
@@ -132,24 +133,19 @@ def _prepare_upsert_examples(
     examples_list: list[_InputDatasetExample]
     if _is_input_dataset_example(examples):
         examples_list = [examples]
-    elif isinstance(examples, Iterable):
+    else:
         candidate_examples = list(examples)
         if not all(_is_input_dataset_example(example) for example in candidate_examples):
             raise ValueError(
                 "examples must be a single dictionary with required 'input' and 'output' keys "
                 "and an optional 'metadata' key, or an iterable of such dictionaries"
             )
-        examples_list = candidate_examples
-    else:
-        raise ValueError(
-            "examples must be a single dictionary with required 'input' and 'output' keys "
-            "and an optional 'metadata' key, or an iterable of such dictionaries"
-        )
+        examples_list = cast(list[_InputDatasetExample], candidate_examples)
 
     upsert_examples: list[_UpsertDatasetExample] = []
     for example in examples_list:
         span_id = example.get("span_id")
-        if span_id is not None and not isinstance(span_id, str):
+        if span_id is not None and not isinstance(span_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("example 'span_id' must be a string or None")
         input_payload = dict(example["input"])
         output_payload = dict(example["output"])
