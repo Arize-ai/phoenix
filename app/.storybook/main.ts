@@ -23,7 +23,7 @@ const config: StorybookConfig = {
     return mergeConfig(config, {
       // customize the Vite config here
       optimizeDeps: {
-        include: ["@storybook/addon-interactions"],
+        include: ["@storybook/addon-interactions", "@emotion/react"],
       },
       resolve: {
         alias: {

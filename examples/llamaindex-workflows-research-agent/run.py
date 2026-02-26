@@ -7,9 +7,8 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from llama_index.utils.workflow import draw_all_possible_flows
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-from workflow import ResearchAssistantWorkflow
-
 from phoenix.otel import register
+from workflow import ResearchAssistantWorkflow
 
 
 async def main():

@@ -56,6 +56,9 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.4)
+      '@emotion/react':
+        specifier: ^11.14.0
+        version: 11.14.0(@types/react@19.2.14)(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.1(react@19.2.4))
@@ -186,9 +189,6 @@ importers:
       '@chromatic-com/storybook':
         specifier: ^3.2.7
         version: 3.2.7(react@19.2.4)(storybook@8.6.15(prettier@3.8.1))
-      '@emotion/react':
-        specifier: ^11.14.0
-        version: 11.14.0(@types/react@19.2.14)(react@19.2.4)
       '@lezer/generator':
         specifier: ^1.8.0
         version: 1.8.0

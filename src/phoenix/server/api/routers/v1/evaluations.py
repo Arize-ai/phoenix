@@ -257,14 +257,16 @@ def _document_annotation_factory(
     [Union[tuple[str, int], tuple[int, str]]],
     Callable[..., Precursors.DocumentAnnotation],
 ]:
-    return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
-        datetime.now(timezone.utc),
-        span_id=str(index[span_id_idx]),
-        document_position=int(index[document_position_idx]),
-        obj=models.DocumentAnnotation(
+    return lambda index: (
+        lambda **kwargs: Precursors.DocumentAnnotation(
+            datetime.now(timezone.utc),
+            span_id=str(index[span_id_idx]),
             document_position=int(index[document_position_idx]),
-            **kwargs,
-        ),
+            obj=models.DocumentAnnotation(
+                document_position=int(index[document_position_idx]),
+                **kwargs,
+            ),
+        )
     )
 
 

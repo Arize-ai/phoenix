@@ -8,10 +8,9 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from loguru import logger
+from phoenix.otel import register
 from rag import initialize_vector_store
 from tools import analyze_rag_response, create_rag_response, initialize_tool_llm, web_search
-
-from phoenix.otel import register
 
 load_dotenv()
 open_ai_llm = None

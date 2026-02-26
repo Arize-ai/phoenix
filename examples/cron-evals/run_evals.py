@@ -6,7 +6,6 @@ back to Phoenix. This script is intended to run once a minute as a cron job.
 
 from datetime import datetime, timedelta
 
-import phoenix as px
 from phoenix.evals import (
     HallucinationEvaluator,
     OpenAIModel,
@@ -14,6 +13,8 @@ from phoenix.evals import (
     RelevanceEvaluator,
     run_evals,
 )
+
+import phoenix as px
 from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
 from phoenix.trace import DocumentEvaluations, SpanEvaluations
 
