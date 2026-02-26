@@ -1166,8 +1166,11 @@ def create_app(
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
     app.add_middleware(GZipMiddleware)
-    web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
+    static_dir = SERVER_DIR / "static"
+    web_manifest_path = static_dir / ".vite" / "manifest.json"
     has_built_ui = web_manifest_path.is_file()
+    if dev:
+        static_dir.mkdir(parents=True, exist_ok=True)
     if serve_ui and (dev or has_built_ui):
         oauth2_idps = [
             OAuth2Idp(name=config.idp_name, displayName=config.idp_display_name)
@@ -1179,7 +1182,7 @@ def create_app(
         app.mount(
             "/",
             app=Static(
-                directory=SERVER_DIR / "static",
+                directory=static_dir,
                 app_config=AppConfig(
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
