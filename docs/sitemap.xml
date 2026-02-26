@@ -396,6 +396,10 @@
   </url>
 
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal</loc>
+  </url>
+
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance</loc>
   </url>
 

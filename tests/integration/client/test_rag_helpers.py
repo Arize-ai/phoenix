@@ -8,7 +8,6 @@ from typing import Any, Optional, cast
 import pandas as pd
 import pytest
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
-
 from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1

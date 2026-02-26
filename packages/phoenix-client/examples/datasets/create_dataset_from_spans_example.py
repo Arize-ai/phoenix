@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
+from phoenix.otel import register
 
 from phoenix.client import Client
-from phoenix.otel import register
 
 # =============================================================================
 # Configuration

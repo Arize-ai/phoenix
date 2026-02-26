@@ -22,7 +22,7 @@ class PromptMessage(BaseModel):
 class ClassificationEvaluatorConfig(BaseModel):
     name: str
     description: str
-    optimization_direction: Literal["minimize", "maximize"]
+    optimization_direction: Literal["minimize", "maximize", "neutral"]
     messages: list[PromptMessage]
     choices: dict[str, float]
     substitutions: Optional[dict[str, str]] = None  # placeholder -> substitution_name

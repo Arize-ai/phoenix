@@ -9,12 +9,11 @@ from unittest.mock import patch
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from strawberry.relay import GlobalID
-
 from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
+from strawberry.relay import GlobalID
 
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
     _AppInfo,
@@ -2243,7 +2242,7 @@ class TestResumeOperations:
         runs = helper.get_runs(exp["id"])
         assert len([r for r in runs if r.get("error")]) == 3, "All runs should still have errors"
         for run in runs:
-            error_msg = run.get("error", "")
+            error_msg = run.get("error") or ""
             assert "Task still fails on resume" in error_msg, (
                 f"Expected new error message, got: {error_msg}"
             )

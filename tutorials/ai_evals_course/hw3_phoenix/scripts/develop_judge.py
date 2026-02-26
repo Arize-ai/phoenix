@@ -14,10 +14,9 @@ import litellm
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+from phoenix.otel import register
 from rich.console import Console
 from sklearn.metrics import confusion_matrix
-
-from phoenix.otel import register
 
 load_dotenv()
 
