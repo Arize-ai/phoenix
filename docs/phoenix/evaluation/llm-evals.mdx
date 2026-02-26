@@ -27,6 +27,31 @@ Phoenix supports both deterministic code-based evaluators (exact match, regex, c
 - **Blazing fast performance** — achieve up to 20x speedup with built-in concurrency and batching.
 - **Built-in Explanations** — all Phoenix LLM evaluations return explanations by default for better results and richer signals. 
 
+## Structured Output via Tool Calling
+
+LLM evaluators use function calling (tool use) to extract structured judgments rather than parsing freeform text. Phoenix generates a tool from the evaluator's output config — for example:
+
+```json
+{
+  "name": "correctness",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "label": {
+        "type": "string",
+        "enum": ["correct", "incorrect"]
+      },
+      "explanation": {
+        "type": "string"
+      }
+    },
+    "required": ["label", "explanation"]
+  }
+}
+```
+
+The LLM is required to call this tool rather than respond with freeform text. Phoenix parses the tool call and maps the returned label to its numeric score. This applies to both the client-side SDK and server-side evaluators.
+
 ## Executors
 
 <Frame>

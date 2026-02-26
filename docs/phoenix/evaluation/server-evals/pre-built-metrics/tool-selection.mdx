@@ -19,7 +19,7 @@ Use the Tool Selection evaluator when you need to:
 - **Assess multi-tool selection** — Validate when the LLM needs to select multiple tools for complex tasks
 
 <Info>
-This evaluator validates tool selection correctness, not invocation correctness. For evaluating whether tool arguments are properly formatted, use the [Tool Invocation evaluator](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation) instead.
+This evaluator validates tool selection correctness, not invocation correctness. For evaluating whether tool arguments are properly formatted, use the [Tool Invocation evaluator](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation) instead. The two evaluators are complementary — Tool Selection catches wrong-tool errors while Tool Invocation catches malformed-call errors — and are best run together for complete tool-calling coverage.
 </Info>
 
 ## Input Requirements
