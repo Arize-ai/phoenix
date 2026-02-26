@@ -137,7 +137,7 @@ const expV2 = await runExperiment({
 
 ## Step Checklist
 - [x] STEP-01: Backend schema migration + persistence primitives for hash-based upsert
-- [ ] STEP-02: REST upsert API (no GraphQL changes)
+- [x] STEP-02: REST upsert API (no GraphQL changes)
 - [ ] STEP-03: Python client upsert with implicit hashing
 - [ ] STEP-04: TypeScript client upsert with implicit hashing
 - [ ] STEP-05: Cross-SDK hash parity tests
@@ -148,7 +148,7 @@ const expV2 = await runExperiment({
 
 ## STEP-01: Backend schema migration + persistence primitives for hash-based upsert
 Status: Completed
-Commit: 4f117a8b789c708f96c8d7588a5bf35cde6e526f
+Commit: 6333f567a600260b094927f53f8c498da6793d72
 
 ### Scope
 - Add and apply an Alembic migration for new upsert persistence fields/constraints.
@@ -183,8 +183,8 @@ Commit: 4f117a8b789c708f96c8d7588a5bf35cde6e526f
 ---
 
 ## STEP-02: REST upsert API (no GraphQL changes)
-Status: Not completed
-Commit: _(fill when done)_
+Status: Completed
+Commit: e4d96e5fcaefaf5925daeb6bd797c5a676de1f7a
 
 ### Scope
 - Add REST endpoint(s) for upsert under `/v1/datasets/...`.
