@@ -11,9 +11,12 @@ Phoenix users want to keep datasets in external stores (for example JSONL in obj
 
 ## Desired End State
 - Add dataset upsert over REST with mirror (exact sync) semantics.
-- Upsert uses implicit client-side hashing only (users do not pass IDs or hashes).
+- Upsert uses implicit client-side hashing only (users do not pass IDs or hashes), using RFC8785 canonical JSON + SHA-256.
 - Python and TypeScript clients both expose ergonomic upsert APIs.
 - End-to-end examples show upsert + experiments iteration loops in both languages.
+- Identical examples are allowed; reconciliation is multiset-aware.
+- Content changes are represented as `DELETE` + `CREATE` (no `PATCH` semantics).
+- Exact-match snapshots are no-ops and must not create a new dataset version.
 
 ## Goal
 Deliver dataset upsert support (REST + Python client + TypeScript client) with implicit client-side hashing and an end-to-end experiments workflow in both Python and TypeScript.
@@ -25,6 +28,7 @@ Deliver dataset upsert support (REST + Python client + TypeScript client) with i
 - Mirror upsert is hash-based; user-supplied stable example IDs are out of scope for v1.
 - This rollout includes a DB migration for new upsert-related persistence fields.
 - Each step must append notable findings to [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) when something is surprising, unexpected, or problematic.
+- Loop automation strictness can remain lightweight (checklist + commit detection is sufficient).
 - Every step must end with:
   - relevant verification
   - lessons entry update (if applicable)
@@ -150,6 +154,7 @@ Commit: _(fill when done)_
 - Add and apply an Alembic migration for new upsert persistence fields/constraints.
 - Add database/model support for content hash persistence used by upsert diffing.
 - Implement backend helper logic for deterministic content hashing and dataset diff classification (new/changed/unchanged/deleted).
+- Ensure hash diffing is multiset-aware so identical duplicate examples are supported correctly.
 - Implement insertion-layer upsert application logic for hash-based mirror sync using `CREATE` and `DELETE` revisions.
 
 ### Out of scope
@@ -167,6 +172,7 @@ Commit: _(fill when done)_
   - changed examples are represented as `DELETE` + `CREATE` under hash-only mirror semantics,
   - missing examples create `DELETE` revisions under mirror semantics,
   - new examples create `CREATE`.
+  - duplicate identical examples are handled correctly (multiset semantics).
 - Existing dataset insertion tests remain green.
 
 ### Completion actions
@@ -195,7 +201,7 @@ Commit: _(fill when done)_
 - Router unit tests cover:
   - happy path for mirror exact-sync behavior,
   - invalid request shape,
-  - idempotent no-op behavior,
+  - idempotent no-op behavior with exact snapshot match (no new dataset version row; returned version remains unchanged),
   - proper dataset version creation.
 - Existing dataset REST tests remain green.
 
@@ -221,7 +227,7 @@ Commit: _(fill when done)_
 
 ### Verification criteria
 - Python client unit/integration tests cover create/evolve/re-upsert flows.
-- Dataset versions are updated as expected.
+- Dataset versions are updated as expected, and exact re-upsert of unchanged snapshot returns no-op without creating a new version.
 - Existing Python dataset/experiment integration tests remain green.
 
 ### Completion actions
@@ -246,6 +252,7 @@ Commit: _(fill when done)_
 
 ### Verification criteria
 - TS tests cover create/evolve/re-upsert flows.
+- Exact re-upsert of unchanged snapshot returns no-op without creating a new version.
 - `pnpm --dir js run lint:fix` and relevant `pnpm --dir js run -r test`/typecheck for touched packages pass.
 - Existing TS dataset/experiment behavior remains green.
 
@@ -263,6 +270,7 @@ Commit: _(fill when done)_
 ### Scope
 - Add golden-vector tests to ensure Python and TypeScript hashing produce identical hashes for identical example payloads.
 - Include edge cases that commonly diverge across runtimes (key order, nested objects, arrays, numbers, unicode strings).
+- Ensure vectors verify RFC8785 canonicalization behavior across both SDKs.
 
 ### Verification criteria
 - Python golden-vector test suite passes.
