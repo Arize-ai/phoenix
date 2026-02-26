@@ -44,3 +44,11 @@ Add one section per finding:
 - Impact: client integration verification is blocked even when implementation is correct.
 - Action taken: added `(422, "POST", "v1/datasets/upsert")` to `_VIEWER_BLOCKED_WRITE_OPERATIONS` so the integration test gate reflects current API surface.
 - Follow-up: keep endpoint coverage constants updated in the same step that adds new routes to avoid cross-step breakage.
+
+### 2026-02-26 — STEP-04 — JS workspace package tests require prebuild in fresh worktrees
+- Category: `unexpected`
+- Context: `js/packages/phoenix-client` verification (`typecheck`/`vitest`) after `pnpm --dir js install`.
+- Observation: phoenix-client `typecheck` and tests failed to resolve workspace package entries (`@arizeai/phoenix-config`, `@arizeai/phoenix-otel`, `@arizeai/phoenix-evals`) until `pnpm --dir js run -r build` was run.
+- Impact: step verification can appear broken even when code changes are correct.
+- Action taken: ran workspace build before re-running package typecheck/tests.
+- Follow-up: for JS verification in fresh worktrees, run install + workspace build before package-level checks.
