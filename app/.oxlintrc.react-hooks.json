@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "extends": ["./.oxlintrc.json"],
+
+  "jsPlugins": [
+    {
+      "name": "react-hooks-js",
+      "specifier": "eslint-plugin-react-hooks"
+    }
+  ],
+
+  "rules": {
+    "react-hooks-js/set-state-in-effect": "error"
+  }
+}
