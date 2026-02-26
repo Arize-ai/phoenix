@@ -15,10 +15,14 @@ repos:
         pass_filenames: false
       - id: clean-notebooks
         name: clean notebooks
-        entry: make clean-notebooks
+        entry: >-
+          uv run jupyter nbconvert
+          --ClearOutputPreprocessor.enabled=True
+          --ClearMetadataPreprocessor.enabled=True
+          --inplace
         language: system
         files: \.ipynb$
-        pass_filenames: false
+        exclude: ^tutorials/(evals|ai_evals_course)/
         stages: [pre-commit]
       - id: oxfmt-app
         name: oxfmt (app)
