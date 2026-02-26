@@ -20,3 +20,11 @@ Add one section per finding:
 
 ## Entries
 
+
+### 2026-02-26 — STEP-01 — `make help` target lookup is unreliable in this worktree
+- Category: `unexpected`
+- Context: local command execution while validating/formatting Python changes.
+- Observation: `make help` exits with a shell quoting error after printing part of the help output, which makes target discovery unreliable.
+- Impact: step automation cannot rely on `make help` to safely discover lint/format targets during this rollout.
+- Action taken: used direct `uv run --python 3.10 ruff check --fix ...` and `uv run --python 3.10 ruff format ...` commands for touched files.
+- Follow-up: investigate the `help` recipe quoting in `Makefile` separately from this upsert rollout.

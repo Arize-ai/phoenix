@@ -1313,6 +1313,14 @@ class DatasetExampleRevision(HasId):
     input: Mapped[dict[str, Any]]
     output: Mapped[dict[str, Any]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    content_hash: Mapped[Optional[str]] = mapped_column(
+        CheckConstraint(
+            "content_hash IS NULL OR length(content_hash) = 64",
+            name="valid_content_hash_length",
+        ),
+        index=True,
+        nullable=True,
+    )
     revision_kind: Mapped[str] = mapped_column(
         CheckConstraint(
             "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
