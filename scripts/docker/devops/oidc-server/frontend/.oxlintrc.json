@@ -1,9 +1,20 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript"],
-  "env": { "browser": true },
-  "settings": { "react": { "version": "19.2.0" } },
+  "plugins": [
+    "react",
+    "typescript"
+  ],
+  "env": {
+    "browser": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.2.0"
+    }
+  },
   "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
     "no-console": "off",
     "import/no-duplicates": "error",
     "typescript/no-explicit-any": "error",
@@ -13,7 +24,10 @@
     "typescript/consistent-return": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-unsafe-type-assertion": "error",
-    "eqeqeq": ["error", "smart"],
+    "eqeqeq": [
+      "error",
+      "smart"
+    ],
     "eslint/prefer-const": "error",
     "eslint/no-implicit-conversion": [
       "error",
@@ -33,5 +47,8 @@
       }
     ]
   },
-  "ignorePatterns": ["dist/**", "node_modules/**"]
+  "ignorePatterns": [
+    "dist/**",
+    "node_modules/**"
+  ]
 }
