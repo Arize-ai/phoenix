@@ -1,5 +1,5 @@
 import { Flex, Text, View } from "@phoenix/components";
-import { PythonBlock } from "@phoenix/components/code";
+import { BashBlock } from "@phoenix/components/code";
 import { Empty } from "@phoenix/components/Empty";
 
 import type { PlaygroundQuery$data } from "./__generated__/PlaygroundQuery.graphql";
@@ -40,7 +40,7 @@ export const NoInstalledProvider = (props: NoInstalledProviderProps) => {
         <Empty message={NO_PROVIDER_MESSAGE} />
         {/* display instructions for installing a provider and a link to the documentation */}
         <Text>The following clients are supported:</Text>
-        <PythonBlock value={makeInstallString(props.availableProviders)} />
+        <BashBlock value={makeInstallString(props.availableProviders)} />
       </Flex>
     </View>
   );

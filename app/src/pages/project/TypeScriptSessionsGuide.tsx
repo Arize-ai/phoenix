@@ -1,5 +1,5 @@
 import { ExternalLink, Heading, Text, View } from "@phoenix/components";
-import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
+import { BashBlockWithCopy, CodeWrap } from "@phoenix/components/code";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
 
 const INSTALL_OPENINFERENCE_CORE_TYPESCRIPT = `npm install @arizeai/openinference-core --save`;
@@ -82,7 +82,7 @@ export function TypeScriptSessionsGuide() {
         </Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={INSTALL_OPENINFERENCE_CORE_TYPESCRIPT} />
+        <BashBlockWithCopy value={INSTALL_OPENINFERENCE_CORE_TYPESCRIPT} />
       </CodeWrap>
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">

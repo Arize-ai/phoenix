@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { Dialog, ExternalLink, Text, View } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
@@ -140,7 +141,7 @@ function RunExperimentPythonExample({
         <Text>Install the Phoenix Client</Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={INSTALL_PHOENIX_PYTHON} />
+        <BashBlockWithCopy value={INSTALL_PHOENIX_PYTHON} />
       </CodeWrap>
       <View paddingTop="size-100" paddingBottom="size-100">
         <Text>Point to a running instance of Phoenix</Text>
@@ -202,9 +203,7 @@ function RunExperimentTypeScriptExample({
         <Text>Install Phoenix Client</Text>
       </View>
       <CodeWrap>
-        <TypeScriptBlockWithCopy
-          value={`npm install @arizeai/phoenix-client`}
-        />
+        <BashBlockWithCopy value={`npm install @arizeai/phoenix-client`} />
       </CodeWrap>
       <View paddingTop="size-100" paddingBottom="size-100">
         <Text>Run an experiment</Text>
