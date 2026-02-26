@@ -57,22 +57,24 @@ export const AnthropicReasoningConfigField = ({
       >
         Thinking Enabled
       </Switch>
-      <NumberField
-        key={thinkingBudgetVersion}
-        value={configuration?.budget_tokens}
-        onChange={handleBudgetTokensChange}
-        isDisabled={configuration?.type !== "enabled"}
-        isRequired={configuration?.type === "enabled"}
-        defaultValue={MINIMUM_BUDGET_TOKENS}
-        minValue={MINIMUM_BUDGET_TOKENS}
-      >
-        <Label>Budget Tokens</Label>
-        <Input />
-        <Text slot="description">
-          Determines how many tokens Claude can use for its internal reasoning
-          process. Must be ≥1024 and less than max_tokens.
-        </Text>
-      </NumberField>
+      {configuration?.type === "enabled" && (
+        <NumberField
+          key={thinkingBudgetVersion}
+          value={configuration?.budget_tokens}
+          onChange={handleBudgetTokensChange}
+          isDisabled={configuration?.type !== "enabled"}
+          isRequired={true}
+          defaultValue={MINIMUM_BUDGET_TOKENS}
+          minValue={MINIMUM_BUDGET_TOKENS}
+        >
+          <Label>Budget Tokens</Label>
+          <Input />
+          <Text slot="description">
+            Determines how many tokens Claude can use for its internal reasoning
+            process. Must be ≥1024 and less than max_tokens.
+          </Text>
+        </NumberField>
+      )}
     </>
   );
 };
