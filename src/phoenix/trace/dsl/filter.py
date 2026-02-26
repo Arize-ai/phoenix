@@ -277,7 +277,15 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
 
 
 def _is_float_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
-    return isinstance(node, ast.Constant) and isinstance(node.value, typing.SupportsFloat)
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, typing.SupportsFloat)
+        and not isinstance(node.value, bool)
+    )
+
+
+def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
 
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
@@ -452,6 +460,22 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+        # Handle boolean comparisons with JSON subscripts (attributes/metadata).
+        # Compare the raw JSON value directly with the boolean without string/float casting,
+        # so that JSON boolean `true` is correctly matched by Python's `True` in both
+        # SQLite (where JSON true is stored as integer 1) and PostgreSQL JSONB.
+        if _is_bool_constant(right) and _is_subscript(left, "attributes"):
+            if isinstance(op, ast.Is):
+                op = ast.Eq()
+            elif isinstance(op, ast.IsNot):
+                op = ast.NotEq()
+            return ast.Compare(left=left, ops=[op], comparators=[right])
+        if _is_bool_constant(left) and _is_subscript(right, "attributes"):
+            if isinstance(op, ast.Is):
+                op = ast.Eq()
+            elif isinstance(op, ast.IsNot):
+                op = ast.NotEq()
+            return ast.Compare(left=left, ops=[op], comparators=[right])
         if _is_subscript(left, "attributes"):
             left = _cast_as("String", left)
         if _is_subscript(right, "attributes"):
