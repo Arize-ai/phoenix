@@ -68,3 +68,11 @@ Add one section per finding:
 - Impact: step verification can look broken when using ad-hoc single-file TypeScript compilation in this monorepo.
 - Action taken: used documented smoke-run verification (`tsx ... --smoke-run`) plus lint checks for the touched example files.
 - Follow-up: if strict compile validation for examples is needed later, add a dedicated examples tsconfig that scopes only example files with stable compiler options.
+
+### 2026-02-26 — STEP-07 — Targeted `mypy` path checks can conflict with explicit package bases
+- Category: `unexpected`
+- Context: final validation when running `mypy` directly on mixed root/package paths.
+- Observation: a targeted invocation reported `Source file found twice under different module names` for `packages/phoenix-client/src/phoenix/client/resources/datasets/__init__.py`.
+- Impact: ad-hoc targeted typecheck commands can produce false-negative workflow failures in this repo layout.
+- Action taken: switched to the canonical `make typecheck-python` target, which passed.
+- Follow-up: prefer repository make/typecheck targets over custom mixed-path mypy invocations in final validation steps.
