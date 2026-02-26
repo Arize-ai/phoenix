@@ -84,6 +84,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       });
       return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
+        credentials: "include",
         body: formData,
       })
         .then((response) => {

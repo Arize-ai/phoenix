@@ -95,6 +95,7 @@ export function DatasetFromJSONLForm(props: CreateDatasetFromJSONLFormProps) {
       });
       return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
+        credentials: "include",
         body: formData,
       })
         .then((response) => {
