@@ -28,3 +28,11 @@ Add one section per finding:
 - Impact: step automation cannot rely on `make help` to safely discover lint/format targets during this rollout.
 - Action taken: used direct `uv run --python 3.10 ruff check --fix ...` and `uv run --python 3.10 ruff format ...` commands for touched files.
 - Follow-up: investigate the `help` recipe quoting in `Makefile` separately from this upsert rollout.
+
+### 2026-02-26 — STEP-02 — Dataset creation path requires explicit `created_at`
+- Category: `unexpected`
+- Context: REST upsert endpoint implementation in `src/phoenix/server/api/routers/v1/datasets.py`.
+- Observation: calling `insert_dataset(...)` without `created_at` fails at runtime because `datasets.created_at` is non-nullable, even though `insert_dataset` accepts `created_at: Optional[datetime]`.
+- Impact: initial upsert-by-name on a new dataset can fail with a database integrity error.
+- Action taken: set `created_at=datetime.now(timezone.utc)` when creating a dataset through the upsert route.
+- Follow-up: align insertion helper signatures/default handling with actual DB non-null constraints in a cleanup pass.

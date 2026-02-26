@@ -8,16 +8,18 @@ import zlib
 from asyncio import QueueFull
 from collections import Counter
 from collections.abc import Awaitable, Callable, Coroutine, Hashable, Iterator, Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from functools import partial
-from typing import Any, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import Field
 from sqlalchemy import and_, case, delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
@@ -36,6 +38,8 @@ from phoenix.db.insertion.dataset import (
     DatasetExampleAdditionEvent,
     ExampleContent,
     add_dataset_examples,
+    insert_dataset,
+    upsert_dataset_examples_by_hash,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
@@ -337,6 +341,56 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     pass
 
 
+class UpsertDatasetSelector(V1RoutesBaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+
+    @property
+    def uses_id(self) -> bool:
+        return bool(self.id)
+
+    @property
+    def uses_name(self) -> bool:
+        return bool(self.name)
+
+    @property
+    def is_valid(self) -> bool:
+        return self.uses_id ^ self.uses_name
+
+
+class UpsertDatasetExample(V1RoutesBaseModel):
+    input: dict[str, Any]
+    output: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    splits: list[str] = Field(default_factory=list)
+    span_id: Optional[str] = None
+    content_hash: Optional[str] = None
+
+
+class UpsertDatasetRequestBody(V1RoutesBaseModel):
+    dataset: UpsertDatasetSelector
+    examples: list[UpsertDatasetExample]
+    sync_mode: Literal["mirror"] = "mirror"
+
+
+class UpsertDatasetSummaryData(V1RoutesBaseModel):
+    added: int
+    updated: int
+    deleted: int
+    unchanged: int
+
+
+class UpsertDatasetData(V1RoutesBaseModel):
+    dataset_id: str
+    version_id: str
+    summary: UpsertDatasetSummaryData
+    is_noop: bool
+
+
+class UpsertDatasetResponseBody(ResponseBody[UpsertDatasetData]):
+    pass
+
+
 @router.post(
     "/datasets/upload",
     dependencies=[Depends(is_not_locked)],
@@ -566,6 +620,111 @@ async def upload_dataset(
             examples.close()
         raise HTTPException(detail="Too many requests.", status_code=429)
     return None
+
+
+@router.post(
+    "/datasets/upsert",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="upsertDataset",
+    summary="Upsert dataset examples with mirror semantics",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset not found"},
+            {"status_code": 422, "description": "Invalid request body"},
+        ]
+    ),
+)
+async def upsert_dataset(
+    request: Request,
+    request_body: UpsertDatasetRequestBody,
+) -> UpsertDatasetResponseBody:
+    if not request_body.dataset.is_valid:
+        raise HTTPException(
+            detail="Exactly one of dataset.id or dataset.name must be provided.",
+            status_code=422,
+        )
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    async with request.app.state.db() as session:
+        if request_body.dataset.id:
+            try:
+                resolved_dataset_id = from_global_id_with_expected_type(
+                    GlobalID.from_id(request_body.dataset.id),
+                    DATASET_NODE_NAME,
+                )
+            except ValueError:
+                raise HTTPException(
+                    detail=f"Invalid Dataset ID: {request_body.dataset.id}",
+                    status_code=422,
+                )
+            if await session.get(models.Dataset, resolved_dataset_id) is None:
+                raise HTTPException(
+                    detail=f"Dataset with ID {request_body.dataset.id} not found",
+                    status_code=404,
+                )
+        else:
+            assert request_body.dataset.name is not None
+            resolved_dataset_id = await session.scalar(
+                select(models.Dataset.id).where(models.Dataset.name == request_body.dataset.name)
+            )
+            if resolved_dataset_id is None:
+                try:
+                    resolved_dataset_id = await insert_dataset(
+                        session=session,
+                        name=request_body.dataset.name,
+                        created_at=datetime.now(timezone.utc),
+                        user_id=user_id,
+                    )
+                except IntegrityError:
+                    resolved_dataset_id = await session.scalar(
+                        select(models.Dataset.id).where(
+                            models.Dataset.name == request_body.dataset.name
+                        )
+                    )
+                    if resolved_dataset_id is None:
+                        raise
+
+        try:
+            event = await upsert_dataset_examples_by_hash(
+                session=session,
+                dataset_id=resolved_dataset_id,
+                examples=[
+                    ExampleContent(
+                        input=example.input,
+                        output=example.output,
+                        metadata=example.metadata,
+                        splits=frozenset(
+                            split.strip() for split in example.splits if split.strip()
+                        ),
+                        span_id=example.span_id.strip() if example.span_id else None,
+                        content_hash=example.content_hash,
+                    )
+                    for example in request_body.examples
+                ],
+                user_id=user_id,
+            )
+        except ValueError as e:
+            raise HTTPException(detail=str(e), status_code=422)
+
+    request.state.event_queue.put(DatasetInsertEvent((event.dataset_id,)))
+
+    summary = event.summary
+    return UpsertDatasetResponseBody(
+        data=UpsertDatasetData(
+            dataset_id=str(GlobalID(DATASET_NODE_NAME, str(event.dataset_id))),
+            version_id=str(GlobalID(DATASET_VERSION_NODE_NAME, str(event.dataset_version_id))),
+            summary=UpsertDatasetSummaryData(
+                added=summary.added,
+                updated=summary.updated,
+                deleted=summary.deleted,
+                unchanged=summary.unchanged,
+            ),
+            is_noop=event.is_noop,
+        )
+    )
 
 
 class FileContentType(Enum):
