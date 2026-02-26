@@ -63,7 +63,7 @@ jobs:
       - name: Lint
         working-directory: ./app
         run: |
-          pnpm run lint:ci
+          pnpm run lint
       - name: Relay Codegen
         working-directory: ./app
         run: |
