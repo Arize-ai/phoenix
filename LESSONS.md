@@ -36,3 +36,11 @@ Add one section per finding:
 - Impact: initial upsert-by-name on a new dataset can fail with a database integrity error.
 - Action taken: set `created_at=datetime.now(timezone.utc)` when creating a dataset through the upsert route.
 - Follow-up: align insertion helper signatures/default handling with actual DB non-null constraints in a cleanup pass.
+
+### 2026-02-26 — STEP-03 — Integration endpoint coverage must be updated with new REST routes
+- Category: `unexpected`
+- Context: integration test bootstrap in `tests/integration/_helpers.py`.
+- Observation: the integration suite fails at import time if newly added v1 routes are not listed in endpoint coverage constants, and `POST /v1/datasets/upsert` was missing.
+- Impact: client integration verification is blocked even when implementation is correct.
+- Action taken: added `(422, "POST", "v1/datasets/upsert")` to `_VIEWER_BLOCKED_WRITE_OPERATIONS` so the integration test gate reflects current API surface.
+- Follow-up: keep endpoint coverage constants updated in the same step that adds new routes to avoid cross-step breakage.

@@ -138,7 +138,7 @@ const expV2 = await runExperiment({
 ## Step Checklist
 - [x] STEP-01: Backend schema migration + persistence primitives for hash-based upsert
 - [x] STEP-02: REST upsert API (no GraphQL changes)
-- [ ] STEP-03: Python client upsert with implicit hashing
+- [x] STEP-03: Python client upsert with implicit hashing
 - [ ] STEP-04: TypeScript client upsert with implicit hashing
 - [ ] STEP-05: Cross-SDK hash parity tests
 - [ ] STEP-06: End-to-end Python + TypeScript integrated examples
@@ -213,8 +213,8 @@ Commit: e4d96e5fcaefaf5925daeb6bd797c5a676de1f7a
 ---
 
 ## STEP-03: Python client upsert with implicit hashing
-Status: Not completed
-Commit: _(fill when done)_
+Status: Completed
+Commit: HEAD
 
 ### Scope
 - Add Python client method `upsert_dataset(...)`.
