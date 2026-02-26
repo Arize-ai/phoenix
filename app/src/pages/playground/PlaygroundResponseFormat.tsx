@@ -1,5 +1,5 @@
 import type { JSONSchema7 } from "json-schema";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   Button,
@@ -15,7 +15,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
@@ -44,6 +44,7 @@ export function PlaygroundResponseFormat({
   const instance = usePlaygroundContext((state) =>
     state.instances.find((i) => i.id === playgroundInstanceId)
   );
+  const instanceProvider = instance?.model.provider;
   const upsertInvocationParameterInput = usePlaygroundContext(
     (state) => state.upsertInvocationParameterInput
   );
@@ -57,28 +58,37 @@ export function PlaygroundResponseFormat({
       p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
       p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
   );
-  const store = usePlaygroundStore();
-  const initialResponseFormatDefinition = useMemo(() => {
-    const state = store.getState();
-    const latestInstance = state.instances.find(
-      (i) => i.id === playgroundInstanceId
-    );
-    if (latestInstance != null) {
-      const latestResponseFormat =
-        latestInstance.model.invocationParameters.find(
-          (p) =>
-            p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
-            p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
-        );
-      if (latestResponseFormat != null) {
-        return JSON.stringify(latestResponseFormat.valueJson, null, 2);
-      }
-    }
-    return JSON.stringify(responseFormat?.valueJson ?? {}, null, 2);
-  }, [playgroundInstanceId, responseFormat?.valueJson, store]);
+  const [initialResponseFormatDefinition, setInitialResponseFormatDefinition] =
+    useState(() => JSON.stringify(responseFormat?.valueJson ?? {}, null, 2));
   const currentValueRef = useRef(initialResponseFormatDefinition);
+  const store = usePlaygroundStore();
 
-  currentValueRef.current = initialResponseFormatDefinition;
+  // when the instance provider changes, we need to update the editor value
+  // to reflect the new response format schema
+  // eslint-disable-next-line react-hooks-js/set-state-in-effect
+  useEffect(() => {
+    const state = store.getState();
+    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
+    if (instance == null) {
+      return;
+    }
+    const responseFormat = instance.model.invocationParameters.find(
+      (p) =>
+        p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
+        p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+    );
+    if (responseFormat == null) {
+      return;
+    }
+    const newResponseFormatDefinition = JSON.stringify(
+      responseFormat.valueJson,
+      null,
+      2
+    );
+    if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
+      setInitialResponseFormatDefinition(newResponseFormatDefinition);
+    }
+  }, [instanceProvider, store, playgroundInstanceId]);
 
   const onChange = useCallback(
     (value: string) => {
