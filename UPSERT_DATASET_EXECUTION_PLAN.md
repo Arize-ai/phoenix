@@ -1,5 +1,20 @@
 # Dataset Upsert + Experiments Execution Plan
 
+## Problem Context
+Phoenix users want to keep datasets in external stores (for example JSONL in object storage or git) and repeatedly run experiments as those datasets evolve. Current REST dataset APIs are imperative (`create`/`append`) and do not support efficient sync semantics for adds, edits, and removals in one operation. Re-uploading full dataset snapshots is expensive and does not scale.
+
+## Current State (as of plan creation)
+- REST supports dataset upload/create/append and dataset versioning.
+- GraphQL already supports patch/delete style revision semantics, but this project intentionally avoids GraphQL changes.
+- Python and TypeScript clients do not expose a dataset upsert workflow.
+- There is no stable external example identity in the dataset sync flow, so efficient update/delete inference is not possible.
+
+## Desired End State
+- Add dataset upsert over REST, with `merge` and `mirror` semantics.
+- Upsert uses stable source identity and implicit client-side hashing (users do not pass hashes).
+- Python and TypeScript clients both expose ergonomic upsert APIs.
+- End-to-end examples show upsert + experiments iteration loops in both languages.
+
 ## Goal
 Deliver dataset upsert support (REST + Python client + TypeScript client) with implicit client-side hashing and an end-to-end experiments workflow in both Python and TypeScript.
 
@@ -7,13 +22,14 @@ Deliver dataset upsert support (REST + Python client + TypeScript client) with i
 - Do **not** add or modify GraphQL schema/mutations/resolvers.
 - `DatasetVersion` schema remains unchanged.
 - Hash algorithm metadata field is out of scope for v1.
+- This rollout includes a DB migration for new upsert-related persistence fields.
 - Every step must end with:
   - relevant verification
   - one commit
   - plan status update
 
 ## Step Checklist
-- [ ] STEP-01: Backend persistence primitives for upsert identity + hashing
+- [ ] STEP-01: Backend schema migration + persistence primitives for upsert identity + hashing
 - [ ] STEP-02: REST upsert API (no GraphQL changes)
 - [ ] STEP-03: Python client upsert with implicit hashing
 - [ ] STEP-04: TypeScript client upsert with implicit hashing
@@ -23,11 +39,12 @@ Deliver dataset upsert support (REST + Python client + TypeScript client) with i
 
 ---
 
-## STEP-01: Backend persistence primitives for upsert identity + hashing
+## STEP-01: Backend schema migration + persistence primitives for upsert identity + hashing
 Status: Not completed
 Commit: _(fill when done)_
 
 ### Scope
+- Add and apply an Alembic migration for new upsert persistence fields/constraints.
 - Add database/model support for stable external identity and content hash persistence used by upsert:
   - Example-level stable key (e.g., `source_id`) on dataset example records.
   - Content hash storage on dataset revisions/examples as needed for efficient diffing.
@@ -40,6 +57,9 @@ Commit: _(fill when done)_
 - GraphQL changes.
 
 ### Verification criteria
+- Migration verification:
+  - migration upgrade and downgrade pass in migration tests,
+  - new columns/constraints exist after upgrade.
 - Unit tests for hashing/diff logic pass.
 - Insertion tests prove:
   - unchanged examples do not create extra revisions,
