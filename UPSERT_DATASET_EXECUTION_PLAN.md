@@ -10,7 +10,7 @@ Phoenix users want to keep datasets in external stores (for example JSONL in obj
 - There is no stable external example identity in the dataset sync flow, so efficient update/delete inference is not possible.
 
 ## Desired End State
-- Add dataset upsert over REST, with `merge` and `mirror` semantics.
+- Add dataset upsert over REST with mirror (exact sync) semantics.
 - Upsert uses stable source identity and implicit client-side hashing (users do not pass hashes).
 - Python and TypeScript clients both expose ergonomic upsert APIs.
 - End-to-end examples show upsert + experiments iteration loops in both languages.
@@ -27,6 +27,106 @@ Deliver dataset upsert support (REST + Python client + TypeScript client) with i
   - relevant verification
   - one commit
   - plan status update
+
+## Client API Reference Snippets (mirror-only)
+These are target usage patterns for STEP-03 and STEP-04. Keep implementations aligned with these examples.
+
+### Python
+Expected return shape for `upsert_dataset(...)`: a `Dataset` object compatible with `run_experiment(dataset=...)`.
+
+```python
+from phoenix.client import Client
+from phoenix.client.experiments import run_experiment
+
+client = Client()
+
+examples_v1 = [
+    {"id": "q1", "input": {"question": "What is AI?"}, "output": {"answer": "..."}, "metadata": {}},
+    {"id": "q2", "input": {"question": "What is ML?"}, "output": {"answer": "..."}, "metadata": {}},
+]
+
+dataset_v1 = client.datasets.upsert_dataset(
+    dataset="support-benchmark",
+    examples=examples_v1,
+    source_id_key="id",   # stable external identity
+)
+
+def task(example):
+    return {"answer": f"stub: {example['input']['question']}"}
+
+exp_v1 = run_experiment(
+    dataset=dataset_v1,
+    task=task,
+    experiment_name="support-v1",
+)
+
+examples_v2 = [
+    {"id": "q1", "input": {"question": "What is AI?"}, "output": {"answer": "Artificial Intelligence"}, "metadata": {}},
+    {"id": "q3", "input": {"question": "What is RL?"}, "output": {"answer": "..."}, "metadata": {}},
+]
+
+dataset_v2 = client.datasets.upsert_dataset(
+    dataset="support-benchmark",
+    examples=examples_v2,
+    source_id_key="id",
+)
+
+exp_v2 = run_experiment(
+    dataset=dataset_v2,
+    task=task,
+    experiment_name="support-v2",
+)
+```
+
+### TypeScript
+Expected return shape for `upsertDataset(...)`: `{ datasetId: string; versionId: string; summary?: { added: number; updated: number; deleted: number; unchanged: number } }`.
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+
+const client = createClient();
+
+const examplesV1 = [
+  { id: "q1", input: { question: "What is AI?" }, output: { answer: "..." }, metadata: {} },
+  { id: "q2", input: { question: "What is ML?" }, output: { answer: "..." }, metadata: {} },
+];
+
+const upsertV1 = await client.datasets.upsertDataset({
+  dataset: { datasetName: "support-benchmark" },
+  examples: examplesV1,
+  sourceIdKey: "id",
+});
+
+const task = async (example: { input: { question: string } }) => ({
+  answer: `stub: ${example.input.question}`,
+});
+
+const expV1 = await runExperiment({
+  client,
+  experimentName: "support-v1",
+  dataset: { datasetId: upsertV1.datasetId, versionId: upsertV1.versionId },
+  task,
+});
+
+const examplesV2 = [
+  { id: "q1", input: { question: "What is AI?" }, output: { answer: "Artificial Intelligence" }, metadata: {} },
+  { id: "q3", input: { question: "What is RL?" }, output: { answer: "..." }, metadata: {} },
+];
+
+const upsertV2 = await client.datasets.upsertDataset({
+  dataset: { datasetName: "support-benchmark" },
+  examples: examplesV2,
+  sourceIdKey: "id",
+});
+
+const expV2 = await runExperiment({
+  client,
+  experimentName: "support-v2",
+  dataset: { datasetId: upsertV2.datasetId, versionId: upsertV2.versionId },
+  task,
+});
+```
 
 ## Step Checklist
 - [ ] STEP-01: Backend schema migration + persistence primitives for upsert identity + hashing
@@ -64,7 +164,7 @@ Commit: _(fill when done)_
 - Insertion tests prove:
   - unchanged examples do not create extra revisions,
   - changed examples create `PATCH`,
-  - missing examples in mirror mode create `DELETE`,
+  - missing examples create `DELETE` revisions under mirror semantics,
   - new examples create `CREATE`.
 - Existing dataset insertion tests remain green.
 
@@ -81,7 +181,7 @@ Commit: _(fill when done)_
 ### Scope
 - Add REST endpoint(s) for upsert under `/v1/datasets/...`.
 - Support dataset selection by exactly one of name or id.
-- Support mode semantics (`merge` and `mirror`).
+- Enforce mirror semantics (exact sync) in v1.
 - Wire REST handlers to insertion-layer upsert logic from STEP-01.
 - Return dataset/version identifiers and summary counts.
 
@@ -91,7 +191,7 @@ Commit: _(fill when done)_
 
 ### Verification criteria
 - Router unit tests cover:
-  - happy paths for merge and mirror,
+  - happy path for mirror exact-sync behavior,
   - invalid request shape,
   - duplicate source IDs rejection,
   - idempotent no-op behavior,
