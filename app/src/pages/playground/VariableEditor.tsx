@@ -2,7 +2,7 @@ import { defaultKeymap } from "@codemirror/commands";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import ReactCodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
 
 import { Label } from "@phoenix/components";
 import { CodeWrap } from "@phoenix/components/code";
@@ -47,30 +47,21 @@ export const VariableEditor = ({
   onChange,
 }: VariableEditorProps) => {
   const { theme } = useTheme();
-  const valueRef = useRef(defaultValue);
-  const [version, setVersion] = useState(0);
-  const [initialValue, setInitialValue] = useState(() => defaultValue);
-  useEffect(() => {
-    if (defaultValue == null) {
-      setInitialValue("");
-      setVersion((prev) => prev + 1);
-    }
-    valueRef.current = defaultValue;
-  }, [defaultValue]);
-  useEffect(() => {
-    setInitialValue(valueRef.current);
-    setVersion((prev) => prev + 1);
-  }, [label]);
+  const editorValue = defaultValue ?? "";
+  const editorKey = useMemo(
+    () => `${label ?? ""}::${editorValue}`,
+    [editorValue, label]
+  );
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>
       <CodeWrap width="100%">
         <ReactCodeMirror
-          key={version}
+          key={editorKey}
           theme={codeMirrorTheme}
           basicSetup={basicSetupOptions}
-          value={initialValue}
+          value={editorValue}
           extensions={extensions}
           onChange={onChange}
         />

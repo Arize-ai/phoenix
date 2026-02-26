@@ -1,5 +1,5 @@
 import type { JSONSchema7 } from "json-schema";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import { JSONEditor } from "@phoenix/components/code";
 import {
@@ -15,7 +15,7 @@ import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
-import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * Editor for message tool calls
@@ -35,7 +35,6 @@ export function ChatMessageToolCallsEditor({
   if (instance == null) {
     throw new Error(`Instance ${playgroundInstanceId} not found`);
   }
-  const instanceProvider = instance.model.provider;
   const store = usePlaygroundStore();
   const messageSelector = useMemo(
     () => selectPlaygroundInstanceMessage(messageId),
@@ -47,28 +46,17 @@ export function ChatMessageToolCallsEditor({
   }
   const toolCalls = message.toolCalls;
   const updateMessage = usePlaygroundContext((state) => state.updateMessage);
-  const [initialEditorValue, setInitialEditorValue] = useState(() =>
-    JSON.stringify(toolCalls, null, 2)
-  );
-
-  // when the instance provider changes, we need to update the editor value
-  // to reflect the new tool calls schema
-  useEffect(() => {
+  const initialEditorValue = useMemo(() => {
     const state = store.getState();
     const instance = state.instances.find((i) => i.id === playgroundInstanceId);
-    if (instance == null) {
-      return;
+    if (instance != null) {
+      const latestMessage = selectPlaygroundInstanceMessage(messageId)(state);
+      if (latestMessage != null) {
+        return JSON.stringify(latestMessage.toolCalls, null, 2);
+      }
     }
-    const message = selectPlaygroundInstanceMessage(messageId)(state);
-    if (message == null) {
-      return;
-    }
-    const newToolCalls = message.toolCalls;
-    const newEditorValue = JSON.stringify(newToolCalls, null, 2);
-    if (isJSONString({ str: newEditorValue, excludeNull: true })) {
-      setInitialEditorValue(newEditorValue);
-    }
-  }, [instanceProvider, store, playgroundInstanceId, messageId]);
+    return JSON.stringify(toolCalls, null, 2);
+  }, [messageId, playgroundInstanceId, store, toolCalls]);
 
   const onChange = useCallback(
     (value: string) => {

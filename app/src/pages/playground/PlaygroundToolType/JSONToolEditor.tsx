@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
@@ -7,7 +7,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import type { BaseToolEditorProps } from "@phoenix/pages/playground/PlaygroundTool";
-import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * The minimum height for the editor before it is initialized.
@@ -32,29 +32,21 @@ export const JSONToolEditor = ({
     throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
   const toolId = tool.id;
-  const instanceProvider = instance.model.provider;
-  const [initialEditorValue, setInitialEditorValue] = useState(() =>
-    JSON.stringify(tool.definition, null, 2)
-  );
+  const initialEditorValue = useMemo(() => {
+    const state = store.getState();
+    const latestInstance = state.instances.find(
+      (i) => i.id === playgroundInstanceId
+    );
+    if (latestInstance != null) {
+      const latestTool = latestInstance.tools.find((t) => t.id === toolId);
+      if (latestTool != null) {
+        return JSON.stringify(latestTool.definition, null, 2);
+      }
+    }
+    return JSON.stringify(tool.definition, null, 2);
+  }, [playgroundInstanceId, store, tool.definition, toolId]);
   const editorValueRef = useRef(initialEditorValue);
 
-  // when the instance provider changes, we need to update the editor value
-  // to reflect the new tool definition schema
-  useEffect(() => {
-    const state = store.getState();
-    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
-    if (instance == null) {
-      return;
-    }
-    const tool = instance.tools.find((t) => t.id === toolId);
-    if (tool == null) {
-      return;
-    }
-    const newDefinition = JSON.stringify(tool.definition, null, 2);
-    if (isJSONString({ str: newDefinition, excludeNull: true })) {
-      setInitialEditorValue(newDefinition);
-    }
-  }, [instanceProvider, store, playgroundInstanceId, toolId]);
   const onChange = useCallback(
     (value: string) => {
       editorValueRef.current = value;

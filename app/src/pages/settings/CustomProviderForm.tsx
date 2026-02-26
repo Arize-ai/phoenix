@@ -1082,6 +1082,7 @@ const testCredentialsQuery = graphql`
 `;
 
 type TestStatus = "idle" | "testing" | "valid" | "invalid" | "error";
+type CompletedTestStatus = Exclude<TestStatus, "idle" | "testing">;
 
 /**
  * Fields required for credential testing, organized by SDK.
@@ -1163,8 +1164,14 @@ function TestConnectionButton({
   sdk: GenerativeModelSDK;
 }) {
   const environment = useRelayEnvironment();
-  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [lastTestResult, setLastTestResult] = useState<{
+    status: CompletedTestStatus;
+    errorMessage: string | null;
+  } | null>(null);
+  const [lastTestedValuesSignature, setLastTestedValuesSignature] = useState<
+    string | null
+  >(null);
 
   // Watch credential fields for button enablement check
   const watchedCredentials = useWatch({
@@ -1174,6 +1181,10 @@ function TestConnectionButton({
 
   // Watch all form values to reset test status when any field changes
   const watchedFormValues = useWatch({ control });
+  const watchedFormValuesSignature = useMemo(
+    () => JSON.stringify(watchedFormValues),
+    [watchedFormValues]
+  );
 
   // Build a lookup object from watched credential values
   const credentialValues = useMemo(() => {
@@ -1187,21 +1198,31 @@ function TestConnectionButton({
   // Track whether in-flight test results should be ignored
   const shouldIgnoreResultRef = useRef(false);
 
-  // Reset test status when any form field changes
+  // Mark in-flight test results as stale when any field changes.
   useEffect(() => {
-    shouldIgnoreResultRef.current = true; // Mark in-flight results as stale
-    setTestStatus("idle");
-    setErrorMessage(null);
+    shouldIgnoreResultRef.current = true;
   }, [watchedFormValues]);
 
   const canTest = hasRequiredCredentials(sdk, credentialValues);
+  const isStale =
+    lastTestedValuesSignature != null &&
+    lastTestedValuesSignature !== watchedFormValuesSignature;
+  const testStatus: TestStatus = isTesting
+    ? "testing"
+    : isStale || lastTestResult == null
+      ? "idle"
+      : lastTestResult.status;
+  const errorMessage =
+    testStatus === "idle" || testStatus === "testing"
+      ? null
+      : (lastTestResult?.errorMessage ?? null);
 
   const handleTest = useCallback(async () => {
     if (!canTest) return;
 
-    shouldIgnoreResultRef.current = false; // This test's results are valid
-    setTestStatus("testing");
-    setErrorMessage(null);
+    shouldIgnoreResultRef.current = false;
+    setIsTesting(true);
+    const testedValuesSignature = JSON.stringify(getValues());
 
     try {
       const formValues = getValues();
@@ -1213,32 +1234,46 @@ function TestConnectionButton({
       ).toPromise();
 
       // Ignore result if form changed during request
-      if (shouldIgnoreResultRef.current) return;
+      if (shouldIgnoreResultRef.current) {
+        setIsTesting(false);
+        return;
+      }
 
       if (!result) {
-        setTestStatus("error");
-        setErrorMessage("No response received from server");
+        setLastTestedValuesSignature(testedValuesSignature);
+        setLastTestResult({
+          status: "error",
+          errorMessage: "No response received from server",
+        });
+        setIsTesting(false);
         return;
       }
 
       const error = result.testGenerativeModelCustomProviderCredentials.error;
 
       if (!error) {
-        setTestStatus("valid");
+        setLastTestedValuesSignature(testedValuesSignature);
+        setLastTestResult({ status: "valid", errorMessage: null });
       } else {
-        setTestStatus("invalid");
-        setErrorMessage(error);
+        setLastTestedValuesSignature(testedValuesSignature);
+        setLastTestResult({ status: "invalid", errorMessage: error });
       }
     } catch (err) {
       // Ignore error if form changed during request
-      if (shouldIgnoreResultRef.current) return;
-
-      setTestStatus("error");
-      setErrorMessage(err instanceof Error ? err.message : "Test failed");
+      if (shouldIgnoreResultRef.current) {
+        setIsTesting(false);
+        return;
+      }
+      setLastTestedValuesSignature(testedValuesSignature);
+      setLastTestResult({
+        status: "error",
+        errorMessage: err instanceof Error ? err.message : "Test failed",
+      });
+    } finally {
+      setIsTesting(false);
     }
   }, [canTest, environment, getValues]);
 
-  const isTesting = testStatus === "testing";
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
 
   return (
@@ -1292,8 +1327,8 @@ function TestConnectionButton({
           }
           dismissable
           onDismissClick={() => {
-            setTestStatus("idle");
-            setErrorMessage(null);
+            setLastTestResult(null);
+            setLastTestedValuesSignature(null);
           }}
         >
           {testStatus === "valid"
