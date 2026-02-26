@@ -13,8 +13,13 @@ repos:
         entry: make lint-python
         files: \.py$
         pass_filenames: false
-  - repo: local
-    hooks:
+      - id: clean-notebooks
+        name: clean notebooks
+        entry: make clean-notebooks
+        language: system
+        files: \.ipynb$
+        pass_filenames: false
+        stages: [pre-commit]
       - id: oxfmt-app
         name: oxfmt (app)
         entry: pnpm --dir app run fmt:check
@@ -39,8 +44,6 @@ repos:
         language: system
         files: ^js/.*\.[jt]sx?$
         pass_filenames: false
-  - repo: local
-    hooks:
       - id: forbid-commit-to-local-main-branch
         name: Check branch before committing
         entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Should not commit to local main branch."; exit 1; }'
