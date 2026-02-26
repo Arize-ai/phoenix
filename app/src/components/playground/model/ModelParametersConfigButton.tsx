@@ -142,7 +142,7 @@ export function ModelParametersConfigButton(
         `}
       >
         <PopoverArrow />
-        <View padding="size-200" minWidth="386px">
+        <View padding="size-200" width="386px">
           <div css={formFieldsCSS}>
             {/* Model name field - shown for all providers */}
             <ModelNameConfigFormField
