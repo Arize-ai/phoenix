@@ -10,6 +10,7 @@
     "build:relay": "relay-compiler",
     "build:static": "cpy ./static ../src/phoenix/server",
     "chromatic": "source ./.env && npx chromatic",
+    "predev": "test -f .env || printf 'export PHOENIX_ENABLE_REACT_COMPILER=True\nexport PHOENIX_TELEMETRY_ENABLED=False\n' > .env",
     "dev": "mprocs",
     "dev:embeddings": "pnpm run dev:server:embeddings & pnpm run build:static && pnpm run build:relay && source ./.env && vite",
     "dev:offline": "pnpm run dev:server:offline & pnpm run build:static && pnpm run build:relay && source ./.env && vite",
