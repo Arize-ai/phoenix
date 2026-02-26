@@ -84,11 +84,6 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            "**/requirements/**/*.txt"
-            "**/pyproject.toml"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
         run: uv sync --extra container
       - name: Run Playwright tests

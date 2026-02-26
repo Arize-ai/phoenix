@@ -169,10 +169,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -197,10 +193,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
@@ -225,10 +217,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -253,10 +241,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
         run: make codegen-protobuf
       - run: git diff --exit-code
@@ -364,11 +348,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            uv.lock
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -405,12 +384,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/unit-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install PostgreSQL
         if: matrix.db == 'postgresql'
         run: sudo apt-get -yqq install postgresql
@@ -468,12 +441,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/integration-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 8
@@ -583,12 +550,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/canary/sdk/${{ matrix.pkg }}.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 

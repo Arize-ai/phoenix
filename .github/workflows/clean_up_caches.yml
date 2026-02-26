@@ -2,6 +2,7 @@
 name: Clean Up Caches by a Branch
 permissions:
   contents: read
+  actions: write  # required to delete Actions caches via gh actions-cache delete
 on:
   pull_request:
     types:
