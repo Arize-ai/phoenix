@@ -52,3 +52,11 @@ Add one section per finding:
 - Impact: step verification can appear broken even when code changes are correct.
 - Action taken: ran workspace build before re-running package typecheck/tests.
 - Follow-up: for JS verification in fresh worktrees, run install + workspace build before package-level checks.
+
+### 2026-02-26 — STEP-05 — Unicode canonical fixture strings are easy to over-escape
+- Category: `unexpected`
+- Context: shared golden vector fixture for cross-SDK hash parity tests.
+- Observation: `canonical_json` strings initially used double-escaped unicode sequences (`\\uXXXX`), which changed the hashed byte stream and broke the expected digest check.
+- Impact: parity tests can fail for fixture-encoding mistakes instead of true SDK canonicalization mismatches.
+- Action taken: regenerated the fixture programmatically from source payloads so `canonical_json` and `expected_hash` are derived together.
+- Follow-up: keep fixture generation script pattern in mind for future hash vector additions.
