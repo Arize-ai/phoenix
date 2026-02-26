@@ -168,7 +168,7 @@
                 "pages": [
                   "docs/phoenix/evaluation/how-to-evals",
                   {
-                    "group": "Tutorials",
+                    "group": "Tutorial",
                     "pages": [
                       "docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals",
                       "docs/phoenix/evaluation/tutorials/customize-your-llm-endpoint",
@@ -200,10 +200,10 @@
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
                       "docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore",
-                      "docs/phoenix/evaluation/pre-built-metrics/hallucination",
                       {
                         "group": "Legacy",
                         "pages": [
+                          "docs/phoenix/evaluation/pre-built-metrics/hallucination",
                           "docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
                           "docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance",
                           "docs/phoenix/evaluation/pre-built-metrics/summarization-eval",
