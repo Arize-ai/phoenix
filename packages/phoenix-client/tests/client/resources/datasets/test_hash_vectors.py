@@ -1,7 +1,7 @@
 import json
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -25,7 +25,7 @@ def _get_hash_vector_fixture_path() -> Path:
 def _load_hash_vectors() -> list[dict[str, Any]]:
     fixture_path = _get_hash_vector_fixture_path()
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
-    return fixture["vectors"]
+    return cast(list[dict[str, Any]], fixture["vectors"])
 
 
 @pytest.mark.parametrize("vector", _load_hash_vectors(), ids=lambda vector: str(vector["name"]))
