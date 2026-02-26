@@ -1,4 +1,6 @@
 import type { Response } from "express";
+
+import { generateToolCallId, generateFakeData } from "../fake-data.js";
 import type {
   ResponseCreateRequest,
   ResponseObject,
@@ -6,7 +8,6 @@ import type {
   ResponseOutputContent,
   ServerConfig,
 } from "../types.js";
-import { generateToolCallId, generateFakeData } from "../fake-data.js";
 
 /**
  * Generate a response ID
@@ -70,10 +71,10 @@ function getInputText(req: ResponseCreateRequest): string {
 /**
  * Handle non-streaming response
  */
-export function handleNonStreaming(
+export async function handleNonStreaming(
   req: ResponseCreateRequest,
-  config: ServerConfig,
-): ResponseObject {
+  config: ServerConfig
+): Promise<ResponseObject> {
   const id = generateResponseId();
   const createdAt = Date.now() / 1000;
 
@@ -93,7 +94,7 @@ export function handleNonStreaming(
 
     // Guard: ensure tool has valid function name
     if (tool?.function?.name) {
-      const args = generateFakeData(tool.function.parameters);
+      const args = await generateFakeData(tool.function.parameters);
 
       output.push({
         type: "function_call",
@@ -141,7 +142,7 @@ export function handleNonStreaming(
     .map((o) =>
       o.type === "message"
         ? o.content?.map((c) => c.text).join("") || ""
-        : o.arguments || "",
+        : o.arguments || ""
     )
     .join("");
 
@@ -169,7 +170,7 @@ export function handleNonStreaming(
 export async function handleStreaming(
   req: ResponseCreateRequest,
   res: Response,
-  config: ServerConfig,
+  config: ServerConfig
 ): Promise<void> {
   const id = generateResponseId();
   const createdAt = Date.now() / 1000;
@@ -268,7 +269,7 @@ async function streamTextContent(
   responseId: string,
   createdAt: number,
   config: ServerConfig,
-  sendEvent: (event: { type: string; [key: string]: unknown }) => void,
+  sendEvent: (event: { type: string; [key: string]: unknown }) => void
 ): Promise<void> {
   const content = config.getDefaultResponse();
   const itemId = generateItemId();
@@ -368,7 +369,7 @@ async function streamFunctionCall(
   responseId: string,
   createdAt: number,
   config: ServerConfig,
-  sendEvent: (event: { type: string; [key: string]: unknown }) => void,
+  sendEvent: (event: { type: string; [key: string]: unknown }) => void
 ): Promise<void> {
   const tool = req.tools![Math.floor(Math.random() * req.tools!.length)];
 
@@ -378,7 +379,7 @@ async function streamFunctionCall(
     return;
   }
 
-  const args = JSON.stringify(generateFakeData(tool.function.parameters));
+  const args = JSON.stringify(await generateFakeData(tool.function.parameters));
   const itemId = generateItemId();
   const callId = generateToolCallId();
 

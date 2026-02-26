@@ -1,8 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import UserSelector from "./UserSelector";
-import ErrorPage from "./ErrorPage";
+
 import { ThemeProvider } from "./contexts/ThemeContext";
+import ErrorPage from "./ErrorPage";
+import UserSelector from "./UserSelector";
+
 import "./index.css";
 
 // Check if we're on an error page

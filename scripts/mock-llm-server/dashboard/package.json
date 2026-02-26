@@ -1,13 +1,17 @@
 {
   "name": "dashboard",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "vite",
+    "fmt": "oxfmt --config ../../../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../../../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.2.4",
@@ -15,21 +19,17 @@
     "recharts": "^3.7.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^25.3.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.27",
-    "eslint": "^10.0.2",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.3.0",
+    "oxfmt": "^0.33.0",
+    "oxlint": "^1.48.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
   }
 }

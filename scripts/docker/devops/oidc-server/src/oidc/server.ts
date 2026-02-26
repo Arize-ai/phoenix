@@ -1,5 +1,6 @@
+import { randomBytes } from "crypto";
+import { readFileSync, writeFileSync, existsSync } from "fs";
 import {
-  SignJWT,
   generateKeyPair,
   exportJWK,
   importPKCS8,
@@ -7,25 +8,56 @@ import {
   exportPKCS8,
   exportSPKI,
   jwtVerify,
-  JWTPayload,
+  type CryptoKey,
+  type JWTPayload,
+  type KeyObject,
+  type JSONWebKeySet,
 } from "jose";
-import { randomBytes } from "crypto";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+
+import { DatabaseClient } from "../database/client.js";
 import type {
   User,
   AuthCodeStore,
-  TokenClaims,
   OIDCDiscoveryDocument,
 } from "../types/index.js";
-import { DatabaseClient } from "../database/client.js";
-import { PKCEUtils } from "./pkce.js";
 import { Logger } from "../utils/logger.js";
 import { TokenFactory } from "../utils/token-factory.js";
-import { Validators } from "../utils/validators.js";
+import { PKCEUtils } from "./pkce.js";
+
+/** OAuth/OIDC query params from authorization or user-selection requests. */
+interface AuthQueryParams {
+  client_id?: string;
+  redirect_uri?: string;
+  response_type?: string;
+  scope?: string;
+  state?: string;
+  nonce?: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
+}
+
+/** Token endpoint body params. */
+interface TokenBodyParams {
+  grant_type?: string;
+  code?: string;
+  redirect_uri?: string;
+  client_id?: string;
+  client_secret?: string;
+  code_verifier?: string;
+  code_challenge_method?: string;
+}
+
+/** Coerce unknown to string for use in URLs/logging. */
+function asStr(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
 
 export class OIDCServer {
-  private keyPair!: { privateKey: any; publicKey: any };
-  private jwks!: any;
+  private keyPair!: {
+    privateKey: CryptoKey | KeyObject;
+    publicKey: CryptoKey | KeyObject;
+  };
+  private jwks!: JSONWebKeySet;
   private authCodes: AuthCodeStore = {};
   private issuer: string;
   private clientId: string;
@@ -313,13 +345,14 @@ export class OIDCServer {
    * Section 3.1.2.5 - Successful Authentication Response
    * Section 3.1.2.6 - Authentication Error Response
    */
-  async handleAuth(query: any): Promise<{
+  async handleAuth(query: Record<string, unknown>): Promise<{
     redirectUrl: string;
     error?: string;
     error_description?: string;
   }> {
+    const q = query as AuthQueryParams;
     // Auto-detect flow type (PKCE detection)
-    const isPKCE = !!(query.code_challenge && query.code_challenge_method);
+    const isPKCE = !!(q.code_challenge && q.code_challenge_method);
 
     // For authorization requests, we can't determine if it's public or confidential
     // because client secrets are NEVER sent in authorization requests (only in token requests)
@@ -337,12 +370,12 @@ export class OIDCServer {
       timestamp: new Date().toISOString(),
       event: "oauth_auth_request_started",
       query_params: query,
-      client_id: query.client_id,
-      redirect_uri: query.redirect_uri,
-      response_type: query.response_type,
-      scope: query.scope,
-      state: query.state,
-      nonce: query.nonce,
+      client_id: q.client_id,
+      redirect_uri: q.redirect_uri,
+      response_type: q.response_type,
+      scope: q.scope,
+      state: q.state,
+      nonce: q.nonce,
       detected_flow_type: flowType,
       client_auth_methods_restriction: this.clientAuthMethod,
       flow_allowed: this.isFlowAllowed(flowType),
@@ -362,9 +395,9 @@ export class OIDCServer {
       console.log(JSON.stringify(flowRejection));
 
       return {
-        redirectUrl: `${query.redirect_uri}?error=unsupported_response_type&error_description=${encodeURIComponent(
+        redirectUrl: `${asStr(q.redirect_uri)}?error=unsupported_response_type&error_description=${encodeURIComponent(
           `Authentication method '${flowType}' is not supported with current configuration`
-        )}&state=${query.state}`,
+        )}&state=${asStr(q.state)}`,
         error: `Authentication method '${flowType}' not allowed`,
         error_description: `Authentication method '${flowType}' is not supported with current configuration`,
       };
@@ -372,8 +405,12 @@ export class OIDCServer {
 
     // Section 3.1.2.1 - Required parameters: response_type, client_id, redirect_uri, scope
     // state is RECOMMENDED for CSRF protection
-    const { client_id, redirect_uri, response_type, scope, state, nonce } =
-      query;
+    const client_id = asStr(q.client_id);
+    const redirect_uri = asStr(q.redirect_uri);
+    const response_type = asStr(q.response_type);
+    const scope = asStr(q.scope);
+    const state = asStr(q.state);
+    const nonce = asStr(q.nonce);
 
     // Section 3.1.2.2 - Authentication Request Validation
     // REQUIRED parameters must be present
@@ -573,13 +610,18 @@ export class OIDCServer {
 
   async handleUserSelection(
     selectedUserId: string,
-    query: any
+    query: Record<string, unknown>
   ): Promise<{
     redirectUrl: string;
     error?: string;
     error_description?: string;
   }> {
-    const { client_id, redirect_uri, response_type, state, nonce } = query;
+    const q = query as AuthQueryParams;
+    const client_id = asStr(q.client_id);
+    const redirect_uri = asStr(q.redirect_uri);
+    const state = asStr(q.state);
+    const nonce = asStr(q.nonce);
+    const scope = asStr(q.scope);
     const users = this.getUsers();
     const selectedUser = users.find((user) => user.id === selectedUserId);
 
@@ -598,7 +640,7 @@ export class OIDCServer {
       redirectUri: redirect_uri,
       nonce,
       createdAt: Date.now(),
-      scope: query.scope,
+      scope,
     };
 
     this.cleanupExpiredCodes();
@@ -635,13 +677,14 @@ export class OIDCServer {
    * Section 9 - Client Authentication
    */
   async handleToken(
-    body: any,
-    headers: any = {}
-  ): Promise<{ tokens?: any; error?: string; error_description?: string }> {
+    body: Record<string, unknown>,
+    headers: Record<string, string> = {}
+  ): Promise<{ tokens?: unknown; error?: string; error_description?: string }> {
+    const b = body as TokenBodyParams;
     // Auto-detect flow type
-    const isPKCE = !!body.code_verifier;
+    const isPKCE = !!b.code_verifier;
     const hasClientSecret = !!(
-      body.client_secret || headers.authorization?.startsWith("Basic ")
+      b.client_secret || headers.authorization?.startsWith("Basic ")
     );
 
     // Determine the specific flow type for validation
@@ -685,9 +728,13 @@ export class OIDCServer {
     // Section 9 - Client Authentication
     // Supports client_secret_post (body) and client_secret_basic (HTTP Basic Auth)
     // Extract client credentials from either body or Authorization header
-    let client_secret = body.client_secret;
+    let client_secret: string | undefined = b.client_secret;
     let authSource = "request_body";
-    let decodedBasicAuth = null;
+    let decodedBasicAuth: {
+      parsed_client_id?: string;
+      parsed_client_secret?: string;
+      [key: string]: unknown;
+    } | null = null;
 
     // Section 9 - HTTP Basic Authentication (client_secret_basic)
     // Format: Authorization: Basic BASE64(client_id:client_secret)
@@ -714,8 +761,8 @@ export class OIDCServer {
           Logger.logEvent("client_secret_extracted_from_basic_auth", {
             extracted_secret: authSecret,
             client_id_from_auth: authClientId,
-            client_id_from_body: body.client_id,
-            client_ids_match: authClientId === body.client_id,
+            client_id_from_body: b.client_id,
+            client_ids_match: authClientId === b.client_id,
           });
         }
       } catch (error) {
@@ -730,7 +777,7 @@ export class OIDCServer {
 
     // Final client credential analysis
     Logger.logEvent("client_credential_analysis", {
-      client_secret_from_body: body.client_secret || "none",
+      client_secret_from_body: b.client_secret || "none",
       client_secret_final: client_secret || "none",
       client_secret_source: authSource,
       client_type_determined: client_secret ? "confidential" : "public",
@@ -739,8 +786,9 @@ export class OIDCServer {
     });
 
     // CLIENT SECRET VALIDATION - Critical security check
-    const clientId = body.client_id || decodedBasicAuth?.parsed_client_id;
-    const expectedSecrets: { [clientId: string]: string } = {
+    const clientId =
+      asStr(b.client_id) || decodedBasicAuth?.parsed_client_id || "";
+    const expectedSecrets: Record<string, string> = {
       "phoenix-oidc-client-id": "phoenix-oidc-client-secret-abc-123",
       "grafana-oidc-client-id": "grafana-oidc-client-secret-abc-123",
     };
@@ -806,7 +854,10 @@ export class OIDCServer {
 
     // Section 3.1.3.1 - Token Request Parameters
     // REQUIRED: grant_type, code, redirect_uri, client_id (for confidential clients)
-    const { grant_type, code, redirect_uri, client_id } = body;
+    const grant_type = asStr(b.grant_type);
+    const code = asStr(b.code);
+    const redirect_uri = asStr(b.redirect_uri);
+    const client_id = asStr(b.client_id);
 
     const extractedParams = {
       timestamp: new Date().toISOString(),
@@ -1022,7 +1073,7 @@ export class OIDCServer {
    */
   async handleUserInfo(
     authHeader?: string
-  ): Promise<{ user?: any; error?: string }> {
+  ): Promise<{ user?: unknown; error?: string }> {
     Logger.logEvent("userinfo_request_received", {
       has_auth_header: !!authHeader,
       auth_header_format: authHeader?.startsWith("Bearer ")
@@ -1042,12 +1093,12 @@ export class OIDCServer {
 
     // Extract and verify the access token
     const token = authHeader.slice(7); // Remove "Bearer " prefix
-    let tokenClaims: JWTPayload | null = null;
+    let _tokenClaims: JWTPayload | null = null;
     let userId: string | null = null;
 
     try {
       const { payload } = await jwtVerify(token, this.keyPair.publicKey);
-      tokenClaims = payload;
+      _tokenClaims = payload;
       userId = payload.sub as string;
 
       Logger.logEvent("userinfo_token_verified", {
@@ -1081,7 +1132,7 @@ export class OIDCServer {
     // Build userinfo response - ALWAYS include groups and role
     // This is the standard practice for Grafana and other OIDC clients
     // Groups should be retrieved from userinfo endpoint, not from ID token
-    const userInfo: any = {
+    const userInfo: Record<string, unknown> = {
       sub: user.id, // REQUIRED: Subject identifier (Section 5.1)
       email: user.email, // Standard Claim (Section 5.1)
       name: user.name, // Standard Claim (Section 5.1)
@@ -1152,11 +1203,12 @@ export class OIDCServer {
    * Section 4.3 - Client Creates the Code Challenge
    * Section 4.4 - Client Sends the Code Challenge with Authorization Request
    */
-  async handlePKCEAuth(query: any): Promise<{
+  async handlePKCEAuth(query: Record<string, unknown>): Promise<{
     redirectUrl: string;
     error?: string;
     error_description?: string;
   }> {
+    const q = query as AuthQueryParams;
     const requestId = `pkce-auth-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // For authorization requests, we can't determine if it's public or confidential
@@ -1180,9 +1232,9 @@ export class OIDCServer {
       console.log(JSON.stringify(flowRejection));
 
       return {
-        redirectUrl: `${query.redirect_uri}?error=unsupported_response_type&error_description=${encodeURIComponent(
+        redirectUrl: `${asStr(q.redirect_uri)}?error=unsupported_response_type&error_description=${encodeURIComponent(
           `PKCE authentication method '${flowType}' is not supported with current configuration`
-        )}&state=${query.state}`,
+        )}&state=${asStr(q.state)}`,
         error: `PKCE authentication method '${flowType}' not allowed`,
       };
     }
@@ -1192,59 +1244,58 @@ export class OIDCServer {
       event: "pkce_auth_request_started",
       request_id: requestId,
       query_params: query,
-      client_id: query.client_id,
-      redirect_uri: query.redirect_uri,
-      response_type: query.response_type,
-      scope: query.scope,
-      state: query.state,
-      nonce: query.nonce,
-      code_challenge: query.code_challenge ? "provided" : "missing",
-      code_challenge_method: query.code_challenge_method,
+      client_id: q.client_id,
+      redirect_uri: q.redirect_uri,
+      response_type: q.response_type,
+      scope: q.scope,
+      state: q.state,
+      nonce: q.nonce,
+      code_challenge: q.code_challenge ? "provided" : "missing",
+      code_challenge_method: q.code_challenge_method,
       debug_pkce_analysis: {
-        challenge_length: query.code_challenge?.length || 0,
+        challenge_length:
+          typeof q.code_challenge === "string" ? q.code_challenge.length : 0,
         challenge_method_valid: ["S256", "plain"].includes(
-          query.code_challenge_method
+          asStr(q.code_challenge_method)
         ),
         challenge_format_check: {
-          base64url_pattern: query.code_challenge
-            ? /^[A-Za-z0-9._~-]+$/.test(query.code_challenge)
-            : false,
-          expected_s256_length: 43, // Base64URL of SHA256 is 43 chars
-          actual_length: query.code_challenge?.length || 0,
+          base64url_pattern:
+            typeof q.code_challenge === "string"
+              ? /^[A-Za-z0-9._~-]+$/.test(q.code_challenge)
+              : false,
+          expected_s256_length: 43,
+          actual_length:
+            typeof q.code_challenge === "string" ? q.code_challenge.length : 0,
         },
-        state_provided: !!query.state,
-        nonce_provided: !!query.nonce,
-        request_from_phoenix_client:
-          query.client_id === "phoenix-oidc-client-id",
-        request_from_grafana_client:
-          query.client_id === "grafana-oidc-client-id",
+        state_provided: !!q.state,
+        nonce_provided: !!q.nonce,
+        request_from_phoenix_client: q.client_id === "phoenix-oidc-client-id",
+        request_from_grafana_client: q.client_id === "grafana-oidc-client-id",
       },
       debug_request_metadata: {
         query_param_count: Object.keys(query || {}).length,
         required_oauth_params_present: {
-          response_type: !!query.response_type,
-          client_id: !!query.client_id,
-          redirect_uri: !!query.redirect_uri,
-          scope: !!query.scope,
+          response_type: !!q.response_type,
+          client_id: !!q.client_id,
+          redirect_uri: !!q.redirect_uri,
+          scope: !!q.scope,
         },
         required_pkce_params_present: {
-          code_challenge: !!query.code_challenge,
-          code_challenge_method: !!query.code_challenge_method,
+          code_challenge: !!q.code_challenge,
+          code_challenge_method: !!q.code_challenge_method,
         },
       },
     };
     console.log(JSON.stringify(authRequest));
 
-    const {
-      client_id,
-      redirect_uri,
-      response_type,
-      scope,
-      state,
-      nonce,
-      code_challenge,
-      code_challenge_method,
-    } = query;
+    const client_id = asStr(q.client_id);
+    const redirect_uri = asStr(q.redirect_uri);
+    const response_type = asStr(q.response_type);
+    const scope = asStr(q.scope);
+    const state = asStr(q.state);
+    const nonce = asStr(q.nonce);
+    const code_challenge = asStr(q.code_challenge);
+    const code_challenge_method = asStr(q.code_challenge_method);
 
     // Basic OAuth validations (same as regular flow)
     if (!client_id || !redirect_uri || !response_type) {
@@ -1455,21 +1506,20 @@ export class OIDCServer {
 
   async handlePKCEUserSelection(
     selectedUserId: string,
-    query: any
+    query: Record<string, unknown>
   ): Promise<{
     redirectUrl: string;
     error?: string;
     error_description?: string;
   }> {
-    const {
-      client_id,
-      redirect_uri,
-      response_type,
-      state,
-      nonce,
-      code_challenge,
-      code_challenge_method,
-    } = query;
+    const q = query as AuthQueryParams;
+    const client_id = asStr(q.client_id);
+    const redirect_uri = asStr(q.redirect_uri);
+    const state = asStr(q.state);
+    const nonce = asStr(q.nonce);
+    const code_challenge = asStr(q.code_challenge);
+    const code_challenge_method = asStr(q.code_challenge_method);
+    const scope = asStr(q.scope);
     const users = this.getUsers();
     const selectedUser = users.find((user) => user.id === selectedUserId);
 
@@ -1490,7 +1540,7 @@ export class OIDCServer {
       createdAt: Date.now(),
       codeChallenge: code_challenge,
       codeChallengeMethod: code_challenge_method,
-      scope: query.scope,
+      scope,
     };
 
     this.cleanupExpiredCodes();
@@ -1525,14 +1575,15 @@ export class OIDCServer {
    * Section 4.6 - Server Verifies code_verifier against code_challenge
    */
   async handlePKCEToken(
-    body: any,
-    headers: any = {}
-  ): Promise<{ tokens?: any; error?: string; error_description?: string }> {
+    body: Record<string, unknown>,
+    headers: Record<string, string> = {}
+  ): Promise<{ tokens?: unknown; error?: string; error_description?: string }> {
+    const b = body as TokenBodyParams;
     const requestId = `pkce-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Determine if this is public or confidential PKCE
     const hasClientSecret = !!(
-      (body.client_secret && body.client_secret.trim() !== "") ||
+      (b.client_secret && b.client_secret.trim() !== "") ||
       headers.authorization?.startsWith("Basic ")
     );
     const flowType = hasClientSecret ? "pkce-confidential" : "pkce-public";
@@ -1563,16 +1614,21 @@ export class OIDCServer {
       authorization_header: headers.authorization || "none",
       user_agent: headers["user-agent"] || "none",
       content_type: headers["content-type"] || "none",
-      code_verifier_present: !!body.code_verifier,
-      code_verifier_length: body.code_verifier?.length || 0,
+      code_verifier_present: !!b.code_verifier,
+      code_verifier_length:
+        typeof b.code_verifier === "string" ? b.code_verifier.length : 0,
       client_auth_methods_restriction: this.clientAuthMethod,
       flow_allowed: this.isFlowAllowed(flowType),
     });
 
     // Extract client credentials from either body or Authorization header
-    let client_secret = body.client_secret;
+    let client_secret: string | undefined = b.client_secret;
     let authSource = "request_body";
-    let decodedBasicAuth = null;
+    let decodedBasicAuth: {
+      parsed_client_id?: string;
+      parsed_client_secret?: string;
+      [key: string]: unknown;
+    } | null = null;
 
     // Check for HTTP Basic Authentication
     if (headers.authorization?.startsWith("Basic ")) {
@@ -1602,8 +1658,8 @@ export class OIDCServer {
             request_id: requestId,
             extracted_secret: authSecret,
             client_id_from_auth: authClientId,
-            client_id_from_body: body.client_id,
-            client_ids_match: authClientId === body.client_id,
+            client_id_from_body: b.client_id,
+            client_ids_match: authClientId === b.client_id,
           });
         }
       } catch (error) {
@@ -1620,7 +1676,7 @@ export class OIDCServer {
     // Final client credential analysis for PKCE
     Logger.logEvent("pkce_client_credential_analysis", {
       request_id: requestId,
-      client_secret_from_body: body.client_secret || "none",
+      client_secret_from_body: b.client_secret || "none",
       client_secret_final: client_secret || "none",
       client_secret_source: authSource,
       client_type_determined: client_secret ? "confidential" : "public",
@@ -1629,8 +1685,9 @@ export class OIDCServer {
     });
 
     // PKCE CLIENT SECRET VALIDATION - Critical security check
-    const clientId = body.client_id || decodedBasicAuth?.parsed_client_id;
-    const expectedSecrets: { [clientId: string]: string } = {
+    const clientId =
+      asStr(b.client_id) || decodedBasicAuth?.parsed_client_id || "";
+    const expectedSecrets: Record<string, string> = {
       "phoenix-oidc-client-id": "phoenix-oidc-client-secret-abc-123",
       "grafana-oidc-client-id": "grafana-oidc-client-secret-abc-123",
     };
@@ -1686,8 +1743,9 @@ export class OIDCServer {
       request_id: requestId,
       body_type: typeof body,
       body_keys: Object.keys(body || {}),
-      has_code_verifier: !!body.code_verifier,
-      code_verifier_length: body.code_verifier?.length || 0,
+      has_code_verifier: !!b.code_verifier,
+      code_verifier_length:
+        typeof b.code_verifier === "string" ? b.code_verifier.length : 0,
       request_size_bytes: JSON.stringify(body || {}).length,
       client_auth_source: authSource,
       client_type: client_secret ? "confidential" : "public",
@@ -1696,21 +1754,26 @@ export class OIDCServer {
         raw_headers: headers,
         decoded_basic_auth: decodedBasicAuth,
         final_client_secret: client_secret,
-        complete_code_verifier: body.code_verifier, // Full verifier for debugging
+        complete_code_verifier: b.code_verifier, // Full verifier for debugging
       },
       debug_body_sample: {
-        grant_type: body.grant_type,
-        client_id: body.client_id,
+        grant_type: b.grant_type,
+        client_id: b.client_id,
         has_client_secret: !!client_secret,
-        redirect_uri: body.redirect_uri,
-        code_prefix: body.code?.substring(0, 8) + "..." || "missing",
-        verifier_prefix:
-          body.code_verifier?.substring(0, 8) + "..." || "missing",
+        redirect_uri: b.redirect_uri,
+        code_prefix: b.code ? b.code.substring(0, 8) + "..." : "missing",
+        verifier_prefix: b.code_verifier
+          ? b.code_verifier.substring(0, 8) + "..."
+          : "missing",
       },
     };
     console.log(JSON.stringify(tokenRequest));
 
-    const { grant_type, code, redirect_uri, client_id, code_verifier } = body;
+    const grant_type = asStr(b.grant_type);
+    const code = asStr(b.code);
+    const redirect_uri = asStr(b.redirect_uri);
+    const client_id = asStr(b.client_id);
+    const code_verifier = asStr(b.code_verifier);
 
     // Basic validations (same as regular flow)
     if (grant_type !== "authorization_code") {

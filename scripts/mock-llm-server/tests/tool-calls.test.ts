@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { startServer, stopServer, getTestClient } from "./setup";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
+import { startServer, stopServer, getTestClient } from "./setup";
 
 describe("Tool Calls", () => {
   beforeAll(async () => {
@@ -93,7 +94,7 @@ describe("Tool Calls", () => {
       expect(args).toHaveProperty("a");
       expect(args).toHaveProperty("b");
       expect(["add", "subtract", "multiply", "divide"]).toContain(
-        args.operation,
+        args.operation
       );
       expect(typeof args.a).toBe("number");
       expect(typeof args.b).toBe("number");

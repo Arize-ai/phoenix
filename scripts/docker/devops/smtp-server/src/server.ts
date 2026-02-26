@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import cors from "@fastify/cors";
 import staticFiles from "@fastify/static";
 import Fastify, {
@@ -8,8 +10,6 @@ import Fastify, {
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 
 import { SMTPHandler } from "./smtp/handler.js";
 import { ServerConfigSchema } from "./types/index.js";
@@ -66,12 +66,12 @@ async function setupServer(): Promise<void> {
     async (
       request: FastifyRequest<{
         Querystring: { page?: string; pageSize?: string };
-      }>,
+      }>
     ) => {
       const page = parseInt(request.query.page || "1");
       const pageSize = parseInt(request.query.pageSize || "50");
       return { success: true, data: smtpHandler.getEmails(page, pageSize) };
-    },
+    }
   );
 
   fastify.get(
@@ -82,7 +82,7 @@ async function setupServer(): Promise<void> {
         throw new Error("Email not found");
       }
       return { success: true, data: email };
-    },
+    }
   );
 
   fastify.delete(
@@ -90,7 +90,7 @@ async function setupServer(): Promise<void> {
     async (request: FastifyRequest<{ Params: { id: string } }>) => {
       const deleted = smtpHandler.deleteEmail(request.params.id);
       return { success: true, data: { deleted } };
-    },
+    }
   );
 
   fastify.delete("/api/emails", async () => {
@@ -115,7 +115,7 @@ async function setupServer(): Promise<void> {
         return reply.code(404).send({ success: false, error: "Not found" });
       }
       return reply.sendFile("index.html");
-    },
+    }
   );
 }
 
@@ -127,7 +127,7 @@ fastify.setErrorHandler(
     fastify.log.error({ error, request: request.url }, "Request error");
 
     return reply.code(statusCode).send({ success: false, error: message });
-  },
+  }
 );
 
 async function closeGracefully(signal: string): Promise<void> {
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
       host: config.host,
     });
     console.log(
-      `✅ Web server listening on http://${config.host}:${config.webPort}`,
+      `✅ Web server listening on http://${config.host}:${config.webPort}`
     );
     console.log("");
     console.log("📧 Send emails to any address @localhost");

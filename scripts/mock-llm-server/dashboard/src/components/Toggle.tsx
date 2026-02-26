@@ -15,12 +15,12 @@ export function Toggle({ enabled, onChange, color = "blue" }: ToggleProps) {
   return (
     <button
       onClick={() => onChange(!enabled)}
-      className={`relative w-8 h-4 rounded-full transition-colors ${
+      className={`relative h-4 w-8 rounded-full transition-colors ${
         enabled ? colorClasses[color] : "bg-gray-600"
       }`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
+        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
           enabled ? "translate-x-4" : "translate-x-0"
         }`}
       />

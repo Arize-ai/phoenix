@@ -1,10 +1,13 @@
+import { randomUUID } from "crypto";
+import { simpleParser, type ParsedMail, type AddressObject } from "mailparser";
 import {
   SMTPServer,
+  type SMTPServerAuthentication,
+  type SMTPServerAuthenticationResponse,
   type SMTPServerDataStream,
   type SMTPServerSession,
 } from "smtp-server";
-import { simpleParser, type ParsedMail, type AddressObject } from "mailparser";
-import { randomUUID } from "crypto";
+
 import type {
   Email,
   EmailAddress,
@@ -43,9 +46,12 @@ export class SMTPHandler {
   }
 
   private handleAuth(
-    auth: any,
+    auth: SMTPServerAuthentication,
     session: SMTPServerSession,
-    callback: (error?: Error | null, response?: any) => void
+    callback: (
+      err: Error | null | undefined,
+      response?: SMTPServerAuthenticationResponse
+    ) => void
   ): void {
     callback(null, { user: auth.username || "dev" });
   }
@@ -97,7 +103,7 @@ export class SMTPHandler {
 
   private convertParsedMailToEmail(
     parsed: ParsedMail,
-    sessionInfo: SMTPSessionInfo
+    _sessionInfo: SMTPSessionInfo
   ): Email {
     const convertAddresses = (
       addresses: AddressObject | AddressObject[] | undefined
@@ -107,11 +113,19 @@ export class SMTPHandler {
       const addressArray = Array.isArray(addresses) ? addresses : [addresses];
 
       return addressArray.flatMap((addr) =>
-        addr.value.map((v: any) => ({
-          name: v.name,
-          address: v.address || "",
-        }))
-      );
+        (addr.value as { name?: string[] | string; address?: string }[]).map(
+          (v) => {
+            const name =
+              v.name === undefined
+                ? undefined
+                : Array.isArray(v.name)
+                  ? v.name.join(" ")
+                  : String(v.name);
+            const address = v.address ?? "";
+            return name !== undefined ? { name, address } : { address };
+          }
+        )
+      ) as EmailAddress[];
     };
 
     const convertAttachments = (
@@ -119,19 +133,29 @@ export class SMTPHandler {
     ): EmailAttachment[] => {
       if (!attachments) return [];
 
-      return attachments.map((att: any) => ({
-        filename: att.filename,
-        contentType: att.contentType,
-        size: att.size,
-        content: att.content.toString("base64"),
-      }));
+      return (
+        attachments as {
+          filename?: string;
+          contentType?: string;
+          size?: number;
+          content: Buffer;
+        }[]
+      ).map((att) => {
+        const filename = att.filename;
+        const contentType = att.contentType ?? "";
+        const size = att.size ?? 0;
+        const content = att.content.toString("base64");
+        return filename !== undefined
+          ? { filename, contentType, size, content }
+          : { contentType, size, content };
+      }) as EmailAttachment[];
     };
 
     const textLength = typeof parsed.text === "string" ? parsed.text.length : 0;
     const htmlLength = typeof parsed.html === "string" ? parsed.html.length : 0;
     const attachmentsSize =
       parsed.attachments?.reduce(
-        (sum: number, att: any) => sum + att.size,
+        (sum: number, att: { size?: number }) => sum + (att.size ?? 0),
         0
       ) || 0;
     const size = textLength + htmlLength + attachmentsSize;
@@ -229,9 +253,9 @@ export class SMTPHandler {
 
   public async start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server.listen(this.port, (error?: any) => {
+      this.server.listen(this.port, (error?: unknown) => {
         if (error) {
-          reject(error);
+          reject(error instanceof Error ? error : new Error(String(error)));
         } else {
           resolve();
         }

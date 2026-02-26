@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
+
 import { handleNonStreaming, handleStreaming } from "../handlers/gemini.js";
+import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 
 /**
  * Google GenAI (Gemini) Generate Content API Provider (v1beta)
@@ -64,7 +65,7 @@ export const geminiGenerateProvider: Provider = {
   },
 
   formatAuthenticationError(
-    message = "API key not valid. Please pass a valid API key.",
+    message = "API key not valid. Please pass a valid API key."
   ): unknown {
     return {
       error: {
@@ -76,7 +77,7 @@ export const geminiGenerateProvider: Provider = {
   },
 
   formatPermissionDeniedError(
-    message = "Permission denied on resource",
+    message = "Permission denied on resource"
   ): unknown {
     return {
       error: {
@@ -97,8 +98,13 @@ export const geminiGenerateProvider: Provider = {
     };
   },
 
-  handleNonStreaming(req: Request, config: HandlerConfig): unknown {
-    const model = req.params.model;
+  async handleNonStreaming(
+    req: Request,
+    config: HandlerConfig
+  ): Promise<unknown> {
+    const modelParam = req.params.model;
+    const model =
+      typeof modelParam === "string" ? modelParam : (modelParam?.[0] ?? "");
     const body = req.body;
     const serverConfig = {
       ...config,
@@ -110,12 +116,12 @@ export const geminiGenerateProvider: Provider = {
       rateLimitRandomProbability: 0,
       rateLimitAfterN: 0,
     };
-    return handleNonStreaming(model, body, serverConfig);
+    return await handleNonStreaming(model, body, serverConfig);
   },
 
   async handleStreaming(): Promise<void> {
     throw new Error(
-      "Streaming not supported on this endpoint. Use streamGenerateContent.",
+      "Streaming not supported on this endpoint. Use streamGenerateContent."
     );
   },
 };
@@ -182,7 +188,7 @@ export const geminiStreamProvider: Provider = {
   },
 
   formatAuthenticationError(
-    message = "API key not valid. Please pass a valid API key.",
+    message = "API key not valid. Please pass a valid API key."
   ): unknown {
     return {
       error: {
@@ -194,7 +200,7 @@ export const geminiStreamProvider: Provider = {
   },
 
   formatPermissionDeniedError(
-    message = "Permission denied on resource",
+    message = "Permission denied on resource"
   ): unknown {
     return {
       error: {
@@ -217,16 +223,18 @@ export const geminiStreamProvider: Provider = {
 
   handleNonStreaming(): unknown {
     throw new Error(
-      "Non-streaming not supported on this endpoint. Use generateContent.",
+      "Non-streaming not supported on this endpoint. Use generateContent."
     );
   },
 
   async handleStreaming(
     req: Request,
     res: Response,
-    config: HandlerConfig,
+    config: HandlerConfig
   ): Promise<void> {
-    const model = req.params.model;
+    const modelParam = req.params.model;
+    const model =
+      typeof modelParam === "string" ? modelParam : (modelParam?.[0] ?? "");
     const body = req.body;
     const serverConfig = {
       ...config,

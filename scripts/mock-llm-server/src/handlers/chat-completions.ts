@@ -4,8 +4,9 @@ import type {
   ChatCompletionCreateParams,
   ChatCompletionMessageToolCall,
 } from "openai/resources/chat/completions";
-import type { ServerConfig } from "../types.js";
+
 import { generateCompletionId, generateToolCalls } from "../fake-data.js";
+import type { ServerConfig } from "../types.js";
 
 // Delta tool call type for streaming (partial type from SDK)
 interface DeltaToolCall {
@@ -45,33 +46,30 @@ interface MockChatCompletion {
 /**
  * Handle non-streaming chat completion request
  */
-export function handleNonStreaming(
+export async function handleNonStreaming(
   req: ChatCompletionCreateParams,
-  config: ServerConfig,
-): MockChatCompletion {
+  config: ServerConfig
+): Promise<MockChatCompletion> {
   const id = generateCompletionId();
   const created = Math.floor(Date.now() / 1000);
 
-  // Decide whether to make a tool call
-  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     req.tool_choice !== "none" &&
     Math.random() < config.toolCallProbability;
 
-  let content: string | null = null;
+  let content: string | null;
   let toolCalls: ChatCompletionMessageToolCall[] | undefined = undefined;
   let finishReason: "stop" | "tool_calls" = "stop";
 
   if (shouldMakeToolCall && req.tools) {
-    const generatedCalls = generateToolCalls(req.tools, 1);
+    const generatedCalls = await generateToolCalls(req.tools, 1);
     if (generatedCalls.length > 0) {
       toolCalls = generatedCalls;
       content = null;
       finishReason = "tool_calls";
     } else {
-      // Fallback to text response if no valid tool calls generated
       content = config.getDefaultResponse();
     }
   } else {
@@ -81,7 +79,7 @@ export function handleNonStreaming(
   const promptTokens = estimateTokens(
     req.messages
       .map((m) => (typeof m.content === "string" ? m.content : ""))
-      .join(" "),
+      .join(" ")
   );
   const completionTokens = estimateTokens(content || "");
 
@@ -117,7 +115,7 @@ export function handleNonStreaming(
 export async function handleStreaming(
   req: ChatCompletionCreateParams,
   res: Response,
-  config: ServerConfig,
+  config: ServerConfig
 ): Promise<void> {
   const id = generateCompletionId();
   const created = Math.floor(Date.now() / 1000);
@@ -151,7 +149,7 @@ export async function handleStreaming(
     const promptTokens = estimateTokens(
       req.messages
         .map((m) => (typeof m.content === "string" ? m.content : ""))
-        .join(" "),
+        .join(" ")
     );
     const completionTokens = estimateTokens(config.getDefaultResponse());
 
@@ -181,7 +179,7 @@ async function streamTextContent(
   id: string,
   created: number,
   config: ServerConfig,
-  sendChunk: (chunk: ChatCompletionChunk) => void,
+  sendChunk: (chunk: ChatCompletionChunk) => void
 ): Promise<void> {
   const content = config.getDefaultResponse();
 
@@ -254,13 +252,13 @@ async function streamToolCall(
   id: string,
   created: number,
   config: ServerConfig,
-  sendChunk: (chunk: ChatCompletionChunk) => void,
+  sendChunk: (chunk: ChatCompletionChunk) => void
 ): Promise<void> {
-  const toolCalls = generateToolCalls(req.tools!, 1);
+  const toolCalls = await generateToolCalls(req.tools!, 1);
   const toolCall = toolCalls[0];
 
   // Guard: if no valid tool call was generated, fall back to text
-  if (!toolCall || !toolCall.function?.name) {
+  if (!toolCall || !("function" in toolCall) || !toolCall.function?.name) {
     await streamTextContent(req, res, id, created, config, sendChunk);
     return;
   }

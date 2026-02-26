@@ -1,39 +1,33 @@
 {
-    "name": "oidc-user-selector",
-    "version": "1.0.0",
-    "type": "module",
-    "description": "User selection interface for Phoenix OIDC server",
-    "private": true,
-    "scripts": {
-        "dev": "vite",
-        "build": "tsc && vite build",
-        "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-        "lint:fix": "eslint . --fix",
-        "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
-        "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
-        "check": "pnpm run format:check && pnpm run lint",
-        "fix": "pnpm run format && pnpm run lint:fix",
-        "preview": "vite preview"
-    },
-    "dependencies": {
-        "lucide-react": "^0.575.0",
-        "react": "^19.2.4",
-        "react-dom": "^19.2.4"
-    },
-    "devDependencies": {
-        "@eslint/js": "^10.0.1",
-        "@types/react": "^19.2.14",
-        "@types/react-dom": "^19.2.3",
-        "@vitejs/plugin-react": "^5.1.4",
-        "eslint": "^10.0.2",
-        "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-prettier": "^5.5.5",
-        "eslint-plugin-react-hooks": "^7.0.1",
-        "eslint-plugin-react-refresh": "^0.5.2",
-        "globals": "^17.3.0",
-        "prettier": "^3.8.1",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.56.1",
-        "vite": "^7.3.1"
-    }
+  "name": "oidc-user-selector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "User selection interface for Phoenix OIDC server",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vite build",
+    "check": "pnpm run format:check && pnpm run lint",
+    "dev": "vite",
+    "fix": "pnpm run format && pnpm run lint:fix",
+    "format": "oxfmt --config ../../../../../.oxfmtrc.jsonc",
+    "format:check": "oxfmt --check --config ../../../../../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "oxfmt": "^0.33.0",
+    "oxlint": "^1.48.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
 }

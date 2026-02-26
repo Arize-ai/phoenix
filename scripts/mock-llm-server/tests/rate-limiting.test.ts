@@ -1,4 +1,6 @@
+import { APIError } from "openai";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+
 import {
   startServer,
   stopServer,
@@ -6,7 +8,6 @@ import {
   resetRateLimit,
   getBaseUrl,
 } from "./setup";
-import { APIError } from "openai";
 
 describe("Rate Limiting", () => {
   describe("after_n mode", () => {
@@ -70,7 +71,7 @@ describe("Rate Limiting", () => {
 
       expect(response.headers.get("x-ratelimit-limit-requests")).toBeTruthy();
       expect(
-        response.headers.get("x-ratelimit-remaining-requests"),
+        response.headers.get("x-ratelimit-remaining-requests")
       ).toBeTruthy();
     });
 
@@ -112,7 +113,7 @@ describe("Rate Limiting", () => {
       // Verify retry-after-ms is a valid number
       const retryAfterMs = parseInt(
         response.headers.get("retry-after-ms")!,
-        10,
+        10
       );
       expect(retryAfterMs).toBeGreaterThan(0);
     });

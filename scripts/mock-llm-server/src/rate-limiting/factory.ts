@@ -1,11 +1,4 @@
-import type {
-  RateLimiter,
-  RateLimitConfig,
-  RateLimitStrategy,
-} from "./types.js";
 import { FixedWindowRateLimiter } from "./strategies/fixed-window.js";
-import { SlidingWindowRateLimiter } from "./strategies/sliding-window.js";
-import { TokenBucketRateLimiter } from "./strategies/token-bucket.js";
 import { LeakyBucketRateLimiter } from "./strategies/leaky-bucket.js";
 import {
   AfterNRateLimiter,
@@ -13,6 +6,13 @@ import {
   AlwaysRateLimiter,
   NoOpRateLimiter,
 } from "./strategies/simple.js";
+import { SlidingWindowRateLimiter } from "./strategies/sliding-window.js";
+import { TokenBucketRateLimiter } from "./strategies/token-bucket.js";
+import type {
+  RateLimiter,
+  RateLimitConfig,
+  RateLimitStrategy,
+} from "./types.js";
 
 /**
  * Factory to create rate limiters based on strategy name
@@ -49,7 +49,7 @@ export function createRateLimiter(config: RateLimitConfig): RateLimiter {
 
     default:
       console.warn(
-        `Unknown rate limit strategy: ${config.strategy}, falling back to fixed-window`,
+        `Unknown rate limit strategy: ${config.strategy}, falling back to fixed-window`
       );
       return new FixedWindowRateLimiter(config);
   }

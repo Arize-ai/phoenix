@@ -10,9 +10,9 @@ interface Props {
 export function FailureModes({ config, onUpdate }: Props) {
   if (!config) {
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Failure Injection</h2>
-        <div className="text-gray-500 text-xs">Waiting for config...</div>
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+        <h2 className="mb-2 text-sm font-medium">Failure Injection</h2>
+        <div className="text-xs text-gray-500">Waiting for config...</div>
       </div>
     );
   }
@@ -32,11 +32,11 @@ export function FailureModes({ config, onUpdate }: Props) {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <h2 className="text-sm font-medium mb-2">Failure Injection</h2>
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <h2 className="mb-2 text-sm font-medium">Failure Injection</h2>
       <div className="space-y-2">
         <div>
-          <div className="flex justify-between text-xs mb-0.5">
+          <div className="mb-0.5 flex justify-between text-xs">
             <span className="text-gray-500">Error Rate</span>
             <span className="font-mono text-gray-300">
               {Math.round(errorRate * 100)}%
@@ -51,7 +51,7 @@ export function FailureModes({ config, onUpdate }: Props) {
             onChange={(e) =>
               onUpdate({ errorRate: Number(e.target.value) / 100 })
             }
-            className="w-full h-1.5 bg-gray-700 rounded appearance-none cursor-pointer accent-red-500"
+            className="h-1.5 w-full cursor-pointer appearance-none rounded bg-gray-700 accent-red-500"
           />
         </div>
 
@@ -69,7 +69,7 @@ export function FailureModes({ config, onUpdate }: Props) {
         )}
 
         <div>
-          <div className="flex justify-between text-xs mb-0.5">
+          <div className="mb-0.5 flex justify-between text-xs">
             <span className="text-gray-500">Stream Interrupt Rate</span>
             <span className="font-mono text-gray-300">
               {Math.round(streamInterruptRate * 100)}%
@@ -84,7 +84,7 @@ export function FailureModes({ config, onUpdate }: Props) {
             onChange={(e) =>
               onUpdate({ streamInterruptRate: Number(e.target.value) / 100 })
             }
-            className="w-full h-1.5 bg-gray-700 rounded appearance-none cursor-pointer accent-orange-500"
+            className="h-1.5 w-full cursor-pointer appearance-none rounded bg-gray-700 accent-orange-500"
           />
         </div>
 
@@ -101,7 +101,7 @@ export function FailureModes({ config, onUpdate }: Props) {
           </div>
           {loadDegradationEnabled && (
             <div className="mt-1">
-              <div className="flex justify-between text-xs mb-0.5">
+              <div className="mb-0.5 flex justify-between text-xs">
                 <span className="text-gray-500">Max Slowdown Factor</span>
                 <span className="font-mono text-gray-300">
                   {loadDegradationFactor.toFixed(1)}x
@@ -116,7 +116,7 @@ export function FailureModes({ config, onUpdate }: Props) {
                 onChange={(e) =>
                   onUpdate({ loadDegradationFactor: Number(e.target.value) })
                 }
-                className="w-full h-1.5 bg-gray-700 rounded appearance-none cursor-pointer accent-purple-500"
+                className="h-1.5 w-full cursor-pointer appearance-none rounded bg-gray-700 accent-purple-500"
               />
             </div>
           )}
@@ -138,7 +138,7 @@ function ErrorTypeButton({
   return (
     <button
       onClick={onClick}
-      className={`px-1.5 py-0.5 rounded text-xs transition-colors ${active ? "bg-red-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}
+      className={`rounded px-1.5 py-0.5 text-xs transition-colors ${active ? "bg-red-600 text-white" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}
     >
       {label}
     </button>

@@ -7,18 +7,18 @@ interface Props {
 
 export function EventLog({ events }: Props) {
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <h2 className="text-sm font-medium mb-2">Event Log</h2>
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <h2 className="mb-2 text-sm font-medium">Event Log</h2>
       <div className="h-40 overflow-y-auto font-mono text-xs">
         {events.length === 0 ? (
           <div className="text-gray-500">No events yet...</div>
         ) : (
           <table className="w-full">
-            <thead className="text-left text-gray-500 sticky top-0 bg-gray-800">
+            <thead className="sticky top-0 bg-gray-800 text-left text-gray-500">
               <tr>
-                <th className="pb-1 pr-3">Time</th>
-                <th className="pb-1 pr-3">Type</th>
-                <th className="pb-1 pr-3">Endpoint</th>
+                <th className="pr-3 pb-1">Time</th>
+                <th className="pr-3 pb-1">Type</th>
+                <th className="pr-3 pb-1">Endpoint</th>
                 <th className="pb-1">Details</th>
               </tr>
             </thead>

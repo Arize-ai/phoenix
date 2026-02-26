@@ -4,16 +4,17 @@ import {
   type Response,
   type Router as RouterType,
 } from "express";
-import { metrics } from "../metrics.js";
-import { registry } from "../registry.js";
+
 import { detailedMetrics } from "../detailed-metrics.js";
-import { adminWebSocket } from "./websocket.js";
+import { metrics } from "../metrics.js";
+import { ENDPOINT_LABELS, ENDPOINT_IDS } from "../providers/types.js";
+import type { EndpointId } from "../providers/types.js";
 import {
   getAvailableStrategies,
   getStrategyDescription,
 } from "../rate-limiting/index.js";
-import { ENDPOINT_LABELS, ENDPOINT_IDS } from "../providers/types.js";
-import type { EndpointId } from "../providers/types.js";
+import { registry } from "../registry.js";
+import { adminWebSocket } from "./websocket.js";
 
 const router: RouterType = Router();
 
@@ -212,7 +213,7 @@ router.get("/detailed-metrics/export/json", (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "application/json");
   res.setHeader(
     "Content-Disposition",
-    "attachment; filename=detailed-metrics.json",
+    "attachment; filename=detailed-metrics.json"
   );
   res.send(detailedMetrics.exportJSON());
 });
@@ -224,7 +225,7 @@ router.get("/detailed-metrics/export/csv", (_req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/csv");
   res.setHeader(
     "Content-Disposition",
-    "attachment; filename=detailed-metrics.csv",
+    "attachment; filename=detailed-metrics.csv"
   );
   res.send(detailedMetrics.exportCSV());
 });

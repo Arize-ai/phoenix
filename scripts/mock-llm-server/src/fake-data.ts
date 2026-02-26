@@ -1,38 +1,29 @@
 import type {
-  ChatCompletionTool,
-  ChatCompletionMessageToolCall,
-} from "openai/resources/chat/completions";
-import type {
   Tool as AnthropicTool,
   ToolUseBlock,
 } from "@anthropic-ai/sdk/resources/messages";
-import type { JSONSchema } from "./types.js";
-import { JSONSchemaFaker } from "json-schema-faker";
 import { faker } from "@faker-js/faker";
+import { generate as jsfGenerate } from "json-schema-faker";
+import type { JsonSchema } from "json-schema-faker";
+import type {
+  ChatCompletionTool,
+  ChatCompletionMessageToolCall,
+} from "openai/resources/chat/completions";
 
-// Configure json-schema-faker to use faker.js for realistic data
-JSONSchemaFaker.extend("faker", () => faker);
+import type { JSONSchema } from "./types.js";
 
-// Configure options for better output
-JSONSchemaFaker.option({
-  // Always fill optional properties for more complete responses
+const defaultOptions = {
   alwaysFakeOptionals: true,
-  // Use default values when provided
   useDefaultValue: true,
-  // Generate minimum items for arrays (more predictable)
   minItems: 1,
   maxItems: 3,
-  // Generate minimum properties for objects
   minLength: 1,
   maxLength: 20,
-  // Resolve $ref references
   resolveJsonPath: true,
-  // Use examples when provided
   useExamplesValue: true,
-  // Fail silently on invalid schemas
   failOnInvalidTypes: false,
-  failOnInvalidFormat: false,
-});
+  extensions: { faker },
+} as const;
 
 /**
  * Generate a unique ID for OpenAI tool calls
@@ -104,19 +95,19 @@ export function generateCompletionId(): string {
  * - $ref references
  * - Faker.js integration for realistic data based on property names
  */
-export function generateFakeData(schema: JSONSchema | undefined): unknown {
+export async function generateFakeData(
+  schema: JSONSchema | undefined
+): Promise<unknown> {
   if (!schema) {
     return {};
   }
 
   try {
-    // Normalize schema type to lowercase (Gemini sends uppercase like "STRING", "OBJECT")
     const normalizedSchema = normalizeSchemaTypes(schema);
-    return JSONSchemaFaker.generate(
-      normalizedSchema as Parameters<typeof JSONSchemaFaker.generate>[0],
-    );
+    return await jsfGenerate(normalizedSchema as JsonSchema, {
+      ...defaultOptions,
+    });
   } catch (error) {
-    // Fallback to empty object if schema is invalid
     console.warn("Failed to generate fake data from schema:", error);
     return {};
   }
@@ -143,7 +134,7 @@ function normalizeSchemaTypes(schema: JSONSchema): JSONSchema {
       Object.entries(normalized.properties).map(([key, value]) => [
         key,
         normalizeSchemaTypes(value),
-      ]),
+      ])
     );
   }
 
@@ -156,18 +147,24 @@ function normalizeSchemaTypes(schema: JSONSchema): JSONSchema {
 }
 
 /**
- * Generate a fake tool call based on the provided OpenAI tools
+ * Generate a fake tool call based on the provided OpenAI tools (function tools only).
  */
-export function generateToolCall(
-  tools: ChatCompletionTool[],
-): ChatCompletionMessageToolCall | null {
-  if (tools.length === 0) {
+export async function generateToolCall(
+  tools: ChatCompletionTool[]
+): Promise<ChatCompletionMessageToolCall | null> {
+  const functionTools = tools.filter(
+    (
+      t
+    ): t is typeof t & {
+      function: { name: string; parameters?: unknown };
+    } => "function" in t && t.function != null
+  );
+  if (functionTools.length === 0) {
     return null;
   }
 
-  // Pick a random tool
-  const tool = tools[Math.floor(Math.random() * tools.length)];
-  const args = generateFakeData(tool.function.parameters as JSONSchema);
+  const tool = functionTools[Math.floor(Math.random() * functionTools.length)];
+  const args = await generateFakeData(tool.function.parameters as JSONSchema);
 
   return {
     id: generateToolCallId(),
@@ -182,13 +179,13 @@ export function generateToolCall(
 /**
  * Generate multiple OpenAI tool calls
  */
-export function generateToolCalls(
+export async function generateToolCalls(
   tools: ChatCompletionTool[],
-  count: number = 1,
-): ChatCompletionMessageToolCall[] {
+  count: number = 1
+): Promise<ChatCompletionMessageToolCall[]> {
   const calls: ChatCompletionMessageToolCall[] = [];
   for (let i = 0; i < count; i++) {
-    const call = generateToolCall(tools);
+    const call = await generateToolCall(tools);
     if (call) {
       calls.push(call);
     }
@@ -199,24 +196,23 @@ export function generateToolCalls(
 /**
  * Generate a fake Anthropic tool use block based on the provided tools (SDK types)
  */
-export function generateAnthropicToolUseFromSdk(
-  tools: AnthropicTool[],
-): ToolUseBlock | null {
+export async function generateAnthropicToolUseFromSdk(
+  tools: AnthropicTool[]
+): Promise<ToolUseBlock | null> {
   if (tools.length === 0) {
     return null;
   }
 
-  // Pick a random tool
   const tool = tools[Math.floor(Math.random() * tools.length)];
-  const input = generateFakeData(tool.input_schema as JSONSchema) as Record<
-    string,
-    unknown
-  >;
+  const input = (await generateFakeData(
+    tool.input_schema as JSONSchema
+  )) as Record<string, unknown>;
 
   return {
     type: "tool_use",
     id: generateAnthropicToolUseId(),
     name: tool.name,
     input,
-  };
+    caller: "user",
+  } as unknown as ToolUseBlock;
 }

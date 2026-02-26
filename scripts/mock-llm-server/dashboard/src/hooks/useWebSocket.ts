@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+
 import type {
   MetricsSnapshot,
   DetailedMetricsSnapshot,
@@ -25,7 +26,7 @@ const MAX_EVENTS = 100;
 export function useWebSocket(): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
+    null
   );
   const isUnmountingRef = useRef(false);
   const [connected, setConnected] = useState(false);
@@ -120,7 +121,7 @@ export function useWebSocket(): UseWebSocketReturn {
     (updates: Partial<GlobalConfig>) => {
       send({ type: "update_global_config", data: updates });
     },
-    [send],
+    [send]
   );
 
   const resetConfig = useCallback(() => {

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+
+import type { Email } from "../types/index.js";
 import { EmailActions } from "./EmailActions.js";
 import { EmailList } from "./EmailList.js";
 import { EmailViewer } from "./EmailViewer.js";
-import type { Email } from "../types/index.js";
 
 export function EmailDebugger() {
   const [emails, setEmails] = useState<Email[]>([]);
@@ -54,7 +55,7 @@ export function EmailDebugger() {
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Email List Panel */}
-      <div className="w-1/2 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="flex w-1/2 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <EmailActions
           emailCount={emails.length}
           isLoading={isLoading}
@@ -72,7 +73,7 @@ export function EmailDebugger() {
       </div>
 
       {/* Email Viewer Panel */}
-      <div className="w-1/2 bg-white dark:bg-gray-800 flex flex-col">
+      <div className="flex w-1/2 flex-col bg-white dark:bg-gray-800">
         <EmailViewer email={selectedEmail} />
       </div>
     </div>

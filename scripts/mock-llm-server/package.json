@@ -4,16 +4,18 @@
   "description": "Mock LLM API server (OpenAI + Anthropic + Gemini) with real-time monitoring dashboard",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
     "build": "tsc",
-    "build:dashboard": "cd dashboard && pnpm run build",
     "build:all": "pnpm run build && pnpm run build:dashboard",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests",
-    "lint:fix": "eslint src tests --fix",
+    "build:dashboard": "cd dashboard && pnpm run build",
+    "dev": "tsx watch src/server.ts",
+    "fmt": "oxfmt --config ../../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "start": "tsx src/server.ts",
     "test": "vitest run",
-    "test:watch": "vitest watch"
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@faker-js/faker": "^10.3.0",
@@ -22,17 +24,16 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
-    "@eslint/js": "^10.0.1",
     "@google/genai": "^1.43.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.1",
     "@types/ws": "^8.18.1",
-    "eslint": "^10.0.2",
     "json-schema-faker": "^0.6.0",
     "openai": "^6.25.0",
+    "oxfmt": "^0.33.0",
+    "oxlint": "^1.48.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   },
   "engines": {

@@ -30,7 +30,7 @@ export class TokenBucketRateLimiter implements RateLimiter {
 
     this.tokens = Math.min(
       this.config.bucketCapacity,
-      this.tokens + tokensToAdd,
+      this.tokens + tokensToAdd
     );
     this.lastRefill = now;
   }
@@ -92,7 +92,7 @@ export class TokenBucketRateLimiter implements RateLimiter {
     ) {
       this.tokens = Math.min(
         config.bucketCapacity,
-        this.tokens + (config.bucketCapacity - oldCapacity),
+        this.tokens + (config.bucketCapacity - oldCapacity)
       );
     }
   }
