@@ -29,7 +29,7 @@ export class AfterNRateLimiter implements RateLimiter {
     const headers: Record<string, string> = {
       "x-ratelimit-limit-requests": String(this.config.failAfterN),
       "x-ratelimit-remaining-requests": String(
-        Math.max(0, this.config.failAfterN - this.totalRequests),
+        Math.max(0, this.config.failAfterN - this.totalRequests)
       ),
     };
 

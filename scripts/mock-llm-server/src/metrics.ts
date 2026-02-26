@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+
 import { ENDPOINT_IDS, type EndpointId } from "./providers/types.js";
 
 // Re-export EndpointId for convenience
@@ -81,7 +82,7 @@ class MetricsCollector extends EventEmitter {
     const cutoff = Date.now() - 60000; // Keep last 60 seconds
     for (const metrics of this.metrics.values()) {
       metrics.completedTimestamps = metrics.completedTimestamps.filter(
-        (t) => t > cutoff,
+        (t) => t > cutoff
       );
     }
   }
@@ -110,7 +111,7 @@ class MetricsCollector extends EventEmitter {
   requestStart(
     endpoint: EndpointId,
     requestId: string,
-    streaming: boolean,
+    streaming: boolean
   ): void {
     // Guard against duplicate starts
     if (this.activeRequests.has(requestId)) {
@@ -159,7 +160,7 @@ class MetricsCollector extends EventEmitter {
     if (request.streaming) {
       metrics.activeStreamingConnections = Math.max(
         0,
-        metrics.activeStreamingConnections - 1,
+        metrics.activeStreamingConnections - 1
       );
     }
 
@@ -206,7 +207,7 @@ class MetricsCollector extends EventEmitter {
     if (request.streaming) {
       metrics.activeStreamingConnections = Math.max(
         0,
-        metrics.activeStreamingConnections - 1,
+        metrics.activeStreamingConnections - 1
       );
     }
 
@@ -265,7 +266,7 @@ class MetricsCollector extends EventEmitter {
     for (const [endpoint, metrics] of this.metrics) {
       // RPS = completed requests in last second (actual throughput)
       const rps = metrics.completedTimestamps.filter(
-        (t) => t > oneSecondAgo,
+        (t) => t > oneSecondAgo
       ).length;
       totalActiveConnections += metrics.activeConnections;
       totalRequestsPerSecond += rps;
@@ -295,7 +296,7 @@ class MetricsCollector extends EventEmitter {
    */
   getLatencyPercentile(
     endpoint: EndpointId,
-    percentile: number,
+    percentile: number
   ): number | null {
     const metrics = this.metrics.get(endpoint);
     if (!metrics || metrics.latencies.length === 0) return null;

@@ -18,9 +18,6 @@ export {
   geminiStreamV1Provider,
 } from "./gemini.js";
 
-// All providers
-import { openaiChatProvider } from "./openai-chat.js";
-import { openaiResponsesProvider } from "./openai-responses.js";
 import { anthropicProvider } from "./anthropic.js";
 import {
   geminiGenerateProvider,
@@ -28,6 +25,9 @@ import {
   geminiGenerateV1Provider,
   geminiStreamV1Provider,
 } from "./gemini.js";
+// All providers
+import { openaiChatProvider } from "./openai-chat.js";
+import { openaiResponsesProvider } from "./openai-responses.js";
 import type { Provider } from "./types.js";
 
 export const ALL_PROVIDERS: Provider[] = [

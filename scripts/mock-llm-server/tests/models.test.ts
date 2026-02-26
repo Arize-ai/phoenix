@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
 import { startServer, stopServer, getTestClient } from "./setup";
 
 describe("Models Endpoint", () => {

@@ -1,8 +1,9 @@
 import type { Request, Response, RequestHandler } from "express";
+
+import { detailedMetrics } from "../detailed-metrics.js";
+import { metrics, generateRequestId } from "../metrics.js";
 import type { Provider, HandlerConfig } from "../providers/types.js";
 import { registry } from "../registry.js";
-import { metrics, generateRequestId } from "../metrics.js";
-import { detailedMetrics } from "../detailed-metrics.js";
 
 /**
  * Sleep helper
@@ -56,7 +57,7 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
       provider.id,
       requestId,
       res,
-      provider,
+      provider
     );
     if (failureResult.handled) {
       return;
@@ -68,7 +69,7 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
       res
         .status(400)
         .json(
-          provider.formatValidationError(validation.message!, validation.field),
+          provider.formatValidationError(validation.message!, validation.field)
         );
       return;
     }
@@ -86,7 +87,7 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
     const loadFactor = registry.getLoadFactor(provider.id);
     const handlerConfig: HandlerConfig = {
       streamInitialDelayMs: Math.round(
-        endpointConfig.streamInitialDelayMs * loadFactor,
+        endpointConfig.streamInitialDelayMs * loadFactor
       ),
       streamDelayMs: Math.round(endpointConfig.streamDelayMs * loadFactor),
       streamJitterMs: endpointConfig.streamJitterMs,
@@ -106,13 +107,13 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
             res,
             provider,
             handlerConfig,
-            requestId,
+            requestId
           );
         } else {
           await provider.handleStreaming(req, res, handlerConfig);
         }
       } else {
-        const response = provider.handleNonStreaming(req, handlerConfig);
+        const response = await provider.handleNonStreaming(req, handlerConfig);
         res.json(response);
       }
       metrics.requestEnd(requestId);
@@ -143,10 +144,10 @@ async function handleFailureInjection(
   endpointId: string,
   requestId: string,
   res: Response,
-  provider: Provider,
+  provider: Provider
 ): Promise<{ handled: boolean; metricsStarted: boolean }> {
   const config = registry.getEndpointConfig(
-    endpointId as Parameters<typeof registry.getEndpointConfig>[0],
+    endpointId as Parameters<typeof registry.getEndpointConfig>[0]
   );
 
   if (config.errorRate <= 0 || Math.random() >= config.errorRate) {
@@ -161,12 +162,12 @@ async function handleFailureInjection(
   metrics.requestStart(
     endpointId as Parameters<typeof metrics.requestStart>[0],
     requestId,
-    false,
+    false
   );
   detailedMetrics.requestStart(
     endpointId as Parameters<typeof detailedMetrics.requestStart>[0],
     requestId,
-    false,
+    false
   );
 
   switch (errorType) {
@@ -206,7 +207,7 @@ async function handleFailureInjection(
       res
         .status(403)
         .json(
-          provider.formatPermissionDeniedError("Permission denied (injected)"),
+          provider.formatPermissionDeniedError("Permission denied (injected)")
         );
       return { handled: true, metricsStarted: true };
 
@@ -249,7 +250,7 @@ async function handleStreamingWithInterruption(
   res: Response,
   provider: Provider,
   handlerConfig: HandlerConfig,
-  requestId: string,
+  requestId: string
 ): Promise<void> {
   // Start streaming normally
   const originalEnd = res.end.bind(res);
@@ -264,7 +265,7 @@ async function handleStreamingWithInterruption(
     encodingOrCallback?:
       | BufferEncoding
       | ((error: Error | null | undefined) => void),
-    callback?: (error: Error | null | undefined) => void,
+    callback?: (error: Error | null | undefined) => void
   ): boolean {
     chunkCount++;
     if (chunkCount >= interruptAfter && !interrupted) {

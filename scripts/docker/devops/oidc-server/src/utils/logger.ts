@@ -7,7 +7,7 @@ export class Logger {
   /**
    * Log a structured event with timestamp and additional data
    */
-  static logEvent(event: string, data: Record<string, any> = {}) {
+  static logEvent(event: string, data: Record<string, unknown> = {}) {
     const logEntry = {
       timestamp: new Date().toISOString(),
       event,
@@ -22,7 +22,7 @@ export class Logger {
   static logError(
     event: string,
     error: string,
-    data: Record<string, any> = {}
+    data: Record<string, unknown> = {}
   ) {
     this.logEvent(event, {
       error,
@@ -36,7 +36,7 @@ export class Logger {
   static logRequestStart(
     event: string,
     requestId: string,
-    data: Record<string, any> = {}
+    data: Record<string, unknown> = {}
   ) {
     this.logEvent(event, {
       request_id: requestId,
@@ -50,7 +50,7 @@ export class Logger {
   static logTokenEvent(
     event: string,
     tokenType: string,
-    data: Record<string, any> = {}
+    data: Record<string, unknown> = {}
   ) {
     this.logEvent(event, {
       token_type: tokenType,

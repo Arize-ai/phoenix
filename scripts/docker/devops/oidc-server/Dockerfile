@@ -16,7 +16,7 @@ RUN pnpm install
 
 # Copy backend source and build backend first (changes less frequently)
 COPY src/ ./src/
-COPY tsconfig.json ./
+COPY tsconfig.json tsconfig.build.json ./
 RUN pnpm build
 
 # Install frontend dependencies (cached if package.json unchanged)

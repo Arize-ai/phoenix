@@ -1,10 +1,11 @@
-import type { Request, Response } from "express";
-import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 import type { MessageCreateParams } from "@anthropic-ai/sdk/resources/messages";
+import type { Request, Response } from "express";
+
 import {
   handleNonStreaming,
   handleStreaming,
 } from "../handlers/anthropic-messages.js";
+import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 
 /**
  * Anthropic Messages API Provider
@@ -90,7 +91,7 @@ export const anthropicProvider: Provider = {
   },
 
   formatPermissionDeniedError(
-    message = "Your API key does not have permission to use this resource",
+    message = "Your API key does not have permission to use this resource"
   ): unknown {
     return {
       type: "error",
@@ -111,7 +112,10 @@ export const anthropicProvider: Provider = {
     };
   },
 
-  handleNonStreaming(req: Request, config: HandlerConfig): unknown {
+  async handleNonStreaming(
+    req: Request,
+    config: HandlerConfig
+  ): Promise<unknown> {
     const body = req.body as MessageCreateParams;
     const serverConfig = {
       ...config,
@@ -123,13 +127,13 @@ export const anthropicProvider: Provider = {
       rateLimitRandomProbability: 0,
       rateLimitAfterN: 0,
     };
-    return handleNonStreaming(body, serverConfig);
+    return await handleNonStreaming(body, serverConfig);
   },
 
   async handleStreaming(
     req: Request,
     res: Response,
-    config: HandlerConfig,
+    config: HandlerConfig
   ): Promise<void> {
     const body = req.body as MessageCreateParams;
     const serverConfig = {

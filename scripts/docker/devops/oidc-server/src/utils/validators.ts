@@ -8,7 +8,7 @@ import { Logger } from "./logger.js";
 export interface ValidationResult {
   valid: boolean;
   error?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export class Validators {
@@ -68,7 +68,7 @@ export class Validators {
     redirect_uri?: string;
     client_secret?: string;
   }): ValidationResult {
-    const { grant_type, code, redirect_uri } = body;
+    const { grant_type, code, redirect_uri: _redirect_uri } = body;
 
     if (grant_type !== "authorization_code") {
       const error = "Only authorization code grant supported";

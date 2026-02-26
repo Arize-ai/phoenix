@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { startServer, stopServer, getBaseUrl } from "./setup";
 import { GoogleGenAI } from "@google/genai";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
+import { startServer, stopServer, getBaseUrl } from "./setup";
 
 function getGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({
@@ -80,7 +81,7 @@ describe("Google GenAI (Gemini) API", () => {
             "x-goog-api-key": "test-key",
           },
           body: JSON.stringify({}),
-        },
+        }
       );
 
       expect(response.status).toBe(400);

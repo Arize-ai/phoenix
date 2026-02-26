@@ -36,7 +36,7 @@ export class FixedWindowRateLimiter implements RateLimiter {
     this.requestCount++;
     const remaining = Math.max(0, this.config.maxRequests - this.requestCount);
     const resetInSeconds = Math.ceil(
-      (this.config.windowMs - (now - this.windowStart)) / 1000,
+      (this.config.windowMs - (now - this.windowStart)) / 1000
     );
 
     const headers: Record<string, string> = {

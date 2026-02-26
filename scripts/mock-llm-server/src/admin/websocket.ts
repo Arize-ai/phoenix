@@ -1,12 +1,13 @@
-import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
-import { metrics, type ConnectionEvent } from "../metrics.js";
+import { WebSocketServer, WebSocket } from "ws";
+
 import {
   detailedMetrics,
   type DetailedMetricsSnapshot,
 } from "../detailed-metrics.js";
-import { registry, type DynamicConfig } from "../registry.js";
+import { metrics, type ConnectionEvent } from "../metrics.js";
 import type { EndpointId } from "../providers/types.js";
+import { registry, type DynamicConfig } from "../registry.js";
 
 interface WebSocketMessage {
   type: "metrics" | "detailed_metrics" | "event" | "config" | "error";
@@ -84,7 +85,7 @@ export class AdminWebSocketServer {
    */
   private handleMessage(
     ws: WebSocket,
-    message: { type: string; data?: unknown },
+    message: { type: string; data?: unknown }
   ): void {
     switch (message.type) {
       case "get_metrics":

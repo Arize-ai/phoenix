@@ -37,6 +37,7 @@ The server runs on `http://localhost:57593` by default.
 Access the real-time monitoring dashboard at `http://localhost:57593/dashboard`
 
 **Features:**
+
 - **Connection Monitor** - Active connections per endpoint
 - **Request Rate Chart** - Live requests/sec graph
 - **Latency Controls** - Adjust streaming delays, jitter, chunk size
@@ -45,6 +46,7 @@ Access the real-time monitoring dashboard at `http://localhost:57593/dashboard`
 - **Event Log** - Real-time stream of all events
 
 **API Endpoints:**
+
 - `GET /api/config` - Current configuration
 - `PATCH /api/config/global` - Update global config
 - `PATCH /api/config/endpoints/:endpoint` - Per-endpoint config
@@ -174,7 +176,7 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({
   vertexai: false,
-  apiKey: "fake-key",  // Any string works
+  apiKey: "fake-key", // Any string works
   httpOptions: {
     baseUrl: "http://localhost:57593",
   },
@@ -204,27 +206,31 @@ const response = await ai.models.generateContent({
   model: "gemini-2.0-flash",
   contents: "What's the weather?",
   config: {
-    tools: [{
-      functionDeclarations: [{
-        name: "get_weather",
-        description: "Get the weather for a location",
-        parameters: {
-          type: "object",
-          properties: {
-            location: { type: "string", description: "City name" },
-            unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+    tools: [
+      {
+        functionDeclarations: [
+          {
+            name: "get_weather",
+            description: "Get the weather for a location",
+            parameters: {
+              type: "object",
+              properties: {
+                location: { type: "string", description: "City name" },
+                unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+              },
+              required: ["location"],
+            },
           },
-          required: ["location"],
-        },
-      }],
-    }],
+        ],
+      },
+    ],
   },
 });
 
 // The mock server will generate fake args matching the schema
 if (response.functionCalls) {
-  console.log(response.functionCalls[0].name);  // "get_weather"
-  console.log(response.functionCalls[0].args);  // { location: "San Francisco", unit: "celsius" }
+  console.log(response.functionCalls[0].name); // "get_weather"
+  console.log(response.functionCalls[0].args); // { location: "San Francisco", unit: "celsius" }
 }
 ```
 
@@ -232,21 +238,21 @@ if (response.functionCalls) {
 
 Configure via environment variables:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `57593` |
-| `RATE_LIMIT_ENABLED` | Enable rate limiting | `false` |
-| `RATE_LIMIT_MODE` | `always`, `random`, or `after_n` | `after_n` |
-| `RATE_LIMIT_AFTER_N` | Fail after N requests (when mode=after_n) | `5` |
-| `RATE_LIMIT_RANDOM_PROBABILITY` | Probability of 429 (when mode=random) | `0.3` |
-| `RATE_LIMIT_REQUESTS` | Max requests per window | `10` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window in ms | `60000` |
-| `STREAM_INITIAL_DELAY_MS` | Initial delay before first chunk (time to first token) | `300` |
-| `STREAM_DELAY_MS` | Base delay between stream chunks | `50` |
-| `STREAM_JITTER_MS` | Random jitter added to delay (0 to N ms) | `30` |
-| `STREAM_CHUNK_SIZE` | Characters per stream chunk | `10` |
-| `TOOL_CALL_PROBABILITY` | Probability of tool call when tools provided | `0.75` |
-| `DEFAULT_RESPONSE` | Static response text (if unset, 50% from response pool, 50% lorem ipsum) | (dynamic) |
+| Variable                        | Description                                                              | Default   |
+| ------------------------------- | ------------------------------------------------------------------------ | --------- |
+| `PORT`                          | Server port                                                              | `57593`   |
+| `RATE_LIMIT_ENABLED`            | Enable rate limiting                                                     | `false`   |
+| `RATE_LIMIT_MODE`               | `always`, `random`, or `after_n`                                         | `after_n` |
+| `RATE_LIMIT_AFTER_N`            | Fail after N requests (when mode=after_n)                                | `5`       |
+| `RATE_LIMIT_RANDOM_PROBABILITY` | Probability of 429 (when mode=random)                                    | `0.3`     |
+| `RATE_LIMIT_REQUESTS`           | Max requests per window                                                  | `10`      |
+| `RATE_LIMIT_WINDOW_MS`          | Rate limit window in ms                                                  | `60000`   |
+| `STREAM_INITIAL_DELAY_MS`       | Initial delay before first chunk (time to first token)                   | `300`     |
+| `STREAM_DELAY_MS`               | Base delay between stream chunks                                         | `50`      |
+| `STREAM_JITTER_MS`              | Random jitter added to delay (0 to N ms)                                 | `30`      |
+| `STREAM_CHUNK_SIZE`             | Characters per stream chunk                                              | `10`      |
+| `TOOL_CALL_PROBABILITY`         | Probability of tool call when tools provided                             | `0.75`    |
+| `DEFAULT_RESPONSE`              | Static response text (if unset, 50% from response pool, 50% lorem ipsum) | (dynamic) |
 
 ### Example: Test Rate Limiting
 
@@ -272,64 +278,64 @@ TOOL_CALL_PROBABILITY=1.0 pnpm start
 
 ### OpenAI-Compatible
 
-| Endpoint | Description |
-|----------|-------------|
+| Endpoint                    | Description                                        |
+| --------------------------- | -------------------------------------------------- |
 | `POST /v1/chat/completions` | Chat Completions API (streaming and non-streaming) |
-| `POST /v1/responses` | Responses API (streaming and non-streaming) |
-| `GET /v1/models` | List available models |
+| `POST /v1/responses`        | Responses API (streaming and non-streaming)        |
+| `GET /v1/models`            | List available models                              |
 
 ### Anthropic-Compatible
 
-| Endpoint | Description |
-|----------|-------------|
+| Endpoint            | Description                                |
+| ------------------- | ------------------------------------------ |
 | `POST /v1/messages` | Messages API (streaming and non-streaming) |
 
 ### Google GenAI (Gemini)-Compatible
 
-| Endpoint | Description |
-|----------|-------------|
-| `POST /v1beta/models/:model:generateContent` | Generate content (non-streaming) |
-| `POST /v1beta/models/:model:streamGenerateContent` | Generate content (streaming) |
-| `POST /v1/models/:model:generateContent` | Generate content v1 (non-streaming) |
-| `POST /v1/models/:model:streamGenerateContent` | Generate content v1 (streaming) |
+| Endpoint                                           | Description                         |
+| -------------------------------------------------- | ----------------------------------- |
+| `POST /v1beta/models/:model:generateContent`       | Generate content (non-streaming)    |
+| `POST /v1beta/models/:model:streamGenerateContent` | Generate content (streaming)        |
+| `POST /v1/models/:model:generateContent`           | Generate content v1 (non-streaming) |
+| `POST /v1/models/:model:streamGenerateContent`     | Generate content v1 (streaming)     |
 
 ### Admin & Monitoring
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Health check |
-| `GET /api/config` | View current configuration |
-| `PATCH /api/config/global` | Update global configuration |
-| `GET /api/config/endpoints` | List all endpoints with config |
-| `PATCH /api/config/endpoints/:endpoint` | Update endpoint-specific config |
-| `DELETE /api/config/endpoints/:endpoint` | Clear endpoint overrides |
-| `POST /api/config/reset` | Reset to initial configuration |
-| `GET /api/metrics` | Current metrics snapshot |
-| `GET /api/metrics/latency/:endpoint` | Latency percentiles for endpoint |
-| `POST /api/metrics/reset` | Reset all metrics |
-| `POST /api/rate-limit/reset` | Reset all rate limiter states |
-| `POST /api/rate-limit/reset/:endpoint` | Reset rate limiter for endpoint |
-| `GET /api/rate-limit/strategies` | List available strategies |
-| `GET /api/detailed-metrics` | Full detailed metrics snapshot |
-| `GET /api/detailed-metrics/export/json` | Export metrics as JSON |
-| `GET /api/detailed-metrics/export/csv` | Export time series as CSV |
-| `GET /api/failure-modes` | List available failure modes |
-| `WebSocket /ws` | Real-time metrics and events |
+| Endpoint                                 | Description                      |
+| ---------------------------------------- | -------------------------------- |
+| `GET /health`                            | Health check                     |
+| `GET /api/config`                        | View current configuration       |
+| `PATCH /api/config/global`               | Update global configuration      |
+| `GET /api/config/endpoints`              | List all endpoints with config   |
+| `PATCH /api/config/endpoints/:endpoint`  | Update endpoint-specific config  |
+| `DELETE /api/config/endpoints/:endpoint` | Clear endpoint overrides         |
+| `POST /api/config/reset`                 | Reset to initial configuration   |
+| `GET /api/metrics`                       | Current metrics snapshot         |
+| `GET /api/metrics/latency/:endpoint`     | Latency percentiles for endpoint |
+| `POST /api/metrics/reset`                | Reset all metrics                |
+| `POST /api/rate-limit/reset`             | Reset all rate limiter states    |
+| `POST /api/rate-limit/reset/:endpoint`   | Reset rate limiter for endpoint  |
+| `GET /api/rate-limit/strategies`         | List available strategies        |
+| `GET /api/detailed-metrics`              | Full detailed metrics snapshot   |
+| `GET /api/detailed-metrics/export/json`  | Export metrics as JSON           |
+| `GET /api/detailed-metrics/export/csv`   | Export time series as CSV        |
+| `GET /api/failure-modes`                 | List available failure modes     |
+| `WebSocket /ws`                          | Real-time metrics and events     |
 
 ## Rate Limiting Strategies
 
 The server supports multiple rate limiting strategies per endpoint:
 
-| Strategy | Description |
-|----------|-------------|
-| `none` | Rate limiting disabled |
-| `fixed-window` | Classic fixed time window counter |
-| `sliding-window` | Rolling window for smoother limiting |
-| `token-bucket` | Allows bursts up to bucket capacity |
-| `leaky-bucket` | Processes requests at a fixed rate |
-| `after-n` | First N requests succeed, then all return 429 (good for testing retry logic) |
-| `random` | Each request has a configurable probability of 429 |
-| `always` | Every request returns 429 |
+| Strategy         | Description                                                                  |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `none`           | Rate limiting disabled                                                       |
+| `fixed-window`   | Classic fixed time window counter                                            |
+| `sliding-window` | Rolling window for smoother limiting                                         |
+| `token-bucket`   | Allows bursts up to bucket capacity                                          |
+| `leaky-bucket`   | Processes requests at a fixed rate                                           |
+| `after-n`        | First N requests succeed, then all return 429 (good for testing retry logic) |
+| `random`         | Each request has a configurable probability of 429                           |
+| `always`         | Every request returns 429                                                    |
 
 ## Responses API Usage
 
@@ -395,6 +401,7 @@ with client.messages.stream(
 ```
 
 Event sequence:
+
 1. `message_start` - Initial message object with empty content
 2. `content_block_start` - Start of each content block (text or tool_use)
 3. `content_block_delta` - Incremental content (text_delta or input_json_delta)

@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 
-import Fastify from "fastify";
+import type { IncomingHttpHeaders } from "http";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
 import staticFiles from "@fastify/static";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import Fastify from "fastify";
+
 import { OIDCServer } from "./oidc/server.js";
-import { PKCEUtils } from "./oidc/pkce.js";
 import { Logger } from "./utils/logger.js";
+
+/** Normalize IncomingHttpHeaders to Record<string, string> for OIDC handlers. */
+function headersToRecord(h: IncomingHttpHeaders): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(h)
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => [k, Array.isArray(v) ? v[0]! : (v as string)])
+  );
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -30,7 +40,7 @@ const VALID_CLIENT_AUTH_METHODS = [
   "all",
 ];
 
-const fastifyOptions: any = {
+const fastifyOptions: { logger: boolean } = {
   logger: true,
 };
 
@@ -207,7 +217,7 @@ async function setupRoutes() {
     return oidcServer.getJWKS();
   });
   fastify.get("/auth", async (request, reply) => {
-    const query = request.query as any;
+    const query = request.query as Record<string, unknown>;
 
     // Auto-detect PKCE flow based on presence of code_challenge
     const isPKCE = !!(query.code_challenge && query.code_challenge_method);
@@ -230,7 +240,10 @@ async function setupRoutes() {
         pkce_parameters: {
           code_challenge: query.code_challenge || "none",
           code_challenge_method: query.code_challenge_method || "none",
-          code_challenge_length: query.code_challenge?.length || 0,
+          code_challenge_length:
+            typeof query.code_challenge === "string"
+              ? query.code_challenge.length
+              : 0,
         },
         oauth_parameters: {
           response_type: query.response_type,
@@ -254,7 +267,8 @@ async function setupRoutes() {
 
     // No valid redirect_uri, show error page on OIDC server
     if (result.error) {
-      const errorUrl = `${PUBLIC_BASE_URL}/?error=${encodeURIComponent(result.error)}&error_description=${encodeURIComponent(result.error_description || "")}&state=${encodeURIComponent(query.state || "")}`;
+      const stateStr = String(query.state ?? "");
+      const errorUrl = `${PUBLIC_BASE_URL}/?error=${encodeURIComponent(result.error)}&error_description=${encodeURIComponent(result.error_description || "")}&state=${encodeURIComponent(stateStr)}`;
       return reply.redirect(errorUrl);
     }
 
@@ -266,8 +280,8 @@ async function setupRoutes() {
   });
 
   fastify.post("/token", async (request, reply) => {
-    const body = request.body as any;
-    const headers = request.headers;
+    const body = request.body as Record<string, unknown>;
+    const headers = headersToRecord(request.headers);
 
     // Auto-detect PKCE flow based on presence of code_verifier
     const isPKCE = !!body.code_verifier;
@@ -306,7 +320,9 @@ async function setupRoutes() {
   });
 
   fastify.get("/userinfo", async (request, reply) => {
-    const authHeader = request.headers.authorization;
+    const raw = request.headers.authorization;
+    const authHeader =
+      typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
     const result = await oidcServer.handleUserInfo(authHeader);
 
     if (result.error) {
@@ -320,7 +336,7 @@ async function setupRoutes() {
     return oidcServer.getUsers();
   });
   fastify.get("/api/select-user", async (request, reply) => {
-    const query = request.query as any;
+    const query = request.query as Record<string, unknown>;
     const { userId, ...authParams } = query;
 
     const userSelectionStart = {
@@ -342,7 +358,10 @@ async function setupRoutes() {
       return reply.code(400).send({ error: "User ID is required" });
     }
 
-    const result = await oidcServer.handleUserSelection(userId, authParams);
+    const result = await oidcServer.handleUserSelection(
+      String(userId),
+      authParams
+    );
 
     if (result.error) {
       const selectionError = {
@@ -368,7 +387,7 @@ async function setupRoutes() {
   });
 
   fastify.get("/api/pkce/select-user", async (request, reply) => {
-    const query = request.query as any;
+    const query = request.query as Record<string, unknown>;
     const { userId, ...authParams } = query;
 
     const userSelectionStart = {
@@ -390,7 +409,10 @@ async function setupRoutes() {
       return reply.code(400).send({ error: "User ID is required" });
     }
 
-    const result = await oidcServer.handlePKCEUserSelection(userId, authParams);
+    const result = await oidcServer.handlePKCEUserSelection(
+      String(userId),
+      authParams
+    );
 
     if (result.error) {
       const selectionError = {

@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
-import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
-import type { ResponseCreateRequest } from "../types.js";
+
 import { handleNonStreaming, handleStreaming } from "../handlers/responses.js";
+import type { ResponseCreateRequest } from "../types.js";
+import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 
 /**
  * OpenAI Responses API Provider
@@ -71,7 +72,7 @@ export const openaiResponsesProvider: Provider = {
   },
 
   formatPermissionDeniedError(
-    message = "You don't have access to this resource",
+    message = "You don't have access to this resource"
   ): unknown {
     return {
       error: {
@@ -91,7 +92,10 @@ export const openaiResponsesProvider: Provider = {
     };
   },
 
-  handleNonStreaming(req: Request, config: HandlerConfig): unknown {
+  async handleNonStreaming(
+    req: Request,
+    config: HandlerConfig
+  ): Promise<unknown> {
     const body = req.body as ResponseCreateRequest;
     const serverConfig = {
       ...config,
@@ -103,13 +107,13 @@ export const openaiResponsesProvider: Provider = {
       rateLimitRandomProbability: 0,
       rateLimitAfterN: 0,
     };
-    return handleNonStreaming(body, serverConfig);
+    return await handleNonStreaming(body, serverConfig);
   },
 
   async handleStreaming(
     req: Request,
     res: Response,
-    config: HandlerConfig,
+    config: HandlerConfig
   ): Promise<void> {
     const body = req.body as ResponseCreateRequest;
     const serverConfig = {

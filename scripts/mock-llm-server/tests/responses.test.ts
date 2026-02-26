@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
 import { startServer, stopServer, getBaseUrl } from "./setup";
 
 describe("Responses API", () => {
@@ -162,7 +163,7 @@ describe("Responses API", () => {
 
       expect(response.ok).toBe(true);
       expect(response.headers.get("content-type")).toContain(
-        "text/event-stream",
+        "text/event-stream"
       );
 
       const reader = response.body!.getReader();
@@ -209,17 +210,18 @@ describe("Responses API", () => {
 
       // Check that we got text deltas
       const textDeltas = events.filter(
-        (e) => e.type === "response.output_text.delta",
+        (e) => e.type === "response.output_text.delta"
       );
       expect(textDeltas.length).toBeGreaterThan(0);
 
       // Check completed event
       const completedEvent = events.find(
-        (e) => e.type === "response.completed",
+        (e) => e.type === "response.completed"
       );
+      expect(completedEvent).toBeDefined();
       expect(
-        (completedEvent?.data as { response: { status: string } }).response
-          .status,
+        (completedEvent!.data as { response: { status: string } }).response
+          .status
       ).toBe("completed");
     });
 
@@ -295,7 +297,7 @@ describe("Responses API", () => {
 
       // Check the done event has valid arguments
       const argsDoneEvent = events.find(
-        (e) => e.type === "response.function_call_arguments.done",
+        (e) => e.type === "response.function_call_arguments.done"
       ) as { type: string; data: { arguments: string } } | undefined;
       expect(argsDoneEvent).toBeDefined();
 
