@@ -3,5 +3,7 @@
 !canary/**
 !client/
 !client/**
+!fixtures/
+!fixtures/**
 !.gitignore
 __pycache__/
