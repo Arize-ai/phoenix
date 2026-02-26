@@ -150,7 +150,7 @@ class LiteLLMModel(BaseModel):
             return str(choice.message.content)
         return ""
 
-    def _extract_usage(self, response: "ModelResponse") -> Optional[Usage]:
+    def _extract_usage(self, response: "ModelResponse") -> Usage:
         from litellm.types.utils import Usage as ResponseUsage
 
         if isinstance(response_usage := response.get("usage"), ResponseUsage):  # type: ignore[no-untyped-call]
@@ -159,7 +159,7 @@ class LiteLLMModel(BaseModel):
                 completion_tokens=response_usage.completion_tokens,
                 total_tokens=response_usage.total_tokens,
             )
-        return None
+        return Usage(prompt_tokens=0, completion_tokens=0, total_tokens=0)
 
     def _parse_output(self, response: "ModelResponse") -> Tuple[str, ExtraInfo]:
         text = self._extract_text(response)
