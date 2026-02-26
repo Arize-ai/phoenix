@@ -142,7 +142,7 @@ const expV2 = await runExperiment({
 - [x] STEP-04: TypeScript client upsert with implicit hashing
 - [x] STEP-05: Cross-SDK hash parity tests
 - [x] STEP-06: End-to-end Python + TypeScript integrated examples
-- [ ] STEP-07: Final validation and cleanup
+- [x] STEP-07: Final validation and cleanup
 
 ---
 
@@ -214,7 +214,7 @@ Commit: e4d96e5fcaefaf5925daeb6bd797c5a676de1f7a
 
 ## STEP-03: Python client upsert with implicit hashing
 Status: Completed
-Commit: HEAD
+Commit: 95edbebe35c75c6487c0e9378654556edb9cf358
 
 ### Scope
 - Add Python client method `upsert_dataset(...)`.
@@ -239,7 +239,7 @@ Commit: HEAD
 
 ## STEP-04: TypeScript client upsert with implicit hashing
 Status: Completed
-Commit: HEAD
+Commit: 137923983b2462b170a2237ce2781ecc492d94a1
 
 ### Scope
 - Add TypeScript client method `upsertDataset(...)`.
@@ -265,7 +265,7 @@ Commit: HEAD
 
 ## STEP-05: Cross-SDK hash parity tests
 Status: Completed
-Commit: HEAD
+Commit: cfa80e2808a399f95e661b7999db379d2870dde3
 
 ### Scope
 - Add golden-vector tests to ensure Python and TypeScript hashing produce identical hashes for identical example payloads.
@@ -286,7 +286,7 @@ Commit: HEAD
 
 ## STEP-06: End-to-end Python + TypeScript integrated examples
 Status: Completed
-Commit: HEAD
+Commit: d9590997d9aa62c0660fda0f5c932e1e015ed530
 
 ### Scope
 - Add integrated examples that demonstrate:
@@ -309,8 +309,8 @@ Commit: HEAD
 ---
 
 ## STEP-07: Final validation and cleanup
-Status: Not completed
-Commit: _(fill when done)_
+Status: Completed
+Commit: HEAD
 
 ### Scope
 - Run final targeted validations for touched areas.
