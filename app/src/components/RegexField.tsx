@@ -79,12 +79,20 @@ export const RegexField = ({
       if (!validateRegex) {
         return;
       }
+      if (!newValue) {
+        debouncedSetValue.cancel();
+        setDebouncedValue("");
+        setInternalError(undefined);
+        setIsValid(false);
+        onValidationChange?.(false);
+        return;
+      }
       // Clear checkmark immediately on typing, but keep error
       // until revalidated to prevent helptext value flickering
       setIsValid(false);
       debouncedSetValue(newValue);
     },
-    [onChange, debouncedSetValue, validateRegex]
+    [onChange, debouncedSetValue, onValidationChange, validateRegex]
   );
 
   useEffect(() => {
@@ -92,8 +100,6 @@ export const RegexField = ({
       return;
     }
     if (!debouncedValue) {
-      setInternalError(undefined);
-      setIsValid(false);
       return;
     }
 
