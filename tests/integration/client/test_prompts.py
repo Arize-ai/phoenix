@@ -41,11 +41,11 @@ from openai.types.chat import (
 )
 from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.shared_params import ResponseFormatJSONSchema
+from phoenix.client.types import PromptVersion
+from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 from pydantic import BaseModel, create_model
 
 import phoenix as px
-from phoenix.client.types import PromptVersion
-from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
 from .._helpers import (
     _MEMBER,

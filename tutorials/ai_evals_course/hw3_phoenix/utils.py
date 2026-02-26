@@ -32,7 +32,7 @@ MODEL_NAME: Final[str] = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
 
 # --- Agent wrapper ---------------------------------------------------------------
-def get_agent_response(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:  # noqa: WPS231
+def get_agent_response(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Call the underlying large-language model via *litellm*.
 
     Parameters

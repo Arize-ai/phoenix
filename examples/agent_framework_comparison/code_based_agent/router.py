@@ -11,7 +11,6 @@ from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from prompt_templates.router_template import SYSTEM_PROMPT
-
 from skills.skill_map import SkillMap
 
 load_dotenv()

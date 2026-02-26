@@ -7,6 +7,7 @@ from typing import Literal, Optional, Union, cast
 import httpx
 import pytest
 import smtpdfix
+from phoenix.client.__generated__ import v1
 from typing_extensions import assert_never
 
 from phoenix.auth import (
@@ -15,7 +16,6 @@ from phoenix.auth import (
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
 )
-from phoenix.client.__generated__ import v1
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
 
 from .._helpers import _AppInfo, _httpx_client, _log_in

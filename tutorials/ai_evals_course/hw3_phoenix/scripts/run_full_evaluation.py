@@ -15,11 +15,10 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from judgy import estimate_success_rate
-from rich.console import Console
-
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import OpenAIModel, llm_generate
+from rich.console import Console
 
 load_dotenv()
 

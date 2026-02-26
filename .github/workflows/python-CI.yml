@@ -172,10 +172,9 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
-            requirements/clean-jupyter-notebooks.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Clean Jupyter notebooks
-        run: uvx tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+        run: make clean-notebooks
       - run: git diff --exit-code
 
   build-graphql-schema:
@@ -201,10 +200,9 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
-            requirements/build-graphql-schema.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build GraphQL schema
-        run: uvx tox run -e build_graphql_schema
+        run: make schema-graphql
       - run: git diff --exit-code
 
   build-openapi-schema:
@@ -232,10 +230,10 @@ jobs:
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build OpenAPI schema
-        run: uvx tox run -e build_openapi_schema
+        run: make schema-openapi
       - run: git diff --exit-code
 
-  compile-protobuf:
+  codegen-protobuf:
     name: Compile Protobuf
     needs: changes
     if: ${{ needs.changes.outputs.proto == 'true' }}
@@ -258,13 +256,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
-            requirements/compile-protobuf.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile Protobuf
-        run: uvx tox run -e compile_protobuf
+        run: make codegen-protobuf
       - run: git diff --exit-code
 
-  compile-prompts:
+  codegen-prompts:
     name: Compile Prompts
     needs: changes
     if: ${{ needs.changes.outputs.prompts == 'true' }}
@@ -285,7 +282,7 @@ jobs:
         with:
           version: "0.9.18"
       - name: Compile Prompts
-        run: uvx tox run -e compile_prompts
+        run: make codegen-prompts
       - name: Check for changes
         run: git diff --exit-code
 
@@ -313,8 +310,8 @@ jobs:
       - name: Check lockfile is up to date
         run: uv lock --check
 
-  ruff:
-    name: Ruff
+  format-and-lint:
+    name: Format and Lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -332,8 +329,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-      - name: Run `ruff`
-        run: uvx tox run -e ruff
+      - name: Run formatter and linter
+        run: |
+          make format-python
+          make lint-python
       - run: git diff --exit-code
 
   type-check:
@@ -375,7 +374,7 @@ jobs:
       - name: Type check all Python code
         run: uv run mypy
       - name: Ensure GraphQL mutations have permission classes
-        run: uvx tox run -e ensure_graphql_mutations_have_permission_classes
+        run: make check-graphql-permissions
 
   unit-tests:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
@@ -418,11 +417,11 @@ jobs:
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 4 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 16 --dist loadscope
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 4 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope
 
   integration-tests:
     name: Integration Tests
@@ -477,7 +476,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
+        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 8
 
   test-migrations:
     name: DB Migration Continuity (${{ matrix.db }}${{ matrix.concurrently == true && ', concurrently' || '' }})
@@ -596,7 +595,7 @@ jobs:
   ci-required:
     name: CI Required
     needs:
-      - ruff
+      - format-and-lint
       - changes
       - phoenix-client
       - phoenix-evals
@@ -604,8 +603,8 @@ jobs:
       - clean-jupyter-notebooks
       - build-graphql-schema
       - build-openapi-schema
-      - compile-protobuf
-      - compile-prompts
+      - codegen-protobuf
+      - codegen-prompts
       - check-lockfile
       - type-check
       - unit-tests
