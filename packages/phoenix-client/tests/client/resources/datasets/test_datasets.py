@@ -12,7 +12,9 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import (
     Dataset,
     DatasetKeys,
+    Datasets,
     DatasetUploadError,
+    _compute_example_content_hash,  # pyright: ignore[reportPrivateUsage]
     _get_csv_column_headers,  # pyright: ignore[reportPrivateUsage]
     _infer_keys,  # pyright: ignore[reportPrivateUsage]
     _is_all_dict,  # pyright: ignore[reportPrivateUsage]
@@ -490,3 +492,61 @@ class TestCSVProcessing:
 
         with pytest.raises(ValueError, match="Keys not found"):
             keys_with_missing.check_differences(frozenset(df.columns))
+
+
+class TestDatasetUpsert:
+    def test_compute_example_content_hash_is_deterministic_for_key_order(self) -> None:
+        hash_1 = _compute_example_content_hash(
+            input={"b": 2, "a": 1},
+            output={"z": 3, "y": 2},
+            metadata={"n": 9, "m": 8},
+        )
+        hash_2 = _compute_example_content_hash(
+            input={"a": 1, "b": 2},
+            output={"y": 2, "z": 3},
+            metadata={"m": 8, "n": 9},
+        )
+        assert hash_1 == hash_2
+
+    def test_upsert_dataset_uses_implicit_content_hash_and_returns_dataset(self) -> None:
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": {
+                "dataset_id": "RGF0YXNldDox",
+                "version_id": "RGF0YXNldFZlcnNpb246Mg==",
+                "summary": {"added": 1, "updated": 0, "deleted": 0, "unchanged": 0},
+                "is_noop": False,
+            }
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        datasets = Datasets(mock_client)
+        expected_dataset = Mock(spec=Dataset)
+        with patch.object(
+            datasets, "get_dataset", return_value=expected_dataset
+        ) as mock_get_dataset:
+            result = datasets.upsert_dataset(
+                dataset="my-dataset",
+                examples=[
+                    {
+                        "input": {"q": "What is AI?"},
+                        "output": {"a": "..."},
+                        "metadata": {"source": "test"},
+                        "content_hash": "bad-user-supplied-hash",
+                    }
+                ],
+            )
+
+        assert result is expected_dataset
+        post_payload = mock_client.post.call_args.kwargs["json"]
+        assert post_payload["dataset"] == {"name": "my-dataset"}
+        assert post_payload["sync_mode"] == "mirror"
+        assert post_payload["examples"][0]["content_hash"] != "bad-user-supplied-hash"
+        assert len(post_payload["examples"][0]["content_hash"]) == 64
+        mock_get_dataset.assert_called_once_with(
+            dataset="RGF0YXNldDox",
+            version_id="RGF0YXNldFZlcnNpb246Mg==",
+            timeout=5,
+        )

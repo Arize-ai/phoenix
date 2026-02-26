@@ -100,6 +100,82 @@ class TestDatasetIntegration:
         assert updated.version_id != dataset.version_id  # New version
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_create_evolve_and_noop(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        from phoenix.experiments.functions import run_experiment
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        unique_name = f"test_upsert_dataset_{token_hex(4)}"
+
+        dataset_v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                dataset=unique_name,
+                examples=[
+                    {"input": {"q": "q1"}, "output": {"a": "a1"}, "metadata": {"m": 1}},
+                    {"input": {"q": "q2"}, "output": {"a": "a2"}, "metadata": {"m": 2}},
+                ],
+            )
+        )
+        assert len(dataset_v1) == 2
+
+        dataset_v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                dataset=unique_name,
+                examples=[
+                    {"input": {"q": "q1"}, "output": {"a": "a1-updated"}, "metadata": {"m": 1}},
+                    {"input": {"q": "q3"}, "output": {"a": "a3"}, "metadata": {"m": 3}},
+                ],
+            )
+        )
+
+        assert dataset_v2.id == dataset_v1.id
+        assert dataset_v2.version_id != dataset_v1.version_id
+        assert {(ex["input"]["q"], ex["output"]["a"]) for ex in dataset_v2.examples} == {
+            ("q1", "a1-updated"),
+            ("q3", "a3"),
+        }
+
+        dataset_v2_repeat = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                dataset=dataset_v2.id,
+                examples=[
+                    {"input": {"q": "q1"}, "output": {"a": "a1-updated"}, "metadata": {"m": 1}},
+                    {"input": {"q": "q3"}, "output": {"a": "a3"}, "metadata": {"m": 3}},
+                ],
+            )
+        )
+        assert dataset_v2_repeat.id == dataset_v2.id
+        assert dataset_v2_repeat.version_id == dataset_v2.version_id
+
+        versions = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset_versions(
+                dataset=dataset_v2.id
+            )
+        )
+        assert len(versions) == 2
+
+        def task(input: dict[str, Any]) -> str:
+            return f"stub: {input['q']}"
+
+        result = run_experiment(
+            dataset=dataset_v2,
+            task=task,
+            experiment_name=f"upsert-compat-{token_hex(4)}",
+            dry_run=True,
+            print_summary=False,
+        )
+        assert result is not None
+        assert len(result.runs) > 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_dataset_versions(
         self,
         is_async: bool,

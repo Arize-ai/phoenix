@@ -2218,6 +2218,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
     (422, "POST", "v1/annotation_configs"),
     (400, "POST", "v1/datasets/upload"),
+    (422, "POST", "v1/datasets/upsert"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
     (422, "POST", "v1/document_annotations"),
     (415, "POST", "v1/evaluations"),
