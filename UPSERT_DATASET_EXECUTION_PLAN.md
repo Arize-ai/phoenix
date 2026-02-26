@@ -11,7 +11,7 @@ Phoenix users want to keep datasets in external stores (for example JSONL in obj
 
 ## Desired End State
 - Add dataset upsert over REST with mirror (exact sync) semantics.
-- Upsert uses stable source identity and implicit client-side hashing (users do not pass hashes).
+- Upsert uses implicit client-side hashing only (users do not pass IDs or hashes).
 - Python and TypeScript clients both expose ergonomic upsert APIs.
 - End-to-end examples show upsert + experiments iteration loops in both languages.
 
@@ -22,9 +22,12 @@ Deliver dataset upsert support (REST + Python client + TypeScript client) with i
 - Do **not** add or modify GraphQL schema/mutations/resolvers.
 - `DatasetVersion` schema remains unchanged.
 - Hash algorithm metadata field is out of scope for v1.
+- Mirror upsert is hash-based; user-supplied stable example IDs are out of scope for v1.
 - This rollout includes a DB migration for new upsert-related persistence fields.
+- Each step must append notable findings to [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) when something is surprising, unexpected, or problematic.
 - Every step must end with:
   - relevant verification
+  - lessons entry update (if applicable)
   - one commit
   - plan status update
 
@@ -41,14 +44,13 @@ from phoenix.client.experiments import run_experiment
 client = Client()
 
 examples_v1 = [
-    {"id": "q1", "input": {"question": "What is AI?"}, "output": {"answer": "..."}, "metadata": {}},
-    {"id": "q2", "input": {"question": "What is ML?"}, "output": {"answer": "..."}, "metadata": {}},
+    {"input": {"question": "What is AI?"}, "output": {"answer": "..."}, "metadata": {}},
+    {"input": {"question": "What is ML?"}, "output": {"answer": "..."}, "metadata": {}},
 ]
 
 dataset_v1 = client.datasets.upsert_dataset(
     dataset="support-benchmark",
     examples=examples_v1,
-    source_id_key="id",   # stable external identity
 )
 
 def task(example):
@@ -61,14 +63,13 @@ exp_v1 = run_experiment(
 )
 
 examples_v2 = [
-    {"id": "q1", "input": {"question": "What is AI?"}, "output": {"answer": "Artificial Intelligence"}, "metadata": {}},
-    {"id": "q3", "input": {"question": "What is RL?"}, "output": {"answer": "..."}, "metadata": {}},
+    {"input": {"question": "What is AI?"}, "output": {"answer": "Artificial Intelligence"}, "metadata": {}},
+    {"input": {"question": "What is RL?"}, "output": {"answer": "..."}, "metadata": {}},
 ]
 
 dataset_v2 = client.datasets.upsert_dataset(
     dataset="support-benchmark",
     examples=examples_v2,
-    source_id_key="id",
 )
 
 exp_v2 = run_experiment(
@@ -76,6 +77,8 @@ exp_v2 = run_experiment(
     task=task,
     experiment_name="support-v2",
 )
+
+# Note: in hash-only mirror semantics, a content edit is represented as DELETE(old hash) + CREATE(new hash).
 ```
 
 ### TypeScript
@@ -88,14 +91,13 @@ import { runExperiment } from "@arizeai/phoenix-client/experiments";
 const client = createClient();
 
 const examplesV1 = [
-  { id: "q1", input: { question: "What is AI?" }, output: { answer: "..." }, metadata: {} },
-  { id: "q2", input: { question: "What is ML?" }, output: { answer: "..." }, metadata: {} },
+  { input: { question: "What is AI?" }, output: { answer: "..." }, metadata: {} },
+  { input: { question: "What is ML?" }, output: { answer: "..." }, metadata: {} },
 ];
 
 const upsertV1 = await client.datasets.upsertDataset({
   dataset: { datasetName: "support-benchmark" },
   examples: examplesV1,
-  sourceIdKey: "id",
 });
 
 const task = async (example: { input: { question: string } }) => ({
@@ -110,14 +112,13 @@ const expV1 = await runExperiment({
 });
 
 const examplesV2 = [
-  { id: "q1", input: { question: "What is AI?" }, output: { answer: "Artificial Intelligence" }, metadata: {} },
-  { id: "q3", input: { question: "What is RL?" }, output: { answer: "..." }, metadata: {} },
+  { input: { question: "What is AI?" }, output: { answer: "Artificial Intelligence" }, metadata: {} },
+  { input: { question: "What is RL?" }, output: { answer: "..." }, metadata: {} },
 ];
 
 const upsertV2 = await client.datasets.upsertDataset({
   dataset: { datasetName: "support-benchmark" },
   examples: examplesV2,
-  sourceIdKey: "id",
 });
 
 const expV2 = await runExperiment({
@@ -126,10 +127,12 @@ const expV2 = await runExperiment({
   dataset: { datasetId: upsertV2.datasetId, versionId: upsertV2.versionId },
   task,
 });
+
+// Note: in hash-only mirror semantics, a content edit is represented as DELETE(old hash) + CREATE(new hash).
 ```
 
 ## Step Checklist
-- [ ] STEP-01: Backend schema migration + persistence primitives for upsert identity + hashing
+- [ ] STEP-01: Backend schema migration + persistence primitives for hash-based upsert
 - [ ] STEP-02: REST upsert API (no GraphQL changes)
 - [ ] STEP-03: Python client upsert with implicit hashing
 - [ ] STEP-04: TypeScript client upsert with implicit hashing
@@ -139,17 +142,15 @@ const expV2 = await runExperiment({
 
 ---
 
-## STEP-01: Backend schema migration + persistence primitives for upsert identity + hashing
+## STEP-01: Backend schema migration + persistence primitives for hash-based upsert
 Status: Not completed
 Commit: _(fill when done)_
 
 ### Scope
 - Add and apply an Alembic migration for new upsert persistence fields/constraints.
-- Add database/model support for stable external identity and content hash persistence used by upsert:
-  - Example-level stable key (e.g., `source_id`) on dataset example records.
-  - Content hash storage on dataset revisions/examples as needed for efficient diffing.
+- Add database/model support for content hash persistence used by upsert diffing.
 - Implement backend helper logic for deterministic content hashing and dataset diff classification (new/changed/unchanged/deleted).
-- Implement insertion-layer upsert application logic that emits correct `CREATE`/`PATCH`/`DELETE` revisions.
+- Implement insertion-layer upsert application logic for hash-based mirror sync using `CREATE` and `DELETE` revisions.
 
 ### Out of scope
 - REST router changes.
@@ -163,13 +164,14 @@ Commit: _(fill when done)_
 - Unit tests for hashing/diff logic pass.
 - Insertion tests prove:
   - unchanged examples do not create extra revisions,
-  - changed examples create `PATCH`,
+  - changed examples are represented as `DELETE` + `CREATE` under hash-only mirror semantics,
   - missing examples create `DELETE` revisions under mirror semantics,
   - new examples create `CREATE`.
 - Existing dataset insertion tests remain green.
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
 
 ---
@@ -193,13 +195,13 @@ Commit: _(fill when done)_
 - Router unit tests cover:
   - happy path for mirror exact-sync behavior,
   - invalid request shape,
-  - duplicate source IDs rejection,
   - idempotent no-op behavior,
   - proper dataset version creation.
 - Existing dataset REST tests remain green.
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
 
 ---
@@ -211,7 +213,6 @@ Commit: _(fill when done)_
 ### Scope
 - Add Python client method `upsert_dataset(...)`.
 - Hashing is computed implicitly in client; users do not pass hashes.
-- Support stable source identity extraction via `source_id_key` and/or callback.
 - Integrate with new REST upsert endpoint(s).
 - Ensure return type is convenient for experiments workflow (dataset object and/or identifiers consistent with existing API style).
 
@@ -225,6 +226,7 @@ Commit: _(fill when done)_
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
 
 ---
@@ -236,7 +238,6 @@ Commit: _(fill when done)_
 ### Scope
 - Add TypeScript client method `upsertDataset(...)`.
 - Hashing is computed implicitly in client; users do not pass hashes.
-- Support stable source identity extraction via `sourceIdKey` and/or callback.
 - Return typed response including at least `datasetId` and `versionId`.
 - Ensure compatibility with `runExperiment(...)` dataset selector usage.
 
@@ -250,6 +251,7 @@ Commit: _(fill when done)_
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
 
 ---
@@ -269,6 +271,7 @@ Commit: _(fill when done)_
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
 
 ---
@@ -292,6 +295,7 @@ Commit: _(fill when done)_
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
 
 ---
@@ -313,4 +317,5 @@ Commit: _(fill when done)_
 
 ### Completion actions
 - Mark this step complete in checklist and set `Status: Completed`.
+- Add/update a lessons entry in [LESSONS.md](/Users/xandersong/.codex/worktrees/251b/main/LESSONS.md) for any surprising, unexpected, or problematic findings from this step.
 - Record commit SHA in this section.
