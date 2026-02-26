@@ -1,0 +1,169 @@
+{
+  "vectors": [
+    {
+      "name": "nested_key_order_and_arrays",
+      "canonical_json": "{\"input\":{\"a\":{\"c\":3,\"d\":4},\"z\":[{\"k1\":1,\"k2\":2},{\"m\":[3,2,1],\"n\":{\"a\":1,\"b\":2}}]},\"metadata\":{\"extra\":{\"x\":1,\"y\":2},\"tags\":[\"x\",\"y\"]},\"output\":{\"result\":{\"alpha\":1,\"beta\":2}}}",
+      "expected_hash": "cd14e4b5c07b5203c9d30c76dc73054a2dc780aa8130f11956cf8e2ba328fc5d",
+      "examples": [
+        {
+          "input": {
+            "z": [
+              {
+                "k2": 2,
+                "k1": 1
+              },
+              {
+                "m": [
+                  3,
+                  2,
+                  1
+                ],
+                "n": {
+                  "b": 2,
+                  "a": 1
+                }
+              }
+            ],
+            "a": {
+              "d": 4,
+              "c": 3
+            }
+          },
+          "output": {
+            "result": {
+              "beta": 2,
+              "alpha": 1
+            }
+          },
+          "metadata": {
+            "tags": [
+              "x",
+              "y"
+            ],
+            "extra": {
+              "y": 2,
+              "x": 1
+            }
+          }
+        },
+        {
+          "input": {
+            "a": {
+              "c": 3,
+              "d": 4
+            },
+            "z": [
+              {
+                "k1": 1,
+                "k2": 2
+              },
+              {
+                "n": {
+                  "a": 1,
+                  "b": 2
+                },
+                "m": [
+                  3,
+                  2,
+                  1
+                ]
+              }
+            ]
+          },
+          "output": {
+            "result": {
+              "alpha": 1,
+              "beta": 2
+            }
+          },
+          "metadata": {
+            "extra": {
+              "x": 1,
+              "y": 2
+            },
+            "tags": [
+              "x",
+              "y"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "numbers_rfc8785_rendering",
+      "canonical_json": "{\"input\":{\"fraction\":333333333.3333333,\"int\":1,\"large\":1e+30,\"small\":1e-27},\"metadata\":{\"pi\":3.141592653589793},\"output\":{\"negative\":-42,\"zero\":0}}",
+      "expected_hash": "8993720d611920fa8f66636e411619bebbd799a709e391d73a9909213b274c82",
+      "examples": [
+        {
+          "input": {
+            "int": 1,
+            "large": 1e+30,
+            "small": 1e-27,
+            "fraction": 333333333.3333333
+          },
+          "output": {
+            "zero": 0,
+            "negative": -42
+          },
+          "metadata": {
+            "pi": 3.141592653589793
+          }
+        },
+        {
+          "input": {
+            "fraction": 333333333.3333333,
+            "small": 1e-27,
+            "large": 1e+30,
+            "int": 1
+          },
+          "output": {
+            "negative": -42,
+            "zero": 0
+          },
+          "metadata": {
+            "pi": 3.141592653589793
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode_strings",
+      "canonical_json": "{\"input\":{\"cjk\":\"漢字\",\"combining\":\"é\",\"emoji\":\"😀\",\"latin\":\"é\"},\"metadata\":{\"currency\":\"€\",\"music\":\"𝄞\"},\"output\":{\"escaped\":\"line\\nbreak\\tand\\\"quote\\\"\",\"rtl\":\"مرحبا\"}}",
+      "expected_hash": "c86bf12fa33c68bd540e090d8c748e33a28c3e0d7dd4936351a1dd7d061987be",
+      "examples": [
+        {
+          "input": {
+            "latin": "é",
+            "combining": "é",
+            "cjk": "漢字",
+            "emoji": "😀"
+          },
+          "output": {
+            "rtl": "مرحبا",
+            "escaped": "line\nbreak\tand\"quote\""
+          },
+          "metadata": {
+            "currency": "€",
+            "music": "𝄞"
+          }
+        },
+        {
+          "input": {
+            "emoji": "😀",
+            "cjk": "漢字",
+            "latin": "é",
+            "combining": "é"
+          },
+          "output": {
+            "escaped": "line\nbreak\tand\"quote\"",
+            "rtl": "مرحبا"
+          },
+          "metadata": {
+            "music": "𝄞",
+            "currency": "€"
+          }
+        }
+      ]
+    }
+  ]
+}

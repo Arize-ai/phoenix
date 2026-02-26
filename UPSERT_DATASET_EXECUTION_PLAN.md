@@ -140,7 +140,7 @@ const expV2 = await runExperiment({
 - [x] STEP-02: REST upsert API (no GraphQL changes)
 - [x] STEP-03: Python client upsert with implicit hashing
 - [x] STEP-04: TypeScript client upsert with implicit hashing
-- [ ] STEP-05: Cross-SDK hash parity tests
+- [x] STEP-05: Cross-SDK hash parity tests
 - [ ] STEP-06: End-to-end Python + TypeScript integrated examples
 - [ ] STEP-07: Final validation and cleanup
 
@@ -264,8 +264,8 @@ Commit: HEAD
 ---
 
 ## STEP-05: Cross-SDK hash parity tests
-Status: Not completed
-Commit: _(fill when done)_
+Status: Completed
+Commit: HEAD
 
 ### Scope
 - Add golden-vector tests to ensure Python and TypeScript hashing produce identical hashes for identical example payloads.
