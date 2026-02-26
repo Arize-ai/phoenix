@@ -1,43 +1,129 @@
 ---
-title: "How to: Evals"
+title: "Client-Side Evals (SDK)"
 sidebarTitle: "Overview"
 ---
 
-This section contains practical guides for working with evaluators in Phoenix.
+The Phoenix Evals SDK provides composable building blocks for writing and running evaluations in Python or TypeScript. This page covers the core mental model: what an evaluator is, the two evaluator types, and how input mapping works.
 
-<Columns cols={2}>
-  <Card 
-    title="Custom LLM Evaluators" 
-    href="/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators"
-  >
-    Build custom classification and scoring evaluators
+## What Is an Evaluator?
+
+An evaluator is anything that takes inputs and returns a **Score**. The `Score` object is the universal output of all evaluators:
+
+| Property | Required | Description |
+|----------|----------|-------------|
+| `name` | ✓ | Human-readable name of the evaluator |
+| `kind` | ✓ | Origin of the signal: `llm`, `code`, or `human` |
+| `direction` | ✓ | Whether a higher score is better or worse |
+| `score` | optional | Numeric result |
+| `label` | optional | Categorical outcome (e.g. `"correct"`, `"hallucinated"`) |
+| `explanation` | optional | Reasoning behind the result |
+| `metadata` | optional | Arbitrary extra context |
+
+Every evaluator exposes `evaluate` and `async_evaluate` methods for running on a single record, and an `input_schema` that describes what fields it needs.
+
+## Evaluator Types
+
+**LLM-based evaluators** use a judge model to assess qualitative criteria — things like faithfulness, toxicity, or relevance — where "correct" is subjective. The judge reads a prompt template and produces a labeled score with an explanation. See [Custom LLM Evaluators](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) and [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+**Code evaluators** use deterministic logic or heuristics — exact match, regex, Levenshtein distance — where "correct" is objective. They run without any LLM call and are fast and cheap. See [Code Evaluators](/docs/phoenix/evaluation/how-to-evals/code-evaluators).
+
+## Input Mapping
+
+Your data rarely matches an evaluator's expected field names exactly. Instead of reshaping your data to fit each evaluator, **input mapping** makes the evaluator fit your data.
+
+Each evaluator has a discoverable `input_schema` that lists the fields it needs. You pass an `input_mapping` alongside your data to tell the evaluator how to extract those fields:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+eval_input = {
+    "input": {"query": "What is photosynthesis?", "documents": ["doc A", "doc B"]},
+    "output": {"response": "Photosynthesis converts sunlight to energy."},
+}
+
+# Map evaluator field names → paths into your data
+input_mapping = {
+    "input": "input.query",        # dot notation for nested keys
+    "context": lambda x: " ".join(x["input"]["documents"]),  # callable for transforms
+    "output": "output.response",
+}
+
+scores = faithfulness_evaluator.evaluate(eval_input, input_mapping)
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+import { bindEvaluator, createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = bindEvaluator(
+  createFaithfulnessEvaluator({ model: openai("gpt-4o") }),
+  {
+    inputMapping: {
+      input: "input.query",
+      context: (data) => data.input.documents.join(" "),
+      output: "output.response",
+    },
+  }
+);
+
+const scores = await evaluator.evaluate(evalInput);
+```
+</Tab>
+</Tabs>
+
+### The Bind Pattern
+
+When you want to reuse the same evaluator with the same mapping across many records, **bind** the mapping once:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.evals import bind_evaluator
+
+bound = bind_evaluator(faithfulness_evaluator, {
+    "input": "input.query",
+    "context": lambda x: " ".join(x["input"]["documents"]),
+    "output": "output.response",
+})
+
+# Now call it with just the data — mapping is baked in
+scores = bound(eval_input)
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+// bindEvaluator returns a pre-configured evaluator
+const bound = bindEvaluator(faithfulness_evaluator, {
+  inputMapping: { input: "input.query", output: "output.response" },
+});
+
+const scores = await bound.evaluate(evalInput);
+```
+</Tab>
+</Tabs>
+
+Mapping values can be dot-path strings (`"output.response"`), array index strings (`"messages[0].content"`), or callables for custom logic. See [Custom LLM Evaluators](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) for deeper examples.
+
+## Sync vs Async
+
+Use `evaluate` for simple scripts or notebooks. Use `async_evaluate` when you're running many evaluations concurrently — the executor underneath handles rate limits, retries, and dynamic concurrency automatically.
+
+For running evaluations over a full dataframe, use `evaluate_dataframe` (batch mode). See [Batch Evaluations](/docs/phoenix/evaluation/how-to-evals/batch-evaluations) for the full workflow.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom LLM Evaluators" icon="wand-magic-sparkles" href="/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators">
+    Build classification and scoring evaluators with prompt templates
   </Card>
-  
-  <Card 
-    title="Code Evaluators" 
-    href="/docs/phoenix/evaluation/how-to-evals/code-evaluators"
-  >
-    Create non-LLM evaluators using functions
+  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluation/how-to-evals/code-evaluators">
+    Create deterministic evaluators using functions
   </Card>
-  
-  <Card 
-    title="Batch Evaluations" 
-    href="/docs/phoenix/evaluation/how-to-evals/batch-evaluations"
-  >
-    Run evaluations on dataframes efficiently
+  <Card title="Batch Evaluations" icon="table" href="/docs/phoenix/evaluation/how-to-evals/batch-evaluations">
+    Run evaluations efficiently over dataframes
   </Card>
-  
-  <Card 
-    title="Using Evals with Phoenix" 
-    href="/docs/phoenix/evaluation/how-to-evals/using-evals-with-phoenix"
-  >
-    Integrate evaluators with traces and experiments
+  <Card title="Pre-Built Metrics" icon="box" href="/docs/phoenix/evaluation/pre-built-metrics">
+    Use pre-tested evaluators for faithfulness, relevance, and more
   </Card>
-  
-  <Card 
-    title="Configuring the LLM" 
-    href="/docs/phoenix/evaluation/how-to-evals/configuring-the-llm"
-  >
-    Configure LLM models for evaluators
-  </Card>
-</Columns>
+</CardGroup>

@@ -1,0 +1,69 @@
+---
+title: "Correctness"
+description: "Evaluate whether LLM responses are generally correct and complete using a Phoenix-managed judge model."
+---
+
+## Overview
+
+The **Correctness** evaluator assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates the quality of answers without requiring external context or reference responses.
+
+This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf. No local code or API key setup is required.
+
+### When to Use
+
+Use the Correctness evaluator when you need to:
+
+- **Validate factual accuracy** — Ensure responses contain accurate information
+- **Check answer completeness** — Verify responses address all parts of the question
+- **Detect logical inconsistencies** — Identify contradictions within responses
+- **Evaluate general knowledge responses** — Assess answers that don't rely on retrieved context
+- **Get a quick gut-check** — Capture a wide range of potential problems quickly
+
+<Info>
+For evaluating responses against retrieved documents, use the Faithfulness evaluator instead. Correctness is best suited for evaluating general knowledge.
+</Info>
+
+## Input Requirements
+
+The Correctness evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The user's query or question |
+| `output` | `string` | The LLM's response to evaluate |
+
+### Formatting Tips
+
+For best results:
+
+- **Use human-readable strings** rather than raw JSON for all inputs
+- **For multi-turn conversations**, format input as a readable conversation:
+  ```
+  User: What is the capital of France?
+  Assistant: Paris is the capital of France.
+  User: What is its population?
+  ```
+
+## Output Labels
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| Optimization | Maximize | Higher scores are better |
+
+**Interpretation:**
+- **Correct (1.0)**: The response is factually accurate, complete, and logically consistent
+- **Incorrect (0.0)**: The response contains factual errors, is incomplete, or has logical inconsistencies
+
+## Using in Phoenix
+
+To use this evaluator in Phoenix, navigate to your project's Evaluators tab and create a new LLM Evaluator. Select **Correctness** from the template list. The default prompt template will appear pre-loaded. Configure the output column mappings and save. Phoenix will run this evaluator automatically on new experiment runs.
+
+## See Also
+
+- [Pre-Built Metrics Overview](/docs/phoenix/evaluation/server-evals/pre-built-metrics)
+- [Correctness (client-side)](/docs/phoenix/evaluation/pre-built-metrics/correctness) — run this evaluator from Python or TypeScript code
+- [Tool Selection](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection) — evaluate LLM tool selection accuracy
+- [Tool Invocation](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation) — evaluate tool call argument correctness

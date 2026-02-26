@@ -1,0 +1,49 @@
+---
+title: "Contains"
+description: "Check whether a text contains one or more specified words."
+---
+
+Checks whether a text contains one or more specified words. Returns `true` if the match condition is met, `false` otherwise.
+
+## Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `words` | string | Yes | — | Comma-separated list of words to search for (e.g., `"yes, no, maybe"`) |
+| `text` | string | Yes | — | The text to search |
+| `case_sensitive` | boolean | No | `false` | Whether the search is case-sensitive |
+| `require_all` | boolean | No | `false` | If `true`, all words must be present; if `false`, any single word is sufficient |
+
+## Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `true` or `false` | Whether the match condition was satisfied |
+| `score` | `1.0` or `0.0` | Numeric score (`1.0` = match, `0.0` = no match) |
+| Optimization | Maximize | Higher scores are better |
+
+## Configuring Inputs
+
+Each evaluator parameter can be set to either a **path** (a JSONPath expression that extracts a value from the evaluation parameters) or a **literal** (a fixed value typed directly). Use paths to pull from dataset inputs, task outputs, reference data, or metadata. Use literals for static configuration like word lists.
+
+See [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for full details on mapping modes, resolution order, and examples.
+
+## Usage Examples
+
+**Compliance disclaimer enforcement** — A support chatbot must include a required legal phrase in every response. **Text** receives the model's full output from the experiment — typically `output` or a nested path like `output.response`. **Words** is the required phrase, set as a literal value. If the required disclaimer varies per dataset example, map **Words** to a reference field instead.
+
+**Required keyword presence** — A pipeline that verifies responses include at least one of several acceptable phrases. **Text** receives the model's response; **Words** is a comma-separated list of all acceptable phrases. Enable **Require all** if every phrase must appear rather than any one of them.
+
+**Refusal detection** — Testing whether an agent correctly declines out-of-scope requests. **Text** is the model's response; **Words** is a set of terms associated with refusal (e.g., `"sorry, cannot, decline"`). Disable **Case sensitive** to catch varied capitalizations across responses.
+
+## Notes
+
+<Note>
+If `words` is empty or contains only whitespace after splitting on commas, the evaluator returns `false` rather than `true`. This guards against the empty-list edge case where "all of nothing" would otherwise trivially pass.
+</Note>
+
+## See Also
+
+- [Pre-Built Metrics Overview](/docs/phoenix/evaluation/server-evals/pre-built-metrics)
+- [Exact Match](/docs/phoenix/evaluation/server-evals/pre-built-metrics/exact-match) — check whether two strings are identical
+- [Regex](/docs/phoenix/evaluation/server-evals/pre-built-metrics/regex) — match text against a regular expression pattern

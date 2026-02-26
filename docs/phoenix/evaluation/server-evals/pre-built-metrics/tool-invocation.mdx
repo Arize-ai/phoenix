@@ -1,0 +1,88 @@
+---
+title: "Tool Invocation"
+description: "Evaluate whether LLM tool calls have correct arguments and formatting using a Phoenix-managed judge model."
+---
+
+## Overview
+
+The **Tool Invocation** evaluator determines whether an LLM invoked a tool correctly with proper arguments, formatting, and safe content. This evaluator focuses on the *how* of tool calling — validating that the invocation itself is well-formed — rather than whether the right tool was selected.
+
+This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf. No local code or API key setup is required.
+
+### When to Use
+
+Use the Tool Invocation evaluator when you need to:
+
+- **Validate tool call arguments** — Ensure all required parameters are present with correct values
+- **Check JSON formatting** — Verify tool calls are properly structured
+- **Detect hallucinated fields** — Identify when the LLM invents parameters not in the schema
+- **Audit for unsafe content** — Check that arguments don't contain PII or sensitive data
+- **Evaluate multi-tool invocations** — Validate when the LLM calls multiple tools at once
+
+<Info>
+This evaluator validates tool invocation correctness, not tool selection. For evaluating whether the right tool was chosen, use the [Tool Selection evaluator](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection) instead.
+</Info>
+
+## Input Requirements
+
+The Tool Invocation evaluator requires three inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The conversation context (can include multi-turn history) |
+| `available_tools` | `string` | Tool schemas (JSON schema or human-readable format) |
+| `tool_selection` | `string` | The LLM's tool invocation(s) with arguments |
+
+### Formatting Tips
+
+While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**.
+
+**`input` (conversation context):**
+```
+User: I need to book a flight from New York to Los Angeles
+Assistant: I'd be happy to help you book a flight. When would you like to travel?
+User: Tomorrow morning, the earliest available
+```
+
+**`available_tools` (tool schemas with argument details):**
+```
+book_flight: Book a flight between two cities
+  - origin (required): Departure city code (e.g., "JFK", "LAX")
+  - destination (required): Arrival city code
+  - date (required): Flight date in YYYY-MM-DD format
+  - time_preference (optional): "morning", "afternoon", or "evening"
+
+search_hotels: Search for hotel accommodations
+  - city (required): City name or code
+  - check_in (required): Check-in date in YYYY-MM-DD format
+  - check_out (required): Check-out date in YYYY-MM-DD format
+```
+
+**`tool_selection` (the LLM's tool invocation with arguments):**
+```
+book_flight(origin="JFK", destination="LAX", date="2024-01-15", time_preference="morning")
+```
+
+Additional tips:
+- **Include full conversation context** — The evaluator considers the entire conversation history to validate argument values
+- **Multi-tool invocations are supported** — If the LLM calls multiple tools, include all invocations in the `tool_selection` field
+
+## Output Labels
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| Optimization | Maximize | Higher scores are better |
+
+## Using in Phoenix
+
+To use this evaluator in Phoenix, navigate to your project's Evaluators tab and create a new LLM Evaluator. Select **Tool Invocation** from the template list. The default prompt template will appear pre-loaded. Configure the output column mappings and save. Phoenix will run this evaluator automatically on new experiment runs.
+
+## See Also
+
+- [Pre-Built Metrics Overview](/docs/phoenix/evaluation/server-evals/pre-built-metrics)
+- [Tool Invocation (client-side)](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation) — run this evaluator from Python or TypeScript code
+- [Tool Selection](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection) — evaluate whether the right tool was chosen
+- [Correctness](/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness) — evaluate factual accuracy of LLM responses
