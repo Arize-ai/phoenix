@@ -5758,6 +5758,8 @@ export interface operations {
                 cursor?: string | null;
                 /** @description The max number of sessions to return at a time. */
                 limit?: number;
+                /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
+                order?: "asc" | "desc";
             };
             header?: never;
             path: {

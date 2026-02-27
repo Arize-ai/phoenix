@@ -4332,6 +4332,22 @@
               "title": "Limit"
             },
             "description": "The max number of sessions to return at a time."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort order by ID: 'asc' (ascending) or 'desc' (descending).",
+              "default": "asc",
+              "title": "Order"
+            },
+            "description": "Sort order by ID: 'asc' (ascending) or 'desc' (descending)."
           }
         ],
         "responses": {
