@@ -103,7 +103,7 @@ def add_text_csv_content_to_responses(
     return output_responses
 
 
-async def _get_project_by_identifier(
+async def get_project_by_identifier(
     session: AsyncSession,
     project_identifier: str,
 ) -> models.Project:
