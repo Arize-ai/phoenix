@@ -370,6 +370,9 @@ pg = [
     { name = "asyncpg" },
     { name = "psycopg", extra = ["binary", "pool"] },
 ]
+sandbox = [
+    { name = "wasmtime" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -532,9 +535,10 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.6" },
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
+    { name = "wasmtime", marker = "extra == 'sandbox'", specifier = ">=15.0" },
     { name = "wrapt", specifier = ">=1.17.2,<2" },
 ]
-provides-extras = ["aws", "container", "evals", "experimental", "pg", "test"]
+provides-extras = ["aws", "container", "evals", "experimental", "pg", "sandbox", "test"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5743,6 +5747,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/aa/a3/4d310fa5f00863544e1d0f4de93bddec248499ccf97d4791bc3122c9d4f3/virtualenv-20.36.1.tar.gz", hash = "sha256:8befb5c81842c641f8ee658481e42641c68b5eab3521d8e092d18320902466ba", size = 6032239, upload-time = "2026-01-09T18:21:01.296Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/2a/dc2228b2888f51192c7dc766106cd475f1b768c10caaf9727659726f7391/virtualenv-20.36.1-py3-none-any.whl", hash = "sha256:575a8d6b124ef88f6f51d56d656132389f961062a9177016a50e4f507bbcc19f", size = 6008258, upload-time = "2026-01-09T18:20:59.425Z" },
+]
+
+[[package]]
+name = "wasmtime"
+version = "42.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/cd/1f110419ed006f91624010f4df4da82490220bd5527650284c97fc758a6c/wasmtime-42.0.0.tar.gz", hash = "sha256:90485655d6e541b817a7baa1b3071b4525d03f76bcb6ad04661774f06a3b02d4", size = 117133, upload-time = "2026-02-24T19:12:53.321Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/cb/f206f7a839d6843b01c041000056bf7aad23cf72fe2333a0c5dad144e0f2/wasmtime-42.0.0-py3-none-android_26_arm64_v8a.whl", hash = "sha256:214e7d294ce1b5adb94f09a870a2ab6759173dc0194bdde74ee4492b477d8392", size = 6829706, upload-time = "2026-02-24T19:12:36.637Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/97/d4f5f46eef74e013c3a0caa9b8625bb1c4162e2b9817258596ee6932c019/wasmtime-42.0.0-py3-none-android_26_x86_64.whl", hash = "sha256:cdd9710fad242dde7cb0eacbe48bf902bb1bac6ecbecd3e743c31af463a795c6", size = 7699640, upload-time = "2026-02-24T19:12:38.471Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/d2/5b2bf901b0a9b8050d966dff61e353de7cd86dd58679a79e48372ff8b3a6/wasmtime-42.0.0-py3-none-any.whl", hash = "sha256:7a166bd262608806f3295343fcd07ee3e037f931f6d3b0a24ab1cfc7ccc3e8eb", size = 6403639, upload-time = "2026-02-24T19:12:39.777Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/6f/a40322bdd55809441bab7e1ac707aa38ced3572904a700f1dfb4b2520dcd/wasmtime-42.0.0-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:21e3dafd74704de0e7ed7668ab76cc5a9df130b4306befbfcb08ddb29673c784", size = 7483525, upload-time = "2026-02-24T19:12:41.422Z" },
+    { url = "https://files.pythonhosted.org/packages/47/04/ef61af9fe9e5c0a8d782c8662302535ee6e6dba1a6929191fa3ea371a491/wasmtime-42.0.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:411bf05df47c8a36c6b31b6012720ac1251b95fdd155e389b25eb6fbbd7e181c", size = 6493225, upload-time = "2026-02-24T19:12:42.9Z" },
+    { url = "https://files.pythonhosted.org/packages/44/54/a774313c19c1c0ae2c1897af697c12178904d67911f42c4a9bdddba68640/wasmtime-42.0.0-py3-none-manylinux1_x86_64.whl", hash = "sha256:ca12269ee88aac6b1f64b5f324abf3c6370ff853338d991292f10cb17b906667", size = 7740997, upload-time = "2026-02-24T19:12:44.453Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/5d/fae28526b1d42f0365e4fd6c2a212c7c000e47d7320632018fa45735a06e/wasmtime-42.0.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:78f9353b9fdc2f6e7ed13e28ce0394533f5a62710b75c00434ac82681f738924", size = 6785820, upload-time = "2026-02-24T19:12:45.777Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/ae/5c5e96273a36c70753e8ba4db323dd9b1ccf6fcea4ccad99d458ad2ecf13/wasmtime-42.0.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:ba317e879aab71c407e7012f4dc10b221c6daf737496c501005612e11d26e8ee", size = 6810021, upload-time = "2026-02-24T19:12:47.453Z" },
+    { url = "https://files.pythonhosted.org/packages/46/68/5c129389f67219a90c3ba0dcf85555249bde9797760f2d715bec03bc198a/wasmtime-42.0.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:e9ef6dbd1a2cff21694ba64f27b90a7ab0af61a54d911a59682005830683dc8a", size = 7779984, upload-time = "2026-02-24T19:12:48.642Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/e5/6650c9e7ad904c9a6730c4b762b1dfed4f7d7b0e981e3624a6ecd7abb7ed/wasmtime-42.0.0-py3-none-win_amd64.whl", hash = "sha256:3a360a1285457021efe24369490cd719996596f2cbe1aa62dae6ad68179cf0f9", size = 6403647, upload-time = "2026-02-24T19:12:50.373Z" },
+    { url = "https://files.pythonhosted.org/packages/44/b2/e93046661deef4d8fee2f40080a28e5ff201cc98d4fb1929a46367c34778/wasmtime-42.0.0-py3-none-win_arm64.whl", hash = "sha256:8caa13a6ee264969449c008da1dcb8f9f6c954800853527714e7fcddbdda9166", size = 5397896, upload-time = "2026-02-24T19:12:51.639Z" },
 ]
 
 [[package]]

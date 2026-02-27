@@ -10,6 +10,7 @@ class ExecutionResult:
     stderr: str
     exit_code: int
     error: Exception | None = None
+    timed_out: bool = False
 
 
 class UnsupportedOperation(Exception):

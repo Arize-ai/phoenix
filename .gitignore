@@ -1,3 +1,8 @@
+# WASM runtime artifacts (downloaded at server startup, not committed)
+wasm_bin/
+*.wasm
+*.cwasm
+
 # Generated dirs
 .vscode
 !.vscode/extensions.json

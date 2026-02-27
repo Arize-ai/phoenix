@@ -176,6 +176,9 @@ pg = [
 aws = [
   "aioboto3",
 ]
+sandbox = [
+  "wasmtime>=15.0",
+]
 container = [
   "anthropic>=0.78.0",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
