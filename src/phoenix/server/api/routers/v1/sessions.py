@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
@@ -19,8 +19,8 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
-    _get_project_by_identifier,
     add_errors_to_responses,
+    get_project_by_identifier,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
@@ -165,20 +165,30 @@ async def list_project_sessions(
         description="The max number of sessions to return at a time.",
         gt=0,
     ),
+    order: Literal["asc", "desc"] = Query(
+        default="asc",
+        description="Sort order by ID: 'asc' (ascending) or 'desc' (descending).",
+    ),
 ) -> GetSessionsResponseBody:
     async with request.app.state.db() as db_session:
-        project = await _get_project_by_identifier(db_session, project_identifier)
+        project = await get_project_by_identifier(db_session, project_identifier)
+
+        if order == "desc":
+            order_clause = models.ProjectSession.id.desc()
+        else:
+            order_clause = models.ProjectSession.id.asc()
 
         sessions_stmt = (
-            select(models.ProjectSession)
-            .filter_by(project_id=project.id)
-            .order_by(models.ProjectSession.id.desc())
+            select(models.ProjectSession).filter_by(project_id=project.id).order_by(order_clause)
         )
 
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
-                sessions_stmt = sessions_stmt.filter(models.ProjectSession.id <= int(cursor_id))
+                if order == "desc":
+                    sessions_stmt = sessions_stmt.filter(models.ProjectSession.id <= int(cursor_id))
+                else:
+                    sessions_stmt = sessions_stmt.filter(models.ProjectSession.id >= int(cursor_id))
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",

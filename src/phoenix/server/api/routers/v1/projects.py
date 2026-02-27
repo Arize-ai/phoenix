@@ -16,8 +16,8 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
-    _get_project_by_identifier,
     add_errors_to_responses,
+    get_project_by_identifier,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.authorization import is_not_locked, require_admin
@@ -172,7 +172,7 @@ async def get_project(
         HTTPException: If the project identifier format is invalid or the project is not found.
     """  # noqa: E501
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
     data = _to_project_response(project)
     return GetProjectResponseBody(data=data)
 
@@ -256,7 +256,7 @@ async def update_project(
         HTTPException: If the project identifier format is invalid or the project is not found.
     """  # noqa: E501
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
 
         # Update the description if provided
         if request_body.description is not None:
@@ -303,7 +303,7 @@ async def delete_project(
         HTTPException: If the project identifier format is invalid, the project is not found, or it's the default project.
     """  # noqa: E501
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
 
         # The default project must not be deleted - it's forbidden
         if project.name == DEFAULT_PROJECT_NAME:
