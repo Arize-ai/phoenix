@@ -65,7 +65,6 @@ export function PlaygroundResponseFormat({
 
   // when the instance provider changes, we need to update the editor value
   // to reflect the new response format schema
-  // eslint-disable-next-line react-hooks-js/set-state-in-effect
   useEffect(() => {
     const state = store.getState();
     const instance = state.instances.find((i) => i.id === playgroundInstanceId);
@@ -86,6 +85,7 @@ export function PlaygroundResponseFormat({
       2
     );
     if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
+      // eslint-disable-next-line react-hooks-js/set-state-in-effect
       setInitialResponseFormatDefinition(newResponseFormatDefinition);
     }
   }, [instanceProvider, store, playgroundInstanceId]);
