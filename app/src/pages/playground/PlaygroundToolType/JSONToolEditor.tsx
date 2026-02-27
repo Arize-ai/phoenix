@@ -40,7 +40,6 @@ export const JSONToolEditor = ({
 
   // when the instance provider changes, we need to update the editor value
   // to reflect the new tool definition schema
-  // eslint-disable-next-line react-hooks-js/set-state-in-effect
   useEffect(() => {
     const state = store.getState();
     const instance = state.instances.find((i) => i.id === playgroundInstanceId);
@@ -53,6 +52,7 @@ export const JSONToolEditor = ({
     }
     const newDefinition = JSON.stringify(tool.definition, null, 2);
     if (isJSONString({ str: newDefinition, excludeNull: true })) {
+      // eslint-disable-next-line react-hooks-js/set-state-in-effect
       setInitialEditorValue(newDefinition);
     }
   }, [instanceProvider, store, playgroundInstanceId, toolId]);
