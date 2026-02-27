@@ -2977,6 +2977,8 @@ export interface components {
             span_id?: string | null;
             /** Content Hash */
             content_hash?: string | null;
+            /** External Id */
+            external_id?: string | null;
         };
         /** UpsertDatasetRequestBody */
         UpsertDatasetRequestBody: {
