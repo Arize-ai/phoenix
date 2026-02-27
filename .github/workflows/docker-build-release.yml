@@ -117,6 +117,7 @@ jobs:
       - name: Create PR
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           commit-message: "chore: update phoenix version to ${{ needs.push_to_registry.outputs.version }} in kustomize and helm"
           title: "chore: update phoenix version to ${{ needs.push_to_registry.outputs.version }} in kustomize and helm"
           body: |
