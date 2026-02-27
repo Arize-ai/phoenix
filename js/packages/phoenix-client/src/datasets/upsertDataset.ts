@@ -19,6 +19,7 @@ type UpsertDatasetRequestExample = {
   splits: string[];
   span_id: string | null;
   content_hash: string;
+  external_id: string | null;
 };
 
 type UpsertDatasetRequestBody = {
@@ -145,6 +146,7 @@ function toUpsertRequestExample(example: Example): UpsertDatasetRequestExample {
     metadata,
     splits: normalizeSplits(example),
     span_id: example.spanId ?? null,
+    external_id: example.externalId ?? null,
     content_hash: computeExampleContentHash({
       input,
       output,

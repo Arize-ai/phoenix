@@ -1,12 +1,12 @@
 import { createClient } from "../src";
-import { upsertDataset, type UpsertDatasetResponse } from "../src/datasets";
+import { upsertDataset } from "../src/datasets";
 import { runExperiment } from "../src/experiments";
 import type { Example } from "../src/types/datasets";
 
 /* eslint-disable no-console */
 import "dotenv/config";
 
-const DEFAULT_DATASET_NAME = "support-benchmark";
+const DATASET_NAME = "support-benchmark";
 
 const examplesV1: Example[] = [
   {
@@ -21,10 +21,11 @@ const examplesV1: Example[] = [
   },
 ];
 
+// V2: keep "What is AI?" unchanged, delete "What is ML?", add "What is RL?"
 const examplesV2: Example[] = [
   {
     input: { question: "What is AI?" },
-    output: { answer: "Artificial Intelligence" },
+    output: { answer: "..." },
     metadata: {},
   },
   {
@@ -34,100 +35,17 @@ const examplesV2: Example[] = [
   },
 ];
 
-type SmokeExperiment = {
-  experimentId: string;
-  runCount: number;
-};
-
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const smokeRun = args.includes("--smoke-run");
-  const datasetNameArg = args.find((arg) => arg.startsWith("--dataset-name="));
-  const datasetName = datasetNameArg
-    ? datasetNameArg.slice("--dataset-name=".length)
-    : DEFAULT_DATASET_NAME;
-  return { smokeRun, datasetName };
-}
-
-function printUpsertEvent({
-  label,
-  upsert,
-}: {
-  label: string;
-  upsert: Pick<UpsertDatasetResponse, "datasetId" | "versionId" | "summary">;
-}) {
-  console.log(
-    `[${label}] dataset_id=${upsert.datasetId} version_id=${upsert.versionId} summary=${JSON.stringify(upsert.summary ?? {})}`
-  );
-}
-
-function printExperimentEvent({
-  label,
-  experimentName,
-  experiment,
-  datasetVersionId,
-}: {
-  label: string;
-  experimentName: string;
-  experiment: SmokeExperiment;
-  datasetVersionId: string;
-}) {
-  console.log(
-    `[${label}] experiment_name=${experimentName} experiment_id=${experiment.experimentId} dataset_version_id=${datasetVersionId} run_count=${experiment.runCount}`
-  );
-}
-
-async function runSmoke() {
-  const upsertV1: UpsertDatasetResponse = {
-    datasetId: "dataset-smoke-1",
-    versionId: "version-smoke-1",
-    summary: { added: 2, updated: 0, deleted: 0, unchanged: 0 },
-  };
-  const expV1: SmokeExperiment = {
-    experimentId: "experiment-smoke-1",
-    runCount: 2,
-  };
-
-  const upsertV2: UpsertDatasetResponse = {
-    datasetId: upsertV1.datasetId,
-    versionId: "version-smoke-2",
-    summary: { added: 1, updated: 1, deleted: 1, unchanged: 0 },
-  };
-  const expV2: SmokeExperiment = {
-    experimentId: "experiment-smoke-2",
-    runCount: 2,
-  };
-
-  printUpsertEvent({ label: "upsert:v1", upsert: upsertV1 });
-  printExperimentEvent({
-    label: "experiment:v1",
-    experimentName: "support-v1",
-    experiment: expV1,
-    datasetVersionId: upsertV1.versionId,
-  });
-
-  printUpsertEvent({ label: "upsert:v2", upsert: upsertV2 });
-  printExperimentEvent({
-    label: "experiment:v2",
-    experimentName: "support-v2",
-    experiment: expV2,
-    datasetVersionId: upsertV2.versionId,
-  });
-
-  console.log(
-    "Note: with hash-only mirror semantics, a content edit is represented as DELETE(old hash) + CREATE(new hash)."
-  );
-}
-
-async function runLive({ datasetName }: { datasetName: string }) {
+async function main() {
   const client = createClient();
 
   const upsertV1 = await upsertDataset({
     client,
-    dataset: { datasetName },
+    dataset: { datasetName: DATASET_NAME },
     examples: examplesV1,
   });
-  printUpsertEvent({ label: "upsert:v1", upsert: upsertV1 });
+  console.log(
+    `[upsert:v1] dataset_id=${upsertV1.datasetId} version_id=${upsertV1.versionId} summary=${JSON.stringify(upsertV1.summary ?? {})}`
+  );
 
   const task = async (example: Example) => {
     const input = example.input as { question?: string };
@@ -141,22 +59,18 @@ async function runLive({ datasetName }: { datasetName: string }) {
     task,
     dryRun: true,
   });
-  printExperimentEvent({
-    label: "experiment:v1",
-    experimentName: "support-v1",
-    experiment: {
-      experimentId: expV1.id,
-      runCount: Object.keys(expV1.runs).length,
-    },
-    datasetVersionId: upsertV1.versionId,
-  });
+  console.log(
+    `[experiment:v1] experiment_id=${expV1.id} dataset_version_id=${upsertV1.versionId} run_count=${Object.keys(expV1.runs).length}`
+  );
 
   const upsertV2 = await upsertDataset({
     client,
-    dataset: { datasetName },
+    dataset: { datasetName: DATASET_NAME },
     examples: examplesV2,
   });
-  printUpsertEvent({ label: "upsert:v2", upsert: upsertV2 });
+  console.log(
+    `[upsert:v2] dataset_id=${upsertV2.datasetId} version_id=${upsertV2.versionId} summary=${JSON.stringify(upsertV2.summary ?? {})}`
+  );
 
   const expV2 = await runExperiment({
     client,
@@ -165,30 +79,9 @@ async function runLive({ datasetName }: { datasetName: string }) {
     task,
     dryRun: true,
   });
-  printExperimentEvent({
-    label: "experiment:v2",
-    experimentName: "support-v2",
-    experiment: {
-      experimentId: expV2.id,
-      runCount: Object.keys(expV2.runs).length,
-    },
-    datasetVersionId: upsertV2.versionId,
-  });
-
   console.log(
-    "Note: with hash-only mirror semantics, a content edit is represented as DELETE(old hash) + CREATE(new hash)."
+    `[experiment:v2] experiment_id=${expV2.id} dataset_version_id=${upsertV2.versionId} run_count=${Object.keys(expV2.runs).length}`
   );
-}
-
-async function main() {
-  const { smokeRun, datasetName } = parseArgs();
-
-  if (smokeRun) {
-    await runSmoke();
-    return;
-  }
-
-  await runLive({ datasetName });
 }
 
 main().catch((error: unknown) => {
