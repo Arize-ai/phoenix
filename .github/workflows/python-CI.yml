@@ -43,9 +43,6 @@ jobs:
           filters: |
             ipynb:
               - "**/*.ipynb"
-            proto:
-              - "src/phoenix/proto/**"
-              - "src/phoenix/trace/v1/**"
             prompts:
               - "prompts/**"
               - "scripts/prompts/compile_python_prompts.py"
@@ -73,7 +70,6 @@ jobs:
         run: |
           echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
           echo "ipynb_files: ${{ steps.filter.outputs.ipynb_files }}"
-          echo "proto: ${{ steps.filter.outputs.proto }}"
           echo "prompts: ${{ steps.filter.outputs.prompts }}"
           echo "phoenix: ${{ steps.filter.outputs.phoenix }}"
           echo "phoenix_client: ${{ steps.filter.outputs.phoenix_client }}"
@@ -219,30 +215,6 @@ jobs:
           version: "0.9.18"
       - name: Build OpenAPI schema
         run: make schema-openapi
-      - run: git diff --exit-code
-
-  codegen-protobuf:
-    name: Compile Protobuf
-    needs: changes
-    if: ${{ needs.changes.outputs.proto == 'true' }}
-    strategy:
-      matrix:
-        py: ["3.10"]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.18"
-      - name: Compile Protobuf
-        run: make codegen-protobuf
       - run: git diff --exit-code
 
   codegen-prompts:
@@ -564,7 +536,6 @@ jobs:
       - clean-jupyter-notebooks
       - build-graphql-schema
       - build-openapi-schema
-      - codegen-protobuf
       - codegen-prompts
       - check-lockfile
       - type-check
