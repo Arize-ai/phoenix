@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -255,6 +256,37 @@ class UpdateDatasetBuiltinEvaluatorInput:
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
     description: Optional[str] = UNSET
+
+
+@strawberry.input
+class CreateCodeEvaluatorInput:
+    name: Identifier
+    source_code: str
+    language: str = "PYTHON"
+    input_mapping: EvaluatorInputMappingInput = strawberry.field(
+        default_factory=EvaluatorInputMappingInput
+    )
+    output_configs: list[AnnotationConfigInput] = strawberry.field(default_factory=list)
+    description: Optional[str] = None
+    metadata: Optional[JSON] = None
+
+
+@strawberry.input
+class UpdateCodeEvaluatorInput:
+    evaluator_id: GlobalID
+    name: Optional[Identifier] = UNSET
+    source_code: Optional[str] = UNSET
+    language: Optional[str] = UNSET
+    input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+    description: Optional[str] = UNSET
+    metadata: Optional[JSON] = UNSET
+
+
+@strawberry.type
+class CodeEvaluatorMutationPayload:
+    evaluator: CodeEvaluator
+    query: Query
 
 
 @strawberry.input
@@ -608,6 +640,120 @@ class EvaluatorMutationMixin:
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_code_evaluator(
+        self, info: Info[Context, None], input: CreateCodeEvaluatorInput
+    ) -> CodeEvaluatorMutationPayload:
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_configs: list[AnnotationConfigType] = []
+        if input.output_configs:
+            try:
+                validate_unique_config_names(input.output_configs)
+            except ValueError as e:
+                raise BadRequest(str(e))
+            output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+
+        try:
+            async with info.context.db() as session:
+                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                code_evaluator = models.CodeEvaluator(
+                    name=evaluator_name,
+                    description=input.description,
+                    metadata_=input.metadata or {},
+                    source_code=input.source_code,
+                    language=input.language,
+                    input_mapping=input.input_mapping.to_orm(),
+                    output_configs=output_configs,
+                    user_id=user_id,
+                )
+                code_evaluator.updated_at = datetime.now(timezone.utc)
+                session.add(code_evaluator)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "unique" in str(e).lower():
+                raise Conflict(f"An evaluator with name '{input.name}' already exists")
+            raise BadRequest(str(e))
+
+        return CodeEvaluatorMutationPayload(
+            evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def update_code_evaluator(
+        self, info: Info[Context, None], input: UpdateCodeEvaluatorInput
+    ) -> CodeEvaluatorMutationPayload:
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.evaluator_id,
+                expected_type_name=CodeEvaluator.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid CodeEvaluator id: {input.evaluator_id}")
+
+        async with info.context.db() as session:
+            code_evaluator = await session.get(models.CodeEvaluator, evaluator_rowid)
+            if code_evaluator is None:
+                raise NotFound(f"CodeEvaluator with id {input.evaluator_id} not found")
+
+            if input.name is not UNSET and input.name is not None:
+                try:
+                    code_evaluator.name = IdentifierModel.model_validate(input.name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}")
+
+            if input.source_code is not UNSET and input.source_code is not None:
+                code_evaluator.source_code = input.source_code
+
+            if input.language is not UNSET and input.language is not None:
+                code_evaluator.language = input.language
+
+            if input.input_mapping is not UNSET and input.input_mapping is not None:
+                code_evaluator.input_mapping = input.input_mapping.to_orm()
+
+            if input.output_configs is not UNSET and input.output_configs is not None:
+                try:
+                    validate_unique_config_names(input.output_configs)
+                except ValueError as e:
+                    raise BadRequest(str(e))
+                code_evaluator.output_configs = _convert_output_config_inputs_to_pydantic(
+                    input.output_configs
+                )
+
+            if input.description is not UNSET:
+                code_evaluator.description = input.description
+
+            if input.metadata is not UNSET:
+                code_evaluator.metadata_ = input.metadata or {}
+
+            code_evaluator.updated_at = datetime.now(timezone.utc)
+            code_evaluator.user_id = user_id
+
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("An evaluator with this name already exists")
+
+        return CodeEvaluatorMutationPayload(
+            evaluator=CodeEvaluator(id=code_evaluator.id, db_record=code_evaluator),
             query=Query(),
         )
 

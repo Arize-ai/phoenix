@@ -530,7 +530,16 @@ type CodeEvaluator implements Evaluator & Node {
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+  inputMapping: EvaluatorInputMapping!
+  sourceCode: String!
+  language: String!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   user: User
+}
+
+type CodeEvaluatorMutationPayload {
+  evaluator: CodeEvaluator!
+  query: Query!
 }
 
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
@@ -595,6 +604,16 @@ input CreateChatPromptVersionInput {
   promptId: ID!
   promptVersion: ChatPromptVersionInput!
   tags: [CreatePromptVersionTagInput!] = null
+}
+
+input CreateCodeEvaluatorInput {
+  name: Identifier!
+  sourceCode: String!
+  language: String! = "PYTHON"
+  inputMapping: EvaluatorInputMappingInput! = {}
+  outputConfigs: [AnnotationConfigInput!]! = []
+  description: String = null
+  metadata: JSON = null
 }
 
 input CreateDatasetBuiltinEvaluatorInput {
@@ -2051,6 +2070,8 @@ type Mutation {
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  updateCodeEvaluator(input: UpdateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   deleteEvaluators(input: DeleteEvaluatorsInput!): DeleteEvaluatorsPayload!
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
@@ -3533,6 +3554,17 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   source: AnnotationSource! = APP
+}
+
+input UpdateCodeEvaluatorInput {
+  evaluatorId: ID!
+  name: Identifier
+  sourceCode: String
+  language: String
+  inputMapping: EvaluatorInputMappingInput
+  outputConfigs: [AnnotationConfigInput!]
+  description: String
+  metadata: JSON
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {

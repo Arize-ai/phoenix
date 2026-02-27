@@ -2329,6 +2329,18 @@ class CodeEvaluator(Evaluator):
         server_default="CODE",
         nullable=False,
     )
+    source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
+    language: Mapped[str] = mapped_column(
+        CheckConstraint("language IN ('PYTHON')", name="valid_code_evaluator_language"),
+        nullable=False,
+        server_default="PYTHON",
+    )
+    input_mapping: Mapped[InputMapping] = mapped_column(
+        _InputMapping, nullable=False, server_default='{"literal_mapping": {}, "path_mapping": {}}'
+    )
+    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
+        _AnnotationConfigList, nullable=False, server_default="[]"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )

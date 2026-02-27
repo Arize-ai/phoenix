@@ -209,7 +209,75 @@ class CodeEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]: ...  # TODO: Implement
+    ) -> Optional[JSON]:
+        # TODO: Implement input_schema for CodeEvaluator
+        return None
+
+    @strawberry.field
+    async def input_mapping(
+        self,
+        info: Info[Context, None],
+    ) -> EvaluatorInputMapping:
+        if self.db_record:
+            mapping = self.db_record.input_mapping
+        else:
+            mapping = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.input_mapping),
+            )
+        return EvaluatorInputMapping(
+            literal_mapping=mapping.literal_mapping,
+            path_mapping=mapping.path_mapping,
+        )
+
+    @strawberry.field
+    async def source_code(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            val = self.db_record.source_code
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.source_code),
+            )
+        return val
+
+    @strawberry.field
+    async def language(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            val = self.db_record.language
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.language),
+            )
+        return val
+
+    @strawberry.field
+    async def output_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[BuiltInEvaluatorOutputConfig]:
+        if self.db_record:
+            configs = self.db_record.output_configs
+        else:
+            configs = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.output_configs),
+            )
+        return [
+            _to_gql_output_config(
+                config=config,
+                annotation_name=config.name or "",
+                id_prefix="Evaluator",
+                evaluator_id=self.id,
+            )
+            for config in configs
+            if isinstance(
+                config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
+            )
+        ]
 
     @strawberry.field
     async def user(
