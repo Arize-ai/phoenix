@@ -44,6 +44,7 @@ export function DatasetLabelsTable({
     [data.datasetLabels.edges]
   );
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
       {

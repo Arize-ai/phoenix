@@ -85,6 +85,7 @@ export function ProjectDashboardsTable({
     ],
     []
   );
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
     data: projects,

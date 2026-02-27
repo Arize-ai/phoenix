@@ -191,6 +191,7 @@ export const RetentionPoliciesTable = ({
     return columns;
   }, [canManageRetentionPolicy, notifySuccess]);
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
