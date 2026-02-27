@@ -196,6 +196,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/document-relevance",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-selection",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
+                      "docs/phoenix/evaluation/pre-built-metrics/tool-response-handling",
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
