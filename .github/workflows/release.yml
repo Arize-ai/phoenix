@@ -18,6 +18,28 @@ jobs:
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         id: release
+      - name: Checkout release PR branch
+        if: steps.release.outputs.prs_created == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+      - name: Set up uv
+        if: steps.release.outputs.prs_created == 'true'
+        uses: astral-sh/setup-uv@v4
+      - name: Run uv sync and commit
+        if: steps.release.outputs.prs_created == 'true'
+        run: |
+          uv --python 310 sync
+          if git diff --quiet uv.lock; then
+            echo "No changes to uv.lock"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "chore: update uv.lock"
+          git push
       - name: Trigger publish
         if: steps.release.outputs.releases_created == 'true'
         run: gh workflow run publish.yaml --repo ${{ github.repository }}
