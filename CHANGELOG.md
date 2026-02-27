@@ -1,5 +1,19 @@
 # Changelog
 
+## [13.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.4.0...arize-phoenix-v13.5.0) (2026-02-27)
+
+
+### Features
+
+* add configurable password policy ([#11779](https://github.com/Arize-ai/phoenix/issues/11779)) ([fe6e1b9](https://github.com/Arize-ai/phoenix/commit/fe6e1b926aab028d421d697c9b9cca915e010c15))
+* add GET endpoints for sessions REST API ([#11724](https://github.com/Arize-ai/phoenix/issues/11724)) ([2a1f148](https://github.com/Arize-ai/phoenix/commit/2a1f14846cec30bb9b892114f3510e740154bcc0))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-evals to 2.11.0 ([#11765](https://github.com/Arize-ai/phoenix/issues/11765)) ([a8ffd5d](https://github.com/Arize-ai/phoenix/commit/a8ffd5de89909b39d1f23e96b2457b6e3129be9b))
+* sync lockfile in release pr ([#11768](https://github.com/Arize-ai/phoenix/issues/11768)) ([900a057](https://github.com/Arize-ai/phoenix/commit/900a0579c5390b5d53ea15dc9f77b464b4c619df))
+
 ## [13.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.3.0...arize-phoenix-v13.4.0) (2026-02-26)
 
 
