@@ -75,6 +75,12 @@ export function DocumentAnnotationForm({
                   label
                   score
                   explanation
+                  createdAt
+                  updatedAt
+                  user {
+                    username
+                    profilePictureUrl
+                  }
                 }
               }
             }
@@ -101,6 +107,12 @@ export function DocumentAnnotationForm({
                   label
                   score
                   explanation
+                  createdAt
+                  updatedAt
+                  user {
+                    username
+                    profilePictureUrl
+                  }
                 }
               }
             }
