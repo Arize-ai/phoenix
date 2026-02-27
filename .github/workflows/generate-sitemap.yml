@@ -36,7 +36,7 @@ jobs:
           commit-message: "chore: update sitemap.xml"
           branch: update-sitemap
           title: "chore: update sitemap.xml"
-          body: "Auto-generated sitemap update
+          body: "Auto-generated sitemap update"
           add-paths: |
             sitemap.xml
             docs/phoenix/sitemap.xml
