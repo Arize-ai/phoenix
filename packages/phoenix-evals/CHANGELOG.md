@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.10.0...arize-phoenix-evals-v2.11.0) (2026-02-27)
+
+
+### Features
+
+* **evals:** add conciseness classification evaluator  ([#11437](https://github.com/Arize-ai/phoenix/issues/11437)) ([d43c4ee](https://github.com/Arize-ai/phoenix/commit/d43c4eef5cf24845fdf26f0241f36496abf1a006))
+* **evals:** add refusal evaluator ([#11718](https://github.com/Arize-ai/phoenix/issues/11718)) ([45a88fc](https://github.com/Arize-ai/phoenix/commit/45a88fc9354796b798b24b2e107427bbd8282995))
+* **evals:** Add utility to convert Phoenix prompts to evals templates ([#11696](https://github.com/Arize-ai/phoenix/issues/11696)) ([ded46ba](https://github.com/Arize-ai/phoenix/commit/ded46bab21702650fb479fffbb68cd08dff74268))
+
+
+### Bug Fixes
+
+* **evals:** handle litellm 1.81.16 no longer auto-converting usage=None to Usage(0,0,0) ([#11754](https://github.com/Arize-ai/phoenix/issues/11754)) ([ad516c8](https://github.com/Arize-ai/phoenix/commit/ad516c81778da52f94d4f364249f8998b26db56a))
+* update slack invitation link ([#11612](https://github.com/Arize-ai/phoenix/issues/11612)) ([316833e](https://github.com/Arize-ai/phoenix/commit/316833e629baf1b9185d7c712d8816b927d69a96))
+
 ## [2.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.9.0...arize-phoenix-evals-v2.10.0) (2026-02-13)
 
 
