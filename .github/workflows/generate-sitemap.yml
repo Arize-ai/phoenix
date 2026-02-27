@@ -23,22 +23,20 @@ jobs:
           ref: main
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Generate sitemap
-        run: python scripts/generate_sitemap.py
+        run: uv run scripts/generate_sitemap.py
 
       - name: Create or update PR
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           commit-message: "chore: update sitemap.xml"
-          branch: chore/update-sitemap
+          branch: update-sitemap
           title: "chore: update sitemap.xml"
-          body: "Auto-generated sitemap update from changes to `docs.json` or `scripts/generate_sitemap.py`."
+          body: "Auto-generated sitemap update
           add-paths: |
             sitemap.xml
             docs/phoenix/sitemap.xml
