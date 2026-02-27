@@ -1,10 +1,17 @@
 import { css } from "@emotion/react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import { Input, TextArea } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 
-import { Button, Flex, Label, TextField, View } from "@phoenix/components";
+import {
+  Alert,
+  Button,
+  Flex,
+  Label,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
@@ -33,12 +40,14 @@ export function DocumentAnnotationForm({
   spanNodeId,
   documentPosition,
   existingAnnotation,
+  existingAnnotationNames = [],
   onSaved,
   onCancel,
 }: {
   spanNodeId: string;
   documentPosition: number;
   existingAnnotation?: DocumentAnnotation | null;
+  existingAnnotationNames?: string[];
   onSaved?: () => void;
   onCancel: () => void;
 }) {
@@ -56,6 +65,12 @@ export function DocumentAnnotationForm({
   const [explanation, setExplanation] = useState(
     existingAnnotation?.explanation ?? ""
   );
+
+  const takenNamesSet = useMemo(
+    () => new Set(existingAnnotationNames),
+    [existingAnnotationNames]
+  );
+  const nameIsTaken = takenNamesSet.has(name.trim());
 
   const [commitCreate, isCreating] =
     useMutation<DocumentAnnotationFormCreateMutation>(graphql`
@@ -235,6 +250,11 @@ export function DocumentAnnotationForm({
           <Label>Name</Label>
           <Input placeholder="e.g. relevance" />
         </TextField>
+        {nameIsTaken && (
+          <Alert variant="danger">
+            An annotation with this name already exists
+          </Alert>
+        )}
         <Flex direction="row" gap="size-100" alignItems="end">
           <ComboBox
             label="Label"
@@ -299,7 +319,7 @@ export function DocumentAnnotationForm({
             variant="primary"
             size="S"
             onPress={handleSave}
-            isDisabled={isBusy || !name.trim()}
+            isDisabled={isBusy || !name.trim() || nameIsTaken}
           >
             Save
           </Button>
