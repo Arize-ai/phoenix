@@ -34,6 +34,7 @@ from phoenix.db.helpers import (
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
+    BaseEvaluator,
     EvaluationResult,
     evaluation_result_to_model,
     get_evaluator_project_ids,
@@ -725,8 +726,8 @@ async def _stream_chat_completion_over_dataset_example(
     span_cost_calculator: SpanCostCalculator,
     experiment_id: int,
     playground_project_id: int,
-    evaluators: Optional[list[Any]],
-    evaluator_project_ids: Optional[list[int]],
+    evaluators: list[BaseEvaluator],
+    evaluator_project_ids: list[int],
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
@@ -818,16 +819,11 @@ async def _stream_chat_completion_over_dataset_example(
             example_id=revision.dataset_example_id,
             repetition_number=repetition_number,
         )
-    if (
-        db_run is not None
-        and not db_run.error
-        and evaluators is not None
-        and evaluator_project_ids is not None
-    ):
+    if db_run is not None and not db_run.error and evaluators and evaluator_project_ids:
         context_dict: dict[str, Any] = {
             "input": revision.input,
             "reference": revision.output,
-            "output": db_run.output.get("task_output", db_run.output),
+            "output": db_run.output["task_output"],
             "metadata": revision.metadata_,
         }
         for evaluator, evaluator_input, eval_project_id in zip(
