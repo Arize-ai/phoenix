@@ -1,0 +1,46 @@
+---
+title: "Exact Match"
+description: "Check whether two strings are identical."
+---
+
+Checks whether two strings are identical. Returns `true` if they match, `false` otherwise.
+
+## Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `expected` | string | Yes | — | The reference value to match against |
+| `actual` | string | Yes | — | The value to evaluate |
+| `case_sensitive` | boolean | No | `true` | Whether the comparison is case-sensitive |
+
+## Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `true` or `false` | Whether the strings are identical |
+| `score` | `1.0` or `0.0` | Numeric score (`1.0` = match, `0.0` = no match) |
+| Optimization | Maximize | Higher scores are better |
+
+## Configuring Inputs
+
+Each evaluator parameter can be set to either a **path** (a JSONPath expression that extracts a value from the evaluation parameters) or a **literal** (a fixed value typed directly). Use paths to pull from dataset inputs, task outputs, reference data, or metadata. Use literals for fixed expected values that apply to every example.
+
+See [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for full details on mapping modes, resolution order, and examples.
+
+## Usage Examples
+
+**Classification label validation** — A model that must output exactly one of a fixed set of labels (e.g., `"positive"`, `"negative"`, `"neutral"`), where any deviation indicates a problem. **Actual** is the model's output — use `output` for a plain string response, or `output.label` if the response is a JSON object with a label field. **Expected** is the ground-truth label stored per-example in your dataset, typically a path like `reference.label` or `reference.expected`.
+
+**Templated response checking** — A pipeline that should return a fixed string for certain inputs (a canned reply, a status code, or a pass-through value). **Actual** is the model's output; **Expected** can be typed as a literal value if every example uses the same target string, or mapped to a dataset field if the expected value varies per example.
+
+## Notes
+
+<Note>
+The comparison is whitespace-sensitive. Leading/trailing spaces and different line endings will cause a mismatch. If your dataset fields may have inconsistent whitespace, consider using `contains` or `regex` instead.
+</Note>
+
+## See Also
+
+- [Pre-Built Metrics Overview](/docs/phoenix/evaluation/server-evals/pre-built-metrics)
+- [Contains](/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains) — check whether a text contains one or more words
+- [Levenshtein Distance](/docs/phoenix/evaluation/server-evals/pre-built-metrics/levenshtein-distance) — measure edit distance between two strings when exact matching is too strict

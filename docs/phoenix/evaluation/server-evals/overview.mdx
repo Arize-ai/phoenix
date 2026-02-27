@@ -1,34 +1,35 @@
 ---
 title: "Server Evals"
 sidebarTitle: "Overview"
-description: "Centrally managed evaluators that run automatically during experiments and beyond"
+description: "Attach evaluators directly to a dataset and run them automatically on every experiment."
 ---
 
-Server evals let you define evaluation criteria once on the Phoenix server and reuse them across experiments and datasets. Instead of writing and running evaluation code locally, you configure evaluators in the UI and attach them to datasets. When an experiment runs through the prompt playground, the attached evaluators label and score every output automatically.
+Dataset evaluators let you attach an evaluation suite directly to a dataset. Evaluators run server-side whenever you execute experiments via the Playground — define them once on the dataset and they run every time, with no local code or reconfiguration required.
 
 ## How It Works
 
-1. **Define an evaluator** — Create an evaluator on the server: either a built-in heuristic (exact match, regex, JSON distance, etc.) or an LLM-as-a-judge evaluator backed by a Phoenix-managed prompt.
-2. **Attach it to a dataset** — Configure which evaluators apply to a given dataset along with input mappings that tell each evaluator where to find its inputs (model output, reference data, metadata).
-3. **Run experiments** — When you run an experiment against that dataset, the attached evaluators execute server-side and label or score each output. Results appear as annotations on experiment runs.
+1. **Attach evaluators to a dataset** — Open a dataset, navigate to the Evaluators tab, and add LLM-based or built-in code evaluators. Configure input mappings once to tell each evaluator where to find its inputs.
+2. **Run an experiment** — Execute an experiment against that dataset from the Playground. Attached evaluators run server-side automatically.
+3. **Review scores and traces** — Results appear as annotations on the experiment run. Every evaluator execution is traced in its own project so you can navigate from a score to the exact LLM call that produced it.
 
 ## Evaluator Types
 
 <CardGroup cols={2}>
-  <Card title="Built-in Evaluators" icon="cube" href="/docs/phoenix/evaluation/server-evals/builtin-evaluators">
-    Deterministic, code-based evaluators that run without an LLM. Includes exact match, contains, regex, Levenshtein distance, and JSON distance.
+  <Card title="Built-in Code Evaluators" icon="cube" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics">
+    Deterministic evaluators that run without an LLM — Contains, Exact Match, Regex, Levenshtein Distance, and JSON Distance.
   </Card>
   <Card title="LLM Evaluators" icon="gavel" href="/docs/phoenix/evaluation/server-evals/llm-evaluators">
-    LLM-as-a-judge evaluators backed by Phoenix-managed prompts. Use prompt versioning and tags to iterate on evaluation criteria with full traceability.
+    LLM-as-a-judge evaluators backed by Phoenix-managed prompts. Use pre-built templates for common tasks like correctness and tool response handling, or write your own.
   </Card>
 </CardGroup>
 
 ## Why Use Server Evals
 
-- **Consistent evaluation** — Evaluators are defined once and applied uniformly. Every experiment against a dataset uses the same criteria, eliminating drift between ad-hoc evaluation scripts.
-- **No local setup required** — Built-in evaluators run entirely on the server with no SDK installation, API keys, or dependencies needed. LLM evaluators use the model configuration already set up on your Phoenix instance.
-- **Tracing** — LLM evaluators produce OpenTelemetry traces in a dedicated project, so you can audit, debug, and improve your evaluation prompts the same way you observe any other LLM workflow.
+- **Attach once, evaluate everywhere** — Evaluators are defined on the dataset, not the experiment. Every Playground run against that dataset automatically records scores.
+- **No local setup required** — Built-in evaluators run entirely server-side. LLM evaluators use the model configuration already set up on your Phoenix instance — no SDK, API keys, or local dependencies needed.
+- **Flexible input mapping** — Map evaluator variables to any dataset field — input, output, reference, or metadata — using JSON paths for nested values.
+- **Full traceability** — Every evaluator execution is traced in its own project. Navigate from an annotation score to the exact LLM call that produced it, making it easy to debug and refine evaluation criteria.
 
-## What's Next
+## Getting Started
 
-Server evals currently run during experiments triggered from the UI. Support for automatically evaluating incoming production traces — applying the same evaluator definitions to live traffic — is on the roadmap.
+Open a dataset, navigate to the **Evaluators** tab, click **Add evaluator**, configure your input mapping, and run an experiment from the Playground. Scores and traces appear automatically.

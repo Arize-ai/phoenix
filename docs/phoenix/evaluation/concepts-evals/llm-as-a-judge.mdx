@@ -3,6 +3,14 @@ title: "LLM as a Judge"
 description: "Evaluating tasks performed by LLMs can be difficult due to their complexity and the diverse criteria involved. Traditional methods like rule-based assessment or similarity metrics (e.g., ROUGE, BLEU) often fall short when applied to the nuanced and varied outputs of LLMs."
 ---
 
+<Frame>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/PX%20docs%20graphic.jpg)
+</Frame>
+
+<Note>
+  LLM as a Judge is a general evaluation concept that applies to both evaluation approaches in Phoenix. You can use it via the SDK (client-side) or configure LLM evaluators directly in the Phoenix UI (server-side).
+</Note>
+
 
 For instance, an AI assistant’s answer to a question can be:
 
@@ -22,7 +30,7 @@ Here’s the step-by-step process for using an LLM as a judge:
 
 <Steps>
   <Step title="Identify Evaluation Criteria">
-   First, determine what you want to evaluate, be it faithfulness, toxicity, accuracy, or another characteristic. See our [pre-built evaluators](/docs/phoenix/evaluation/running-pre-tested-evals) for examples of what can be assessed.
+   First, determine what you want to evaluate, be it faithfulness, toxicity, accuracy, or another characteristic. See our [pre-built evaluators](/docs/phoenix/evaluation/pre-built-metrics) for examples of what can be assessed.
   </Step>
   <Step title="Craft Your Evaluation Prompt">
    Write a prompt template that will guide the evaluation. This template should clearly define what variables are needed from both the initial prompt and the LLM's response to effectively assess the output.
@@ -39,6 +47,17 @@ Here’s the step-by-step process for using an LLM as a judge:
 Using an LLM as a judge significantly enhances the scalability and efficiency of the evaluation process. By employing this method, you can run thousands of evaluations across curated data without the need for human annotation.
 
 This capability will not only speed up the iteration process for refining your LLM's prompts but will also ensure that you can deploy your models to production with confidence.
+
+## Using LLM as a Judge in Phoenix
+
+<CardGroup cols={2}>
+  <Card title="SDK Evaluations" icon="code" href="/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators">
+    Write custom LLM evaluators in Python or TypeScript. See also: [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm) for model selection and prompt setup.
+  </Card>
+  <Card title="Server-Side Evaluators" icon="browser" href="/docs/phoenix/evaluation/server-evals/llm-evaluators">
+    Configure LLM evaluators in the Phoenix UI — no local code or API key setup required.
+  </Card>
+</CardGroup>
 
 ## Additional Resources
 
