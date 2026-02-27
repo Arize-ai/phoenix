@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c4cd3e7aba9b272a549f006106ee5769>>
+ * @generated SignedSource<<52b23c8379666f0712da3b8cee95d0e4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,12 +33,18 @@ export type DocumentAnnotationFormCreateMutation$data = {
       readonly node: {
         readonly documentEvaluations?: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly createdAt: string;
           readonly documentPosition: number;
           readonly explanation: string | null;
           readonly id: string;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
+          readonly updatedAt: string;
+          readonly user: {
+            readonly profilePictureUrl: string | null;
+            readonly username: string;
+          } | null;
         }>;
       };
     };
@@ -84,65 +90,74 @@ v3 = {
   "storageKey": null
 },
 v4 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DocumentAnnotation",
-      "kind": "LinkedField",
-      "name": "documentEvaluations",
-      "plural": true,
-      "selections": [
-        (v3/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "annotatorKind",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "documentPosition",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "label",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "score",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "explanation",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "type": "Span",
-  "abstractKey": null
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotatorKind",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "documentPosition",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "explanation",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -175,7 +190,46 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*: any*/)
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DocumentAnnotation",
+                        "kind": "LinkedField",
+                        "name": "documentEvaluations",
+                        "plural": true,
+                        "selections": [
+                          (v3/*: any*/),
+                          (v4/*: any*/),
+                          (v5/*: any*/),
+                          (v6/*: any*/),
+                          (v7/*: any*/),
+                          (v8/*: any*/),
+                          (v9/*: any*/),
+                          (v10/*: any*/),
+                          (v11/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              (v12/*: any*/),
+                              (v13/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "Span",
+                    "abstractKey": null
+                  }
                 ],
                 "storageKey": null
               }
@@ -226,7 +280,47 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v4/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DocumentAnnotation",
+                        "kind": "LinkedField",
+                        "name": "documentEvaluations",
+                        "plural": true,
+                        "selections": [
+                          (v3/*: any*/),
+                          (v4/*: any*/),
+                          (v5/*: any*/),
+                          (v6/*: any*/),
+                          (v7/*: any*/),
+                          (v8/*: any*/),
+                          (v9/*: any*/),
+                          (v10/*: any*/),
+                          (v11/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              (v12/*: any*/),
+                              (v13/*: any*/),
+                              (v3/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "Span",
+                    "abstractKey": null
+                  },
                   (v3/*: any*/)
                 ],
                 "storageKey": null
@@ -240,16 +334,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7820a2dd59bbed3d176499513362ea6e",
+    "cacheID": "b087ceeeec84e99894ec526c9e5597c1",
     "id": null,
     "metadata": {},
     "name": "DocumentAnnotationFormCreateMutation",
     "operationKind": "mutation",
-    "text": "mutation DocumentAnnotationFormCreateMutation(\n  $input: [CreateDocumentAnnotationInput!]!\n  $spanId: ID!\n) {\n  createDocumentAnnotations(input: $input) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          documentEvaluations {\n            id\n            annotatorKind\n            documentPosition\n            name\n            label\n            score\n            explanation\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation DocumentAnnotationFormCreateMutation(\n  $input: [CreateDocumentAnnotationInput!]!\n  $spanId: ID!\n) {\n  createDocumentAnnotations(input: $input) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          documentEvaluations {\n            id\n            annotatorKind\n            documentPosition\n            name\n            label\n            score\n            explanation\n            createdAt\n            updatedAt\n            user {\n              username\n              profilePictureUrl\n              id\n            }\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7f14c0907b3d9dd3b6b65e6393cc1a7c";
+(node as any).hash = "5c4094fb10182225cd657317a6cb8c43";
 
 export default node;

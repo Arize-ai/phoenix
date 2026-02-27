@@ -97,21 +97,22 @@ export function DocumentAnnotationsSection({
         {documentEvaluations.length > 0 && (
           <Flex direction="column" gap="size-100" elementType="ul">
             {documentEvaluations.map((documentEvaluation) => (
-              <DocumentAnnotationItem
-                key={documentEvaluation.id}
-                documentEvaluation={documentEvaluation}
-                spanNodeId={spanNodeId}
-                documentPosition={documentPosition}
-                borderColor={borderColor}
-                tokenColor={tokenColor}
-                canAnnotate={canAnnotate}
-                editingAnnotation={editingAnnotation}
-                existingAnnotationNames={existingAnnotationNames}
-                nowEpochMs={nowEpochMs}
-                onEdit={setEditingAnnotation}
-                onSaved={handleSaved}
-                onCancel={handleCancel}
-              />
+              <li key={documentEvaluation.id}>
+                <DocumentAnnotationItem
+                  documentEvaluation={documentEvaluation}
+                  spanNodeId={spanNodeId}
+                  documentPosition={documentPosition}
+                  borderColor={borderColor}
+                  tokenColor={tokenColor}
+                  canAnnotate={canAnnotate}
+                  editingAnnotation={editingAnnotation}
+                  existingAnnotationNames={existingAnnotationNames}
+                  nowEpochMs={nowEpochMs}
+                  onEdit={setEditingAnnotation}
+                  onSaved={handleSaved}
+                  onCancel={handleCancel}
+                />
+              </li>
             ))}
           </Flex>
         )}

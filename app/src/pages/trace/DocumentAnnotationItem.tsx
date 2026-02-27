@@ -42,17 +42,29 @@ export function DocumentAnnotationItem({
   onSaved,
   onCancel,
 }: {
+  /** The document evaluation data to display */
   documentEvaluation: DocumentEvaluation;
+  /** The relay node ID of the parent span */
   spanNodeId: string;
+  /** The zero-based position of the document within the span's retrieval list */
   documentPosition: number;
+  /** Border color token applied to the item's card container */
   borderColor: ViewProps["borderColor"];
+  /** Color token used for label and score badges */
   tokenColor: TokenProps["color"];
+  /** Whether the current user has permission to annotate */
   canAnnotate: boolean;
+  /** The annotation currently being edited, or null if none */
   editingAnnotation: DocumentAnnotation | null;
+  /** Names of existing annotations, used to prevent duplicate names in the form */
   existingAnnotationNames: string[];
+  /** Reference epoch timestamp (ms) used for relative date formatting */
   nowEpochMs: number;
+  /** Called when the user initiates editing of this annotation */
   onEdit: (annotation: DocumentAnnotation) => void;
+  /** Called after an annotation is successfully saved */
   onSaved: () => void;
+  /** Called when the user cancels editing */
   onCancel: () => void;
 }) {
   const evalTokenColor =
@@ -67,16 +79,11 @@ export function DocumentAnnotationItem({
 
   if (isEditingThis) {
     return (
-      <li>
-        <View
-          padding="size-0"
-          borderWidth="thin"
-          borderColor={borderColor}
-          borderRadius="medium"
-          css={css`
-            border-color: var(--global-color-primary);
-            border-width: 2px;
-          `}
+      <View
+        padding="size-0"
+        borderWidth="thin"
+        borderColor={borderColor}
+        borderRadius="medium"
         >
           <View paddingX="size-200" paddingTop="size-100">
             <Text size="S" weight="heavy" color="text-700">
@@ -93,14 +100,12 @@ export function DocumentAnnotationItem({
             onSaved={onSaved}
             onCancel={onCancel}
           />
-        </View>
-      </li>
+      </View>
     );
   }
 
   return (
-    <li>
-      <View
+    <View
         padding="size-200"
         borderWidth="thin"
         borderColor={borderColor}
@@ -199,7 +204,6 @@ export function DocumentAnnotationItem({
             </p>
           ) : null}
         </Flex>
-      </View>
-    </li>
+    </View>
   );
 }
