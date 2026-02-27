@@ -64,11 +64,6 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            .release-please-manifest.json
-            release-please-config.json
-          sparse-checkout-cone-mode: false
       - name: Read version from manifest
         id: version
         run: |
@@ -108,11 +103,6 @@ jobs:
         working-directory: ${{ matrix.path }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            .release-please-manifest.json
-            release-please-config.json
-          sparse-checkout-cone-mode: false
       - name: Resolve ref from manifest
         id: ref
         working-directory: .
