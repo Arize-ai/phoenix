@@ -37,10 +37,6 @@
     <lastmod>2026-02-08T18:08:13+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/agent-assisted-setup</loc>
-    <lastmod>2026-02-21T00:34:41+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/end-to-end-features-notebook</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -309,22 +305,6 @@
     <lastmod>2026-02-05T02:57:46+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/overview</loc>
-    <lastmod>2026-02-20T20:30:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators</loc>
-    <lastmod>2026-02-20T20:30:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators</loc>
-    <lastmod>2026-02-20T20:30:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping</loc>
-    <lastmod>2026-02-20T20:30:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -459,10 +439,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/settings/data-retention</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/settings/custom-ai-providers</loc>
-    <lastmod>2026-02-21T00:26:33+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/user-guide</loc>
@@ -621,6 +597,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/developer-tools/claude-code</loc>
+    <lastmod>2026-02-27T03:12:30+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -731,14 +711,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/beeai/beeai-tracing-js</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/integrations/typescript/claude-agent-sdk</loc>
-    <lastmod>2026-02-24T23:37:19+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/integrations/typescript/claude-agent-sdk/claude-agent-sdk-tracing-ts</loc>
-    <lastmod>2026-02-24T23:37:19+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/langchain</loc>
@@ -1515,6 +1487,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/cookbooks</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis</loc>
+    <lastmod>2026-02-27T03:12:30+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/retrieval-and-inferences/cookbooks</loc>
+    <lastmod>2026-02-27T03:12:30+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
