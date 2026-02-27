@@ -31,6 +31,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import type { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type {
   DatasetEvaluatorFilter,
@@ -111,6 +112,7 @@ const EmptyState = ({
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
   hasActiveFilter: boolean;
 }) => {
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
   const codeEvaluators = builtInEvaluators.builtInEvaluators;
   const llmEvaluatorTemplates =
     builtInEvaluators.classificationEvaluatorConfigs;
@@ -172,26 +174,28 @@ const EmptyState = ({
             ))}
           </div>
           {/* Code Evaluators */}
-          <div css={evaluatorColumnCSS}>
-            {codeEvaluators.map((evaluator) => (
-              <button
-                key={evaluator.id}
-                css={evaluatorItemButtonCSS}
-                onClick={() => {
-                  onSelectCodeEvaluator?.(evaluator.id);
-                }}
-              >
-                <Text size="S" weight="heavy">
-                  {evaluator.name}
-                </Text>
-                <LineClamp lines={2}>
-                  <Text size="XS" color="text-700">
-                    {evaluator.description}
+          {isSandboxEnabled && (
+            <div css={evaluatorColumnCSS}>
+              {codeEvaluators.map((evaluator) => (
+                <button
+                  key={evaluator.id}
+                  css={evaluatorItemButtonCSS}
+                  onClick={() => {
+                    onSelectCodeEvaluator?.(evaluator.id);
+                  }}
+                >
+                  <Text size="S" weight="heavy">
+                    {evaluator.name}
                   </Text>
-                </LineClamp>
-              </button>
-            ))}
-          </div>
+                  <LineClamp lines={2}>
+                    <Text size="XS" color="text-700">
+                      {evaluator.description}
+                    </Text>
+                  </LineClamp>
+                </button>
+              ))}
+            </div>
+          )}
         </Flex>
       </Flex>
     </TableEmptyWrap>

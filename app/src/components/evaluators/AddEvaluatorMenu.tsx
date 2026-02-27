@@ -27,6 +27,7 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/menu";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -128,6 +129,7 @@ export const AddEvaluatorMenuContents = ({
     initialState: CreateLLMDatasetEvaluatorInitialState | null
   ) => void;
 }) => {
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
   return (
     <Menu
       aria-label="Add evaluator"
@@ -156,17 +158,19 @@ export const AddEvaluatorMenuContents = ({
           </MenuItem>
         </LLMEvaluatorTemplateSubmenu>
       </MenuSection>
-      <MenuSection>
-        <MenuSectionTitle title="New code evaluator" />
-        <CodeEvaluatorTemplateSubmenu
-          query={query}
-          onAction={onSelectBuiltInCodeEvaluator}
-        >
-          <MenuItem leadingContent={<Icon svg={<Icons.Code />} />}>
-            Use built-in code evaluator
-          </MenuItem>
-        </CodeEvaluatorTemplateSubmenu>
-      </MenuSection>
+      {isSandboxEnabled && (
+        <MenuSection>
+          <MenuSectionTitle title="New code evaluator" />
+          <CodeEvaluatorTemplateSubmenu
+            query={query}
+            onAction={onSelectBuiltInCodeEvaluator}
+          >
+            <MenuItem leadingContent={<Icon svg={<Icons.Code />} />}>
+              Use built-in code evaluator
+            </MenuItem>
+          </CodeEvaluatorTemplateSubmenu>
+        </MenuSection>
+      )}
     </Menu>
   );
 };
