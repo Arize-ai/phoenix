@@ -50,7 +50,7 @@ jobs:
         if: steps.verify-changed-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           commit-message: "fix(cost): update built-in model token prices"
           title: "fix(cost): update built-in model token prices"
           body: |
