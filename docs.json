@@ -43,7 +43,9 @@
         "groups": [
           {
             "group": " ",
-            "pages": ["docs/phoenix"]
+            "pages": [
+              "docs/phoenix"
+            ]
           },
           {
             "group": "Quick Start",
@@ -71,7 +73,6 @@
                   }
                 ]
               },
-              "docs/phoenix/agent-assisted-setup",
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo"
             ]
@@ -195,7 +196,7 @@
                 ]
               },
               {
-                "group": "SDK Evals",
+                "group": "Pre-Built Evals",
                 "pages": [
                   "docs/phoenix/evaluation/running-pre-tested-evals",
                   "docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
@@ -214,15 +215,6 @@
                   "docs/phoenix/evaluation/running-pre-tested-evals/agent-planning",
                   "docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection",
                   "docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection"
-                ]
-              },
-              {
-                "group": "Server Evals",
-                "pages": [
-                  "docs/phoenix/evaluation/server-evals/overview",
-                  "docs/phoenix/evaluation/server-evals/llm-evaluators",
-                  "docs/phoenix/evaluation/server-evals/builtin-evaluators",
-                  "docs/phoenix/evaluation/server-evals/input-mapping"
                 ]
               }
             ]
@@ -263,7 +255,7 @@
             ]
           },
           {
-            "group": "Prompts",
+            "group": "Prompt Engineering",
             "icon": "wand-magic-sparkles",
             "pages": [
               {
@@ -300,15 +292,13 @@
               }
             ]
           },
-
           {
             "group": "Settings",
             "icon": "gear-complex",
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
-              "docs/phoenix/settings/data-retention",
-              "docs/phoenix/settings/custom-ai-providers"
+              "docs/phoenix/settings/data-retention"
             ]
           },
           {
@@ -394,12 +384,15 @@
         "groups": [
           {
             "group": " ",
-            "pages": ["docs/phoenix/integrations"]
+            "pages": [
+              "docs/phoenix/integrations"
+            ]
           },
           {
             "group": "Developer Tools",
             "icon": "code",
             "pages": [
+              "docs/phoenix/integrations/developer-tools/claude-code",
               "docs/phoenix/integrations/developer-tools/coding-agents",
               "docs/phoenix/integrations/phoenix-mcp-server"
             ]
@@ -488,13 +481,6 @@
                 "pages": [
                   "docs/phoenix/integrations/typescript/beeai",
                   "docs/phoenix/integrations/typescript/beeai/beeai-tracing-js"
-                ]
-              },
-              {
-                "group": "Claude Agent SDK",
-                "pages": [
-                  "docs/phoenix/integrations/typescript/claude-agent-sdk",
-                  "docs/phoenix/integrations/typescript/claude-agent-sdk/claude-agent-sdk-tracing-ts"
                 ]
               },
               {
@@ -936,7 +922,9 @@
           {
             "group": "Upgrade",
             "icon": "angles-up",
-            "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
+            "pages": [
+              "docs/phoenix/self-hosting/upgrade/migrations"
+            ]
           },
           {
             "group": "Security",
@@ -961,7 +949,9 @@
         "groups": [
           {
             "group": "Phoenix Cloud",
-            "pages": ["docs/phoenix/phoenix-cloud"]
+            "pages": [
+              "docs/phoenix/phoenix-cloud"
+            ]
           }
         ]
       },
@@ -1020,7 +1010,7 @@
             ]
           },
           {
-            "group": "Prompts",
+            "group": "Prompt Engineering",
             "icon": "wand-magic-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
@@ -1056,6 +1046,14 @@
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
+            ]
+          },
+          {
+            "group": "Retrieval & Inferences",
+            "icon": "magnifying-glass",
+            "pages": [
+              "docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
+              "docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
             ]
           }
         ]
@@ -1261,10 +1259,7 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": []
-    }
+    ]
   },
   "logo": {
     "light": "/docs/logo/light.png",
@@ -1274,7 +1269,7 @@
     "links": [
       {
         "label": "",
-        "href": "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g",
+        "href": "https://arize-ai.slack.com/ssb/redirect#/shared-invite/email",
         "title": "Community Slack",
         "icon": "users"
       },
@@ -1483,7 +1478,7 @@
     },
     {
       "source": "/docs/phoenix/inferences/use-cases-inferences/embeddings-analysis",
-      "destination": "/docs/phoenix/cookbook"
+      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis"
     },
     {
       "source": "/docs/phoenix/self-hosting/environments",
@@ -1612,6 +1607,10 @@
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/manual-instrumentation",
       "destination": "/docs/phoenix/tracing/how-to-tracing"
+    },
+    {
+      "source": "/docs/phoenix/inferences/use-cases-inferences",
+      "destination": "/docs/phoenix/cookbook/retrieval-and-inferences/cookbooks"
     },
     {
       "source": "/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",

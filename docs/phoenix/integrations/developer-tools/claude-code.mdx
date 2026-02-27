@@ -1,0 +1,124 @@
+---
+title: "Claude Code"
+---
+
+> Trace Claude Code CLI sessions, tool usage, and token costs with Arize AX for full observability.
+
+[Claude Code](https://code.claude.com/docs/en/overview) is Anthropic's agentic coding tool that lives in your terminal. The [Arize Claude Code Plugin](https://github.com/Arize-ai/arize-claude-code-plugin) instruments sessions using 9 hook events and sends [OpenInference](https://github.com/Arize-ai/openinference) spans to Arize AX. Traces can be viewed in Arize.
+
+## Launch Arize
+
+To get started, sign up for a free [Arize account](https://app.arize.com/auth/join) and get your Space ID and API Key:
+
+1. Log in at [app.arize.com](http://app.arize.com)
+2. Click **Settings** (gear icon) → copy the **Space ID** from the Space Settings page
+3. Go to the **API Keys** tab → click **Create API Key** or copy an existing one
+
+## Install
+
+Install the Claude Code plugin from the Arize marketplace:
+
+```
+claude plugin marketplace add Arize-ai/arize-claude-code-plugin
+claude plugin install claude-code-tracing@arize-claude-plugin
+```
+
+Install the required Python dependencies:
+
+```
+pip install opentelemetry-proto grpcio
+```
+
+## Setup
+
+Add your credentials to your project's `.claude/settings.local.json`:
+
+```
+{
+  "env": {
+    "ARIZE_API_KEY": "your-api-key",
+    "ARIZE_SPACE_ID": "your-space-id",
+    "ARIZE_TRACE_ENABLED": "true"
+  }
+}
+```
+
+Or use the guided setup command inside Claude Code:
+
+```
+/setup-claude-code-tracing
+```
+
+### Optional Settings
+
+| Variable             | Default                      | Description                    |
+| :------------------- | :--------------------------- | :----------------------------- |
+| `ARIZE_PROJECT_NAME` | `claude-code`                | Project name in Arize AX       |
+| `ARIZE_DRY_RUN`      | `false`                      | Print spans instead of sending |
+| `ARIZE_VERBOSE`      | `false`                      | Enable verbose logging         |
+| `ARIZE_LOG_FILE`     | `/tmp/arize-claude-code.log` | Log file path                  |
+
+> You can also configure tracing globally in `~/.claude/settings.json`. Project-local settings override global settings for the same variables.
+
+## Run Claude Code
+
+Restart Claude Code for tracing to take effect:
+
+```
+cd your-project
+claude
+```
+
+Tracing happens automatically. After each session you'll see:
+
+```
+[arize] Session complete: 3 traces, 12 tools
+[arize] View in Arize: session.id = abc123-def456-...
+```
+
+## Observe
+
+Now that you have tracing setup, all Claude Code sessions will be streamed to your Arize account for observability and evaluation. You'll see:
+
+- **Turn traces** — each conversation turn (user prompt → assistant response)
+- **LLM spans** — Claude's responses with model info and token counts
+- **Tool spans** — nested spans for each tool call with inputs, outputs, and duration
+- **Subagent spans** — activity from any subagents Claude spawns
+- **Session grouping** — all turns from the same session grouped by `session_id`
+
+### Hooks Captured
+
+| Hook                | Captured Data                                 |
+| :------------------ | :-------------------------------------------- |
+| `SessionStart`      | Session ID, project name, timestamps          |
+| `UserPromptSubmit`  | Trace ID, prompt preview, transcript position |
+| `PreToolUse`        | Tool ID, start time                           |
+| `PostToolUse`       | Tool name, input, output, duration, metadata  |
+| `Stop`              | Model, token counts, input/output text        |
+| `SubagentStop`      | Agent type, model, token counts, output       |
+| `Notification`      | Title, message, notification type             |
+| `PermissionRequest` | Permission type, tool name                    |
+| `SessionEnd`        | Trace count, tool count                       |
+
+## Troubleshooting
+
+| Problem                               | Fix                                                                        |
+| :------------------------------------ | :------------------------------------------------------------------------- |
+| Traces not appearing                  | Check `ARIZE_TRACE_ENABLED` is `"true"` and API key / Space ID are correct |
+| "Python with opentelemetry not found" | Run `pip install opentelemetry-proto grpcio`                               |
+| No output in terminal                 | Hook stderr is discarded; check `/tmp/arize-claude-code.log`               |
+| Want to test without sending          | Set `ARIZE_DRY_RUN` to `"true"`                                            |
+| Want verbose logging                  | Set `ARIZE_VERBOSE` to `"true"`                                            |
+
+## Uninstall
+
+```
+claude plugin remove arize-claude-plugin
+```
+
+## Resources
+
+- [Arize Claude Code Plugin](https://github.com/Arize-ai/arize-claude-code-plugin)
+- [OpenInference](https://github.com/Arize-ai/openinference)
+- [Claude Code Documentation](https://code.claude.com/docs/en/overview)
+- [Claude Code Plugins](https://code.claude.com/docs/en/plugins)
