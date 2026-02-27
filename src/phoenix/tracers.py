@@ -9,7 +9,6 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
@@ -19,10 +18,10 @@ from phoenix.trace.attributes import get_attribute_value, unflatten
 
 class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
     """
-    An in-memory tracer that captures spans and persists them to the database.
+    An in-memory tracer that captures spans and builds database models.
 
     Because cumulative counts are computed based on the spans in the buffer,
-    ensure that traces are not split across multiple calls to save_db_traces.
+    ensure that traces are not split across multiple calls to get_db_traces.
     It's recommended to use a separate tracer for distinct operations.
 
     Example usage:
@@ -33,9 +32,11 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             with tracer.start_as_current_span("child-operation") as child:
                 pass
 
-        # Persist traces, spans, span costs, and span cost details to database
+        # Build trace models and persist to database
         async with db_session() as session:
-            traces = await tracer.save_db_traces(session=session, project_id=123)
+            db_traces = tracer.get_db_traces(project_id=123)
+            session.add_all(db_traces)
+            await session.flush()
 
         # Access spans, span_costs, and span cost details via SQLAlchemy relationships
         db_spans = db_traces[0].spans
@@ -52,12 +53,13 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         tracer = provider.get_tracer(__name__)
         super().__init__(tracer)
 
-    async def save_db_traces(self, *, session: AsyncSession, project_id: int) -> list[models.Trace]:
+    def get_db_traces(self, *, project_id: int) -> list[models.Trace]:
         """
-        Persists captured traces and spans to the database.
+        Builds in-memory models.Trace objects from captured spans without persisting them.
 
-        This method processes all finished spans captured by the tracer,
-        converts them into database models, and persists them to the database.
+        This method processes all finished spans captured by the tracer and
+        converts them into database models. The caller is responsible for
+        persisting the returned traces via session.add_all() and session.flush().
         The buffer is not cleared; call clear() explicitly if needed.
 
         Related models are accessible via SQLAlchemy relationships:
@@ -67,11 +69,10 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             - span_cost.span_cost_details: list of SpanCostDetail instances
 
         Args:
-            session: An async SQLAlchemy session for database operations.
             project_id: The project ID to associate the traces with.
 
         Returns:
-            A list of persisted models.Trace instances, or an empty list if no
+            A list of models.Trace instances, or an empty list if no
             spans have been captured.
         """
         otel_spans = self._self_exporter.get_finished_spans()
@@ -109,9 +110,6 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             db_trace.spans = db_spans  # explicitly set relationship to avoid lazy load
             db_trace.span_costs = db_span_costs  # explicitly set relationship to avoid lazy load
             db_traces.append(db_trace)
-
-        session.add_all(db_traces)
-        await session.flush()
 
         return db_traces
 
