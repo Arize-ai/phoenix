@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-protobuf codegen-prompts sync-models schema-ddl check-graphql-permissions \
+	codegen-prompts sync-models schema-ddl check-graphql-permissions \
 	clean clean-all
 
 help: ## Show this help message
@@ -91,7 +91,6 @@ help: ## Show this help message
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
-	@echo -e "  codegen-protobuf       - Compile protobuf files"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
@@ -337,14 +336,6 @@ build: build-python build-frontend build-ts ## Build everything (Python + fronte
 # Utilities
 #=============================================================================
 
-codegen-protobuf: ## Generate protobuf files
-	@echo -e "$(CYAN)Compiling protobuf files...$(NC)"
-	$(UV) run python -m grpc_tools.protoc \
-		-I src/phoenix/proto \
-		--python_out=src/phoenix \
-		--mypy_out=src/phoenix \
-		src/phoenix/proto/trace/v1/evaluation.proto
-	@echo -e "$(GREEN)✓ Done$(NC)"
 
 codegen-prompts: ## Generate prompts code from YAML files
 	@echo -e "$(CYAN)Generating prompts code...$(NC)"
