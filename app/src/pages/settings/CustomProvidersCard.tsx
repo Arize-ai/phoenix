@@ -304,6 +304,7 @@ export function CustomProvidersCard({
     return cols;
   }, [authenticationEnabled]);
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<DataRow>({
     columns,
     data: tableData,
