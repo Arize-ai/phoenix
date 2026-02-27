@@ -238,7 +238,7 @@ async def _cleanup_chat_completion_resources(
             return_exceptions=True,
         )
 
-    # 3. Now safe to close generators
+    # 3. Now it's safe to close generators
     if in_progress:
         await asyncio.gather(
             *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
