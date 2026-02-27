@@ -98,14 +98,10 @@ jobs:
       fail-fast: false
       matrix:
         path: ${{ fromJSON(needs.list-python-packages.outputs.package_paths) }}
-    defaults:
-      run:
-        working-directory: ${{ matrix.path }}
     steps:
       - uses: actions/checkout@v6
       - name: Resolve ref from manifest
         id: ref
-        working-directory: .
         run: |
           VERSION=$(jq -r --arg p "${{ matrix.path }}" '.[$p] // empty' .release-please-manifest.json)
           NAME=$(jq -r --arg p "${{ matrix.path }}" '.packages[$p]["package-name"] // empty' release-please-config.json)
@@ -122,6 +118,7 @@ jobs:
           python-version: "3.10"
           version: "0.9.18"
       - run: uv build
+        working-directory: ${{ matrix.path }}
       - run: uv run --with check-wheel-contents check-wheel-contents dist/*.whl
       - run: uv run --with twine twine upload --skip-existing --verbose dist/*
         env:
