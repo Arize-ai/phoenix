@@ -10,7 +10,7 @@
     "start": "npx tsx src/index.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.63",
+    "@ai-sdk/openai": "^3.0.29",
     "@arizeai/openinference-instrumentation-langchain": "^4.0.6",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",

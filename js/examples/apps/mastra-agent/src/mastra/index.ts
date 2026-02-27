@@ -1,11 +1,12 @@
 import { ArizeExporter } from "@mastra/arize";
-import { Mastra } from "@mastra/core";
+import { Mastra } from "@mastra/core/mastra";
+import { Observability } from "@mastra/observability";
 
 import { movieAgent } from "./agents/movie-agent";
 
 export const mastra = new Mastra({
   agents: { movieAgent },
-  observability: {
+  observability: new Observability({
     configs: {
       arize: {
         serviceName: process.env.PHOENIX_PROJECT_NAME || "mastra-project",
@@ -18,5 +19,5 @@ export const mastra = new Mastra({
         ],
       },
     },
-  },
+  }),
 });

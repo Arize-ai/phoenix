@@ -1,17 +1,32 @@
+import { context } from "@opentelemetry/api";
+import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { describe, expect, test } from "vitest";
 
 import { DiagLogLevel } from "../src";
 import { ensureCollectorEndpoint, register } from "../src/register";
 
 describe("register", () => {
-  test("should register a provider", () => {
+  test("should register a provider and invoke custom span processor", () => {
+    let onStartCalls = 0;
+    const mockProcessor: SpanProcessor = {
+      onStart: () => {
+        onStartCalls += 1;
+      },
+      onEnd: (_span: Readonly<Span>) => {},
+      forceFlush: async () => {},
+      shutdown: async () => {},
+    };
     const provider = register({
       url: "http://localhost:6006/v1/traces",
       apiKey: "test",
+      spanProcessors: [mockProcessor],
+      global: false,
     });
     expect(provider).toBeDefined();
-    expect(provider["_registeredSpanProcessors"].length).toBe(1);
-    expect(Object.keys(provider["_registeredSpanProcessors"]).length).toBe(1);
+
+    const tracer = provider.getTracer("register-test");
+    tracer.startSpan("smoke-span", undefined, context.active()).end();
+    expect(onStartCalls).toBe(1);
   });
 
   test("should accept diag log level from package exports", () => {

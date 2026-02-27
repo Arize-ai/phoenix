@@ -8,11 +8,12 @@
     "eval": "tsx src/eval/evals.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.63",
+    "@ai-sdk/openai": "^3.0.29",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@mastra/arize": "^1.0.3",
     "@mastra/core": "^1.5.0",
+    "@mastra/observability": "^1.2.0",
     "dotenv": "^16.4.7",
     "zod": "^3.25.76"
   },
