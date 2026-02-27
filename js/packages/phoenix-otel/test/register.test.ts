@@ -6,7 +6,7 @@ import { DiagLogLevel } from "../src";
 import { ensureCollectorEndpoint, register } from "../src/register";
 
 describe("register", () => {
-  test("should register a provider", () => {
+  test("should register a provider and invoke custom span processor", () => {
     let onStartCalls = 0;
     const mockProcessor: SpanProcessor = {
       onStart: () => {
