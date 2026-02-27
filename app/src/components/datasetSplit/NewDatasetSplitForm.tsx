@@ -1,4 +1,4 @@
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import {
   Button,
@@ -34,11 +34,9 @@ export function NewDatasetSplitForm({
   onSubmit,
   isSubmitting,
 }: NewDatasetSplitFormProps) {
-  "use no memo";
   const {
     control,
     handleSubmit,
-    watch,
     formState: { isDirty },
   } = useForm<DatasetSplitParams>({
     defaultValues: {
@@ -48,6 +46,8 @@ export function NewDatasetSplitForm({
     },
     mode: "onChange",
   });
+  const name = useWatch({ control, name: "name" });
+  const color = useWatch({ control, name: "color" });
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
@@ -59,9 +59,7 @@ export function NewDatasetSplitForm({
             justifyContent="center"
             width="100%"
           >
-            <Token color={watch("color")}>
-              {watch("name") || "split preview"}
-            </Token>
+            <Token color={color}>{name || "split preview"}</Token>
           </Flex>
         </View>
         <Controller
