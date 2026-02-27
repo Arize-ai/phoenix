@@ -1235,7 +1235,6 @@ function TestConnectionButton({
 
       // Ignore result if form changed during request
       if (shouldIgnoreResultRef.current) {
-        setIsTesting(false);
         return;
       }
 
@@ -1245,7 +1244,6 @@ function TestConnectionButton({
           status: "error",
           errorMessage: "No response received from server",
         });
-        setIsTesting(false);
         return;
       }
 
@@ -1261,7 +1259,6 @@ function TestConnectionButton({
     } catch (err) {
       // Ignore error if form changed during request
       if (shouldIgnoreResultRef.current) {
-        setIsTesting(false);
         return;
       }
       setLastTestedValuesSignature(testedValuesSignature);
