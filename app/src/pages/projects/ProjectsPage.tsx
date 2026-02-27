@@ -623,10 +623,8 @@ const ProjectMetrics = memo(function ProjectMetrics({
   // state to hold the result of the project metrics query
   const [projectMetrics, setProjectMetrics] =
     useState<ProjectsPageProjectMetricsQuery$data | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   /**
    * fetchProject is a function that fetches the project metrics for the given project id and time range
-   * it clears the current project metrics and then fetches the new project metrics
    * it returns a "subscription" object that can be used to unsubscribe from the query
    * It is NOT websockets, polling, or streaming, it is a normal fetch wrapped in a relay subscription provided by the relay environment
    * this works because the relay environment is configured to abort the underlying fetch if the subscription is unsubscribed from
@@ -640,11 +638,9 @@ const ProjectMetrics = memo(function ProjectMetrics({
     const subscription = observable.subscribe({
       next: (data) => {
         setProjectMetrics(data);
-        setIsLoading(false);
       },
       error: () => {
         setProjectMetrics(null);
-        setIsLoading(false);
       },
     });
     return subscription;
@@ -658,7 +654,7 @@ const ProjectMetrics = memo(function ProjectMetrics({
     };
   }, [fetchProject]);
   // if the project metrics are not loaded yet, we show a loading indicator
-  if (isLoading || projectMetrics == null) {
+  if (projectMetrics == null) {
     return <ProjectMetricsLoadingSkeleton />;
   }
   // if the project metrics are loaded, we show the project metrics
