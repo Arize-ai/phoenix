@@ -1,4 +1,4 @@
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import {
   Button,
@@ -115,11 +115,9 @@ export function NewProjectForm({
   isSubmitting: boolean;
   submitButtonText: string;
 }) {
-  "use no memo";
   const {
     control,
     handleSubmit,
-    watch,
     formState: { isDirty },
   } = useForm<ProjectFormParams>({
     defaultValues: {
@@ -130,7 +128,7 @@ export function NewProjectForm({
   });
 
   // Watch form values for preview
-  const currentPreset = watch("gradientPreset");
+  const currentPreset = useWatch({ control, name: "gradientPreset" });
 
   // Get current gradient colors based on selection
   const getCurrentGradientColors = () => {

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import {
   Button,
@@ -58,11 +58,10 @@ export const AnnotationConfigDialog = ({
   ) => void;
   initialAnnotationConfig?: Partial<AnnotationConfig>;
 }) => {
-  "use no memo";
   const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const mode: "new" | "edit" = initialAnnotationConfig ? "edit" : "new";
-  const { control, handleSubmit, watch } = useForm<AnnotationConfig>({
+  const { control, handleSubmit } = useForm<AnnotationConfig>({
     defaultValues: initialAnnotationConfig || {
       annotationType: "CATEGORICAL",
       values: [
@@ -79,6 +78,8 @@ export const AnnotationConfigDialog = ({
   const [autoFocusedCategoryIndex, setAutoFocusedCategoryIndex] = useState<
     number | null
   >(null);
+  const annotationType = useWatch({ control, name: "annotationType" });
+  const lowerBound = useWatch({ control, name: "lowerBound" });
   const onSubmit = (data: AnnotationConfig, close: () => void) => {
     const onCompleted = () => {
       notifySuccess({
@@ -136,7 +137,6 @@ export const AnnotationConfigDialog = ({
       }
     }
   };
-  const annotationType = watch("annotationType");
   return (
     <Dialog
       css={css`
@@ -304,7 +304,6 @@ export const AnnotationConfigDialog = ({
                       name="upperBound"
                       rules={{
                         validate: (value) => {
-                          const lowerBound = watch("lowerBound");
                           if (
                             lowerBound != null &&
                             value != null &&
@@ -322,7 +321,6 @@ export const AnnotationConfigDialog = ({
                         field: { value, ...field },
                         fieldState: { error },
                       }) => {
-                        const lowerBound = watch("lowerBound");
                         return (
                           <NumberField
                             {...field}

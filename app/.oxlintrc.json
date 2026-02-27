@@ -26,6 +26,7 @@
     "react/exhaustive-deps": "error",
     "react/rules-of-hooks": "error",
     "react-hooks-js/set-state-in-effect": "error",
+    "react-hooks-js/incompatible-library": "warn",
     "react/no-unknown-property": ["error", { "ignore": ["css"] }],
     "react/jsx-uses-react": "off",
     "react/react-in-jsx-scope": "off",

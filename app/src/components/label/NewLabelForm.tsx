@@ -1,4 +1,4 @@
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import {
   Button,
@@ -30,11 +30,9 @@ type NewLabelFormProps = {
   isSubmitting: boolean;
 };
 export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
-  "use no memo";
   const {
     control,
     handleSubmit,
-    watch,
     formState: { isDirty },
   } = useForm<LabelParams>({
     defaultValues: {
@@ -43,6 +41,8 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
       color: "#33c5e8",
     },
   });
+  const name = useWatch({ control, name: "name" });
+  const color = useWatch({ control, name: "color" });
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
@@ -54,9 +54,7 @@ export function NewLabelForm({ onSubmit, isSubmitting }: NewLabelFormProps) {
             justifyContent="center"
             width="100%"
           >
-            <Token color={watch("color")}>
-              {watch("name") || "label preview"}
-            </Token>
+            <Token color={color}>{name || "label preview"}</Token>
           </Flex>
         </View>
         <Flex direction="column" gap="size-200">
