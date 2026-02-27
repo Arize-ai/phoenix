@@ -51,6 +51,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/phoenix-evals
     devDependencies:
+      '@types/node':
+        specifier: ^25.2.3
+        version: 25.2.3
       tsx:
         specifier: ^4.20.6
         version: 4.21.0
