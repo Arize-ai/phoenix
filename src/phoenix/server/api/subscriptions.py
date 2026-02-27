@@ -615,6 +615,7 @@ class Subscription:
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
+        revision_map = {r.dataset_example_id: r for r in revisions}
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
         not_started: list[tuple[DatasetExampleNodeID, ChatStream]] = [
             (
@@ -695,6 +696,12 @@ class Subscription:
                             results=_drain_no_wait(results),
                             project_id=playground_project_id,
                             experiment_id=experiment.id,
+                            evaluators=evaluators,
+                            evaluator_inputs=input.evaluators,
+                            evaluator_project_ids=project_ids,
+                            revision_map=revision_map,
+                            tracing_enabled=input.tracing_enabled,
+                            span_cost_calculator=info.context.span_cost_calculator,
                         )
                         task = _create_task_with_timeout(result_payloads_stream)
                         in_progress.append((None, result_payloads_stream, task))
@@ -707,6 +714,12 @@ class Subscription:
                     results=remaining_results,
                     project_id=playground_project_id,
                     experiment_id=experiment.id,
+                    evaluators=evaluators,
+                    evaluator_inputs=input.evaluators,
+                    evaluator_project_ids=project_ids,
+                    revision_map=revision_map,
+                    tracing_enabled=input.tracing_enabled,
+                    span_cost_calculator=info.context.span_cost_calculator,
                 ):
                     yield result_payload
         finally:
@@ -718,85 +731,6 @@ class Subscription:
                 project_id=playground_project_id,
                 experiment_id=experiment.id,
             )
-
-        if input.evaluators:
-            # Process revisions in reverse order to match the order in which chat completions
-            # were executed, since not_started pops from the right
-            for revision in reversed(revisions):
-                example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-                for repetition_number in range(1, input.repetitions + 1):
-                    async with info.context.db() as session:
-                        run = await session.scalar(  # pyright: ignore
-                            select(models.ExperimentRun).where(
-                                models.ExperimentRun.experiment_id == experiment.id,
-                                models.ExperimentRun.dataset_example_id
-                                == revision.dataset_example_id,
-                                models.ExperimentRun.repetition_number == repetition_number,
-                            )
-                        )
-                    if run is None or run.error is not None:
-                        continue
-                    context_dict: dict[str, Any] = {
-                        "input": revision.input,
-                        "reference": revision.output,
-                        "output": run.output.get("task_output", run.output),
-                        "metadata": revision.metadata_,
-                    }
-                    for evaluator, evaluator_input, project_id in zip(
-                        evaluators, input.evaluators, project_ids
-                    ):
-                        name = str(evaluator_input.name)
-                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        tracer: Tracer | None = None
-                        if input.tracing_enabled:
-                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
-
-                        eval_results: list[EvaluationResult] = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping.to_orm(),
-                            name=name,
-                            output_configs=configs,
-                            tracer=tracer,
-                        )
-
-                        trace: Trace | None = None
-                        if tracer is not None:
-                            async with info.context.db() as session:
-                                db_traces = await tracer.save_db_traces(
-                                    session=session, project_id=project_id
-                                )
-                            if db_traces:
-                                db_trace = db_traces[0]
-                                trace = Trace(id=db_trace.id, db_record=db_trace)
-
-                        for result in eval_results:
-                            if result["error"] is not None:
-                                yield EvaluationChunk(
-                                    evaluator_name=name,
-                                    error=result["error"],
-                                    trace=trace,
-                                    dataset_example_id=example_id,
-                                    repetition_number=repetition_number,
-                                )
-                                continue
-                            annotation_model = evaluation_result_to_model(
-                                result,
-                                experiment_run_id=run.id,
-                            )
-                            async with info.context.db() as session:
-                                session.add(annotation_model)
-                                await session.flush()
-                            evaluation_chunk = EvaluationChunk(
-                                evaluator_name=name,
-                                experiment_run_evaluation=ExperimentRunAnnotation(
-                                    id=annotation_model.id,
-                                    db_record=annotation_model,
-                                ),
-                                trace=trace,
-                                dataset_example_id=example_id,
-                                repetition_number=repetition_number,
-                            )
-                            yield evaluation_chunk
 
 
 async def _stream_chat_completion_over_dataset_example(
@@ -895,6 +829,12 @@ async def _chat_completion_result_payloads(
     project_id: int,
     experiment_id: int,
     results: Sequence[ChatCompletionResult],
+    evaluators: Sequence[Any] = (),
+    evaluator_inputs: Sequence[Any] = (),
+    evaluator_project_ids: Sequence[int] = (),
+    revision_map: Mapping[int, Any] = {},
+    tracing_enabled: bool = False,
+    span_cost_calculator: Optional["SpanCostCalculator"] = None,
 ) -> ChatStream:
     if not results:
         return
@@ -905,16 +845,18 @@ async def _chat_completion_result_payloads(
     async with db() as session:
         for example_id, repetition_number, tracer, run in results:
             if tracer is not None:
-                db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
-                if not db_traces:
+                result_db_traces = await tracer.save_db_traces(
+                    session=session, project_id=project_id
+                )
+                if not result_db_traces:
                     continue
-                db_trace = db_traces[0]
-                if not db_trace.spans:
+                result_db_trace = result_db_traces[0]
+                if not result_db_trace.spans:
                     continue
-                db_span = db_trace.spans[0]
+                db_span = result_db_trace.spans[0]
                 db_run = get_db_experiment_run(
                     db_span,
-                    db_trace,
+                    result_db_trace,
                     experiment_id=experiment_id,
                     example_id=example_id,
                     repetition_number=repetition_number,
@@ -934,12 +876,75 @@ async def _chat_completion_result_payloads(
     for example_id, repetition_number, maybe_db_span, db_run in zip(
         example_ids, repetition_numbers, db_spans, db_runs
     ):
+        example_gid = GlobalID(DatasetExample.__name__, str(example_id))
         yield ChatCompletionSubscriptionResult(
             span=Span(id=maybe_db_span.id, db_record=maybe_db_span) if maybe_db_span else None,
             experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
-            dataset_example_id=GlobalID(DatasetExample.__name__, str(example_id)),
+            dataset_example_id=example_gid,
             repetition_number=repetition_number,
         )
+        if not evaluators or db_run.error is not None:
+            continue
+        revision = revision_map.get(example_id)
+        if revision is None:
+            continue
+        context_dict: dict[str, Any] = {
+            "input": revision.input,
+            "reference": revision.output,
+            "output": db_run.output.get("task_output", db_run.output),
+            "metadata": revision.metadata_,
+        }
+        for evaluator, evaluator_input, eval_project_id in zip(
+            evaluators, evaluator_inputs, evaluator_project_ids
+        ):
+            name = str(evaluator_input.name)
+            configs = get_evaluator_output_configs(evaluator_input, evaluator)
+            eval_tracer: Optional[Tracer] = None
+            if tracing_enabled and span_cost_calculator is not None:
+                eval_tracer = Tracer(span_cost_calculator=span_cost_calculator)
+            eval_results: list[EvaluationResult] = await evaluator.evaluate(
+                context=context_dict,
+                input_mapping=evaluator_input.input_mapping.to_orm(),
+                name=name,
+                output_configs=configs,
+                tracer=eval_tracer,
+            )
+            eval_trace: Optional[Trace] = None
+            if eval_tracer is not None:
+                async with db() as session:
+                    eval_db_traces = await eval_tracer.save_db_traces(
+                        session=session, project_id=eval_project_id
+                    )
+                if eval_db_traces:
+                    eval_db_trace = eval_db_traces[0]
+                    eval_trace = Trace(id=eval_db_trace.id, db_record=eval_db_trace)
+            for result in eval_results:
+                if result["error"] is not None:
+                    yield EvaluationChunk(
+                        evaluator_name=name,
+                        error=result["error"],
+                        trace=eval_trace,
+                        dataset_example_id=example_gid,
+                        repetition_number=repetition_number,
+                    )
+                    continue
+                annotation_model = evaluation_result_to_model(
+                    result,
+                    experiment_run_id=db_run.id,
+                )
+                async with db() as session:
+                    session.add(annotation_model)
+                    await session.flush()
+                yield EvaluationChunk(
+                    evaluator_name=name,
+                    experiment_run_evaluation=ExperimentRunAnnotation(
+                        id=annotation_model.id,
+                        db_record=annotation_model,
+                    ),
+                    trace=eval_trace,
+                    dataset_example_id=example_gid,
+                    repetition_number=repetition_number,
+                )
 
 
 def _is_result_payloads_stream(
