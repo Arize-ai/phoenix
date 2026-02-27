@@ -10,7 +10,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Suspense, useMemo, useRef } from "react";
+import { Fragment, Suspense, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -927,26 +927,23 @@ function RetrieverSpanInfo(props: {
                 <Flex direction="row" alignItems="center" gap="size-100">
                   {span.documentRetrievalMetrics.map((retrievalMetric) => {
                     return (
-                      <>
+                      <Fragment key={retrievalMetric.evaluationName}>
                         <RetrievalEvaluationLabel
-                          key="ndcg"
                           name={retrievalMetric.evaluationName}
                           metric="ndcg"
                           score={retrievalMetric.ndcg}
                         />
                         <RetrievalEvaluationLabel
-                          key="precision"
                           name={retrievalMetric.evaluationName}
                           metric="precision"
                           score={retrievalMetric.precision}
                         />
                         <RetrievalEvaluationLabel
-                          key="hit"
                           name={retrievalMetric.evaluationName}
                           metric="hit"
                           score={retrievalMetric.hit}
                         />
-                      </>
+                      </Fragment>
                     );
                   })}
                 </Flex>
@@ -1293,10 +1290,9 @@ function DocumentItem({
   documentPosition?: number;
 }) {
   const metadata = document[DocumentAttributePostfixes.metadata];
-  const hasEvaluations = documentEvaluations && documentEvaluations.length;
   const documentContent = document[DocumentAttributePostfixes.content];
   const canAnnotate = spanNodeId != null && documentPosition != null;
-  const showAnnotationsSection = canAnnotate || hasEvaluations;
+  const showAnnotationsSection = canAnnotate;
   return (
     <Card
       {...defaultCardProps}
@@ -1344,14 +1340,16 @@ function DocumentItem({
           </>
         )}
         {showAnnotationsSection && (
-          <DocumentAnnotationsSection
-            spanNodeId={spanNodeId ?? ""}
-            documentPosition={documentPosition ?? 0}
-            documentEvaluations={documentEvaluations ?? []}
-            borderColor={borderColor}
-            tokenColor={tokenColor}
-            canAnnotate={canAnnotate}
-          />
+          <ErrorBoundary>
+            <DocumentAnnotationsSection
+              spanNodeId={spanNodeId ?? ""}
+              documentPosition={documentPosition ?? 0}
+              documentEvaluations={documentEvaluations ?? []}
+              borderColor={borderColor}
+              tokenColor={tokenColor}
+              canAnnotate={canAnnotate}
+            />
+          </ErrorBoundary>
         )}
       </Flex>
     </Card>
