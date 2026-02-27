@@ -1,11 +1,13 @@
 name: Generate Sitemap
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
       - "docs.json"
       - "scripts/generate_sitemap.py"
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,45 +16,27 @@ permissions:
 jobs:
   generate-sitemap:
     runs-on: ubuntu-latest
-    # Don't run on PRs from forks (they don't have write access)
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
     steps:
-      - name: Checkout PR branch
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Generate sitemap
-        id: generate
-        run: python scripts/generate_sitemap.py
+        run: uv run scripts/generate_sitemap.py
 
-      - name: Comment on PR if sitemap generation failed
-        if: failure() && steps.generate.outcome == 'failure' && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+      - name: Create or update PR
+        uses: peter-evans/create-pull-request@v7
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '⚠️ **Sitemap generation failed**\n\nThe `docs.json` structure may have changed in a way that broke sitemap generation. Please check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
-            })
-
-      - name: Commit and push if changed
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add sitemap.xml docs/phoenix/sitemap.xml
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: update sitemap.xml"
-            git push
-          fi
-
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          commit-message: "chore: update sitemap.xml"
+          branch: update-sitemap
+          title: "chore: update sitemap.xml"
+          body: "Auto-generated sitemap update"
+          add-paths: |
+            sitemap.xml
+            docs/phoenix/sitemap.xml
