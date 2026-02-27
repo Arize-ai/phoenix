@@ -30,7 +30,7 @@ jobs:
       - name: Run uv sync and commit
         if: steps.release.outputs.prs_created == 'true'
         run: |
-          uv --python 310 sync
+          uv sync
           if git diff --quiet uv.lock; then
             echo "No changes to uv.lock"
             exit 0
