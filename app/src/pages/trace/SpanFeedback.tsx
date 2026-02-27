@@ -167,6 +167,7 @@ function SpanAnnotationsTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

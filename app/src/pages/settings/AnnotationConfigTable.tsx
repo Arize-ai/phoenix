@@ -218,6 +218,7 @@ export const AnnotationConfigTable = ({
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
   ) as AnnotationConfig[]; // cast to AnnotationConfig[] because otherwise 'name' and 'annotationType' are optional
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     data: configs,
     columns,
