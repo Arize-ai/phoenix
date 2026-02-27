@@ -58,6 +58,12 @@ export interface Example {
    * in the Phoenix UI, enabling traceability from datasets back to traces.
    */
   spanId?: string | null;
+  /**
+   * Stable external identifier for this example. When provided on all examples
+   * in an upsert call, enables PATCH revisions for content updates instead of
+   * DELETE + CREATE. Must be unique within a dataset.
+   */
+  externalId?: string | null;
 }
 
 /**

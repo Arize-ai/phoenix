@@ -1289,6 +1289,9 @@ class DatasetExample(HasId):
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    # Stable external identifier enabling PATCH revisions during upsert.
+    # Will be NOT NULL after backfill; nullable=True is a transitional state.
+    external_id: Mapped[str] = mapped_column(String, nullable=True, index=True)
 
     span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
@@ -1298,6 +1301,14 @@ class DatasetExample(HasId):
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id",
+            "external_id",
+            name="uq_dataset_examples_dataset_id_external_id",
+        ),
     )
 
 
@@ -1313,7 +1324,9 @@ class DatasetExampleRevision(HasId):
     input: Mapped[dict[str, Any]]
     output: Mapped[dict[str, Any]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    content_hash: Mapped[Optional[str]] = mapped_column(
+    # Content hash of the example payload. Will be NOT NULL after backfill;
+    # nullable=True is a transitional state.
+    content_hash: Mapped[str] = mapped_column(
         CheckConstraint(
             "content_hash IS NULL OR length(content_hash) = 64",
             name="valid_content_hash_length",

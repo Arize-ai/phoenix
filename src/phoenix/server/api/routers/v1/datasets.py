@@ -39,6 +39,7 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
     insert_dataset,
+    upsert_dataset_examples_by_external_id,
     upsert_dataset_examples_by_hash,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
@@ -365,6 +366,7 @@ class UpsertDatasetExample(V1RoutesBaseModel):
     splits: list[str] = Field(default_factory=list)
     span_id: Optional[str] = None
     content_hash: Optional[str] = None
+    external_id: Optional[str] = None
 
 
 class UpsertDatasetRequestBody(V1RoutesBaseModel):
@@ -687,25 +689,41 @@ async def upsert_dataset(
                     if resolved_dataset_id is None:
                         raise
 
-        try:
-            event = await upsert_dataset_examples_by_hash(
-                session=session,
-                dataset_id=resolved_dataset_id,
-                examples=[
-                    ExampleContent(
-                        input=example.input,
-                        output=example.output,
-                        metadata=example.metadata,
-                        splits=frozenset(
-                            split.strip() for split in example.splits if split.strip()
-                        ),
-                        span_id=example.span_id.strip() if example.span_id else None,
-                        content_hash=example.content_hash,
-                    )
-                    for example in request_body.examples
-                ],
-                user_id=user_id,
+        has_external_ids = any(ex.external_id for ex in request_body.examples)
+        if has_external_ids and not all(ex.external_id for ex in request_body.examples):
+            raise HTTPException(
+                detail="Either all examples must have external_id or none should.",
+                status_code=422,
             )
+
+        example_contents = [
+            ExampleContent(
+                input=example.input,
+                output=example.output,
+                metadata=example.metadata,
+                splits=frozenset(split.strip() for split in example.splits if split.strip()),
+                span_id=example.span_id.strip() if example.span_id else None,
+                content_hash=example.content_hash,
+                external_id=example.external_id,
+            )
+            for example in request_body.examples
+        ]
+
+        try:
+            if has_external_ids:
+                event = await upsert_dataset_examples_by_external_id(
+                    session=session,
+                    dataset_id=resolved_dataset_id,
+                    examples=example_contents,
+                    user_id=user_id,
+                )
+            else:
+                event = await upsert_dataset_examples_by_hash(
+                    session=session,
+                    dataset_id=resolved_dataset_id,
+                    examples=example_contents,
+                    user_id=user_id,
+                )
         except ValueError as e:
             raise HTTPException(detail=str(e), status_code=422)
 

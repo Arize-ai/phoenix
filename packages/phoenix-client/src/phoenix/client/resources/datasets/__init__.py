@@ -51,6 +51,7 @@ class _InputDatasetExample(TypedDict, total=False):
     metadata: Mapping[str, Any]
     span_id: Optional[str]
     splits: Optional[Union[str, list[str]]]
+    external_id: Optional[str]
 
 
 class _UpsertDatasetSelector(TypedDict, total=False):
@@ -65,6 +66,7 @@ class _UpsertDatasetExample(TypedDict):
     splits: list[str]
     span_id: Optional[str]
     content_hash: str
+    external_id: Optional[str]
 
 
 class _UpsertDatasetRequestBody(TypedDict):
@@ -147,6 +149,9 @@ def _prepare_upsert_examples(
         span_id = example.get("span_id")
         if span_id is not None and not isinstance(span_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("example 'span_id' must be a string or None")
+        external_id = example.get("external_id")
+        if external_id is not None and not isinstance(external_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise ValueError("example 'external_id' must be a string or None")
         input_payload = dict(example["input"])
         output_payload = dict(example["output"])
         metadata_payload = dict(example.get("metadata", {}))
@@ -162,6 +167,7 @@ def _prepare_upsert_examples(
                     output=output_payload,
                     metadata=metadata_payload,
                 ),
+                external_id=external_id,
             )
         )
     return upsert_examples
