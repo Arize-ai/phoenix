@@ -1,8 +1,6 @@
 from typing import Any, Dict
 
 import pytest
-from phoenix.trace.dsl import SpanQuery as PhoenixSpanQuery
-
 from phoenix.client.types.spans import (
     Concatenation,
     Explosion,
@@ -10,6 +8,8 @@ from phoenix.client.types.spans import (
     SpanFilter,
     SpanQuery,
 )
+
+from phoenix.trace.dsl import SpanQuery as PhoenixSpanQuery
 
 
 def assert_dict_equivalence(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> None:
