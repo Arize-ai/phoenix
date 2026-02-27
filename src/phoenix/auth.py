@@ -88,12 +88,12 @@ def get_password_requirements() -> _PasswordRequirements:
     """
     Returns the active password requirements based on configuration.
 
-    When PHOENIX_ENABLE_PASSWORD_POLICY is enabled, returns strong password
+    When PHOENIX_ENABLE_STRONG_PASSWORD_POLICY is enabled, returns strong password
     requirements. Otherwise, returns the default minimal requirements.
     """
-    from phoenix.config import get_env_enable_password_policy
+    from phoenix.config import get_env_enable_strong_password_policy
 
-    if get_env_enable_password_policy():
+    if get_env_enable_strong_password_policy():
         return STRONG_PASSWORD_REQUIREMENTS
     return PASSWORD_REQUIREMENTS
 

@@ -141,14 +141,14 @@ class TestPasswordPolicy:
         """Strong policy accepts a password meeting all requirements."""
         from unittest import mock
 
-        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+        with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             validate_password_format("StrongPass1!")
 
     def test_strong_policy_rejects_short_password(self) -> None:
         """Strong policy rejects passwords under 12 characters."""
         from unittest import mock
 
-        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+        with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             with pytest.raises(ValueError, match="at least 12 characters"):
                 validate_password_format("Short1!")
 
@@ -156,7 +156,7 @@ class TestPasswordPolicy:
         """Strong policy rejects passwords without uppercase letters."""
         from unittest import mock
 
-        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+        with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             with pytest.raises(ValueError, match="uppercase"):
                 validate_password_format("strongpass12!")
 
@@ -164,7 +164,7 @@ class TestPasswordPolicy:
         """Strong policy rejects passwords without lowercase letters."""
         from unittest import mock
 
-        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+        with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             with pytest.raises(ValueError, match="lowercase"):
                 validate_password_format("STRONGPASS12!")
 
@@ -172,7 +172,7 @@ class TestPasswordPolicy:
         """Strong policy rejects passwords without digits."""
         from unittest import mock
 
-        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+        with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             with pytest.raises(ValueError, match="digit"):
                 validate_password_format("StrongPasswd!")
 
@@ -180,6 +180,6 @@ class TestPasswordPolicy:
         """Strong policy rejects passwords without special characters."""
         from unittest import mock
 
-        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+        with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             with pytest.raises(ValueError, match="special character"):
                 validate_password_format("StrongPass123")

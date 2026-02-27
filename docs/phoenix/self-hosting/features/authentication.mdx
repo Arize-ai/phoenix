@@ -71,7 +71,7 @@ Helm users can set `auth.defaultAdminPassword` or provide the secret key `PHOENI
 
 ## Password Policy
 
-By default, Phoenix requires passwords to be a minimum of 4 characters long. For deployments that need stricter security, you can enable a strong password policy by setting the `PHOENIX_ENABLE_PASSWORD_POLICY` environment variable to `True`.
+By default, Phoenix requires passwords to be a minimum of 4 characters long. For deployments that need stricter security, you can enable a strong password policy by setting the `PHOENIX_ENABLE_STRONG_PASSWORD_POLICY` environment variable to `True`.
 
 When the strong password policy is enabled, passwords must meet all of the following requirements:
 
@@ -82,7 +82,7 @@ When the strong password policy is enabled, passwords must meet all of the follo
 - At least one special character (`!@#$%^&*()_+`)
 
 ```bash
-export PHOENIX_ENABLE_PASSWORD_POLICY=True
+export PHOENIX_ENABLE_STRONG_PASSWORD_POLICY=True
 ```
 
 ## User Management
