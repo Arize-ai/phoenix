@@ -189,18 +189,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/llm-evals</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals</loc>
     <lastmod>2026-02-05T02:57:46+00:00</lastmod>
   </url>
@@ -211,6 +199,18 @@
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/tutorials/customize-eval-template</loc>
     <lastmod>2026-02-05T02:57:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/llm-evals</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators</loc>
