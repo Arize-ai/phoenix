@@ -2200,6 +2200,9 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
     # Spans
     (422, "GET", "v1/spans"),
+    # Sessions
+    (404, "GET", "v1/projects/fake-id-{}/sessions"),
+    (422, "GET", "v1/sessions/fake-id-{}"),
 )
 
 # Admin-only endpoints (user management, project CRUD)

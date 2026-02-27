@@ -102,7 +102,7 @@ class TestListProjectSessions:
         assert len(data["data"]) == 3
         assert data["next_cursor"] is None
 
-        # Sessions should be ordered by id DESC
+        # Sessions should be ordered by id ASC by default
         returned_ids = [s["id"] for s in data["data"]]
         decoded_ids = [
             from_global_id_with_expected_type(
@@ -110,7 +110,7 @@ class TestListProjectSessions:
             )
             for gid in returned_ids
         ]
-        assert decoded_ids == sorted(decoded_ids, reverse=True)
+        assert decoded_ids == sorted(decoded_ids)
 
     async def test_list_sessions_for_project_by_global_id(
         self,
