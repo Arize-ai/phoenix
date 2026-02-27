@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { Key } from "react-aria-components";
 import { Input, TextArea } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import {
-  Alert,
   Button,
+  FieldError,
   Flex,
   Label,
   TextField,
@@ -19,7 +19,7 @@ import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import type { DocumentAnnotationFormCreateMutation } from "./__generated__/DocumentAnnotationFormCreateMutation.graphql";
 import type { DocumentAnnotationFormPatchMutation } from "./__generated__/DocumentAnnotationFormPatchMutation.graphql";
 
-export type DocumentAnnotation = {
+export type DocumentAnnotationFormData = {
   id: string;
   name: string;
   label: string | null;
@@ -54,7 +54,7 @@ export function DocumentAnnotationForm({
 }: {
   spanNodeId: string;
   documentPosition: number;
-  existingAnnotation?: DocumentAnnotation | null;
+  existingAnnotation?: DocumentAnnotationFormData | null;
   existingAnnotationNames?: string[];
   onSaved?: () => void;
   onCancel: () => void;
@@ -62,7 +62,13 @@ export function DocumentAnnotationForm({
   const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
 
-  const { control, watch, setValue, getValues } = useForm<FormValues>({
+  const {
+    control,
+    setValue,
+    trigger,
+    handleSubmit,
+    formState: { isValid },
+  } = useForm<FormValues>({
     defaultValues: {
       name: existingAnnotation?.name ?? "relevance",
       label: existingAnnotation?.label ?? "",
@@ -72,15 +78,24 @@ export function DocumentAnnotationForm({
           : "",
       explanation: existingAnnotation?.explanation ?? "",
     },
+    mode: "onChange",
   });
 
-  const watchedName = watch("name");
+  useEffect(() => {
+    trigger("name");
+  }, [trigger]);
 
   const takenNamesSet = useMemo(
     () => new Set(existingAnnotationNames),
     [existingAnnotationNames]
   );
-  const nameIsTaken = takenNamesSet.has(watchedName.trim());
+
+  const validateNameUnique = useCallback(
+    (value: string) =>
+      !takenNamesSet.has(value.trim()) ||
+      "An annotation with this name already exists",
+    [takenNamesSet]
+  );
 
   const [commitCreate, isCreating] =
     useMutation<DocumentAnnotationFormCreateMutation>(graphql`
@@ -148,12 +163,8 @@ export function DocumentAnnotationForm({
 
   const isBusy = isCreating || isPatching;
 
-  const handleSave = () => {
-    const { name, label, score, explanation } = getValues();
+  const onSubmit = ({ name, label, score, explanation }: FormValues) => {
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      return;
-    }
     const parsedScore = score !== "" ? Number(score) : null;
     const finalLabel = label.trim() || null;
     const finalExplanation = explanation.trim() || null;
@@ -229,18 +240,23 @@ export function DocumentAnnotationForm({
         <Controller
           name="name"
           control={control}
-          render={({ field }) => (
-            <TextField size="S" value={field.value} onChange={field.onChange}>
+          rules={{
+            required: "Name is required",
+            validate: { unique: validateNameUnique },
+          }}
+          render={({ field, fieldState: { invalid, error } }) => (
+            <TextField
+              size="S"
+              value={field.value}
+              onChange={field.onChange}
+              isInvalid={invalid}
+            >
               <Label>Name</Label>
               <Input placeholder="e.g. relevance" />
+              {error?.message && <FieldError>{error.message}</FieldError>}
             </TextField>
           )}
         />
-        {nameIsTaken && (
-          <Alert variant="danger">
-            An annotation with this name already exists
-          </Alert>
-        )}
         <Flex direction="row" gap="size-100" alignItems="end">
           <Controller
             name="label"
@@ -337,8 +353,8 @@ export function DocumentAnnotationForm({
           <Button
             variant="primary"
             size="S"
-            onPress={handleSave}
-            isDisabled={isBusy || !watchedName.trim() || nameIsTaken}
+            onPress={() => handleSubmit(onSubmit)()}
+            isDisabled={isBusy || !isValid}
           >
             Save
           </Button>

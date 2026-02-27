@@ -12,38 +12,38 @@ import {
 
 import {
   DocumentAnnotationItem,
-  type DocumentEvaluation,
+  type DocumentAnnotation,
 } from "./DocumentAnnotationItem";
 import {
   DocumentAnnotationForm,
-  type DocumentAnnotation,
+  type DocumentAnnotationFormData,
 } from "./DocumentAnnotationForm";
 
 export function DocumentAnnotationsSection({
   spanNodeId,
   documentPosition,
-  documentEvaluations,
+  documentAnnotations,
   borderColor,
   tokenColor,
   canAnnotate,
 }: {
   spanNodeId: string;
   documentPosition: number;
-  documentEvaluations: DocumentEvaluation[];
+  documentAnnotations: DocumentAnnotation[];
   borderColor: ViewProps["borderColor"];
   tokenColor: TokenProps["color"];
   canAnnotate: boolean;
 }) {
   const [editingAnnotation, setEditingAnnotation] =
-    useState<DocumentAnnotation | null>(null);
+    useState<DocumentAnnotationFormData | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const isEditing = editingAnnotation != null || isCreating;
 
   const nowEpochMs = useMemo(() => Date.now(), []);
 
   const existingAnnotationNames = useMemo(
-    () => documentEvaluations.map((e) => e.name),
-    [documentEvaluations]
+    () => documentAnnotations.map((e) => e.name),
+    [documentAnnotations]
   );
 
   const handleCancel = useCallback(() => {
@@ -70,6 +70,7 @@ export function DocumentAnnotationsSection({
           {canAnnotate && (
             <Button
               size="S"
+              variant="primary"
               leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
               onPress={() => setIsCreating(true)}
               isDisabled={isEditing}
@@ -94,12 +95,12 @@ export function DocumentAnnotationsSection({
             />
           </View>
         )}
-        {documentEvaluations.length > 0 && (
+        {documentAnnotations.length > 0 && (
           <Flex direction="column" gap="size-100" elementType="ul">
-            {documentEvaluations.map((documentEvaluation) => (
-              <li key={documentEvaluation.id}>
+            {documentAnnotations.map((documentAnnotation) => (
+              <li key={documentAnnotation.id}>
                 <DocumentAnnotationItem
-                  documentEvaluation={documentEvaluation}
+                  documentAnnotation={documentAnnotation}
                   spanNodeId={spanNodeId}
                   documentPosition={documentPosition}
                   borderColor={borderColor}

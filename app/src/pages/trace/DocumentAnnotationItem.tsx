@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { formatRelative } from "date-fns/formatRelative";
 
 import type { TokenProps, ViewProps } from "@phoenix/components";
@@ -10,12 +9,18 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { DocumentAnnotationActionMenu } from "./DocumentAnnotationActionMenu";
 import {
   DocumentAnnotationForm,
-  type DocumentAnnotation,
+  type DocumentAnnotationFormData,
 } from "./DocumentAnnotationForm";
 
-const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant", "unrelated"];
+const DANGER_ANNOTATION_LABELS = ["irrelevant", "unrelated"];
+const ANNOTATOR_KINDS = new Set(["HUMAN", "LLM", "CODE"] as const);
+type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
 
-export type DocumentEvaluation = {
+function isAnnotatorKind(value: string): value is AnnotatorKind {
+  return ANNOTATOR_KINDS.has(value as AnnotatorKind);
+}
+
+export type DocumentAnnotation = {
   id: string;
   annotatorKind: string;
   documentPosition: number;
@@ -29,7 +34,7 @@ export type DocumentEvaluation = {
 };
 
 export function DocumentAnnotationItem({
-  documentEvaluation,
+  documentAnnotation,
   spanNodeId,
   documentPosition,
   borderColor,
@@ -42,8 +47,8 @@ export function DocumentAnnotationItem({
   onSaved,
   onCancel,
 }: {
-  /** The document evaluation data to display */
-  documentEvaluation: DocumentEvaluation;
+  /** The document annotation data to display */
+  documentAnnotation: DocumentAnnotation;
   /** The relay node ID of the parent span */
   spanNodeId: string;
   /** The zero-based position of the document within the span's retrieval list */
@@ -55,155 +60,153 @@ export function DocumentAnnotationItem({
   /** Whether the current user has permission to annotate */
   canAnnotate: boolean;
   /** The annotation currently being edited, or null if none */
-  editingAnnotation: DocumentAnnotation | null;
+  editingAnnotation: DocumentAnnotationFormData | null;
   /** Names of existing annotations, used to prevent duplicate names in the form */
   existingAnnotationNames: string[];
   /** Reference epoch timestamp (ms) used for relative date formatting */
   nowEpochMs: number;
   /** Called when the user initiates editing of this annotation */
-  onEdit: (annotation: DocumentAnnotation) => void;
+  onEdit: (annotation: DocumentAnnotationFormData) => void;
   /** Called after an annotation is successfully saved */
   onSaved: () => void;
   /** Called when the user cancels editing */
   onCancel: () => void;
 }) {
   const evalTokenColor =
-    documentEvaluation.label &&
-    DANGER_DOCUMENT_EVALUATION_LABELS.includes(documentEvaluation.label)
+    documentAnnotation.label &&
+    DANGER_ANNOTATION_LABELS.includes(documentAnnotation.label)
       ? "var(--global-color-danger)"
       : tokenColor;
 
-  const isEditingThis =
+  const isEditing =
     editingAnnotation != null &&
-    editingAnnotation.id === documentEvaluation.id;
+    editingAnnotation.id === documentAnnotation.id;
 
-  if (isEditingThis) {
+  if (isEditing) {
     return (
       <View
-        padding="size-0"
-        borderWidth="thin"
-        borderColor={borderColor}
-        borderRadius="medium"
-        >
-          <View paddingX="size-200" paddingTop="size-100">
-            <Text size="S" weight="heavy" color="text-700">
-              {`Editing: ${editingAnnotation.name}`}
-            </Text>
-          </View>
-          <DocumentAnnotationForm
-            spanNodeId={spanNodeId}
-            documentPosition={documentPosition}
-            existingAnnotation={editingAnnotation}
-            existingAnnotationNames={existingAnnotationNames.filter(
-              (n) => n !== editingAnnotation.name
-            )}
-            onSaved={onSaved}
-            onCancel={onCancel}
-          />
-      </View>
-    );
-  }
-
-  return (
-    <View
-        padding="size-200"
         borderWidth="thin"
         borderColor={borderColor}
         borderRadius="medium"
       >
-        <Flex direction="column" gap="size-50">
+        <DocumentAnnotationForm
+          spanNodeId={spanNodeId}
+          documentPosition={documentPosition}
+          existingAnnotation={editingAnnotation}
+          existingAnnotationNames={existingAnnotationNames.filter(
+            (n) => n !== editingAnnotation.name
+          )}
+          onSaved={onSaved}
+          onCancel={onCancel}
+        />
+      </View>
+    );
+  }
+
+  const hasDetails =
+    documentAnnotation.label != null ||
+    typeof documentAnnotation.score === "number" ||
+    isAnnotatorKind(documentAnnotation.annotatorKind);
+
+  return (
+    <View
+      padding="size-200"
+      borderWidth="thin"
+      borderColor={borderColor}
+      borderRadius="medium"
+    >
+      <Flex direction="column" gap="size-100">
+        <Flex
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          gap="size-100"
+        >
+          <Text weight="heavy" elementType="h5">
+            {documentAnnotation.name}
+          </Text>
           <Flex
             direction="row"
-            gap="size-100"
-            alignItems="start"
-            justifyContent="space-between"
-          >
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              wrap="wrap"
-            >
-              <Text weight="heavy" elementType="h5">
-                {documentEvaluation.name}
-              </Text>
-              {documentEvaluation.label && (
-                <Token color={evalTokenColor}>
-                  {documentEvaluation.label}
-                </Token>
-              )}
-              {typeof documentEvaluation.score === "number" && (
-                <Token color={evalTokenColor}>
-                  <Flex direction="row" gap="size-50">
-                    <Text size="XS" weight="heavy" color="inherit">
-                      score
-                    </Text>
-                    <Text size="XS">
-                      {formatFloat(documentEvaluation.score)}
-                    </Text>
-                  </Flex>
-                </Token>
-              )}
-            </Flex>
-            {documentEvaluation.annotatorKind === "HUMAN" && canAnnotate && (
-              <Flex direction="row" gap="size-50" alignItems="center">
-                <DocumentAnnotationActionMenu
-                  annotationId={documentEvaluation.id}
-                  annotationName={documentEvaluation.name}
-                  spanNodeId={spanNodeId}
-                  onEdit={() =>
-                    onEdit({
-                      id: documentEvaluation.id,
-                      name: documentEvaluation.name,
-                      label: documentEvaluation.label,
-                      score: documentEvaluation.score,
-                      explanation: documentEvaluation.explanation,
-                    })
-                  }
-                />
-              </Flex>
-            )}
-          </Flex>
-          <Flex
-            direction="row"
-            gap="size-100"
+            gap="size-75"
             alignItems="center"
             wrap="wrap"
           >
-            <AnnotatorKindToken
-              kind={
-                documentEvaluation.annotatorKind as "HUMAN" | "LLM" | "CODE"
-              }
-            />
-            {documentEvaluation.user && (
-              <Flex direction="row" gap="size-50" alignItems="center">
-                <UserPicture
-                  name={documentEvaluation.user.username}
-                  profilePictureUrl={
-                    documentEvaluation.user.profilePictureUrl
-                  }
-                  size={16}
-                />
-                <Text size="XS" color="text-300">
-                  {documentEvaluation.user.username}
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <UserPicture
+                name={documentAnnotation.user?.username || "system"}
+                profilePictureUrl={
+                  documentAnnotation.user?.profilePictureUrl || null
+                }
+                size={16}
+              />
+              <Text size="XS" color="text-300">
+                {documentAnnotation.user?.username || "system"}
+              </Text>
+            </Flex>
+            <Text color="text-300" size="XS">
+              {formatRelative(documentAnnotation.updatedAt, nowEpochMs)}
+            </Text>
+            {canAnnotate && (
+              <DocumentAnnotationActionMenu
+                annotationId={documentAnnotation.id}
+                annotationName={documentAnnotation.name}
+                spanNodeId={spanNodeId}
+                onEdit={() =>
+                  onEdit({
+                    id: documentAnnotation.id,
+                    name: documentAnnotation.name,
+                    label: documentAnnotation.label,
+                    score: documentAnnotation.score,
+                    explanation: documentAnnotation.explanation,
+                  })
+                }
+              />
+            )}
+          </Flex>
+        </Flex>
+        {hasDetails && (
+          <Flex direction="row" gap="size-200" alignItems="center" wrap="wrap">
+            {documentAnnotation.label && (
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Text size="XS" color="text-900" weight="heavy">
+                  Label
                 </Text>
+                <Token color={evalTokenColor}>
+                  {documentAnnotation.label}
+                </Token>
               </Flex>
             )}
-            <Text color="text-300" size="XS">
-              {formatRelative(documentEvaluation.updatedAt, nowEpochMs)}
-            </Text>
+            {typeof documentAnnotation.score === "number" && (
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Text size="XS" color="text-900" weight="heavy">
+                  Score
+                </Text>
+                <Token color={evalTokenColor}>
+                  {formatFloat(documentAnnotation.score)}
+                </Token>
+              </Flex>
+            )}
+            {isAnnotatorKind(documentAnnotation.annotatorKind) && (
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Text size="XS" color="text-900" weight="heavy">
+                  Kind
+                </Text>
+                <AnnotatorKindToken
+                  kind={documentAnnotation.annotatorKind}
+                />
+              </Flex>
+            )}
           </Flex>
-          {documentEvaluation.explanation ? (
-            <p
-              css={css`
-                margin-top: var(--global-dimension-static-size-100);
-                margin-bottom: 0;
-              `}
-            >
-              {documentEvaluation.explanation}
-            </p>
-          ) : null}
-        </Flex>
+        )}
+        {documentAnnotation.explanation ? (
+          <Flex direction="column" gap="size-50">
+            <Text size="XS" color="text-900" weight="heavy">
+              Explanation
+            </Text>
+            <Text>{documentAnnotation.explanation}</Text>
+          </Flex>
+        ) : null}
+      </Flex>
     </View>
   );
 }

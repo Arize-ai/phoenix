@@ -1,5 +1,4 @@
 import {
-  DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MessageAttributePostfixes,
@@ -21,7 +20,7 @@ import {
 } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 
-import type { CardProps, TokenProps, ViewProps } from "@phoenix/components";
+import type { CardProps } from "@phoenix/components";
 import {
   Alert,
   Button,
@@ -51,7 +50,6 @@ import {
   Tabs,
   Text,
   ToggleButton,
-  Token,
   View,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
@@ -86,8 +84,6 @@ import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
-import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
-
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
 import type {
@@ -95,7 +91,7 @@ import type {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
-import { DocumentAnnotationsSection } from "./DocumentAnnotationsSection";
+import { DocumentItem } from "./DocumentItem";
 import { PreBlock, ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
@@ -922,35 +918,47 @@ function RetrieverSpanInfo(props: {
           <Card
             title="Documents"
             {...defaultCardProps}
-            titleExtra={
-              hasDocumentRetrievalMetrics && (
-                <Flex direction="row" alignItems="center" gap="size-100">
-                  {span.documentRetrievalMetrics.map((retrievalMetric) => {
-                    return (
-                      <Fragment key={retrievalMetric.evaluationName}>
-                        <RetrievalEvaluationLabel
-                          name={retrievalMetric.evaluationName}
-                          metric="ndcg"
-                          score={retrievalMetric.ndcg}
-                        />
-                        <RetrievalEvaluationLabel
-                          name={retrievalMetric.evaluationName}
-                          metric="precision"
-                          score={retrievalMetric.precision}
-                        />
-                        <RetrievalEvaluationLabel
-                          name={retrievalMetric.evaluationName}
-                          metric="hit"
-                          score={retrievalMetric.hit}
-                        />
-                      </Fragment>
-                    );
-                  })}
-                </Flex>
-              )
-            }
             extra={<ConnectedMarkdownModeSelect />}
           >
+            {hasDocumentRetrievalMetrics && (
+              <View
+                borderColor="light"
+                borderBottomWidth="thin"
+                padding="size-200"
+              >
+                <Flex direction="column" gap="size-100">
+                  <Heading level={4} weight="heavy">Retrieval Metrics</Heading>
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-100"
+                    wrap="wrap"
+                  >
+                    {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                      return (
+                        <Fragment key={retrievalMetric.evaluationName}>
+                          <RetrievalEvaluationLabel
+                            name={retrievalMetric.evaluationName}
+                            metric="ndcg"
+                            score={retrievalMetric.ndcg}
+                          />
+                          <RetrievalEvaluationLabel
+                            name={retrievalMetric.evaluationName}
+                            metric="precision"
+                            score={retrievalMetric.precision}
+                          />
+                          <RetrievalEvaluationLabel
+                            name={retrievalMetric.evaluationName}
+                            metric="hit"
+                            score={retrievalMetric.hit}
+                          />
+                        </Fragment>
+                      );
+                    })}
+                  </Flex>
+                </Flex>
+              </View>
+            )}
             <ul
               css={css`
                 display: flex;
@@ -964,7 +972,7 @@ function RetrieverSpanInfo(props: {
                   <li key={idx}>
                     <DocumentItem
                       document={document}
-                      documentEvaluations={documentEvaluationsMap[idx]}
+                      documentAnnotations={documentEvaluationsMap[idx]}
                       borderColor={"seafoam-700"}
                       backgroundColor={"seafoam-100"}
                       tokenColor="var(--global-color-seafoam-1000)"
@@ -1272,89 +1280,6 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
-function DocumentItem({
-  document,
-  documentEvaluations,
-  backgroundColor,
-  borderColor,
-  tokenColor,
-  spanNodeId,
-  documentPosition,
-}: {
-  document: AttributeDocument;
-  documentEvaluations?: DocumentEvaluation[] | null;
-  backgroundColor: ViewProps["backgroundColor"];
-  borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
-  spanNodeId?: string;
-  documentPosition?: number;
-}) {
-  const metadata = document[DocumentAttributePostfixes.metadata];
-  const documentContent = document[DocumentAttributePostfixes.content];
-  const canAnnotate = spanNodeId != null && documentPosition != null;
-  const showAnnotationsSection = canAnnotate;
-  return (
-    <Card
-      {...defaultCardProps}
-      backgroundColor={backgroundColor}
-      borderColor={borderColor}
-      title={
-        <Flex direction="row" gap="size-50" alignItems="center">
-          <Icon svg={<Icons.FileOutline />} />
-          <Heading level={4}>
-            document {document[DocumentAttributePostfixes.id]}
-          </Heading>
-        </Flex>
-      }
-      extra={
-        <Flex direction="row" gap="size-100" alignItems="center">
-          {typeof document[DocumentAttributePostfixes.score] === "number" && (
-            <Token color={tokenColor}>
-              {`score ${numberFormatter(
-                document[DocumentAttributePostfixes.score]
-              )}`}
-            </Token>
-          )}
-        </Flex>
-      }
-    >
-      <Flex direction="column">
-        {documentContent && (
-          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-        )}
-        {metadata && (
-          <>
-            <View borderColor={borderColor} borderTopWidth="thin">
-              <View
-                paddingX="size-200"
-                paddingY="size-100"
-                borderColor={borderColor}
-                borderBottomWidth="thin"
-              >
-                <Heading level={4}>Document Metadata</Heading>
-              </View>
-              <ReadonlyJSONBlock basicSetup={{ lineNumbers: false }}>
-                {JSON.stringify(metadata)}
-              </ReadonlyJSONBlock>
-            </View>
-          </>
-        )}
-        {showAnnotationsSection && (
-          <ErrorBoundary>
-            <DocumentAnnotationsSection
-              spanNodeId={spanNodeId ?? ""}
-              documentPosition={documentPosition ?? 0}
-              documentEvaluations={documentEvaluations ?? []}
-              borderColor={borderColor}
-              tokenColor={tokenColor}
-              canAnnotate={canAnnotate}
-            />
-          </ErrorBoundary>
-        )}
-      </Flex>
-    </Card>
-  );
-}
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];

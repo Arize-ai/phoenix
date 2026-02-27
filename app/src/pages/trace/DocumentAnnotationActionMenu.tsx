@@ -118,7 +118,7 @@ export function DocumentAnnotationActionMenu({
           leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
           aria-label={`Actions for annotation ${annotationName}`}
         />
-        <Popover>
+        <Popover placement="bottom end">
           <Dialog>
             {({ close }) => (
               <ListBox style={{ minHeight: "auto" }}>
