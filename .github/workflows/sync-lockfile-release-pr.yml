@@ -1,0 +1,41 @@
+name: Sync uv.lock on Release PRs
+
+on:
+  push:
+    branches:
+      - "release-please--branches--main--components--arize-phoenix**"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-lockfile:
+    name: Sync uv.lock
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout release PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+
+      - name: Update lockfile
+        run: uv lock
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet uv.lock; then
+            echo "uv.lock is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "chore: sync uv.lock"
+          git push
