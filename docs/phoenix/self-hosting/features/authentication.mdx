@@ -69,6 +69,22 @@ docker run \
 Helm users can set `auth.defaultAdminPassword` or provide the secret key `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` in the chart's Secret.
 </Warning>
 
+## Password Policy
+
+By default, Phoenix requires passwords to be a minimum of 4 characters long. For deployments that need stricter security, you can enable a strong password policy by setting the `PHOENIX_ENABLE_PASSWORD_POLICY` environment variable to `True`.
+
+When the strong password policy is enabled, passwords must meet all of the following requirements:
+
+- At least 12 characters long
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character (`!@#$%^&*()_+`)
+
+```bash
+export PHOENIX_ENABLE_PASSWORD_POLICY=True
+```
+
 ## User Management
 
 Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of three roles: `admin`, `member`, or `viewer`. See permissions below to learn more about the permissions for each role.

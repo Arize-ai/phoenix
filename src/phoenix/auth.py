@@ -11,7 +11,10 @@ from starlette.datastructures import Secret
 from starlette.responses import Response
 from typing_extensions import TypeVar
 
-from phoenix.config import get_env_cookies_path, get_env_phoenix_use_secure_cookies
+from phoenix.config import (
+    get_env_cookies_path,
+    get_env_phoenix_use_secure_cookies,
+)
 
 ResponseType = TypeVar("ResponseType", bound=Response)
 
@@ -78,7 +81,21 @@ def validate_password_format(password: str) -> None:
     """
     Checks that the password has a valid format.
     """
-    PASSWORD_REQUIREMENTS.validate(password)
+    get_password_requirements().validate(password)
+
+
+def get_password_requirements() -> _PasswordRequirements:
+    """
+    Returns the active password requirements based on configuration.
+
+    When PHOENIX_ENABLE_PASSWORD_POLICY is enabled, returns strong password
+    requirements. Otherwise, returns the default minimal requirements.
+    """
+    from phoenix.config import get_env_enable_password_policy
+
+    if get_env_enable_password_policy():
+        return STRONG_PASSWORD_REQUIREMENTS
+    return PASSWORD_REQUIREMENTS
 
 
 def set_access_token_cookie(
@@ -271,8 +288,18 @@ NUM_ITERATIONS = 10_000
 """The number of iterations to use for the PBKDF2 key derivation function."""
 MIN_PASSWORD_LENGTH = 4
 """The minimum length of a password."""
+STRONG_PASSWORD_LENGTH = 12
+"""The minimum length of a password when the strong password policy is enabled."""
 PASSWORD_REQUIREMENTS = _PasswordRequirements(length=MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
+STRONG_PASSWORD_REQUIREMENTS = _PasswordRequirements(
+    length=STRONG_PASSWORD_LENGTH,
+    digits=True,
+    lower_case=True,
+    upper_case=True,
+    special_chars=True,
+)
+"""The requirements for a valid password when the strong password policy is enabled."""
 REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(
     length=DEFAULT_SECRET_LENGTH, digits=True, lower_case=True
 )

@@ -1,6 +1,9 @@
 import pytest
 
-from phoenix.auth import validate_email_format, validate_password_format
+from phoenix.auth import (
+    validate_email_format,
+    validate_password_format,
+)
 
 
 def test_validate_email_format_does_not_raise_on_valid_format() -> None:
@@ -120,3 +123,63 @@ class TestEmailSanitization:
                 f"sanitize_email('{repr(input_email)}') should return '{expected}', "
                 f"but got '{result}'"
             )
+
+
+class TestPasswordPolicy:
+    """Test the configurable password policy."""
+
+    def test_default_policy_accepts_short_password(self) -> None:
+        """Default policy only requires 4 characters."""
+        validate_password_format("abcd")
+
+    def test_default_policy_rejects_too_short(self) -> None:
+        """Default policy rejects passwords under 4 characters."""
+        with pytest.raises(ValueError):
+            validate_password_format("abc")
+
+    def test_strong_policy_accepts_valid_password(self) -> None:
+        """Strong policy accepts a password meeting all requirements."""
+        from unittest import mock
+
+        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+            validate_password_format("StrongPass1!")
+
+    def test_strong_policy_rejects_short_password(self) -> None:
+        """Strong policy rejects passwords under 12 characters."""
+        from unittest import mock
+
+        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+            with pytest.raises(ValueError, match="at least 12 characters"):
+                validate_password_format("Short1!")
+
+    def test_strong_policy_rejects_missing_uppercase(self) -> None:
+        """Strong policy rejects passwords without uppercase letters."""
+        from unittest import mock
+
+        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+            with pytest.raises(ValueError, match="uppercase"):
+                validate_password_format("strongpass12!")
+
+    def test_strong_policy_rejects_missing_lowercase(self) -> None:
+        """Strong policy rejects passwords without lowercase letters."""
+        from unittest import mock
+
+        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+            with pytest.raises(ValueError, match="lowercase"):
+                validate_password_format("STRONGPASS12!")
+
+    def test_strong_policy_rejects_missing_digit(self) -> None:
+        """Strong policy rejects passwords without digits."""
+        from unittest import mock
+
+        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+            with pytest.raises(ValueError, match="digit"):
+                validate_password_format("StrongPasswd!")
+
+    def test_strong_policy_rejects_missing_special_char(self) -> None:
+        """Strong policy rejects passwords without special characters."""
+        from unittest import mock
+
+        with mock.patch("phoenix.config.get_env_enable_password_policy", return_value=True):
+            with pytest.raises(ValueError, match="special character"):
+                validate_password_format("StrongPass123")

@@ -303,6 +303,12 @@ first system user. This key must be at least 32 characters long, include at leas
 one lowercase letter, and must be different from PHOENIX_SECRET. Additionally, it must not be set
 if PHOENIX_SECRET is not configured.
 """
+ENV_PHOENIX_ENABLE_PASSWORD_POLICY = "PHOENIX_ENABLE_PASSWORD_POLICY"
+"""
+Whether to enable the strong password policy. When enabled, passwords must be at least 12
+characters long and contain at least one uppercase letter, one lowercase letter, one digit,
+and one special character. Defaults to false.
+"""
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
 The initial password for the default admin account, which defaults to 'admin' if not
@@ -1067,6 +1073,13 @@ def get_env_disable_basic_auth() -> bool:
     Gets the value of the ENV_PHOENIX_DISABLE_BASIC_AUTH environment variable.
     """
     return _bool_val(ENV_PHOENIX_DISABLE_BASIC_AUTH, False)
+
+
+def get_env_enable_password_policy() -> bool:
+    """
+    Gets the value of the PHOENIX_ENABLE_PASSWORD_POLICY environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_ENABLE_PASSWORD_POLICY, False)
 
 
 def get_env_disable_rate_limit() -> bool:
