@@ -7,9 +7,9 @@ description: "Evaluate whether LLM tool calls have correct arguments and formatt
 
 The **Tool Invocation** evaluator determines whether an LLM invoked a tool correctly with proper arguments, formatting, and safe content. This evaluator focuses on the *how* of tool calling — validating that the invocation itself is well-formed — rather than whether the right tool was selected.
 
-This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf. No local code or API key setup is required.
+This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf.
 
-### When to Use
+**When to Use**
 
 Use the Tool Invocation evaluator when you need to:
 
@@ -23,49 +23,15 @@ Use the Tool Invocation evaluator when you need to:
 This evaluator validates tool invocation correctness, not tool selection. For evaluating whether the right tool was chosen, use the [Tool Selection evaluator](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection) instead. The two evaluators are complementary — Tool Selection catches wrong-tool errors while Tool Invocation catches malformed-call errors — and are best run together for complete tool-calling coverage.
 </Info>
 
-## Input Requirements
+**Input Mapping**
 
-The Tool Invocation evaluator requires three inputs:
+The template handles output formatting automatically — it pulls from your experiment's output and formats the tool calls and available tools into a human-readable structure for the judge. You don't need to configure anything for the output side.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `input` | `string` | The conversation context (can include multi-turn history) |
-| `available_tools` | `string` | Tool schemas (JSON schema or human-readable format) |
-| `tool_selection` | `string` | The LLM's tool invocation(s) with arguments |
+The only field you may need to map is **`input`**, which should point to the user query from your dataset. For example, if your dataset has `input.query`:
 
-### Formatting Tips
-
-While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**.
-
-**`input` (conversation context):**
-```
-User: I need to book a flight from New York to Los Angeles
-Assistant: I'd be happy to help you book a flight. When would you like to travel?
-User: Tomorrow morning, the earliest available
-```
-
-**`available_tools` (tool schemas with argument details):**
-```
-book_flight: Book a flight between two cities
-  - origin (required): Departure city code (e.g., "JFK", "LAX")
-  - destination (required): Arrival city code
-  - date (required): Flight date in YYYY-MM-DD format
-  - time_preference (optional): "morning", "afternoon", or "evening"
-
-search_hotels: Search for hotel accommodations
-  - city (required): City name or code
-  - check_in (required): Check-in date in YYYY-MM-DD format
-  - check_out (required): Check-out date in YYYY-MM-DD format
-```
-
-**`tool_selection` (the LLM's tool invocation with arguments):**
-```
-book_flight(origin="JFK", destination="LAX", date="2024-01-15", time_preference="morning")
-```
-
-Additional tips:
-- **Include full conversation context** — The evaluator considers the entire conversation history to validate argument values
-- **Multi-tool invocations are supported** — If the LLM calls multiple tools, include all invocations in the `tool_selection` field
+| Template field | Dataset column |
+|----------------|----------------|
+| `input` | `input.query` |
 
 ## Output Labels
 
@@ -76,9 +42,26 @@ Additional tips:
 | `explanation` | `string` | LLM-generated reasoning for the classification |
 | Optimization | Maximize | Higher scores are better |
 
+**Criteria for Correct (1.0):**
+- All required parameters are present with correct values
+- Tool call is properly structured and formatted
+- No hallucinated fields or parameters invented by the LLM
+- Arguments contain no unsafe content (PII, sensitive data)
+
+**Criteria for Incorrect (0.0):**
+- Required parameters are missing or have incorrect values
+- Tool call is malformed or improperly structured
+- The LLM invented parameters not in the schema
+- Arguments contain unsafe or sensitive content
+
 ## Using in Phoenix
 
-To use this evaluator in Phoenix, navigate to your project's Evaluators tab and create a new LLM Evaluator. Select **Tool Invocation** from the template list. The default prompt template will appear pre-loaded. Configure the output column mappings and save. Phoenix will run this evaluator automatically on new experiment runs.
+1. Navigate to your dataset and open the **Evaluators** tab.
+2. Click **Add Evaluator** and select **LLM Evaluator Template**, then choose **tool_invocation**.
+3. In the evaluator slide-over, you'll see the prompt template and choices are pre-configured. You can use the defaults or edit the prompt to fit your use case.
+4. Set an **input mapping** for the `input` field so the template pulls from the correct column in your dataset. Output formatting is already handled by the template — no output mapping needed.
+5. Optionally, configure which LLM to use as the judge model.
+6. Click **Create**. The evaluator will automatically run on any future experiments for that dataset.
 
 ## See Also
 

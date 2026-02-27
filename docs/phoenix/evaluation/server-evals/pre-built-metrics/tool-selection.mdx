@@ -7,9 +7,9 @@ description: "Evaluate whether LLMs select the correct tools for given tasks usi
 
 The **Tool Selection** evaluator determines whether an LLM selected the most appropriate tool (or tools) for a given task. This evaluator focuses on the *what* of tool calling — validating that the right tool was chosen — rather than whether the invocation arguments were correct.
 
-This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf. No local code or API key setup is required.
+This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf.
 
-### When to Use
+**When to Use**
 
 Use the Tool Selection evaluator when you need to:
 
@@ -22,47 +22,15 @@ Use the Tool Selection evaluator when you need to:
 This evaluator validates tool selection correctness, not invocation correctness. For evaluating whether tool arguments are properly formatted, use the [Tool Invocation evaluator](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation) instead. The two evaluators are complementary — Tool Selection catches wrong-tool errors while Tool Invocation catches malformed-call errors — and are best run together for complete tool-calling coverage.
 </Info>
 
-## Input Requirements
+**Input Mapping**
 
-The Tool Selection evaluator requires three inputs:
+The template handles output formatting automatically — it pulls from your experiment's output and formats the tool calls and results into a human-readable structure for the judge. You don't need to configure anything for the output side.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `input` | `string` | The conversation context or user query |
-| `available_tools` | `string` | List of available tools and their descriptions |
-| `tool_selection` | `string` | The tool(s) selected by the LLM |
+The only field you may need to map is **`input`**, which should point to the user query from your dataset. For example, if your dataset has `input.query`:
 
-### Formatting Tips
-
-While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**.
-
-**`input` (conversation context):**
-```
-User: I need to book a flight from New York to Los Angeles
-Assistant: I'd be happy to help you book a flight. When would you like to travel?
-User: Tomorrow morning, the earliest available
-```
-
-**`available_tools` (tool descriptions):**
-```
-book_flight: Book a flight between two cities. Requires origin, destination, and date.
-search_hotels: Search for hotel accommodations by city and dates.
-get_weather: Get current weather conditions for a location.
-cancel_booking: Cancel an existing flight or hotel reservation.
-```
-
-<Note>
-Tool argument descriptions are optional; the focus is on the selection itself so tool names and descriptions are sufficient.
-</Note>
-
-**`tool_selection` (the LLM's selected tool):**
-```
-book_flight
-```
-
-<Note>
-If the LLM did not produce any tool calls, you can put "No tools called" as the `tool_selection` input.
-</Note>
+| Template field | Dataset column |
+|----------------|----------------|
+| `input` | `input.query` |
 
 ## Output Labels
 
@@ -87,7 +55,31 @@ If the LLM did not produce any tool calls, you can put "No tools called" as the 
 
 ## Using in Phoenix
 
-To use this evaluator in Phoenix, navigate to your project's Evaluators tab and create a new LLM Evaluator. Select **Tool Selection** from the template list. The default prompt template will appear pre-loaded. Configure the output column mappings and save. Phoenix will run this evaluator automatically on new experiment runs.
+1. Navigate to your dataset and open the **Evaluators** tab.
+2. Click **Add Evaluator** and select **LLM Evaluator Template**, then choose **tool_selection**.
+
+<video
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="w-full aspect-video rounded-xl"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/add-evaluators.mp4"
+></video>
+
+3. In the evaluator slide-over, you'll see the prompt template and choices are pre-configured. You can use the defaults or edit the prompt to fit your use case.
+4. Set an **input mapping** for the `input` field so the template pulls from the correct column in your dataset. Output formatting is already handled by the template — no output mapping needed.
+5. Optionally, configure which LLM to use as the judge model.
+6. Click **Create**. The evaluator will automatically run on any future experiments for that dataset.
+
+<video
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="w-full aspect-video rounded-xl"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/create-tool-selection-eval.mp4"
+></video>
 
 ## See Also
 

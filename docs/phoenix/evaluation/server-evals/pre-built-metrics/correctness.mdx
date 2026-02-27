@@ -7,9 +7,9 @@ description: "Evaluate whether LLM responses are generally correct and complete 
 
 The **Correctness** evaluator assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates the quality of answers without requiring external context or reference responses.
 
-This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf. No local code or API key setup is required.
+This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf.
 
-### When to Use
+**When to Use**
 
 Use the Correctness evaluator when you need to:
 
@@ -23,26 +23,15 @@ Use the Correctness evaluator when you need to:
 For evaluating responses against retrieved documents, use the Faithfulness evaluator instead. Correctness is best suited for evaluating general knowledge.
 </Info>
 
-## Input Requirements
+**Input Mapping**
 
-The Correctness evaluator requires two inputs:
+The template handles output formatting automatically — it pulls from your experiment's output. You don't need to configure anything for the output side.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `input` | `string` | The user's query or question |
-| `output` | `string` | The LLM's response to evaluate |
+The only field you may need to map is **`input`**, which should point to the user query from your dataset. For example, if your dataset has `input.query`:
 
-### Formatting Tips
-
-For best results:
-
-- **Use human-readable strings** rather than raw JSON for all inputs
-- **For multi-turn conversations**, format input as a readable conversation:
-  ```
-  User: What is the capital of France?
-  Assistant: Paris is the capital of France.
-  User: What is its population?
-  ```
+| Template field | Dataset column |
+|----------------|----------------|
+| `input` | `input.query` |
 
 ## Output Labels
 
@@ -53,13 +42,24 @@ For best results:
 | `explanation` | `string` | LLM-generated reasoning for the classification |
 | Optimization | Maximize | Higher scores are better |
 
-**Interpretation:**
-- **Correct (1.0)**: The response is factually accurate, complete, and logically consistent
-- **Incorrect (0.0)**: The response contains factual errors, is incomplete, or has logical inconsistencies
+**Criteria for Correct (1.0):**
+- The response is factually accurate
+- The response fully addresses all parts of the question
+- The response is logically consistent with no internal contradictions
+
+**Criteria for Incorrect (0.0):**
+- The response contains factual errors
+- The response is incomplete or omits key parts of the answer
+- The response contains logical inconsistencies or contradictions
 
 ## Using in Phoenix
 
-To use this evaluator in Phoenix, navigate to your project's Evaluators tab and create a new LLM Evaluator. Select **Correctness** from the template list. The default prompt template will appear pre-loaded. Configure the output column mappings and save. Phoenix will run this evaluator automatically on new experiment runs.
+1. Navigate to your dataset and open the **Evaluators** tab.
+2. Click **Add Evaluator** and select **LLM Evaluator Template**, then choose **correctness**.
+3. In the evaluator slide-over, you'll see the prompt template and choices are pre-configured. You can use the defaults or edit the prompt to fit your use case.
+4. Set an **input mapping** for the `input` field so the template pulls from the correct column in your dataset. Output formatting is already handled by the template — no output mapping needed.
+5. Optionally, configure which LLM to use as the judge model.
+6. Click **Create**. The evaluator will automatically run on any future experiments for that dataset.
 
 ## See Also
 
