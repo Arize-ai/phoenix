@@ -33,8 +33,9 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
                 pass
 
         # Build trace models and persist to database
+
+        db_traces = tracer.get_db_traces(project_id=123)
         async with db_session() as session:
-            db_traces = tracer.get_db_traces(project_id=123)
             session.add_all(db_traces)
             await session.flush()
 
@@ -59,8 +60,9 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
         This method processes all finished spans captured by the tracer and
         converts them into database models. The caller is responsible for
-        persisting the returned traces via session.add_all() and session.flush().
-        The buffer is not cleared; call clear() explicitly if needed.
+        persisting the returned traces.
+
+        The buffer is not cleared automatically; call clear() explicitly if needed.
 
         Related models are accessible via SQLAlchemy relationships:
             - trace.spans: list of Span instances
