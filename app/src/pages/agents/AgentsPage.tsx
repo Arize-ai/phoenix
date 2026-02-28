@@ -1,19 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
-import { defineCatalog } from "@json-render/core";
-import {
-  ActionProvider,
-  Renderer,
-  StateProvider,
-  VisibilityProvider,
-  defineRegistry,
-  schema,
-} from "@json-render/react";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { DefaultChatTransport } from "ai";
+import { useEffect, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import { z } from "zod";
 
@@ -123,45 +111,6 @@ export function AgentsPage() {
   );
 }
 
-const clarifyingQuestionSchema = z.object({
-  question: z.string().describe("The clarifying question."),
-  choices: z
-    .array(z.string())
-    .min(2)
-    .max(3)
-    .describe("2-3 possible answers the user can choose from."),
-});
-
-type ClarifyingQuestion = z.infer<typeof clarifyingQuestionSchema>;
-
-const askClarificationParams = z.object({
-  questions: z
-    .array(clarifyingQuestionSchema)
-    .min(1)
-    .describe("List of clarifying questions to ask."),
-});
-
-type PendingClarification = {
-  toolCallId: string;
-  questions: ClarifyingQuestion[];
-};
-
-const SYSTEM_PROMPT =
-  "You are a helpful AI assistant. When a user's request is ambiguous or " +
-  "unclear, use the ask_clarification_questions tool to ask follow-up " +
-  "questions before proceeding. Provide 2-3 possible answers for each " +
-  "question. Ask all questions at once in a single tool call.";
-
-const AGENT_TOOLS = [
-  {
-    name: "ask_clarification_questions",
-    description:
-      "Ask the user clarifying questions when their request is ambiguous. " +
-      "Each question must include 2-3 suggested answers.",
-    parameters: z.toJSONSchema(askClarificationParams, { target: "draft-07" }),
-  },
-];
-
 function getTextContent(parts: { type: string; text?: string }[]): string {
   return parts
     .filter((p): p is { type: "text"; text: string } => p.type === "text")
@@ -223,31 +172,8 @@ interface AgentChatProps {
 }
 
 function AgentChat({ chatApiUrl }: AgentChatProps) {
-  const [pendingClarification, setPendingClarification] =
-    useState<PendingClarification | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const answersRef = useRef<string[]>([]);
-
-  const { messages, sendMessage, status, addToolOutput } = useChat({
+  const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
-
-    onToolCall: ({ toolCall }) => {
-      if (
-        toolCall.toolName === "ask_clarification_questions" &&
-        toolCall.dynamic
-      ) {
-        const { questions } = askClarificationParams.parse(toolCall.input);
-        setPendingClarification({
-          toolCallId: toolCall.toolCallId,
-          questions,
-        });
-        setCurrentQuestionIndex(0);
-        answersRef.current = [];
-      }
-    },
-
-    sendAutomaticallyWhen: ({ messages: msgs }) =>
-      lastAssistantMessageIsCompleteWithToolCalls({ messages: msgs }),
   });
 
   const isLoading = status === "submitted" || status === "streaming";
@@ -255,52 +181,12 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading, pendingClarification]);
-
-  const handleAnswer = useCallback(
-    (answer: string) => {
-      if (!pendingClarification) return;
-
-      const newAnswers = [...answersRef.current, answer];
-      answersRef.current = newAnswers;
-
-      const nextIndex = currentQuestionIndex + 1;
-
-      if (nextIndex < pendingClarification.questions.length) {
-        setCurrentQuestionIndex(nextIndex);
-      } else {
-        const result = pendingClarification.questions.map((q, i) => ({
-          question: q.question,
-          answer: newAnswers[i],
-        }));
-
-        const { toolCallId } = pendingClarification;
-        setPendingClarification(null);
-        setCurrentQuestionIndex(0);
-        answersRef.current = [];
-
-        // addToolOutput is typed for static tools; the `tool` param is unused
-        // at runtime so casting is safe for dynamic tool calls.
-        void (
-          addToolOutput as unknown as (args: {
-            toolCallId: string;
-            output: unknown;
-          }) => Promise<void>
-        )({
-          toolCallId,
-          output: result,
-        });
-      }
-    },
-    [pendingClarification, currentQuestionIndex, addToolOutput]
-  );
-
-  const currentQuestion = pendingClarification?.questions[currentQuestionIndex];
+  }, [messages, isLoading]);
 
   return (
     <div css={agentChatCSS}>
       <div className="chat__messages">
-        {messages.length === 0 && !pendingClarification && (
+        {messages.length === 0 && (
           <p className="chat__empty">Send a message to chat with Pixi</p>
         )}
         {messages.map((m) =>
@@ -318,252 +204,18 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
             </div>
           )
         )}
-        {currentQuestion && (
-          <div key={currentQuestionIndex}>
-            <StateProvider>
-              <VisibilityProvider>
-                <ActionProvider handlers={{}}>
-                  <Renderer
-                    registry={agentChatRegistry}
-                    spec={{
-                      root: "choices",
-                      elements: {
-                        choices: {
-                          type: "Choices",
-                          props: {
-                            question: currentQuestion.question,
-                            options: currentQuestion.choices,
-                            onAnswer: handleAnswer,
-                            currentIndex: currentQuestionIndex,
-                            totalCount: pendingClarification.questions.length,
-                          },
-                          children: [],
-                        },
-                      },
-                    }}
-                  />
-                </ActionProvider>
-              </VisibilityProvider>
-            </StateProvider>
-          </div>
+        {isLoading && messages.at(-1)?.role !== "assistant" && (
+          <p className="chat__loading">...</p>
         )}
-        {isLoading &&
-          messages.at(-1)?.role !== "assistant" &&
-          !pendingClarification && <p className="chat__loading">...</p>}
         <div ref={bottomRef} />
       </div>
       <View paddingX="size-100" paddingY="size-100">
         <MessageBar
-          onSendMessage={(text) =>
-            sendMessage(
-              { text },
-              { body: { system: SYSTEM_PROMPT, tools: AGENT_TOOLS } }
-            )
-          }
-          isSending={isLoading || pendingClarification !== null}
+          onSendMessage={(text) => sendMessage({ text })}
+          isSending={isLoading}
           placeholder="Send a message…"
         />
       </View>
     </div>
   );
 }
-
-const agentChatCatalog = defineCatalog(schema, {
-  components: {
-    Choices: {
-      props: z.object({
-        question: z.string(),
-        options: z.array(z.string()),
-        /**
-         * Called with the selected or typed answer when the user submits.
-         * Passed as a function reference in the spec (not JSON-serializable),
-         * so this component is always constructed programmatically in TypeScript.
-         */
-        onAnswer: z.custom<(answer: string) => void>(
-          (v) => typeof v === "function"
-        ),
-        currentIndex: z.number(),
-        totalCount: z.number(),
-      }),
-      description:
-        "Displays a clarifying question with 2-3 selectable answer options. Always includes a 'No, but…' fallback for a custom typed answer.",
-    },
-  },
-  actions: {},
-});
-
-const choicesCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  align-self: flex-start;
-  width: fit-content;
-  max-width: 360px;
-  background: var(--global-background-color-800);
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-large);
-  padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-
-  .choices__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: var(--global-dimension-size-100);
-  }
-
-  .choices__question {
-    margin: 0;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-    color: var(--global-text-color-900);
-  }
-
-  .choices__progress {
-    font-size: var(--global-font-size-xs);
-    color: var(--global-text-color-300);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .choices__options {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-75);
-    align-items: flex-start;
-  }
-
-  .choices__option,
-  .choices__custom,
-  .choices__submit {
-    font-size: var(--global-font-size-s);
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
-    border-radius: var(--global-rounding-medium);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .choices__option {
-    border: 1px solid var(--global-color-primary-500);
-    background: transparent;
-    color: var(--global-color-primary-500);
-    &:hover {
-      background: color-mix(
-        in srgb,
-        var(--global-color-primary-500) 10%,
-        transparent
-      );
-    }
-  }
-
-  .choices__custom {
-    border: 1px solid var(--global-border-color-default);
-    background: transparent;
-    color: var(--global-text-color-300);
-    &:hover {
-      background: color-mix(
-        in srgb,
-        var(--global-text-color-300) 8%,
-        transparent
-      );
-    }
-  }
-
-  .choices__custom-form {
-    display: flex;
-    gap: var(--global-dimension-size-75);
-    flex: 1;
-    min-width: 0;
-  }
-
-  .choices__custom-input {
-    flex: 1;
-    min-width: 0;
-    font-size: var(--global-font-size-s);
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
-    border-radius: var(--global-rounding-medium);
-    border: 1px solid var(--global-border-color-default);
-    background: transparent;
-    color: var(--global-text-color-900);
-    outline: none;
-    &:focus {
-      border-color: var(--global-color-primary-500);
-    }
-  }
-
-  .choices__submit {
-    border: none;
-    background: var(--global-color-primary-500);
-    color: white;
-    &:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-  }
-`;
-
-const { registry: agentChatRegistry } = defineRegistry(agentChatCatalog, {
-  components: {
-    Choices: ({ props }) => {
-      const [customMode, setCustomMode] = useState(false);
-      const [customText, setCustomText] = useState("");
-
-      return (
-        <div css={choicesCSS}>
-          <div className="choices__header">
-            <p className="choices__question">{props.question}</p>
-            {props.totalCount > 1 && (
-              <span className="choices__progress">
-                {props.currentIndex + 1}/{props.totalCount}
-              </span>
-            )}
-          </div>
-          <div className="choices__options">
-            {props.options.map((opt) => (
-              <button
-                key={opt}
-                className="choices__option"
-                onClick={() => props.onAnswer(opt)}
-              >
-                {opt}
-              </button>
-            ))}
-            {customMode ? (
-              <form
-                className="choices__custom-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const trimmed = customText.trim();
-                  if (trimmed) {
-                    props.onAnswer(trimmed);
-                  }
-                }}
-              >
-                <input
-                  autoFocus
-                  className="choices__custom-input"
-                  value={customText}
-                  onChange={(e) => setCustomText(e.target.value)}
-                  placeholder="Enter your answer…"
-                />
-                <button
-                  type="submit"
-                  className="choices__submit"
-                  disabled={!customText.trim()}
-                >
-                  Submit
-                </button>
-              </form>
-            ) : (
-              <button
-                className="choices__custom"
-                onClick={() => setCustomMode(true)}
-              >
-                Something else…
-              </button>
-            )}
-          </div>
-        </div>
-      );
-    },
-  },
-});

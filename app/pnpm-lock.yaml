@@ -69,12 +69,6 @@ importers:
       '@internationalized/date':
         specifier: ^3.11.0
         version: 3.11.0
-      '@json-render/core':
-        specifier: ^0.8.0
-        version: 0.8.0(zod@4.3.6)
-      '@json-render/react':
-        specifier: ^0.8.0
-        version: 0.8.0(react@19.2.4)(zod@4.3.6)
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -1027,16 +1021,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.29':
     resolution: {integrity: sha512-uw6guiW/gcAGPDhLmd77/6lW8QLeiV5RUTsAX46Db6oLhGaVj4lhnPwb184s1bkc8kdVg/+h988dro8GRDpmYQ==}
-
-  '@json-render/core@0.8.0':
-    resolution: {integrity: sha512-EdUJtjogqt+e9vG9DodIaPYTHDpuEKCe+C27zEtP9fKlL6bWacA8X3lpGtxf6WkswarIhdrhUxeqR9ZAqs+7HQ==}
-    peerDependencies:
-      zod: ^4.0.0
-
-  '@json-render/react@0.8.0':
-    resolution: {integrity: sha512-uL3gwnAk6FDz7uiypQYdmTn6LOl7453Bt7UihYHgq8rDz92i0m1DQjE3HVnTTpnSpu60YR58mRKgTHHCCdC03g==}
-    peerDependencies:
-      react: ^19.2.3
 
   '@lezer/common@1.2.3':
     resolution: {integrity: sha512-w7ojc8ejBqr2REPsWxJjrMFsA/ysDCFICn8zEOR9mrqzOu2amhITYuLD8ag6XZf0CFXDrhKqw7+tW8cX66NaDA==}
@@ -5744,17 +5728,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
-
-  '@json-render/core@0.8.0(zod@4.3.6)':
-    dependencies:
-      zod: 4.3.6
-
-  '@json-render/react@0.8.0(react@19.2.4)(zod@4.3.6)':
-    dependencies:
-      '@json-render/core': 0.8.0(zod@4.3.6)
-      react: 19.2.4
-    transitivePeerDependencies:
-      - zod
 
   '@lezer/common@1.2.3': {}
 

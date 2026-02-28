@@ -55,8 +55,6 @@
     "@emotion/react": "^11.14.0",
     "@hookform/resolvers": "^5.2.2",
     "@internationalized/date": "^3.11.0",
-    "@json-render/core": "^0.8.0",
-    "@json-render/react": "^0.8.0",
     "@lezer/highlight": "^1.2.3",
     "@lezer/lr": "^1.4.8",
     "@react-aria/utils": "^3.31.0",

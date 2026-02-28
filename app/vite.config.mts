@@ -107,10 +107,6 @@ export default defineConfig(() => {
                 name: "vendor-streamdown",
                 test: /streamdown/,
               },
-              {
-                name: "vendor-json-render",
-                test: /@json-render/,
-              },
               // Catch-all for remaining node_modules
               {
                 name: "vendor",
