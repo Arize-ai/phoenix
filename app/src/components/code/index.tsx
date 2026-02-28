@@ -3,6 +3,7 @@ export * from "./JSONEditor";
 export * from "./JSONBlock";
 export * from "./AttributesJSONBlock";
 export * from "./PythonBlock";
+export * from "./PythonEditor";
 export * from "./PythonBlockWithCopy";
 export * from "./CodeWrap";
 export * from "./TypeScriptBlock";

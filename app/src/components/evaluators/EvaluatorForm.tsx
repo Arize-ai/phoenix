@@ -13,6 +13,7 @@ import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorName
 import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { UserCodeEvaluatorForm } from "@phoenix/components/evaluators/UserCodeEvaluatorForm";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
@@ -144,6 +145,7 @@ export const EvaluatorForm = () => {
         </View>
         {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
         {evaluatorKind === "BUILTIN" && <CodeEvaluatorForm />}
+        {evaluatorKind === "CODE" && <UserCodeEvaluatorForm />}
       </Panel>
       <PanelResizeHandle css={compactResizeHandleCSS} />
       <Panel

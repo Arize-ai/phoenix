@@ -15,6 +15,7 @@ import {
   Separator,
 } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
+import { CreateCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateCodeDatasetEvaluatorSlideover";
 import type { CreateLLMDatasetEvaluatorInitialState } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
@@ -80,6 +81,9 @@ export function PlaygroundEvaluatorSelect(
     createLLMEvaluatorDialogInitialState,
     setCreateLLMEvaluatorDialogInitialState,
   ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
+
+  const [isCreateCodeEvaluatorOpen, setIsCreateCodeEvaluatorOpen] =
+    useState(false);
 
   const onEdit = ({
     datasetEvaluatorId,
@@ -155,6 +159,7 @@ export function PlaygroundEvaluatorSelect(
             onCreateEvaluator={() =>
               setCreateLLMEvaluatorDialogInitialState(true)
             }
+            onCreateCodeEvaluator={() => setIsCreateCodeEvaluatorOpen(true)}
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={(initialState) => {
               setCreateLLMEvaluatorDialogInitialState(initialState);
@@ -214,6 +219,11 @@ export function PlaygroundEvaluatorSelect(
             : undefined
         }
         onEvaluatorCreated={onEvaluatorCreated}
+      />
+      <CreateCodeDatasetEvaluatorSlideover
+        isOpen={isCreateCodeEvaluatorOpen}
+        onOpenChange={setIsCreateCodeEvaluatorOpen}
+        datasetId={datasetId}
       />
     </>
   );

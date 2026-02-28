@@ -12,6 +12,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
+import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
@@ -83,7 +84,7 @@ export function DatasetEvaluatorActionMenu({
           </Menu>
         </Popover>
       </MenuTrigger>
-      {evaluatorKind === "BUILTIN" ? (
+      {evaluatorKind === "BUILTIN" && (
         <EditBuiltInDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}
@@ -91,7 +92,16 @@ export function DatasetEvaluatorActionMenu({
           onOpenChange={setIsEditDialogOpen}
           updateConnectionIds={updateConnectionIds}
         />
-      ) : (
+      )}
+      {evaluatorKind === "CODE" && (
+        <EditCodeDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluatorId}
+          datasetId={datasetId}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+        />
+      )}
+      {evaluatorKind === "LLM" && (
         <EditLLMDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}

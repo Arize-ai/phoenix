@@ -52,6 +52,10 @@ export type EvaluatorStoreProps = {
   };
   evaluatorMappingSource: EvaluatorMappingSource;
   showPromptPreview: boolean;
+  /** Source code for user-authored CODE evaluators */
+  sourceCode: string;
+  /** Language of the source code (currently only PYTHON) */
+  language: "PYTHON";
 };
 
 export type EvaluatorStoreActions = {
@@ -92,6 +96,8 @@ export type EvaluatorStoreActions = {
   setSelectedSplitIds: (selectedSplitIds: string[]) => void;
   /** Sets whether to show the prompt preview panel. */
   setShowPromptPreview: (showPromptPreview: boolean) => void;
+  /** Sets the source code for user-authored CODE evaluators. */
+  setSourceCode: (sourceCode: string) => void;
 
   // Multi-output config CRUD actions
   /** Adds a new output config to the array. */
@@ -198,6 +204,8 @@ export const DEFAULT_STORE_VALUES = {
   evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   showPromptPreview: false,
   outputConfigs: [] as AnnotationConfig[],
+  sourceCode: "",
+  language: "PYTHON" as const,
 } satisfies DeepPartial<EvaluatorStoreProps>;
 
 /**
@@ -233,6 +241,25 @@ export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {
   outputConfigs: [],
 } satisfies EvaluatorStoreProps;
 
+const DEFAULT_USER_CODE_SOURCE = `def score(output: str, input: str) -> dict:
+    return {"score": 0.0}
+`;
+
+/**
+ * Default values for user-authored CODE evaluators.
+ */
+export const DEFAULT_USER_CODE_EVALUATOR_STORE_VALUES = {
+  ...DEFAULT_STORE_VALUES,
+  evaluator: {
+    ...DEFAULT_STORE_VALUES.evaluator,
+    kind: "CODE",
+    isBuiltin: false,
+  },
+  outputConfigs: [],
+  sourceCode: DEFAULT_USER_CODE_SOURCE,
+  language: "PYTHON" as const,
+} satisfies EvaluatorStoreProps;
+
 export const createEvaluatorStore = (
   props: Partial<EvaluatorStoreProps> & { evaluator: { kind: EvaluatorKind } }
 ) => {
@@ -255,6 +282,9 @@ export const createEvaluatorStore = (
             : {},
           props.evaluator.kind === "BUILTIN"
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
+            : {},
+          props.evaluator.kind === "CODE"
+            ? DEFAULT_USER_CODE_EVALUATOR_STORE_VALUES
             : {},
           props,
           (_objValue: unknown, srcValue: unknown) =>
@@ -452,6 +482,9 @@ export const createEvaluatorStore = (
           },
           setShowPromptPreview(showPromptPreview) {
             set({ showPromptPreview }, undefined, "setShowPromptPreview");
+          },
+          setSourceCode(sourceCode) {
+            set({ sourceCode }, undefined, "setSourceCode");
           },
           setIncludeExplanation(includeExplanation) {
             set(
