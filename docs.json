@@ -885,6 +885,15 @@
                     ]
                   },
                   {
+                    "group": "Sessions",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-project-sessions",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/get-session-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-session-annotations",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-session-annotations"
+                    ]
+                  },
+                  {
                     "group": "Users",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users",
@@ -1087,6 +1096,7 @@
               {
                 "group": "02.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api",
                   "docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0"
                 ]
               },
