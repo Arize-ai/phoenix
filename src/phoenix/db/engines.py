@@ -18,7 +18,7 @@ from typing_extensions import assert_never
 
 from phoenix.config import LoggingMode, get_env_database_schema
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.migrate import migrate_in_thread
+from phoenix.db.migrate import migrate_in_thread, migrate_in_thread_with_lock
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
 from phoenix.settings import Settings
@@ -272,7 +272,7 @@ def aio_postgresql_engine(
 
     if schema := get_env_database_schema():
         event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
-    migrate_in_thread(sync_engine)
+    migrate_in_thread_with_lock(sync_engine)
     return engine
 
 
