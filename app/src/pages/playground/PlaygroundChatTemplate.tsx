@@ -14,7 +14,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   Alert,
@@ -223,16 +223,6 @@ function MessageEditor({
     }
     return validateMustacheSections(message.content ?? "");
   }, [message.content, templateFormat]);
-  const hasValidationIssues =
-    sectionValidation != null &&
-    (sectionValidation?.errors.length > 0 ||
-      sectionValidation?.warnings.length > 0);
-  // Reset validation state when switching to a different message or template format
-  useEffect(() => {
-    if (!hasValidationIssues) {
-      setShowValidation(false);
-    }
-  }, [message.id, templateFormat, hasValidationIssues]);
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -501,6 +491,7 @@ function SortableMessageItem({
       >
         <div>
           <MessageEditor
+            key={`${message.id}-${templateFormat}`}
             message={message}
             messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}

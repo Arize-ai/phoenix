@@ -66,6 +66,7 @@ export function ChatMessageToolCallsEditor({
     const newToolCalls = message.toolCalls;
     const newEditorValue = JSON.stringify(newToolCalls, null, 2);
     if (isJSONString({ str: newEditorValue, excludeNull: true })) {
+      // eslint-disable-next-line react-hooks-js/set-state-in-effect
       setInitialEditorValue(newEditorValue);
     }
   }, [instanceProvider, store, playgroundInstanceId, messageId]);

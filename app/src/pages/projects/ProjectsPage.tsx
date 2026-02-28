@@ -625,13 +625,11 @@ const ProjectMetrics = memo(function ProjectMetrics({
     useState<ProjectsPageProjectMetricsQuery$data | null>(null);
   /**
    * fetchProject is a function that fetches the project metrics for the given project id and time range
-   * it clears the current project metrics and then fetches the new project metrics
    * it returns a "subscription" object that can be used to unsubscribe from the query
    * It is NOT websockets, polling, or streaming, it is a normal fetch wrapped in a relay subscription provided by the relay environment
    * this works because the relay environment is configured to abort the underlying fetch if the subscription is unsubscribed from
    */
   const fetchProject = useCallback(() => {
-    setProjectMetrics(null);
     const observable = fetchQuery<ProjectsPageProjectMetricsQuery>(
       environment,
       PROJECT_METRICS_QUERY,
