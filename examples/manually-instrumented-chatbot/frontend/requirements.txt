@@ -66,7 +66,7 @@ pandas==2.2.1
     # via
     #   altair
     #   streamlit
-pillow==10.3.0
+pillow==12.1.1
     # via streamlit
 protobuf==5.29.6
     # via streamlit
