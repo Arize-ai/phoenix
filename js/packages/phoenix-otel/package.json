@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-otel",
-  "version": "0.4.2",
+  "version": "0.4.1",
   "description": "Otel registration and convenience methods",
   "keywords": [
     "arize",
