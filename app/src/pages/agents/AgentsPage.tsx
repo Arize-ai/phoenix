@@ -18,6 +18,7 @@ import { Streamdown } from "streamdown";
 import { z } from "zod";
 
 import { authFetch } from "@phoenix/authFetch";
+import { PageHeader, View } from "@phoenix/components";
 import { MessageBar } from "@phoenix/components/chat";
 import type { GenerativeProviderKey } from "@phoenix/components/generative/__generated__/ModelMenuQuery.graphql";
 import {
@@ -79,13 +80,6 @@ const agentsPageCSS = css`
   flex-direction: column;
   height: 100%;
   width: 100%;
-
-  .agents-page__header {
-    display: flex;
-    justify-content: flex-end;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-    flex: none;
-  }
 `;
 
 export function AgentsPage() {
@@ -110,9 +104,12 @@ export function AgentsPage() {
 
   return (
     <div css={agentsPageCSS}>
-      <div className="agents-page__header">
-        <ModelMenu value={menuValue} onChange={handleChange} />
-      </div>
+      <View borderBottomColor="dark" borderBottomWidth="thin">
+        <PageHeader
+          title="Pixi"
+          extra={<ModelMenu value={menuValue} onChange={handleChange} />}
+        />
+      </View>
       <AgentChat key={chatApiUrl} chatApiUrl={chatApiUrl} />
     </div>
   );
