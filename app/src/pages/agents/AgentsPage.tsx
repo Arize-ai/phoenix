@@ -307,7 +307,7 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
     <div css={agentChatCSS}>
       <div className="chat__messages">
         {messages.length === 0 && !pendingClarification && (
-          <p className="chat__empty">Send a message to start chatting.</p>
+          <p className="chat__empty">Send a message to chat with Pixi.</p>
         )}
         {messages.map((m) =>
           m.role === "user" ? (
