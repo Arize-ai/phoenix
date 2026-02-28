@@ -131,6 +131,49 @@ px trace abc123def456 --format raw | jq      # Pipe to jq
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px sessions`
+
+List sessions (multi-turn conversations) for a project.
+
+```bash
+px sessions                                       # List recent sessions
+px sessions --limit 20                            # More sessions
+px sessions --order asc                           # Oldest first
+px sessions --format raw --no-progress | jq       # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-n, --limit <number>` | Maximum number of sessions to return | 10 |
+| `--order <order>` | Sort order: `asc` or `desc` | `desc` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px session <session-id>`
+
+View a session's conversation flow, including all traces (turns) in the session.
+
+```bash
+px session my-chat-session-001                              # By session_id
+px session UHJvamVjdFNlc3Npb24...                           # By GlobalID
+px session my-chat-session-001 --include-annotations        # With annotations
+px session my-chat-session-001 --file session.json          # Save to file
+px session my-chat-session-001 --format raw | jq            # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--include-annotations` | Include session annotations | Off |
+| `--file <path>` | Save to file instead of stdout | stdout |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
 ### `px datasets`
 
 List all available datasets.
