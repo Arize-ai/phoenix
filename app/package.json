@@ -150,7 +150,8 @@
       "braces@<3.0.3": ">=3.0.3",
       "esbuild@<=0.24.2": ">=0.25.0",
       "@babel/runtime@<7.26.10": ">=7.26.10",
-      "@babel/helpers@<7.26.10": ">=7.26.10"
+      "@babel/helpers@<7.26.10": ">=7.26.10",
+      "minimatch": ">=10.2.3"
     },
     "onlyBuiltDependencies": [
       "esbuild"
