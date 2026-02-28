@@ -491,15 +491,11 @@ class _FilterTranslator(_ProjectionTranslator):
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
         if _is_subscript(left, "attributes"):
             left = (
-                _as_bool_attribute(left)
-                if _is_bool_constant(right)
-                else _cast_as("String", left)
+                _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)
             )
         if _is_subscript(right, "attributes"):
             right = (
-                _as_bool_attribute(right)
-                if _is_bool_constant(left)
-                else _cast_as("String", right)
+                _as_bool_attribute(right) if _is_bool_constant(left) else _cast_as("String", right)
             )
         if _is_float(left) and not _is_float(right):
             right = _cast_as("Float", right)
