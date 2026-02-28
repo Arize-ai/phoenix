@@ -76,7 +76,7 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   }
 }
 
-export function SettingsAgentsPage() {
+export function AgentsPage() {
   const [menuValue, setMenuValue] = useState<ModelMenuValue | null>(() => {
     const config = getAgentModelConfigFromLocalStorage();
     return config ? toModelMenuValue(config) : null;
@@ -249,7 +249,6 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
   const [pendingClarification, setPendingClarification] =
     useState<PendingClarification | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  // Collect answers across re-renders without triggering extra renders
   const answersRef = useRef<string[]>([]);
 
   const { messages, sendMessage, status, addToolOutput } = useChat({
@@ -270,7 +269,6 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
       }
     },
 
-    // After addToolOutput sets all tool results, auto-continue the conversation
     sendAutomaticallyWhen: ({ messages: msgs }) =>
       lastAssistantMessageIsCompleteWithToolCalls({ messages: msgs }),
   });
@@ -292,10 +290,8 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
       const nextIndex = currentQuestionIndex + 1;
 
       if (nextIndex < pendingClarification.questions.length) {
-        // Still more questions — advance to the next one
         setCurrentQuestionIndex(nextIndex);
       } else {
-        // All questions answered — submit tool result and let the model continue
         const result = pendingClarification.questions.map((q, i) => ({
           question: q.question,
           answer: newAnswers[i],
