@@ -526,7 +526,7 @@ jobs:
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 
   ci-required:
-    name: CI Required
+    name: Python CI Required
     needs:
       - format-and-lint
       - changes

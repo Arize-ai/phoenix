@@ -96,7 +96,7 @@ jobs:
           retention-days: 30
 
   ci-required:
-    name: CI Required
+    name: Playwright CI Required
     needs:
       - changes
       - e2e-test
