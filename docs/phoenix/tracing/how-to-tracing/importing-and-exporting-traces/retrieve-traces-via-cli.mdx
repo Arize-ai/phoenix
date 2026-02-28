@@ -114,6 +114,8 @@ Phoenix CLI provides the following commands:
 | `projects` | List of all projects | stdout |
 | `trace <id>` | A specific trace by ID | stdout (or to a file with `--file`) |
 | `traces [directory]` | Recent traces from the project | Saves each trace as a JSON file in the given directory, or prints to stdout if no directory is provided |
+| `sessions` | List sessions for a project | stdout |
+| `session <id>` | A specific session with its traces | stdout (or to a file with `--file`) |
 
 <Note>
 Traces are fetched chronologically with most recent first.
@@ -243,6 +245,27 @@ This command retrieves traces that occurred since January 1, 2026, saving each a
 - Building regression test datasets
 - Offline analysis and debugging
 - Creating evaluation datasets for experiments
+
+## Sessions
+
+Sessions group multiple traces into a single multi-turn conversation. Use the `sessions` and `session` commands to explore them.
+
+### List Sessions
+
+```bash
+px sessions --limit 10
+px sessions --format raw --no-progress | jq '.[].session_id'
+```
+
+### View a Session
+
+```bash
+px session my-chat-session-001
+px session my-chat-session-001 --include-annotations
+px session my-chat-session-001 --format raw | jq '.session.traces[].trace_id'
+```
+
+To drill into a specific turn's input/output, use `px trace <trace-id>` with the trace ID from the session output.
 
 ## Trace Output Structure
 
