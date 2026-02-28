@@ -121,6 +121,10 @@ def _migrate_with_pg_lock(
             logger.info("Acquiring migration advisory lock (key=%d)...", _MIGRATION_LOCK_KEY)
             conn.execute(text(f"SELECT pg_advisory_lock({_MIGRATION_LOCK_KEY})"))
             logger.info("Migration advisory lock acquired.")
+            # Commit the implicit transaction started by the above statements so
+            # the connection is in a clean state for Alembic's run_migrations(),
+            # which calls connection.begin() and expects no active transaction.
+            conn.commit()
             try:
                 alembic_cfg.attributes["connection"] = conn
                 command.upgrade(alembic_cfg, "head")
