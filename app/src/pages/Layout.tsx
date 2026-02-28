@@ -161,14 +161,6 @@ function SideNav() {
               isExpanded={isSideNavExpanded}
             />
           </li>
-          <li key="apis">
-            <NavLink
-              to="/apis"
-              text="APIs"
-              leadingVisual={<Icon svg={<Icons.Code />} />}
-              isExpanded={isSideNavExpanded}
-            />
-          </li>
           {isAgentsEnabled && (
             <li key="agents">
               <NavLink
@@ -179,6 +171,14 @@ function SideNav() {
               />
             </li>
           )}
+          <li key="apis">
+            <NavLink
+              to="/apis"
+              text="APIs"
+              leadingVisual={<Icon svg={<Icons.Code />} />}
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
         </ul>
         <ul css={bottomLinksCSS}>
           <li key="github">
