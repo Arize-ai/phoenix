@@ -1,7 +1,7 @@
 {
   "name": "mastra-quickstart",
-  "private": true,
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "keywords": [],
   "license": "ISC",

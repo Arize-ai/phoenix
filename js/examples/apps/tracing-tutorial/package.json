@@ -1,7 +1,7 @@
 {
   "name": "tracing-tutorial",
-  "private": true,
   "version": "1.0.0",
+  "private": true,
   "description": "Phoenix Tracing Tutorial - Learn to trace LLM applications with Phoenix",
   "type": "module",
   "scripts": {
