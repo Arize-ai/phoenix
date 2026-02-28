@@ -32,8 +32,12 @@ const flexStyleProps: StyleHandlers = {
 };
 
 function Flex(props: FlexProps, ref: Ref<HTMLElement>) {
-  const { children, className, elementType: Component = "div", ...otherProps } =
-    props;
+  const {
+    children,
+    className,
+    elementType: Component = "div",
+    ...otherProps
+  } = props;
 
   const matchedBreakpoints = ["base"];
   const { styleProps } = useStyleProps(otherProps);

@@ -84,6 +84,7 @@ import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
+
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
 import type {
@@ -927,7 +928,9 @@ function RetrieverSpanInfo(props: {
                 padding="size-200"
               >
                 <Flex direction="column" gap="size-100">
-                  <Heading level={4} weight="heavy">Retrieval Metrics</Heading>
+                  <Heading level={4} weight="heavy">
+                    Retrieval Metrics
+                  </Heading>
                   <Flex
                     direction="row"
                     alignItems="center"
@@ -1279,7 +1282,6 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     </Flex>
   );
 }
-
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];

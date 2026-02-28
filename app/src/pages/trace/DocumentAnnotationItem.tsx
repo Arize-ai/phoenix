@@ -79,16 +79,11 @@ export function DocumentAnnotationItem({
       : tokenColor;
 
   const isEditing =
-    editingAnnotation != null &&
-    editingAnnotation.id === documentAnnotation.id;
+    editingAnnotation != null && editingAnnotation.id === documentAnnotation.id;
 
   if (isEditing) {
     return (
-      <View
-        borderWidth="thin"
-        borderColor={borderColor}
-        borderRadius="medium"
-      >
+      <View borderWidth="thin" borderColor={borderColor} borderRadius="medium">
         <DocumentAnnotationForm
           spanNodeId={spanNodeId}
           documentPosition={documentPosition}
@@ -125,12 +120,7 @@ export function DocumentAnnotationItem({
           <Text weight="heavy" elementType="h5">
             {documentAnnotation.name}
           </Text>
-          <Flex
-            direction="row"
-            gap="size-75"
-            alignItems="center"
-            wrap="wrap"
-          >
+          <Flex direction="row" gap="size-75" alignItems="center" wrap="wrap">
             <Flex direction="row" gap="size-50" alignItems="center">
               <UserPicture
                 name={documentAnnotation.user?.username || "system"}
@@ -171,9 +161,7 @@ export function DocumentAnnotationItem({
                 <Text size="XS" color="text-900" weight="heavy">
                   Label
                 </Text>
-                <Token color={evalTokenColor}>
-                  {documentAnnotation.label}
-                </Token>
+                <Token color={evalTokenColor}>{documentAnnotation.label}</Token>
               </Flex>
             )}
             {typeof documentAnnotation.score === "number" && (
@@ -191,9 +179,7 @@ export function DocumentAnnotationItem({
                 <Text size="XS" color="text-900" weight="heavy">
                   Kind
                 </Text>
-                <AnnotatorKindToken
-                  kind={documentAnnotation.annotatorKind}
-                />
+                <AnnotatorKindToken kind={documentAnnotation.annotatorKind} />
               </Flex>
             )}
           </Flex>

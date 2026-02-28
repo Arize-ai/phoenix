@@ -1,23 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
 
 import type { TokenProps, ViewProps } from "@phoenix/components";
-import {
-  Button,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  View,
-} from "@phoenix/components";
+import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 
-import {
-  DocumentAnnotationItem,
-  type DocumentAnnotation,
-} from "./DocumentAnnotationItem";
 import {
   DocumentAnnotationForm,
   type DocumentAnnotationFormData,
 } from "./DocumentAnnotationForm";
+import {
+  DocumentAnnotationItem,
+  type DocumentAnnotation,
+} from "./DocumentAnnotationItem";
 
 export function DocumentAnnotationsSection({
   spanNodeId,
