@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 0.4.2
+
+### Patch Changes
+
+- a97185f: Align OpenTelemetry dependencies in `@arizeai/phoenix-otel` to a compatible v2 set and update tests to assert observable span processor behavior instead of internal provider fields.
+
 ## 0.4.1
 
 ### Patch Changes

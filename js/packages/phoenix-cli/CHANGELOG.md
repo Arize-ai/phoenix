@@ -1,5 +1,16 @@
 # @arizeai/phoenix-cli
 
+## 0.7.0
+
+### Minor Changes
+
+- bd85bce: Add `px sessions` and `px session` commands for browsing multi-turn conversation sessions via the REST API.
+
+### Patch Changes
+
+- Updated dependencies [c3c700a]
+  - @arizeai/phoenix-client@6.0.0
+
 ## 0.6.0
 
 ### Minor Changes
@@ -66,7 +77,6 @@
 ### Minor Changes
 
 - 32343ff: Add datasets and experiments commands to the CLI:
-
   - `px datasets` - List all available Phoenix datasets with example counts and metadata
   - `px dataset <name-or-id>` - Fetch examples from a dataset with optional `--split` and `--version` filters
   - `px experiments --dataset <name-or-id>` - List experiments for a dataset, optionally export full experiment data to a directory
