@@ -1,5 +1,23 @@
 # @arizeai/phoenix-mcp
 
+## 3.0.0
+
+### Major Changes
+
+- 03b10a8: feat: upgrade zod from v3 to v4
+
+  BREAKING CHANGE: Upgraded zod from v3 to v4. This changes inferred TypeScript types
+  for schemas using `z.looseObject()` (previously `.passthrough()`) which now include
+  `[x: string]: unknown` in their output types. Consumers using these types may need
+  to update their code. Additionally, `ZodError.errors` has been replaced with
+  `ZodError.issues`, `z.record()` now requires explicit key schemas, and
+  `zod-to-json-schema` has been replaced with native `z.toJSONSchema()`.
+
+### Patch Changes
+
+- Updated dependencies [03b10a8]
+  - @arizeai/phoenix-client@6.0.0
+
 ## 2.3.7
 
 ### Patch Changes
