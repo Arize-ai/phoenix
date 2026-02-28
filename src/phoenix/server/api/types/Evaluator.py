@@ -125,7 +125,6 @@ class Evaluator(Node):
 
 @strawberry.type
 class CodeEvaluator(Evaluator, Node):
-    # TODO: This is a stub for development purposes; remove before product release
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.CodeEvaluator]] = None
 
@@ -803,6 +802,8 @@ class DatasetEvaluator(Node):
                     if builtin is None:
                         return []
                     configs = list(builtin().output_configs)
+                elif isinstance(evaluator, models.CodeEvaluator):
+                    configs = evaluator.output_configs
                 else:
                     return []
         return [

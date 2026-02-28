@@ -68,7 +68,7 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
-from phoenix.server.sandbox.types import SandboxBackend
+from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend
 
 logger = logging.getLogger(__name__)
 
@@ -685,7 +685,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
-        from phoenix.server.sandbox.types import ExecutionResult
 
         start_time = datetime.now(timezone.utc)
         tracer_ = tracer or NoOpTracer()

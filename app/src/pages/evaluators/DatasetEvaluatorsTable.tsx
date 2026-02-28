@@ -338,7 +338,7 @@ export const DatasetEvaluatorsTable = ({
         accessorFn: (row) => row.evaluator.kind,
         size: 60,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
+          <EvaluatorKindToken kind={getValue() as "LLM" | "CODE" | "BUILTIN"} />
         ),
       },
       {
