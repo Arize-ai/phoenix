@@ -1,7 +1,7 @@
 {
   "name": "mastra-agent",
-  "private": true,
   "version": "1.0.0",
+  "private": true,
   "description": "Simple Mastra agent with Arize Phoenix tracing",
   "type": "module",
   "scripts": {
