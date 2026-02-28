@@ -1,5 +1,6 @@
 {
   "name": "experiments-quickstart",
+  "private": true,
   "version": "1.0.0",
   "description": "Phoenix Datasets & Experiments Tutorial - TypeScript",
   "type": "module",

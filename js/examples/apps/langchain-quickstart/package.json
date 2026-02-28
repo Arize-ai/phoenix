@@ -1,5 +1,6 @@
 {
   "name": "langchain-quickstart",
+  "private": true,
   "version": "1.0.0",
   "description": "Simple LangChain TypeScript application with Phoenix tracing",
   "type": "module",
