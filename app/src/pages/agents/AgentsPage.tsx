@@ -69,7 +69,9 @@ function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
 export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   try {
     const raw = localStorage.getItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) {
+      return null
+    };
     return agentModelConfigSchema.parse(JSON.parse(raw));
   } catch {
     return null;
@@ -307,7 +309,7 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
     <div css={agentChatCSS}>
       <div className="chat__messages">
         {messages.length === 0 && !pendingClarification && (
-          <p className="chat__empty">Send a message to chat with Pixi.</p>
+          <p className="chat__empty">Send a message to chat with Pixi</p>
         )}
         {messages.map((m) =>
           m.role === "user" ? (
