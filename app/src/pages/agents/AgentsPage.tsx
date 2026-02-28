@@ -25,6 +25,7 @@ import {
   ModelMenu,
   type ModelMenuValue,
 } from "@phoenix/components/generative/ModelMenu";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 export const AGENT_MODEL_LOCAL_STORAGE_KEY = "arize-phoenix-agent-config";
 
@@ -90,9 +91,11 @@ export function AgentsPage() {
       : { provider: "ANTHROPIC", modelName: "claude-4.6-opus" };
   });
 
-  const chatApiUrl = menuValue.customProvider
-    ? `/vercel_chat_stream?provider_type=custom&provider_id=${encodeURIComponent(menuValue.customProvider.id)}&model_name=${encodeURIComponent(menuValue.modelName)}`
-    : `/vercel_chat_stream?provider_type=builtin&provider=${encodeURIComponent(menuValue.provider)}&model_name=${encodeURIComponent(menuValue.modelName)}`;
+  const chatApiUrl = prependBasename(
+    menuValue.customProvider
+      ? `/vercel_chat_stream?provider_type=custom&provider_id=${encodeURIComponent(menuValue.customProvider.id)}&model_name=${encodeURIComponent(menuValue.modelName)}`
+      : `/vercel_chat_stream?provider_type=builtin&provider=${encodeURIComponent(menuValue.provider)}&model_name=${encodeURIComponent(menuValue.modelName)}`
+  );
 
   const handleChange = (model: ModelMenuValue) => {
     setMenuValue(model);
