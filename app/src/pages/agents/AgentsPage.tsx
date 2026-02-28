@@ -18,9 +18,7 @@ import { Streamdown } from "streamdown";
 import { z } from "zod";
 
 import { authFetch } from "@phoenix/authFetch";
-import { Button, Card, Flex, Label, Text } from "@phoenix/components";
 import { MessageBar } from "@phoenix/components/chat";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import type { GenerativeProviderKey } from "@phoenix/components/generative/__generated__/ModelMenuQuery.graphql";
 import {
   ModelMenu,
@@ -76,6 +74,20 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   }
 }
 
+const agentsPageCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+
+  .agents-page__header {
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+    flex: none;
+  }
+`;
+
 export function AgentsPage() {
   const [menuValue, setMenuValue] = useState<ModelMenuValue | null>(() => {
     const config = getAgentModelConfigFromLocalStorage();
@@ -97,42 +109,20 @@ export function AgentsPage() {
   };
 
   return (
-    <Flex direction="column" gap="size-200" width="100%">
-      <Card title="Agent Configuration">
-        <div
-          css={[
-            css`
-              padding: var(--global-dimension-static-size-200);
-            `,
-            fieldBaseCSS,
-          ]}
-        >
-          <Label>Provider and Model</Label>
-          <Flex direction="row" gap="size-50" alignItems="end">
-            <ModelMenu value={menuValue} onChange={handleChange} />
-            <Button
-              size="S"
-              aria-label="Clear provider and model"
-              isDisabled={!menuValue}
-              onPress={() => {
-                setMenuValue(null);
-                localStorage.removeItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
-              }}
-            >
-              Clear
-            </Button>
-          </Flex>
-          <Text slot="description">
-            The AI provider and model used by the Phoenix agent.
-          </Text>
+    <div css={agentsPageCSS}>
+      <div className="agents-page__header">
+        <ModelMenu value={menuValue} onChange={handleChange} />
+      </div>
+      {chatApiUrl ? (
+        <AgentChat key={chatApiUrl} chatApiUrl={chatApiUrl} />
+      ) : (
+        <div css={agentChatCSS}>
+          <div className="chat__messages">
+            <p className="chat__empty">Select a model to start chatting.</p>
+          </div>
         </div>
-      </Card>
-      {chatApiUrl && (
-        <Card title="Agent Chat">
-          <AgentChat key={chatApiUrl} chatApiUrl={chatApiUrl} />
-        </Card>
       )}
-    </Flex>
+    </div>
   );
 }
 
@@ -196,7 +186,8 @@ function getTextContent(parts: { type: string; text?: string }[]): string {
 const agentChatCSS = css`
   display: flex;
   flex-direction: column;
-  height: 500px;
+  flex: 1;
+  min-height: 0;
 
   .chat__messages {
     flex: 1;
