@@ -52,7 +52,7 @@
   "packageManager": "pnpm@10.29.3",
   "pnpm": {
     "overrides": {
-      "minimatch": ">=10.2.1"
+      "minimatch": ">=10.2.3"
     }
   }
 }
