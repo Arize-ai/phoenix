@@ -1,23 +1,5 @@
 # @arizeai/phoenix-client
 
-## 6.0.0
-
-### Major Changes
-
-- c3c700a: feat: upgrade zod from v3 to v4
-
-  BREAKING CHANGE: Upgraded zod from v3 to v4. This changes inferred TypeScript types
-  for schemas using `z.looseObject()` (previously `.passthrough()`) which now include
-  `[x: string]: unknown` in their output types. Consumers using these types may need
-  to update their code. Additionally, `ZodError.errors` has been replaced with
-  `ZodError.issues`, `z.record()` now requires explicit key schemas, and
-  `zod-to-json-schema` has been replaced with native `z.toJSONSchema()`.
-
-### Patch Changes
-
-- Updated dependencies [a97185f]
-  - @arizeai/phoenix-otel@0.4.2
-
 ## 5.9.0
 
 ### Minor Changes
@@ -61,6 +43,7 @@
 ### Minor Changes
 
 - 01eb1fb: feat: Add spanId support for linking dataset examples to traces
+
   - Added `spanId` field to the `Example` interface for linking dataset examples back to their source spans
   - Updated `createDataset` to accept examples with `spanId` and pass them to the API
   - Updated `appendDatasetExamples` to accept examples with `spanId` and pass them to the API
@@ -148,6 +131,7 @@
 - 557865c: Add experiment resume and management features
 
   **New APIs:**
+
   - `createExperiment()` - Create an experiment without running it
   - `resumeExperiment()` - Resume incomplete experiment runs (handles failed or missing runs)
   - `resumeEvaluation()` - Add evaluations to completed experiments or retry failed evaluations
@@ -199,11 +183,13 @@
   This release introduces support for dataset splits, enabling you to segment and query specific portions of your dataset examples. The `DatasetSelector` interface has been enhanced to support filtering by splits, allowing for more granular dataset management and experimentation.
 
   ## New Features
+
   - **Dataset Splits Support**: Query dataset examples by split using the enhanced `DatasetSelector` interface
   - **Split-based Experimentation**: Run experiments on specific dataset splits for targeted evaluation
   - **Enhanced Dataset Types**: Updated type definitions to support split-based dataset operations
 
   ## Breaking Changes
+
   - **`runExperiment` API Changes**:
     - The `datasetVersionId` parameter has been removed from `runExperiment`
     - Version selection is now handled through the `DatasetSelector` interface
@@ -413,6 +399,7 @@
   Phoenix can now manage Prompts, and the `@arizeai/phoenix-client` package has been updated to support this.
 
   In this initial release, we support the following:
+
   - Fully typed Prompt REST endpoints
   - Prompt Pulling
   - Converting a Prompt to invocation parameters for the following LLM SDKs:
