@@ -88,10 +88,6 @@ export default defineConfig(() => {
           advancedChunks: {
             groups: [
               {
-                name: "vendor-three",
-                test: /three\/build/,
-              },
-              {
                 name: "vendor-codemirror",
                 test: /codemirror/,
               },
@@ -115,6 +111,7 @@ export default defineConfig(() => {
                 name: "vendor-json-render",
                 test: /@json-render/,
               },
+              // Catch-all for remaining node_modules
               {
                 name: "vendor",
                 test: /node_modules/,
