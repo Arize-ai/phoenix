@@ -70,8 +70,8 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   try {
     const raw = localStorage.getItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
     if (!raw) {
-      return null
-    };
+      return null;
+    }
     return agentModelConfigSchema.parse(JSON.parse(raw));
   } catch {
     return null;
@@ -85,12 +85,15 @@ const agentsPageCSS = css`
   width: 100%;
 `;
 
+const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
+  provider: "ANTHROPIC",
+  modelName: "claude-4.6-opus",
+};
+
 export function AgentsPage() {
   const [menuValue, setMenuValue] = useState<ModelMenuValue>(() => {
     const config = getAgentModelConfigFromLocalStorage();
-    return config
-      ? toModelMenuValue(config)
-      : { provider: "ANTHROPIC", modelName: "claude-4.6-opus" };
+    return config ? toModelMenuValue(config) : DEFAULT_MODEL_MENU_VALUE;
   });
 
   const chatApiUrl = prependBasename(
@@ -120,7 +123,23 @@ export function AgentsPage() {
   );
 }
 
-type ClarifyingQuestion = { question: string; choices: string[] };
+const clarifyingQuestionSchema = z.object({
+  question: z.string().describe("The clarifying question."),
+  choices: z
+    .array(z.string())
+    .min(2)
+    .max(3)
+    .describe("2-3 possible answers the user can choose from."),
+});
+
+type ClarifyingQuestion = z.infer<typeof clarifyingQuestionSchema>;
+
+const askClarificationParams = z.object({
+  questions: z
+    .array(clarifyingQuestionSchema)
+    .min(1)
+    .describe("List of clarifying questions to ask."),
+});
 
 type PendingClarification = {
   toolCallId: string;
@@ -139,34 +158,7 @@ const AGENT_TOOLS = [
     description:
       "Ask the user clarifying questions when their request is ambiguous. " +
       "Each question must include 2-3 suggested answers.",
-    parameters: {
-      type: "object",
-      properties: {
-        questions: {
-          type: "array",
-          description: "List of clarifying questions to ask.",
-          items: {
-            type: "object",
-            properties: {
-              question: {
-                type: "string",
-                description: "The clarifying question.",
-              },
-              choices: {
-                type: "array",
-                items: { type: "string" },
-                minItems: 2,
-                maxItems: 3,
-                description: "2-3 possible answers the user can choose from.",
-              },
-            },
-            required: ["question", "choices"],
-          },
-          minItems: 1,
-        },
-      },
-      required: ["questions"],
-    },
+    parameters: z.toJSONSchema(askClarificationParams, { target: "draft-07" }),
   },
 ];
 
@@ -244,10 +236,10 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
         toolCall.toolName === "ask_clarification_questions" &&
         toolCall.dynamic
       ) {
-        const input = toolCall.input as { questions: ClarifyingQuestion[] };
+        const { questions } = askClarificationParams.parse(toolCall.input);
         setPendingClarification({
           toolCallId: toolCall.toolCallId,
-          questions: input.questions,
+          questions,
         });
         setCurrentQuestionIndex(0);
         answersRef.current = [];
