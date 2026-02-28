@@ -518,6 +518,7 @@ class Subscription:
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+                sandbox_backend=info.context.sandbox_backend,
             )
             project_ids = await get_evaluator_project_ids(
                 dataset_evaluator_node_ids=dataset_evaluator_node_ids,

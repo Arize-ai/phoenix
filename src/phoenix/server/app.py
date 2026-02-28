@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import importlib
+import importlib.util
 import json
 import logging
 import mimetypes
@@ -71,6 +72,7 @@ from phoenix.config import (
     get_env_max_spans_queue_size,
     get_env_port,
     get_env_support_email,
+    get_working_dir,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
 )
@@ -176,6 +178,7 @@ from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.retention import TraceDataSweeper
+from phoenix.server.sandbox.types import SandboxBackend
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -602,6 +605,7 @@ def _lifespan(
     read_only: bool = False,
     grpc_port: Optional[int] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
+    sandbox_backend: Optional[SandboxBackend] = None,
     grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
@@ -648,6 +652,8 @@ def _lifespan(
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
+            if sandbox_backend is not None:
+                stack.push_async_callback(sandbox_backend.close)
             _warn_if_missing_aioboto3()
             yield {
                 "event_queue": dml_event_handler,
@@ -655,6 +661,7 @@ def _lifespan(
                 "enqueue_span": enqueue_span,
                 "enqueue_evaluation": enqueue_evaluation,
                 "enqueue_operation": enqueue_operation,
+                "sandbox_backend": sandbox_backend,
             }
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -694,6 +701,7 @@ def create_graphql_router(
     secret: Optional[Secret] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
+    sandbox_backend: Optional[SandboxBackend] = None,
 ) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
@@ -897,6 +905,7 @@ def create_graphql_router(
             span_cost_calculator=span_cost_calculator,
             encrypt=encrypt,
             decrypt=decrypt,
+            sandbox_backend=sandbox_backend,
         )
 
     return GraphQLRouter(
@@ -1105,6 +1114,15 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
+    sandbox_backend: Optional[SandboxBackend] = None
+    if importlib.util.find_spec("wasmtime") is not None:
+        wasm_binary_path = get_working_dir() / "sandbox" / "python-3.12.0.wasm"
+        if wasm_binary_path.exists():
+            from phoenix.server.sandbox.wasm_backend import WASMBackend
+
+            sandbox_backend = WASMBackend(wasm_binary=wasm_binary_path)
+            logger.info("WASM sandbox backend initialized")
+
     encryption_service = EncryptionService(secret=secret)
     graphql_router = create_graphql_router(
         db=db,
@@ -1120,6 +1138,7 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
+        sandbox_backend=sandbox_backend,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -1147,6 +1166,7 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
+            sandbox_backend=sandbox_backend,
         ),
         middleware=middlewares,
         exception_handlers={

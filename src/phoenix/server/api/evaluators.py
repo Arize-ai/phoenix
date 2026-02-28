@@ -68,6 +68,7 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
+from phoenix.server.sandbox.types import SandboxBackend
 
 logger = logging.getLogger(__name__)
 
@@ -636,6 +637,310 @@ async def get_builtin_evaluator_from_orm(
     return evaluator_class
 
 
+class CodeEvaluatorRunner(BaseEvaluator):
+    """
+    Evaluator that runs user-provided Python source code in a sandboxed
+    WASM backend and produces annotations from the result.
+    """
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: Optional[str],
+        source_code: str,
+        stored_input_schema: dict[str, Any],
+        stored_output_configs: list[EvaluatorOutputConfig],
+        sandbox_backend: Optional[SandboxBackend],
+    ) -> None:
+        self._name = name
+        self._description = description
+        self._source_code = source_code
+        self._stored_input_schema = stored_input_schema
+        self._stored_output_configs = stored_output_configs
+        self._sandbox_backend = sandbox_backend
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return self._stored_input_schema
+
+    @property
+    def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
+        return self._stored_output_configs
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: EvaluatorInputMappingInput,
+        name: str,
+        output_configs: Sequence[EvaluatorOutputConfig],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        from phoenix.server.sandbox.types import ExecutionResult
+
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                if self._sandbox_backend is None:
+                    logger.warning(
+                        f"Code evaluator '{self._name}' invoked but no sandbox backend available"
+                    )
+                    end_time = datetime.now(timezone.utc)
+                    return [
+                        EvaluationResult(
+                            name=name,
+                            annotator_kind="CODE",
+                            label=None,
+                            score=None,
+                            explanation=None,
+                            metadata={},
+                            error="No sandbox backend available",
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=end_time,
+                        )
+                    ]
+
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as template_span:
+                    inputs = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    inputs = cast_template_variable_types(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=inputs,
+                        input_schema=self.input_schema,
+                    )
+                    template_span.set_attributes(oi.get_output_attributes(inputs))
+                    template_span.set_status(Status(StatusCode.OK))
+
+                harness = (
+                    "import json, sys\n"
+                    f"{self._source_code}\n"
+                    f"_inputs = json.loads({json.dumps(json.dumps(inputs))})\n"
+                    "try:\n"
+                    "    _result = score(**_inputs)\n"
+                    "    print(json.dumps(_result))\n"
+                    "except Exception as _e:\n"
+                    "    print(str(_e), file=sys.stderr)\n"
+                    "    sys.exit(1)\n"
+                )
+
+                with tracer_.start_as_current_span(
+                    "Sandbox Execution",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes({"source_code": self._source_code}),
+                    },
+                ) as execution_span:
+                    result: ExecutionResult = await self._sandbox_backend.execute(
+                        harness, timeout=30.0
+                    )
+                    execution_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "stdout": result.stdout,
+                                "stderr": result.stderr,
+                                "exit_code": result.exit_code,
+                            }
+                        )
+                    )
+                    execution_span.set_status(Status(StatusCode.OK))
+
+                end_time = datetime.now(timezone.utc)
+
+                if result.timed_out:
+                    evaluator_span.set_status(Status(StatusCode.ERROR, "Execution timed out"))
+                    return [
+                        EvaluationResult(
+                            name=name,
+                            annotator_kind="CODE",
+                            label=None,
+                            score=None,
+                            explanation=None,
+                            metadata={},
+                            error="Execution timed out",
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=end_time,
+                        )
+                    ]
+
+                if result.exit_code != 0:
+                    error_msg = result.stderr or f"Process exited with code {result.exit_code}"
+                    evaluator_span.set_status(Status(StatusCode.ERROR, error_msg))
+                    return [
+                        EvaluationResult(
+                            name=name,
+                            annotator_kind="CODE",
+                            label=None,
+                            score=None,
+                            explanation=None,
+                            metadata={},
+                            error=error_msg,
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=end_time,
+                        )
+                    ]
+
+                raw_output = json.loads(result.stdout)
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(result.stdout, mime_type="application/json"),
+                    },
+                ) as parse_span:
+                    label, score, explanation = self._coerce_output(raw_output, output_configs)
+
+                    parse_span.set_attributes(
+                        oi.get_output_attributes(
+                            {"label": label, "score": score, "explanation": explanation}
+                        )
+                    )
+                    parse_span.set_status(Status(StatusCode.OK))
+
+                metadata = (
+                    raw_output if len(json.dumps(raw_output)) <= 1024 else {"_truncated": True}
+                )
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {"label": label, "score": score, "explanation": explanation}
+                    )
+                )
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+                return [
+                    EvaluationResult(
+                        name=name,
+                        annotator_kind="CODE",
+                        label=label,
+                        score=score,
+                        explanation=explanation,
+                        metadata=metadata,
+                        error=None,
+                        trace_id=trace_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+                ]
+
+            except Exception as e:
+                logger.exception(f"Code evaluator '{self._name}' failed")
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                end_time = datetime.now(timezone.utc)
+                return [
+                    EvaluationResult(
+                        name=name,
+                        annotator_kind="CODE",
+                        label=None,
+                        score=None,
+                        explanation=None,
+                        metadata={},
+                        error=str(e),
+                        trace_id=trace_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+                ]
+
+    @staticmethod
+    def _coerce_output(
+        raw_output: dict[str, Any],
+        output_configs: Sequence[EvaluatorOutputConfig],
+    ) -> tuple[Optional[str], Optional[float], Optional[str]]:
+        """
+        Coerce raw sandbox output through output_configs (D5 coercion).
+
+        Returns (label, score, explanation).
+        """
+        explanation = raw_output.get("explanation")
+        if isinstance(explanation, str):
+            pass
+        else:
+            explanation = None
+
+        if not output_configs:
+            label = raw_output.get("label")
+            if not isinstance(label, str):
+                label = None
+            score = raw_output.get("score")
+            if not isinstance(score, (int, float)):
+                score = None
+            else:
+                score = float(score)
+            return label, score, explanation
+
+        config = output_configs[0]
+
+        if isinstance(config, CategoricalAnnotationConfig):
+            label = raw_output.get("label")
+            if not isinstance(label, str):
+                raise ValueError("Categorical output requires a string 'label' field")
+            valid_labels = {v.label for v in config.values}
+            if label not in valid_labels:
+                raise ValueError(f"Label '{label}' not in allowed values: {sorted(valid_labels)}")
+            score = None
+            for v in config.values:
+                if v.label == label and v.score is not None:
+                    score = v.score
+                    break
+            return label, score, explanation
+
+        elif isinstance(config, ContinuousAnnotationConfig):
+            score = raw_output.get("score")
+            if not isinstance(score, (int, float)):
+                raise ValueError("Continuous output requires a numeric 'score' field")
+            return None, float(score), explanation
+
+        return None, None, explanation
+
+
 async def _get_llm_evaluators(
     *,
     evaluator_node_ids: list[GlobalID],
@@ -799,6 +1104,7 @@ async def get_evaluators(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
+    sandbox_backend: Optional[SandboxBackend] = None,
 ) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator node IDs.
@@ -806,7 +1112,7 @@ async def get_evaluators(
     Returns a list of BaseEvaluator instances in the same order as the input node IDs.
     This ordering guarantee is important for correlating evaluators with their inputs.
 
-    For each DatasetEvaluator, resolves to the underlying LLM or BuiltIn evaluator.
+    For each DatasetEvaluator, resolves to the underlying LLM, BuiltIn, or Code evaluator.
     Multiple DatasetEvaluators can reference the same underlying evaluator (e.g., two
     "Contains" evaluators with different names), and this function preserves that
     multiplicity by returning separate evaluator instances for each.
@@ -859,14 +1165,17 @@ async def get_evaluators(
         for evaluator in evaluators_result:
             evaluator_kinds_by_id[evaluator.id] = evaluator.kind
 
-    # Collect LLM and BUILTIN evaluator IDs that need to be fetched
+    # Collect LLM, BUILTIN, and CODE evaluator IDs that need to be fetched
     llm_evaluator_db_ids: set[int] = set()
     builtin_evaluator_db_ids: set[int] = set()
+    code_evaluator_db_ids: set[int] = set()
     for eval_id, kind in evaluator_kinds_by_id.items():
         if kind == "LLM":
             llm_evaluator_db_ids.add(eval_id)
         elif kind == "BUILTIN":
             builtin_evaluator_db_ids.add(eval_id)
+        elif kind == "CODE":
+            code_evaluator_db_ids.add(eval_id)
 
     # Single batch query for all LLM evaluators (if any)
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
@@ -897,6 +1206,15 @@ async def get_evaluators(
         for builtin_evaluator in builtin_evaluators_result:
             builtin_evaluator_keys_by_id[builtin_evaluator.id] = builtin_evaluator.key
 
+    # Single batch query for all CODE evaluators (if any)
+    code_evaluators_by_id: dict[int, models.CodeEvaluator] = {}
+    if code_evaluator_db_ids:
+        code_evaluators_result = await session.scalars(
+            select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
+        )
+        for code_evaluator in code_evaluators_result:
+            code_evaluators_by_id[code_evaluator.id] = code_evaluator
+
     # Build result list in original input order, preserving duplicates
     evaluators: list[BaseEvaluator] = []
     for db_id in dataset_evaluator_db_ids:
@@ -921,6 +1239,26 @@ async def get_evaluators(
             if builtin_evaluator_cls is None:
                 raise NotFound(f"Built-in evaluator with key '{builtin_key}' not found in registry")
             evaluators.append(builtin_evaluator_cls())
+        elif evaluator_kind == "CODE":
+            # Code evaluator - instantiate runner with sandbox backend
+            code_eval = code_evaluators_by_id.get(evaluator_id)
+            if code_eval is None:
+                raise NotFound(f"Code evaluator with ID '{evaluator_id}' not found")
+            output_configs: list[EvaluatorOutputConfig] = [
+                c
+                for c in code_eval.output_configs
+                if isinstance(c, (CategoricalAnnotationConfig, ContinuousAnnotationConfig))
+            ]
+            evaluators.append(
+                CodeEvaluatorRunner(
+                    name=str(code_eval.name),
+                    description=code_eval.description,
+                    source_code=code_eval.source_code,
+                    stored_input_schema=code_eval.input_schema,
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                )
+            )
         else:
             raise BadRequest(
                 f"DatasetEvaluator '{db_id}' references evaluator with "

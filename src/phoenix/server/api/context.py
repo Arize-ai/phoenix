@@ -1,7 +1,7 @@
 from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import cached_property, partial
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 from starlette.datastructures import Secret
 from starlette.requests import Request as StarletteRequest
@@ -87,6 +87,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.email.types import EmailSender
+from phoenix.server.sandbox.types import SandboxBackend
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -94,9 +95,6 @@ from phoenix.server.types import (
     TokenStore,
     UserId,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass
@@ -236,6 +234,7 @@ class Context(BaseContext):
     secret: Optional[Secret] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
+    sandbox_backend: Optional[SandboxBackend] = None
 
     def get_secret(self) -> Secret:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.

@@ -25,6 +25,7 @@ from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
+    derive_input_schema,
     validate_consistent_llm_evaluator_and_prompt_version,
     validate_unique_config_names,
 )
@@ -677,6 +678,7 @@ class EvaluatorMutationMixin:
                     language=input.language,
                     input_mapping=input.input_mapping.to_orm(),
                     output_configs=output_configs,
+                    input_schema=derive_input_schema(input.source_code, "score"),
                     user_id=user_id,
                 )
                 code_evaluator.updated_at = datetime.now(timezone.utc)
@@ -722,6 +724,7 @@ class EvaluatorMutationMixin:
 
             if input.source_code is not UNSET and input.source_code is not None:
                 code_evaluator.source_code = input.source_code
+                code_evaluator.input_schema = derive_input_schema(input.source_code, "score")
 
             if input.language is not UNSET and input.language is not None:
                 code_evaluator.language = input.language

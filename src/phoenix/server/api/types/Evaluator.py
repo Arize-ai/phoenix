@@ -210,8 +210,13 @@ class CodeEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[JSON]:
-        # TODO: Implement input_schema for CodeEvaluator
-        return None
+        if self.db_record:
+            val = self.db_record.input_schema
+        else:
+            val = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.input_schema),
+            )
+        return val
 
     @strawberry.field
     async def input_mapping(

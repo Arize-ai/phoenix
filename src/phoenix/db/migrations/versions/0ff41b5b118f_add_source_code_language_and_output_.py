@@ -1,4 +1,4 @@
-"""add source_code, language, input_mapping, and output_configs to code_evaluators
+"""add source_code, language, input_mapping, output_configs, and input_schema to code_evaluators
 
 Revision ID: 0ff41b5b118f
 Revises: f1a6b2f0c9d5
@@ -79,6 +79,14 @@ def upgrade() -> None:
                 nullable=False,
             ),
         )
+        batch_op.add_column(
+            sa.Column(
+                "input_schema",
+                JSON_,
+                server_default="{}",
+                nullable=False,
+            ),
+        )
         batch_op.create_check_constraint(
             constraint_name="valid_code_evaluator_language",
             condition="language IN ('PYTHON')",
@@ -88,6 +96,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.drop_constraint("valid_code_evaluator_language", type_="check")
+        batch_op.drop_column("input_schema")
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
         batch_op.drop_column("language")

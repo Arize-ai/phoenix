@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Literal, Optional
+import ast
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from pydantic import (
     BaseModel,
@@ -386,3 +387,100 @@ def get_evaluator_output_configs(
             )
         narrowed.append(config)
     return narrowed
+
+
+# Python annotation name → JSON Schema type mapping
+_PYTHON_TYPE_TO_JSON_SCHEMA: dict[str, dict[str, str]] = {
+    "str": {"type": "string"},
+    "int": {"type": "integer"},
+    "float": {"type": "number"},
+    "bool": {"type": "boolean"},
+    "list": {"type": "array"},
+    "List": {"type": "array"},
+    "dict": {"type": "object"},
+    "Dict": {"type": "object"},
+}
+
+
+def _annotation_to_json_schema(annotation: ast.expr | None) -> dict[str, Any]:
+    """Convert a Python AST annotation node to a JSON schema type descriptor."""
+    if annotation is None:
+        return {}
+    if isinstance(annotation, ast.Name):
+        return dict(_PYTHON_TYPE_TO_JSON_SCHEMA.get(annotation.id, {}))
+    if isinstance(annotation, ast.Constant) and isinstance(annotation.value, str):
+        return dict(_PYTHON_TYPE_TO_JSON_SCHEMA.get(annotation.value, {}))
+    if isinstance(annotation, ast.Subscript):
+        if isinstance(annotation.value, ast.Name):
+            base = annotation.value.id
+            if base in ("Optional",):
+                # Optional[X] → schema of X (optionality handled via required[])
+                return _annotation_to_json_schema(annotation.slice)
+            return dict(_PYTHON_TYPE_TO_JSON_SCHEMA.get(base, {}))
+    if isinstance(annotation, ast.Attribute):
+        return {}
+    return {}
+
+
+def _is_optional_annotation(annotation: ast.expr | None) -> bool:
+    """Check if an annotation is Optional[X] (i.e., typing.Optional or X | None)."""
+    if annotation is None:
+        return False
+    if isinstance(annotation, ast.Subscript):
+        if isinstance(annotation.value, ast.Name) and annotation.value.id == "Optional":
+            return True
+    if isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr):
+        for operand in (annotation.left, annotation.right):
+            if isinstance(operand, ast.Constant) and operand.value is None:
+                return True
+            if isinstance(operand, ast.Name) and operand.id == "None":
+                return True
+    return False
+
+
+def derive_input_schema(source_code: str, callable_name: str) -> dict[str, Any]:
+    """
+    Parse source_code using the ast module and extract a JSON schema from the
+    function signature of the callable with the given name.
+
+    Returns a JSON schema dict of the form:
+        {"type": "object", "properties": {...}, "required": [...]}
+
+    Returns {} if source_code is empty or the callable is not found.
+    """
+    if not source_code.strip():
+        return {}
+    try:
+        tree = ast.parse(source_code)
+    except SyntaxError:
+        return {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == callable_name:
+            return _schema_from_function_def(node)
+    return {}
+
+
+def _schema_from_function_def(func: ast.FunctionDef) -> dict[str, Any]:
+    """Build a JSON schema object from a function's arguments."""
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+    args = func.args
+
+    # Number of args that have defaults (aligned to the end of args.args)
+    num_defaults = len(args.defaults)
+    num_args = len(args.args)
+
+    for i, arg in enumerate(args.args):
+        name = arg.arg
+        schema = _annotation_to_json_schema(arg.annotation)
+        properties[name] = schema
+
+        has_default = i >= (num_args - num_defaults)
+        is_optional = _is_optional_annotation(arg.annotation)
+        if not has_default and not is_optional:
+            required.append(name)
+
+    result: dict[str, Any] = {"type": "object", "properties": properties}
+    if required:
+        result["required"] = required
+    return result
