@@ -310,17 +310,6 @@ def _is_float_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
     )
 
 
-def _is_bool_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(func := node.func, ast.Attribute)
-        and func.attr == "as_boolean"
-        and isinstance(value := func.value, ast.Subscript)
-        and isinstance(name := value.value, ast.Name)
-        and name.id == "attributes"
-    )
-
-
 def _as_string_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call:
     if isinstance(node, ast.Call):
         value = typing.cast(ast.Attribute, node.func).value
