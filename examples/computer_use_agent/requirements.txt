@@ -2,10 +2,10 @@ arize-phoenix
 arize-phoenix-evals
 arize-phoenix-otel
 beautifulsoup4==4.12.3
-langchain==0.3.14
-langchain-anthropic==0.3.0
-langchain-core>=0.3.29,<0.3.72
-langgraph==0.2.62
+langchain>=0.3.14
+langchain-anthropic>=0.3.0
+langchain-core>=0.3.81
+langgraph>=0.2.62
 loguru==0.7.2
 pandas==2.2.3
 python-dotenv==1.0.1
