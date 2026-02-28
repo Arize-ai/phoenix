@@ -358,16 +358,18 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
           !pendingClarification && <p className="chat__loading">...</p>}
         <div ref={bottomRef} />
       </div>
-      <MessageBar
-        onSendMessage={(text) =>
-          sendMessage(
-            { text },
-            { body: { system: SYSTEM_PROMPT, tools: AGENT_TOOLS } }
-          )
-        }
-        isSending={isLoading || pendingClarification !== null}
-        placeholder="Send a message…"
-      />
+      <View paddingX="size-100" paddingY="size-100">
+        <MessageBar
+          onSendMessage={(text) =>
+            sendMessage(
+              { text },
+              { body: { system: SYSTEM_PROMPT, tools: AGENT_TOOLS } }
+            )
+          }
+          isSending={isLoading || pendingClarification !== null}
+          placeholder="Send a message…"
+        />
+      </View>
     </div>
   );
 }
