@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, isTextUIPart, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import { z } from "zod";
@@ -111,13 +111,6 @@ export function AgentsPage() {
   );
 }
 
-function getTextContent(parts: { type: string; text?: string }[]): string {
-  return parts
-    .filter((p): p is { type: "text"; text: string } => p.type === "text")
-    .map((p) => p.text)
-    .join("");
-}
-
 const agentChatCSS = css`
   display: flex;
   flex-direction: column;
@@ -167,11 +160,32 @@ const agentChatCSS = css`
   }
 `;
 
-interface AgentChatProps {
-  chatApiUrl: string;
+function EmptyState() {
+  return <p className="chat__empty">Send a message to chat with Pixi</p>;
 }
 
-function AgentChat({ chatApiUrl }: AgentChatProps) {
+function UserMessage({ parts }: { parts: UIMessage["parts"] }) {
+  return (
+    <div className="chat__user-message">
+      {parts
+        .filter(isTextUIPart)
+        .map((p) => p.text)
+        .join("")}
+    </div>
+  );
+}
+
+function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
+  return (
+    <div className="chat__assistant-message">
+      {parts.map((part, i) =>
+        isTextUIPart(part) ? <Streamdown key={i}>{part.text}</Streamdown> : null
+      )}
+    </div>
+  );
+}
+
+function AgentChat({ chatApiUrl }: { chatApiUrl: string }) {
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
   });
@@ -186,22 +200,12 @@ function AgentChat({ chatApiUrl }: AgentChatProps) {
   return (
     <div css={agentChatCSS}>
       <div className="chat__messages">
-        {messages.length === 0 && (
-          <p className="chat__empty">Send a message to chat with Pixi</p>
-        )}
+        {messages.length === 0 && <EmptyState />}
         {messages.map((m) =>
           m.role === "user" ? (
-            <div key={m.id} className="chat__user-message">
-              {getTextContent(m.parts as { type: string; text?: string }[])}
-            </div>
+            <UserMessage key={m.id} parts={m.parts} />
           ) : (
-            <div key={m.id} className="chat__assistant-message">
-              {(m.parts as { type: string; text?: string }[]).map((part, i) =>
-                part.type === "text" ? (
-                  <Streamdown key={i}>{part.text ?? ""}</Streamdown>
-                ) : null
-              )}
-            </div>
+            <AssistantMessage key={m.id} parts={m.parts} />
           )
         )}
         {isLoading && messages.at(-1)?.role !== "assistant" && (
