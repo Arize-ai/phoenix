@@ -89,16 +89,16 @@ const agentsPageCSS = css`
 `;
 
 export function AgentsPage() {
-  const [menuValue, setMenuValue] = useState<ModelMenuValue | null>(() => {
+  const [menuValue, setMenuValue] = useState<ModelMenuValue>(() => {
     const config = getAgentModelConfigFromLocalStorage();
-    return config ? toModelMenuValue(config) : null;
+    return config
+      ? toModelMenuValue(config)
+      : { provider: "ANTHROPIC", modelName: "claude-4.6-opus" };
   });
 
-  const chatApiUrl = menuValue
-    ? menuValue.customProvider
-      ? `/vercel_chat_stream?provider_type=custom&provider_id=${encodeURIComponent(menuValue.customProvider.id)}&model_name=${encodeURIComponent(menuValue.modelName)}`
-      : `/vercel_chat_stream?provider_type=builtin&provider=${encodeURIComponent(menuValue.provider)}&model_name=${encodeURIComponent(menuValue.modelName)}`
-    : null;
+  const chatApiUrl = menuValue.customProvider
+    ? `/vercel_chat_stream?provider_type=custom&provider_id=${encodeURIComponent(menuValue.customProvider.id)}&model_name=${encodeURIComponent(menuValue.modelName)}`
+    : `/vercel_chat_stream?provider_type=builtin&provider=${encodeURIComponent(menuValue.provider)}&model_name=${encodeURIComponent(menuValue.modelName)}`;
 
   const handleChange = (model: ModelMenuValue) => {
     setMenuValue(model);
@@ -113,15 +113,7 @@ export function AgentsPage() {
       <div className="agents-page__header">
         <ModelMenu value={menuValue} onChange={handleChange} />
       </div>
-      {chatApiUrl ? (
-        <AgentChat key={chatApiUrl} chatApiUrl={chatApiUrl} />
-      ) : (
-        <div css={agentChatCSS}>
-          <div className="chat__messages">
-            <p className="chat__empty">Select a model to start chatting.</p>
-          </div>
-        </div>
-      )}
+      <AgentChat key={chatApiUrl} chatApiUrl={chatApiUrl} />
     </div>
   );
 }
