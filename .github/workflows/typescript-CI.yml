@@ -75,7 +75,7 @@ jobs:
           pnpm run test
 
   ci-required:
-    name: CI Required
+    name: TypeScript CI Required
     needs:
       - changes
       - ci

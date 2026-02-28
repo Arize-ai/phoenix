@@ -74,7 +74,7 @@ jobs:
           pnpm run lint
 
   ci-required:
-    name: CI Required
+    name: TypeScript Packages CI Required
     needs:
       - changes
       - ci
