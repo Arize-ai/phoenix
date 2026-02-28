@@ -125,12 +125,13 @@ def _migrate_with_pg_lock(
             # the connection is in a clean state for Alembic's run_migrations(),
             # which calls connection.begin() and expects no active transaction.
             conn.commit()
-            try:
-                alembic_cfg.attributes["connection"] = conn
-                command.upgrade(alembic_cfg, "head")
-            finally:
-                conn.execute(text(f"SELECT pg_advisory_unlock({_MIGRATION_LOCK_KEY})"))
-                logger.info("Migration advisory lock released.")
+            alembic_cfg.attributes["connection"] = conn
+            command.upgrade(alembic_cfg, "head")
+            # The advisory lock is session-level and is automatically released
+            # when the connection is closed (by the context manager or by
+            # Alembic's env.py which calls connection.close() in its finally
+            # block). No explicit pg_advisory_unlock is needed.
+            logger.info("Migration advisory lock released.")
         elapsed_time = perf_counter() - start_time
         engine.dispose()
         printif(log_migrations, "---------------------------")
