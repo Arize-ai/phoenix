@@ -99,6 +99,14 @@ export default defineConfig(() => {
                 name: "vendor-shiki",
                 test: /shiki/,
               },
+              {
+                name: "vendor-ai-sdk-react",
+                test: /@ai-sdk\/react|\/node_modules\/ai\//,
+              },
+              {
+                name: "vendor-streamdown",
+                test: /streamdown/,
+              },
               // Catch-all for remaining node_modules
               {
                 name: "vendor",
