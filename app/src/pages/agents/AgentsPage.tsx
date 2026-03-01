@@ -64,35 +64,35 @@ function Chat({ chatApiUrl }: { chatApiUrl: string }) {
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
   });
 
-  const assistantMessageInProgress =
-    status === "submitted" || status === "streaming";
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, assistantMessageInProgress]);
+  }, [messages, status]);
 
   return (
     <div css={chatCSS}>
-      <div className="chat__messages">
-        {messages.length === 0 && <EmptyState />}
-        {messages.map((m) =>
-          m.role === "user" ? (
-            <UserMessage key={m.id} parts={m.parts} />
-          ) : (
-            <AssistantMessage key={m.id} parts={m.parts} />
-          )
-        )}
-        {status === "submitted" && <Loading />}
-        <div ref={bottomRef} />
+      <div className="chat__scroll">
+        <div className="chat__messages">
+          {messages.length === 0 && <EmptyState />}
+          {messages.map((m) =>
+            m.role === "user" ? (
+              <UserMessage key={m.id} parts={m.parts} />
+            ) : (
+              <AssistantMessage key={m.id} parts={m.parts} />
+            )
+          )}
+          {status === "submitted" && <Loading />}
+          <div ref={bottomRef} />
+        </div>
       </div>
-      <View paddingX="size-100" paddingY="size-100">
+      <div className="chat__input">
         <MessageBar
           onSendMessage={(text) => sendMessage({ text })}
-          isSending={assistantMessageInProgress}
+          isSending={status === "submitted" || status === "streaming"}
           placeholder="Send a message…"
         />
-      </View>
+      </div>
     </div>
   );
 }
@@ -127,19 +127,34 @@ function EmptyState() {
 }
 
 const chatCSS = css`
-  display: flex;
-  flex-direction: column;
+  position: relative;
   flex: 1;
   min-height: 0;
 
-  .chat__messages {
-    flex: 1;
+  .chat__scroll {
+    height: 100%;
     overflow-y: auto;
+  }
+
+  .chat__messages {
+    max-width: 780px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
     padding: var(--global-dimension-size-200);
-    min-height: 0;
+    padding-bottom: var(--global-dimension-size-1200);
+  }
+
+  .chat__input {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    background-color: var(--global-color-gray-75);
   }
 
   .chat__user-message {
@@ -197,6 +212,9 @@ const agentModelConfigSchema = z.object({
   customProviderId: z.string().optional(),
 });
 
+/**
+ * Converts a {@link ModelMenuValue} to the shape persisted in localStorage.
+ */
 function toAgentModelConfig(model: ModelMenuValue): AgentModelConfig {
   return {
     provider: model.provider,
@@ -205,6 +223,10 @@ function toAgentModelConfig(model: ModelMenuValue): AgentModelConfig {
   };
 }
 
+/**
+ * Converts a persisted {@link AgentModelConfig} back into a {@link ModelMenuValue}
+ * for the model selector UI.
+ */
 function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
   return {
     provider: config.provider,
@@ -215,6 +237,10 @@ function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
   };
 }
 
+/**
+ * Reads and validates the saved agent model config from localStorage.
+ * Returns `null` if nothing is stored or the value fails validation.
+ */
 export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   try {
     const raw = localStorage.getItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
