@@ -140,11 +140,13 @@ function Chat({ chatApiUrl }: { chatApiUrl: string }) {
         </div>
       </div>
       <div className="chat__input">
-        <MessageBar
-          onSendMessage={(text) => sendMessage({ text })}
-          isSending={status === "submitted" || status === "streaming"}
-          placeholder="Send a message…"
-        />
+        <View paddingX="size-100">
+          <MessageBar
+            onSendMessage={(text) => sendMessage({ text })}
+            isSending={status === "submitted" || status === "streaming"}
+            placeholder="Send a message…"
+          />
+        </View>
       </div>
     </div>
   );
@@ -181,7 +183,7 @@ function EmptyState() {
 
 const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
   provider: "ANTHROPIC",
-  modelName: "claude-4.6-opus",
+  modelName: "claude-opus-4-6",
 };
 
 const GENERATIVE_PROVIDER_KEY_SCHEMA = z.enum([
