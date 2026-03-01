@@ -17,7 +17,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 
 export const AGENT_MODEL_LOCAL_STORAGE_KEY = "arize-phoenix-agent-config";
 
-export type AgentModelConfig = z.infer<typeof agentModelConfigSchema>;
+export type AgentModelConfig = z.infer<typeof AGENT_MODEL_CONFIG_SCHEMA>;
 
 export function AgentsPage() {
   const [menuValue, setMenuValue] = useState<ModelMenuValue>(() => {
@@ -40,14 +40,7 @@ export function AgentsPage() {
   };
 
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        width: 100%;
-      `}
-    >
+    <>
       <View borderBottomColor="dark" borderBottomWidth="thin">
         <PageHeader
           title="Pixi"
@@ -55,9 +48,73 @@ export function AgentsPage() {
         />
       </View>
       <Chat key={chatApiUrl} chatApiUrl={chatApiUrl} />
-    </div>
+    </>
   );
 }
+
+const chatCSS = css`
+  position: relative;
+  flex: 1;
+  min-height: 0;
+
+  .chat__scroll {
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .chat__messages {
+    max-width: 780px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-200);
+    padding-bottom: var(--global-dimension-size-1200);
+  }
+
+  .chat__input {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    background-color: var(--global-color-gray-75);
+  }
+
+  .chat__user-message {
+    align-self: flex-end;
+    background-color: var(--global-color-primary-700);
+    color: var(--global-color-gray-50);
+    border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
+      var(--global-rounding-large);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+    max-width: 75%;
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    word-wrap: break-word;
+  }
+
+  .chat__assistant-message {
+    align-self: flex-start;
+    max-width: 90%;
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
+
+  .chat__empty {
+    text-align: center;
+    margin-top: var(--global-dimension-size-400);
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-s);
+  }
+
+  .chat__loading {
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-s);
+  }
+`;
 
 function Chat({ chatApiUrl }: { chatApiUrl: string }) {
   const { messages, sendMessage, status } = useChat({
@@ -126,76 +183,12 @@ function EmptyState() {
   return <p className="chat__empty">Send a message to chat with Pixi</p>;
 }
 
-const chatCSS = css`
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  .chat__scroll {
-    height: 100%;
-    overflow-y: auto;
-  }
-
-  .chat__messages {
-    max-width: 780px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200);
-    padding-bottom: var(--global-dimension-size-1200);
-  }
-
-  .chat__input {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-width: 900px;
-    margin: 0 auto;
-    width: 100%;
-    background-color: var(--global-color-gray-75);
-  }
-
-  .chat__user-message {
-    align-self: flex-end;
-    background-color: var(--global-color-primary-700);
-    color: var(--global-color-gray-50);
-    border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
-      var(--global-rounding-large);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    max-width: 75%;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-    word-wrap: break-word;
-  }
-
-  .chat__assistant-message {
-    align-self: flex-start;
-    max-width: 90%;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-  }
-
-  .chat__empty {
-    text-align: center;
-    margin-top: var(--global-dimension-size-400);
-    color: var(--global-text-color-300);
-    font-size: var(--global-font-size-s);
-  }
-
-  .chat__loading {
-    color: var(--global-text-color-300);
-    font-size: var(--global-font-size-s);
-  }
-`;
-
 const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
   provider: "ANTHROPIC",
   modelName: "claude-4.6-opus",
 };
 
-const generativeProviderKeySchema = z.enum([
+const GENERATIVE_PROVIDER_KEY_SCHEMA = z.enum([
   "ANTHROPIC",
   "AWS",
   "AZURE_OPENAI",
@@ -206,8 +199,8 @@ const generativeProviderKeySchema = z.enum([
   "XAI",
 ]) satisfies z.ZodType<GenerativeProviderKey>;
 
-const agentModelConfigSchema = z.object({
-  provider: generativeProviderKeySchema,
+const AGENT_MODEL_CONFIG_SCHEMA = z.object({
+  provider: GENERATIVE_PROVIDER_KEY_SCHEMA,
   model: z.string(),
   customProviderId: z.string().optional(),
 });
@@ -247,7 +240,7 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
     if (!raw) {
       return null;
     }
-    return agentModelConfigSchema.parse(JSON.parse(raw));
+    return AGENT_MODEL_CONFIG_SCHEMA.parse(JSON.parse(raw));
   } catch {
     return null;
   }
