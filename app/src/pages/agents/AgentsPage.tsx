@@ -66,13 +66,6 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   }
 }
 
-const agentsPageCSS = css`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-`;
-
 const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
   provider: "ANTHROPIC",
   modelName: "claude-4.6-opus",
@@ -99,7 +92,14 @@ export function AgentsPage() {
   };
 
   return (
-    <div css={agentsPageCSS}>
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+      `}
+    >
       <View borderBottomColor="dark" borderBottomWidth="thin">
         <PageHeader
           title="Pixi"
