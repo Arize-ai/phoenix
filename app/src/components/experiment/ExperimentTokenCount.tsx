@@ -38,7 +38,7 @@ export function ExperimentTokenCount(props: ExperimentTokenCountProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount size={props.size} role="button">
+        <TokenCount size={props.size} role="button" tabIndex={0}>
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>
