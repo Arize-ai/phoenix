@@ -17,59 +17,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 
 export const AGENT_MODEL_LOCAL_STORAGE_KEY = "arize-phoenix-agent-config";
 
-const generativeProviderKeySchema = z.enum([
-  "ANTHROPIC",
-  "AWS",
-  "AZURE_OPENAI",
-  "DEEPSEEK",
-  "GOOGLE",
-  "OLLAMA",
-  "OPENAI",
-  "XAI",
-]) satisfies z.ZodType<GenerativeProviderKey>;
-
-const agentModelConfigSchema = z.object({
-  provider: generativeProviderKeySchema,
-  model: z.string(),
-  customProviderId: z.string().optional(),
-});
-
 export type AgentModelConfig = z.infer<typeof agentModelConfigSchema>;
-
-function toAgentModelConfig(model: ModelMenuValue): AgentModelConfig {
-  return {
-    provider: model.provider,
-    model: model.modelName,
-    customProviderId: model.customProvider?.id,
-  };
-}
-
-function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
-  return {
-    provider: config.provider,
-    modelName: config.model,
-    ...(config.customProviderId && {
-      customProvider: { id: config.customProviderId, name: "" },
-    }),
-  };
-}
-
-export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
-  try {
-    const raw = localStorage.getItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    return agentModelConfigSchema.parse(JSON.parse(raw));
-  } catch {
-    return null;
-  }
-}
-
-const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
-  provider: "ANTHROPIC",
-  modelName: "claude-4.6-opus",
-};
 
 export function AgentsPage() {
   const [menuValue, setMenuValue] = useState<ModelMenuValue>(() => {
@@ -109,6 +57,73 @@ export function AgentsPage() {
       <Chat key={chatApiUrl} chatApiUrl={chatApiUrl} />
     </div>
   );
+}
+
+function Chat({ chatApiUrl }: { chatApiUrl: string }) {
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
+  });
+
+  const assistantMessageInProgress =
+    status === "submitted" || status === "streaming";
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, assistantMessageInProgress]);
+
+  return (
+    <div css={chatCSS}>
+      <div className="chat__messages">
+        {messages.length === 0 && <EmptyState />}
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <UserMessage key={m.id} parts={m.parts} />
+          ) : (
+            <AssistantMessage key={m.id} parts={m.parts} />
+          )
+        )}
+        {status === "submitted" && <Loading />}
+        <div ref={bottomRef} />
+      </div>
+      <View paddingX="size-100" paddingY="size-100">
+        <MessageBar
+          onSendMessage={(text) => sendMessage({ text })}
+          isSending={assistantMessageInProgress}
+          placeholder="Send a message…"
+        />
+      </View>
+    </div>
+  );
+}
+
+function UserMessage({ parts }: { parts: UIMessage["parts"] }) {
+  return (
+    <div className="chat__user-message">
+      {parts
+        .filter(isTextUIPart)
+        .map((p) => p.text)
+        .join("")}
+    </div>
+  );
+}
+
+function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
+  return (
+    <div className="chat__assistant-message">
+      {parts.map((part, i) =>
+        isTextUIPart(part) ? <Streamdown key={i}>{part.text}</Streamdown> : null
+      )}
+    </div>
+  );
+}
+
+function Loading() {
+  return <p className="chat__loading">...</p>;
+}
+
+function EmptyState() {
+  return <p className="chat__empty">Send a message to chat with Pixi</p>;
 }
 
 const chatCSS = css`
@@ -160,69 +175,54 @@ const chatCSS = css`
   }
 `;
 
-function Loading() {
-  return <p className="chat__loading">...</p>;
+const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
+  provider: "ANTHROPIC",
+  modelName: "claude-4.6-opus",
+};
+
+const generativeProviderKeySchema = z.enum([
+  "ANTHROPIC",
+  "AWS",
+  "AZURE_OPENAI",
+  "DEEPSEEK",
+  "GOOGLE",
+  "OLLAMA",
+  "OPENAI",
+  "XAI",
+]) satisfies z.ZodType<GenerativeProviderKey>;
+
+const agentModelConfigSchema = z.object({
+  provider: generativeProviderKeySchema,
+  model: z.string(),
+  customProviderId: z.string().optional(),
+});
+
+function toAgentModelConfig(model: ModelMenuValue): AgentModelConfig {
+  return {
+    provider: model.provider,
+    model: model.modelName,
+    customProviderId: model.customProvider?.id,
+  };
 }
 
-function EmptyState() {
-  return <p className="chat__empty">Send a message to chat with Pixi</p>;
+function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
+  return {
+    provider: config.provider,
+    modelName: config.model,
+    ...(config.customProviderId && {
+      customProvider: { id: config.customProviderId, name: "" },
+    }),
+  };
 }
 
-function UserMessage({ parts }: { parts: UIMessage["parts"] }) {
-  return (
-    <div className="chat__user-message">
-      {parts
-        .filter(isTextUIPart)
-        .map((p) => p.text)
-        .join("")}
-    </div>
-  );
-}
-
-function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
-  return (
-    <div className="chat__assistant-message">
-      {parts.map((part, i) =>
-        isTextUIPart(part) ? <Streamdown key={i}>{part.text}</Streamdown> : null
-      )}
-    </div>
-  );
-}
-
-function Chat({ chatApiUrl }: { chatApiUrl: string }) {
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
-  });
-
-  const assistantMessageInProgress =
-    status === "submitted" || status === "streaming";
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, assistantMessageInProgress]);
-
-  return (
-    <div css={chatCSS}>
-      <div className="chat__messages">
-        {messages.length === 0 && <EmptyState />}
-        {messages.map((m) =>
-          m.role === "user" ? (
-            <UserMessage key={m.id} parts={m.parts} />
-          ) : (
-            <AssistantMessage key={m.id} parts={m.parts} />
-          )
-        )}
-        {status === "submitted" && <Loading />}
-        <div ref={bottomRef} />
-      </div>
-      <View paddingX="size-100" paddingY="size-100">
-        <MessageBar
-          onSendMessage={(text) => sendMessage({ text })}
-          isSending={assistantMessageInProgress}
-          placeholder="Send a message…"
-        />
-      </View>
-    </div>
-  );
+export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
+  try {
+    const raw = localStorage.getItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    return agentModelConfigSchema.parse(JSON.parse(raw));
+  } catch {
+    return null;
+  }
 }
