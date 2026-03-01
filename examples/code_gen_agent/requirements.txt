@@ -11,6 +11,6 @@ loguru==0.7.2
 pandas==2.2.3
 python-dotenv==1.0.1
 tqdm==4.66.6
-gradio==6.1.0
+gradio==6.7.0
 openinference-instrumentation-openai==0.1.41
 openinference-instrumentation-langchain==0.1.56
