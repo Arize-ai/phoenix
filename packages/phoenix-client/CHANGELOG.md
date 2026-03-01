@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.29.1...arize-phoenix-client-v1.30.0) (2026-03-01)
+
+
+### Features
+
+* add GET endpoints for sessions REST API ([#11724](https://github.com/Arize-ai/phoenix/issues/11724)) ([2a1f148](https://github.com/Arize-ai/phoenix/commit/2a1f14846cec30bb9b892114f3510e740154bcc0))
+
 ## [1.29.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.29.0...arize-phoenix-client-v1.29.1) (2026-02-24)
 
 
