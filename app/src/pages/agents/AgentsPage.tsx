@@ -160,6 +160,10 @@ const agentChatCSS = css`
   }
 `;
 
+function Loading() {
+  return <p className="chat__loading">...</p>;
+}
+
 function EmptyState() {
   return <p className="chat__empty">Send a message to chat with Pixi</p>;
 }
@@ -190,12 +194,13 @@ function AgentChat({ chatApiUrl }: { chatApiUrl: string }) {
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
   });
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const assistantMessageInProgress =
+    status === "submitted" || status === "streaming";
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+  }, [messages, assistantMessageInProgress]);
 
   return (
     <div css={agentChatCSS}>
@@ -208,15 +213,13 @@ function AgentChat({ chatApiUrl }: { chatApiUrl: string }) {
             <AssistantMessage key={m.id} parts={m.parts} />
           )
         )}
-        {isLoading && messages.at(-1)?.role !== "assistant" && (
-          <p className="chat__loading">...</p>
-        )}
+        {status === "submitted" && <Loading />}
         <div ref={bottomRef} />
       </div>
       <View paddingX="size-100" paddingY="size-100">
         <MessageBar
           onSendMessage={(text) => sendMessage({ text })}
-          isSending={isLoading}
+          isSending={assistantMessageInProgress}
           placeholder="Send a message…"
         />
       </View>
