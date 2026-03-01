@@ -106,12 +106,12 @@ export function AgentsPage() {
           extra={<ModelMenu value={menuValue} onChange={handleChange} />}
         />
       </View>
-      <AgentChat key={chatApiUrl} chatApiUrl={chatApiUrl} />
+      <Chat key={chatApiUrl} chatApiUrl={chatApiUrl} />
     </div>
   );
 }
 
-const agentChatCSS = css`
+const chatCSS = css`
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -189,7 +189,7 @@ function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
   );
 }
 
-function AgentChat({ chatApiUrl }: { chatApiUrl: string }) {
+function Chat({ chatApiUrl }: { chatApiUrl: string }) {
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
   });
@@ -203,7 +203,7 @@ function AgentChat({ chatApiUrl }: { chatApiUrl: string }) {
   }, [messages, assistantMessageInProgress]);
 
   return (
-    <div css={agentChatCSS}>
+    <div css={chatCSS}>
       <div className="chat__messages">
         {messages.length === 0 && <EmptyState />}
         {messages.map((m) =>
