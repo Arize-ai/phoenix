@@ -151,7 +151,11 @@
       "esbuild@<=0.24.2": ">=0.25.0",
       "@babel/runtime@<7.26.10": ">=7.26.10",
       "@babel/helpers@<7.26.10": ">=7.26.10",
-      "minimatch": ">=10.2.3"
+      "minimatch": ">=10.2.3",
+      "rollup@<4.59.0": ">=4.59.0",
+      "glob@>=10.3.7 <10.5.0": ">=10.5.0",
+      "mdast-util-to-hast@<13.2.1": ">=13.2.1",
+      "js-yaml@<4.1.1": ">=4.1.1"
     },
     "onlyBuiltDependencies": [
       "esbuild"
