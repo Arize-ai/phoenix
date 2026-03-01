@@ -4914,6 +4914,71 @@
         "type": "object",
         "title": "AnnotationResult"
       },
+      "AnnotationSummary": {
+        "properties": {
+          "annotation_name": {
+            "type": "string",
+            "title": "Annotation Name",
+            "description": "Name of the annotation evaluator"
+          },
+          "min_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Score",
+            "description": "Minimum score across all runs"
+          },
+          "max_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Score",
+            "description": "Maximum score across all runs"
+          },
+          "mean_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Score",
+            "description": "Mean score across all runs"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Total number of annotations"
+          },
+          "error_count": {
+            "type": "integer",
+            "title": "Error Count",
+            "description": "Number of annotations with errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "annotation_name",
+          "min_score",
+          "max_score",
+          "mean_score",
+          "count",
+          "error_count"
+        ],
+        "title": "AnnotationSummary"
+      },
       "CategoricalAnnotationConfig": {
         "properties": {
           "name": {
@@ -5851,6 +5916,14 @@
             "type": "integer",
             "title": "Missing Run Count",
             "description": "Number of missing (not yet executed) runs in the experiment"
+          },
+          "annotation_summaries": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationSummary"
+            },
+            "type": "array",
+            "title": "Annotation Summaries",
+            "description": "Aggregated annotation metrics (min/max/mean score, count, error count) per evaluator. Empty if no annotations exist."
           }
         },
         "type": "object",

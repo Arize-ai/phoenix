@@ -953,6 +953,39 @@ export interface components {
              */
             explanation?: string | null;
         };
+        /** AnnotationSummary */
+        AnnotationSummary: {
+            /**
+             * Annotation Name
+             * @description Name of the annotation evaluator
+             */
+            annotation_name: string;
+            /**
+             * Min Score
+             * @description Minimum score across all runs
+             */
+            min_score: number | null;
+            /**
+             * Max Score
+             * @description Maximum score across all runs
+             */
+            max_score: number | null;
+            /**
+             * Mean Score
+             * @description Mean score across all runs
+             */
+            mean_score: number | null;
+            /**
+             * Count
+             * @description Total number of annotations
+             */
+            count: number;
+            /**
+             * Error Count
+             * @description Number of annotations with errors
+             */
+            error_count: number;
+        };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
             /** Name */
@@ -1350,6 +1383,11 @@ export interface components {
              * @description Number of missing (not yet executed) runs in the experiment
              */
             missing_run_count: number;
+            /**
+             * Annotation Summaries
+             * @description Aggregated annotation metrics (min/max/mean score, count, error count) per evaluator. Empty if no annotations exist.
+             */
+            annotation_summaries?: components["schemas"]["AnnotationSummary"][];
         };
         /** ExperimentEvaluationResult */
         ExperimentEvaluationResult: {
