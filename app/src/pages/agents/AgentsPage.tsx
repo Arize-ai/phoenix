@@ -70,6 +70,8 @@ const chatCSS = css`
     gap: var(--global-dimension-size-100);
     padding: var(--global-dimension-size-200);
     padding-bottom: var(--global-dimension-size-1200);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
   }
 
   .chat__input {
@@ -91,28 +93,22 @@ const chatCSS = css`
       var(--global-rounding-large);
     padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
     max-width: 75%;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
     word-wrap: break-word;
   }
 
   .chat__assistant-message {
     align-self: flex-start;
     max-width: 90%;
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
   }
 
   .chat__empty {
     text-align: center;
     margin-top: var(--global-dimension-size-400);
     color: var(--global-text-color-300);
-    font-size: var(--global-font-size-s);
   }
 
   .chat__loading {
     color: var(--global-text-color-300);
-    font-size: var(--global-font-size-s);
   }
 `;
 
