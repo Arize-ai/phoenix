@@ -116,7 +116,7 @@ export const DynamicSearchableMenu = () => {
           <Autocomplete filter={contains}>
             {/* Nest a SearchField as child, it will automatically filter the sibling menu items */}
             <View paddingX="size-100" marginTop="size-100">
-              <SearchField aria-label="Search" autoFocus>
+              <SearchField aria-label="Search">
                 <Input placeholder="Search..." />
               </SearchField>
             </View>
@@ -262,7 +262,7 @@ export const FilterMenu = () => {
               >
                 Filter by Categories
               </MenuHeaderTitle>
-              <SearchField aria-label="Search categories" autoFocus>
+              <SearchField aria-label="Search categories">
                 <Input placeholder="Search categories..." />
               </SearchField>
             </MenuHeader>
