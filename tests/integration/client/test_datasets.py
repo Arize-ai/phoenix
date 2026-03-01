@@ -1753,3 +1753,70 @@ What is NLP?,Natural Language Processing,
             assert revision["metadata"] == {}
             # No span link
             assert ex["node"]["span"] is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_dataset_with_delete_projects_flag_also_deletes_evaluator_project(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        client = Client(base_url=_app.base_url, api_key=api_key)
+
+        unique_name = f"test_del_eval_proj_{token_hex(4)}"
+        dataset = await _await_or_return(
+            client.datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"q": "test"}],
+                outputs=[{"a": "test"}],
+            )
+        )
+
+        # Get a builtin evaluator ID
+        evaluators_data, _ = _gql(_app, api_key, query="{ builtInEvaluators { id name } }")
+        builtin_evaluators = evaluators_data["data"]["builtInEvaluators"]
+        assert len(builtin_evaluators) > 0, "No builtin evaluators available"
+        evaluator_id = builtin_evaluators[0]["id"]
+
+        # Create a dataset evaluator, which creates an associated project
+        create_mutation = """
+            mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+                createDatasetBuiltinEvaluator(input: $input) {
+                    evaluator {
+                        project {
+                            name
+                        }
+                    }
+                }
+            }
+        """
+        eval_name = f"test-eval-{token_hex(4)}"
+        mutation_result, _ = _gql(
+            _app,
+            api_key,
+            query=create_mutation,
+            variables={
+                "input": {
+                    "datasetId": dataset.id,
+                    "evaluatorId": evaluator_id,
+                    "name": eval_name,
+                }
+            },
+        )
+        evaluator_project_name = mutation_result["data"]["createDatasetBuiltinEvaluator"][
+            "evaluator"
+        ]["project"]["name"]
+        assert evaluator_project_name is not None
+
+        # Delete the dataset with delete_projects=True — this should also delete the evaluator project
+        await _await_or_return(client.datasets.delete(dataset_id=dataset.id, delete_projects=True))
+
+        # Verify the evaluator project was also deleted
+        data, _ = _gql(_app, api_key, query="{ projects { edges { node { name } } } }")
+        project_names = [e["node"]["name"] for e in data["data"]["projects"]["edges"]]
+        assert evaluator_project_name not in project_names

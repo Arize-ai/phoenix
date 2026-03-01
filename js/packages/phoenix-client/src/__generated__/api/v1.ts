@@ -3589,7 +3589,10 @@ export interface operations {
     };
     deleteDatasetById: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description If true, also delete the projects associated with dataset evaluators. */
+                delete_projects?: boolean;
+            };
             header?: never;
             path: {
                 /** @description The ID of the dataset to delete. */
