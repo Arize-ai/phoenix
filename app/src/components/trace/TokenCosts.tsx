@@ -26,7 +26,7 @@ interface TokenCostsProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
-  const { children, size = "M", ...otherProps } = props;
+  const { children, size = "M", role, ...otherProps } = props;
 
   const text = typeof children === "number" ? costFormatter(children) : "--";
   return (
@@ -35,6 +35,8 @@ function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
       data-size={size}
       css={tokenCostsItemCSS}
       ref={ref}
+      role={role}
+      {...(role ? { tabIndex: 0 } : undefined)}
       {...otherProps}
     >
       <Icon

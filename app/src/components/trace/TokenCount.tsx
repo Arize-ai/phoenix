@@ -26,7 +26,7 @@ interface TokenCountProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 function TokenCount(props: TokenCountProps, ref: Ref<HTMLDivElement>) {
-  const { children, size = "M", ...otherProps } = props;
+  const { children, size = "M", role, ...otherProps } = props;
 
   const text = typeof children === "number" ? formatNumber(children) : "--";
   return (
@@ -35,6 +35,8 @@ function TokenCount(props: TokenCountProps, ref: Ref<HTMLDivElement>) {
       data-size={size}
       css={tokenCountItemCSS}
       ref={ref}
+      role={role}
+      {...(role ? { tabIndex: 0 } : undefined)}
       {...otherProps}
     >
       <Icon
