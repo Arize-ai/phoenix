@@ -1,5 +1,6 @@
 import json
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -26,7 +27,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    LLMClientFactory,
+    ModelProvider,
+    openai_rate_limit_key,
+)
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator,
     LLMEvaluator,
@@ -2245,11 +2250,15 @@ class TestLLMEvaluator:
         self,
         openai_api_key: str,
     ) -> "OpenAIStreamingClient":
-        def create_openai_client() -> AsyncOpenAI:
-            return AsyncOpenAI()
+        @asynccontextmanager
+        async def create_openai_client() -> Any:
+            yield AsyncOpenAI(api_key=openai_api_key)
 
+        client_factory = LLMClientFactory(
+            create_openai_client, openai_rate_limit_key(openai_api_key, None)
+        )
         return OpenAIStreamingClient(
-            client_factory=create_openai_client,
+            client_factory=client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
         )

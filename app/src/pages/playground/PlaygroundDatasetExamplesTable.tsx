@@ -75,6 +75,7 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
@@ -100,6 +101,7 @@ import type {
   PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
   PlaygroundDatasetExamplesTableMutation$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
+import PlaygroundDatasetExamplesTableOldSubscription from "./__generated__/PlaygroundDatasetExamplesTableOldSubscription.graphql";
 import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
 import type {
@@ -738,6 +740,7 @@ export function PlaygroundDatasetExamplesTable({
   >;
 }) {
   const environment = useRelayEnvironment();
+  const backgroundExperimentsEnabled = useFeatureFlag("backgroundExperiments");
   const instances = usePlaygroundContext((state) => state.instances);
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experimentId);
@@ -871,6 +874,11 @@ export function PlaygroundDatasetExamplesTable({
             break;
           case "ChatCompletionSubscriptionError":
             if (chatCompletion.datasetExampleId == null) {
+              // Experiment-level error (e.g., circuit breaker trip)
+              notifyError({
+                title: "Experiment Stopped",
+                message: chatCompletion.message,
+              });
               return;
             }
             updateExampleData({
@@ -932,6 +940,7 @@ export function PlaygroundDatasetExamplesTable({
       incrementEvalsCompleted,
       incrementRunsCompleted,
       incrementRunsFailed,
+      notifyError,
       updateExampleData,
       updateInstance,
     ]
@@ -1083,7 +1092,9 @@ export function PlaygroundDatasetExamplesTable({
         };
         const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
           {
-            subscription: PlaygroundDatasetExamplesTableSubscription,
+            subscription: backgroundExperimentsEnabled
+              ? PlaygroundDatasetExamplesTableSubscription
+              : PlaygroundDatasetExamplesTableOldSubscription,
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
@@ -1180,6 +1191,7 @@ export function PlaygroundDatasetExamplesTable({
       };
     }
   }, [
+    backgroundExperimentsEnabled,
     credentials,
     datasetId,
     splitIds,
@@ -1636,7 +1648,7 @@ graphql`
   subscription PlaygroundDatasetExamplesTableSubscription(
     $input: ChatCompletionOverDatasetInput!
   ) {
-    chatCompletionOverDataset(input: $input) {
+    chatCompletionOverDataset: chatCompletionOverDatasetNew(input: $input) {
       __typename
       ... on TextChunk {
         content
