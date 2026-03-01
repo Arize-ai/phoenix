@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.14.0...arize-phoenix-otel-v0.14.1) (2026-03-01)
+
+
+### Bug Fixes
+
+* update slack invitation link ([#11612](https://github.com/Arize-ai/phoenix/issues/11612)) ([316833e](https://github.com/Arize-ai/phoenix/commit/316833e629baf1b9185d7c712d8816b927d69a96))
+
 ## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.13.1...arize-phoenix-otel-v0.14.0) (2025-11-19)
 
 
