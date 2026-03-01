@@ -800,7 +800,7 @@ provides-extras = ["dev", "test"]
 
 [[package]]
 name = "arize-phoenix-otel"
-version = "0.14.0"
+version = "0.14.1"
 source = { editable = "packages/phoenix-otel" }
 dependencies = [
     { name = "openinference-instrumentation" },
