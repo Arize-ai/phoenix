@@ -1,5 +1,26 @@
 # Changelog
 
+## [13.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.5.0...arize-phoenix-v13.6.0) (2026-03-01)
+
+
+### Features
+
+* **app:** add inline document annotation UI for retriever spans ([#11688](https://github.com/Arize-ai/phoenix/issues/11688)) ([54fc287](https://github.com/Arize-ai/phoenix/commit/54fc2870ca8c24a276de1afa51ae8b86cccc370e))
+* **cli:** add sessions and session commands for multi-turn conversation support ([#11795](https://github.com/Arize-ai/phoenix/issues/11795)) ([bd85bce](https://github.com/Arize-ai/phoenix/commit/bd85bcef5ba32f87937e0f58e3650b2b67fd51b9))
+
+
+### Bug Fixes
+
+* **js:** bump minimatch to &gt;=10.2.3 to fix ReDoS vulnerabilities ([#11808](https://github.com/Arize-ai/phoenix/issues/11808)) ([3514353](https://github.com/Arize-ai/phoenix/commit/351435389d6723ea6f5ee291c256198b44445ddd))
+* **security:** address multiple dependency vulnerabilities ([#11810](https://github.com/Arize-ai/phoenix/issues/11810)) ([cdc56ff](https://github.com/Arize-ai/phoenix/commit/cdc56ff02e41780b30fd4f2465d845937a383e85))
+
+
+### Documentation
+
+* add tool response handling metric ([#11790](https://github.com/Arize-ai/phoenix/issues/11790)) ([4962616](https://github.com/Arize-ai/phoenix/commit/49626162f6467afe355c177bb205d423d688ce1c))
+* CLI 0.7.0 release notes and Sessions REST API reference ([#11796](https://github.com/Arize-ai/phoenix/issues/11796)) ([5b370ef](https://github.com/Arize-ai/phoenix/commit/5b370efd4c7cbcec616d3004e9ada446d83418b5))
+* **evals:** evaluation docs reorg  ([#11758](https://github.com/Arize-ai/phoenix/issues/11758)) ([071f414](https://github.com/Arize-ai/phoenix/commit/071f4148d588ef0df05966f0eb3ffad5774e15cd))
+
 ## [13.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.4.0...arize-phoenix-v13.5.0) (2026-02-27)
 
 
