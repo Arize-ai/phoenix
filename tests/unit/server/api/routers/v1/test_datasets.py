@@ -11,7 +11,7 @@ import pyarrow as pa
 import pytest
 from httpx import HTTPStatusError
 from pandas.testing import assert_frame_equal
-from sqlalchemy import select
+from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -1464,3 +1464,169 @@ async def test_post_dataset_upload_append_with_splits(
         )
         assert len(ex3_splits) == 1
         assert ex3_splits[0].name == "test"
+
+
+async def test_post_dataset_upsert_mirror_exact_sync_behavior(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    response_v1 = await httpx_client.post(
+        url="v1/datasets/upsert",
+        json={
+            "dataset": {"name": name},
+            "examples": [
+                {"input": {"q": "q1"}, "output": {"a": "a1"}, "metadata": {"m": 1}},
+                {"input": {"q": "q2"}, "output": {"a": "a2"}, "metadata": {"m": 2}},
+            ],
+        },
+    )
+    assert response_v1.status_code == 200
+    data_v1 = response_v1.json()["data"]
+    assert data_v1["summary"] == {"added": 2, "updated": 0, "deleted": 0, "unchanged": 0}
+    assert data_v1["is_noop"] is False
+
+    response_v2 = await httpx_client.post(
+        url="v1/datasets/upsert",
+        json={
+            "dataset": {"name": name},
+            "examples": [
+                {"input": {"q": "q1"}, "output": {"a": "a1"}, "metadata": {"m": 1}},
+                {"input": {"q": "q2"}, "output": {"a": "a2-updated"}, "metadata": {"m": 2}},
+                {"input": {"q": "q3"}, "output": {"a": "a3"}, "metadata": {"m": 3}},
+            ],
+        },
+    )
+    assert response_v2.status_code == 200
+    data_v2 = response_v2.json()["data"]
+    assert data_v2["dataset_id"] == data_v1["dataset_id"]
+    assert data_v2["version_id"] != data_v1["version_id"]
+    assert data_v2["summary"] == {"added": 1, "updated": 1, "deleted": 0, "unchanged": 1}
+    assert data_v2["is_noop"] is False
+
+    examples_response = await httpx_client.get(
+        f"v1/datasets/{data_v2['dataset_id']}/examples",
+        params={"version_id": data_v2["version_id"]},
+    )
+    assert examples_response.status_code == 200
+    examples = examples_response.json()["data"]["examples"]
+    assert len(examples) == 3
+    payload = {(ex["input"]["q"], ex["output"]["a"], ex["metadata"]["m"]) for ex in examples}
+    assert payload == {
+        ("q1", "a1", 1),
+        ("q2", "a2-updated", 2),
+        ("q3", "a3", 3),
+    }
+
+
+@pytest.mark.parametrize(
+    "dataset_selector",
+    [
+        {},
+        {"id": str(GlobalID("Dataset", "0")), "name": "both-set"},
+    ],
+)
+async def test_post_dataset_upsert_rejects_invalid_selector_shape(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    dataset_selector: dict[str, str],
+) -> None:
+    response = await httpx_client.post(
+        url="v1/datasets/upsert",
+        json={
+            "dataset": dataset_selector,
+            "examples": [{"input": {"q": "q1"}, "output": {"a": "a1"}, "metadata": {}}],
+        },
+    )
+    assert response.status_code == 422
+    assert "Exactly one of dataset.id or dataset.name must be provided." in response.text
+
+
+async def test_post_dataset_upsert_noop_is_idempotent(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    initial_response = await httpx_client.post(
+        url="v1/datasets/upsert",
+        json={
+            "dataset": {"name": name},
+            "examples": [
+                {"input": {"q": "q1"}, "output": {"a": "a1"}, "metadata": {}},
+                {"input": {"q": "q2"}, "output": {"a": "a2"}, "metadata": {}},
+            ],
+        },
+    )
+    assert initial_response.status_code == 200
+    initial_data = initial_response.json()["data"]
+    initial_dataset_id = initial_data["dataset_id"]
+    initial_version_id = initial_data["version_id"]
+
+    second_response = await httpx_client.post(
+        url="v1/datasets/upsert",
+        json={
+            "dataset": {"id": initial_dataset_id},
+            "examples": [
+                {"input": {"q": "q1"}, "output": {"a": "a1"}, "metadata": {}},
+                {"input": {"q": "q2"}, "output": {"a": "a2"}, "metadata": {}},
+            ],
+        },
+    )
+    assert second_response.status_code == 200
+    second_data = second_response.json()["data"]
+    assert second_data["dataset_id"] == initial_dataset_id
+    assert second_data["version_id"] == initial_version_id
+    assert second_data["is_noop"] is True
+    assert second_data["summary"] == {"added": 0, "updated": 0, "deleted": 0, "unchanged": 2}
+
+    dataset_db_id = int(GlobalID.from_id(initial_dataset_id).node_id)
+    async with db() as session:
+        version_count = await session.scalar(
+            select(func.count(models.DatasetVersion.id)).where(
+                models.DatasetVersion.dataset_id == dataset_db_id
+            )
+        )
+    assert version_count == 1
+
+
+async def test_post_dataset_upsert_creates_new_version_for_changes(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    simple_dataset: Any,
+) -> None:
+    dataset_id = str(GlobalID("Dataset", "0"))
+    async with db() as session:
+        previous_version_id = await session.scalar(
+            select(func.max(models.DatasetVersion.id)).where(models.DatasetVersion.dataset_id == 0)
+        )
+        previous_version_count = await session.scalar(
+            select(func.count(models.DatasetVersion.id)).where(
+                models.DatasetVersion.dataset_id == 0
+            )
+        )
+
+    response = await httpx_client.post(
+        url="v1/datasets/upsert",
+        json={
+            "dataset": {"id": dataset_id},
+            "examples": [
+                {"input": {"in": "foo"}, "output": {"out": "updated"}, "metadata": {"info": "v2"}},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["dataset_id"] == dataset_id
+    assert data["summary"] == {"added": 0, "updated": 1, "deleted": 0, "unchanged": 0}
+
+    new_version_node_id = int(GlobalID.from_id(data["version_id"]).node_id)
+    assert previous_version_id is not None
+    assert new_version_node_id > previous_version_id
+
+    async with db() as session:
+        current_version_count = await session.scalar(
+            select(func.count(models.DatasetVersion.id)).where(
+                models.DatasetVersion.dataset_id == 0
+            )
+        )
+    assert previous_version_count is not None
+    assert current_version_count == previous_version_count + 1

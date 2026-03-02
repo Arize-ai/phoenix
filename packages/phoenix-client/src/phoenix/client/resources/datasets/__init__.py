@@ -1,11 +1,13 @@
 import csv
 import gzip
+import json
 import logging
 import re
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from datetime import datetime
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from typing import (
@@ -18,6 +20,7 @@ from typing import (
     Sequence,
     TypedDict,
     Union,
+    cast,
 )
 from urllib.parse import quote
 
@@ -48,6 +51,28 @@ class _InputDatasetExample(TypedDict, total=False):
     metadata: Mapping[str, Any]
     span_id: Optional[str]
     splits: Optional[Union[str, list[str]]]
+    external_id: Optional[str]
+
+
+class _UpsertDatasetSelector(TypedDict, total=False):
+    id: str
+    name: str
+
+
+class _UpsertDatasetExample(TypedDict):
+    input: dict[str, Any]
+    output: dict[str, Any]
+    metadata: dict[str, Any]
+    splits: list[str]
+    span_id: Optional[str]
+    content_hash: str
+    external_id: Optional[str]
+
+
+class _UpsertDatasetRequestBody(TypedDict):
+    dataset: _UpsertDatasetSelector
+    examples: list[_UpsertDatasetExample]
+    sync_mode: Literal["mirror"]
 
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -70,6 +95,82 @@ def _is_iterable_of_input_dataset_examples(obj: Any) -> TypeGuard[Iterable[_Inpu
     Checks if an object is an iterable of _InputDatasetExample objects.
     """
     return isinstance(obj, Iterable) and all(_is_input_dataset_example(example) for example in obj)  # pyright: ignore[reportUnknownVariableType]
+
+
+def _normalize_example_splits(splits: Optional[Union[str, list[str]]]) -> list[str]:
+    if splits is None:
+        return []
+    if isinstance(splits, str):
+        return [splits]
+    if not isinstance(splits, list):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("example 'splits' must be a string, list of strings, or None")
+    if not all(isinstance(split, str) for split in splits):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("example 'splits' must contain only strings")
+    return splits
+
+
+def _compute_example_content_hash(
+    *,
+    input: Mapping[str, Any],
+    output: Mapping[str, Any],
+    metadata: Optional[Mapping[str, Any]] = None,
+) -> str:
+    canonical_payload = json.dumps(
+        {
+            "input": input,
+            "output": output,
+            "metadata": metadata or {},
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    return sha256(canonical_payload.encode("utf-8")).hexdigest()
+
+
+def _prepare_upsert_examples(
+    examples: Union[Mapping[str, Any], Iterable[Mapping[str, Any]]],
+) -> list[_UpsertDatasetExample]:
+    examples_list: list[_InputDatasetExample]
+    if _is_input_dataset_example(examples):
+        examples_list = [examples]
+    else:
+        candidate_examples = list(examples)
+        if not all(_is_input_dataset_example(example) for example in candidate_examples):
+            raise ValueError(
+                "examples must be a single dictionary with required 'input' and 'output' keys "
+                "and an optional 'metadata' key, or an iterable of such dictionaries"
+            )
+        examples_list = cast(list[_InputDatasetExample], candidate_examples)
+
+    upsert_examples: list[_UpsertDatasetExample] = []
+    for example in examples_list:
+        span_id = example.get("span_id")
+        if span_id is not None and not isinstance(span_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise ValueError("example 'span_id' must be a string or None")
+        external_id = example.get("external_id")
+        if external_id is not None and not isinstance(external_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise ValueError("example 'external_id' must be a string or None")
+        input_payload = dict(example["input"])
+        output_payload = dict(example["output"])
+        metadata_payload = dict(example.get("metadata", {}))
+        upsert_examples.append(
+            _UpsertDatasetExample(
+                input=input_payload,
+                output=output_payload,
+                metadata=metadata_payload,
+                splits=_normalize_example_splits(example.get("splits")),
+                span_id=span_id,
+                content_hash=_compute_example_content_hash(
+                    input=input_payload,
+                    output=output_payload,
+                    metadata=metadata_payload,
+                ),
+                external_id=external_id,
+            )
+        )
+    return upsert_examples
 
 
 class Dataset:
@@ -1001,6 +1102,54 @@ class Datasets:
                 timeout=timeout,
             )
 
+    def upsert_dataset(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        examples: Union[Mapping[str, Any], Iterable[Mapping[str, Any]]],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Dataset:
+        """
+        Upsert examples into a dataset using mirror semantics.
+
+        The provided example snapshot becomes the dataset's full target state.
+        Examples are matched by an implicit client-side content hash.
+
+        Args:
+            dataset: A dataset identifier - can be a dataset ID string, name string,
+                Dataset object, or dict with 'id'/'name' fields.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A Dataset object for the resulting dataset version.
+
+        Raises:
+            ValueError: If dataset or example inputs are invalid.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
+        if resolved_id:
+            dataset_selector = _UpsertDatasetSelector(id=resolved_id)
+        elif resolved_name:
+            dataset_selector = _UpsertDatasetSelector(name=resolved_name)
+        else:
+            raise ValueError("Could not determine dataset ID or name from input")
+
+        request_body = _UpsertDatasetRequestBody(
+            dataset=dataset_selector,
+            examples=_prepare_upsert_examples(examples),
+            sync_mode="mirror",
+        )
+        response = self._client.post(
+            url="v1/datasets/upsert",
+            json=request_body,
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        return self._process_dataset_upsert_response(response, timeout=timeout)
+
     def _get_dataset_id_by_name(
         self,
         *,
@@ -1223,6 +1372,23 @@ class Datasets:
         logger.info(f"Dataset uploaded successfully. ID: {dataset_id}, Version: {version_id}")
 
         return dataset
+
+    def _process_dataset_upsert_response(
+        self,
+        response: httpx.Response,
+        *,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Dataset:
+        response.raise_for_status()
+        upsert_data = response.json()["data"]
+        dataset_id = upsert_data["dataset_id"]
+        version_id = upsert_data["version_id"]
+
+        return self.get_dataset(
+            dataset=dataset_id,
+            version_id=version_id,
+            timeout=timeout,
+        )
 
 
 class AsyncDatasets:
@@ -1776,6 +1942,54 @@ class AsyncDatasets:
                 timeout=timeout,
             )
 
+    async def upsert_dataset(
+        self,
+        *,
+        dataset: DatasetIdentifier,
+        examples: Union[Mapping[str, Any], Iterable[Mapping[str, Any]]],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Dataset:
+        """
+        Upsert examples into a dataset using mirror semantics.
+
+        The provided example snapshot becomes the dataset's full target state.
+        Examples are matched by an implicit client-side content hash.
+
+        Args:
+            dataset: A dataset identifier - can be a dataset ID string, name string,
+                Dataset object, or dict with 'id'/'name' fields.
+            examples: Either a single dictionary with required 'input' and 'output' keys
+                and an optional 'metadata' key, or an iterable of such dictionaries.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A Dataset object for the resulting dataset version.
+
+        Raises:
+            ValueError: If dataset or example inputs are invalid.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
+        if resolved_id:
+            dataset_selector = _UpsertDatasetSelector(id=resolved_id)
+        elif resolved_name:
+            dataset_selector = _UpsertDatasetSelector(name=resolved_name)
+        else:
+            raise ValueError("Could not determine dataset ID or name from input")
+
+        request_body = _UpsertDatasetRequestBody(
+            dataset=dataset_selector,
+            examples=_prepare_upsert_examples(examples),
+            sync_mode="mirror",
+        )
+        response = await self._client.post(
+            url="v1/datasets/upsert",
+            json=request_body,
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        return await self._process_dataset_upsert_response(response, timeout=timeout)
+
     async def _get_dataset_id_by_name(
         self,
         *,
@@ -1979,6 +2193,23 @@ class AsyncDatasets:
         logger.info(f"Dataset uploaded successfully. ID: {dataset_id}, Version: {version_id}")
 
         return dataset
+
+    async def _process_dataset_upsert_response(
+        self,
+        response: httpx.Response,
+        *,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Dataset:
+        response.raise_for_status()
+        upsert_data = response.json()["data"]
+        dataset_id = upsert_data["dataset_id"]
+        version_id = upsert_data["version_id"]
+
+        return await self.get_dataset(
+            dataset=dataset_id,
+            version_id=version_id,
+            timeout=timeout,
+        )
 
 
 def _get_csv_column_headers(path: Path) -> tuple[str, ...]:

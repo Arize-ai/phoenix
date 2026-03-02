@@ -1271,6 +1271,67 @@
         }
       }
     },
+    "/v1/datasets/upsert": {
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Upsert dataset examples with mirror semantics",
+        "operationId": "upsertDataset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertDatasetRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request body",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets/{id}/examples": {
       "get": {
         "tags": [
@@ -9952,6 +10013,191 @@
           "data"
         ],
         "title": "UploadDatasetResponseBody"
+      },
+      "UpsertDatasetData": {
+        "properties": {
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/UpsertDatasetSummaryData"
+          },
+          "is_noop": {
+            "type": "boolean",
+            "title": "Is Noop"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "version_id",
+          "summary",
+          "is_noop"
+        ],
+        "title": "UpsertDatasetData"
+      },
+      "UpsertDatasetExample": {
+        "properties": {
+          "input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input"
+          },
+          "output": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "splits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Splits"
+          },
+          "span_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Id"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "input"
+        ],
+        "title": "UpsertDatasetExample"
+      },
+      "UpsertDatasetRequestBody": {
+        "properties": {
+          "dataset": {
+            "$ref": "#/components/schemas/UpsertDatasetSelector"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/UpsertDatasetExample"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "sync_mode": {
+            "type": "string",
+            "const": "mirror",
+            "title": "Sync Mode",
+            "default": "mirror"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset",
+          "examples"
+        ],
+        "title": "UpsertDatasetRequestBody"
+      },
+      "UpsertDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertDatasetData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpsertDatasetResponseBody"
+      },
+      "UpsertDatasetSelector": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "title": "UpsertDatasetSelector"
+      },
+      "UpsertDatasetSummaryData": {
+        "properties": {
+          "added": {
+            "type": "integer",
+            "title": "Added"
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          }
+        },
+        "type": "object",
+        "required": [
+          "added",
+          "updated",
+          "deleted",
+          "unchanged"
+        ],
+        "title": "UpsertDatasetSummaryData"
       },
       "UpsertExperimentEvaluationRequestBody": {
         "properties": {

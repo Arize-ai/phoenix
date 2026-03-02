@@ -180,6 +180,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/upsert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upsert dataset examples with mirror semantics */
+        post: operations["upsertDataset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{id}/examples": {
         parameters: {
             query?: never;
@@ -3013,6 +3030,73 @@ export interface components {
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
         };
+        /** UpsertDatasetData */
+        UpsertDatasetData: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
+            summary: components["schemas"]["UpsertDatasetSummaryData"];
+            /** Is Noop */
+            is_noop: boolean;
+        };
+        /** UpsertDatasetExample */
+        UpsertDatasetExample: {
+            /** Input */
+            input: {
+                [key: string]: unknown;
+            };
+            /** Output */
+            output?: {
+                [key: string]: unknown;
+            };
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Splits */
+            splits?: string[];
+            /** Span Id */
+            span_id?: string | null;
+            /** Content Hash */
+            content_hash?: string | null;
+            /** External Id */
+            external_id?: string | null;
+        };
+        /** UpsertDatasetRequestBody */
+        UpsertDatasetRequestBody: {
+            dataset: components["schemas"]["UpsertDatasetSelector"];
+            /** Examples */
+            examples: components["schemas"]["UpsertDatasetExample"][];
+            /**
+             * Sync Mode
+             * @default mirror
+             * @constant
+             */
+            sync_mode?: "mirror";
+        };
+        /** UpsertDatasetResponseBody */
+        UpsertDatasetResponseBody: {
+            data: components["schemas"]["UpsertDatasetData"];
+        };
+        /** UpsertDatasetSelector */
+        UpsertDatasetSelector: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name?: string | null;
+        };
+        /** UpsertDatasetSummaryData */
+        UpsertDatasetSummaryData: {
+            /** Added */
+            added: number;
+            /** Updated */
+            updated: number;
+            /** Deleted */
+            deleted: number;
+            /** Unchanged */
+            unchanged: number;
+        };
         /** UpsertExperimentEvaluationRequestBody */
         UpsertExperimentEvaluationRequestBody: {
             /**
@@ -3744,6 +3828,57 @@ export interface operations {
             };
             /** @description Dataset of the same name already exists */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    upsertDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertDatasetRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
