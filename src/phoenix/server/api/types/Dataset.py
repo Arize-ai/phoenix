@@ -13,6 +13,7 @@ from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
+from phoenix.config import EPHEMERAL_EXPERIMENT_SUFFIX
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -346,6 +347,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
+        is_ephemeral: Optional[bool] = False,
     ) -> int:
         stmt = select(count(models.Experiment.id)).where(models.Experiment.dataset_id == self.id)
         version_id = (
@@ -358,6 +360,10 @@ class Dataset(Node):
         )
         if version_id is not None:
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
+        if is_ephemeral:
+            stmt = stmt.where(models.Experiment.name.like(f"%{EPHEMERAL_EXPERIMENT_SUFFIX}"))
+        else:
+            stmt = stmt.where(models.Experiment.name.notlike(f"%{EPHEMERAL_EXPERIMENT_SUFFIX}"))
         async with info.context.db() as session:
             return (await session.scalar(stmt)) or 0
 
@@ -369,6 +375,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        is_ephemeral: Optional[bool] = False,
         filter_condition: Optional[str] = UNSET,
         filter_ids: Optional[
             list[GlobalID]
@@ -387,6 +394,10 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
+        if is_ephemeral:
+            query = query.where(models.Experiment.name.like(f"%{EPHEMERAL_EXPERIMENT_SUFFIX}"))
+        else:
+            query = query.where(models.Experiment.name.notlike(f"%{EPHEMERAL_EXPERIMENT_SUFFIX}"))
         if filter_condition is not UNSET and filter_condition:
             # Search both name and description columns with case-insensitive partial matching
             search_filter = or_(

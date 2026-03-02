@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b1e74eff0e831525b68d502e0c95f6d>>
+ * @generated SignedSource<<bb2a08643b4ef9e043c8099a02644302>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type ChatCompletionOverDatasetInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
+  ephemeralExperiment?: boolean;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;

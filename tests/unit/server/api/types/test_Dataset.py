@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
+from phoenix.config import EPHEMERAL_EXPERIMENT_SUFFIX
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
@@ -592,10 +593,10 @@ async def test_versions_resolver_returns_versions_in_correct_order(
 
 class TestDatasetExperimentCountResolver:
     QUERY = """
-      query ($datasetId: ID!, $datasetVersionId: ID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null, $isEphemeral: Boolean = false) {
         node(id: $datasetId) {
           ... on Dataset {
-            experimentCount(datasetVersionId: $datasetVersionId)
+            experimentCount(datasetVersionId: $datasetVersionId, isEphemeral: $isEphemeral)
           }
         }
       }
@@ -625,6 +626,35 @@ class TestDatasetExperimentCountResolver:
             variables={
                 "datasetId": str(GlobalID("Dataset", str(1))),
                 "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 1}}
+
+    async def test_experiment_count_excludes_ephemeral_by_default(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_ephemeral_experiment: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 1}}
+
+    async def test_experiment_count_can_filter_to_ephemeral(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_ephemeral_experiment: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "isEphemeral": True,
             },
         )
         assert not response.errors
@@ -876,6 +906,71 @@ async def test_experiments_without_filter(
     data = response.data
     # experiments_for_filtering fixture creates 4 experiments for dataset 1
     assert len(data["node"]["experiments"]["edges"]) == 4
+
+
+async def test_experiments_excludes_ephemeral_by_default(
+    gql_client: AsyncGraphQLClient,
+    dataset_with_ephemeral_experiment: Any,
+) -> None:
+    query = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                node {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"datasetId": str(GlobalID("Dataset", str(1)))},
+    )
+    assert not response.errors
+    assert response.data == {
+        "node": {"experiments": {"edges": [{"node": {"name": "persisted-exp"}}]}}
+    }
+
+
+async def test_experiments_can_filter_to_ephemeral(
+    gql_client: AsyncGraphQLClient,
+    dataset_with_ephemeral_experiment: Any,
+) -> None:
+    query = """
+      query ($datasetId: ID!, $isEphemeral: Boolean = false) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(isEphemeral: $isEphemeral) {
+              edges {
+                node {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "isEphemeral": True,
+        },
+    )
+    assert not response.errors
+    assert response.data == {
+        "node": {
+            "experiments": {
+                "edges": [{"node": {"name": f"playground {EPHEMERAL_EXPERIMENT_SUFFIX}"}}]
+            }
+        }
+    }
 
 
 class TestDatasetsEvaluatorsResolver:
@@ -1277,6 +1372,50 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
                     "dataset_id": 1,
                     "dataset_version_id": 2,
                     "name": "exp-2",
+                    "repetitions": 1,
+                    "metadata_": {},
+                },
+            ],
+        )
+
+
+@pytest.fixture
+async def dataset_with_ephemeral_experiment(db: DbSessionFactory) -> None:
+    async with db() as session:
+        session.add(
+            models.Dataset(
+                id=1,
+                name="dataset-name",
+                description=None,
+                metadata_={},
+            )
+        )
+        await session.flush()
+
+        session.add(
+            models.DatasetVersion(
+                id=1,
+                dataset_id=1,
+                description=None,
+                metadata_={},
+            )
+        )
+        await session.flush()
+
+        await session.execute(
+            insert(models.Experiment).returning(models.Experiment.id),
+            [
+                {
+                    "dataset_id": 1,
+                    "dataset_version_id": 1,
+                    "name": "persisted-exp",
+                    "repetitions": 1,
+                    "metadata_": {},
+                },
+                {
+                    "dataset_id": 1,
+                    "dataset_version_id": 1,
+                    "name": f"playground {EPHEMERAL_EXPERIMENT_SUFFIX}",
                     "repetitions": 1,
                     "metadata_": {},
                 },
