@@ -34,7 +34,7 @@ export function SpanCumulativeTokenCount(props: SpanCumulativeTokenCountProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount size={props.size} role="button">
+        <TokenCount size={props.size} role="button" tabIndex={0}>
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>

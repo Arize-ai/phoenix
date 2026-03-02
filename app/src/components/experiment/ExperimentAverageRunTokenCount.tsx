@@ -40,7 +40,7 @@ export function ExperimentAverageRunTokenCount(
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCount size={props.size} role="button">
+        <TokenCount size={props.size} role="button" tabIndex={0}>
           {props.averageRunTokenCountTotal}
         </TokenCount>
       </Pressable>

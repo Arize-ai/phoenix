@@ -34,7 +34,7 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
   return (
     <TooltipTrigger>
       <Pressable>
-        <TokenCosts size={props.size} role="button">
+        <TokenCosts size={props.size} role="button" tabIndex={0}>
           {props.totalCost}
         </TokenCosts>
       </Pressable>
