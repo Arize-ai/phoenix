@@ -191,7 +191,6 @@ export function FileDropZone({
         }
         if (type.endsWith("/*")) {
           // For wildcard MIME types, allow the drop and validate on drop
-          // This avoids maintaining a hardcoded list of subtypes
           return true;
         }
         return types.has(type);
