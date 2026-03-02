@@ -85,7 +85,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: [3.9, 3.12]
+        py: [3.9, 3.12, 3.14]
     steps:
       - uses: actions/checkout@v4
         with:

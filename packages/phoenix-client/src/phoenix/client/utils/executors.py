@@ -290,9 +290,20 @@ class AsyncExecutor(Executor):
                         break
                     await asyncio.sleep(self._concurrency_controller.inactive_check_interval)
                     continue
+            _get_task = asyncio.create_task(queue.get())
+            _done, _ = await asyncio.wait({_get_task}, timeout=1)
+            if not _done:
+                _get_task.cancel()
+                try:
+                    await _get_task
+                except asyncio.CancelledError:
+                    pass
+                if done_producing.is_set() and queue.empty():
+                    break
+                continue
             try:
-                priority, item = await asyncio.wait_for(queue.get(), timeout=1)
-            except asyncio.TimeoutError:
+                priority, item = _get_task.result()
+            except Exception:
                 if done_producing.is_set() and queue.empty():
                     break
                 continue
@@ -340,10 +351,7 @@ class AsyncExecutor(Executor):
                     # Best-effort cancel the timed-out task without blocking the loop
                     if not generate_task.done():
                         generate_task.cancel()
-                        try:
-                            await asyncio.wait_for(generate_task, timeout=1)
-                        except (asyncio.TimeoutError, asyncio.CancelledError):
-                            pass
+                        await asyncio.wait({generate_task}, timeout=1)
                     # task timeouts are requeued at the same priority
                     await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
