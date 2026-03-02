@@ -4,6 +4,7 @@ import asyncio
 import importlib.util
 import inspect
 import json
+import re
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -486,6 +487,11 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
                 formatted_invocation_parameters[invocation_name] = value
         validate_invocation_parameters(supported_params, formatted_invocation_parameters)
         return formatted_invocation_parameters
+
+    def apply_invocation_parameter_constraints(
+        self, invocation_parameters: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        return dict(invocation_parameters)
 
     @classmethod
     def dependencies_are_installed(cls) -> bool:
@@ -1180,6 +1186,15 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             ),
         ]
 
+    @override
+    def apply_invocation_parameter_constraints(
+        self, invocation_parameters: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        return _apply_anthropic_invocation_parameter_constraints(
+            invocation_parameters=invocation_parameters,
+            model_name=self.model_name,
+        )
+
     async def _chat_completion_create(
         self,
         *,
@@ -1788,6 +1803,29 @@ class AzureOpenAIReasoningNonStreamingClient(
         assert_never(role)
 
 
+_CLAUDE_4_MODEL_REGEX = re.compile(r"\bclaude(?:-[a-z]+)?-4(?:[.-]\d+)*", re.IGNORECASE)
+
+
+def _is_claude_4_model(model_name: str) -> bool:
+    return bool(_CLAUDE_4_MODEL_REGEX.search(model_name))
+
+
+def _apply_anthropic_invocation_parameter_constraints(
+    invocation_parameters: Mapping[str, Any],
+    model_name: str,
+) -> dict[str, Any]:
+    constrained = dict(invocation_parameters)
+    if (
+        _is_claude_4_model(model_name)
+        and constrained.get("temperature") is not None
+        and constrained.get("top_p") is not None
+    ):
+        # Claude 4.x rejects requests that specify both temperature and top_p.
+        # Keep temperature and drop top_p to avoid provider-side 400 errors.
+        constrained.pop("top_p", None)
+    return constrained
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
@@ -1855,6 +1893,15 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
             ),
         ]
+
+    @override
+    def apply_invocation_parameter_constraints(
+        self, invocation_parameters: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        return _apply_anthropic_invocation_parameter_constraints(
+            invocation_parameters=invocation_parameters,
+            model_name=self.model_name,
+        )
 
     async def _chat_completion_create(
         self,

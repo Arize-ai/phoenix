@@ -739,8 +739,8 @@ class ChatCompletionMutationMixin:
         if appended_messages:
             messages.extend(appended_messages)
 
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
+        invocation_parameters = llm_client.apply_invocation_parameter_constraints(
+            llm_client.construct_invocation_parameters(input.invocation_parameters)
         )
 
         text_content = ""
