@@ -720,6 +720,84 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
+function PlaygroundInstanceOutputColumnHeader({
+  instanceId,
+  index,
+  experimentId,
+  isRunning,
+  evaluatorOutputConfigs,
+}: {
+  instanceId: number;
+  index: number;
+  experimentId: string | null | undefined;
+  isRunning: boolean;
+  evaluatorOutputConfigs: readonly AnnotationConfig[];
+}) {
+  const annotationSummaries = usePlaygroundDatasetExamplesTableContext(
+    (state) => {
+      const instanceAggregates = state.annotationAggregates[instanceId];
+      if (instanceAggregates == null) return [];
+      return Object.entries(instanceAggregates).map(
+        ([annotationName, { meanScore }]) => ({ annotationName, meanScore })
+      );
+    }
+  );
+
+  return (
+    <Flex direction="column" gap="size-50" width="100%">
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        justifyContent="space-between"
+        width="100%"
+      >
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <AlphabeticIndexIcon index={index} size="XS" />
+          <span>Output</span>
+        </Flex>
+        <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
+      </Flex>
+      {isRunning ? (
+        <ExperimentCostAndLatencySummary executionState="running" />
+      ) : experimentId != null ? (
+        <Suspense fallback={<ExperimentCostAndLatencySummarySkeleton />}>
+          <ConnectedExperimentCostAndLatencySummary
+            experimentId={experimentId}
+          />
+        </Suspense>
+      ) : (
+        <ExperimentCostAndLatencySummary executionState="idle" />
+      )}
+      {isRunning ? (
+        <ExperimentAnnotationAggregates
+          executionState="complete"
+          annotationConfigs={evaluatorOutputConfigs}
+          annotationSummaries={annotationSummaries}
+        />
+      ) : experimentId != null ? (
+        <Suspense
+          fallback={
+            <ExperimentAnnotationAggregatesSkeleton
+              annotationConfigs={evaluatorOutputConfigs}
+            />
+          }
+        >
+          <ConnectedExperimentAnnotationAggregates
+            experimentId={experimentId}
+            annotationConfigs={evaluatorOutputConfigs}
+          />
+        </Suspense>
+      ) : (
+        <ExperimentAnnotationAggregates
+          executionState="idle"
+          annotationConfigs={evaluatorOutputConfigs}
+        />
+      )}
+    </Flex>
+  );
+}
+
 export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
@@ -784,6 +862,9 @@ export function PlaygroundDatasetExamplesTable({
     usePlaygroundDatasetExamplesTableContext(
       (state) => state.appendExampleDataEvaluationChunk
     );
+  const addExperimentRunAnnotation = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.addExperimentRunAnnotation
+  );
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -914,6 +995,11 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               evaluationChunk: chatCompletion,
             });
+            addExperimentRunAnnotation({
+              instanceId,
+              annotationName: chatCompletion.evaluatorName,
+              score: chatCompletion.experimentRunEvaluation?.score ?? null,
+            });
             incrementEvalsCompleted(instanceId);
             break;
           }
@@ -926,6 +1012,7 @@ export function PlaygroundDatasetExamplesTable({
         }
       },
     [
+      addExperimentRunAnnotation,
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
@@ -1300,55 +1387,13 @@ export function PlaygroundDatasetExamplesTable({
       return {
         id: `instance-${instance.id}`,
         header: () => (
-          <Flex direction="column" gap="size-50" width="100%">
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              justifyContent="space-between"
-              width="100%"
-            >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <AlphabeticIndexIcon index={index} size="XS" />
-                <span>Output</span>
-              </Flex>
-              <PlaygroundInstanceProgressIndicator instanceId={instance.id} />
-            </Flex>
-            {isRunning ? (
-              <ExperimentCostAndLatencySummary executionState="running" />
-            ) : experimentId != null ? (
-              <Suspense fallback={<ExperimentCostAndLatencySummarySkeleton />}>
-                <ConnectedExperimentCostAndLatencySummary
-                  experimentId={experimentId}
-                />
-              </Suspense>
-            ) : (
-              <ExperimentCostAndLatencySummary executionState="idle" />
-            )}
-            {isRunning ? (
-              <ExperimentAnnotationAggregatesSkeleton
-                annotationConfigs={evaluatorOutputConfigs}
-              />
-            ) : experimentId != null ? (
-              <Suspense
-                fallback={
-                  <ExperimentAnnotationAggregatesSkeleton
-                    annotationConfigs={evaluatorOutputConfigs}
-                  />
-                }
-              >
-                <ConnectedExperimentAnnotationAggregates
-                  experimentId={experimentId}
-                  annotationConfigs={evaluatorOutputConfigs}
-                />
-              </Suspense>
-            ) : (
-              <ExperimentAnnotationAggregates
-                executionState="idle"
-                annotationConfigs={evaluatorOutputConfigs}
-              />
-            )}
-          </Flex>
+          <PlaygroundInstanceOutputColumnHeader
+            instanceId={instance.id}
+            index={index}
+            experimentId={experimentId}
+            isRunning={isRunning}
+            evaluatorOutputConfigs={evaluatorOutputConfigs}
+          />
         ),
 
         cell: ({ row }) => {
