@@ -19,9 +19,9 @@
 # - https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g
 # - https://github.com/Arize-ai/phoenix/issues
 
-ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
+ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot
 # To deploy it on an arm64, like Raspberry Pi or Apple-Silicon, chose this image instead:
-# ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot-arm64
+# ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot-arm64
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:22-slim AS frontend-builder
@@ -37,7 +37,7 @@ RUN pnpm install
 RUN pnpm run build
 
 # The second stage builds the backend.
-FROM ghcr.io/astral-sh/uv:0.9.18-python3.11-bookworm-slim AS backend-builder
+FROM ghcr.io/astral-sh/uv:0.9.18-python3.13-bookworm-slim AS backend-builder
 WORKDIR /phoenix
 COPY ./src /phoenix/src
 COPY ./pyproject.toml /phoenix/
@@ -70,7 +70,7 @@ RUN uv pip install dist/*.whl --no-deps
 FROM ${BASE_IMAGE}
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/.venv/ ./.venv
-ENV PYTHONPATH="/phoenix/.venv/lib/python3.11/site-packages:$PYTHONPATH"
+ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.
 EXPOSE 6006

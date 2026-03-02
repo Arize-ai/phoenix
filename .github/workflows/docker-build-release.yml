@@ -37,13 +37,13 @@ jobs:
         id: set-base-image
         run: |
           if [ "${{ matrix.variant }}" == "root" ]; then
-            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13" >> $GITHUB_ENV
           elif [ "${{ matrix.variant }}" == "debug" ]; then
-            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:debug" >> $GITHUB_ENV
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13:debug" >> $GITHUB_ENV
           elif [ "${{ matrix.variant }}" == "nonroot" ]; then
-            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot" >> $GITHUB_ENV
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot" >> $GITHUB_ENV
           else
-            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian13" >> $GITHUB_ENV
           fi
 
       - name: Set up Docker Buildx
