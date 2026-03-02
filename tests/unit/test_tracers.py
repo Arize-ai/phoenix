@@ -92,7 +92,9 @@ class TestTracer:
             parent_span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_traces = (
                 (
                     await session.execute(
@@ -199,7 +201,9 @@ class TestTracer:
             span2.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_traces = (
                 (
                     await session.execute(
@@ -266,7 +270,9 @@ class TestTracer:
         assert len(tracer._self_exporter.get_finished_spans()) == 1
 
         async with db() as session:
-            await tracer.save_db_traces(session=session, project_id=project.id)
+            db_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(db_traces)
+            await session.flush()
 
         assert len(tracer._self_exporter.get_finished_spans()) == 1  # buffer should not be cleared
 
@@ -301,7 +307,9 @@ class TestTracer:
                 raise ValueError("Test error message")
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             db_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -367,7 +375,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -399,7 +409,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -473,7 +485,9 @@ class TestTracer:
             parent.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_spans = (await session.execute(select(models.Span))).scalars().all()
 
         returned_spans = returned_traces[0].spans
@@ -542,7 +556,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_traces: Sequence[models.Trace] = (
                 (
                     await session.scalars(
@@ -651,7 +667,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_traces = (
                 (
                     await session.execute(
@@ -706,7 +724,9 @@ class TestTracer:
             span.set_status(Status(StatusCode.OK))
 
         async with db() as session:
-            returned_traces = await tracer.save_db_traces(session=session, project_id=project.id)
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
             fetched_traces = (
                 (
                     await session.execute(

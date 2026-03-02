@@ -425,9 +425,9 @@ class ChatCompletionMutationMixin:
                     trace: Trace | None = None
                     if tracer is not None:
                         async with info.context.db() as session:
-                            db_traces = await tracer.save_db_traces(
-                                session=session, project_id=project_id
-                            )
+                            db_traces = tracer.get_db_traces(project_id=project_id)
+                            session.add_all(db_traces)
+                            await session.flush()
                         if db_traces:
                             db_trace = db_traces[0]
                             trace = Trace(id=db_trace.id, db_record=db_trace)
@@ -786,7 +786,9 @@ class ChatCompletionMutationMixin:
                         description=project_description,
                     )
                 )
-            db_traces = await tracer.save_db_traces(session=session, project_id=project_id)
+            db_traces = tracer.get_db_traces(project_id=project_id)
+            session.add_all(db_traces)
+            await session.flush()
 
         db_trace = db_traces[0]
         db_span = db_trace.spans[0]
