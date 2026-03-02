@@ -14,6 +14,8 @@ function getStatusText(file: FileWithProgress): string {
       return "Pending";
     case "uploading":
       return `Uploading${file.progress !== undefined ? ` ${file.progress}%` : ""}`;
+    case "parsing":
+      return "Parsing...";
     case "complete":
       return "Complete";
     case "error":
@@ -68,7 +70,9 @@ export function FileListItem({
             size="S"
             aria-label={`Remove ${file.name}`}
             onPress={() => onRemove(file)}
-            isDisabled={isDisabled || status === "uploading"}
+            isDisabled={
+              isDisabled || status === "uploading" || status === "parsing"
+            }
           >
             <Icon svg={<CloseOutline />} />
           </IconButton>

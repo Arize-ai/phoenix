@@ -80,6 +80,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const { onDatasetCreated, onDatasetCreateError, onErrorClear } = props;
   const [columns, setColumns] = useState<string[]>([]);
   const [fileType, setFileType] = useState<DatasetFileType>(null);
+  const [isParsing, setIsParsing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -132,6 +133,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
       // Parse file contents using streaming (handles large files efficiently)
       const parseFile = async () => {
+        setIsParsing(true);
         try {
           if (detectedType === "csv") {
             const columnNames = await parseCSVColumnsStreaming(file);
@@ -150,6 +152,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           onDatasetCreateError(
             error instanceof Error ? error : new Error("Failed to parse file")
           );
+        } finally {
+          setIsParsing(false);
         }
       };
       parseFile();
@@ -247,6 +251,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     [fileType, onDatasetCreated, onDatasetCreateError]
   );
 
+  const shouldDisableFields = isSubmitting || isParsing || !selectedFile;
+
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <div css={formBodyStyles}>
@@ -268,8 +274,14 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 />
               ) : (
                 <FileList
-                  files={[{ file: selectedFile, status: "complete" }]}
+                  files={[
+                    {
+                      file: selectedFile,
+                      status: isParsing ? "parsing" : "complete",
+                    },
+                  ]}
                   onRemove={handleFileRemove}
+                  isDisabled={isSubmitting}
                 />
               )}
               {error?.message && (
@@ -298,6 +310,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               onChange={onChange}
               onBlur={onBlur}
               value={value.toString()}
+              isDisabled={shouldDisableFields}
             >
               <Label>Dataset Name</Label>
               <Input placeholder="e.g. Golden Dataset" />
@@ -321,6 +334,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
+              isDisabled={shouldDisableFields}
               value={value.toString()}
             >
               <Label>Description</Label>
@@ -334,84 +348,72 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           )}
         />
 
-        {selectedFile && columns.length > 0 && (
-          <>
-            <Controller
-              name="input_keys"
-              control={control}
-              rules={{
-                required: "At least one input key is required",
-              }}
-              render={({
-                field: { value, onChange },
-                fieldState: { error },
-              }) => (
-                <ColumnMultiSelector
-                  label="Input keys"
-                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
-                  columns={columns}
-                  selectedColumns={value}
-                  onChange={onChange}
-                  errorMessage={error?.message}
-                />
-              )}
+        <Controller
+          name="input_keys"
+          control={control}
+          rules={{
+            required: "At least one input key is required",
+          }}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <ColumnMultiSelector
+              label="Input keys"
+              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
+              columns={columns}
+              selectedColumns={value}
+              onChange={onChange}
+              errorMessage={error?.message}
+              isDisabled={shouldDisableFields}
             />
+          )}
+        />
 
-            <Controller
-              name="output_keys"
-              control={control}
-              render={({
-                field: { value, onChange },
-                fieldState: { error },
-              }) => (
-                <ColumnMultiSelector
-                  label="Output keys"
-                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
-                  columns={columns}
-                  selectedColumns={value}
-                  onChange={onChange}
-                  errorMessage={error?.message}
-                />
-              )}
+        <Controller
+          name="output_keys"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <ColumnMultiSelector
+              label="Output keys"
+              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
+              columns={columns}
+              selectedColumns={value}
+              onChange={onChange}
+              errorMessage={error?.message}
+              isDisabled={shouldDisableFields}
             />
+          )}
+        />
 
-            <Controller
-              name="metadata_keys"
-              control={control}
-              render={({
-                field: { value, onChange },
-                fieldState: { error },
-              }) => (
-                <ColumnMultiSelector
-                  label="Metadata keys"
-                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
-                  columns={columns}
-                  selectedColumns={value}
-                  onChange={onChange}
-                  errorMessage={error?.message}
-                />
-              )}
+        <Controller
+          name="metadata_keys"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <ColumnMultiSelector
+              label="Metadata keys"
+              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
+              columns={columns}
+              selectedColumns={value}
+              onChange={onChange}
+              errorMessage={error?.message}
+              isDisabled={shouldDisableFields}
             />
+          )}
+        />
 
-            <Controller
-              name="split_keys"
-              control={control}
-              render={({
-                field: { value, onChange },
-                fieldState: { error },
-              }) => (
-                <ColumnMultiSelector
-                  label="Split keys"
-                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
-                  columns={columns}
-                  selectedColumns={value}
-                  onChange={onChange}
-                  errorMessage={error?.message}
-                />
-              )}
+        <Controller
+          name="split_keys"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <ColumnMultiSelector
+              label="Split keys"
+              description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
+              columns={columns}
+              selectedColumns={value}
+              onChange={onChange}
+              errorMessage={error?.message}
+              isDisabled={shouldDisableFields}
             />
-          </>
-        )}
+          )}
+        />
       </div>
 
       <View

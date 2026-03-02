@@ -16,7 +16,7 @@ export interface FileWithProgress {
   /**
    * Current status of the file
    */
-  status?: "pending" | "uploading" | "complete" | "error";
+  status?: "pending" | "uploading" | "parsing" | "complete" | "error";
   /**
    * Error message if status is 'error'
    */
