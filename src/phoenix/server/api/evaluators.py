@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
@@ -1026,8 +1027,14 @@ def cast_template_variable_types(
     for key, prop_schema in properties.items():
         if key in casted_template_variables:
             prop_type = prop_schema.get("type")
-            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
-                casted_template_variables[key] = str(casted_template_variables[key])
+            if prop_type == "string":
+                value = casted_template_variables[key]
+                if value is None:
+                    raise ValueError(f"Field '{key}' expects a string but got NoneType")
+                if isinstance(value, (dict, list)):
+                    casted_template_variables[key] = json.dumps(value, default=str)
+                elif not isinstance(value, str):
+                    casted_template_variables[key] = str(value)
 
     return casted_template_variables
 
@@ -1434,7 +1441,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
                 },
                 "case_sensitive": {
                     "type": "boolean",
-                    "description": "Whether comparison is case-sensitive (default: True)",
+                    "description": "Whether comparison is case-sensitive (default: False)",
                 },
             },
             "required": ["expected", "actual"],
@@ -1512,7 +1519,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 
                 expected = inputs.get("expected", "")
                 actual = inputs.get("actual", "")
-                case_sensitive = inputs.get("case_sensitive", True)
+                case_sensitive = inputs.get("case_sensitive", False)
 
                 with tracer_.start_as_current_span(
                     self.name,
@@ -1865,7 +1872,7 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                 },
                 "case_sensitive": {
                     "type": "boolean",
-                    "description": "Whether comparison is case-sensitive (default: True)",
+                    "description": "Whether comparison is case-sensitive (default: False)",
                 },
             },
             "required": ["expected", "actual"],
@@ -1940,7 +1947,17 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
 
                 expected = inputs.get("expected", "")
                 actual = inputs.get("actual", "")
-                case_sensitive = inputs.get("case_sensitive", True)
+                case_sensitive = inputs.get("case_sensitive", False)
+
+                if case_sensitive:
+                    compare_expected, compare_actual = expected, actual
+                else:
+                    compare_expected, compare_actual = expected.lower(), actual.lower()
+
+                if max(len(compare_expected), len(compare_actual)) > 5000:
+                    raise ValueError(
+                        "Inputs too long for Levenshtein distance (max 5000 characters)"
+                    )
 
                 with tracer_.start_as_current_span(
                     self.name,
@@ -1955,10 +1972,10 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
                         ),
                     },
                 ) as execution_span:
-                    if case_sensitive:
-                        distance = levenshtein_distance(expected, actual)
+                    if compare_expected == compare_actual:
+                        distance = 0
                     else:
-                        distance = levenshtein_distance(expected.lower(), actual.lower())
+                        distance = levenshtein_distance(compare_expected, compare_actual)
 
                     explanation = f"edit distance between expected and actual is {distance}"
 
@@ -2039,6 +2056,18 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
 
 
 def json_diff_count(expected: Any, actual: Any) -> int:
+    # Handle bools first (isinstance(True, int) is True in Python)
+    if isinstance(expected, bool) or isinstance(actual, bool):
+        if type(expected) is not type(actual):
+            return 1
+        return 0 if expected == actual else 1
+    # Integer fast-path (avoids float overflow for large ints)
+    if isinstance(expected, int) and isinstance(actual, int):
+        return 0 if expected == actual else 1
+    # Handle numeric equivalence (int/float interchangeable)
+    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        return 0 if math.isclose(float(expected), float(actual), rel_tol=1e-9) else 1
+    # Original type check for non-numeric types
     if type(expected) is not type(actual):
         return 1
 

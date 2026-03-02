@@ -1248,9 +1248,13 @@ class TestChatCompletionMutationMixin:
             attributes = dict(flatten(llm_prompt_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
+            input_json = json.dumps({"city": "Paris"})
+            output_json = json.dumps(
+                {"messages": [{"role": "assistant", "content": "France"}], "available_tools": []}
+            )
             assert input_value == {
-                "input": "{'city': 'Paris'}",
-                "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
+                "input": input_json,
+                "output": output_json,
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) == {
@@ -1262,9 +1266,8 @@ class TestChatCompletionMutationMixin:
                     {
                         "role": "user",
                         "content": (
-                            "Input: {'city': 'Paris'}\n\n"
-                            "Output: {'messages': [{'role': 'assistant', 'content': 'France'}], "
-                            "'available_tools': []}\n\n"
+                            f"Input: {input_json}\n\n"
+                            f"Output: {output_json}\n\n"
                             "Is this output correct?"
                         ),
                     },
@@ -1556,7 +1559,7 @@ class TestChatCompletionMutationMixin:
             assert json.loads(attributes.pop(INPUT_VALUE)) == {
                 "expected": "France",
                 "actual": "France",
-                "case_sensitive": True,
+                "case_sensitive": False,
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             assert json.loads(attributes.pop(OUTPUT_VALUE)) is True
