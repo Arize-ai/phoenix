@@ -51,8 +51,11 @@ function isFileSizeValid(file: File, maxFileSize?: number): boolean {
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(k)),
+    sizes.length - 1
+  );
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
@@ -84,25 +87,15 @@ export function FileDropZone({
       // Check max files constraint
       const maxAllowed = allowsMultiple ? (maxFiles ?? Infinity) : 1;
 
-      files.forEach((file, index) => {
-        // Check count limit
-        if (index >= maxAllowed) {
-          rejected.push({
-            file,
-            reason: "count",
-            message: `Maximum ${maxAllowed} file${maxAllowed > 1 ? "s" : ""} allowed`,
-          });
-          return;
-        }
-
-        // Check file type
+      for (const file of files) {
+        // Check file type first
         if (!isFileTypeAccepted(file, acceptedFileTypes)) {
           rejected.push({
             file,
             reason: "type",
             message: `File type not accepted. Allowed: ${acceptedFileTypes?.join(", ")}`,
           });
-          return;
+          continue;
         }
 
         // Check file size
@@ -112,11 +105,21 @@ export function FileDropZone({
             reason: "size",
             message: `File too large. Maximum size: ${formatFileSize(maxFileSize!)}`,
           });
-          return;
+          continue;
+        }
+
+        // Check count limit based on accepted count, not iteration index
+        if (accepted.length >= maxAllowed) {
+          rejected.push({
+            file,
+            reason: "count",
+            message: `Maximum ${maxAllowed} file${maxAllowed > 1 ? "s" : ""} allowed`,
+          });
+          continue;
         }
 
         accepted.push(file);
-      });
+      }
 
       if (accepted.length > 0 && onSelect) {
         onSelect(accepted);

@@ -35,13 +35,13 @@ export function FileList({ files, onRemove, isDisabled }: FileListProps) {
 
   return (
     <div css={fileListCSS}>
-      {files.map((fileWithProgress) => {
+      {files.map((fileWithProgress, index) => {
         const { file, progress, status, error } = fileWithProgress;
         const showProgress = status === "uploading" && progress !== undefined;
 
         return (
           <div
-            key={`${file.name}-${file.size}-${file.lastModified}`}
+            key={`${index}-${file.name}-${file.size}-${file.lastModified}`}
             className="file-list__item"
             data-status={status}
           >
