@@ -1,4 +1,5 @@
-import { Button, Icon, FileOutline, CloseOutline } from "@phoenix/components";
+import { Button } from "@phoenix/components/button";
+import { Icon, FileOutline, CloseOutline } from "@phoenix/components/icon";
 import { ProgressBar } from "@phoenix/components/progress";
 
 import { formatFileSize } from "./FileDropZone";
