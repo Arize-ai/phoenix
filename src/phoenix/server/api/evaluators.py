@@ -1087,7 +1087,7 @@ def infer_input_schema_from_template(
 def evaluation_result_to_model(
     result: EvaluationResult,
     *,
-    experiment_run_id: int,
+    experiment_run_id: Optional[int] = None,
 ) -> models.ExperimentRunAnnotation:
     return models.ExperimentRunAnnotation(
         experiment_run_id=experiment_run_id,
