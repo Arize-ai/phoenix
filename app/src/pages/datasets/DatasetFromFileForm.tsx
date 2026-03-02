@@ -94,6 +94,9 @@ function parseJSONLKeys(
 }
 
 const formBodyStyles = css`
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--global-dimension-size-200);
   .dropdown__button {
     width: 100%;

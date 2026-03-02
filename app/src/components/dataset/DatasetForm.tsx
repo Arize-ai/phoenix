@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -14,6 +15,12 @@ import {
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
+
+const formBodyStyles = css`
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+`;
 
 export type DatasetFormParams = {
   name: string;
@@ -52,7 +59,7 @@ export function DatasetForm({
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <View padding="size-200">
+      <View padding="size-200" css={formBodyStyles}>
         <Controller
           name="name"
           control={control}
