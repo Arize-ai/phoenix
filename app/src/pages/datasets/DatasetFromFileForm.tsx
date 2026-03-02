@@ -94,11 +94,6 @@ function parseJSONLKeys(
 }
 
 const formBodyStyles = css`
-  /* Constrain form body to allow scrolling while keeping footer visible */
-  /* 280px accounts for dialog header, tabs, footer, and modal margins */
-  max-height: calc(100vh - 280px);
-  overflow-y: auto;
-  overscroll-behavior: none;
   padding: var(--global-dimension-size-200);
   .dropdown__button {
     width: 100%;
