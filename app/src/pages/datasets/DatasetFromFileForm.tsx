@@ -17,11 +17,10 @@ import {
   View,
 } from "@phoenix/components";
 import { FileDropZone, FileList } from "@phoenix/components/dropzone";
-import type {
-  FileRejection,
-  FileWithProgress,
-} from "@phoenix/components/dropzone";
+import type { FileRejection } from "@phoenix/components/dropzone";
 import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
+import { parseCSVColumns } from "@phoenix/utils/csvUtils";
+import { formatJSONLError, parseJSONLKeys } from "@phoenix/utils/jsonlUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetFileType = "csv" | "jsonl" | null;
@@ -56,43 +55,6 @@ function detectFileType(fileName: string): DatasetFileType {
   return null;
 }
 
-/**
- * Parses CSV text to extract column names from the header row
- */
-function parseCSVColumns(csvText: string): string[] {
-  const lines = csvText.split("\n");
-  if (lines.length > 0) {
-    return lines[0].split(",").map((name) => name.trim());
-  }
-  return [];
-}
-
-/**
- * Parses JSONL text to extract all unique keys from all JSON objects
- */
-function parseJSONLKeys(
-  jsonlText: string,
-  onError: (error: Error) => void
-): string[] {
-  try {
-    const lines = jsonlText.split("\n");
-    return Array.from(
-      new Set(
-        lines
-          .filter((line) => line.trim() !== "")
-          .map((line) => {
-            const json = JSON.parse(line);
-            return Object.keys(json);
-          })
-          .flat()
-      )
-    );
-  } catch (error) {
-    onError(error as Error);
-    return [];
-  }
-}
-
 const formBodyStyles = css`
   max-height: calc(100vh - 280px);
   overflow-y: auto;
@@ -106,28 +68,6 @@ const dropZoneContainerStyles = css`
   margin-bottom: var(--global-dimension-size-200);
 `;
 
-const fileInfoStyles = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  margin-bottom: var(--global-dimension-size-200);
-  padding: var(--global-dimension-size-100);
-  background: var(--global-background-color-muted);
-  border-radius: var(--global-rounding-small);
-`;
-
-const fileTypeTagStyles = css`
-  display: inline-flex;
-  align-items: center;
-  padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
-  background: var(--global-color-primary);
-  color: var(--global-text-color-inverted);
-  border-radius: var(--global-rounding-small);
-  font-size: var(--global-dimension-static-font-size-75);
-  font-weight: 500;
-  text-transform: uppercase;
-`;
-
 /**
  * Form for creating a dataset from a CSV or JSONL file.
  * Automatically detects file type based on extension.
@@ -136,7 +76,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const { onDatasetCreated, onDatasetCreateError } = props;
   const [columns, setColumns] = useState<string[]>([]);
   const [fileType, setFileType] = useState<DatasetFileType>(null);
-  const [selectedFiles, setSelectedFiles] = useState<FileWithProgress[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -180,9 +119,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         return;
       }
 
-      // Update selected files for display
-      setSelectedFiles([{ file, status: "complete" }]);
-
       // Set file in form
       setValue("file", file, { shouldValidate: true, shouldDirty: true });
 
@@ -202,8 +138,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           const columnNames = parseCSVColumns(text);
           setColumns(columnNames);
         } else if (detectedType === "jsonl") {
-          const keys = parseJSONLKeys(text, onDatasetCreateError);
-          setColumns(keys);
+          const result = parseJSONLKeys(text);
+          if (result.success) {
+            setColumns(result.keys);
+          } else {
+            onDatasetCreateError(new Error(formatJSONLError(result.error)));
+          }
         }
       };
       reader.readAsText(file);
@@ -231,7 +171,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
   const handleFileRemove = useCallback(() => {
     setValue("file", null, { shouldValidate: true });
-    setSelectedFiles([]);
     setColumns([]);
     setFileType(null);
     resetField("input_keys");
@@ -322,24 +261,17 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                   aria-label="Dataset file upload"
                 />
               ) : (
-                <div css={fileInfoStyles}>
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <Text weight="heavy">Selected file</Text>
-                    {fileType && (
-                      <span css={fileTypeTagStyles}>{fileType}</span>
-                    )}
-                  </Flex>
-                  <FileList files={selectedFiles} onRemove={handleFileRemove} />
-                </div>
+                <FileList
+                  files={[{ file: selectedFile, status: "complete" }]}
+                  onRemove={handleFileRemove}
+                />
               )}
               {error?.message && (
-                <Text color="danger" size="S">
-                  {error.message}
-                </Text>
+                <View marginTop="size-200">
+                  <Text color="danger" size="S">
+                    {error.message}
+                  </Text>
+                </View>
               )}
             </div>
           )}
