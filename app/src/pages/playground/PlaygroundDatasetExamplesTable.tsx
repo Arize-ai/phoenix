@@ -11,7 +11,6 @@ import {
   memo,
   type ReactNode,
   type RefObject,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -51,12 +50,9 @@ import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
-  ConnectedExperimentAnnotationAggregates,
-  ConnectedExperimentCostAndLatencySummary,
   ExperimentAnnotationAggregates,
-  ExperimentAnnotationAggregatesSkeleton,
   ExperimentCostAndLatencySummary,
-  ExperimentCostAndLatencySummarySkeleton,
+  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
@@ -72,6 +68,7 @@ import {
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import type { ExecutionState } from "@phoenix/components/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -113,6 +110,7 @@ import {
   useInstanceVariables,
 } from "./InstanceVariablesContext";
 import type {
+  CostAndLatencyAggregate,
   EvaluationChunk,
   ExampleRunData,
   InstanceResponses,
@@ -720,6 +718,52 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
+function costAndLatencyAggregateEqual(
+  a: CostAndLatencyAggregate | null,
+  b: CostAndLatencyAggregate | null
+): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  return (
+    a.runCount === b.runCount &&
+    a.latencySum === b.latencySum &&
+    a.latencyCount === b.latencyCount &&
+    a.tokenCountSum === b.tokenCountSum &&
+    a.tokenCountCount === b.tokenCountCount &&
+    a.costSum === b.costSum &&
+    a.costCount === b.costCount
+  );
+}
+
+/**
+ * Derives the experiment shape expected by ExperimentCostAndLatencySummary
+ * from our incremental aggregate. `averageRunLatencyMs` is pre-averaged since
+ * the component displays it directly, while `costSummary.total` fields are
+ * totals that the component divides by `runCount`.
+ */
+function deriveCostAndLatencySummary(
+  experimentId: string | null,
+  aggregate: CostAndLatencyAggregate | null
+): ExperimentCostAndLatencySummaryExperiment | null {
+  if (experimentId == null || aggregate == null || aggregate.runCount === 0) {
+    return null;
+  }
+  return {
+    id: experimentId,
+    averageRunLatencyMs:
+      aggregate.latencyCount > 0
+        ? aggregate.latencySum / aggregate.latencyCount
+        : null,
+    runCount: aggregate.runCount,
+    costSummary: {
+      total: {
+        cost: aggregate.costCount > 0 ? aggregate.costSum : null,
+        tokens: aggregate.tokenCountCount > 0 ? aggregate.tokenCountSum : null,
+      },
+    },
+  };
+}
+
 function PlaygroundInstanceOutputColumnHeader({
   instanceId,
   index,
@@ -740,8 +784,35 @@ function PlaygroundInstanceOutputColumnHeader({
       return Object.entries(instanceAggregates).map(
         ([annotationName, { meanScore }]) => ({ annotationName, meanScore })
       );
-    }
+    },
+    (a, b) =>
+      a.length === b.length &&
+      a.every(
+        (sa, i) =>
+          sa.annotationName === b[i].annotationName &&
+          sa.meanScore === b[i].meanScore
+      )
   );
+
+  const costAndLatencyAggregate = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.costAndLatencyAggregates[instanceId] ?? null,
+    costAndLatencyAggregateEqual
+  );
+
+  const costAndLatencySummary = useMemo(
+    () =>
+      deriveCostAndLatencySummary(
+        experimentId ?? null,
+        costAndLatencyAggregate
+      ),
+    [experimentId, costAndLatencyAggregate]
+  );
+
+  const executionState: ExecutionState = isRunning
+    ? "running"
+    : experimentId != null
+      ? "complete"
+      : "idle";
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
@@ -758,42 +829,15 @@ function PlaygroundInstanceOutputColumnHeader({
         </Flex>
         <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
       </Flex>
-      {isRunning ? (
-        <ExperimentCostAndLatencySummary executionState="running" />
-      ) : experimentId != null ? (
-        <Suspense fallback={<ExperimentCostAndLatencySummarySkeleton />}>
-          <ConnectedExperimentCostAndLatencySummary
-            experimentId={experimentId}
-          />
-        </Suspense>
-      ) : (
-        <ExperimentCostAndLatencySummary executionState="idle" />
-      )}
-      {isRunning ? (
-        <ExperimentAnnotationAggregates
-          executionState="complete"
-          annotationConfigs={evaluatorOutputConfigs}
-          annotationSummaries={annotationSummaries}
-        />
-      ) : experimentId != null ? (
-        <Suspense
-          fallback={
-            <ExperimentAnnotationAggregatesSkeleton
-              annotationConfigs={evaluatorOutputConfigs}
-            />
-          }
-        >
-          <ConnectedExperimentAnnotationAggregates
-            experimentId={experimentId}
-            annotationConfigs={evaluatorOutputConfigs}
-          />
-        </Suspense>
-      ) : (
-        <ExperimentAnnotationAggregates
-          executionState="idle"
-          annotationConfigs={evaluatorOutputConfigs}
-        />
-      )}
+      <ExperimentCostAndLatencySummary
+        executionState={executionState}
+        experiment={costAndLatencySummary}
+      />
+      <ExperimentAnnotationAggregates
+        executionState={executionState}
+        annotationConfigs={evaluatorOutputConfigs}
+        annotationSummaries={annotationSummaries}
+      />
     </Flex>
   );
 }
@@ -816,7 +860,17 @@ export function PlaygroundDatasetExamplesTable({
   >;
 }) {
   const environment = useRelayEnvironment();
-  const instances = usePlaygroundContext((state) => state.instances);
+  const instances = usePlaygroundContext(
+    (state) => state.instances,
+    (a, b) =>
+      a.length === b.length &&
+      a.every(
+        (ia, i) =>
+          ia.id === b[i].id &&
+          ia.activeRunId === b[i].activeRunId &&
+          ia.experimentId === b[i].experimentId
+      )
+  );
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experimentId);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
@@ -864,6 +918,9 @@ export function PlaygroundDatasetExamplesTable({
     );
   const addExperimentRunAnnotation = usePlaygroundDatasetExamplesTableContext(
     (state) => state.addExperimentRunAnnotation
+  );
+  const addRunCostAndLatency = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.addRunCostAndLatency
   );
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
@@ -948,6 +1005,12 @@ export function PlaygroundDatasetExamplesTable({
                 experimentRunId: chatCompletion.experimentRun?.id,
               },
             });
+            addRunCostAndLatency({
+              instanceId,
+              latencyMs: chatCompletion.span?.latencyMs ?? null,
+              tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
+              cost: chatCompletion.span?.costSummary?.total?.cost ?? null,
+            });
             incrementRunsCompleted(instanceId);
             break;
           case "ChatCompletionSubscriptionError":
@@ -1013,6 +1076,7 @@ export function PlaygroundDatasetExamplesTable({
       },
     [
       addExperimentRunAnnotation,
+      addRunCostAndLatency,
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,

@@ -1,4 +1,4 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -18,8 +18,6 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import type { ExecutionState } from "@phoenix/components/types";
 
 import type { ExperimentCostAndLatencySummaryQuery } from "./__generated__/ExperimentCostAndLatencySummaryQuery.graphql";
-import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";
-import { ExperimentAverageRunTokenCount } from "./ExperimentAverageRunTokenCount";
 
 /**
  * The shape of experiment data needed to render cost and latency summary.
@@ -59,6 +57,16 @@ const placeholderCSS = css`
   opacity: 0.5;
 `;
 
+const pulseKeyframes = keyframes`
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+`;
+
+const inProgressCSS = css`
+  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
+`;
+
 /**
  * Component that displays aggregate experiment cost and latency summary.
  * Handles idle, running (loading), and complete states to prevent layout shifts.
@@ -68,27 +76,14 @@ export function ExperimentCostAndLatencySummary({
   experiment,
   isPlaceholder = false,
 }: ExperimentCostAndLatencySummaryProps) {
-  if (executionState === "idle") {
-    return (
-      <ExperimentCostAndLatencySummaryPlaceholder
-        isPlaceholder={isPlaceholder}
-      />
-    );
-  }
-
-  if (executionState === "running") {
-    return <ExperimentCostAndLatencySummarySkeleton />;
-  }
-
-  if (experiment == null) {
-    return (
-      <ExperimentCostAndLatencySummaryPlaceholder
-        isPlaceholder={isPlaceholder}
-      />
-    );
-  }
-
-  const { id, runCount, costSummary, averageRunLatencyMs } = experiment;
+  const runCount = experiment?.runCount ?? 0;
+  const costSummary = experiment?.costSummary ?? {
+    total: {
+      cost: null,
+      tokens: null,
+    },
+  };
+  const averageRunLatencyMs = experiment?.averageRunLatencyMs ?? null;
   const costTotal = costSummary.total.cost;
   const tokenCountTotal = costSummary.total.tokens;
 
@@ -101,7 +96,15 @@ export function ExperimentCostAndLatencySummary({
     costTotal == null || runCount === 0 ? null : costTotal / runCount;
 
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
+    <Flex
+      direction="row"
+      gap="size-100"
+      alignItems="center"
+      css={[
+        executionState === "running" && inProgressCSS,
+        isPlaceholder && placeholderCSS,
+      ]}
+    >
       <TooltipTrigger>
         <TriggerWrap>
           <Text size="S" fontFamily="mono" color="gray-500">
@@ -110,21 +113,9 @@ export function ExperimentCostAndLatencySummary({
         </TriggerWrap>
         <Tooltip>Averages computed over all runs in the experiment</Tooltip>
       </TooltipTrigger>
-      {averageRunLatencyMs != null && (
-        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-      )}
-      <ExperimentAverageRunTokenCount
-        averageRunTokenCountTotal={averageRunTokenCountTotal}
-        experimentId={id}
-        size="S"
-      />
-      {averageRunCostTotal != null && (
-        <ExperimentAverageRunTokenCosts
-          averageRunCostTotal={averageRunCostTotal}
-          experimentId={id}
-          size="S"
-        />
-      )}
+      <LatencyText size="S" latencyMs={averageRunLatencyMs} />
+      <TokenCount size="S">{averageRunTokenCountTotal}</TokenCount>
+      <TokenCosts size="S">{averageRunCostTotal}</TokenCosts>
     </Flex>
   );
 }

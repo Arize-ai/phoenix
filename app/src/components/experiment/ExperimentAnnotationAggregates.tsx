@@ -1,4 +1,4 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -10,7 +10,6 @@ import {
   getOptimizationBounds,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
-import { Skeleton } from "@phoenix/components/loading";
 import type { ExecutionState } from "@phoenix/components/types";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks";
@@ -50,6 +49,16 @@ type ExperimentAnnotationAggregatesProps = {
    */
   isPlaceholder?: boolean;
 };
+
+const pulseKeyframes = keyframes`
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+`;
+
+const inProgressCSS = css`
+  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
+`;
 
 const listCSS = css`
   display: grid;
@@ -149,7 +158,7 @@ function ExperimentAnnotationAggregateItem({
   );
 
   return (
-    <li css={listItemCSS}>
+    <li css={[listItemCSS, executionState === "running" && inProgressCSS]}>
       {/* Column 1: Color swatch + annotation name */}
       <Flex
         direction="row"
@@ -172,69 +181,35 @@ function ExperimentAnnotationAggregateItem({
       </Flex>
 
       {/* Column 2: AVG prefix + score value */}
-      {executionState === "idle" ? (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="gray-500">
-            AVG
-          </Text>
-          <Text size="S" fontFamily="mono" color="text-300">
-            --
-          </Text>
-        </Flex>
-      ) : executionState === "running" ? (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="gray-500">
-            AVG
-          </Text>
-          <Skeleton width={40} height="1em" />
-        </Flex>
-      ) : (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="S" fontFamily="mono" color="gray-500">
-            AVG
-          </Text>
-          <AnnotationScoreText
-            size="S"
-            fontFamily="mono"
-            positiveOptimization={positiveOptimization}
-          >
-            <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
-          </AnnotationScoreText>
-        </Flex>
-      )}
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Text size="S" fontFamily="mono" color="gray-500">
+          AVG
+        </Text>
+        <AnnotationScoreText
+          size="S"
+          fontFamily="mono"
+          positiveOptimization={
+            executionState === "idle" ? undefined : positiveOptimization
+          }
+        >
+          <Truncate maxWidth="100%">
+            {meanScore != null ? floatFormatter(meanScore) : "--"}
+          </Truncate>
+        </AnnotationScoreText>
+      </Flex>
 
       {/* Column 3: Progress bar */}
-      {executionState === "idle" ? (
-        <ProgressBar
-          css={css`
-            align-self: center;
-            --mod-barloader-fill-color: ${annotationColor};
-          `}
-          value={0}
-          height="var(--global-dimension-size-50)"
-          width="100%"
-          aria-label={`${config.name} average score`}
-        />
-      ) : executionState === "running" ? (
-        <Skeleton
-          width="100%"
-          height="var(--global-dimension-size-50)"
-          css={css`
-            align-self: center;
-          `}
-        />
-      ) : (
-        <ProgressBar
-          css={css`
-            align-self: center;
-            --mod-barloader-fill-color: ${annotationColor};
-          `}
-          value={meanScore != null ? scorePercentile : 0}
-          height="var(--global-dimension-size-50)"
-          width="100%"
-          aria-label={`${config.name} average score`}
-        />
-      )}
+      <ProgressBar
+        css={css`
+          align-self: center;
+          --mod-barloader-fill-color: ${annotationColor};
+        `}
+        animateFill={executionState !== "idle"}
+        value={meanScore != null ? scorePercentile : 0}
+        height="var(--global-dimension-size-50)"
+        width="100%"
+        aria-label={`${config.name} average score`}
+      />
     </li>
   );
 }

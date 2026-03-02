@@ -21,4 +21,9 @@ export interface ProgressBarProps extends ReactAriaProgressBarProps {
    * @default '6px'
    */
   height?: StyleProps["height"];
+  /**
+   * When true, animates the fill width with a smooth transition.
+   * @default false
+   */
+  animateFill?: boolean;
 }

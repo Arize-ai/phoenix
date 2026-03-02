@@ -36,6 +36,20 @@ type AnnotationAggregate = {
 };
 
 /**
+ * Running sums/counts for cost, latency, and token metrics per instance.
+ * Each metric tracks its own count since any value can be null on a given run.
+ */
+export type CostAndLatencyAggregate = {
+  runCount: number;
+  latencySum: number;
+  latencyCount: number;
+  tokenCountSum: number;
+  tokenCountCount: number;
+  costSum: number;
+  costCount: number;
+};
+
+/**
  * Summarized annotation data for a set of experiment runs — mean score per evaluator.
  */
 export type AnnotationSummary = {
@@ -92,6 +106,12 @@ type PlaygroundDatasetExamplesTableActions = {
     annotationName: AnnotationName;
     score: number | null;
   }) => void;
+  addRunCostAndLatency: (args: {
+    instanceId: InstanceId;
+    latencyMs: number | null;
+    tokenCountTotal: number | null;
+    cost: number | null;
+  }) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
     instanceId: InstanceId;
@@ -112,6 +132,7 @@ type PlaygroundDatasetExamplesTableState = {
     InstanceId,
     Record<AnnotationName, AnnotationAggregate>
   >;
+  costAndLatencyAggregates: Record<InstanceId, CostAndLatencyAggregate>;
   repetitions: number;
   expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
@@ -128,6 +149,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
   > = (set, get) => ({
     exampleResponsesMap: {},
     annotationAggregates: {},
+    costAndLatencyAggregates: {},
     repetitions: 1,
     expandedCells: {},
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
@@ -278,6 +300,45 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
+    addRunCostAndLatency: ({
+      instanceId,
+      latencyMs,
+      tokenCountTotal,
+      cost,
+    }) => {
+      const costAndLatencyAggregates = get().costAndLatencyAggregates;
+      const prev = costAndLatencyAggregates[instanceId] ?? {
+        runCount: 0,
+        latencySum: 0,
+        latencyCount: 0,
+        tokenCountSum: 0,
+        tokenCountCount: 0,
+        costSum: 0,
+        costCount: 0,
+      };
+      set({
+        costAndLatencyAggregates: {
+          ...costAndLatencyAggregates,
+          [instanceId]: {
+            runCount: prev.runCount + 1,
+            latencySum:
+              latencyMs != null ? prev.latencySum + latencyMs : prev.latencySum,
+            latencyCount:
+              latencyMs != null ? prev.latencyCount + 1 : prev.latencyCount,
+            tokenCountSum:
+              tokenCountTotal != null
+                ? prev.tokenCountSum + tokenCountTotal
+                : prev.tokenCountSum,
+            tokenCountCount:
+              tokenCountTotal != null
+                ? prev.tokenCountCount + 1
+                : prev.tokenCountCount,
+            costSum: cost != null ? prev.costSum + cost : prev.costSum,
+            costCount: cost != null ? prev.costCount + 1 : prev.costCount,
+          },
+        },
+      });
+    },
     setExampleDataForInstance: ({ instanceId, data }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       set({
@@ -291,6 +352,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       set({
         exampleResponsesMap: {},
         annotationAggregates: {},
+        costAndLatencyAggregates: {},
         repetitions: 1,
         expandedCells: {},
       });
