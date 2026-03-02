@@ -19,77 +19,19 @@ import {
   TabList,
   TabPanel,
   Tabs,
-  ToggleButton,
-  ToggleButtonGroup,
 } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifySuccess } from "@phoenix/contexts";
-import { DatasetFromJSONLForm } from "@phoenix/pages/datasets/DatasetFromJSONLForm";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
+import { DatasetFromFileForm } from "./DatasetFromFileForm";
 
 type CreateDatasetActionMenuProps = {
   onDatasetCreated: () => void;
 };
 
 type DatasetCreationTab = "fromFile" | "fromScratch";
-type DatasetFileFormat = "csv" | "jsonl";
-
-function DatasetFromFileForm({
-  onDatasetCreated,
-  onDatasetCreateError,
-}: {
-  onDatasetCreated: (newDataset: { id: string; name: string }) => void;
-  onDatasetCreateError: (error: Error) => void;
-}) {
-  const [fileFormat, setFileFormat] = useState<DatasetFileFormat>("csv");
-  return (
-    <div
-      css={css`
-        position: relative;
-      `}
-    >
-      <div
-        css={css`
-          position: absolute;
-          top: var(--global-dimension-size-200);
-          right: var(--global-dimension-size-200);
-        `}
-      >
-        <ToggleButtonGroup
-          size="S"
-          selectedKeys={[fileFormat]}
-          aria-label="Dataset file format"
-          onSelectionChange={(selection) => {
-            if (selection.size === 0) {
-              return;
-            }
-            const nextFormat = selection.keys().next().value;
-            if (nextFormat === "csv" || nextFormat === "jsonl") {
-              setFileFormat(nextFormat);
-            }
-          }}
-        >
-          <ToggleButton id="csv">CSV</ToggleButton>
-          <ToggleButton id="jsonl">JSONL</ToggleButton>
-        </ToggleButtonGroup>
-      </div>
-      {fileFormat === "csv" ? (
-        <DatasetFromCSVForm
-          onDatasetCreated={onDatasetCreated}
-          onDatasetCreateError={onDatasetCreateError}
-        />
-      ) : (
-        <DatasetFromJSONLForm
-          onDatasetCreated={onDatasetCreated}
-          onDatasetCreateError={onDatasetCreateError}
-        />
-      )}
-    </div>
-  );
-}
 
 export function NewDatasetActionMenu({
   onDatasetCreated,
