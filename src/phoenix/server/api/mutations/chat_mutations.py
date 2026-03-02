@@ -13,7 +13,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
+from phoenix.config import EPHEMERAL_EXPERIMENT_SUFFIX, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -253,11 +253,17 @@ class ChatCompletionMutationMixin:
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
             user_id = get_user(info)
+            experiment_name = input.experiment_name or _default_playground_experiment_name(
+                input.prompt_name
+            )
+            if input.ephemeral_experiment and not experiment_name.endswith(
+                EPHEMERAL_EXPERIMENT_SUFFIX
+            ):
+                experiment_name = f"{experiment_name} {EPHEMERAL_EXPERIMENT_SUFFIX}"
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
-                name=input.experiment_name
-                or _default_playground_experiment_name(input.prompt_name),
+                name=experiment_name,
                 description=input.experiment_description,
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),

@@ -3193,6 +3193,13 @@ def verify_server_environment_variables() -> None:
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
 
+EPHEMERAL_EXPERIMENT_SUFFIX = "(EPHEMERAL)"
+"""The suffix to use for ephemeral experiments."""
+EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
+"""The time to live for ephemeral experiments in hours."""
+EPHEMERAL_EXPERIMENT_CLEANUP_INTERVAL_HOURS = 1
+"""The interval at which to cleanup ephemeral experiments in hours."""
+
 SYSTEM_USER_ID: Optional[int] = None
 """
 The ID of the system user in the database.
