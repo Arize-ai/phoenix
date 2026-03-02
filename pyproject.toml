@@ -233,6 +233,10 @@ artifacts = [
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/phoenix/server/static/.vite" = "phoenix/server/static/.vite"
+"src/phoenix/server/static/assets" = "phoenix/server/static/assets"
+
 [tool.hatch.build]
 only-packages = true
 skip-excluded-dirs = true
@@ -254,6 +258,10 @@ artifacts = [
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
+
+[tool.hatch.build.targets.sdist.force-include]
+"src/phoenix/server/static/.vite" = "src/phoenix/server/static/.vite"
+"src/phoenix/server/static/assets" = "src/phoenix/server/static/assets"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

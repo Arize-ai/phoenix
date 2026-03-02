@@ -1171,6 +1171,12 @@ def create_app(
     has_built_ui = web_manifest_path.is_file()
     if dev:
         static_dir.mkdir(parents=True, exist_ok=True)
+    if serve_ui and not dev and not has_built_ui:
+        logger.warning(
+            "Phoenix UI is not mounted because built frontend assets are missing at %s. "
+            "The package may be missing bundled UI files.",
+            web_manifest_path,
+        )
     if serve_ui and (dev or has_built_ui):
         oauth2_idps = [
             OAuth2Idp(name=config.idp_name, displayName=config.idp_display_name)

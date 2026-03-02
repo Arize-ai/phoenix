@@ -85,6 +85,33 @@ jobs:
           version: "0.9.18"
       - name: Build distribution
         run: rm -rf dist && uv build
+      - name: Verify bundled UI assets in wheel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import sys
+
+          wheels = sorted(Path("dist").glob("*.whl"))
+          if not wheels:
+              print("No wheel found in dist/")
+              sys.exit(1)
+          wheel = wheels[0]
+          with ZipFile(wheel) as zf:
+              names = set(zf.namelist())
+
+          has_manifest = "phoenix/server/static/.vite/manifest.json" in names
+          has_js_asset = any(
+              name.startswith("phoenix/server/static/assets/") and name.endswith(".js")
+              for name in names
+          )
+          if not has_manifest or not has_js_asset:
+              print(f"Wheel missing required frontend bundle files: {wheel}")
+              print(f"  has manifest: {has_manifest}")
+              print(f"  has js asset: {has_js_asset}")
+              sys.exit(1)
+          print(f"Verified bundled UI assets in {wheel.name}")
+          PY
       - name: Check wheel contents
         run: uv run --with check-wheel-contents check-wheel-contents --ignore W004 dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
