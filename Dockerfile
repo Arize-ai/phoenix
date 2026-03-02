@@ -37,7 +37,7 @@ RUN pnpm install
 RUN pnpm run build
 
 # The second stage builds the backend.
-FROM ghcr.io/astral-sh/uv:0.9.18-python3.11-bookworm-slim AS backend-builder
+FROM ghcr.io/astral-sh/uv:0.9.18-python3.13-bookworm-slim AS backend-builder
 WORKDIR /phoenix
 COPY ./src /phoenix/src
 COPY ./pyproject.toml /phoenix/
@@ -70,7 +70,7 @@ RUN uv pip install dist/*.whl --no-deps
 FROM ${BASE_IMAGE}
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/.venv/ ./.venv
-ENV PYTHONPATH="/phoenix/.venv/lib/python3.11/site-packages:$PYTHONPATH"
+ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.
 EXPOSE 6006
