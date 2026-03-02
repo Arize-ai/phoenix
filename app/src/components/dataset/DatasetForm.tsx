@@ -19,7 +19,7 @@ import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 const formBodyStyles = css`
   max-height: calc(100vh - 280px);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  padding: var(--global-dimension-size-200);
 `;
 
 export type DatasetFormParams = {
@@ -59,7 +59,7 @@ export function DatasetForm({
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <View padding="size-200" css={formBodyStyles}>
+      <div css={formBodyStyles}>
         <Controller
           name="name"
           control={control}
@@ -133,7 +133,7 @@ export function DatasetForm({
             </CodeEditorFieldWrapper>
           )}
         />
-      </View>
+      </div>
       <View
         paddingEnd="size-200"
         paddingTop="size-100"
