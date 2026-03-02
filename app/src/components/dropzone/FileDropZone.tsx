@@ -39,7 +39,7 @@ function isFileTypeAccepted(file: File, acceptedFileTypes?: string[]): boolean {
  * Validates a file against size constraints
  */
 function isFileSizeValid(file: File, maxFileSize?: number): boolean {
-  if (!maxFileSize) {
+  if (maxFileSize == null) {
     return true;
   }
   return file.size <= maxFileSize;
@@ -190,23 +190,9 @@ export function FileDropZone({
           return true;
         }
         if (type.endsWith("/*")) {
-          // Check for wildcard MIME types
-          const baseType = type.slice(0, -2);
-          // Common file types to check
-          const commonTypes = [
-            `${baseType}/plain`,
-            `${baseType}/csv`,
-            `${baseType}/json`,
-            `${baseType}/xml`,
-            `${baseType}/html`,
-            `${baseType}/javascript`,
-            `${baseType}/png`,
-            `${baseType}/jpeg`,
-            `${baseType}/gif`,
-            `${baseType}/svg+xml`,
-            `${baseType}/pdf`,
-          ];
-          return commonTypes.some((t) => types.has(t));
+          // For wildcard MIME types, allow the drop and validate on drop
+          // This avoids maintaining a hardcoded list of subtypes
+          return true;
         }
         return types.has(type);
       });
