@@ -1,5 +1,18 @@
 # Changelog
 
+## [13.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.6.0...arize-phoenix-v13.7.0) (2026-03-02)
+
+
+### Features
+
+* update container image to debian13 ([#11835](https://github.com/Arize-ai/phoenix/issues/11835)) ([188e5f1](https://github.com/Arize-ai/phoenix/commit/188e5f19dc5b03d1bc899d02f3076f8bb4020950))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 1.30.0 ([#11824](https://github.com/Arize-ai/phoenix/issues/11824)) ([4d97cdb](https://github.com/Arize-ai/phoenix/commit/4d97cdb84bf276f1b61fd83f88915db741f75475))
+* **deps:** update arize-phoenix-otel to 0.15.0 ([#11839](https://github.com/Arize-ai/phoenix/issues/11839)) ([ca0e2e3](https://github.com/Arize-ai/phoenix/commit/ca0e2e3b3d3b88b4b766aaa18d6ab8bb603afe3d))
+
 ## [13.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.5.0...arize-phoenix-v13.6.0) (2026-03-02)
 
 
