@@ -19,9 +19,9 @@
 # - https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g
 # - https://github.com/Arize-ai/phoenix/issues
 
-ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
+ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot
 # To deploy it on an arm64, like Raspberry Pi or Apple-Silicon, chose this image instead:
-# ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot-arm64
+# ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot-arm64
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:22-slim AS frontend-builder
