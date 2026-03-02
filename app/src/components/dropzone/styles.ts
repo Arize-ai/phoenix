@@ -35,14 +35,6 @@ export const fileDropZoneCSS = css`
 
   .file-drop-zone__icon {
     color: var(--global-text-color-500);
-    width: 40px;
-    height: 40px;
-
-    svg {
-      width: 100%;
-      height: 100%;
-      fill: currentColor;
-    }
   }
 
   &[data-drop-target] .file-drop-zone__icon {
@@ -96,15 +88,8 @@ export const fileListCSS = css`
 
   .file-list__icon {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    font-size: 20px;
     color: var(--global-text-color-500);
-
-    svg {
-      width: 100%;
-      height: 100%;
-      fill: currentColor;
-    }
   }
 
   .file-list__details {
