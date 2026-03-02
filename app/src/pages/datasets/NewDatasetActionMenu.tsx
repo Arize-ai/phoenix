@@ -127,6 +127,7 @@ export function NewDatasetActionMenu({
                   <DatasetFromFileForm
                     onDatasetCreated={handleDatasetCreated}
                     onDatasetCreateError={handleDatasetCreateError}
+                    onErrorClear={() => setErrorMessage(null)}
                   />
                 </TabPanel>
                 <TabPanel id="fromScratch">

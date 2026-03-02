@@ -39,6 +39,7 @@ type CreateDatasetFromFileParams = {
 export type DatasetFromFileFormProps = {
   onDatasetCreated: (dataset: { id: string; name: string }) => void;
   onDatasetCreateError: (error: Error) => void;
+  onErrorClear?: () => void;
 };
 
 /**
@@ -73,7 +74,7 @@ const dropZoneContainerStyles = css`
  * Automatically detects file type based on extension.
  */
 export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
-  const { onDatasetCreated, onDatasetCreateError } = props;
+  const { onDatasetCreated, onDatasetCreateError, onErrorClear } = props;
   const [columns, setColumns] = useState<string[]>([]);
   const [fileType, setFileType] = useState<DatasetFileType>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,10 +138,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         if (detectedType === "csv") {
           const columnNames = parseCSVColumns(text);
           setColumns(columnNames);
+          onErrorClear?.();
         } else if (detectedType === "jsonl") {
           const result = parseJSONLKeys(text);
           if (result.success) {
             setColumns(result.keys);
+            onErrorClear?.();
           } else {
             onDatasetCreateError(new Error(formatJSONLError(result.error)));
           }
@@ -148,7 +151,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       };
       reader.readAsText(file);
     },
-    [resetField, setValue, onDatasetCreateError]
+    [resetField, setValue, onDatasetCreateError, onErrorClear]
   );
 
   const handleFileSelect = useCallback(
