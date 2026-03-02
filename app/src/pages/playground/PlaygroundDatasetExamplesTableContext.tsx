@@ -9,6 +9,7 @@ import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 type InstanceId = number;
 export type ExampleId = string;
 export type RepetitionNumber = number;
+type AnnotationName = string;
 type ChatCompletionSubscriptionResult = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ChatCompletionSubscriptionResult" }
@@ -24,6 +25,23 @@ export type EvaluationChunk = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "EvaluationChunk" }
 >;
+
+/**
+ * A running sum/count used to compute a mean score incrementally.
+ */
+type AnnotationAggregate = {
+  sum: number;
+  count: number;
+  meanScore: number | null;
+};
+
+/**
+ * Summarized annotation data for a set of experiment runs — mean score per evaluator.
+ */
+export type AnnotationSummary = {
+  annotationName: string;
+  meanScore: number | null;
+};
 
 export type ExampleRunData = {
   content?: string | null;
@@ -69,6 +87,11 @@ type PlaygroundDatasetExamplesTableActions = {
     repetitionNumber: RepetitionNumber;
     evaluationChunk: EvaluationChunk;
   }) => void;
+  addExperimentRunAnnotation: (args: {
+    instanceId: InstanceId;
+    annotationName: AnnotationName;
+    score: number | null;
+  }) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
     instanceId: InstanceId;
@@ -85,6 +108,10 @@ type PlaygroundDatasetExamplesTableActions = {
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
+  annotationAggregates: Record<
+    InstanceId,
+    Record<AnnotationName, AnnotationAggregate>
+  >;
   repetitions: number;
   expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
@@ -100,6 +127,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
     exampleResponsesMap: {},
+    annotationAggregates: {},
     repetitions: 1,
     expandedCells: {},
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
@@ -222,6 +250,34 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
+    addExperimentRunAnnotation: ({ instanceId, annotationName, score }) => {
+      if (score == null) {
+        return;
+      }
+      const annotationAggregates = get().annotationAggregates;
+      const instanceAggregates = annotationAggregates[instanceId] ?? {};
+      const prev = instanceAggregates[annotationName] ?? {
+        sum: 0,
+        count: 0,
+        meanScore: null,
+      };
+      const newSum = prev.sum + score;
+      const newCount = prev.count + 1;
+      const newMeanScore = newSum / newCount;
+      set({
+        annotationAggregates: {
+          ...annotationAggregates,
+          [instanceId]: {
+            ...instanceAggregates,
+            [annotationName]: {
+              sum: newSum,
+              count: newCount,
+              meanScore: newMeanScore,
+            },
+          },
+        },
+      });
+    },
     setExampleDataForInstance: ({ instanceId, data }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       set({
@@ -232,7 +288,12 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       });
     },
     resetData: () => {
-      set({ exampleResponsesMap: {}, repetitions: 1, expandedCells: {} });
+      set({
+        exampleResponsesMap: {},
+        annotationAggregates: {},
+        repetitions: 1,
+        expandedCells: {},
+      });
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions });
