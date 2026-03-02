@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
 import type { Page } from "@playwright/test";
@@ -320,6 +321,162 @@ test.describe("Dataset File Upload", () => {
 
       // Should have 3 examples from the JSONL
       await expect(page.getByText("What is 2+2?")).toBeVisible();
+    });
+  });
+
+  test.describe("Large File Handling", () => {
+    /**
+     * These tests verify that the streaming parsers can handle large files
+     * without freezing the UI. We generate files with valid headers/first rows
+     * followed by padding to simulate large file sizes.
+     *
+     * The key assertion is that parsing completes within 5 seconds - if the
+     * parser tried to read the entire file, it would timeout.
+     */
+    test("can parse columns from a large CSV without freezing", async ({
+      page,
+    }) => {
+      // Generate a CSV with valid header + padding to simulate ~10MB file
+      // The streaming parser should only read the header row
+      const header = "id,name,email,description,created_at\n";
+      const targetSize = 10 * 1024 * 1024; // 10MB
+
+      // Create buffer with header followed by zeros (simulating a huge file)
+      const headerBytes = new TextEncoder().encode(header);
+      const buffer = new ArrayBuffer(targetSize);
+      const view = new Uint8Array(buffer);
+      view.set(headerBytes, 0);
+      // Fill rest with newlines and dummy data pattern to make it valid-ish CSV
+      // (though the streaming parser will stop after the header anyway)
+      const dummyRow = "1,a,b,c,d\n";
+      const dummyBytes = new TextEncoder().encode(dummyRow);
+      let offset = headerBytes.length;
+      while (offset + dummyBytes.length < targetSize) {
+        view.set(dummyBytes, offset);
+        offset += dummyBytes.length;
+      }
+
+      await page.goto("/datasets");
+      await page.waitForURL("**/datasets");
+
+      await page.getByRole("button", { name: "New Dataset" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Create Dataset" })
+      ).toBeVisible();
+
+      const dialog = page.getByTestId("dialog");
+
+      // Upload using setInputFiles with a buffer
+      const fileInput = page.locator('input[type="file"]');
+      await fileInput.setInputFiles({
+        name: "large-dataset.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(buffer),
+      });
+
+      // The file should be processed quickly (streaming only reads header)
+      // If it tried to read the entire 10MB synchronously, this would be slow
+      await expect(dialog.getByText("large-dataset.csv")).toBeVisible({
+        timeout: 5000,
+      });
+
+      // Verify columns were extracted correctly
+      await expect(dialog.getByText("Input keys")).toBeVisible({
+        timeout: 5000,
+      });
+
+      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "id" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "name" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "email" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "description" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "created_at" })
+      ).toBeVisible();
+    });
+
+    test("can parse keys from a large JSONL without freezing", async ({
+      page,
+    }) => {
+      // Generate a JSONL with valid first rows + padding to simulate ~10MB file
+      // The streaming parser should only read the first N rows
+      const row =
+        JSON.stringify({
+          id: 12345,
+          question: "What is the meaning of life?",
+          answer: "42",
+          context: "This is a context string.",
+          metadata: { source: "test" },
+        }) + "\n";
+
+      const targetSize = 10 * 1024 * 1024; // 10MB
+
+      // Create buffer with first 10 valid rows followed by more rows
+      const firstRows = row.repeat(10);
+      const firstRowsBytes = new TextEncoder().encode(firstRows);
+      const buffer = new ArrayBuffer(targetSize);
+      const view = new Uint8Array(buffer);
+      view.set(firstRowsBytes, 0);
+      // Fill rest with repeated rows
+      let offset = firstRowsBytes.length;
+      const rowBytes = new TextEncoder().encode(row);
+      while (offset + rowBytes.length < targetSize) {
+        view.set(rowBytes, offset);
+        offset += rowBytes.length;
+      }
+
+      await page.goto("/datasets");
+      await page.waitForURL("**/datasets");
+
+      await page.getByRole("button", { name: "New Dataset" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Create Dataset" })
+      ).toBeVisible();
+
+      const dialog = page.getByTestId("dialog");
+
+      // Upload using setInputFiles with a buffer
+      const fileInput = page.locator('input[type="file"]');
+      await fileInput.setInputFiles({
+        name: "large-dataset.jsonl",
+        mimeType: "application/jsonl",
+        buffer: Buffer.from(buffer),
+      });
+
+      // The file should be processed quickly (streaming only reads first N rows)
+      await expect(dialog.getByText("large-dataset.jsonl")).toBeVisible({
+        timeout: 5000,
+      });
+
+      // Verify keys were extracted correctly
+      await expect(dialog.getByText("Input keys")).toBeVisible({
+        timeout: 5000,
+      });
+
+      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "id" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "question" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "answer" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "context" })
+      ).toBeVisible();
+      await expect(
+        inputKeysListbox.getByRole("option", { name: "metadata" })
+      ).toBeVisible();
     });
   });
 });
