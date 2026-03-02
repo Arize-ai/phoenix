@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.14.0...arize-phoenix-otel-v0.15.0) (2026-03-02)
+
+
+### Features
+
+* **otel:** support python 3.10 - 3.14 for arize-phoenix-otel ([#11831](https://github.com/Arize-ai/phoenix/issues/11831)) ([bca6282](https://github.com/Arize-ai/phoenix/commit/bca62828e00951948b12a4bd96a47938bd11b267))
+
+
+### Bug Fixes
+
+* update slack invitation link ([#11612](https://github.com/Arize-ai/phoenix/issues/11612)) ([316833e](https://github.com/Arize-ai/phoenix/commit/316833e629baf1b9185d7c712d8816b927d69a96))
+
 ## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.13.1...arize-phoenix-otel-v0.14.0) (2025-11-19)
 
 
