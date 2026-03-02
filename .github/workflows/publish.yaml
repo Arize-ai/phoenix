@@ -5,6 +5,7 @@ name: Publish Python packages
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   list-python-packages:
@@ -137,6 +138,8 @@ jobs:
             exit 1
           fi
           echo "ref=refs/tags/${NAME}-v${VERSION}" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v6
         with:
           ref: ${{ steps.ref.outputs.ref }}
@@ -151,6 +154,17 @@ jobs:
         env:
           TWINE_USERNAME: "__token__"
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Trigger dependency update workflow
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE="${{ steps.ref.outputs.name }}"
+          VERSION="${{ steps.ref.outputs.version }}"
+          gh workflow run update-phoenix-package-versions.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --field package="$PACKAGE" \
+            --field version="$VERSION"
 
   slack:
     name: Slack notification
