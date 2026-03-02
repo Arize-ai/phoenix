@@ -137,13 +137,36 @@ describe("parseJSONLKeys", () => {
       }
     });
 
-    it("returns error for null", () => {
+    it("returns error for null with correct type in message", () => {
       const input = '{"a": 1}\nnull\n{"c": 3}';
       const result = parseJSONLKeys(input);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.line).toBe(2);
         expect(result.error.message).toContain("Expected a JSON object");
+        expect(result.error.message).toContain("null");
+      }
+    });
+
+    it("returns correct line number when blank lines precede error", () => {
+      // Blank line on line 2, error on line 3
+      const input = '{"a": 1}\n\n{invalid json}';
+      const result = parseJSONLKeys(input);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.line).toBe(3); // Line 3, not 2
+        expect(result.error.message).toContain("Invalid JSON");
+      }
+    });
+
+    it("returns correct line number with multiple blank lines", () => {
+      // Valid on line 1, blank on 2-3, error on line 4
+      const input = '{"a": 1}\n\n\nnull';
+      const result = parseJSONLKeys(input);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.line).toBe(4); // Line 4, not 2
+        expect(result.error.message).toContain("null");
       }
     });
   });

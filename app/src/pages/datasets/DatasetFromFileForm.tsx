@@ -188,7 +188,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     resetField("metadata_keys");
     resetField("split_keys");
     resetField("name");
-  }, [setValue, resetField]);
+    onErrorClear?.();
+  }, [setValue, resetField, onErrorClear]);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {

@@ -10,31 +10,46 @@ export type JSONLParseResult =
   | { success: false; error: JSONLParseError };
 
 /**
+ * Gets a human-readable type description for error messages.
+ * Handles the JavaScript quirk where typeof null === "object".
+ */
+function getTypeDescription(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+  if (Array.isArray(value)) {
+    return "array";
+  }
+  return typeof value;
+}
+
+/**
  * Parses JSONL text to extract all unique keys from all JSON objects.
  * Handles BOM, Windows/Unix line endings, and provides detailed error messages.
  */
 export function parseJSONLKeys(jsonlText: string): JSONLParseResult {
   const text = removeBOM(jsonlText);
-  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
-
-  if (lines.length === 0) {
-    return {
-      success: false,
-      error: { line: 0, message: "JSONL file is empty" },
-    };
-  }
+  const lines = text.split(/\r?\n/);
 
   const allKeys = new Set<string>();
+  let nonEmptyLineCount = 0;
 
   for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === "") {
+      continue;
+    }
+
+    const lineNumber = i + 1; // 1-indexed line number in original file
+
     let json: unknown;
     try {
-      json = JSON.parse(lines[i]);
+      json = JSON.parse(line);
     } catch (error) {
       return {
         success: false,
         error: {
-          line: i + 1,
+          line: lineNumber,
           message: `Invalid JSON - ${(error as Error).message}`,
         },
       };
@@ -44,13 +59,21 @@ export function parseJSONLKeys(jsonlText: string): JSONLParseResult {
       return {
         success: false,
         error: {
-          line: i + 1,
-          message: `Expected a JSON object, got ${Array.isArray(json) ? "array" : typeof json}`,
+          line: lineNumber,
+          message: `Expected a JSON object, got ${getTypeDescription(json)}`,
         },
       };
     }
 
     Object.keys(json).forEach((key) => allKeys.add(key));
+    nonEmptyLineCount++;
+  }
+
+  if (nonEmptyLineCount === 0) {
+    return {
+      success: false,
+      error: { line: 0, message: "JSONL file is empty" },
+    };
   }
 
   return { success: true, keys: Array.from(allKeys) };
@@ -87,9 +110,7 @@ function parseJSONLLine(line: string): { keys: string[] } | null {
   }
 
   if (typeof json !== "object" || json === null || Array.isArray(json)) {
-    throw new Error(
-      `Expected a JSON object, got ${Array.isArray(json) ? "array" : typeof json}`
-    );
+    throw new Error(`Expected a JSON object, got ${getTypeDescription(json)}`);
   }
 
   return { keys: Object.keys(json) };
