@@ -16,8 +16,9 @@ from phoenix.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-# Fixed advisory lock ID used to serialize Alembic migrations across replicas.
-_MIGRATION_LOCK_KEY = 3210841049
+# Advisory lock ID used to serialize Alembic migrations across replicas.
+# Encodes ASCII "PHX" + sequence byte: 0x50=P, 0x48=H, 0x58=X, 0x01=lock #1.
+_MIGRATION_LOCK_KEY = 0x50485801  # 1346918401
 
 
 def printif(condition: bool, text: str) -> None:
@@ -121,6 +122,8 @@ def _migrate_with_pg_lock(
             logger.info("Acquiring migration advisory lock (key=%d)...", _MIGRATION_LOCK_KEY)
             conn.execute(text(f"SELECT pg_advisory_lock({_MIGRATION_LOCK_KEY})"))
             logger.info("Migration advisory lock acquired.")
+            # Reset lock_timeout so DDL statements during migration use the default (no timeout).
+            conn.execute(text("SET lock_timeout = 0"))
             # Commit the implicit transaction started by the above statements so
             # the connection is in a clean state for Alembic's run_migrations(),
             # which calls connection.begin() and expects no active transaction.
