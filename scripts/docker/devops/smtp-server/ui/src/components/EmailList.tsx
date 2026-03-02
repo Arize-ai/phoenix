@@ -1,4 +1,5 @@
 import { Mail, User, AtSign, Clock, Trash2 } from "lucide-react";
+
 import type { Email } from "../types/index.js";
 
 interface EmailListProps {
@@ -26,9 +27,9 @@ export function EmailList({
 }: EmailListProps) {
   if (emails.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+      <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
         <div className="text-center">
-          <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+          <Mail className="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
           <p>No emails yet</p>
           <p className="text-sm">Send an email to see it here</p>
         </div>
@@ -41,33 +42,33 @@ export function EmailList({
       {emails.map((email) => (
         <div
           key={email.id}
-          className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${
+          className={`cursor-pointer p-4 hover:bg-gray-50 dark:hover:bg-gray-700 ${
             selectedEmail?.id === email.id
-              ? "bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500 dark:border-blue-400"
+              ? "border-r-2 border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
               : ""
           }`}
           onClick={() => onSelectEmail(email)}
         >
           <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                <User className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                   {email.from?.address || "Unknown"}
                 </span>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <AtSign className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <span className="text-sm text-gray-600 dark:text-gray-300 truncate">
+              <div className="mt-1 flex items-center gap-2">
+                <AtSign className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <span className="truncate text-sm text-gray-600 dark:text-gray-300">
                   {email.to[0]?.address || "No recipient"}
                 </span>
               </div>
-              <h3 className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              <h3 className="mt-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                 {email.subject || "(No Subject)"}
               </h3>
-              <div className="flex items-center gap-4 mt-2">
+              <div className="mt-2 flex items-center gap-4">
                 <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                  <Clock className="h-3 w-3 text-gray-400 dark:text-gray-500" />
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {formatDate(email.timestamp)}
                   </span>
@@ -82,9 +83,9 @@ export function EmailList({
                 e.stopPropagation();
                 onDeleteEmail(email.id);
               }}
-              className="ml-2 p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+              className="ml-2 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:text-gray-500 dark:hover:bg-red-900/20 dark:hover:text-red-400"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         </div>

@@ -57,6 +57,30 @@ Trace
       exception.message                  — set if span errored
 ```
 
+## Sessions
+
+```bash
+px sessions --limit 10 --format raw --no-progress | jq .
+px sessions --order asc --format raw --no-progress | jq '.[].session_id'
+px session <session-id> --format raw | jq .
+px session <session-id> --include-annotations --format raw | jq '.annotations'
+```
+
+### Session JSON shape
+
+```
+SessionData
+  id, session_id, project_id
+  start_time, end_time
+  traces[]
+    id, trace_id, start_time, end_time
+
+SessionAnnotation (with --include-annotations)
+  id, name, annotator_kind ("LLM"|"CODE"|"HUMAN"), session_id
+  result { label, score, explanation }
+  metadata, identifier, source, created_at, updated_at
+```
+
 ## Datasets / Experiments / Prompts
 
 ```bash

@@ -34,7 +34,9 @@ export function ExperimentRunTokenCosts(props: ExperimentRunTokenCostsProps) {
   return (
     <TooltipTrigger isDisabled={props.costTotal == null}>
       <Pressable>
-        <TokenCosts size={props.size}>{props.costTotal}</TokenCosts>
+        <TokenCosts size={props.size} role="button" tabIndex={0}>
+          {props.costTotal}
+        </TokenCosts>
       </Pressable>
       <RichTooltip>
         <TooltipArrow />

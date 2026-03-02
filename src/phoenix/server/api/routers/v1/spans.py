@@ -50,8 +50,8 @@ from .utils import (
     PaginatedResponseBody,
     RequestBody,
     ResponseBody,
-    _get_project_by_identifier,
     add_errors_to_responses,
+    get_project_by_identifier,
 )
 
 DEFAULT_SPAN_LIMIT = 1000
@@ -607,7 +607,7 @@ async def span_search_otlpv1(
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
     order_by = [models.Span.id.desc()]
@@ -742,7 +742,7 @@ async def span_search(
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
 ) -> SpansResponseBody:
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
     order_by = [models.Span.id.desc()]

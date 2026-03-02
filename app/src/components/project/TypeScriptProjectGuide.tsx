@@ -16,8 +16,8 @@ import {
   IsAdmin,
   IsAuthenticated,
 } from "@phoenix/components/auth";
+import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
-import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 
 import { TypeScriptBlockWithCopy } from "../code/TypeScriptBlockWithCopy";
@@ -114,7 +114,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
         </Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value="npm install @arizeai/phoenix-otel" />
+        <BashBlockWithCopy value="npm install @arizeai/phoenix-otel" />
       </CodeWrap>
 
       <View paddingY="size-100">
@@ -182,7 +182,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
         </Flex>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={phoenixOtelEnvVars} />
+        <BashBlockWithCopy value={phoenixOtelEnvVars} />
       </CodeWrap>
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">

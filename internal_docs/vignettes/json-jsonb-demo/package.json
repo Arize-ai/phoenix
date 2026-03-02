@@ -27,19 +27,19 @@
     "@electric-sql/pglite": "latest"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "@types/node": "^22.5.4",
-    "@types/pg": "^8.11.14",
-    "eslint": "^9.0.0",
-    "globals": "^16.0.0",
-    "oxfmt": "^0.33.0",
-    "pg": "^8.11.3",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.3.1",
+    "@types/pg": "^8.16.0",
+    "eslint": "^10.0.2",
+    "globals": "^17.3.0",
+    "oxfmt": "^0.35.0",
+    "pg": "^8.19.0",
     "ts-node": "^10.9.2",
-    "typescript": "~5.4.5",
-    "typescript-eslint": "^8.0.0"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.56.1"
   },
-  "optionalDependencies": {
-    "pg": "^8.11.3"
+  "engines": {
+    "node": ">=20.19.0"
   },
   "packageManager": "pnpm@10.29.3"
 }

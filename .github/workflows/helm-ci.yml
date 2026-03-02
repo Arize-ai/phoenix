@@ -9,6 +9,7 @@ on:
       - "helm/**"
       - "scripts/ci/test_helm.py"
       - ".github/workflows/helm-ci.yml"
+      - "Makefile"
   push:
     branches:
       - main
@@ -34,16 +35,12 @@ jobs:
           version: 'latest'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
+          python-version: "3.13"
 
       - name: Run Helm chart tests
-        run: uvx tox r -e helm_tests
+        run: make test-helm
 

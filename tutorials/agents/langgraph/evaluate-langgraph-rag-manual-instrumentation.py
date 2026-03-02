@@ -28,8 +28,6 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
-
-import phoenix as px
 from phoenix.evals import (
     HallucinationEvaluator,
     OpenAIModel,
@@ -40,6 +38,8 @@ from phoenix.evals import (
 
 # Phoenix tracing and evaluation imports
 from phoenix.otel import register
+
+import phoenix as px
 from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
 from phoenix.trace import DocumentEvaluations
 

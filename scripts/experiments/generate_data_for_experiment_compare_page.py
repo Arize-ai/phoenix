@@ -5,16 +5,16 @@ from typing import Any
 import httpx
 import pandas as pd
 from openai import OpenAI
-
 from phoenix.client import Client
 from phoenix.client.experiments import create_evaluator
 from phoenix.evals.models import OpenAIModel
+from phoenix.otel import register
+
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsAnyKeyword,
 )
 from phoenix.experiments.types import ExampleInput
-from phoenix.otel import register
 
 register(auto_instrument=True)
 

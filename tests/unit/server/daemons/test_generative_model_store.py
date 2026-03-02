@@ -209,15 +209,17 @@ class TestGenerativeModelStore:
 
         # Wait for incremental fetch to pick up the update
         await wait_for_condition(
-            lambda: getattr(
-                store.find_model(
-                    start_time=lookup_time,
-                    attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
-                ),
-                "name",
-                None,
+            lambda: (
+                getattr(
+                    store.find_model(
+                        start_time=lookup_time,
+                        attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                    ),
+                    "name",
+                    None,
+                )
+                == "gpt-3.5-updated"
             )
-            == "gpt-3.5-updated"
         )
 
         # Verify timestamp advanced
@@ -237,11 +239,13 @@ class TestGenerativeModelStore:
 
         # Wait for fetch to pick up the delete
         await wait_for_condition(
-            lambda: store.find_model(
-                start_time=lookup_time,
-                attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
+            lambda: (
+                store.find_model(
+                    start_time=lookup_time,
+                    attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
+                )
+                is None
             )
-            is None
         )
 
         # Verify timestamp advanced

@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+
 import type { EndpointId } from "./providers/types.js";
 import { ENDPOINT_IDS } from "./providers/types.js";
 
@@ -228,7 +229,7 @@ class DetailedMetricsCollector extends EventEmitter {
 
   private addTimeSeriesPoint(
     metrics: EndpointDetailedMetrics,
-    endpointId: EndpointId | null,
+    endpointId: EndpointId | null
   ): void {
     const { currentSecond } = metrics;
     const latencies = currentSecond.latencies;
@@ -282,7 +283,7 @@ class DetailedMetricsCollector extends EventEmitter {
 
   private updateLatencyHistogram(
     metrics: EndpointDetailedMetrics,
-    latencyMs: number,
+    latencyMs: number
   ): void {
     for (const bucket of metrics.latencyHistogram) {
       if (latencyMs >= bucket.min && latencyMs < bucket.max) {
@@ -298,7 +299,7 @@ class DetailedMetricsCollector extends EventEmitter {
   requestStart(
     endpoint: EndpointId,
     requestId: string,
-    streaming: boolean = false,
+    streaming: boolean = false
   ): void {
     // Guard against duplicate starts
     if (this.activeRequests.has(requestId)) {
@@ -427,7 +428,7 @@ class DetailedMetricsCollector extends EventEmitter {
   private recordErrorType(
     errors: Map<string, ErrorEntry>,
     errorType: string,
-    now: number,
+    now: number
   ): void {
     const existing = errors.get(errorType);
     if (existing) {
@@ -487,7 +488,7 @@ class DetailedMetricsCollector extends EventEmitter {
         recentPoints.length > 0
           ? recentPoints.reduce(
               (sum, p) => sum + p.requestsCompleted + p.requestsFailed,
-              0,
+              0
             ) / recentPoints.length
           : 0;
       // Weighted average: current second + historical
@@ -518,7 +519,7 @@ class DetailedMetricsCollector extends EventEmitter {
       globalRecentPoints.length > 0
         ? globalRecentPoints.reduce(
             (sum, p) => sum + p.requestsCompleted + p.requestsFailed,
-            0,
+            0
           ) / globalRecentPoints.length
         : 0;
     const globalCurrentRPS =
@@ -544,10 +545,10 @@ class DetailedMetricsCollector extends EventEmitter {
         currentRPS: Math.round(globalCurrentRPS),
         currentConnections: Array.from(this.activeConnections.values()).reduce(
           (a, b) => a + b,
-          0,
+          0
         ),
         testDurationSeconds: Math.floor(
-          (now - this.globalMetrics.peaks.startTime) / 1000,
+          (now - this.globalMetrics.peaks.startTime) / 1000
         ),
         totalStreaming: this.globalMetrics.totalStreaming,
         totalNonStreaming: this.globalMetrics.totalNonStreaming,
@@ -593,7 +594,7 @@ class DetailedMetricsCollector extends EventEmitter {
         p.p50LatencyMs?.toFixed(2) ?? "",
         p.p95LatencyMs?.toFixed(2) ?? "",
         p.p99LatencyMs?.toFixed(2) ?? "",
-      ].join(","),
+      ].join(",")
     );
 
     return [headers, ...rows].join("\n");

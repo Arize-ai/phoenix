@@ -9,11 +9,10 @@ from instrumentor import AnthropicBetaInstrumentor
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
+from phoenix.otel import register
 from tools import BashTool, ComputerTool, EditTool, ToolCollection
 from typing_extensions import Annotated, TypedDict
 from utils import SYSTEM_PROMPT, make_api_tool_result, response_to_params
-
-from phoenix.otel import register
 
 client = None
 

@@ -21,14 +21,6 @@ from mistralai.models import (
     UserMessageContentTypedDict,
     UserMessageTypedDict,
 )
-
-from phoenix.client.__generated__.v1 import (
-    ImageContentPart,
-    PromptMessage,
-    TextContentPart,
-    TextContentValue,
-    ToolCallContentPart,
-)
 from phoenix.client.helpers.sdk.mistralai.chat_complete import (
     _from_image,
     _from_message,
@@ -40,6 +32,14 @@ from phoenix.client.helpers.sdk.mistralai.chat_complete import (
     _to_text,
     _to_tool_call,
     _to_tools,
+)
+
+from phoenix.client.__generated__.v1 import (
+    ImageContentPart,
+    PromptMessage,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 

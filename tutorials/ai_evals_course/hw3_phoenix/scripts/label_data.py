@@ -12,7 +12,6 @@ from typing import Any, Dict
 
 import pandas as pd
 from dotenv import load_dotenv
-
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import OpenAIModel, llm_generate

@@ -13,7 +13,7 @@ Because LLM evaluators are backed by Phoenix's prompt management system, every c
 
 Every LLM evaluator is backed by a Phoenix prompt. When you create an LLM evaluator, Phoenix either creates a new prompt or links to an existing one. The prompt template defines how your evaluation parameters — the model's input, output, reference data, and metadata — are presented to the judge.
 
-Templates use Mustache syntax. Variables like `{{output}}` and `{{reference}}` are replaced at evaluation time with values drawn from the evaluation parameters via [input mapping](#input-mapping).
+Templates use Mustache syntax. Variables like `{{output}}` and `{{reference}}` are replaced at evaluation time with values drawn from the evaluation parameters via [input mapping](/docs/phoenix/evaluation/server-evals/input-mapping).
 
 A typical evaluator prompt has two parts:
 
@@ -65,31 +65,6 @@ LLM evaluators support **categorical** output — a set of discrete labels, each
 
 The config also specifies an **optimization direction** — whether higher scores are better (maximize) or lower scores are better (minimize) — so Phoenix can display trends meaningfully in experiment comparisons.
 
-### Structured Output via Tool Calling
-
-LLM evaluators use function calling (tool use) to extract structured judgments. Phoenix generates a tool from the output config with the following schema:
-
-```json
-{
-  "name": "correctness",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "label": {
-        "type": "string",
-        "enum": ["correct", "incorrect"]
-      },
-      "explanation": {
-        "type": "string"
-      }
-    },
-    "required": ["label", "explanation"]
-  }
-}
-```
-
-The LLM is required to call this tool rather than respond with freeform text. Phoenix parses the tool call and maps the returned label to its numeric score.
-
 ## LLM Providers
 
 LLM evaluators inherit their model configuration from the prompt. When you create or edit the evaluator's prompt, you select a provider and model — the same providers available in the Phoenix prompt playground. Because credentials live on the server, team members can run evaluations without distributing API keys.
@@ -129,10 +104,6 @@ If the evaluator has no tag (or the tag is removed), Phoenix falls back to the l
 <Tip>
 Because evaluator prompts are standard Phoenix prompts, you can test them in the prompt playground before committing changes. Run the prompt against your dataset to preview labels and scores, then save when the results meet your bar.
 </Tip>
-
-## Input Mapping
-
-Each template variable in your prompt is connected to experiment data through [input mapping](/docs/phoenix/evaluation/server-evals/input-mapping). You can use JSONPath expressions to extract values from the evaluation parameters (dataset inputs, task outputs, reference data, metadata) or set literal values for static configuration. If a template variable name matches a top-level parameter key — like `output` or `reference` — Phoenix binds it automatically with no mapping required.
 
 ## Evaluator Traces
 

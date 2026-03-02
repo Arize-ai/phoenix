@@ -1,0 +1,193 @@
+on:
+  workflow_dispatch:
+
+name: Publish Python packages
+
+permissions:
+  contents: read
+
+jobs:
+  list-python-packages:
+    name: List Python packages from manifest
+    runs-on: ubuntu-latest
+    outputs:
+      phoenix_path: ${{ steps.paths.outputs.phoenix_path }}
+      package_paths: ${{ steps.paths.outputs.package_paths }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .release-please-manifest.json
+            release-please-config.json
+          sparse-checkout-cone-mode: false
+      - name: Get paths not yet on PyPI
+        id: paths
+        run: |
+          NEED_PHOENIX=''
+          NEED_PACKAGES='[]'
+          for path in $(jq -r 'keys[]' .release-please-manifest.json); do
+            [ -z "$path" ] && continue
+            NAME=$(jq -r --arg p "$path" '.packages[$p]["package-name"] // empty' release-please-config.json)
+            VERSION=$(jq -r --arg p "$path" '.[$p]' .release-please-manifest.json)
+            if [ -z "$NAME" ] || [ "$VERSION" = "null" ] || [ -z "$VERSION" ]; then
+              echo "Including $path (name or version missing)"
+              if [ "$path" = "." ]; then NEED_PHOENIX='.'; else NEED_PACKAGES=$(jq -c --arg p "$path" '. + [$p]' <<< "$NEED_PACKAGES"); fi
+              continue
+            fi
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${NAME}/${VERSION}/json")
+            if [ "$HTTP" != "200" ]; then
+              echo "${NAME}==${VERSION} not on PyPI (HTTP ${HTTP}), will publish"
+              if [ "$path" = "." ]; then
+                NEED_PHOENIX='.'
+              else
+                NEED_PACKAGES=$(jq -c --arg p "$path" '. + [$p]' <<< "$NEED_PACKAGES")
+              fi
+            else
+              echo "${NAME}==${VERSION} already on PyPI, skipping"
+            fi
+          done
+          echo "phoenix_path=$NEED_PHOENIX" >> $GITHUB_OUTPUT
+          echo "package_paths=$NEED_PACKAGES" >> $GITHUB_OUTPUT
+          echo "Phoenix path: $NEED_PHOENIX"
+          echo "Package paths: $NEED_PACKAGES"
+
+  publish-phoenix:
+    name: Publish Phoenix (main package)
+    runs-on: ubuntu-latest
+    needs: list-python-packages
+    if: needs.list-python-packages.outputs.phoenix_path == '.'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/arize-phoenix
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Read version from manifest
+        id: version
+        run: |
+          v=$(jq -r '.["."] // empty' .release-please-manifest.json)
+          if [ -z "$v" ]; then echo "::error::No version for root (.) in manifest"; exit 1; fi
+          echo "version=$v" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/arize-phoenix-v${{ steps.version.outputs.version }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: app/package.json
+      - name: Build frontend
+        working-directory: ./app
+        run: pnpm install --frozen-lockfile && pnpm run build
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.10"
+          version: "0.9.18"
+      - name: Build distribution
+        run: rm -rf dist && uv build
+      - name: Verify bundled UI assets in wheel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import sys
+
+          wheels = sorted(Path("dist").glob("*.whl"))
+          if not wheels:
+              print("No wheel found in dist/")
+              sys.exit(1)
+          wheel = wheels[0]
+          with ZipFile(wheel) as zf:
+              names = set(zf.namelist())
+
+          has_manifest = "phoenix/server/static/.vite/manifest.json" in names
+          has_js_asset = any(
+              name.startswith("phoenix/server/static/assets/") and name.endswith(".js")
+              for name in names
+          )
+          if not has_manifest or not has_js_asset:
+              print(f"Wheel missing required frontend bundle files: {wheel}")
+              print(f"  has manifest: {has_manifest}")
+              print(f"  has js asset: {has_js_asset}")
+              sys.exit(1)
+          print(f"Verified bundled UI assets in {wheel.name}")
+          PY
+      - name: Check wheel contents
+        run: uv run --with check-wheel-contents check-wheel-contents --ignore W004 dist/*.whl
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-packages:
+    name: Publish Python packages
+    runs-on: ubuntu-latest
+    needs: list-python-packages
+    if: needs.list-python-packages.outputs.package_paths != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        path: ${{ fromJSON(needs.list-python-packages.outputs.package_paths) }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Resolve ref from manifest
+        id: ref
+        run: |
+          VERSION=$(jq -r --arg p "${{ matrix.path }}" '.[$p] // empty' .release-please-manifest.json)
+          NAME=$(jq -r --arg p "${{ matrix.path }}" '.packages[$p]["package-name"] // empty' release-please-config.json)
+          if [ -z "$VERSION" ] || [ -z "$NAME" ]; then
+            echo "::error::Missing version or package-name for path ${{ matrix.path }}"
+            exit 1
+          fi
+          echo "ref=refs/tags/${NAME}-v${VERSION}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.ref.outputs.ref }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.10"
+          version: "0.9.18"
+      - run: uv build
+        working-directory: ${{ matrix.path }}
+      - run: uv run --with check-wheel-contents check-wheel-contents dist/*.whl
+      - run: uv run --with twine twine upload --skip-existing --verbose dist/*
+        env:
+          TWINE_USERNAME: "__token__"
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+
+  slack:
+    name: Slack notification
+    needs: [list-python-packages, publish-phoenix, publish-packages]
+    if: always() && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set notification content
+        id: notify
+        env:
+          PHOENIX_RESULT: ${{ needs.publish-phoenix.result }}
+          PACKAGES_RESULT: ${{ needs.publish-packages.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$PHOENIX_RESULT" = "failure" ] || [ "$PACKAGES_RESULT" = "failure" ]; then
+            {
+              echo "text<<EOF"
+              echo "🚨🚨🚨 PYPI Publication Failed 🚨🚨🚨"
+              echo "$RUN_URL"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          elif [ "$PHOENIX_RESULT" = "success" ] || [ "$PACKAGES_RESULT" = "success" ]; then
+            {
+              echo "text<<EOF"
+              echo "PYPI Publication Succeeded"
+              echo "$RUN_URL"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          fi
+      - name: Send message to Slack
+        if: steps.notify.outputs.text != ''
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "type": "mrkdwn",
+              "text": ${{ toJSON(steps.notify.outputs.text) }}
+            }

@@ -69,12 +69,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/unit-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install PostgreSQL
         if: matrix.db == 'postgresql' && runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
@@ -143,12 +137,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           version: "0.9.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            requirements/ci.txt
-            requirements/integration-tests.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4

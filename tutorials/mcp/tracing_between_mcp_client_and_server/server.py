@@ -9,9 +9,8 @@ from datetime import datetime, timedelta
 import openai
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel
-
 from phoenix.otel import register
+from pydantic import BaseModel
 
 load_dotenv()
 

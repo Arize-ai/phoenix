@@ -18,9 +18,9 @@ from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
-    PASSWORD_REQUIREMENTS,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    get_password_requirements,
     sanitize_email,
     validate_email_format,
     validate_password_format,
@@ -77,7 +77,7 @@ class PatchViewerInput:
             if not self.current_password:
                 raise BadRequest("current_password is required when modifying password")
             try:
-                PASSWORD_REQUIREMENTS.validate(self.new_password)
+                get_password_requirements().validate(self.new_password)
             except ValueError as e:
                 raise BadRequest(str(e))
 
@@ -96,7 +96,7 @@ class PatchUserInput:
             if get_env_disable_basic_auth():
                 raise BadRequest("Basic auth is disabled: OAuth2 authentication only")
             try:
-                PASSWORD_REQUIREMENTS.validate(self.new_password)
+                get_password_requirements().validate(self.new_password)
             except ValueError as e:
                 raise BadRequest(str(e))
 

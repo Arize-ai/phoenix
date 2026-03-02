@@ -24,7 +24,7 @@ tox r -e docker_devops
 ## How to Use
 
 1. **Start the dev environment** - SMTP server starts automatically
-2. **Trigger emails in Phoenix** - use your app's email functionality  
+2. **Trigger emails in Phoenix** - use your app's email functionality
 3. **View emails** - go to http://localhost:18273/mail
 4. **Debug email content** - see exactly what Phoenix sent
 
@@ -47,11 +47,13 @@ The server uses these defaults (configured in Phoenix dev environment):
 ## Troubleshooting
 
 **No emails showing?**
+
 - Check Phoenix is configured to send emails to `localhost:1025`
 - Verify the dev environment is running
 - Check browser console for errors
 
 **Can't access web UI?**
+
 - Ensure you're using http://localhost:18273/mail (not port 8025 directly)
 - Confirm Traefik is routing properly in dev environment
 

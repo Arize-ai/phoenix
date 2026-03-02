@@ -9,9 +9,9 @@ interface Props {
 export function LatencyControls({ config, onUpdate }: Props) {
   if (!config) {
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Streaming Controls</h2>
-        <div className="text-gray-500 text-xs">Waiting for config...</div>
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+        <h2 className="mb-2 text-sm font-medium">Streaming Controls</h2>
+        <div className="text-xs text-gray-500">Waiting for config...</div>
       </div>
     );
   }
@@ -19,8 +19,8 @@ export function LatencyControls({ config, onUpdate }: Props) {
   const { global } = config;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <h2 className="text-sm font-medium mb-2">Streaming Controls</h2>
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <h2 className="mb-2 text-sm font-medium">Streaming Controls</h2>
       <div className="space-y-2">
         <SliderControl
           label="Initial Delay"

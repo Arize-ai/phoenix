@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "import",
+    "react",
+    "typescript"
+  ],
+  "env": {
+    "browser": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.2.0"
+    }
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "no-console": "off",
+    "import/no-duplicates": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-import-type-side-effects": "error",
+    "typescript/prefer-ts-expect-error": "error",
+    "typescript/consistent-return": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-unsafe-type-assertion": "error",
+    "eqeqeq": [
+      "error",
+      "smart"
+    ],
+    "eslint/prefer-const": "error",
+    "eslint/no-implicit-conversion": [
+      "error",
+      {
+        "boolean": false,
+        "number": true,
+        "string": false
+      }
+    ],
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ]
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "node_modules/**"
+  ]
+}

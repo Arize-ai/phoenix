@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { startServer, stopServer, getBaseUrl } from "./setup";
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, Tool } from "@anthropic-ai/sdk/resources/messages";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
+import { startServer, stopServer, getBaseUrl } from "./setup";
 
 function getAnthropicClient(): Anthropic {
   // Anthropic SDK automatically adds /v1 to the base URL
@@ -86,7 +87,7 @@ describe("Anthropic Messages API", () => {
           model: "",
           max_tokens: 1024,
           messages: [{ role: "user", content: "Hello!" }],
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -98,7 +99,7 @@ describe("Anthropic Messages API", () => {
           model: "claude-3-5-sonnet-20241022",
           max_tokens: 1024,
           messages: [] as MessageParam[],
-        }),
+        })
       ).rejects.toThrow();
     });
 

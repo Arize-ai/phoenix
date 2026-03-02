@@ -3,9 +3,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
-from tools import code_analysis, execute_code, generate_code, generate_merge_request_description
-
 from phoenix.otel import register
+from tools import code_analysis, execute_code, generate_code, generate_merge_request_description
 
 
 def initialize_instrumentor(project_name, endpoint):

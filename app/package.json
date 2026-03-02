@@ -10,7 +10,7 @@
     "build:relay": "relay-compiler",
     "build:static": "cpy ./static ../src/phoenix/server",
     "chromatic": "source ./.env && npx chromatic",
-    "dev": "mprocs",
+    "dev": "pnpm run ensure:env && mprocs",
     "dev:embeddings": "pnpm run dev:server:embeddings & pnpm run build:static && pnpm run build:relay && source ./.env && vite",
     "dev:offline": "pnpm run dev:server:offline & pnpm run build:static && pnpm run build:relay && source ./.env && vite",
     "dev:server": "source ./.env && uv run python -Xfrozen_modules=off -m debugpy --listen ${DEBUGPY_PORT:-5678} -m phoenix.server.main --dev --dev-vite-port ${VITE_PORT:-5173} serve",
@@ -19,6 +19,7 @@
     "dev:server:offline": "python -m phoenix.server.main --dev --dev-vite-port ${VITE_PORT:-5173} serve",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
     "dev:ui": "source ./.env && pnpm run build:static && pnpm run build:relay && vite",
+    "ensure:env": "test -f .env || printf 'export PHOENIX_ENABLE_REACT_COMPILER=True\nexport PHOENIX_TELEMETRY_ENABLED=False\n' > .env",
     "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
     "lint": "oxlint",
@@ -44,6 +45,7 @@
     "@codemirror/lang-json": "6.0.2",
     "@codemirror/lang-python": "6.2.1",
     "@codemirror/language": "^6.12.1",
+    "@codemirror/legacy-modes": "^6.5.2",
     "@codemirror/lint": "^6.9.4",
     "@codemirror/state": "^6.5.4",
     "@dnd-kit/core": "^6.3.1",
@@ -129,7 +131,7 @@
     "oxlint": "^1.48.0",
     "relay-compiler": "^20.1.1",
     "rollup-plugin-visualizer": "^5.14.0",
-    "storybook": "^8.6.15",
+    "storybook": "^8.6.17",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
     "typescript": "^5.9.3",
     "vite": "npm:rolldown-vite@7.3.1",
@@ -148,7 +150,12 @@
       "braces@<3.0.3": ">=3.0.3",
       "esbuild@<=0.24.2": ">=0.25.0",
       "@babel/runtime@<7.26.10": ">=7.26.10",
-      "@babel/helpers@<7.26.10": ">=7.26.10"
+      "@babel/helpers@<7.26.10": ">=7.26.10",
+      "minimatch": ">=10.2.3",
+      "rollup@<4.59.0": ">=4.59.0",
+      "glob@>=10.3.7 <10.5.0": ">=10.5.0",
+      "mdast-util-to-hast@<13.2.1": ">=13.2.1",
+      "js-yaml@<4.1.1": ">=4.1.1"
     },
     "onlyBuiltDependencies": [
       "esbuild"

@@ -36,7 +36,7 @@ export function SliderControl({
         : displayValue.toFixed(1);
   return (
     <div>
-      <div className="flex justify-between text-xs mb-0.5">
+      <div className="mb-0.5 flex justify-between text-xs">
         <span className="text-gray-500">{label}</span>
         <span className="font-mono text-gray-300">
           {formattedValue}
@@ -50,7 +50,7 @@ export function SliderControl({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`w-full h-1.5 bg-gray-700 rounded appearance-none cursor-pointer ${accentColorClasses[accentColor]}`}
+        className={`h-1.5 w-full cursor-pointer appearance-none rounded bg-gray-700 ${accentColorClasses[accentColor]}`}
       />
     </div>
   );

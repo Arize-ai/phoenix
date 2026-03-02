@@ -1,0 +1,55 @@
+---
+title: "JSON Distance"
+description: "Measure the number of structural differences between two JSON values."
+---
+
+Compares two JSON structures and returns the number of value differences between them. A score of `0` means the structures are identical; higher scores indicate more differing fields or elements.
+
+By default, inputs are assumed to be strings and are parsed as JSON before comparison, so you can pass raw JSON strings from your dataset fields directly.
+
+## Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `expected` | any | Yes | — | The reference JSON structure (object, array, or scalar) |
+| `actual` | any | Yes | — | The JSON structure to evaluate |
+| `parse_strings` | boolean | No | `true` | If `true`, string inputs are parsed as JSON before comparison; if `false`, inputs are compared as-is |
+
+## Output
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `score` | Integer ≥ 0, or `null` on error | Number of differing values; `0` = identical structures |
+| Optimization | Minimize | Lower scores are better |
+
+## Configuring Inputs
+
+Each evaluator parameter can be set to either a **path** (a JSONPath expression that extracts a value from the evaluation parameters) or a **literal** (a fixed value typed directly). Use paths to pull from dataset inputs, task outputs, reference data, or metadata.
+
+See [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for full details on mapping modes, resolution order, and examples.
+
+## Usage Examples
+
+**Structured output accuracy** — A model that extracts or generates a JSON object (invoice fields, entity records, form data). **Actual** is the model's JSON output — if your model returns a plain JSON string, map it to `output` and leave **Parse strings as JSON** enabled. **Expected** is the ground-truth JSON structure from your dataset, typically stored as a JSON string in a reference column. Each differing field or value counts as one point of distance.
+
+**Tool call argument validation** — An agent that produces structured tool call arguments. **Actual** contains the argument object — if it's nested inside a larger output (e.g., at `output.tool_calls[0].arguments`), use a nested path to isolate it. **Expected** contains the correct argument values from your dataset. Each mismatched field is counted separately, giving you field-level precision on where the agent diverges.
+
+**Prompt change regression tracking** — Running the same dataset against two different prompt versions. **Actual** receives the JSON output from each run; **Expected** stays fixed, pointing to the reference JSON in your dataset. Comparing average distance across runs reveals whether a prompt change introduced new structural errors.
+
+## Notes
+
+<Warning>
+If either input cannot be parsed as JSON (when `parse_strings` is `true`), the evaluator returns a `null` score with an error explanation rather than a numeric result. Ensure your dataset fields contain valid JSON strings when using this evaluator with path mappings.
+</Warning>
+
+<Note>
+**Type comparison behavior:**
+- `true` and `false` are treated as booleans, not integers — `{"flag": true}` vs. `{"flag": 1}` counts as 1 difference.
+- Numeric types (`int` and `float`) with the same value are treated as equal — `{"n": 1}` vs. `{"n": 1.0}` counts as 0 differences.
+</Note>
+
+## See Also
+
+- [Pre-Built Metrics Overview](/docs/phoenix/evaluation/server-evals/pre-built-metrics)
+- [Levenshtein Distance](/docs/phoenix/evaluation/server-evals/pre-built-metrics/levenshtein-distance) — measure edit distance between two strings
+- [Exact Match](/docs/phoenix/evaluation/server-evals/pre-built-metrics/exact-match) — check whether two strings are identical

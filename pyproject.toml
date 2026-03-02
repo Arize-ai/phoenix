@@ -56,7 +56,7 @@ dependencies = [
   "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # https://github.com/nalgeon/sqlean.py/commit/2714a4789998811b7dd9f102f5b45ea071ed879e
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=2.8.0",
+  "arize-phoenix-evals>=2.11.0",
   "arize-phoenix-otel>=0.14.0",
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
@@ -123,7 +123,6 @@ dev = [
   "pandas-stubs==2.0.3.230814",
   "portpicker",
   "prometheus_client",
-  "protobuf",
   "psutil",
   "psycopg[binary,pool]",
   "py-grpc-prometheus",
@@ -164,6 +163,13 @@ dev = [
   "typing-extensions",
   "uvloop; platform_system != 'Windows'",
   "vcrpy",
+  "jupyter>=1.1.1",
+  "ruff>=0.15.2",
+  "libcst>=1.8.6",
+  "datamodel-code-generator==0.32.0",
+  "grpcio-tools>=1.78.0",
+  "mypy-protobuf>=5.0.0",
+  "jinja2>=3.1.6",
 ]
 
 [project.optional-dependencies]
@@ -229,7 +235,6 @@ artifacts = [
 
 [tool.hatch.build]
 only-packages = true
-skip-excluded-dirs = true
 
 [tool.hatch.build.targets.sdist]
 exclude = [
@@ -334,6 +339,7 @@ exclude = [
   "*_pb2.py*",
   "*.pyi",
   "docs/",
+  "src/phoenix/trace/v1/evaluation_pb2.py*",
 ]
 line-length = 100
 target-version = "py310"
@@ -351,6 +357,9 @@ force-single-line = false
 
 [tool.ruff.format]
 line-ending = "native"
+
+[tool.alembic]
+script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
 required-version = "==0.9.18"  # When updating this version, also update the `backend-builder` image in the Dockerfile

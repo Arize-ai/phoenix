@@ -85,6 +85,12 @@ interface SpanLike {
   traceId?: string;
 }
 
+function toStringValue(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (value != null) return JSON.stringify(value);
+  return null;
+}
+
 function extractInputOutputFromSpan(span: SpanLike): {
   input: string | null;
   output: string | null;
@@ -93,33 +99,22 @@ function extractInputOutputFromSpan(span: SpanLike): {
   let output: string | null = null;
 
   if (span.attributes) {
-    input = span.attributes["input.value"] || span.attributes["input"] || null;
-
-    output =
-      span.attributes["output.value"] || span.attributes["output"] || null;
-
-    if (input && typeof input === "object") {
-      input = JSON.stringify(input);
-    }
-    if (output && typeof output === "object") {
-      output = JSON.stringify(output);
-    }
+    input = toStringValue(
+      span.attributes["input.value"] ?? span.attributes["input"]
+    );
+    output = toStringValue(
+      span.attributes["output.value"] ?? span.attributes["output"]
+    );
   }
 
   if ((!input || !output) && span.events) {
     for (const event of span.events) {
       if (event.attributes) {
-        if (!input && event.attributes["input"]) {
-          input =
-            typeof event.attributes["input"] === "string"
-              ? event.attributes["input"]
-              : JSON.stringify(event.attributes["input"]);
+        if (!input) {
+          input = toStringValue(event.attributes["input"]);
         }
-        if (!output && event.attributes["output"]) {
-          output =
-            typeof event.attributes["output"] === "string"
-              ? event.attributes["output"]
-              : JSON.stringify(event.attributes["output"]);
+        if (!output) {
+          output = toStringValue(event.attributes["output"]);
         }
       }
     }

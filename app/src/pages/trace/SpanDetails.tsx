@@ -1,5 +1,4 @@
 import {
-  DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MessageAttributePostfixes,
@@ -10,7 +9,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Suspense, useMemo, useRef } from "react";
+import { Fragment, Suspense, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -21,7 +20,7 @@ import {
 } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 
-import type { CardProps, TokenProps, ViewProps } from "@phoenix/components";
+import type { CardProps } from "@phoenix/components";
 import {
   Alert,
   Button,
@@ -51,7 +50,6 @@ import {
   Tabs,
   Text,
   ToggleButton,
-  Token,
   View,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
@@ -86,7 +84,6 @@ import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
-import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 import { SpanHeader } from "../SpanHeader";
@@ -95,6 +92,7 @@ import type {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
+import { DocumentItem } from "./DocumentItem";
 import { PreBlock, ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
@@ -211,11 +209,19 @@ export function SpanDetails({
               hit
             }
             documentEvaluations {
+              id
+              annotatorKind
               documentPosition
               name
               label
               score
               explanation
+              createdAt
+              updatedAt
+              user {
+                username
+                profilePictureUrl
+              }
             }
             spanAnnotations {
               id
@@ -913,38 +919,49 @@ function RetrieverSpanInfo(props: {
           <Card
             title="Documents"
             {...defaultCardProps}
-            titleExtra={
-              hasDocumentRetrievalMetrics && (
-                <Flex direction="row" alignItems="center" gap="size-100">
-                  {span.documentRetrievalMetrics.map((retrievalMetric) => {
-                    return (
-                      <>
-                        <RetrievalEvaluationLabel
-                          key="ndcg"
-                          name={retrievalMetric.evaluationName}
-                          metric="ndcg"
-                          score={retrievalMetric.ndcg}
-                        />
-                        <RetrievalEvaluationLabel
-                          key="precision"
-                          name={retrievalMetric.evaluationName}
-                          metric="precision"
-                          score={retrievalMetric.precision}
-                        />
-                        <RetrievalEvaluationLabel
-                          key="hit"
-                          name={retrievalMetric.evaluationName}
-                          metric="hit"
-                          score={retrievalMetric.hit}
-                        />
-                      </>
-                    );
-                  })}
-                </Flex>
-              )
-            }
             extra={<ConnectedMarkdownModeSelect />}
           >
+            {hasDocumentRetrievalMetrics && (
+              <View
+                borderColor="light"
+                borderBottomWidth="thin"
+                padding="size-200"
+              >
+                <Flex direction="column" gap="size-100">
+                  <Heading level={4} weight="heavy">
+                    Retrieval Metrics
+                  </Heading>
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-100"
+                    wrap="wrap"
+                  >
+                    {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                      return (
+                        <Fragment key={retrievalMetric.evaluationName}>
+                          <RetrievalEvaluationLabel
+                            name={retrievalMetric.evaluationName}
+                            metric="ndcg"
+                            score={retrievalMetric.ndcg}
+                          />
+                          <RetrievalEvaluationLabel
+                            name={retrievalMetric.evaluationName}
+                            metric="precision"
+                            score={retrievalMetric.precision}
+                          />
+                          <RetrievalEvaluationLabel
+                            name={retrievalMetric.evaluationName}
+                            metric="hit"
+                            score={retrievalMetric.hit}
+                          />
+                        </Fragment>
+                      );
+                    })}
+                  </Flex>
+                </Flex>
+              </View>
+            )}
             <ul
               css={css`
                 display: flex;
@@ -958,10 +975,12 @@ function RetrieverSpanInfo(props: {
                   <li key={idx}>
                     <DocumentItem
                       document={document}
-                      documentEvaluations={documentEvaluationsMap[idx]}
+                      documentAnnotations={documentEvaluationsMap[idx]}
                       borderColor={"seafoam-700"}
                       backgroundColor={"seafoam-100"}
                       tokenColor="var(--global-color-seafoam-1000)"
+                      spanNodeId={span.id}
+                      documentPosition={idx}
                     />
                   </li>
                 );
@@ -1261,147 +1280,6 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Card>
       ) : null}
     </Flex>
-  );
-}
-
-// Labels that get highlighted as danger in the document evaluations
-const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant", "unrelated"];
-function DocumentItem({
-  document,
-  documentEvaluations,
-  backgroundColor,
-  borderColor,
-  tokenColor,
-}: {
-  document: AttributeDocument;
-  documentEvaluations?: DocumentEvaluation[] | null;
-  backgroundColor: ViewProps["backgroundColor"];
-  borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
-}) {
-  const metadata = document[DocumentAttributePostfixes.metadata];
-  const hasEvaluations = documentEvaluations && documentEvaluations.length;
-  const documentContent = document[DocumentAttributePostfixes.content];
-  return (
-    <Card
-      {...defaultCardProps}
-      backgroundColor={backgroundColor}
-      borderColor={borderColor}
-      title={
-        <Flex direction="row" gap="size-50" alignItems="center">
-          <Icon svg={<Icons.FileOutline />} />
-          <Heading level={4}>
-            document {document[DocumentAttributePostfixes.id]}
-          </Heading>
-        </Flex>
-      }
-      extra={
-        typeof document[DocumentAttributePostfixes.score] === "number" && (
-          <Token color={tokenColor}>
-            {`score ${numberFormatter(
-              document[DocumentAttributePostfixes.score]
-            )}`}
-          </Token>
-        )
-      }
-    >
-      <Flex direction="column">
-        {documentContent && (
-          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-        )}
-        {metadata && (
-          <>
-            <View borderColor={borderColor} borderTopWidth="thin">
-              <View
-                paddingX="size-200"
-                paddingY="size-100"
-                borderColor={borderColor}
-                borderBottomWidth="thin"
-              >
-                <Heading level={4}>Document Metadata</Heading>
-              </View>
-              <ReadonlyJSONBlock basicSetup={{ lineNumbers: false }}>
-                {JSON.stringify(metadata)}
-              </ReadonlyJSONBlock>
-            </View>
-          </>
-        )}
-        {hasEvaluations && (
-          <View
-            borderColor={borderColor}
-            borderTopWidth="thin"
-            padding="size-200"
-          >
-            <Flex direction="column" gap="size-100">
-              <Heading level={3} weight="heavy">
-                Evaluations
-              </Heading>
-              <ul>
-                {documentEvaluations.map((documentEvaluation, idx) => {
-                  // Highlight the label as danger if it is a danger classification
-                  const evalTokenColor =
-                    documentEvaluation.label &&
-                    DANGER_DOCUMENT_EVALUATION_LABELS.includes(
-                      documentEvaluation.label
-                    )
-                      ? "var(--global-color-danger)"
-                      : tokenColor;
-                  return (
-                    <li key={idx}>
-                      <View
-                        padding="size-200"
-                        borderWidth="thin"
-                        borderColor={borderColor}
-                        borderRadius="medium"
-                      >
-                        <Flex direction="column" gap="size-50">
-                          <Flex direction="row" gap="size-100">
-                            <Text weight="heavy" elementType="h5">
-                              {documentEvaluation.name}
-                            </Text>
-                            {documentEvaluation.label && (
-                              <Token color={evalTokenColor}>
-                                {documentEvaluation.label}
-                              </Token>
-                            )}
-                            {typeof documentEvaluation.score === "number" && (
-                              <Token color={evalTokenColor}>
-                                <Flex direction="row" gap="size-50">
-                                  <Text
-                                    size="XS"
-                                    weight="heavy"
-                                    color="inherit"
-                                  >
-                                    score
-                                  </Text>
-                                  <Text size="XS">
-                                    {formatFloat(documentEvaluation.score)}
-                                  </Text>
-                                </Flex>
-                              </Token>
-                            )}
-                          </Flex>
-                          {documentEvaluation.explanation ? (
-                            <p
-                              css={css`
-                                margin-top: var(--global-dimension-static-size-100);
-                                margin-bottom: 0;
-                              `}
-                            >
-                              {documentEvaluation.explanation}
-                            </p>
-                          ) : null}
-                        </Flex>
-                      </View>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Flex>
-          </View>
-        )}
-      </Flex>
-    </Card>
   );
 }
 

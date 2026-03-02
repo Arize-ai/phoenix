@@ -1,4 +1,5 @@
 import { Moon, Sun } from "lucide-react";
+
 import { useTheme } from "../contexts/ThemeContext.js";
 
 export function ThemeToggle() {
@@ -7,13 +8,13 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
       title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
     >
       {theme === "light" ? (
-        <Moon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+        <Moon className="h-4 w-4 text-gray-600 dark:text-gray-300" />
       ) : (
-        <Sun className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+        <Sun className="h-4 w-4 text-gray-600 dark:text-gray-300" />
       )}
     </button>
   );

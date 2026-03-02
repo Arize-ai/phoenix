@@ -1,19 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @layer base {
   * {
-    border-color: theme('colors.gray.200');
+    border-color: var(--color-gray-200);
   }
 
   .dark * {
-    border-color: theme('colors.gray.700');
+    border-color: var(--color-gray-700);
   }
 
   html {
     -webkit-text-size-adjust: 100%;
-    font-family: theme('fontFamily.sans');
+    font-family: var(--font-sans);
   }
 
   body {
@@ -53,12 +52,12 @@
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center w-8 h-8 text-gray-500 dark:text-gray-400 bg-transparent border-0 rounded hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 focus:outline-none transition-colors;
+    @apply inline-flex items-center justify-center w-8 h-8 text-gray-500 dark:text-gray-400 bg-transparent border-0 rounded hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:outline-none transition-colors;
   }
 
   /* Input styles */
   .input-base {
-    @apply block w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent focus:outline-none disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:opacity-50 transition-colors;
+    @apply block w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none disabled:bg-gray-50 dark:disabled:bg-gray-700 disabled:opacity-50 transition-colors;
   }
 
   /* Card styles */
@@ -110,11 +109,30 @@
 
   /* Animation helpers */
   .animate-in {
-    @apply animate-fade-in;
+    opacity: 0;
+    animation: fadeIn 0.2s ease-out forwards;
   }
 
   .animate-slide-up {
-    @apply animate-slide-up;
+    opacity: 0;
+    animation: slideUp 0.3s ease-out forwards;
+  }
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -137,11 +155,11 @@
   /* Scrollable areas */
   .scrollable {
     scrollbar-width: thin;
-    scrollbar-color: theme('colors.gray.300') theme('colors.gray.100');
+    scrollbar-color: var(--color-gray-300) var(--color-gray-100);
   }
-  
+
   .dark .scrollable {
-    scrollbar-color: theme('colors.gray.600') theme('colors.gray.800');
+    scrollbar-color: var(--color-gray-600) var(--color-gray-800);
   }
 
   /* Email preview styles */
@@ -154,6 +172,6 @@
 
   /* Monospace for email headers */
   .mono {
-    font-family: theme('fontFamily.mono');
+    font-family: var(--font-mono);
   }
 }

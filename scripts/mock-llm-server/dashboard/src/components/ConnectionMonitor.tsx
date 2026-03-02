@@ -13,9 +13,9 @@ interface Props {
 export function ConnectionMonitor({ metrics, detailedMetrics }: Props) {
   if (!metrics) {
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Endpoint Activity</h2>
-        <div className="text-gray-500 text-xs">Waiting for data...</div>
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+        <h2 className="mb-2 text-sm font-medium">Endpoint Activity</h2>
+        <div className="text-xs text-gray-500">Waiting for data...</div>
       </div>
     );
   }
@@ -25,15 +25,15 @@ export function ConnectionMonitor({ metrics, detailedMetrics }: Props) {
     (typeof metrics.endpoints)[EndpointId],
   ][];
   const activeEndpoints = endpoints.filter(
-    ([, endpoint]) => endpoint.totalRequests > 0,
+    ([, endpoint]) => endpoint.totalRequests > 0
   );
   const inactiveCount = endpoints.length - activeEndpoints.length;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <h2 className="text-sm font-medium mb-2">Endpoint Activity</h2>
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <h2 className="mb-2 text-sm font-medium">Endpoint Activity</h2>
       {activeEndpoints.length === 0 ? (
-        <div className="text-gray-500 text-xs">No endpoint activity yet</div>
+        <div className="text-xs text-gray-500">No endpoint activity yet</div>
       ) : (
         <div className="space-y-0.5">
           {activeEndpoints.map(([id, endpoint]) => {
@@ -49,7 +49,7 @@ export function ConnectionMonitor({ metrics, detailedMetrics }: Props) {
             );
           })}
           {inactiveCount > 0 && (
-            <div className="text-gray-600 text-xs pt-1">
+            <div className="pt-1 text-xs text-gray-600">
               +{inactiveCount} inactive
             </div>
           )}
@@ -84,7 +84,7 @@ function EndpointRow({
     <div className="flex items-center justify-between py-0.5 text-xs">
       <div className="flex items-center gap-1.5">
         <div
-          className={`w-1 h-1 rounded-full ${endpoint.activeConnections > 0 ? "bg-green-500" : "bg-gray-600"}`}
+          className={`h-1 w-1 rounded-full ${endpoint.activeConnections > 0 ? "bg-green-500" : "bg-gray-600"}`}
         />
         <span className="text-gray-300">{label}</span>
       </div>

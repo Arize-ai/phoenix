@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { config } from "./config";
+
 import { ThemeToggle } from "./components/ThemeToggle";
+import { config } from "./config";
 
 interface User {
   id: string;

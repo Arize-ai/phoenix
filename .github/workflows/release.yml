@@ -4,101 +4,22 @@ on:
       - main
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
-name: release-please
+name: release
 
 jobs:
-  create-release:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      phoenix_path: ${{ steps.parse.outputs.phoenix_path }}
-      package_path: ${{ steps.parse.outputs.package_path }}
     steps:
       - uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-        id: release-please
-      - name: Parse release path
-        if: ${{ steps.release-please.outputs.releases_created == 'true' }}
-        id: parse
+        id: release
+      - name: Trigger publish
+        if: steps.release.outputs.releases_created == 'true'
+        run: gh workflow run publish.yaml --repo ${{ github.repository }}
         env:
-          PATHS_RELEASED: ${{ steps.release-please.outputs.paths_released }}
-        # We assume that only one path is released at a time
-        run: |
-          echo $PATHS_RELEASED | jq -r '.[0]' | while read -r PATH; do
-            case $PATH in
-              packages/*)
-                echo "package_path=$PATH" >> $GITHUB_OUTPUT ;;
-              *)
-                echo "phoenix_path=$PATH" >> $GITHUB_OUTPUT ;;
-            esac
-          done
-
-  publish-package:
-    name: Publish Package
-    runs-on: ubuntu-latest
-    needs: create-release
-    if: ${{ needs.create-release.outputs.package_path != '' }}
-    defaults:
-      run:
-        working-directory: ${{ needs.create-release.outputs.package_path }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.10"
-          version: "0.9.18"
-      - run: uvx --with uv==0.9.18 hatch build
-      - run: uvx --with uv==0.9.18 check-wheel-contents dist/*.whl
-      - run: uvx --with uv==0.9.18 twine upload --skip-existing --verbose dist/*
-        env:
-          TWINE_USERNAME: "__token__"
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      - uses: slackapi/slack-github-action@v1
-        if: failure()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          payload: |
-            {
-              "text": "FAILED Publish Package: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-
-  publish-phoenix:
-    name: Publish Phoenix
-    runs-on: ubuntu-latest
-    needs: create-release
-    if: ${{ needs.create-release.outputs.phoenix_path != '' }}
-    environment:
-      name: pypi
-      url: https://pypi.org/p/arize-phoenix
-    permissions:
-      id-token: write # IMPORTANT: mandatory for trusted publishing
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: app/package.json
-      - name: Build frontend
-        working-directory: ./app
-        run: pnpm install --frozen-lockfile && pnpm run build
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.10"
-          version: "0.9.18"
-      - name: Build distribution
-        run: rm -rf dist && uvx --with uv==0.9.18 hatch build
-      - name: Check wheel contents
-        run: uvx --with uv==0.9.18 check-wheel-contents --ignore W004 dist/*.whl
-      - uses: pypa/gh-action-pypi-publish@release/v1
-      - uses: slackapi/slack-github-action@v1
-        if: failure()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          payload: |
-            {
-              "text": "FAILED Publish Phoenix: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

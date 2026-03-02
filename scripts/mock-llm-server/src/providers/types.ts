@@ -128,6 +128,6 @@ export interface Provider {
   handleStreaming(
     req: Request,
     res: Response,
-    config: HandlerConfig,
+    config: HandlerConfig
   ): Promise<void>;
 }

@@ -1,4 +1,5 @@
-import { spawn, ChildProcess } from "child_process";
+import { spawn } from "child_process";
+import type { ChildProcess } from "child_process";
 import { OpenAI } from "openai";
 
 let serverProcess: ChildProcess | null = null;
@@ -18,7 +19,7 @@ export function getBaseUrl(): string {
 }
 
 export async function startServer(
-  env: Record<string, string> = {},
+  env: Record<string, string> = {}
 ): Promise<void> {
   if (serverProcess) {
     await stopServer();
@@ -92,7 +93,7 @@ export async function resetRateLimit(): Promise<void> {
     `http://localhost:${TEST_PORT}/api/rate-limit/reset`,
     {
       method: "POST",
-    },
+    }
   );
   if (!response.ok) {
     throw new Error("Failed to reset rate limit");

@@ -20,7 +20,7 @@ from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnota
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation as TraceAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
 
-from .utils import PaginatedResponseBody, _get_project_by_identifier, add_errors_to_responses
+from .utils import PaginatedResponseBody, add_errors_to_responses, get_project_by_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +244,7 @@ async def list_span_annotations(
         )
 
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
         if not project:
             raise HTTPException(
                 status_code=404,
@@ -389,7 +389,7 @@ async def list_trace_annotations(
         )
 
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
         if not project:
             raise HTTPException(
                 status_code=404,
@@ -529,7 +529,7 @@ async def list_session_annotations(
         )
 
     async with request.app.state.db() as session:
-        project = await _get_project_by_identifier(session, project_identifier)
+        project = await get_project_by_identifier(session, project_identifier)
         if not project:
             raise HTTPException(
                 status_code=404,

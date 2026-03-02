@@ -1,7 +1,6 @@
 from typing import Any, Dict
 
 import pytest
-
 from phoenix.client.types.spans import (
     Concatenation,
     Explosion,
@@ -9,6 +8,7 @@ from phoenix.client.types.spans import (
     SpanFilter,
     SpanQuery,
 )
+
 from phoenix.trace.dsl import SpanQuery as PhoenixSpanQuery
 
 

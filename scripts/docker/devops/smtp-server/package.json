@@ -1,38 +1,45 @@
 {
-    "name": "phoenix-smtp-dev-server",
-    "version": "1.0.0",
-    "description": "Development SMTP server for Phoenix with React UI",
-    "type": "module",
-    "main": "dist/server.js",
-    "scripts": {
-        "build": "tsc && pnpm run build:ui",
-        "build:ui": "cd ui && pnpm run build",
-        "dev": "tsx watch src/server.ts",
-        "dev:ui": "cd ui && pnpm run dev",
-        "start": "node dist/server.js",
-        "type-check": "tsc --noEmit"
-    },
-    "dependencies": {
-        "@fastify/cors": "^10.0.0",
-        "@fastify/static": "^8.0.0",
-        "fastify": "^5.7.3",
-        "mailparser": "^3.6.5",
-        "smtp-server": "^3.13.0",
-        "zod": "^3.22.4"
-    },
-    "devDependencies": {
-        "@types/mailparser": "^3.4.4",
-        "@types/node": "^20.8.7",
-        "@types/smtp-server": "^3.5.7",
-        "tsx": "^4.6.0",
-        "typescript": "^5.2.2"
-    },
-    "keywords": [
-        "smtp",
-        "email",
-        "development",
-        "phoenix"
-    ],
-    "author": "Phoenix Dev Team",
-    "license": "MIT"
+  "name": "phoenix-smtp-dev-server",
+  "version": "1.0.0",
+  "description": "Development SMTP server for Phoenix with React UI",
+  "keywords": [
+    "development",
+    "email",
+    "phoenix",
+    "smtp"
+  ],
+  "license": "MIT",
+  "author": "Phoenix Dev Team",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc && pnpm run build:ui",
+    "build:ui": "cd ui && pnpm run build",
+    "dev": "tsx watch src/server.ts",
+    "dev:ui": "cd ui && pnpm run dev",
+    "fmt": "oxfmt --config ../../../../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../../../../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "start": "node dist/server.js",
+    "type-check": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/static": "^9.0.0",
+    "fastify": "^5.7.4",
+    "mailparser": "^3.9.3",
+    "smtp-server": "^3.18.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.4.6",
+    "@types/node": "^25.3.1",
+    "@types/smtp-server": "^3.5.12",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.48.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
 }

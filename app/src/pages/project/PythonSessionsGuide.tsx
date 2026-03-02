@@ -1,5 +1,9 @@
 import { ExternalLink, Heading, Text, View } from "@phoenix/components";
-import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
+import {
+  BashBlockWithCopy,
+  CodeWrap,
+  PythonBlockWithCopy,
+} from "@phoenix/components/code";
 
 const INSTALL_OPENINFERENCE_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation`;
 const ADD_SESSION_ID_PYTHON = `import uuid
@@ -66,7 +70,7 @@ export function PythonSessionsGuide() {
         </Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy
+        <BashBlockWithCopy
           value={INSTALL_OPENINFERENCE_INSTRUMENTATION_PYTHON}
         />
       </CodeWrap>

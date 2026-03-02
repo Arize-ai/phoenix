@@ -40,7 +40,7 @@ export function SpanTokenCount(props: SpanTokenCountProps) {
   return (
     <TooltipTrigger>
       <Pressable onPress={handlePress}>
-        <TokenCount size={props.size} role="button">
+        <TokenCount size={props.size} role="button" tabIndex={0}>
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>

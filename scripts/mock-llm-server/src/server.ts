@@ -1,14 +1,14 @@
-import express, { type Express } from "express";
-import type { Request, Response } from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import express, { type Express } from "express";
+import type { Request, Response } from "express";
 
-import { getConfig } from "./config.js";
-import { registry } from "./registry.js";
 import { adminRoutes, adminWebSocket } from "./admin/index.js";
+import { getConfig } from "./config.js";
 import { createEndpointHandler } from "./middleware/index.js";
 import { ALL_PROVIDERS } from "./providers/index.js";
+import { registry } from "./registry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,7 +42,7 @@ if (VERBOSE_LOGGING) {
         req.path !== "/ws"
       ) {
         console.log(
-          `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`,
+          `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`
         );
       }
     });
@@ -85,11 +85,11 @@ app.use("/dashboard", dashboardRateLimiter, express.static(dashboardPath));
 
 // Serve index.html for all dashboard routes (SPA support)
 app.get(
-  "/dashboard/*",
+  "/dashboard/*splat",
   dashboardRateLimiter,
   (_req: Request, res: Response) => {
     res.sendFile(path.join(dashboardPath, "index.html"));
-  },
+  }
 );
 
 // Redirect root /dashboard to /dashboard/

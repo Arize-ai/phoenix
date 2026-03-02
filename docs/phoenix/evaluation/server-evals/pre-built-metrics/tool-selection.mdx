@@ -1,0 +1,89 @@
+---
+title: "Tool Selection"
+description: "Evaluate whether LLMs select the correct tools for given tasks using a Phoenix-managed judge model."
+---
+
+## Overview
+
+The **Tool Selection** evaluator determines whether an LLM selected the most appropriate tool (or tools) for a given task. This evaluator focuses on the *what* of tool calling — validating that the right tool was chosen — rather than whether the invocation arguments were correct.
+
+This is an LLM evaluator: Phoenix runs a judge model against a managed prompt template on your behalf.
+
+**When to Use**
+
+Use the Tool Selection evaluator when you need to:
+
+- **Validate tool choice decisions** — Ensure the LLM picks the most appropriate tool for the task
+- **Detect hallucinated tools** — Identify when the LLM tries to use tools that don't exist
+- **Evaluate tool necessity** — Check if the LLM correctly determines when tools are (or aren't) needed
+- **Assess multi-tool selection** — Validate when the LLM needs to select multiple tools for complex tasks
+
+<Info>
+This evaluator validates tool selection correctness, not invocation correctness. For evaluating whether tool arguments are properly formatted, use the [Tool Invocation evaluator](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation) instead. The two evaluators are complementary — Tool Selection catches wrong-tool errors while Tool Invocation catches malformed-call errors — and are best run together for complete tool-calling coverage.
+</Info>
+
+**Input Mapping**
+
+The template handles output formatting automatically — it pulls from your experiment's output and formats the tool calls and results into a human-readable structure for the judge. You don't need to configure anything for the output side.
+
+The only field you may need to map is **`input`**, which should point to the user query from your dataset. For example, if your dataset has `input.query`:
+
+| Template field | Dataset column |
+|----------------|----------------|
+| `input` | `input.query` |
+
+## Output Labels
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| Optimization | Maximize | Higher scores are better |
+
+**Criteria for Correct (1.0):**
+- The LLM chose the best available tool for the user query
+- The tool name exists in the available tools list
+- The tool selection is safe and appropriate
+- The correct number of tools were selected for the task
+
+**Criteria for Incorrect (0.0):**
+- The LLM used a hallucinated or nonexistent tool
+- The LLM selected a tool when none was needed
+- The LLM did not use a tool when one was required
+- The LLM chose a suboptimal or irrelevant tool
+
+## Using in Phoenix
+
+1. Navigate to your dataset and open the **Evaluators** tab.
+2. Click **Add Evaluator** and select **LLM Evaluator Template**, then choose **tool_selection**.
+
+<video
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="w-full aspect-video rounded-xl"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/add-evaluators.mp4"
+></video>
+
+3. In the evaluator slide-over, you'll see the prompt template and choices are pre-configured. You can use the defaults or edit the prompt to fit your use case.
+4. Set an **input mapping** for the `input` field so the template pulls from the correct column in your dataset. Output formatting is already handled by the template — no output mapping needed.
+5. Optionally, configure which LLM to use as the judge model.
+6. Click **Create**. The evaluator will automatically run on any future experiments for that dataset.
+
+<video
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="w-full aspect-video rounded-xl"
+  src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/create-tool-selection-eval.mp4"
+></video>
+
+## See Also
+
+- [Pre-Built Metrics Overview](/docs/phoenix/evaluation/server-evals/pre-built-metrics)
+- [Tool Selection (client-side)](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) — run this evaluator from Python or TypeScript code
+- [Tool Invocation](/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation) — evaluate tool call argument correctness
+- [Correctness](/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness) — evaluate factual accuracy of LLM responses

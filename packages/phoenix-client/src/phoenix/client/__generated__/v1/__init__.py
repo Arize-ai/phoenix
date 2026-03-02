@@ -424,6 +424,13 @@ class SessionAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SessionTraceData(TypedDict):
+    id: str
+    trace_id: str
+    start_time: str
+    end_time: str
+
+
 class SpanAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -781,6 +788,15 @@ class PromptXAIInvocationParameters(TypedDict):
     xai: PromptXAIInvocationParametersContent
 
 
+class SessionData(TypedDict):
+    id: str
+    session_id: str
+    project_id: str
+    start_time: str
+    end_time: str
+    traces: Sequence[SessionTraceData]
+
+
 class Span(TypedDict):
     name: str
     context: SpanContext
@@ -816,6 +832,15 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
 
 class CreateSpansRequestBody(TypedDict):
     data: Sequence[Span]
+
+
+class GetSessionResponseBody(TypedDict):
+    data: SessionData
+
+
+class GetSessionsResponseBody(TypedDict):
+    data: Sequence[SessionData]
+    next_cursor: Optional[str]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):

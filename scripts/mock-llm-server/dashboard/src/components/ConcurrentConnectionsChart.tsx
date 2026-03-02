@@ -7,6 +7,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+
 import type { DetailedMetricsSnapshot } from "../types";
 import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
 
@@ -21,11 +22,11 @@ export function ConcurrentConnectionsChart({
 }: Props) {
   if (!detailedMetrics || detailedMetrics.global.timeSeries.length === 0) {
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+        <h2 className="mb-2 text-sm font-medium">
           Active Requests (In-Flight)
         </h2>
-        <div className="h-64 flex items-center justify-center text-gray-500 text-xs">
+        <div className="flex h-64 items-center justify-center text-xs text-gray-500">
           Collecting data...
         </div>
       </div>
@@ -34,7 +35,7 @@ export function ConcurrentConnectionsChart({
 
   const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
   const filteredSeries = detailedMetrics.global.timeSeries.filter(
-    (point) => point.timestamp >= cutoffTime,
+    (point) => point.timestamp >= cutoffTime
   );
 
   const data = filteredSeries.map((point) => ({
@@ -46,19 +47,19 @@ export function ConcurrentConnectionsChart({
   const currentConnections = detailedMetrics.global.currentConnections;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <div className="flex justify-between items-center mb-2">
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-medium">Active Requests (In-Flight)</h2>
         <div className="flex gap-2 text-xs">
           <span className="text-gray-500">
             now{" "}
-            <span className="text-blue-400 font-mono">
+            <span className="font-mono text-blue-400">
               {currentConnections}
             </span>
           </span>
           <span className="text-gray-500">
             peak{" "}
-            <span className="text-blue-400 font-mono">
+            <span className="font-mono text-blue-400">
               {peaks.maxConcurrentConnections}
             </span>
           </span>

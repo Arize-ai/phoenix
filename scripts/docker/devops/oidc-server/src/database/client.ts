@@ -1,4 +1,5 @@
 import { Client } from "pg";
+
 import type { User } from "../types/index.js";
 
 export class DatabaseClient {
@@ -266,17 +267,19 @@ export class DatabaseClient {
           console.log(JSON.stringify(dbReconnected));
 
           await this.fetchUsers();
-        } catch (error) {}
+        } catch {
+          // Reconnection will be retried on next poll
+        }
       } else {
         await this.fetchUsers();
       }
     }, DatabaseClient.FAST_POLL_MS);
   }
 
-  private getGroupsForUser(row: any): string[] {
-    const roleName = row.role_name?.toUpperCase();
+  private getGroupsForUser(row: { role_name?: string }): string[] {
+    const roleName = (row.role_name?.toUpperCase() ?? "VIEWER") as string;
 
-    const roleGroups: { [roleName: string]: string[] } = {
+    const roleGroups: Record<string, string[]> = {
       ADMIN: ["phoenix-admins", "full-access"],
       MEMBER: ["phoenix-members", "write-access"],
       VIEWER: ["phoenix-viewers", "read-access"],
@@ -289,10 +292,10 @@ export class DatabaseClient {
     return [...defaultGroups, ...roleSpecificGroups];
   }
 
-  private getRoleForUser(row: any): string {
-    const roleName = row.role_name?.toUpperCase();
+  private getRoleForUser(row: { role_name?: string }): string {
+    const roleName = (row.role_name?.toUpperCase() ?? "VIEWER") as string;
 
-    const roleMapping: { [roleName: string]: string } = {
+    const roleMapping: Record<string, string> = {
       ADMIN: "admin",
       MEMBER: "editor",
       VIEWER: "viewer",

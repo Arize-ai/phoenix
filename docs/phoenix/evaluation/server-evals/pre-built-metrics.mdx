@@ -1,0 +1,50 @@
+---
+title: "Pre-Built Metrics"
+sidebarTitle: "Overview"
+description: "Ready-to-use server-side evaluators for common evaluation tasks."
+---
+
+Server-side evaluators run entirely in the Phoenix UI — no local code or API key setup required. Add them to any dataset from your project's Evaluators tab and Phoenix runs them automatically on every new experiment run.
+
+There are two types of pre-built server-side evaluators:
+
+- **Code evaluators** are deterministic. They apply a rule or algorithm to your data and return a result without calling any model.
+- **LLM evaluators** use a judge model via a managed prompt template. Phoenix handles model configuration and API access — you only need to configure the input column mappings.
+
+---
+
+## Code Evaluators
+
+<CardGroup cols={2}>
+  <Card title="Contains" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains">
+    Check whether a text contains one or more specified words.
+  </Card>
+  <Card title="Exact Match" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/exact-match">
+    Check whether two strings are identical.
+  </Card>
+  <Card title="Regex Match" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/regex">
+    Check whether a text matches a regular expression pattern.
+  </Card>
+  <Card title="Levenshtein Distance" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/levenshtein-distance">
+    Measure the edit distance between two strings.
+  </Card>
+  <Card title="JSON Distance" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/json-distance">
+    Measure the number of structural differences between two JSON values.
+  </Card>
+</CardGroup>
+
+---
+
+## LLM Evaluators
+
+<CardGroup cols={2}>
+  <Card title="Correctness" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness">
+    Evaluate whether LLM responses are factually accurate and complete.
+  </Card>
+  <Card title="Tool Selection" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection">
+    Evaluate whether the LLM selected the correct tool for a given task.
+  </Card>
+  <Card title="Tool Invocation" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation">
+    Evaluate whether tool calls have correct arguments and formatting.
+  </Card>
+</CardGroup>

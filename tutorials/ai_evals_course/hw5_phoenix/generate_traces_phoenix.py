@@ -37,11 +37,11 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     SpanAttributes,
 )
-from tavily import TavilyClient
-from tqdm import tqdm
 
 # Phoenix instrumentation
 from phoenix.otel import register
+from tavily import TavilyClient
+from tqdm import tqdm
 
 # Load environment variables
 load_dotenv()

@@ -1,5 +1,5 @@
 -r ../ci.txt
-arize-phoenix
+arize-phoenix-evals
 pandas<3
 pandas-stubs<3
 google-generativeai>=0.8.4

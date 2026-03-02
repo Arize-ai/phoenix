@@ -12,13 +12,13 @@ from _pytest.fixtures import SubRequest
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from phoenix.client.__generated__ import v1
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
-from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (

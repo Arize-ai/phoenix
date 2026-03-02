@@ -154,7 +154,7 @@ jobs:
         if: steps.check-update.outputs.needs_update == 'true' && steps.verify-changed-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           commit-message: "fix(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
           title: "fix(deps): update arize-phoenix-${{ steps.extract-version.outputs.package }} to ${{ steps.extract-version.outputs.version }}"
           body: |

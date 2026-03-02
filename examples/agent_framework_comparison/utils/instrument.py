@@ -5,7 +5,6 @@ from openinference.instrumentation.langchain import LangChainInstrumentor
 from openinference.instrumentation.litellm import LiteLLMInstrumentor
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from openinference.instrumentation.openai import OpenAIInstrumentor
-
 from phoenix.otel import register
 
 

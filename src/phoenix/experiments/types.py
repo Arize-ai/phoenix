@@ -375,7 +375,7 @@ class EvaluationSummary(_HasStats):
                     n_labels=("label", "count"),
                     top_2_labels=(
                         "label",
-                        lambda s: (dict(Counter(s.dropna()).most_common(2)) or None),
+                        lambda s: dict(Counter(s.dropna()).most_common(2)) or None,
                     ),
                 )
                 if has_label

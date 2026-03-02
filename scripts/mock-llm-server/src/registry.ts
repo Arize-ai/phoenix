@@ -1,10 +1,11 @@
 import { EventEmitter } from "events";
+
 import type { Provider, EndpointId } from "./providers/types.js";
-import type { RateLimiter, RateLimitConfig } from "./rate-limiting/types.js";
 import {
   createRateLimiter,
   DEFAULT_RATE_LIMIT_CONFIG,
 } from "./rate-limiting/index.js";
+import type { RateLimiter, RateLimitConfig } from "./rate-limiting/types.js";
 
 /**
  * Sanitize an object to prevent prototype pollution attacks.
@@ -247,7 +248,7 @@ class EndpointRegistry extends EventEmitter {
    */
   updateEndpointConfig(
     endpointId: EndpointId,
-    updates: Partial<EndpointConfig>,
+    updates: Partial<EndpointConfig>
   ): void {
     // Sanitize input to prevent prototype pollution
     const sanitizedUpdates = sanitizeObject(updates);

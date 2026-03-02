@@ -1,4 +1,3 @@
-import type { Response } from "express";
 import type {
   MessageCreateParams,
   ContentBlock,
@@ -6,6 +5,8 @@ import type {
   ToolUseBlock,
   Tool,
 } from "@anthropic-ai/sdk/resources/messages";
+import type { Response } from "express";
+
 import type { ServerConfig } from "../types.js";
 
 // Simplified Message type for mock server (SDK type has strict required fields)
@@ -39,26 +40,24 @@ interface StreamEvent {
 /**
  * Handle non-streaming Anthropic message request
  */
-export function handleNonStreaming(
+export async function handleNonStreaming(
   req: MessageCreateParams,
-  config: ServerConfig,
-): MockMessage {
+  config: ServerConfig
+): Promise<MockMessage> {
   const id = generateAnthropicMessageId();
 
-  // Decide whether to make a tool call
   const toolChoice = req.tool_choice as { type?: string } | undefined;
-  // toolCallProbability overrides client's tool_choice (except "none" which always disables)
   const shouldMakeToolCall =
     req.tools &&
     req.tools.length > 0 &&
     toolChoice?.type !== "none" &&
     Math.random() < config.toolCallProbability;
 
-  let content: ContentBlock[] = [];
+  let content: ContentBlock[];
   let stopReason: StopReason = "end_turn";
 
   if (shouldMakeToolCall && req.tools) {
-    const toolUse = generateAnthropicToolUseFromSdk(req.tools as Tool[]);
+    const toolUse = await generateAnthropicToolUseFromSdk(req.tools as Tool[]);
     if (toolUse) {
       // Anthropic often returns text before tool use
       const textContent = config.getDefaultResponse();
@@ -79,14 +78,14 @@ export function handleNonStreaming(
   const inputTokens = estimateTokens(
     req.messages
       .map((m) => (typeof m.content === "string" ? m.content : ""))
-      .join(" "),
+      .join(" ")
   );
   const outputTokens = estimateTokens(
     content
       .map((c) =>
-        c.type === "text" ? (c as TextBlock).text : JSON.stringify(c),
+        c.type === "text" ? (c as TextBlock).text : JSON.stringify(c)
       )
-      .join(" "),
+      .join(" ")
   );
 
   return {
@@ -110,7 +109,7 @@ export function handleNonStreaming(
 export async function handleStreaming(
   req: MessageCreateParams,
   res: Response,
-  config: ServerConfig,
+  config: ServerConfig
 ): Promise<void> {
   const id = generateAnthropicMessageId();
 
@@ -137,14 +136,14 @@ export async function handleStreaming(
   const inputTokens = estimateTokens(
     req.messages
       .map((m) => (typeof m.content === "string" ? m.content : ""))
-      .join(" "),
+      .join(" ")
   );
 
   // Initial delay (time to first token)
   await sleep(config.streamInitialDelayMs);
 
   if (shouldMakeToolCall && req.tools) {
-    const toolUse = generateAnthropicToolUseFromSdk(req.tools as Tool[]);
+    const toolUse = await generateAnthropicToolUseFromSdk(req.tools as Tool[]);
     if (toolUse) {
       await streamWithToolUse(req, id, inputTokens, toolUse, config, sendEvent);
     } else {
@@ -162,7 +161,7 @@ async function streamTextContent(
   id: string,
   inputTokens: number,
   config: ServerConfig,
-  sendEvent: (event: StreamEvent) => void,
+  sendEvent: (event: StreamEvent) => void
 ): Promise<void> {
   const content = config.getDefaultResponse();
   const outputTokens = estimateTokens(content);
@@ -247,7 +246,7 @@ async function streamWithToolUse(
   inputTokens: number,
   toolUse: ToolUseBlock,
   config: ServerConfig,
-  sendEvent: (event: StreamEvent) => void,
+  sendEvent: (event: StreamEvent) => void
 ): Promise<void> {
   const textContent = config.getDefaultResponse();
   const toolInputJson = JSON.stringify(toolUse.input);

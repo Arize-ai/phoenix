@@ -13,6 +13,7 @@ from typing import Dict, List
 import cohere
 import numpy as np
 import pandas as pd
+import phoenix.evals.default_templates as templates
 import requests
 import tiktoken
 from bs4 import BeautifulSoup
@@ -38,6 +39,11 @@ from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.evals import (
+    OpenAIModel,
+    llm_classify,
+)
+from phoenix.evals.models import BaseModel, set_verbosity
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -49,12 +55,6 @@ from plotresults import (
 from sklearn.metrics import ndcg_score
 
 import phoenix as px
-import phoenix.evals.default_templates as templates
-from phoenix.evals import (
-    OpenAIModel,
-    llm_classify,
-)
-from phoenix.evals.models import BaseModel, set_verbosity
 
 endpoint = "http://127.0.0.1:6006/v1/traces"
 tracer_provider = TracerProvider()
@@ -685,9 +685,9 @@ def run_relevance_eval(
                 )
             query_column = openinference_query_column
             document_column = openinference_document_column.map(
-                lambda docs: _get_contents_from_openinference_documents(docs)
-                if docs is not None
-                else None
+                lambda docs: (
+                    _get_contents_from_openinference_documents(docs) if docs is not None else None
+                )
             )
 
         queries = query_column.tolist()

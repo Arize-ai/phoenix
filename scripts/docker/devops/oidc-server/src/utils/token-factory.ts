@@ -3,14 +3,18 @@
  * DRYs up access token and ID token creation patterns
  */
 
-import { SignJWT } from "jose";
 import { createHash } from "crypto";
+import { SignJWT, type CryptoKey, type KeyObject } from "jose";
+
 import type { User, TokenClaims } from "../types/index.js";
 import { Logger } from "./logger.js";
 
 export class TokenFactory {
   constructor(
-    private keyPair: { privateKey: any; publicKey: any },
+    private keyPair: {
+      privateKey: CryptoKey | KeyObject;
+      publicKey: CryptoKey | KeyObject;
+    },
     private issuer: string,
     private audienceClientId: string
   ) {}

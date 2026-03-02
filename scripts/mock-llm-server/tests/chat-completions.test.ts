@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { startServer, stopServer, getTestClient } from "./setup";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
+import { startServer, stopServer, getTestClient } from "./setup";
 
 describe("Chat Completions", () => {
   beforeAll(async () => {
@@ -32,7 +33,7 @@ describe("Chat Completions", () => {
       expect(response.usage?.completion_tokens).toBeGreaterThan(0);
       expect(response.usage?.total_tokens).toBe(
         (response.usage?.prompt_tokens ?? 0) +
-          (response.usage?.completion_tokens ?? 0),
+          (response.usage?.completion_tokens ?? 0)
       );
     });
 
@@ -61,7 +62,7 @@ describe("Chat Completions", () => {
         client.chat.completions.create({
           model: "",
           messages: [{ role: "user", content: "Hello!" }],
-        }),
+        })
       ).rejects.toThrow();
     });
 
@@ -72,7 +73,7 @@ describe("Chat Completions", () => {
         client.chat.completions.create({
           model: "gpt-4o",
           messages: [] as ChatCompletionMessageParam[],
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -143,7 +144,7 @@ describe("Chat Completions", () => {
           expect(chunk.usage.prompt_tokens).toBeGreaterThan(0);
           expect(chunk.usage.completion_tokens).toBeGreaterThan(0);
           expect(chunk.usage.total_tokens).toBe(
-            chunk.usage.prompt_tokens + chunk.usage.completion_tokens,
+            chunk.usage.prompt_tokens + chunk.usage.completion_tokens
           );
         }
       }

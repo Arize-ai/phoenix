@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
-    from IPython.display import IFrame  # type: ignore[import-not-found]
+    from IPython.display import IFrame
 
     _BaseList = UserList[pd.DataFrame]
 else:
@@ -570,10 +570,10 @@ def _is_colab() -> bool:
     except ImportError:
         return False
     try:
-        from IPython.core.getipython import get_ipython  # type: ignore
+        from IPython.core.getipython import get_ipython
     except ImportError:
         return False
-    return get_ipython() is not None
+    return get_ipython() is not None  # type: ignore[no-untyped-call]
 
 
 def _is_sagemaker() -> bool:
@@ -588,16 +588,16 @@ def _is_sagemaker() -> bool:
         from IPython.core.getipython import get_ipython
     except ImportError:
         return False
-    return get_ipython() is not None
+    return get_ipython() is not None  # type: ignore[no-untyped-call]
 
 
 def _is_databricks() -> bool:
     """Determines whether this is in a Databricks notebook"""
     try:
-        import IPython  # type: ignore
+        from IPython.core.getipython import get_ipython
     except ImportError:
         return False
-    if (shell := IPython.get_ipython()) is None:
+    if (shell := get_ipython()) is None:  # type: ignore[no-untyped-call]
         return False
     try:
         dbutils = shell.user_ns["dbutils"]
@@ -666,9 +666,9 @@ def _get_databricks_context() -> DatabricksContext:
     Returns the databricks context for constructing the base url
     and the root_path for the app
     """
-    import IPython
+    from IPython.core.getipython import get_ipython
 
-    shell = IPython.get_ipython()
+    shell = get_ipython()  # type: ignore[no-untyped-call]
     dbutils = shell.user_ns["dbutils"]
     notebook_context = json.loads(
         dbutils.entry_point.getDbutils().notebook().getContext().toJson()

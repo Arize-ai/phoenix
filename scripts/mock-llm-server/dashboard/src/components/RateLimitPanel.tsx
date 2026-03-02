@@ -11,9 +11,9 @@ interface Props {
 export function RateLimitPanel({ config, onUpdate }: Props) {
   if (!config) {
     return (
-      <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-        <h2 className="text-sm font-medium mb-2">Rate Limiting</h2>
-        <div className="text-gray-500 text-xs">Waiting for config...</div>
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+        <h2 className="mb-2 text-sm font-medium">Rate Limiting</h2>
+        <div className="text-xs text-gray-500">Waiting for config...</div>
       </div>
     );
   }
@@ -28,8 +28,8 @@ export function RateLimitPanel({ config, onUpdate }: Props) {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-      <div className="flex items-center justify-between mb-2">
+    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-medium">Rate Limiting</h2>
         <Toggle
           enabled={rateLimit.enabled}
@@ -45,7 +45,7 @@ export function RateLimitPanel({ config, onUpdate }: Props) {
             onChange={(e) =>
               updateRateLimit({ strategy: e.target.value as RateLimitStrategy })
             }
-            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs"
+            className="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-xs"
           >
             {RATE_LIMIT_STRATEGIES.map((s) => (
               <option key={s.id} value={s.id}>

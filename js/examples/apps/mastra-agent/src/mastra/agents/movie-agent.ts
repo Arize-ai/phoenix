@@ -6,6 +6,7 @@ import { previewSummarizerTool } from "../tools/preview-summarizer-tool";
 import { reviewerTool } from "../tools/reviewer-tool";
 
 export const movieAgent = new Agent({
+  id: "movie-agent",
   name: "Movie Recommendation Assistant",
   instructions: `You are a helpful movie recommendation assistant with access to three tools:
     1. MovieSelector: Given a genre, returns a list of recent streaming movies.

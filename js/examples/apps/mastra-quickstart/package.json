@@ -1,6 +1,7 @@
 {
   "name": "mastra-quickstart",
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "keywords": [],
   "license": "ISC",
@@ -17,7 +18,7 @@
     "test": "echo \"no tests\""
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.0",
+    "@ai-sdk/openai": "^3.0.29",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@mastra/arize": "^1.0.3",

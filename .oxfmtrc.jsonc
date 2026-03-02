@@ -11,6 +11,9 @@
     "js/**/dist/**",
     "js/**/build/**",
     "js/docs/**",
+    "scripts/**/dist/**",
+    "scripts/**/dist-frontend/**",
+    "**/dist/**",
     "**/CHANGELOG.md",
   ],
   "experimentalSortImports": {

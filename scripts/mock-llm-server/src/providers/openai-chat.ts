@@ -1,10 +1,11 @@
 import type { Request, Response } from "express";
-import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 import type { ChatCompletionCreateParams } from "openai/resources/chat/completions";
+
 import {
   handleNonStreaming,
   handleStreaming,
 } from "../handlers/chat-completions.js";
+import type { Provider, ValidationResult, HandlerConfig } from "./types.js";
 
 /**
  * OpenAI Chat Completions API Provider
@@ -81,7 +82,7 @@ export const openaiChatProvider: Provider = {
   },
 
   formatPermissionDeniedError(
-    message = "You don't have access to this resource",
+    message = "You don't have access to this resource"
   ): unknown {
     return {
       error: {
@@ -101,12 +102,14 @@ export const openaiChatProvider: Provider = {
     };
   },
 
-  handleNonStreaming(req: Request, config: HandlerConfig): unknown {
+  async handleNonStreaming(
+    req: Request,
+    config: HandlerConfig
+  ): Promise<unknown> {
     const body = req.body as ChatCompletionCreateParams;
-    // Adapt config to legacy ServerConfig format
     const serverConfig = {
       ...config,
-      port: 0, // Not used
+      port: 0,
       rateLimitEnabled: false,
       rateLimitRequests: 0,
       rateLimitWindowMs: 0,
@@ -114,13 +117,13 @@ export const openaiChatProvider: Provider = {
       rateLimitRandomProbability: 0,
       rateLimitAfterN: 0,
     };
-    return handleNonStreaming(body, serverConfig);
+    return await handleNonStreaming(body, serverConfig);
   },
 
   async handleStreaming(
     req: Request,
     res: Response,
-    config: HandlerConfig,
+    config: HandlerConfig
   ): Promise<void> {
     const body = req.body as ChatCompletionCreateParams;
     const serverConfig = {
