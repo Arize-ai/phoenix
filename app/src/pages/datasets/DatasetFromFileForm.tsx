@@ -19,8 +19,11 @@ import {
 import { FileDropZone, FileList } from "@phoenix/components/dropzone";
 import type { FileRejection } from "@phoenix/components/dropzone";
 import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
-import { parseCSVColumns } from "@phoenix/utils/csvUtils";
-import { formatJSONLError, parseJSONLKeys } from "@phoenix/utils/jsonlUtils";
+import { parseCSVColumnsStreaming } from "@phoenix/utils/csvUtils";
+import {
+  formatJSONLError,
+  parseJSONLKeysStreaming,
+} from "@phoenix/utils/jsonlUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetFileType = "csv" | "jsonl" | null;
@@ -127,29 +130,29 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       const name = file.name.replace(/\.(csv|jsonl)$/i, "");
       setValue("name", name);
 
-      // Read and parse file contents
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        if (!e.target) {
-          return;
-        }
-        const text = e.target.result as string;
-
-        if (detectedType === "csv") {
-          const columnNames = parseCSVColumns(text);
-          setColumns(columnNames);
-          onErrorClear?.();
-        } else if (detectedType === "jsonl") {
-          const result = parseJSONLKeys(text);
-          if (result.success) {
-            setColumns(result.keys);
+      // Parse file contents using streaming (handles large files efficiently)
+      const parseFile = async () => {
+        try {
+          if (detectedType === "csv") {
+            const columnNames = await parseCSVColumnsStreaming(file);
+            setColumns(columnNames);
             onErrorClear?.();
-          } else {
-            onDatasetCreateError(new Error(formatJSONLError(result.error)));
+          } else if (detectedType === "jsonl") {
+            const result = await parseJSONLKeysStreaming(file);
+            if (result.success) {
+              setColumns(result.keys);
+              onErrorClear?.();
+            } else {
+              onDatasetCreateError(new Error(formatJSONLError(result.error)));
+            }
           }
+        } catch (error) {
+          onDatasetCreateError(
+            error instanceof Error ? error : new Error("Failed to parse file")
+          );
         }
       };
-      reader.readAsText(file);
+      parseFile();
     },
     [resetField, setValue, onDatasetCreateError, onErrorClear]
   );
@@ -331,68 +334,84 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           )}
         />
 
-        <Controller
-          name="input_keys"
-          control={control}
-          rules={{
-            required: "At least one input key is required",
-          }}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Input keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
+        {selectedFile && columns.length > 0 && (
+          <>
+            <Controller
+              name="input_keys"
+              control={control}
+              rules={{
+                required: "At least one input key is required",
+              }}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnMultiSelector
+                  label="Input keys"
+                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
+                  columns={columns}
+                  selectedColumns={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                />
+              )}
             />
-          )}
-        />
 
-        <Controller
-          name="output_keys"
-          control={control}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Output keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
+            <Controller
+              name="output_keys"
+              control={control}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnMultiSelector
+                  label="Output keys"
+                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
+                  columns={columns}
+                  selectedColumns={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                />
+              )}
             />
-          )}
-        />
 
-        <Controller
-          name="metadata_keys"
-          control={control}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Metadata keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
+            <Controller
+              name="metadata_keys"
+              control={control}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnMultiSelector
+                  label="Metadata keys"
+                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
+                  columns={columns}
+                  selectedColumns={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                />
+              )}
             />
-          )}
-        />
 
-        <Controller
-          name="split_keys"
-          control={control}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Split keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
+            <Controller
+              name="split_keys"
+              control={control}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnMultiSelector
+                  label="Split keys"
+                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
+                  columns={columns}
+                  selectedColumns={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                />
+              )}
             />
-          )}
-        />
+          </>
+        )}
       </div>
 
       <View

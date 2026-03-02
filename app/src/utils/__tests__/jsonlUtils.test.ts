@@ -1,4 +1,4 @@
-import { parseJSONLKeys, formatJSONLError } from "../jsonlUtils";
+import { formatJSONLError, parseJSONLKeys } from "../jsonlUtils";
 
 describe("parseJSONLKeys", () => {
   describe("successful parsing", () => {

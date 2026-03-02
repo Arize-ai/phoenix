@@ -75,3 +75,93 @@ export function parseCSVColumns(csvText: string): string[] {
 
   return parseCSVRow(firstLine);
 }
+
+/**
+ * Finds the end index of the first complete CSV row in a buffer.
+ * Handles quoted fields that may contain newlines.
+ * Returns -1 if no complete row is found.
+ */
+export function findCompleteCSVRowEnd(buffer: string): number {
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < buffer.length) {
+    const char = buffer[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        // Check for escaped quote ("")
+        if (i + 1 < buffer.length && buffer[i + 1] === '"') {
+          i += 2;
+          continue;
+        }
+        // End of quoted field
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      // Any other character inside quotes (including newlines)
+      i++;
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+        i++;
+        continue;
+      }
+      if (char === "\n") {
+        return i;
+      }
+      if (char === "\r" && i + 1 < buffer.length && buffer[i + 1] === "\n") {
+        return i;
+      }
+      i++;
+    }
+  }
+
+  return -1; // No complete row found
+}
+
+/**
+ * Parses CSV column names from a file using streaming.
+ * Only reads enough of the file to extract the header row.
+ * Handles arbitrarily large files efficiently.
+ */
+export async function parseCSVColumnsStreaming(file: File): Promise<string[]> {
+  const stream = file.stream();
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let bomChecked = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Remove BOM on first chunk
+      if (!bomChecked) {
+        buffer = removeBOM(buffer);
+        bomChecked = true;
+      }
+
+      // Try to find a complete first row
+      const rowEnd = findCompleteCSVRowEnd(buffer);
+      if (rowEnd !== -1) {
+        const firstRow = buffer.slice(0, rowEnd);
+        return parseCSVRow(firstRow);
+      }
+    }
+
+    // File ended without newline, parse whatever we have
+    // This handles single-line CSVs or files without trailing newline
+    if (buffer.length > 0) {
+      return parseCSVRow(buffer);
+    }
+
+    return [];
+  } finally {
+    reader.cancel();
+  }
+}

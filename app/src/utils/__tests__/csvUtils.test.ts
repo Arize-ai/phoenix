@@ -1,4 +1,9 @@
-import { parseCSVRow, parseCSVColumns, removeBOM } from "../csvUtils";
+import {
+  findCompleteCSVRowEnd,
+  parseCSVColumns,
+  parseCSVRow,
+  removeBOM,
+} from "../csvUtils";
 
 describe("removeBOM", () => {
   it("removes BOM from start of string", () => {
@@ -90,5 +95,31 @@ describe("parseCSVColumns", () => {
 
   it("handles single line CSV (header only)", () => {
     expect(parseCSVColumns("a,b,c")).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("findCompleteCSVRowEnd", () => {
+  it("finds newline in simple row", () => {
+    expect(findCompleteCSVRowEnd("a,b,c\n1,2,3")).toBe(5);
+  });
+
+  it("finds Windows line ending", () => {
+    expect(findCompleteCSVRowEnd("a,b,c\r\n1,2,3")).toBe(5);
+  });
+
+  it("returns -1 when no complete row", () => {
+    expect(findCompleteCSVRowEnd("a,b,c")).toBe(-1);
+  });
+
+  it("ignores newlines inside quoted fields", () => {
+    expect(findCompleteCSVRowEnd('"hello\nworld",foo\nbar')).toBe(17);
+  });
+
+  it("handles escaped quotes in quoted fields", () => {
+    expect(findCompleteCSVRowEnd('"say ""hi""",foo\nbar')).toBe(16);
+  });
+
+  it("returns -1 when row has unclosed quote", () => {
+    expect(findCompleteCSVRowEnd('"unclosed,field')).toBe(-1);
   });
 });
