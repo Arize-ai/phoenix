@@ -8,7 +8,7 @@ pyright[nodejs]==1.1.394
 pytest-randomly
 pytest-rerunfailures
 deepdiff==8.6.1
-anthropic==0.79.0
+anthropic
 openai>=2.14.0
 pystache
 PyYAML

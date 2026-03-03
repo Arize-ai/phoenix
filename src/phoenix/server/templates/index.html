@@ -114,7 +114,7 @@
       });
   })()</script>
     {% if scarf_sh_pixel_id -%}
-      <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid={{scarf_sh_pixel_id}}" />
+      <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid={{scarf_sh_pixel_id}}" style="position:absolute;width:0;height:0" />
     {%- endif %}
     {% if is_development -%}
       <script type="module">

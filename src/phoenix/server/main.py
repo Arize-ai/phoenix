@@ -19,6 +19,7 @@ from phoenix.config import (
     get_env_access_token_expiry,
     get_env_allowed_origins,
     get_env_auth_settings,
+    get_env_dangerously_enable_agents,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
@@ -120,6 +121,11 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Storage: {{ storage }}
 {%- if schema %}
 |    - Schema: {{ schema }}
+{%- endif %}
+{%- if agents_enabled %}
+|
+|  🧪 Experimental Features 🧪
+|  Agents: Enabled
 {%- endif %}
 """)
 
@@ -324,6 +330,7 @@ def main() -> None:
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
+        agents_enabled=get_env_dangerously_enable_agents(),
     )
 
     if sys.platform.startswith("win"):

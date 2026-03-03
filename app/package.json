@@ -19,7 +19,7 @@
     "dev:server:offline": "python -m phoenix.server.main --dev --dev-vite-port ${VITE_PORT:-5173} serve",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
     "dev:ui": "source ./.env && pnpm run build:static && pnpm run build:relay && vite",
-    "ensure:env": "test -f .env || printf 'export PHOENIX_ENABLE_REACT_COMPILER=True\nexport PHOENIX_TELEMETRY_ENABLED=False\n' > .env",
+    "ensure:env": "test -f .env || printf 'export PHOENIX_ENABLE_REACT_COMPILER=True\nexport PHOENIX_TELEMETRY_ENABLED=False\nexport PHOENIX_DANGEROUSLY_ENABLE_AGENTS=True\n' > .env",
     "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
     "lint": "oxlint",
@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.99",
     "@apollo/client": "^4.1.4",
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "@codemirror/autocomplete": "6.20.0",
@@ -61,6 +62,7 @@
     "@tanstack/react-virtual": "^3.13.18",
     "@uiw/codemirror-theme-github": "^4.25.4",
     "@uiw/react-codemirror": "^4.25.4",
+    "ai": "^6.0.97",
     "clsx": "^2.1.1",
     "codemirror-json-schema": "^0.8.1",
     "copy-to-clipboard": "^3.3.3",
@@ -89,6 +91,7 @@
     "relay-runtime": "^20.1.1",
     "remark-gfm": "^4.0.1",
     "shade": "^0.1.1",
+    "streamdown": "^2.3.0",
     "tiny-invariant": "^1.3.3",
     "use-deep-compare-effect": "^1.8.1",
     "use-zustand": "^0.2.0",

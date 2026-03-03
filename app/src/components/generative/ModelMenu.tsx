@@ -1,6 +1,10 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo, useState } from "react";
-import { MenuSection, SubmenuTrigger } from "react-aria-components";
+import {
+  MenuSection,
+  type PopoverProps,
+  SubmenuTrigger,
+} from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -160,12 +164,17 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
     : `${prefixDot}${modelName}`;
 }
 
-export type ModelMenuProps = {
+export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
 };
 
-export function ModelMenu({ value, onChange }: ModelMenuProps) {
+export function ModelMenu({
+  value,
+  onChange,
+  placement,
+  shouldFlip,
+}: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const awsBedrockModelPrefix = usePreferencesContext(
@@ -309,7 +318,7 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
         )}
         <SelectChevronUpDownIcon />
       </Button>
-      <MenuContainer>
+      <MenuContainer placement={placement} shouldFlip={shouldFlip}>
         <MenuHeader>
           <SearchField
             aria-label="Search models"

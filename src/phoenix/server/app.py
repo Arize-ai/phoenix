@@ -61,6 +61,7 @@ from phoenix.config import (
     OAuth2ClientConfig,
     get_env_allow_external_resources,
     get_env_csrf_trusted_origins,
+    get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_fastapi_middleware_paths,
@@ -158,6 +159,7 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
     create_auth_router,
+    create_chat_router,
     create_v1_router,
     oauth2_router,
 )
@@ -1159,6 +1161,8 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
+    if get_env_dangerously_enable_agents():
+        app.include_router(create_chat_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
