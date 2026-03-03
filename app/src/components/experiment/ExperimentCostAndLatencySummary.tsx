@@ -1,4 +1,4 @@
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -15,7 +15,6 @@ import { Skeleton } from "@phoenix/components/loading";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import type { ExecutionState } from "@phoenix/components/types";
 
 import type { ExperimentCostAndLatencySummaryQuery } from "./__generated__/ExperimentCostAndLatencySummaryQuery.graphql";
 
@@ -36,14 +35,7 @@ export type ExperimentCostAndLatencySummaryExperiment = {
 
 type ExperimentCostAndLatencySummaryProps = {
   /**
-   * The current execution state
-   * - idle: No experiment has been run yet (shows placeholder)
-   * - running: Experiment is in progress (shows skeleton loaders)
-   * - complete: Experiment finished (shows actual data)
-   */
-  executionState: ExecutionState;
-  /**
-   * Pre-fetched experiment data (required when executionState is "complete")
+   * Pre-fetched experiment data
    */
   experiment?: ExperimentCostAndLatencySummaryExperiment | null;
   /**
@@ -57,22 +49,11 @@ const placeholderCSS = css`
   opacity: 0.5;
 `;
 
-const pulseKeyframes = keyframes`
-  0% { opacity: 1; }
-  50% { opacity: 0.4; }
-  100% { opacity: 1; }
-`;
-
-const inProgressCSS = css`
-  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
-`;
-
 /**
  * Component that displays aggregate experiment cost and latency summary.
  * Handles idle, running (loading), and complete states to prevent layout shifts.
  */
 export function ExperimentCostAndLatencySummary({
-  executionState,
   experiment,
   isPlaceholder = false,
 }: ExperimentCostAndLatencySummaryProps) {
@@ -100,10 +81,7 @@ export function ExperimentCostAndLatencySummary({
       direction="row"
       gap="size-100"
       alignItems="center"
-      css={[
-        executionState === "running" && inProgressCSS,
-        isPlaceholder && placeholderCSS,
-      ]}
+      css={isPlaceholder && placeholderCSS}
     >
       <TooltipTrigger>
         <TriggerWrap>
@@ -250,10 +228,5 @@ export function ConnectedExperimentCostAndLatencySummary({
       };
     }, [data.experiment]);
 
-  return (
-    <ExperimentCostAndLatencySummary
-      executionState="complete"
-      experiment={experiment}
-    />
-  );
+  return <ExperimentCostAndLatencySummary experiment={experiment} />;
 }

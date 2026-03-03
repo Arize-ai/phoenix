@@ -829,10 +829,7 @@ function PlaygroundInstanceOutputColumnHeader({
         </Flex>
         <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
       </Flex>
-      <ExperimentCostAndLatencySummary
-        executionState={executionState}
-        experiment={costAndLatencySummary}
-      />
+      <ExperimentCostAndLatencySummary experiment={costAndLatencySummary} />
       <ExperimentAnnotationAggregates
         executionState={executionState}
         annotationConfigs={evaluatorOutputConfigs}
@@ -1517,10 +1514,7 @@ export function PlaygroundDatasetExamplesTable({
         header: () => (
           <Flex direction="column" gap="size-50">
             <span>reference output</span>
-            <ExperimentCostAndLatencySummary
-              executionState="idle"
-              isPlaceholder={true}
-            />
+            <ExperimentCostAndLatencySummary isPlaceholder={true} />
             <ExperimentAnnotationAggregates
               executionState="idle"
               annotationConfigs={evaluatorOutputConfigs}

@@ -6,7 +6,7 @@ import { progressBarCSS } from "./styles";
 import type { ProgressBarProps } from "./types";
 
 function ProgressBar(
-  { width, height, animateFill = false, ...props }: ProgressBarProps,
+  { width, height, ...props }: ProgressBarProps,
   ref: Ref<HTMLDivElement>
 ) {
   return (
@@ -20,12 +20,7 @@ function ProgressBar(
         <div className="progress-bar__track">
           <div
             className="progress-bar__fill"
-            style={{
-              width: percentage + "%",
-              transition: animateFill
-                ? "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
-                : undefined,
-            }}
+            style={{ width: percentage + "%" }}
           />
         </div>
       )}

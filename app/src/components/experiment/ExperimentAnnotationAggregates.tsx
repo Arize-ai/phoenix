@@ -1,4 +1,4 @@
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -49,16 +49,6 @@ type ExperimentAnnotationAggregatesProps = {
    */
   isPlaceholder?: boolean;
 };
-
-const pulseKeyframes = keyframes`
-  0% { opacity: 1; }
-  50% { opacity: 0.4; }
-  100% { opacity: 1; }
-`;
-
-const inProgressCSS = css`
-  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
-`;
 
 const listCSS = css`
   display: grid;
@@ -158,7 +148,7 @@ function ExperimentAnnotationAggregateItem({
   );
 
   return (
-    <li css={[listItemCSS, executionState === "running" && inProgressCSS]}>
+    <li css={listItemCSS}>
       {/* Column 1: Color swatch + annotation name */}
       <Flex
         direction="row"
@@ -204,7 +194,6 @@ function ExperimentAnnotationAggregateItem({
           align-self: center;
           --mod-barloader-fill-color: ${annotationColor};
         `}
-        animateFill={executionState !== "idle"}
         value={meanScore != null ? scorePercentile : 0}
         height="var(--global-dimension-size-50)"
         width="100%"
