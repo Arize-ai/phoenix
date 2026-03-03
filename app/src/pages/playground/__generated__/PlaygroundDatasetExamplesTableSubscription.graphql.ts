@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<430950b47e888f557fc56a353e9e8500>>
+ * @generated SignedSource<<9514ac9c2538c75d22fc1970b110ab8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
-  createEphemeralExperiment?: boolean;
+  createEphemeralExperiment?: boolean | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
