@@ -163,9 +163,24 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
 export type ModelMenuProps = {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
+  /**
+   * Placement of the menu popover relative to the trigger button.
+   * @default "bottom end"
+   */
+  placement?: "bottom end" | "top start" | "top end" | "bottom start";
+  /**
+   * Whether the menu should flip when there isn't enough space.
+   * @default false
+   */
+  shouldFlip?: boolean;
 };
 
-export function ModelMenu({ value, onChange }: ModelMenuProps) {
+export function ModelMenu({
+  value,
+  onChange,
+  placement,
+  shouldFlip,
+}: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const awsBedrockModelPrefix = usePreferencesContext(
@@ -309,7 +324,7 @@ export function ModelMenu({ value, onChange }: ModelMenuProps) {
         )}
         <SelectChevronUpDownIcon />
       </Button>
-      <MenuContainer>
+      <MenuContainer placement={placement} shouldFlip={shouldFlip}>
         <MenuHeader>
           <SearchField
             aria-label="Search models"

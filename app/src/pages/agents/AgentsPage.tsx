@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import { useState } from "react";
 
 import { PageHeader, View } from "@phoenix/components";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -37,14 +37,23 @@ export function AgentsPage() {
   };
 
   return (
-    <>
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+      `}
+    >
       <View borderBottomColor="dark" borderBottomWidth="thin">
-        <PageHeader
-          title="PXI"
-          extra={<ModelMenu value={menuValue} onChange={handleChange} />}
-        />
+        <PageHeader title="PXI" />
       </View>
-      <Chat key={chatApiUrl} chatApiUrl={chatApiUrl} />
-    </>
+      <Chat
+        key={chatApiUrl}
+        chatApiUrl={chatApiUrl}
+        modelMenuValue={menuValue}
+        onModelChange={handleChange}
+      />
+    </div>
   );
 }

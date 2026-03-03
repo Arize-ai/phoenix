@@ -4,8 +4,10 @@ import { DefaultChatTransport } from "ai";
 import { useEffect, useRef } from "react";
 
 import { authFetch } from "@phoenix/authFetch";
-import { View } from "@phoenix/components";
+import { Icon, Icons, View } from "@phoenix/components";
 import { MessageBar } from "@phoenix/components/chat";
+import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 
@@ -13,6 +15,7 @@ const chatCSS = css`
   position: relative;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 
   .chat__scroll {
     height: 100%;
@@ -39,11 +42,29 @@ const chatCSS = css`
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
+    padding-bottom: var(--global-dimension-size-200);
     background-color: var(--global-color-gray-75);
   }
 
+  .chat__input-container {
+    border: 1px solid var(--global-color-gray-300);
+    border-radius: var(--global-rounding-medium);
+    background-color: var(--global-color-gray-100);
+    overflow: hidden;
+  }
+
+  .chat__input-toolbar {
+    display: flex;
+    align-items: center;
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-100);
+    border-top: 1px solid var(--global-color-gray-200);
+  }
+
   .chat__empty {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
     margin-top: var(--global-dimension-size-400);
     color: var(--global-text-color-300);
   }
@@ -59,7 +80,15 @@ const chatCSS = css`
   }
 `;
 
-export function Chat({ chatApiUrl }: { chatApiUrl: string }) {
+export function Chat({
+  chatApiUrl,
+  modelMenuValue,
+  onModelChange,
+}: {
+  chatApiUrl: string;
+  modelMenuValue: ModelMenuValue;
+  onModelChange: (model: ModelMenuValue) => void;
+}) {
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
   });
@@ -89,11 +118,21 @@ export function Chat({ chatApiUrl }: { chatApiUrl: string }) {
       </div>
       <div className="chat__input">
         <View paddingX="size-100">
-          <MessageBar
-            onSendMessage={(text) => sendMessage({ text })}
-            isSending={status === "submitted" || status === "streaming"}
-            placeholder="Send a message…"
-          />
+          <div className="chat__input-container">
+            <MessageBar
+              onSendMessage={(text) => sendMessage({ text })}
+              isSending={status === "submitted" || status === "streaming"}
+              placeholder="Send a message…"
+            />
+            <div className="chat__input-toolbar">
+              <ModelMenu
+                value={modelMenuValue}
+                onChange={onModelChange}
+                placement="top start"
+                shouldFlip
+              />
+            </div>
+          </div>
         </View>
       </div>
     </div>
@@ -101,7 +140,17 @@ export function Chat({ chatApiUrl }: { chatApiUrl: string }) {
 }
 
 function EmptyState() {
-  return <p className="chat__empty">Send a message to chat with PXI</p>;
+  return (
+    <div className="chat__empty">
+      <Icon
+        svg={<Icons.Robot />}
+        css={css`
+          font-size: 48px;
+        `}
+      />
+      <p>Send a message to chat with PXI</p>
+    </div>
+  );
 }
 
 function Loading() {
