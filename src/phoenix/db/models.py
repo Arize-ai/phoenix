@@ -1289,7 +1289,7 @@ class DatasetExample(HasId):
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    external_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    external_id: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
 
     span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
@@ -1321,10 +1321,6 @@ class DatasetExampleRevision(HasId):
     output: Mapped[dict[str, Any]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     content_hash: Mapped[str] = mapped_column(
-        CheckConstraint(
-            "length(content_hash) = 64",
-            name="valid_content_hash_length",
-        ),
         index=True,
         nullable=False,
     )

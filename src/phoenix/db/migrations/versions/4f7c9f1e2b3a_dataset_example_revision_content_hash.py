@@ -102,18 +102,14 @@ def upgrade() -> None:
 
     # Step 3: Make columns NOT NULL and add constraints/indexes.
     with op.batch_alter_table("dataset_example_revisions") as batch_op:
-        batch_op.alter_column("content_hash", nullable=False)
-        batch_op.create_check_constraint(
-            "valid_content_hash_length",
-            "length(content_hash) = 64",
-        )
+        batch_op.alter_column("content_hash", nullable=False, index=True)
         batch_op.create_index(
             "ix_dataset_example_revisions_content_hash",
             ["content_hash"],
             unique=False,
         )
     with op.batch_alter_table("dataset_examples") as batch_op:
-        batch_op.alter_column("external_id", nullable=False)
+        batch_op.alter_column("external_id", nullable=False, index=True)
         batch_op.create_unique_constraint(
             "uq_dataset_examples_external_id",
             ["external_id"],

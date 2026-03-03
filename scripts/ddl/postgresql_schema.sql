@@ -495,7 +495,10 @@ CREATE TABLE public.dataset_examples (
     dataset_id INTEGER NOT NULL,
     span_rowid INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    external_id VARCHAR NOT NULL,
     CONSTRAINT pk_dataset_examples PRIMARY KEY (id),
+    CONSTRAINT uq_dataset_examples_external_id
+        UNIQUE (external_id),
     CONSTRAINT fk_dataset_examples_dataset_id_datasets FOREIGN KEY
         (dataset_id)
         REFERENCES public.datasets (id)
@@ -569,6 +572,7 @@ CREATE TABLE public.dataset_example_revisions (
     metadata JSONB NOT NULL,
     revision_kind VARCHAR NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    content_hash VARCHAR NOT NULL,
     CONSTRAINT pk_dataset_example_revisions PRIMARY KEY (id),
     CONSTRAINT uq_dataset_example_revisions_dataset_example_id_dataset_bbf2
         UNIQUE (dataset_example_id, dataset_version_id),
@@ -589,6 +593,8 @@ CREATE TABLE public.dataset_example_revisions (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_dataset_example_revisions_content_hash ON public.dataset_example_revisions
+    USING btree (content_hash);
 CREATE INDEX ix_dataset_example_revisions_dataset_version_id ON public.dataset_example_revisions
     USING btree (dataset_version_id);
 
