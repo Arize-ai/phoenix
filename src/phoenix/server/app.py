@@ -71,6 +71,7 @@ from phoenix.config import (
     get_env_log_sql,
     get_env_max_spans_queue_size,
     get_env_port,
+    get_env_dangerously_enable_agents,
     get_env_support_email,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
@@ -1160,7 +1161,8 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    app.include_router(create_chat_router(authentication_enabled))
+    if get_env_dangerously_enable_agents():
+        app.include_router(create_chat_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:

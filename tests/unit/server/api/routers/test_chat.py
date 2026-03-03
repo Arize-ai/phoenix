@@ -2,8 +2,14 @@ import json
 from typing import Any
 
 import httpx
+import pytest
 
 from tests.unit.vcr import CustomVCR
+
+
+@pytest.fixture(autouse=True)
+def _enable_agents(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_DANGEROUSLY_ENABLE_AGENTS", "true")
 
 
 class TestChatRouter:

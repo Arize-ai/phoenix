@@ -443,6 +443,7 @@ def _env(
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap,
+        "PHOENIX_DANGEROUSLY_ENABLE_AGENTS": "true",
     }
 
 
