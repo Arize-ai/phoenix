@@ -101,11 +101,6 @@ type PlaygroundDatasetExamplesTableActions = {
     repetitionNumber: RepetitionNumber;
     evaluationChunk: EvaluationChunk;
   }) => void;
-  addExperimentRunAnnotation: (args: {
-    instanceId: InstanceId;
-    annotationName: AnnotationName;
-    score: number | null;
-  }) => void;
   batchAddExperimentRunAnnotations: (
     updates: Array<{
       instanceId: InstanceId;
@@ -113,12 +108,6 @@ type PlaygroundDatasetExamplesTableActions = {
       score: number | null;
     }>
   ) => void;
-  addRunCostAndLatency: (args: {
-    instanceId: InstanceId;
-    latencyMs: number | null;
-    tokenCountTotal: number | null;
-    cost: number | null;
-  }) => void;
   batchAddRunCostAndLatency: (
     updates: Array<{
       instanceId: InstanceId;
@@ -283,73 +272,6 @@ const createPlaygroundDatasetExamplesTableStore = () => {
                 evaluations: updatedEvaluations,
               },
             },
-          },
-        },
-      });
-    },
-    addExperimentRunAnnotation: ({ instanceId, annotationName, score }) => {
-      if (score == null) {
-        return;
-      }
-      const annotationAggregates = get().annotationAggregates;
-      const instanceAggregates = annotationAggregates[instanceId] ?? {};
-      const prev = instanceAggregates[annotationName] ?? {
-        sum: 0,
-        count: 0,
-        meanScore: null,
-      };
-      const newSum = prev.sum + score;
-      const newCount = prev.count + 1;
-      const newMeanScore = newSum / newCount;
-      set({
-        annotationAggregates: {
-          ...annotationAggregates,
-          [instanceId]: {
-            ...instanceAggregates,
-            [annotationName]: {
-              sum: newSum,
-              count: newCount,
-              meanScore: newMeanScore,
-            },
-          },
-        },
-      });
-    },
-    addRunCostAndLatency: ({
-      instanceId,
-      latencyMs,
-      tokenCountTotal,
-      cost,
-    }) => {
-      const costAndLatencyAggregates = get().costAndLatencyAggregates;
-      const prev = costAndLatencyAggregates[instanceId] ?? {
-        runCount: 0,
-        latencySum: 0,
-        latencyCount: 0,
-        tokenCountSum: 0,
-        tokenCountCount: 0,
-        costSum: 0,
-        costCount: 0,
-      };
-      set({
-        costAndLatencyAggregates: {
-          ...costAndLatencyAggregates,
-          [instanceId]: {
-            runCount: prev.runCount + 1,
-            latencySum:
-              latencyMs != null ? prev.latencySum + latencyMs : prev.latencySum,
-            latencyCount:
-              latencyMs != null ? prev.latencyCount + 1 : prev.latencyCount,
-            tokenCountSum:
-              tokenCountTotal != null
-                ? prev.tokenCountSum + tokenCountTotal
-                : prev.tokenCountSum,
-            tokenCountCount:
-              tokenCountTotal != null
-                ? prev.tokenCountCount + 1
-                : prev.tokenCountCount,
-            costSum: cost != null ? prev.costSum + cost : prev.costSum,
-            costCount: cost != null ? prev.costCount + 1 : prev.costCount,
           },
         },
       });
