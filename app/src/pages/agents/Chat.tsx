@@ -42,22 +42,6 @@ const chatCSS = css`
     background-color: var(--global-color-gray-75);
   }
 
-  .chat__user-message {
-    align-self: flex-end;
-    background-color: var(--global-color-primary-700);
-    color: var(--global-color-gray-50);
-    border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
-      var(--global-rounding-large);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    max-width: 75%;
-    word-wrap: break-word;
-  }
-
-  .chat__assistant-message {
-    align-self: flex-start;
-    max-width: 90%;
-  }
-
   .chat__empty {
     text-align: center;
     margin-top: var(--global-dimension-size-400);
