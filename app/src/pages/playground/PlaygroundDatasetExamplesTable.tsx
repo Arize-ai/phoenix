@@ -846,17 +846,7 @@ export function PlaygroundDatasetExamplesTable({
   >;
 }) {
   const environment = useRelayEnvironment();
-  const instances = usePlaygroundContext(
-    (state) => state.instances,
-    (a, b) =>
-      a.length === b.length &&
-      a.every(
-        (ia, i) =>
-          ia.id === b[i].id &&
-          ia.activeRunId === b[i].activeRunId &&
-          ia.experimentId === b[i].experimentId
-      )
-  );
+  const instances = usePlaygroundContext((state) => state.instances);
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experimentId);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
