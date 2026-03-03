@@ -29,7 +29,7 @@ export type EvaluationChunk = Extract<
 /**
  * A running sum/count used to compute a mean score incrementally.
  */
-type AnnotationAggregate = {
+export type ExperimentRunAnnotationAggregateMetric = {
   sum: number;
   count: number;
   meanScore: number | null;
@@ -39,7 +39,7 @@ type AnnotationAggregate = {
  * Running sums/counts for cost, latency, and token metrics per instance.
  * Each metric tracks its own count since any value can be null on a given run.
  */
-export type CostAndLatencyAggregate = {
+export type ExperimentRunCostAggregateMetric = {
   runCount: number;
   latencySum: number;
   latencyCount: number;
@@ -132,11 +132,11 @@ type PlaygroundDatasetExamplesTableActions = {
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
-  annotationAggregates: Record<
+  runAnnotationAggregateMetrics: Record<
     InstanceId,
-    Record<AnnotationName, AnnotationAggregate>
+    Record<AnnotationName, ExperimentRunAnnotationAggregateMetric>
   >;
-  costAndLatencyAggregates: Record<InstanceId, CostAndLatencyAggregate>;
+  runCostAggregateMetrics: Record<InstanceId, ExperimentRunCostAggregateMetric>;
   repetitions: number;
   expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
@@ -152,8 +152,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
     exampleResponsesMap: {},
-    annotationAggregates: {},
-    costAndLatencyAggregates: {},
+    runAnnotationAggregateMetrics: {},
+    runCostAggregateMetrics: {},
     repetitions: 1,
     expandedCells: {},
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
@@ -278,11 +278,14 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     },
     addRunAnnotations: (annotations) => {
       if (annotations.length === 0) return;
-      const { annotationAggregates } = get();
-      const newAnnotationAggregates = { ...annotationAggregates };
+      const { runAnnotationAggregateMetrics } = get();
+      const newrunAnnotationAggregateMetrics = {
+        ...runAnnotationAggregateMetrics,
+      };
       for (const { instanceId, annotationName, score } of annotations) {
         if (score == null) continue;
-        const instanceAggregates = newAnnotationAggregates[instanceId] ?? {};
+        const instanceAggregates =
+          newrunAnnotationAggregateMetrics[instanceId] ?? {};
         const prev = instanceAggregates[annotationName] ?? {
           sum: 0,
           count: 0,
@@ -290,7 +293,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         };
         const newSum = prev.sum + score;
         const newCount = prev.count + 1;
-        newAnnotationAggregates[instanceId] = {
+        newrunAnnotationAggregateMetrics[instanceId] = {
           ...instanceAggregates,
           [annotationName]: {
             sum: newSum,
@@ -299,12 +302,12 @@ const createPlaygroundDatasetExamplesTableStore = () => {
           },
         };
       }
-      set({ annotationAggregates: newAnnotationAggregates });
+      set({ runAnnotationAggregateMetrics: newrunAnnotationAggregateMetrics });
     },
     addRunCosts: (costs) => {
       if (costs.length === 0) return;
-      const { costAndLatencyAggregates } = get();
-      const newAggregates = { ...costAndLatencyAggregates };
+      const { runCostAggregateMetrics } = get();
+      const newAggregates = { ...runCostAggregateMetrics };
       for (const { instanceId, latencyMs, tokenCountTotal, cost } of costs) {
         const prev = newAggregates[instanceId] ?? {
           runCount: 0,
@@ -333,7 +336,7 @@ const createPlaygroundDatasetExamplesTableStore = () => {
           costCount: cost != null ? prev.costCount + 1 : prev.costCount,
         };
       }
-      set({ costAndLatencyAggregates: newAggregates });
+      set({ runCostAggregateMetrics: newAggregates });
     },
     setExampleDataForInstance: ({ instanceId, data }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
@@ -347,8 +350,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     resetData: () => {
       set({
         exampleResponsesMap: {},
-        annotationAggregates: {},
-        costAndLatencyAggregates: {},
+        runAnnotationAggregateMetrics: {},
+        runCostAggregateMetrics: {},
         repetitions: 1,
         expandedCells: {},
       });

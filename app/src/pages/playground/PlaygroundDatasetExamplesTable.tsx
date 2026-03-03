@@ -733,57 +733,56 @@ function PlaygroundInstanceOutputColumnHeader({
   isRunning: boolean;
   evaluatorOutputConfigs: readonly AnnotationConfig[];
 }) {
-  const annotationSummaries = usePlaygroundDatasetExamplesTableContext(
-    (state) => {
-      const instanceAggregates = state.annotationAggregates[instanceId];
-      if (instanceAggregates == null) return [];
-      return Object.entries(instanceAggregates).map(
-        ([annotationName, { meanScore }]) => ({ annotationName, meanScore })
-      );
-    }
+  const annotationAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.runAnnotationAggregateMetrics[instanceId] ?? null
   );
-
-  const costAndLatencyAggregate = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.costAndLatencyAggregates[instanceId] ?? null
+  const costAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.runCostAggregateMetrics[instanceId] ?? null
   );
-
-  const costAndLatencySummary = useMemo(() => {
+  const annotationSummaries = useMemo(() => {
+    return Object.entries(annotationAggregateMetrics).map(
+      ([annotationName, metric]) => ({
+        annotationName,
+        meanScore: metric.meanScore,
+      })
+    );
+  }, [annotationAggregateMetrics]);
+  const costSummary = useMemo(() => {
     const resolvedExperimentId = experimentId ?? null;
     if (
       resolvedExperimentId == null ||
-      costAndLatencyAggregate == null ||
-      costAndLatencyAggregate.runCount === 0
+      costAggregateMetrics == null ||
+      costAggregateMetrics.runCount === 0
     ) {
       return null;
     }
     return {
       id: resolvedExperimentId,
       averageRunLatencyMs:
-        costAndLatencyAggregate.latencyCount > 0
-          ? costAndLatencyAggregate.latencySum /
-            costAndLatencyAggregate.latencyCount
+        costAggregateMetrics.latencyCount > 0
+          ? costAggregateMetrics.latencySum / costAggregateMetrics.latencyCount
           : null,
-      runCount: costAndLatencyAggregate.runCount,
+      runCount: costAggregateMetrics.runCount,
       costSummary: {
         total: {
           cost:
-            costAndLatencyAggregate.costCount > 0
-              ? costAndLatencyAggregate.costSum
+            costAggregateMetrics.costCount > 0
+              ? costAggregateMetrics.costSum
               : null,
           tokens:
-            costAndLatencyAggregate.tokenCountCount > 0
-              ? costAndLatencyAggregate.tokenCountSum
+            costAggregateMetrics.tokenCountCount > 0
+              ? costAggregateMetrics.tokenCountSum
               : null,
         },
       },
     };
-  }, [experimentId, costAndLatencyAggregate]);
+  }, [experimentId, costAggregateMetrics]);
 
   // Compute execution states independently so remounts happen at the right
   // transition: skeleton is shown until the first streaming result arrives,
   // then the component remounts into "complete" to display live data.
   const costAndLatencyExecutionState: ExecutionState =
-    costAndLatencySummary != null
+    costSummary != null
       ? "complete"
       : isRunning
         ? "running"
@@ -817,7 +816,7 @@ function PlaygroundInstanceOutputColumnHeader({
       </Flex>
       <ExperimentCostAndLatencySummary
         executionState={costAndLatencyExecutionState}
-        experiment={costAndLatencySummary}
+        experiment={costSummary}
       />
       <ExperimentAnnotationAggregates
         executionState={annotationExecutionState}
