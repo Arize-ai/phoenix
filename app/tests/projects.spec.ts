@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function createProject(
   page: Page,
@@ -17,6 +17,14 @@ async function createProject(
   await page.getByLabel("Description").fill(description);
   await page.getByRole("button", { name: "Create Project" }).click();
   await expect(page).toHaveURL(/\/projects\/.+/);
+}
+
+async function clickSortableHeaderAndExpect(
+  header: Locator,
+  direction: "ascending" | "descending"
+) {
+  await header.locator(".sort").click();
+  await expect(header).toHaveAttribute("aria-sort", direction);
 }
 
 test.describe.serial("Projects", () => {
@@ -58,21 +66,12 @@ test.describe.serial("Projects", () => {
       name: "Search projects by name",
     });
     await search.fill(projectName);
-
-    const projectCard = page
-      .locator("li")
-      .filter({ has: page.getByRole("heading", { name: projectName }) });
-    const projectRow = page
-      .getByRole("row")
-      .filter({ has: page.getByRole("link", { name: projectName }) });
-
-    if ((await projectCard.count()) > 0) {
-      await expect(projectCard.first()).toBeVisible();
-      await projectCard.first().getByRole("button").last().click();
-    } else {
-      await expect(projectRow.first()).toBeVisible();
-      await projectRow.first().getByRole("button").last().click();
-    }
+    const projectItem = page
+      .locator("tr, li")
+      .filter({ hasText: projectName })
+      .first();
+    await expect(projectItem).toBeVisible();
+    await projectItem.getByRole("button").last().click();
 
     await page.getByRole("menuitem", { name: "Delete" }).click();
     await expect(
@@ -96,8 +95,8 @@ test.describe.serial("Projects", () => {
     page,
   }) => {
     const id = randomUUID().slice(0, 8);
-    const projectNameA = `compiler-project-a-${id}`;
-    const projectNameZ = `compiler-project-z-${id}`;
+    const projectNameA = `compiler-project-${id}-a`;
+    const projectNameZ = `compiler-project-${id}-z`;
 
     await createProject(page, projectNameA, "Compiler sort test project A");
     await createProject(page, projectNameZ, "Compiler sort test project Z");
@@ -118,12 +117,10 @@ test.describe.serial("Projects", () => {
     await expect(table).toBeVisible();
     const nameHeader = page.getByRole("columnheader", { name: "name" });
 
-    await nameHeader.click();
-    await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+    await clickSortableHeaderAndExpect(nameHeader, "ascending");
     await expect(page.getByRole("link", { name: projectNameA })).toBeVisible();
 
-    await nameHeader.click();
-    await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
+    await clickSortableHeaderAndExpect(nameHeader, "descending");
     await expect(page.getByRole("link", { name: projectNameZ })).toBeVisible();
 
     await search.fill(projectNameA);

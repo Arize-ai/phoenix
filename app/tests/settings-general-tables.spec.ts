@@ -1,4 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+async function clickSortableHeaderAndExpect(
+  header: Locator,
+  direction: "ascending" | "descending"
+) {
+  await header.locator(".sort").click();
+  await expect(header).toHaveAttribute("aria-sort", direction);
+}
 
 test.describe("Settings General Tables", () => {
   test("users and api key tables support core interactions", async ({
@@ -10,8 +18,7 @@ test.describe("Settings General Tables", () => {
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 
     const userHeader = page.getByRole("columnheader", { name: "user" }).first();
-    await userHeader.click();
-    await expect(userHeader).toHaveAttribute("aria-sort", "ascending");
+    await clickSortableHeaderAndExpect(userHeader, "ascending");
 
     await page.getByRole("tab", { name: "User Keys" }).click();
     await expect(

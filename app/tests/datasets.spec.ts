@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function createDataset(
   page: Page,
@@ -16,6 +16,14 @@ async function createDataset(
   await page.getByLabel("Description").fill(description);
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
+}
+
+async function clickSortableHeaderAndExpect(
+  header: Locator,
+  direction: "ascending" | "descending"
+) {
+  await header.locator(".sort").click();
+  await expect(header).toHaveAttribute("aria-sort", direction);
 }
 
 test.describe("Datasets", () => {
@@ -120,12 +128,10 @@ test.describe("Datasets", () => {
     await expect(table).toBeVisible();
     const nameHeader = page.getByRole("columnheader", { name: "name" }).first();
 
-    await nameHeader.click();
-    await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+    await clickSortableHeaderAndExpect(nameHeader, "ascending");
     await expect(page.getByRole("link", { name: datasetNameA })).toBeVisible();
 
-    await nameHeader.click();
-    await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
+    await clickSortableHeaderAndExpect(nameHeader, "descending");
     await expect(page.getByRole("link", { name: datasetNameZ })).toBeVisible();
 
     await search.fill(`no-match-${id}`);
