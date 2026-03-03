@@ -52,6 +52,9 @@ There is no limit to the number of label choices you can provide, and you can sp
 
 For the relevance evaluation, we define the evaluator as follows:
 
+<Tabs>
+  <Tab title="Python" icon="python">
+
 ```python
 from phoenix.evals import ClassificationEvaluator
 from phoenix.evals.llm import LLM
@@ -66,6 +69,43 @@ relevance_classifier = ClassificationEvaluator(
 )
 results = relevance_classifier.evaluate({"query": "input query goes here", "reference": "document text goes here"})
 ```
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const relevanceClassifier = createClassificationEvaluator({
+  name: "relevance",
+  model: openai("gpt-4o"),
+  promptTemplate: `You are comparing a reference text to a question and trying to determine if the reference text
+contains information relevant to answering the question. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {{query}}
+    ************
+    [Reference text]: {{reference}}
+    [END DATA]
+
+Compare the Question above to the Reference text. You must determine whether the Reference text
+contains information that can answer the Question. Please focus on whether the very specific
+question can be answered by the information in the Reference text.
+"irrelevant" means that the reference text does not contain an answer to the Question.
+"relevant" means the reference text contains an answer to the Question.`,
+  choices: { irrelevant: 0, relevant: 1 },
+});
+
+const result = await relevanceClassifier.evaluate({
+  query: "input query goes here",
+  reference: "document text goes here",
+});
+```
+
+  </Tab>
+</Tabs>
 
 ### Custom Numeric Rating LLM Evaluator
 
