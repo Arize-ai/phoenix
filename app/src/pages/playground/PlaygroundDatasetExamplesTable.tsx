@@ -53,10 +53,12 @@ import {
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
+  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
+import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
 import { CellTop, OverflowCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -739,7 +741,7 @@ function PlaygroundInstanceOutputColumnHeader({
   const costAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
     (state) => state.runCostAggregateMetrics[instanceId] ?? null
   );
-  const annotationSummaries = useMemo(() => {
+  const annotationSummaries = useMemo<AnnotationSummary[]>(() => {
     if (annotationAggregateMetrics == null) {
       return [];
     }
@@ -750,36 +752,38 @@ function PlaygroundInstanceOutputColumnHeader({
       })
     );
   }, [annotationAggregateMetrics]);
-  const costSummary = useMemo(() => {
-    const resolvedExperimentId = experimentId ?? null;
-    if (
-      resolvedExperimentId == null ||
-      costAggregateMetrics == null ||
-      costAggregateMetrics.runCount === 0
-    ) {
-      return null;
-    }
-    return {
-      id: resolvedExperimentId,
-      averageRunLatencyMs:
-        costAggregateMetrics.latencyCount > 0
-          ? costAggregateMetrics.latencySum / costAggregateMetrics.latencyCount
-          : null,
-      runCount: costAggregateMetrics.runCount,
-      costSummary: {
-        total: {
-          cost:
-            costAggregateMetrics.costCount > 0
-              ? costAggregateMetrics.costSum
-              : null,
-          tokens:
-            costAggregateMetrics.tokenCountCount > 0
-              ? costAggregateMetrics.tokenCountSum
-              : null,
+  const costSummary =
+    useMemo<ExperimentCostAndLatencySummaryExperiment | null>(() => {
+      const resolvedExperimentId = experimentId ?? null;
+      if (
+        resolvedExperimentId == null ||
+        costAggregateMetrics == null ||
+        costAggregateMetrics.runCount === 0
+      ) {
+        return null;
+      }
+      return {
+        id: resolvedExperimentId,
+        averageRunLatencyMs:
+          costAggregateMetrics.latencyCount > 0
+            ? costAggregateMetrics.latencySum /
+              costAggregateMetrics.latencyCount
+            : null,
+        runCount: costAggregateMetrics.runCount,
+        costSummary: {
+          total: {
+            cost:
+              costAggregateMetrics.costCount > 0
+                ? costAggregateMetrics.costSum
+                : null,
+            tokens:
+              costAggregateMetrics.tokenCountCount > 0
+                ? costAggregateMetrics.tokenCountSum
+                : null,
+          },
         },
-      },
-    };
-  }, [experimentId, costAggregateMetrics]);
+      };
+    }, [experimentId, costAggregateMetrics]);
 
   // Compute execution states independently so remounts happen at the right
   // transition: skeleton is shown until the first streaming result arrives,
