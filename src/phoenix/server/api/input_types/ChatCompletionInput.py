@@ -52,3 +52,4 @@ class ChatCompletionOverDatasetInput:
     )
     tracing_enabled: bool = True
     stream_model_output: bool = True
+    create_ephemeral_experiment: bool | None = False

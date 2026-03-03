@@ -1011,6 +1011,7 @@ class TestChatCompletionOverDatasetSubscription:
             name
             metadata
             projectName
+            isEphemeral
             createdAt
             updatedAt
             description
@@ -1118,6 +1119,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "tools": None,
                 },
                 "repetitions": 1,
+                "createEphemeralExperiment": True,
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1400,6 +1402,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert experiment.pop("name") == "playground-experiment"
         project_name = experiment.pop("projectName")
         assert is_experiment_project_name(project_name)
+        assert experiment.pop("isEphemeral") is True
         assert experiment.pop("metadata") == {}
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)

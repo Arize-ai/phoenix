@@ -40,6 +40,71 @@ async def test_experiment_resolver_returns_sequence_number(
     }
 
 
+@pytest.fixture
+async def experiments_with_ephemeral_flag(
+    db: DbSessionFactory,
+    empty_dataset: Any,
+) -> None:
+    async with db() as session:
+        session.add_all(
+            [
+                models.Experiment(
+                    id=900,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="non-ephemeral",
+                    repetitions=1,
+                    metadata_={},
+                    is_ephemeral=False,
+                ),
+                models.Experiment(
+                    id=901,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="ephemeral",
+                    repetitions=1,
+                    metadata_={},
+                    is_ephemeral=True,
+                ),
+            ]
+        )
+        await session.flush()
+
+
+@pytest.mark.parametrize(
+    ("experiment_id", "expected_is_ephemeral"),
+    [
+        pytest.param(900, False, id="non-ephemeral"),
+        pytest.param(901, True, id="ephemeral"),
+    ],
+)
+async def test_experiment_resolver_returns_is_ephemeral(
+    gql_client: AsyncGraphQLClient,
+    experiments_with_ephemeral_flag: Any,
+    experiment_id: int,
+    expected_is_ephemeral: bool,
+) -> None:
+    query = """
+      query ($experimentId: ID!) {
+        experiment: node(id: $experimentId) {
+          ... on Experiment {
+            isEphemeral
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "experimentId": str(
+                GlobalID(type_name=Experiment.__name__, node_id=str(experiment_id))
+            ),
+        },
+    )
+    assert not response.errors
+    assert response.data == {"experiment": {"isEphemeral": expected_is_ephemeral}}
+
+
 @pytest.mark.parametrize(
     ("variables", "expected_run_ids", "expected_has_next_page", "expected_end_cursor"),
     [
