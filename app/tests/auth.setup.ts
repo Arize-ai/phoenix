@@ -61,16 +61,33 @@ async function resetPasswordAndReLogin({
 
 type LoginOutcome = "projects" | "reset-password" | "unknown";
 
-async function getLoginOutcome(page: Page): Promise<LoginOutcome> {
-  try {
-    await expect(page).toHaveURL(/\/projects(?:\?|$)/);
+type ProbeLoginOutcome = LoginOutcome | "invalid-login";
+type PendingLoginOutcome = ProbeLoginOutcome | "pending";
+
+async function readLoginOutcome(page: Page): Promise<PendingLoginOutcome> {
+  const pathname = new URL(page.url()).pathname;
+  if (pathname === "/projects") {
     return "projects";
-  } catch {
-    // fall through
   }
-  try {
-    await expect(page).toHaveURL(/\/reset-password(?:\?|$)/);
+  if (pathname === "/reset-password") {
     return "reset-password";
+  }
+  if (pathname === "/login") {
+    if (await page.getByText("Invalid login").isVisible()) {
+      return "invalid-login";
+    }
+    return "pending";
+  }
+  return "pending";
+}
+
+async function getLoginOutcome(page: Page): Promise<ProbeLoginOutcome> {
+  try {
+    await expect
+      .poll(async () => await readLoginOutcome(page))
+      .not.toBe("pending");
+    const outcome = await readLoginOutcome(page);
+    return outcome === "pending" ? "unknown" : outcome;
   } catch {
     return "unknown";
   }
@@ -89,16 +106,22 @@ async function detectBootstrapState({
 }: {
   page: Page;
   baseURL: string;
-}): Promise<"already-bootstrapped" | "needs-bootstrap"> {
+}): Promise<
+  | { state: "already-bootstrapped" }
+  | { state: "needs-bootstrap"; initialAdminPassword: "admin" | "admin123" }
+> {
   await login({
     page,
     baseURL,
     email: "admin@localhost",
     password: "admin123",
   });
-  const postBootstrapOutcome = await getLoginOutcome(page);
-  if (postBootstrapOutcome === "projects") {
-    return "already-bootstrapped";
+  const admin123Outcome = await getLoginOutcome(page);
+  if (admin123Outcome === "projects") {
+    return { state: "already-bootstrapped" };
+  }
+  if (admin123Outcome === "reset-password") {
+    return { state: "needs-bootstrap", initialAdminPassword: "admin123" };
   }
 
   await login({
@@ -107,26 +130,29 @@ async function detectBootstrapState({
     email: "admin@localhost",
     password: "admin",
   });
-  const initialOutcome = await getLoginOutcome(page);
-  if (initialOutcome === "reset-password") {
-    return "needs-bootstrap";
+  const adminOutcome = await getLoginOutcome(page);
+  if (adminOutcome === "reset-password") {
+    return { state: "needs-bootstrap", initialAdminPassword: "admin" };
   }
-  if (initialOutcome === "projects") {
+  if (adminOutcome === "projects") {
     // Defensive: if defaults still work and already land on projects, we can reuse state.
-    return "already-bootstrapped";
+    return { state: "already-bootstrapped" };
   }
 
+  const invalidLoginVisible = await page.getByText("Invalid login").isVisible();
   throw new Error(
-    `Unable to determine bootstrap state. admin/admin123 outcome=${postBootstrapOutcome}, admin/admin outcome=${initialOutcome}.`
+    `Unable to determine bootstrap state. admin/admin123 outcome=${admin123Outcome}, admin/admin outcome=${adminOutcome}, currentUrl=${page.url()}, invalidLoginVisible=${invalidLoginVisible}.`
   );
 }
 
 async function bootstrapFreshServer({
   browser,
   baseURL,
+  initialAdminPassword,
 }: {
   browser: Browser;
   baseURL: string;
+  initialAdminPassword: "admin" | "admin123";
 }) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
@@ -135,13 +161,13 @@ async function bootstrapFreshServer({
     page,
     baseURL,
     email: "admin@localhost",
-    password: "admin",
+    password: initialAdminPassword,
   });
   await resetPasswordAndReLogin({
     page,
     baseURL,
     email: "admin@localhost",
-    oldPassword: "admin",
+    oldPassword: initialAdminPassword,
     newPassword: "admin123",
   });
   await page.goto(`${baseURL}/settings/general`);
@@ -226,8 +252,12 @@ setup(
     });
     await probeCtx.close();
 
-    if (bootstrapState === "needs-bootstrap") {
-      await bootstrapFreshServer({ browser, baseURL });
+    if (bootstrapState.state === "needs-bootstrap") {
+      await bootstrapFreshServer({
+        browser,
+        baseURL,
+        initialAdminPassword: bootstrapState.initialAdminPassword,
+      });
     }
 
     const saveStorageStateForUser = async ({
