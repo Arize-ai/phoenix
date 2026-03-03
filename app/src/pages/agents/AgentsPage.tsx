@@ -43,7 +43,7 @@ export function AgentsPage() {
     <>
       <View borderBottomColor="dark" borderBottomWidth="thin">
         <PageHeader
-          title="Pixi"
+          title="PXI"
           extra={<ModelMenu value={menuValue} onChange={handleChange} />}
         />
       </View>
@@ -178,7 +178,7 @@ function Loading() {
 }
 
 function EmptyState() {
-  return <p className="chat__empty">Send a message to chat with Pixi</p>;
+  return <p className="chat__empty">Send a message to chat with PXI</p>;
 }
 
 const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
