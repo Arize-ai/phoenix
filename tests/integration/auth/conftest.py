@@ -425,6 +425,14 @@ def _env_ldap_posix_memberuid(_ldap_server: _LDAPServer) -> dict[str, str]:
 
 
 @pytest.fixture(scope="package")
+def _env_agents() -> dict[str, str]:
+    """Configure agent feature flag for testing."""
+    return {
+        "PHOENIX_DANGEROUSLY_ENABLE_AGENTS": "true",
+    }
+
+
+@pytest.fixture(scope="package")
 def _env(
     _env_auth: Mapping[str, str],
     _env_database: Mapping[str, str],
@@ -433,6 +441,7 @@ def _env(
     _env_ports: Mapping[str, str],
     _env_smtp: Mapping[str, str],
     _env_tls: Mapping[str, str],
+    _env_agents: Mapping[str, str],
 ) -> dict[str, str]:
     """Combine all environment variable configurations for testing."""
     return {
@@ -443,7 +452,7 @@ def _env(
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap,
-        "PHOENIX_DANGEROUSLY_ENABLE_AGENTS": "true",
+        **_env_agents,
     }
 
 
