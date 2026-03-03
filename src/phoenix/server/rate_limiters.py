@@ -181,3 +181,109 @@ def path_match(path: str, match_pattern: str | re.Pattern[str]) -> bool:
     if isinstance(match_pattern, re.Pattern):
         return bool(match_pattern.match(path))
     return path == match_pattern
+
+
+class BruteForceLoginLimitExceeded(PhoenixException):
+    pass
+
+
+class _LoginAttemptRecord:
+    __slots__ = ("failed_count", "blocked_until")
+
+    def __init__(self) -> None:
+        self.failed_count: int = 0
+        self.blocked_until: float = 0.0
+
+
+class BruteForceLoginRateLimiter:
+    """
+    In-memory rate limiter that tracks failed login attempts per user key (email/username).
+
+    Uses partition-based memory management (same pattern as ServerRateLimiter) to automatically
+    clean up stale records. When a user exceeds `max_attempts` failed logins within
+    `window_seconds`, further login attempts are blocked for `window_seconds`.
+
+    A successful login clears all failure records for that key.
+    """
+
+    def __init__(
+        self,
+        max_attempts: int,
+        window_seconds: float = 300.0,
+        partition_seconds: float = 300.0,
+        active_partitions: int = 4,
+    ) -> None:
+        self.max_attempts = max_attempts
+        self.window_seconds = window_seconds
+        self.partition_seconds = partition_seconds
+        self.active_partitions = active_partitions
+        self.num_partitions = active_partitions + 2
+        self._reset_partitions()
+        self._last_cleanup_time = time.time()
+
+    def _reset_partitions(self) -> None:
+        self.cache_partitions: list[dict[str, _LoginAttemptRecord]] = [
+            {} for _ in range(self.num_partitions)
+        ]
+
+    def _current_partition_index(self, timestamp: float) -> int:
+        return int(timestamp // self.partition_seconds) % self.num_partitions
+
+    def _active_partition_indices(self, current_index: int) -> list[int]:
+        return [(current_index - ii) % self.num_partitions for ii in range(self.active_partitions)]
+
+    def _inactive_partition_indices(self, current_index: int) -> list[int]:
+        active_indices = set(self._active_partition_indices(current_index))
+        return [ii for ii in range(self.num_partitions) if ii not in active_indices]
+
+    def _cleanup_expired(self, request_time: float) -> None:
+        time_since_last_cleanup = request_time - self._last_cleanup_time
+        if time_since_last_cleanup >= ((self.num_partitions - 1) * self.partition_seconds):
+            self._reset_partitions()
+            self._last_cleanup_time = request_time
+            return
+        current_index = self._current_partition_index(request_time)
+        for ii in self._inactive_partition_indices(current_index):
+            self.cache_partitions[ii] = {}
+        self._last_cleanup_time = request_time
+
+    def _fetch_record(self, key: str, request_time: float) -> _LoginAttemptRecord:
+        current_index = self._current_partition_index(request_time)
+        active_indices = self._active_partition_indices(current_index)
+        record: _LoginAttemptRecord | None = None
+        for ii in active_indices:
+            partition = self.cache_partitions[ii]
+            if key in partition:
+                record = partition.pop(key)
+                break
+        current_partition = self.cache_partitions[current_index]
+        if key not in current_partition:
+            if record is not None:
+                current_partition[key] = record
+            else:
+                current_partition[key] = _LoginAttemptRecord()
+        return current_partition[key]
+
+    def check(self, key: str) -> None:
+        now = time.time()
+        self._cleanup_expired(now)
+        key = key.strip().lower()
+        record = self._fetch_record(key, now)
+        if record.blocked_until > now:
+            raise BruteForceLoginLimitExceeded
+
+    def record_failure(self, key: str) -> None:
+        now = time.time()
+        self._cleanup_expired(now)
+        key = key.strip().lower()
+        record = self._fetch_record(key, now)
+        record.failed_count += 1
+        if record.failed_count >= self.max_attempts:
+            record.blocked_until = now + self.window_seconds
+
+    def record_success(self, key: str) -> None:
+        now = time.time()
+        self._cleanup_expired(now)
+        key = key.strip().lower()
+        for partition in self.cache_partitions:
+            partition.pop(key, None)
