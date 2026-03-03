@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import {
   FileDropZone,
   FileList,
+  FileListItem,
   type FileDropZoneProps,
   type FileWithProgress,
   type FileRejection,
@@ -260,6 +261,54 @@ export const WithUploadProgress: StoryFn<FileDropZoneProps> = (args) => {
 WithUploadProgress.args = {
   allowsMultiple: true,
   label: "Drop files to simulate upload",
+};
+
+/**
+ * FileList with render-function children for full control over each item.
+ */
+export const FileListWithRenderFunction: StoryFn<FileDropZoneProps> = (
+  args
+) => {
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
+
+  const handleSelect = useCallback((newFiles: File[]) => {
+    const newFilesWithProgress: FileWithProgress[] = newFiles.map((file) => ({
+      file,
+      status: "pending" as const,
+    }));
+    setFiles((prev) => [...prev, ...newFilesWithProgress]);
+  }, []);
+
+  const handleRemove = useCallback((fileToRemove: File) => {
+    setFiles((prev) =>
+      prev.filter(
+        (f) =>
+          f.file.name !== fileToRemove.name ||
+          f.file.size !== fileToRemove.size ||
+          f.file.lastModified !== fileToRemove.lastModified
+      )
+    );
+  }, []);
+
+  return (
+    <View width="size-6000">
+      <FileDropZone {...args} onSelect={handleSelect} />
+      <FileList files={files} onRemove={handleRemove}>
+        {(fileWithProgress, index) => (
+          <FileListItem
+            file={fileWithProgress}
+            onRemove={handleRemove}
+            index={index}
+          />
+        )}
+      </FileList>
+    </View>
+  );
+};
+
+FileListWithRenderFunction.args = {
+  allowsMultiple: true,
+  label: "Drop files — list uses render function per item",
 };
 
 /**

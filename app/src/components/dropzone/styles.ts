@@ -8,7 +8,7 @@ export const fileDropZoneCSS = css`
   gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-size-400);
   min-height: 160px;
-  border: 2px dashed var(--global-input-field-border-color);
+  border: 1px solid var(--global-color-gray-200);
   border-radius: var(--global-rounding-medium);
   background-color: var(--global-input-field-background-color);
   color: var(--global-text-color-700);
@@ -19,8 +19,7 @@ export const fileDropZoneCSS = css`
     background-color 0.2s ease-in-out;
 
   &[data-focus-visible] {
-    outline: 2px solid var(--global-input-field-border-color-active);
-    outline-offset: 2px;
+    border-color: var(--focus-ring-color);
   }
 
   &[data-drop-target] {

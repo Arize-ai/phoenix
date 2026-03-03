@@ -25,6 +25,7 @@ block--modifier   → theme--dark, dropdown--picker
 - **Modifier**: A variant or state — uses `--` separator — `theme--dark`, `dropdown--picker`
 - Compound names within a segment use hyphens: `search-field`, `toggle-button`, `dialog__close-button`
 - **No prefix** — never add any prefix to class names
+- **Lists of content** — render as an unordered list (`<ul>` / `<li>`) by default rather than divs; use divs only when semantics or layout require it
 
 ## Examples
 

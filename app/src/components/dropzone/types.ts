@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from "react";
 import type { DropZoneProps as ReactAriaDropZoneProps } from "react-aria-components";
 
 /**
@@ -83,6 +84,28 @@ export interface FileRejection {
   message: string;
 }
 
+export interface FileListItemProps {
+  /**
+   * File with optional progress information
+   */
+  file: FileWithProgress;
+
+  /**
+   * Callback when the file is removed from the list
+   */
+  onRemove?: (file: File) => void;
+
+  /**
+   * Whether the list is in a disabled state
+   */
+  isDisabled?: boolean;
+
+  /**
+   * Index of the item (for keying when used in a map)
+   */
+  index?: number;
+}
+
 export interface FileListProps {
   /**
    * List of files with optional progress information
@@ -98,4 +121,13 @@ export interface FileListProps {
    * Whether the file list is in a disabled state
    */
   isDisabled?: boolean;
+
+  /**
+   * Optional render function or component child. When a function, called for each file with (file, index).
+   * When a single React element (e.g. <FileListItem />), it is cloned for each file with file, onRemove, isDisabled, and index injected.
+   * When omitted, files are rendered with the default FileListItem.
+   */
+  children?:
+    | ((file: FileWithProgress, index: number) => ReactNode)
+    | ReactElement<FileListItemProps>;
 }
