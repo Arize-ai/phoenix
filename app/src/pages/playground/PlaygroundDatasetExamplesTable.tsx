@@ -740,6 +740,9 @@ function PlaygroundInstanceOutputColumnHeader({
     (state) => state.runCostAggregateMetrics[instanceId] ?? null
   );
   const annotationSummaries = useMemo(() => {
+    if (annotationAggregateMetrics == null) {
+      return [];
+    }
     return Object.entries(annotationAggregateMetrics).map(
       ([annotationName, metric]) => ({
         annotationName,
