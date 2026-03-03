@@ -1,6 +1,10 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo, useState } from "react";
-import { MenuSection, SubmenuTrigger } from "react-aria-components";
+import {
+  MenuSection,
+  type PopoverProps,
+  SubmenuTrigger,
+} from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -160,19 +164,9 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
     : `${prefixDot}${modelName}`;
 }
 
-export type ModelMenuProps = {
+export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
-  /**
-   * Placement of the menu popover relative to the trigger button.
-   * @default "bottom end"
-   */
-  placement?: "bottom end" | "top start" | "top end" | "bottom start";
-  /**
-   * Whether the menu should flip when there isn't enough space.
-   * @default false
-   */
-  shouldFlip?: boolean;
 };
 
 export function ModelMenu({

@@ -1,5 +1,5 @@
-import { isTextUIPart, type UIMessage } from "ai";
 import { css } from "@emotion/react";
+import { isTextUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 
 const userMessageCSS = css`
