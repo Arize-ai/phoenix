@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - version-13
+      - yasmine/react-compiler-step2-incompatible-library-enforced
 
 jobs:
   changes:
