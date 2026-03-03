@@ -1914,7 +1914,5 @@ class TestVercelChatStreamRouterAuth:
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
-        response = _httpx_client(_app, api_key).post(
-            "/chat", params=_params, json=_body
-        )
+        response = _httpx_client(_app, api_key).post("/chat", params=_params, json=_body)
         assert response.status_code == 200

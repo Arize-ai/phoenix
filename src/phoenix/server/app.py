@@ -61,6 +61,7 @@ from phoenix.config import (
     OAuth2ClientConfig,
     get_env_allow_external_resources,
     get_env_csrf_trusted_origins,
+    get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_fastapi_middleware_paths,
@@ -71,7 +72,6 @@ from phoenix.config import (
     get_env_log_sql,
     get_env_max_spans_queue_size,
     get_env_port,
-    get_env_dangerously_enable_agents,
     get_env_support_email,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
@@ -159,8 +159,8 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
     create_auth_router,
-    create_v1_router,
     create_chat_router,
+    create_v1_router,
     oauth2_router,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
