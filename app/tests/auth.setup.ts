@@ -59,32 +59,66 @@ async function resetPasswordAndReLogin({
   await page.waitForURL("**/projects");
 }
 
+type LoginOutcome = "projects" | "reset-password" | "unknown";
+
+async function getLoginOutcome(page: Page): Promise<LoginOutcome> {
+  try {
+    await expect(page).toHaveURL(/\/projects(?:\?|$)/);
+    return "projects";
+  } catch {
+    // fall through
+  }
+  try {
+    await expect(page).toHaveURL(/\/reset-password(?:\?|$)/);
+    return "reset-password";
+  } catch {
+    return "unknown";
+  }
+}
+
 /**
- * Try logging in with the post-bootstrap admin credentials.
- * Returns true if the server already has users set up (i.e. a rerun against
- * the same long-lived dev server).  Uses a short detection timeout because
- * on success the redirect to /projects is near-instant.
+ * Determine whether we can reuse existing users/passwords or need first-time bootstrap.
+ *
+ * - If admin/admin123 reaches /projects, the server is already bootstrapped.
+ * - Otherwise we try admin/admin. If it lands on /reset-password, we bootstrap.
+ * - Any other state is treated as an unexpected auth state and fails fast.
  */
-async function isAlreadyBootstrapped({
+async function detectBootstrapState({
   page,
   baseURL,
 }: {
   page: Page;
   baseURL: string;
-}): Promise<boolean> {
+}): Promise<"already-bootstrapped" | "needs-bootstrap"> {
   await login({
     page,
     baseURL,
     email: "admin@localhost",
     password: "admin123",
   });
-  try {
-    // eslint-disable-next-line playwright/no-wait-for-timeout
-    await page.waitForURL("**/projects", { timeout: 5_000 });
-    return true;
-  } catch {
-    return false;
+  const postBootstrapOutcome = await getLoginOutcome(page);
+  if (postBootstrapOutcome === "projects") {
+    return "already-bootstrapped";
   }
+
+  await login({
+    page,
+    baseURL,
+    email: "admin@localhost",
+    password: "admin",
+  });
+  const initialOutcome = await getLoginOutcome(page);
+  if (initialOutcome === "reset-password") {
+    return "needs-bootstrap";
+  }
+  if (initialOutcome === "projects") {
+    // Defensive: if defaults still work and already land on projects, we can reuse state.
+    return "already-bootstrapped";
+  }
+
+  throw new Error(
+    `Unable to determine bootstrap state. admin/admin123 outcome=${postBootstrapOutcome}, admin/admin outcome=${initialOutcome}.`
+  );
 }
 
 async function bootstrapFreshServer({
@@ -186,13 +220,13 @@ setup(
 
     const probeCtx = await browser.newContext();
     const probePage = await probeCtx.newPage();
-    const alreadyBootstrapped = await isAlreadyBootstrapped({
+    const bootstrapState = await detectBootstrapState({
       page: probePage,
       baseURL,
     });
     await probeCtx.close();
 
-    if (!alreadyBootstrapped) {
+    if (bootstrapState === "needs-bootstrap") {
       await bootstrapFreshServer({ browser, baseURL });
     }
 

@@ -1,5 +1,13 @@
 import { randomUUID } from "crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Response } from "@playwright/test";
+
+function isGraphQLMutationResponse(response: Response, operationName: string) {
+  if (!response.url().includes("/graphql") || response.status() !== 200) {
+    return false;
+  }
+  const postData = response.request().postData();
+  return postData?.includes(operationName) ?? false;
+}
 
 test.describe("Settings Labels Tables", () => {
   test("can create and render prompt labels in settings table", async ({
@@ -17,8 +25,8 @@ test.describe("Settings Labels Tables", () => {
       .getByLabel("Description")
       .fill("Prompt label for compiler e2e coverage");
     await Promise.all([
-      page.waitForResponse(
-        (resp) => resp.url().includes("/graphql") && resp.status() === 200
+      page.waitForResponse((resp) =>
+        isGraphQLMutationResponse(resp, "NewPromptLabelDialogMutation")
       ),
       page.getByRole("button", { name: "Create Label" }).click(),
     ]);
@@ -48,8 +56,11 @@ test.describe("Settings Labels Tables", () => {
       .getByLabel("Description")
       .fill("Dataset label for compiler e2e coverage");
     await Promise.all([
-      page.waitForResponse(
-        (resp) => resp.url().includes("/graphql") && resp.status() === 200
+      page.waitForResponse((resp) =>
+        isGraphQLMutationResponse(
+          resp,
+          "useDatasetLabelMutationsAddLabelMutation"
+        )
       ),
       page.getByRole("button", { name: "Create Label" }).click(),
     ]);

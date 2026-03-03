@@ -118,11 +118,11 @@ test.describe.serial("Projects", () => {
     await expect(table).toBeVisible();
     const nameHeader = page.getByRole("columnheader", { name: "name" });
 
-    await nameHeader.locator(".sort").click();
+    await nameHeader.click();
     await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
     await expect(page.getByRole("link", { name: projectNameA })).toBeVisible();
 
-    await nameHeader.locator(".sort").click();
+    await nameHeader.click();
     await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
     await expect(page.getByRole("link", { name: projectNameZ })).toBeVisible();
 

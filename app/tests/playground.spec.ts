@@ -1,5 +1,13 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response } from "@playwright/test";
+
+function isGraphQLMutationResponse(response: Response, operationName: string) {
+  if (!response.url().includes("/graphql") || response.status() !== 200) {
+    return false;
+  }
+  const postData = response.request().postData();
+  return postData?.includes(operationName) ?? false;
+}
 
 async function createDataset(page: Page, datasetName: string) {
   await page.goto("/datasets");
@@ -40,8 +48,8 @@ async function addDatasetExample(
   }
   await setCodeMirrorValue(page, inputJson);
   await Promise.all([
-    page.waitForResponse(
-      (resp) => resp.url().includes("/graphql") && resp.status() === 200
+    page.waitForResponse((resp) =>
+      isGraphQLMutationResponse(resp, "AddDatasetExampleDialogMutation")
     ),
     addBtn.click(),
   ]);

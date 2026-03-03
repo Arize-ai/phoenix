@@ -117,13 +117,14 @@ test.describe("Datasets", () => {
     await expect(page.getByRole("link", { name: datasetNameZ })).toBeVisible();
 
     const table = page.getByTestId("datasets-table");
-    const nameHeader = table.locator("th").filter({ hasText: /^name$/ });
+    await expect(table).toBeVisible();
+    const nameHeader = page.getByRole("columnheader", { name: "name" }).first();
 
-    await nameHeader.locator(".sort").click();
+    await nameHeader.click();
     await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
     await expect(page.getByRole("link", { name: datasetNameA })).toBeVisible();
 
-    await nameHeader.locator(".sort").click();
+    await nameHeader.click();
     await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
     await expect(page.getByRole("link", { name: datasetNameZ })).toBeVisible();
 

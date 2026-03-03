@@ -10,7 +10,7 @@ test.describe("Settings General Tables", () => {
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 
     const userHeader = page.getByRole("columnheader", { name: "user" }).first();
-    await userHeader.locator(".sort").click();
+    await userHeader.click();
     await expect(userHeader).toHaveAttribute("aria-sort", "ascending");
 
     await page.getByRole("tab", { name: "User Keys" }).click();
