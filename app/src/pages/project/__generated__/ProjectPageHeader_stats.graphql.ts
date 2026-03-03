@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71c8c47e839e813cf689141149463973>>
+ * @generated SignedSource<<4bea7f8a65afbb69183c6c8c1f36bb16>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,7 +27,7 @@ export type ProjectPageHeader_stats$data = {
   readonly latencyMsP50: number | null;
   readonly latencyMsP99: number | null;
   readonly spanAnnotationNames: ReadonlyArray<string>;
-  readonly traceCount: number;
+  readonly timeRangeTraceCount: number;
   readonly " $fragmentType": "ProjectPageHeader_stats";
 };
 export type ProjectPageHeader_stats$key = {
@@ -79,7 +79,7 @@ return {
   "name": "ProjectPageHeader_stats",
   "selections": [
     {
-      "alias": null,
+      "alias": "timeRangeTraceCount",
       "args": (v1/*: any*/),
       "kind": "ScalarField",
       "name": "traceCount",
@@ -181,6 +181,6 @@ return {
 };
 })();
 
-(node as any).hash = "a82020736a81365c539d7d9a31318fa1";
+(node as any).hash = "042b76a71b57987b50febe61073a6b21";
 
 export default node;

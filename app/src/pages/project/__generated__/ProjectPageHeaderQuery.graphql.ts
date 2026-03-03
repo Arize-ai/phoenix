@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<222dc85512d6af5767663e8f921eb0be>>
+ * @generated SignedSource<<cc10d9c125b33bb0ac6c299655146869>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -128,7 +128,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
+                "alias": "timeRangeTraceCount",
                 "args": (v4/*: any*/),
                 "kind": "ScalarField",
                 "name": "traceCount",
@@ -227,16 +227,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "49e1a282fb57987bad425bccba3a60db",
+    "cacheID": "7e327e9f3040f641fb0b90a33759c5dc",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a82020736a81365c539d7d9a31318fa1";
+(node as any).hash = "042b76a71b57987b50febe61073a6b21";
 
 export default node;

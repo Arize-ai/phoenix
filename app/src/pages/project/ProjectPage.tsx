@@ -21,6 +21,7 @@ import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -30,6 +31,7 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
+import { ProjectOnboardingWaitingForTraces } from "./ProjectOnboardingWaitingForTraces";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import {
   ProjectPageQueriesProjectConfigQuery,
@@ -105,6 +107,7 @@ export function ProjectPageContent({
   projectId: string;
   timeRange: OpenTimeRange;
 }) {
+  const isTracingOnboardingEnabled = useFeatureFlag("tracing-onboarding");
   const treatOrphansAsRoots = useProjectContext(
     (state) => state.treatOrphansAsRoots
   );
@@ -120,8 +123,12 @@ export function ProjectPageContent({
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
-          ...ProjectPageHeader_stats
-          ...StreamToggle_data
+          ... on Project {
+            totalTraceCount: traceCount
+            totalSpanCount: recordCount
+            ...ProjectPageHeader_stats
+            ...StreamToggle_data
+          }
         }
       }
     `,
@@ -150,6 +157,9 @@ export function ProjectPageContent({
     ProjectPageQueriesProjectConfigQuery
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  const hasNoTracesOrSpans =
+    data.project.totalTraceCount === 0 && data.project.totalSpanCount === 0;
+  const isOnboardingActive = isTracingOnboardingEnabled && hasNoTracesOrSpans;
   useEffect(() => {
     if (tabIndex === TAB_INDEX_MAP.spans) {
       loadSpansQuery({
@@ -217,6 +227,16 @@ export function ProjectPageContent({
     },
     [navigate, rootPath]
   );
+
+  if (isOnboardingActive) {
+    return (
+      <StreamStateProvider>
+        <main css={mainCSS}>
+          <ProjectOnboardingWaitingForTraces project={data.project} />
+        </main>
+      </StreamStateProvider>
+    );
+  }
 
   return (
     <StreamStateProvider>

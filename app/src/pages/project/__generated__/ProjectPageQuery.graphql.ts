@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7dd19967d7ee88af8a49632f8e7cda60>>
+ * @generated SignedSource<<31f224b74853ca34e50180d1fec214a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,6 +20,8 @@ export type ProjectPageQuery$variables = {
 };
 export type ProjectPageQuery$data = {
   readonly project: {
+    readonly totalSpanCount?: number;
+    readonly totalTraceCount?: number;
     readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats" | "StreamToggle_data">;
   };
 };
@@ -49,14 +51,28 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": "totalTraceCount",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "traceCount",
+  "storageKey": null
+},
+v3 = {
+  "alias": "totalSpanCount",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "recordCount",
+  "storageKey": null
+},
+v4 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v3 = [
-  (v2/*: any*/)
+v5 = [
+  (v4/*: any*/)
 ],
-v4 = [
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -81,14 +97,23 @@ return {
         "plural": false,
         "selections": [
           {
-            "args": null,
-            "kind": "FragmentSpread",
-            "name": "ProjectPageHeader_stats"
-          },
-          {
-            "args": null,
-            "kind": "FragmentSpread",
-            "name": "StreamToggle_data"
+            "kind": "InlineFragment",
+            "selections": [
+              (v2/*: any*/),
+              (v3/*: any*/),
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "ProjectPageHeader_stats"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "StreamToggle_data"
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -128,16 +153,18 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v2/*: any*/),
+              (v3/*: any*/),
               {
-                "alias": null,
-                "args": (v3/*: any*/),
+                "alias": "timeRangeTraceCount",
+                "args": (v5/*: any*/),
                 "kind": "ScalarField",
                 "name": "traceCount",
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v3/*: any*/),
+                "args": (v5/*: any*/),
                 "concreteType": "SpanCostSummary",
                 "kind": "LinkedField",
                 "name": "costSummary",
@@ -150,7 +177,7 @@ return {
                     "kind": "LinkedField",
                     "name": "total",
                     "plural": false,
-                    "selections": (v4/*: any*/),
+                    "selections": (v6/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -160,7 +187,7 @@ return {
                     "kind": "LinkedField",
                     "name": "prompt",
                     "plural": false,
-                    "selections": (v4/*: any*/),
+                    "selections": (v6/*: any*/),
                     "storageKey": null
                   },
                   {
@@ -170,7 +197,7 @@ return {
                     "kind": "LinkedField",
                     "name": "completion",
                     "plural": false,
-                    "selections": (v4/*: any*/),
+                    "selections": (v6/*: any*/),
                     "storageKey": null
                   }
                 ],
@@ -184,7 +211,7 @@ return {
                     "name": "probability",
                     "value": 0.5
                   },
-                  (v2/*: any*/)
+                  (v4/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -198,7 +225,7 @@ return {
                     "name": "probability",
                     "value": 0.99
                   },
-                  (v2/*: any*/)
+                  (v4/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -235,16 +262,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bf0392b6f20783d10af768eb720d4918",
+    "cacheID": "557733f3ace5fd19cd21d37550a5a0de",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    ...StreamToggle_data\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      totalTraceCount: traceCount\n      totalSpanCount: recordCount\n      ...ProjectPageHeader_stats\n      ...StreamToggle_data\n    }\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f940b0d4a1ccd3cfc8bb67f22cd7ccc2";
+(node as any).hash = "78481f2d91686c5b2cdd4b86cf345290";
 
 export default node;
