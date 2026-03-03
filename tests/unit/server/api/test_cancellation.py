@@ -6,10 +6,8 @@ Tests the cleanup mechanics in:
 """
 
 import asyncio
-import logging
 from collections import deque
 from typing import Any, AsyncGenerator, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -18,7 +16,6 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     TextChunk,
 )
-from phoenix.tracers import Tracer
 
 # Type alias for the async generator used in chat completion streams
 ChatStream = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
@@ -115,24 +112,12 @@ class TestCleanupChatCompletionResources:
         # Give the task time to start
         await asyncio.sleep(0)
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
-            (0, mock_gen, task)
-        ]
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [(0, mock_gen, task)]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        # Mock dependencies
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # Verify task cancellation happened before aclose
@@ -166,23 +151,12 @@ class TestCleanupChatCompletionResources:
 
         assert task.done()
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
-            (0, mock_gen, task)
-        ]
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [(0, mock_gen, task)]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # Even for done tasks, generators should be closed
@@ -229,25 +203,16 @@ class TestCleanupChatCompletionResources:
         task3 = asyncio.create_task(slow_task(3))
         await asyncio.sleep(0)  # Let tasks start
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
             (0, mock_gen1, task1),
             (1, mock_gen2, task2),
             (2, mock_gen3, task3),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # All generators should be closed
@@ -264,22 +229,13 @@ class TestCleanupChatCompletionResources:
         """
         Verify cleanup handles empty in_progress list gracefully.
         """
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         # Should not raise any exceptions
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
     async def test_not_started_generators_closed(self) -> None:
@@ -309,26 +265,17 @@ class TestCleanupChatCompletionResources:
         await mock_gen1.asend(None)
         await mock_gen2.asend(None)
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque(
             [
                 (1, mock_gen1),
                 (2, mock_gen2),
             ]
         )
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # Both not_started generators should be closed
@@ -360,27 +307,18 @@ class TestCleanupChatCompletionResources:
         await mock_gen1.asend(None)
         await mock_gen2.asend(None)
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = []
         not_started: deque[tuple[int, ChatStream]] = deque(
             [
                 (1, mock_gen1),
                 (2, mock_gen2),
             ]
         )
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         # Should not raise even though gen1's aclose fails
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # Both generators should have had aclose called
@@ -419,7 +357,7 @@ class TestCleanupChatCompletionResources:
         task = asyncio.create_task(completed_task())
         await task
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
             (0, mock_gen_in_progress, task),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque(
@@ -427,148 +365,15 @@ class TestCleanupChatCompletionResources:
                 (1, mock_gen_not_started),
             ]
         )
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # Both in_progress and not_started generators should be closed
         assert tracker_in_progress.aclose_called
         assert tracker_not_started.aclose_called
-
-
-@pytest.mark.asyncio
-class TestResultsQueueFlushing:
-    """Tests for queue flushing during cleanup."""
-
-    async def test_empty_queue_no_flush(self) -> None:
-        """
-        Verify empty queue doesn't cause errors.
-        """
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
-        not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
-
-        # Should complete without errors
-        await _cleanup_chat_completion_resources(
-            in_progress=in_progress,
-            not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
-        )
-
-        # on_span_insertion should not have been called
-        mock_on_span_insertion.assert_not_called()
-
-    async def test_partial_results_flushed(self) -> None:
-        """
-        Verify results in queue are processed during cleanup.
-
-        When cleanup runs, any spans already in the results queue should
-        be flushed to the database for data integrity.
-        """
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
-        not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        # Add some results to the queue
-        mock_tracer1 = MagicMock(spec=Tracer)
-        mock_tracer2 = MagicMock(spec=Tracer)
-        await results.put((mock_tracer1, 1))
-        await results.put((mock_tracer2, 2))
-
-        # Create mock database session
-        mock_session = AsyncMock()
-        mock_db = MagicMock()
-        mock_db.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
-
-        # Use the actual _chat_completion_span_result_payloads
-        with patch(
-            "phoenix.server.api.subscriptions._chat_completion_span_result_payloads"
-        ) as mock_flush:
-            # Make the async generator return nothing
-            async def empty_gen() -> AsyncGenerator[Any, None]:
-                if False:
-                    yield  # Make it an async generator
-
-            mock_flush.return_value = empty_gen()
-
-            await _cleanup_chat_completion_resources(
-                in_progress=in_progress,
-                not_started=not_started,
-                results=results,
-                db=mock_db,
-                project_id=mock_project_id,
-                on_span_insertion=mock_on_span_insertion,
-            )
-
-            # Verify the flush function was called with remaining results
-            mock_flush.assert_called_once()
-            call_kwargs = mock_flush.call_args.kwargs
-            assert len(call_kwargs["results"]) == 2
-            assert (mock_tracer1, 1) in call_kwargs["results"]
-            assert (mock_tracer2, 2) in call_kwargs["results"]
-
-    async def test_queue_flush_handles_errors(self, caplog: pytest.LogCaptureFixture) -> None:
-        """
-        Verify errors during queue flush are logged but don't crash cleanup.
-        """
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = []
-        not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        # Add a result to the queue
-        mock_tracer = MagicMock(spec=Tracer)
-        await results.put((mock_tracer, 1))
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
-
-        # Make the flush function raise an error
-        with patch(
-            "phoenix.server.api.subscriptions._chat_completion_span_result_payloads"
-        ) as mock_flush:
-
-            async def failing_gen() -> AsyncGenerator[Any, None]:
-                raise Exception("Database error")
-                yield  # Make it an async generator  # noqa: B901
-
-            mock_flush.return_value = failing_gen()
-
-            with caplog.at_level(logging.ERROR):
-                # Should not raise - error should be caught and logged
-                await _cleanup_chat_completion_resources(
-                    in_progress=in_progress,
-                    not_started=not_started,
-                    results=results,
-                    db=mock_db,
-                    project_id=mock_project_id,
-                    on_span_insertion=mock_on_span_insertion,
-                )
-
-            # Verify error was logged
-            assert any("Error flushing results" in record.message for record in caplog.records)
 
 
 @pytest.mark.asyncio
@@ -637,26 +442,17 @@ class TestCancellationIntegration:
         with pytest.raises(asyncio.CancelledError):
             await task3
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
             (0, mock_gen1, task1),
             (1, mock_gen2, task2),
             (2, mock_gen3, task3),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         # Should not raise
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # All generators should be closed regardless of task state
@@ -698,25 +494,16 @@ class TestCancellationIntegration:
         await task1
         await task2
 
-        in_progress: list[tuple[Optional[int], ChatStream, asyncio.Task[Any]]] = [
+        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
             (0, mock_gen1, task1),
             (1, mock_gen2, task2),
         ]
         not_started: deque[tuple[int, ChatStream]] = deque()
-        results: asyncio.Queue[tuple[Tracer, int]] = asyncio.Queue()
-
-        mock_db = MagicMock()
-        mock_project_id = 1
-        mock_on_span_insertion = MagicMock()
 
         # Should not raise even though gen1's aclose fails
         await _cleanup_chat_completion_resources(
             in_progress=in_progress,
             not_started=not_started,
-            results=results,
-            db=mock_db,
-            project_id=mock_project_id,
-            on_span_insertion=mock_on_span_insertion,
         )
 
         # Both generators should have had aclose called
