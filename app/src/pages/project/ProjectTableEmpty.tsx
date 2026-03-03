@@ -20,6 +20,7 @@ import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 function SetupProjectDialog({ projectName }: { projectName: string }) {
   const { programmingLanguage, setProgrammingLanguage } = usePreferencesContext(
@@ -56,6 +57,7 @@ function SetupProjectDialog({ projectName }: { projectName: string }) {
 }
 
 export function ProjectTableEmpty({ projectName }: { projectName: string }) {
+  const isTracingOnboardingEnabled = useFeatureFlag("tracing-onboarding");
   return (
     <>
       <tbody className="is-empty">
@@ -67,22 +69,28 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
               padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
             `}
           >
-            <Flex direction="column" gap="size-200" alignItems="center">
-              No traces found that match the selected filters
-              <DialogTrigger>
-                <Button
-                  variant="default"
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-                >
-                  Get Started
-                </Button>
-                <ModalOverlay>
-                  <Modal variant="slideover" size="L">
-                    <SetupProjectDialog projectName={projectName} />
-                  </Modal>
-                </ModalOverlay>
-              </DialogTrigger>
-            </Flex>
+            {isTracingOnboardingEnabled ? (
+              <Flex direction="column" gap="size-200" alignItems="center">
+                New onboarding flow goes here
+              </Flex>
+            ) : (
+              <Flex direction="column" gap="size-200" alignItems="center">
+                No traces found that match the selected filters
+                <DialogTrigger>
+                  <Button
+                    variant="default"
+                    leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  >
+                    Get Started
+                  </Button>
+                  <ModalOverlay>
+                    <Modal variant="slideover" size="L">
+                      <SetupProjectDialog projectName={projectName} />
+                    </Modal>
+                  </ModalOverlay>
+                </DialogTrigger>
+              </Flex>
+            )}
           </td>
         </tr>
       </tbody>
