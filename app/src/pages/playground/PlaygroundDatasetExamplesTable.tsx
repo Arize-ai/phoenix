@@ -952,6 +952,11 @@ export function PlaygroundDatasetExamplesTable({
     },
     [flushPendingExperimentMetrics]
   );
+  const resetPendingExperimentMetrics = useCallback(() => {
+    flushPendingExperimentMetrics.cancel();
+    pendingExperimentRunAnnotations.current = [];
+    pendingExperimentRunCosts.current = [];
+  }, [flushPendingExperimentMetrics]);
 
   useEffect(() => {
     return () => {
@@ -1231,6 +1236,7 @@ export function PlaygroundDatasetExamplesTable({
       return;
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
+    resetPendingExperimentMetrics();
     resetData();
 
     // Calculate total runs and evals for progress tracking
@@ -1304,6 +1310,7 @@ export function PlaygroundDatasetExamplesTable({
         subscriptions.push(subscription);
       }
       return () => {
+        resetPendingExperimentMetrics();
         for (const subscription of subscriptions) {
           subscription.dispose();
         }
@@ -1365,6 +1372,7 @@ export function PlaygroundDatasetExamplesTable({
         disposables.push(disposable);
       }
       return () => {
+        resetPendingExperimentMetrics();
         for (const disposable of disposables) {
           disposable.dispose();
         }
@@ -1385,6 +1393,7 @@ export function PlaygroundDatasetExamplesTable({
     notifyError,
     onCompleted,
     onNext,
+    resetPendingExperimentMetrics,
     flushPendingExperimentMetrics,
     playgroundStore,
     repetitions,
