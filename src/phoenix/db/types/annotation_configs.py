@@ -96,3 +96,21 @@ AnnotationConfigType: TypeAlias = Annotated[
 
 class AnnotationConfig(RootModel[AnnotationConfigType]):
     root: AnnotationConfigType
+
+
+class CategoricalOutputConfig(CategoricalAnnotationConfig):
+    name: str
+
+
+class ContinuousOutputConfig(ContinuousAnnotationConfig):
+    name: str
+
+
+OutputConfigType: TypeAlias = Annotated[
+    Union[CategoricalOutputConfig, ContinuousOutputConfig],
+    Field(..., discriminator="type"),
+]
+
+
+class OutputConfig(RootModel[OutputConfigType]):
+    root: OutputConfigType
