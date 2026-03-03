@@ -18,6 +18,8 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import type { ExecutionState } from "@phoenix/components/types";
 
 import type { ExperimentCostAndLatencySummaryQuery } from "./__generated__/ExperimentCostAndLatencySummaryQuery.graphql";
+import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";
+import { ExperimentAverageRunTokenCount } from "./ExperimentAverageRunTokenCount";
 
 /**
  * The shape of experiment data needed to render cost and latency summary.
@@ -86,7 +88,7 @@ export function ExperimentCostAndLatencySummary({
     );
   }
 
-  const { runCount, costSummary, averageRunLatencyMs } = experiment;
+  const { id, runCount, costSummary, averageRunLatencyMs } = experiment;
   const costTotal = costSummary.total.cost;
   const tokenCountTotal = costSummary.total.tokens;
 
@@ -108,9 +110,21 @@ export function ExperimentCostAndLatencySummary({
         </TriggerWrap>
         <Tooltip>Averages computed over all runs in the experiment</Tooltip>
       </TooltipTrigger>
-      <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-      <TokenCount size="S">{averageRunTokenCountTotal}</TokenCount>
-      <TokenCosts size="S">{averageRunCostTotal}</TokenCosts>
+      {averageRunLatencyMs != null && (
+        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
+      )}
+      <ExperimentAverageRunTokenCount
+        averageRunTokenCountTotal={averageRunTokenCountTotal}
+        experimentId={id}
+        size="S"
+      />
+      {averageRunCostTotal != null && (
+        <ExperimentAverageRunTokenCosts
+          averageRunCostTotal={averageRunCostTotal}
+          experimentId={id}
+          size="S"
+        />
+      )}
     </Flex>
   );
 }
