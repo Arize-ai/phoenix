@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, ProgressBar, Text } from "@phoenix/components";
 import {
@@ -16,8 +15,6 @@ import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
-
-import type { ExperimentAnnotationAggregatesQuery } from "./__generated__/ExperimentAnnotationAggregatesQuery.graphql";
 
 /**
  * The shape of annotation summary data needed to render aggregates.
@@ -236,60 +233,6 @@ function ExperimentAnnotationAggregateItem({
         />
       )}
     </li>
-  );
-}
-
-type ConnectedExperimentAnnotationAggregatesProps = {
-  /**
-   * The id of the experiment to fetch annotation summaries for
-   */
-  experimentId: string;
-  /**
-   * Configs for all expected annotations/evaluators.
-   * Used to show names and maintain consistent ordering.
-   */
-  annotationConfigs: readonly AnnotationConfig[];
-};
-
-/**
- * Connected component that fetches experiment annotation summaries via GraphQL
- * and renders ExperimentAnnotationAggregates.
- */
-export function ConnectedExperimentAnnotationAggregates({
-  experimentId,
-  annotationConfigs,
-}: ConnectedExperimentAnnotationAggregatesProps) {
-  const data = useLazyLoadQuery<ExperimentAnnotationAggregatesQuery>(
-    graphql`
-      query ExperimentAnnotationAggregatesQuery($experimentId: ID!) {
-        experiment: node(id: $experimentId) {
-          __typename
-          ... on Experiment {
-            annotationSummaries {
-              annotationName
-              meanScore
-            }
-          }
-        }
-      }
-    `,
-    { experimentId },
-    { fetchPolicy: "store-and-network" }
-  );
-
-  const annotationSummaries: readonly AnnotationSummary[] = useMemo(() => {
-    if (data.experiment.__typename !== "Experiment") {
-      return [];
-    }
-    return data.experiment.annotationSummaries;
-  }, [data.experiment]);
-
-  return (
-    <ExperimentAnnotationAggregates
-      executionState="complete"
-      annotationConfigs={annotationConfigs}
-      annotationSummaries={annotationSummaries}
-    />
   );
 }
 

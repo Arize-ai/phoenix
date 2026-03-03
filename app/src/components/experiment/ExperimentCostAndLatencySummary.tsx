@@ -1,6 +1,4 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Flex,
@@ -17,7 +15,6 @@ import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import type { ExecutionState } from "@phoenix/components/types";
 
-import type { ExperimentCostAndLatencySummaryQuery } from "./__generated__/ExperimentCostAndLatencySummaryQuery.graphql";
 import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";
 import { ExperimentAverageRunTokenCount } from "./ExperimentAverageRunTokenCount";
 
@@ -206,63 +203,5 @@ export function ExperimentCostAndLatencySummarySkeleton() {
         <Skeleton width={45} height="1em" />
       </div>
     </Flex>
-  );
-}
-
-type ConnectedExperimentCostAndLatencySummaryProps = {
-  /**
-   * The id of the experiment to fetch and display summary for
-   */
-  experimentId: string;
-};
-
-/**
- * Connected component that fetches experiment data via GraphQL and renders ExperimentCostAndLatencySummary.
- * Use the pure ExperimentCostAndLatencySummary component directly if you already have the experiment data.
- */
-export function ConnectedExperimentCostAndLatencySummary({
-  experimentId,
-}: ConnectedExperimentCostAndLatencySummaryProps) {
-  const data = useLazyLoadQuery<ExperimentCostAndLatencySummaryQuery>(
-    graphql`
-      query ExperimentCostAndLatencySummaryQuery($experimentId: ID!) {
-        experiment: node(id: $experimentId) {
-          __typename
-          ... on Experiment {
-            id
-            averageRunLatencyMs
-            runCount
-            costSummary {
-              total {
-                cost
-                tokens
-              }
-            }
-          }
-        }
-      }
-    `,
-    { experimentId },
-    { fetchPolicy: "store-and-network" }
-  );
-
-  const experiment: ExperimentCostAndLatencySummaryExperiment | null =
-    useMemo(() => {
-      if (data.experiment.__typename !== "Experiment") {
-        return null;
-      }
-      return {
-        id: data.experiment.id,
-        averageRunLatencyMs: data.experiment.averageRunLatencyMs,
-        runCount: data.experiment.runCount,
-        costSummary: data.experiment.costSummary,
-      };
-    }, [data.experiment]);
-
-  return (
-    <ExperimentCostAndLatencySummary
-      executionState="complete"
-      experiment={experiment}
-    />
   );
 }
