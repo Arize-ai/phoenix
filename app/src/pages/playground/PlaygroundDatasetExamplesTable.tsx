@@ -1220,8 +1220,34 @@ export function PlaygroundDatasetExamplesTable({
             response.chatCompletionOverDataset
           ),
         });
+        const runCosts: ExperimentRunCost[] = [];
+        const runAnnotations: ExperimentRunAnnotation[] = [];
+        for (const example of response.chatCompletionOverDataset.examples) {
+          const { repetition } = example;
+          runCosts.push({
+            instanceId,
+            latencyMs: repetition.span?.latencyMs ?? null,
+            tokenCountTotal: repetition.span?.tokenCountTotal ?? null,
+            cost: repetition.span?.costSummary?.total?.cost ?? null,
+          });
+          for (const evaluation of repetition.evaluations) {
+            const annotation = evaluation.annotation;
+            if (annotation == null) {
+              continue;
+            }
+            runAnnotations.push({
+              instanceId,
+              annotationName: annotation.name,
+              score: annotation.score,
+            });
+          }
+        }
+        addRunCosts(runCosts);
+        addRunAnnotations(runAnnotations);
       },
     [
+      addRunAnnotations,
+      addRunCosts,
       markPlaygroundInstanceComplete,
       notifyError,
       repetitions,
