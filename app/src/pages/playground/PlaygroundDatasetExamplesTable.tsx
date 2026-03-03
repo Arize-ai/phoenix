@@ -932,14 +932,14 @@ export function PlaygroundDatasetExamplesTable({
       ),
     [addRunCosts]
   );
-  const addAnnotationThrottled = useCallback(
+  const handleExperimentRunAnnotation = useCallback(
     (annotation: ExperimentRunAnnotation) => {
       pendingExperimentRunAnnotations.current.push(annotation);
       flushPendingExperimentRunAnnotations();
     },
     [flushPendingExperimentRunAnnotations]
   );
-  const addCostAndLatencyThrottled = useCallback(
+  const handleExperimentRunCost = useCallback(
     (cost: ExperimentRunCost) => {
       pendingExperimentRunCosts.current.push(cost);
       flushPendingExperimentRunCosts();
@@ -1039,7 +1039,7 @@ export function PlaygroundDatasetExamplesTable({
                 experimentRunId: chatCompletion.experimentRun?.id,
               },
             });
-            addCostAndLatencyThrottled({
+            handleExperimentRunCost({
               instanceId,
               latencyMs: chatCompletion.span?.latencyMs ?? null,
               tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
@@ -1092,7 +1092,7 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               evaluationChunk: chatCompletion,
             });
-            addAnnotationThrottled({
+            handleExperimentRunAnnotation({
               instanceId,
               annotationName: chatCompletion.evaluatorName,
               score: chatCompletion.experimentRunEvaluation?.score ?? null,
@@ -1109,8 +1109,8 @@ export function PlaygroundDatasetExamplesTable({
         }
       },
     [
-      addAnnotationThrottled,
-      addCostAndLatencyThrottled,
+      handleExperimentRunAnnotation,
+      handleExperimentRunCost,
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
