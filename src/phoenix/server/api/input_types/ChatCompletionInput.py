@@ -59,3 +59,4 @@ class ChatCompletionOverDatasetInput:
         "{{input.query}} or {{reference.answer}} are required.",
     )
     tracing_enabled: bool = True
+    create_ephemeral_experiment: Optional[bool] = False

@@ -204,6 +204,7 @@ class TestChatCompletionMutationMixin:
             experiment: node(id: $experimentId) {
               ... on Experiment {
                 projectName
+                isEphemeral
               }
             }
           }
@@ -227,6 +228,7 @@ class TestChatCompletionMutationMixin:
                     }
                 ],
                 "templateFormat": "F_STRING",
+                "createEphemeralExperiment": True,
                 "repetitions": 1,
             }
         }
@@ -270,6 +272,7 @@ class TestChatCompletionMutationMixin:
         assert (data := result.data)
         assert (field := data["experiment"])
         assert field["projectName"] == common_project_name
+        assert field["isEphemeral"] is True
 
     async def test_chat_completion_over_dataset_with_single_split(
         self,

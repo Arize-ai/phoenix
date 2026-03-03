@@ -474,6 +474,7 @@ class Subscription:
                 description=input.experiment_description,
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
+                is_ephemeral=bool(input.create_ephemeral_experiment),
                 project_name=project_name,
                 user_id=user_id,
             )

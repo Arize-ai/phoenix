@@ -429,6 +429,7 @@ input ChatCompletionOverDatasetInput {
   """
   templateVariablesPath: String = "input"
   tracingEnabled: Boolean! = true
+  createEphemeralExperiment: Boolean = false
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
@@ -804,8 +805,8 @@ type Dataset implements Node {
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
-  experimentCount(datasetVersionId: ID): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
+  experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
@@ -1434,6 +1435,11 @@ type Experiment implements Node {
   name: String!
   projectName: String
   description: String
+
+  """
+  Whether the experiment is ephemeral. Ephemeral experiments are automatically deleted after 24 hours.
+  """
+  isEphemeral: Boolean!
   repetitions: Int!
   datasetVersionId: ID!
   metadata: JSON!
