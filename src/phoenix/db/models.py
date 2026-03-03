@@ -1431,6 +1431,10 @@ class Experiment(HasId):
     description: Mapped[Optional[str]]
     repetitions: Mapped[int]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    is_ephemeral: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=sa.false(),
+    )
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -1448,6 +1452,14 @@ class Experiment(HasId):
     )
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="experiment"
+    )
+    __table_args__ = (
+        Index(
+            "ix_experiments_ephemeral_created_at",
+            "created_at",
+            postgresql_where=text("is_ephemeral IS TRUE"),
+            sqlite_where=text("is_ephemeral IS TRUE"),
+        ),
     )
 
 

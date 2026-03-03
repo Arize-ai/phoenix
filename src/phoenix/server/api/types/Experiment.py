@@ -8,6 +8,7 @@ from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
+from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
@@ -84,6 +85,23 @@ class Experiment(Node):
         else:
             val = await info.context.data_loaders.experiment_fields.load(
                 (self.id, models.Experiment.description),
+            )
+        return val
+
+    @strawberry.field(
+        description="Whether the experiment is ephemeral. "
+        "Ephemeral experiments are automatically deleted after "
+        f"{EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS} hours."
+    )  # type: ignore
+    async def is_ephemeral(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        if self.db_record:
+            val = self.db_record.is_ephemeral
+        else:
+            val = await info.context.data_loaders.experiment_fields.load(
+                (self.id, models.Experiment.is_ephemeral),
             )
         return val
 
