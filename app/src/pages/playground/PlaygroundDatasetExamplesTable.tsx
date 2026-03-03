@@ -917,7 +917,7 @@ export function PlaygroundDatasetExamplesTable({
   const pendingExperimentRunAnnotations = useRef<ExperimentRunAnnotation[]>([]);
   const pendingExperimentRunCosts = useRef<ExperimentRunCost[]>([]);
 
-  const flushPendingExperimentRunAnnotations = useMemo(
+  const flushPendingExperimentMetrics = useMemo(
     () =>
       throttle(
         () => {
@@ -926,16 +926,7 @@ export function PlaygroundDatasetExamplesTable({
           if (annotations.length > 0) {
             addRunAnnotations(annotations);
           }
-        },
-        AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS,
-        { leading: true, trailing: true }
-      ),
-    [addRunAnnotations]
-  );
-  const flushPendingExperimentRunCosts = useMemo(
-    () =>
-      throttle(
-        () => {
+
           const costs = pendingExperimentRunCosts.current;
           pendingExperimentRunCosts.current = [];
           if (costs.length > 0) {
@@ -945,31 +936,29 @@ export function PlaygroundDatasetExamplesTable({
         AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS,
         { leading: true, trailing: true }
       ),
-    [addRunCosts]
+    [addRunAnnotations, addRunCosts]
   );
   const handleExperimentRunAnnotation = useCallback(
     (annotation: ExperimentRunAnnotation) => {
       pendingExperimentRunAnnotations.current.push(annotation);
-      flushPendingExperimentRunAnnotations();
+      flushPendingExperimentMetrics();
     },
-    [flushPendingExperimentRunAnnotations]
+    [flushPendingExperimentMetrics]
   );
   const handleExperimentRunCost = useCallback(
     (cost: ExperimentRunCost) => {
       pendingExperimentRunCosts.current.push(cost);
-      flushPendingExperimentRunCosts();
+      flushPendingExperimentMetrics();
     },
-    [flushPendingExperimentRunCosts]
+    [flushPendingExperimentMetrics]
   );
 
   useEffect(() => {
     return () => {
-      flushPendingExperimentRunAnnotations.flush();
-      flushPendingExperimentRunCosts.flush();
-      flushPendingExperimentRunAnnotations.cancel();
-      flushPendingExperimentRunCosts.cancel();
+      flushPendingExperimentMetrics.flush();
+      flushPendingExperimentMetrics.cancel();
     };
-  }, [flushPendingExperimentRunAnnotations, flushPendingExperimentRunCosts]);
+  }, [flushPendingExperimentMetrics]);
 
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
@@ -1287,13 +1276,11 @@ export function PlaygroundDatasetExamplesTable({
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
-              flushPendingExperimentRunAnnotations.flush();
-              flushPendingExperimentRunCosts.flush();
+              flushPendingExperimentMetrics.flush();
               markPlaygroundInstanceComplete(instance.id);
             },
             onError: (error) => {
-              flushPendingExperimentRunAnnotations.flush();
-              flushPendingExperimentRunCosts.flush();
+              flushPendingExperimentMetrics.flush();
               markPlaygroundInstanceComplete(instance.id);
               const errorMessages =
                 getErrorMessagesFromRelaySubscriptionError(error);
@@ -1398,8 +1385,7 @@ export function PlaygroundDatasetExamplesTable({
     notifyError,
     onCompleted,
     onNext,
-    flushPendingExperimentRunAnnotations,
-    flushPendingExperimentRunCosts,
+    flushPendingExperimentMetrics,
     playgroundStore,
     repetitions,
     resetData,
