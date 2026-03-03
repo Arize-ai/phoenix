@@ -53,7 +53,6 @@ import {
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
-  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
@@ -111,7 +110,6 @@ import {
   useInstanceVariables,
 } from "./InstanceVariablesContext";
 import type {
-  CostAndLatencyAggregate,
   EvaluationChunk,
   ExampleRunData,
   InstanceResponses,
@@ -720,52 +718,6 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-function costAndLatencyAggregateEqual(
-  a: CostAndLatencyAggregate | null,
-  b: CostAndLatencyAggregate | null
-): boolean {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  return (
-    a.runCount === b.runCount &&
-    a.latencySum === b.latencySum &&
-    a.latencyCount === b.latencyCount &&
-    a.tokenCountSum === b.tokenCountSum &&
-    a.tokenCountCount === b.tokenCountCount &&
-    a.costSum === b.costSum &&
-    a.costCount === b.costCount
-  );
-}
-
-/**
- * Derives the experiment shape expected by ExperimentCostAndLatencySummary
- * from our incremental aggregate. `averageRunLatencyMs` is pre-averaged since
- * the component displays it directly, while `costSummary.total` fields are
- * totals that the component divides by `runCount`.
- */
-function deriveCostAndLatencySummary(
-  experimentId: string | null,
-  aggregate: CostAndLatencyAggregate | null
-): ExperimentCostAndLatencySummaryExperiment | null {
-  if (experimentId == null || aggregate == null || aggregate.runCount === 0) {
-    return null;
-  }
-  return {
-    id: experimentId,
-    averageRunLatencyMs:
-      aggregate.latencyCount > 0
-        ? aggregate.latencySum / aggregate.latencyCount
-        : null,
-    runCount: aggregate.runCount,
-    costSummary: {
-      total: {
-        cost: aggregate.costCount > 0 ? aggregate.costSum : null,
-        tokens: aggregate.tokenCountCount > 0 ? aggregate.tokenCountSum : null,
-      },
-    },
-  };
-}
-
 function PlaygroundInstanceOutputColumnHeader({
   instanceId,
   index,
@@ -798,17 +750,50 @@ function PlaygroundInstanceOutputColumnHeader({
 
   const costAndLatencyAggregate = usePlaygroundDatasetExamplesTableContext(
     (state) => state.costAndLatencyAggregates[instanceId] ?? null,
-    costAndLatencyAggregateEqual
+    (a, b) =>
+      a === b ||
+      (a != null &&
+        b != null &&
+        a.runCount === b.runCount &&
+        a.latencySum === b.latencySum &&
+        a.latencyCount === b.latencyCount &&
+        a.tokenCountSum === b.tokenCountSum &&
+        a.tokenCountCount === b.tokenCountCount &&
+        a.costSum === b.costSum &&
+        a.costCount === b.costCount)
   );
 
-  const costAndLatencySummary = useMemo(
-    () =>
-      deriveCostAndLatencySummary(
-        experimentId ?? null,
-        costAndLatencyAggregate
-      ),
-    [experimentId, costAndLatencyAggregate]
-  );
+  const costAndLatencySummary = useMemo(() => {
+    const resolvedExperimentId = experimentId ?? null;
+    if (
+      resolvedExperimentId == null ||
+      costAndLatencyAggregate == null ||
+      costAndLatencyAggregate.runCount === 0
+    ) {
+      return null;
+    }
+    return {
+      id: resolvedExperimentId,
+      averageRunLatencyMs:
+        costAndLatencyAggregate.latencyCount > 0
+          ? costAndLatencyAggregate.latencySum /
+            costAndLatencyAggregate.latencyCount
+          : null,
+      runCount: costAndLatencyAggregate.runCount,
+      costSummary: {
+        total: {
+          cost:
+            costAndLatencyAggregate.costCount > 0
+              ? costAndLatencyAggregate.costSum
+              : null,
+          tokens:
+            costAndLatencyAggregate.tokenCountCount > 0
+              ? costAndLatencyAggregate.tokenCountSum
+              : null,
+        },
+      },
+    };
+  }, [experimentId, costAndLatencyAggregate]);
 
   // Compute execution states independently so remounts happen at the right
   // transition: skeleton is shown until the first streaming result arrives,
