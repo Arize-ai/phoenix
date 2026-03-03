@@ -97,10 +97,11 @@ class TestExperimentSweeper:
 
         This test verifies that the sweeper:
         1. Deletes expired ephemeral experiments (older than TTL)
-        2. Deletes the associated projects for those experiments
+        2. Deletes the associated projects only when no other experiments reference them
         3. Does NOT delete recent ephemeral experiments (within TTL)
         4. Does NOT delete old non-ephemeral experiments
-        5. Is idempotent — a second triggered cycle with nothing left to delete completes cleanly
+        5. Keeps a project when an expired ephemeral and a remaining experiment share it
+        6. Is idempotent — a second triggered cycle with nothing left to delete completes cleanly
 
         Synchronization via Rendezvous:
         - `done` is set by the patched sleep immediately after work finishes, so the test
@@ -114,7 +115,7 @@ class TestExperimentSweeper:
         )
         new = datetime.now(timezone.utc)
 
-        # Case 1: expired ephemeral experiment with associated project → should be deleted
+        # Case 1: expired ephemeral experiment with its own project → experiment and project deleted
         expired_project_name = "expired_ephemeral_project"
         async with db() as session:
             session.add(models.Project(name=expired_project_name))
@@ -141,6 +142,25 @@ class TestExperimentSweeper:
             created_at=old,
         )
 
+        # Case 4: expired ephemeral + non-ephemeral share a project → ephemeral deleted, project kept
+        shared_project_name = "shared_project"
+        async with db() as session:
+            session.add(models.Project(name=shared_project_name))
+        await self._insert_experiment(
+            db,
+            name="expired ephemeral",
+            created_at=old,
+            project_name=shared_project_name,
+            is_ephemeral=True,
+        )
+        await self._insert_experiment(
+            db,
+            name="permanent with shared project",
+            created_at=old,
+            project_name=shared_project_name,
+            is_ephemeral=False,
+        )
+
         sweeper = ExperimentSweeper(db=db)
         await sweeper.start()
 
@@ -154,7 +174,10 @@ class TestExperimentSweeper:
             "Expired ephemeral experiment should have been deleted"
         )
         assert not await self._project_exists(db, expired_project_name), (
-            "Project associated with expired ephemeral experiment should have been deleted"
+            "Project associated only with expired ephemeral experiment should have been deleted"
+        )
+        assert await self._project_exists(db, shared_project_name), (
+            "Project shared with a remaining non-ephemeral experiment must not be deleted"
         )
         assert await self._experiment_exists(db, recent_temp_id), (
             "Recent ephemeral experiment should not have been deleted"
@@ -173,6 +196,9 @@ class TestExperimentSweeper:
         )
         assert await self._experiment_exists(db, old_permanent_id), (
             "Non-ephemeral experiment should still be present after second cleanup cycle"
+        )
+        assert await self._project_exists(db, shared_project_name), (
+            "Shared project should still be present after second cleanup cycle"
         )
 
         await sweeper.stop()

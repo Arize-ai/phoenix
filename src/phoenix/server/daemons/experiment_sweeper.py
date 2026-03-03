@@ -53,8 +53,17 @@ class ExperimentSweeper(DaemonTask):
                 project_name for project_name in project_names if project_name
             }
             if non_null_project_names:
+                # Only delete projects that have no remaining experiments (ephemeral or
+                # non-ephemeral) referencing them.
+                no_experiment_refs = ~sa.exists(
+                    sa.select(1)
+                    .select_from(models.Experiment)
+                    .where(models.Experiment.project_name == models.Project.name)
+                )
                 await session.execute(
-                    sa.delete(models.Project).where(models.Project.name.in_(non_null_project_names))
+                    sa.delete(models.Project)
+                    .where(models.Project.name.in_(non_null_project_names))
+                    .where(no_experiment_refs)
                 )
         if num_deleted:
             logger.info(f"Deleted {num_deleted} ephemeral experiment(s).")
