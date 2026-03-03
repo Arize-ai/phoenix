@@ -57,6 +57,19 @@ export type AnnotationSummary = {
   meanScore: number | null;
 };
 
+export type ExperimentRunAnnotation = {
+  instanceId: InstanceId;
+  annotationName: AnnotationName;
+  score: number | null;
+};
+
+export type ExperimentRunCost = {
+  instanceId: InstanceId;
+  latencyMs: number | null;
+  tokenCountTotal: number | null;
+  cost: number | null;
+};
+
 export type ExampleRunData = {
   content?: string | null;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
@@ -101,21 +114,8 @@ type PlaygroundDatasetExamplesTableActions = {
     repetitionNumber: RepetitionNumber;
     evaluationChunk: EvaluationChunk;
   }) => void;
-  batchAddExperimentRunAnnotations: (
-    updates: Array<{
-      instanceId: InstanceId;
-      annotationName: AnnotationName;
-      score: number | null;
-    }>
-  ) => void;
-  batchAddRunCostAndLatency: (
-    updates: Array<{
-      instanceId: InstanceId;
-      latencyMs: number | null;
-      tokenCountTotal: number | null;
-      cost: number | null;
-    }>
-  ) => void;
+  addRunAnnotations: (annotations: ExperimentRunAnnotation[]) => void;
+  addRunCosts: (costs: ExperimentRunCost[]) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
     instanceId: InstanceId;
@@ -276,11 +276,11 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
-    batchAddExperimentRunAnnotations: (updates) => {
-      if (updates.length === 0) return;
+    addRunAnnotations: (annotations) => {
+      if (annotations.length === 0) return;
       const { annotationAggregates } = get();
       const newAnnotationAggregates = { ...annotationAggregates };
-      for (const { instanceId, annotationName, score } of updates) {
+      for (const { instanceId, annotationName, score } of annotations) {
         if (score == null) continue;
         const instanceAggregates = newAnnotationAggregates[instanceId] ?? {};
         const prev = instanceAggregates[annotationName] ?? {
@@ -301,11 +301,11 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       }
       set({ annotationAggregates: newAnnotationAggregates });
     },
-    batchAddRunCostAndLatency: (updates) => {
-      if (updates.length === 0) return;
+    addRunCosts: (costs) => {
+      if (costs.length === 0) return;
       const { costAndLatencyAggregates } = get();
       const newAggregates = { ...costAndLatencyAggregates };
-      for (const { instanceId, latencyMs, tokenCountTotal, cost } of updates) {
+      for (const { instanceId, latencyMs, tokenCountTotal, cost } of costs) {
         const prev = newAggregates[instanceId] ?? {
           runCount: 0,
           latencySum: 0,

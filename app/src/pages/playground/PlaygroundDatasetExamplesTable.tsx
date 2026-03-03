@@ -111,6 +111,8 @@ import {
 } from "./InstanceVariablesContext";
 import type {
   EvaluationChunk,
+  ExperimentRunAnnotation,
+  ExperimentRunCost,
   ExampleRunData,
   InstanceResponses,
 } from "./PlaygroundDatasetExamplesTableContext";
@@ -900,81 +902,58 @@ export function PlaygroundDatasetExamplesTable({
     usePlaygroundDatasetExamplesTableContext(
       (state) => state.appendExampleDataEvaluationChunk
     );
-  const batchAddExperimentRunAnnotations =
-    usePlaygroundDatasetExamplesTableContext(
-      (state) => state.batchAddExperimentRunAnnotations
-    );
-  const batchAddRunCostAndLatency = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.batchAddRunCostAndLatency
+  const addRunAnnotations = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.addRunAnnotations
+  );
+  const addRunCosts = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.addRunCosts
   );
 
-  const pendingAnnotations = useRef<
-    Array<{
-      instanceId: number;
-      annotationName: string;
-      score: number | null;
-    }>
-  >([]);
-  const pendingCostAndLatency = useRef<
-    Array<{
-      instanceId: number;
-      latencyMs: number | null;
-      tokenCountTotal: number | null;
-      cost: number | null;
-    }>
-  >([]);
+  const pendingExperimentRunAnnotations = useRef<ExperimentRunAnnotation[]>([]);
+  const pendingExperimentRunCosts = useRef<ExperimentRunCost[]>([]);
 
   const flushPendingAnnotations = useMemo(
     () =>
       throttle(
         () => {
-          const annotations = pendingAnnotations.current;
-          pendingAnnotations.current = [];
+          const annotations = pendingExperimentRunAnnotations.current;
+          pendingExperimentRunAnnotations.current = [];
           if (annotations.length > 0) {
-            batchAddExperimentRunAnnotations(annotations);
+            addRunAnnotations(annotations);
           }
         },
         AGGREGATE_THROTTLE_MS,
         { leading: true, trailing: true }
       ),
-    [batchAddExperimentRunAnnotations]
+    [addRunAnnotations]
   );
   const flushPendingCostAndLatency = useMemo(
     () =>
       throttle(
         () => {
-          const costAndLatency = pendingCostAndLatency.current;
-          pendingCostAndLatency.current = [];
+          const costAndLatency = pendingExperimentRunCosts.current;
+          pendingExperimentRunCosts.current = [];
           if (costAndLatency.length > 0) {
-            batchAddRunCostAndLatency(costAndLatency);
+            addRunCosts(costAndLatency);
           }
         },
         AGGREGATE_THROTTLE_MS,
         { leading: true, trailing: true }
       ),
-    [batchAddRunCostAndLatency]
+    [addRunCosts]
   );
 
   const addAnnotationThrottled = useCallback(
-    (annotation: {
-      instanceId: number;
-      annotationName: string;
-      score: number | null;
-    }) => {
-      pendingAnnotations.current.push(annotation);
+    (annotation: ExperimentRunAnnotation) => {
+      pendingExperimentRunAnnotations.current.push(annotation);
       flushPendingAnnotations();
     },
     [flushPendingAnnotations]
   );
 
   const addCostAndLatencyThrottled = useCallback(
-    (costAndLatency: {
-      instanceId: number;
-      latencyMs: number | null;
-      tokenCountTotal: number | null;
-      cost: number | null;
-    }) => {
-      pendingCostAndLatency.current.push(costAndLatency);
+    (costAndLatency: ExperimentRunCost) => {
+      pendingExperimentRunCosts.current.push(costAndLatency);
       flushPendingCostAndLatency();
     },
     [flushPendingCostAndLatency]
