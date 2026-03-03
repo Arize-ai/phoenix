@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b5730e5c817f3e968d4071f79eaea65>>
+ * @generated SignedSource<<c2e0c5bc13c288c46f568c573a610284>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
   clientOptions?: ModelClientOptionsInput | null;
+  createEphemeralExperiment?: boolean | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
