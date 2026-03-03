@@ -346,6 +346,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
+        include_ephemeral: Optional[bool] = False,
     ) -> int:
         stmt = select(count(models.Experiment.id)).where(models.Experiment.dataset_id == self.id)
         version_id = (
@@ -358,6 +359,8 @@ class Dataset(Node):
         )
         if version_id is not None:
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
+        if not include_ephemeral:
+            stmt = stmt.where(models.Experiment.is_ephemeral.is_(False))
         async with info.context.db() as session:
             return (await session.scalar(stmt)) or 0
 
@@ -369,6 +372,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        include_ephemeral: Optional[bool] = False,
         filter_condition: Optional[str] = UNSET,
         filter_ids: Optional[
             list[GlobalID]
@@ -387,6 +391,8 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
+        if not include_ephemeral:
+            query = query.where(models.Experiment.is_ephemeral.is_(False))
         if filter_condition is not UNSET and filter_condition:
             # Search both name and description columns with case-insensitive partial matching
             search_filter = or_(
