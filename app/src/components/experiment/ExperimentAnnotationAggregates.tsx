@@ -235,20 +235,3 @@ function ExperimentAnnotationAggregateItem({
     </li>
   );
 }
-
-/**
- * Skeleton loading state component for ExperimentAnnotationAggregates.
- * Shows the annotation names with skeleton loaders for the values.
- */
-export function ExperimentAnnotationAggregatesSkeleton({
-  annotationConfigs,
-}: {
-  annotationConfigs: readonly AnnotationConfig[];
-}) {
-  return (
-    <ExperimentAnnotationAggregates
-      executionState="running"
-      annotationConfigs={annotationConfigs}
-    />
-  );
-}
