@@ -738,29 +738,11 @@ function PlaygroundInstanceOutputColumnHeader({
       return Object.entries(instanceAggregates).map(
         ([annotationName, { meanScore }]) => ({ annotationName, meanScore })
       );
-    },
-    (a, b) =>
-      a.length === b.length &&
-      a.every(
-        (sa, i) =>
-          sa.annotationName === b[i].annotationName &&
-          sa.meanScore === b[i].meanScore
-      )
+    }
   );
 
   const costAndLatencyAggregate = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.costAndLatencyAggregates[instanceId] ?? null,
-    (a, b) =>
-      a === b ||
-      (a != null &&
-        b != null &&
-        a.runCount === b.runCount &&
-        a.latencySum === b.latencySum &&
-        a.latencyCount === b.latencyCount &&
-        a.tokenCountSum === b.tokenCountSum &&
-        a.tokenCountCount === b.tokenCountCount &&
-        a.costSum === b.costSum &&
-        a.costCount === b.costCount)
+    (state) => state.costAndLatencyAggregates[instanceId] ?? null
   );
 
   const costAndLatencySummary = useMemo(() => {
