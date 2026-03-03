@@ -71,7 +71,7 @@ help: ## Show this help message
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
-	@echo -e "  test-helm              - Run Helm chart tests
+	@echo -e "  test-helm              - Run Helm chart tests"
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
