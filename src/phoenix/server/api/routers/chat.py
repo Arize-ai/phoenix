@@ -109,9 +109,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
 
 def create_chat_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
-    router = APIRouter(
-        tags=["chat"], include_in_schema=False, dependencies=dependencies
-    )
+    router = APIRouter(tags=["chat"], include_in_schema=False, dependencies=dependencies)
 
     @router.post("/chat")
     async def chat(
