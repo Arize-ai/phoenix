@@ -937,15 +937,16 @@ async def test_experiments_excludes_ephemeral_by_default(
     }
 
 
-async def test_experiments_can_filter_to_ephemeral(
+async def test_experiments_includes_ephemeral_when_true(
     gql_client: AsyncGraphQLClient,
     dataset_with_ephemeral_experiment: Any,
 ) -> None:
+    """includeEphemeral=true means include ephemeral in the list (all experiments)."""
     query = """
-      query ($datasetId: ID!, $isEphemeral: Boolean = false) {
+      query ($datasetId: ID!, $includeEphemeral: Boolean = false) {
         node(id: $datasetId) {
           ... on Dataset {
-            experiments(isEphemeral: $isEphemeral) {
+            experiments(includeEphemeral: $includeEphemeral) {
               edges {
                 node {
                   name
@@ -960,11 +961,21 @@ async def test_experiments_can_filter_to_ephemeral(
         query=query,
         variables={
             "datasetId": str(GlobalID("Dataset", str(1))),
-            "isEphemeral": True,
+            "includeEphemeral": True,
         },
     )
     assert not response.errors
-    assert response.data == {"node": {"experiments": {"edges": [{"node": {"name": "playground"}}]}}}
+    # Both experiments returned (order by id desc: playground then persisted-exp)
+    assert response.data == {
+        "node": {
+            "experiments": {
+                "edges": [
+                    {"node": {"name": "playground"}},
+                    {"node": {"name": "persisted-exp"}},
+                ]
+            }
+        }
+    }
 
 
 class TestDatasetsEvaluatorsResolver:
