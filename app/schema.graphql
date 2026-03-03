@@ -429,7 +429,7 @@ input ChatCompletionOverDatasetInput {
   """
   templateVariablesPath: String = "input"
   tracingEnabled: Boolean! = true
-  ephemeralExperiment: Boolean! = false
+  createEphemeralExperiment: Boolean = false
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
@@ -805,7 +805,7 @@ type Dataset implements Node {
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
-  experimentCount(datasetVersionId: ID, isEphemeral: Boolean = false): Int!
+  experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, isEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!

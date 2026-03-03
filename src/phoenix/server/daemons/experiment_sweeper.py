@@ -1,26 +1,27 @@
 from __future__ import annotations
 
 import logging
+import random
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
 
-from phoenix.config import (
-    EPHEMERAL_EXPERIMENT_CLEANUP_INTERVAL_HOURS,
-    EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS,
-)
+from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
-_SLEEP_SECONDS = EPHEMERAL_EXPERIMENT_CLEANUP_INTERVAL_HOURS * 60 * 60
+
+_SLEEP_SECONDS = 60 * 60  # 1 hour
+_JITTER_SECONDS = 60  # plus or minus 1 minute
 
 
 class ExperimentSweeper(DaemonTask):
     """
     Periodically deletes ephemeral experiments that were created more than
-    24 hours ago, along with their associated projects and traces.
+    EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS ago, along with their associated
+    projects and traces.
     """
 
     def __init__(self, db: DbSessionFactory) -> None:
@@ -33,7 +34,7 @@ class ExperimentSweeper(DaemonTask):
                 await self._delete_ephemeral_experiments()
             except Exception:
                 logger.exception("Failed to clean up ephemeral experiments")
-            await sleep(_SLEEP_SECONDS)
+            await sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
 
     async def _delete_ephemeral_experiments(self) -> None:
         cutoff = datetime.now(timezone.utc) - timedelta(

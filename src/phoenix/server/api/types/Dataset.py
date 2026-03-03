@@ -346,7 +346,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
-        is_ephemeral: Optional[bool] = False,
+        include_ephemeral: Optional[bool] = False,
     ) -> int:
         stmt = select(count(models.Experiment.id)).where(models.Experiment.dataset_id == self.id)
         version_id = (
@@ -359,7 +359,7 @@ class Dataset(Node):
         )
         if version_id is not None:
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
-        if is_ephemeral:
+        if include_ephemeral:
             stmt = stmt.where(models.Experiment.is_ephemeral.is_(True))
         else:
             stmt = stmt.where(models.Experiment.is_ephemeral.is_(False))

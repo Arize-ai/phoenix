@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb2a08643b4ef9e043c8099a02644302>>
+ * @generated SignedSource<<430950b47e888f557fc56a353e9e8500>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,10 +18,10 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
+  createEphemeralExperiment?: boolean;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
-  ephemeralExperiment?: boolean;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;

@@ -592,10 +592,10 @@ async def test_versions_resolver_returns_versions_in_correct_order(
 
 class TestDatasetExperimentCountResolver:
     QUERY = """
-      query ($datasetId: ID!, $datasetVersionId: ID = null, $isEphemeral: Boolean = false) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null, $includeEphemeral: Boolean = false) {
         node(id: $datasetId) {
           ... on Dataset {
-            experimentCount(datasetVersionId: $datasetVersionId, isEphemeral: $isEphemeral)
+            experimentCount(datasetVersionId: $datasetVersionId, includeEphemeral: $includeEphemeral)
           }
         }
       }
@@ -653,7 +653,7 @@ class TestDatasetExperimentCountResolver:
             query=self.QUERY,
             variables={
                 "datasetId": str(GlobalID("Dataset", str(1))),
-                "isEphemeral": True,
+                "includeEphemeral": True,
             },
         )
         assert not response.errors

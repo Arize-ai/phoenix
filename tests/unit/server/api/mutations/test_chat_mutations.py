@@ -228,7 +228,7 @@ class TestChatCompletionMutationMixin:
                     }
                 ],
                 "templateFormat": "F_STRING",
-                "ephemeralExperiment": True,
+                "createEphemeralExperiment": True,
                 "repetitions": 1,
             }
         }
