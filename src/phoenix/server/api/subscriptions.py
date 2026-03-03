@@ -98,6 +98,7 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
+RepetitionNumber: TypeAlias = int
 DatasetExampleNodeID: TypeAlias = GlobalID
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 
@@ -106,7 +107,7 @@ async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
     llm_client: "PlaygroundStreamingClient[Any]",
-    repetition_number: int,
+    repetition_number: RepetitionNumber,
     db: DbSessionFactory,
     project_id: int,
     on_span_insertion: Callable[[], None],
@@ -162,12 +163,12 @@ async def _stream_single_chat_completion(
 async def _cleanup_chat_completion_resources(
     in_progress: list[
         tuple[
-            Optional[int],
+            RepetitionNumber,
             ChatStream,
             asyncio.Task[ChatCompletionSubscriptionPayload],
         ]
     ],
-    not_started: deque[tuple[int, ChatStream]],
+    not_started: deque[tuple[RepetitionNumber, ChatStream]],
 ) -> None:
     """
     Cleanup all resources on cancellation or error. MUST be called in a finally block.
@@ -218,7 +219,7 @@ async def _cleanup_chat_completion_resources(
 async def _cleanup_chat_completion_over_dataset_resources(
     in_progress: list[
         tuple[
-            Optional[DatasetExampleNodeID],
+            DatasetExampleNodeID,
             ChatStream,
             asyncio.Task[ChatCompletionSubscriptionPayload],
         ]
@@ -298,7 +299,7 @@ class Subscription:
                     )
                 )
 
-        not_started: deque[tuple[int, ChatStream]] = deque(
+        not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
                 repetition_number,
                 _stream_single_chat_completion(
@@ -317,7 +318,7 @@ class Subscription:
         )
         in_progress: list[
             tuple[
-                Optional[int],
+                RepetitionNumber,
                 ChatStream,
                 asyncio.Task[ChatCompletionSubscriptionPayload],
             ]
@@ -343,18 +344,16 @@ class Subscription:
                         del in_progress[idx]  # removes exhausted stream
                     except asyncio.TimeoutError:
                         del in_progress[idx]  # removes timed-out stream
-                        if repetition_number is not None:
-                            yield ChatCompletionSubscriptionError(
-                                message="Playground task timed out",
-                                repetition_number=repetition_number,
-                            )
+                        yield ChatCompletionSubscriptionError(
+                            message="Playground task timed out",
+                            repetition_number=repetition_number,
+                        )
                     except Exception as error:
                         del in_progress[idx]  # removes failed stream
-                        if repetition_number is not None:
-                            yield ChatCompletionSubscriptionError(
-                                message="An unexpected error occurred",
-                                repetition_number=repetition_number,
-                            )
+                        yield ChatCompletionSubscriptionError(
+                            message="An unexpected error occurred",
+                            repetition_number=repetition_number,
+                        )
                         logger.exception(error)
                     else:
                         task = _create_task_with_timeout(stream)
@@ -510,7 +509,7 @@ class Subscription:
         ]
         in_progress: list[
             tuple[
-                Optional[DatasetExampleNodeID],
+                DatasetExampleNodeID,
                 ChatStream,
                 asyncio.Task[ChatCompletionSubscriptionPayload],
             ]
@@ -535,17 +534,15 @@ class Subscription:
                         del in_progress[idx]  # removes exhausted stream
                     except asyncio.TimeoutError:
                         del in_progress[idx]  # removes timed-out stream
-                        if example_id is not None:
-                            yield ChatCompletionSubscriptionError(
-                                message="Playground task timed out", dataset_example_id=example_id
-                            )
+                        yield ChatCompletionSubscriptionError(
+                            message="Playground task timed out", dataset_example_id=example_id
+                        )
                     except Exception as error:
                         del in_progress[idx]  # removes failed stream
-                        if example_id is not None:
-                            yield ChatCompletionSubscriptionError(
-                                message="An unexpected error occurred",
-                                dataset_example_id=example_id,
-                            )
+                        yield ChatCompletionSubscriptionError(
+                            message="An unexpected error occurred",
+                            dataset_example_id=example_id,
+                        )
                         logger.exception(error)
                     else:
                         task = _create_task_with_timeout(stream)
@@ -562,7 +559,7 @@ async def _stream_chat_completion_over_dataset_example(
     input: ChatCompletionOverDatasetInput,
     llm_client: "PlaygroundStreamingClient[Any]",
     revision: models.DatasetExampleRevision,
-    repetition_number: int,
+    repetition_number: RepetitionNumber,
     db: DbSessionFactory,
     span_cost_calculator: SpanCostCalculator,
     experiment_id: int,
