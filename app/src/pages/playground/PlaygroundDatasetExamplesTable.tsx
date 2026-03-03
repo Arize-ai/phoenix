@@ -132,7 +132,7 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
-const AGGREGATE_THROTTLE_MS = 2000;
+const AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS = 2000;
 
 /**
  * Maximum number of dataset examples to sample for extracting available paths
@@ -902,7 +902,7 @@ export function PlaygroundDatasetExamplesTable({
   const pendingExperimentRunAnnotations = useRef<ExperimentRunAnnotation[]>([]);
   const pendingExperimentRunCosts = useRef<ExperimentRunCost[]>([]);
 
-  const flushPendingAnnotations = useMemo(
+  const flushPendingExperimentRunAnnotations = useMemo(
     () =>
       throttle(
         () => {
@@ -912,51 +912,49 @@ export function PlaygroundDatasetExamplesTable({
             addRunAnnotations(annotations);
           }
         },
-        AGGREGATE_THROTTLE_MS,
+        AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS,
         { leading: true, trailing: true }
       ),
     [addRunAnnotations]
   );
-  const flushPendingCostAndLatency = useMemo(
+  const flushPendingExperimentRunCosts = useMemo(
     () =>
       throttle(
         () => {
-          const costAndLatency = pendingExperimentRunCosts.current;
+          const costs = pendingExperimentRunCosts.current;
           pendingExperimentRunCosts.current = [];
-          if (costAndLatency.length > 0) {
-            addRunCosts(costAndLatency);
+          if (costs.length > 0) {
+            addRunCosts(costs);
           }
         },
-        AGGREGATE_THROTTLE_MS,
+        AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS,
         { leading: true, trailing: true }
       ),
     [addRunCosts]
   );
-
   const addAnnotationThrottled = useCallback(
     (annotation: ExperimentRunAnnotation) => {
       pendingExperimentRunAnnotations.current.push(annotation);
-      flushPendingAnnotations();
+      flushPendingExperimentRunAnnotations();
     },
-    [flushPendingAnnotations]
+    [flushPendingExperimentRunAnnotations]
   );
-
   const addCostAndLatencyThrottled = useCallback(
-    (costAndLatency: ExperimentRunCost) => {
-      pendingExperimentRunCosts.current.push(costAndLatency);
-      flushPendingCostAndLatency();
+    (cost: ExperimentRunCost) => {
+      pendingExperimentRunCosts.current.push(cost);
+      flushPendingExperimentRunCosts();
     },
-    [flushPendingCostAndLatency]
+    [flushPendingExperimentRunCosts]
   );
 
   useEffect(() => {
     return () => {
-      flushPendingAnnotations.flush();
-      flushPendingCostAndLatency.flush();
-      flushPendingAnnotations.cancel();
-      flushPendingCostAndLatency.cancel();
+      flushPendingExperimentRunAnnotations.flush();
+      flushPendingExperimentRunCosts.flush();
+      flushPendingExperimentRunAnnotations.cancel();
+      flushPendingExperimentRunCosts.cancel();
     };
-  }, [flushPendingAnnotations, flushPendingCostAndLatency]);
+  }, [flushPendingExperimentRunAnnotations, flushPendingExperimentRunCosts]);
 
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
@@ -1274,13 +1272,13 @@ export function PlaygroundDatasetExamplesTable({
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
-              flushPendingAnnotations.flush();
-              flushPendingCostAndLatency.flush();
+              flushPendingExperimentRunAnnotations.flush();
+              flushPendingExperimentRunCosts.flush();
               markPlaygroundInstanceComplete(instance.id);
             },
             onError: (error) => {
-              flushPendingAnnotations.flush();
-              flushPendingCostAndLatency.flush();
+              flushPendingExperimentRunAnnotations.flush();
+              flushPendingExperimentRunCosts.flush();
               markPlaygroundInstanceComplete(instance.id);
               const errorMessages =
                 getErrorMessagesFromRelaySubscriptionError(error);
@@ -1385,8 +1383,8 @@ export function PlaygroundDatasetExamplesTable({
     notifyError,
     onCompleted,
     onNext,
-    flushPendingAnnotations,
-    flushPendingCostAndLatency,
+    flushPendingExperimentRunAnnotations,
+    flushPendingExperimentRunCosts,
     playgroundStore,
     repetitions,
     resetData,
