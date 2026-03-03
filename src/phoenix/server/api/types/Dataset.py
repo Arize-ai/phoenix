@@ -359,9 +359,7 @@ class Dataset(Node):
         )
         if version_id is not None:
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
-        if include_ephemeral:
-            stmt = stmt.where(models.Experiment.is_ephemeral.is_(True))
-        else:
+        if not include_ephemeral:
             stmt = stmt.where(models.Experiment.is_ephemeral.is_(False))
         async with info.context.db() as session:
             return (await session.scalar(stmt)) or 0

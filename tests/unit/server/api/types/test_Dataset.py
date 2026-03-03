@@ -644,11 +644,12 @@ class TestDatasetExperimentCountResolver:
         assert not response.errors
         assert response.data == {"node": {"experimentCount": 1}}
 
-    async def test_experiment_count_can_filter_to_ephemeral(
+    async def test_experiment_count_includes_ephemeral_when_true(
         self,
         gql_client: AsyncGraphQLClient,
         dataset_with_ephemeral_experiment: Any,
     ) -> None:
+        """includeEphemeral=true means include ephemeral in the count (all experiments)."""
         response = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -657,7 +658,7 @@ class TestDatasetExperimentCountResolver:
             },
         )
         assert not response.errors
-        assert response.data == {"node": {"experimentCount": 1}}
+        assert response.data == {"node": {"experimentCount": 2}}
 
 
 class TestDatasetExperimentsResolver:
