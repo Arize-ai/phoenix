@@ -32,7 +32,6 @@ export type EvaluationChunk = Extract<
 export type ExperimentRunAnnotationAggregateMetric = {
   sum: number;
   count: number;
-  meanScore: number | null;
 };
 
 /**
@@ -50,19 +49,19 @@ export type ExperimentRunCostAggregateMetric = {
 };
 
 /**
- * Summarized annotation data for a set of experiment runs — mean score per evaluator.
+ * Represents an annotation score for a single experiment run.
+ * Used for tracking annotated metrics (e.g., evaluator scores) for a given instance.
  */
-export type AnnotationSummary = {
-  annotationName: string;
-  meanScore: number | null;
-};
-
 export type ExperimentRunAnnotation = {
   instanceId: InstanceId;
   annotationName: AnnotationName;
   score: number | null;
 };
 
+/**
+ * Represents cost, latency, and token metrics for a single experiment run.
+ * Used for aggregating per-run LLM cost and performance data.
+ */
 export type ExperimentRunCost = {
   instanceId: InstanceId;
   latencyMs: number | null;
@@ -289,7 +288,6 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         const prev = instanceAggregates[annotationName] ?? {
           sum: 0,
           count: 0,
-          meanScore: null,
         };
         const newSum = prev.sum + score;
         const newCount = prev.count + 1;
@@ -298,7 +296,6 @@ const createPlaygroundDatasetExamplesTableStore = () => {
           [annotationName]: {
             sum: newSum,
             count: newCount,
-            meanScore: newSum / newCount,
           },
         };
       }

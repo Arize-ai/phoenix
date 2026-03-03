@@ -748,7 +748,7 @@ function PlaygroundInstanceOutputColumnHeader({
     return Object.entries(annotationAggregateMetrics).map(
       ([annotationName, metric]) => ({
         annotationName,
-        meanScore: metric.meanScore,
+        meanScore: metric.count > 0 ? metric.sum / metric.count : null,
       })
     );
   }, [annotationAggregateMetrics]);
@@ -785,26 +785,35 @@ function PlaygroundInstanceOutputColumnHeader({
       };
     }, [experimentId, costAggregateMetrics]);
 
-  // Compute execution states independently so remounts happen at the right
-  // transition: skeleton is shown until the first streaming result arrives,
-  // then the component remounts into "complete" to display live data.
-  const costAndLatencyExecutionState: ExecutionState =
-    costSummary != null
-      ? "complete"
-      : isRunning
-        ? "running"
-        : experimentId != null
-          ? "complete"
-          : "idle";
+  let costExecutionState: ExecutionState;
+  switch (true) {
+    case costSummary != null:
+      costExecutionState = "complete";
+      break;
+    case isRunning:
+      costExecutionState = "running";
+      break;
+    case experimentId != null:
+      costExecutionState = "complete";
+      break;
+    default:
+      costExecutionState = "idle";
+  }
 
-  const annotationExecutionState: ExecutionState =
-    annotationSummaries.length > 0
-      ? "complete"
-      : isRunning
-        ? "running"
-        : experimentId != null
-          ? "complete"
-          : "idle";
+  let annotationExecutionState: ExecutionState;
+  switch (true) {
+    case annotationSummaries.length > 0:
+      annotationExecutionState = "complete";
+      break;
+    case isRunning:
+      annotationExecutionState = "running";
+      break;
+    case experimentId != null:
+      annotationExecutionState = "complete";
+      break;
+    default:
+      annotationExecutionState = "idle";
+  }
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
@@ -822,7 +831,7 @@ function PlaygroundInstanceOutputColumnHeader({
         <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
       </Flex>
       <ExperimentCostAndLatencySummary
-        executionState={costAndLatencyExecutionState}
+        executionState={costExecutionState}
         experiment={costSummary}
       />
       <ExperimentAnnotationAggregates
