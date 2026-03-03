@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import type { Page } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
 import { expect, test as setup } from "@playwright/test";
 
 const AUTH_DIR = "playwright/.auth";
@@ -59,6 +59,122 @@ async function resetPasswordAndReLogin({
   await page.waitForURL("**/projects");
 }
 
+/**
+ * Try logging in with the post-bootstrap admin credentials.
+ * Returns true if the server already has users set up (i.e. a rerun against
+ * the same long-lived dev server).  Uses a short detection timeout because
+ * on success the redirect to /projects is near-instant.
+ */
+async function isAlreadyBootstrapped({
+  page,
+  baseURL,
+}: {
+  page: Page;
+  baseURL: string;
+}): Promise<boolean> {
+  await login({
+    page,
+    baseURL,
+    email: "admin@localhost",
+    password: "admin123",
+  });
+  try {
+    // eslint-disable-next-line playwright/no-wait-for-timeout
+    await page.waitForURL("**/projects", { timeout: 5_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function bootstrapFreshServer({
+  browser,
+  baseURL,
+}: {
+  browser: Browser;
+  baseURL: string;
+}) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+
+  await login({
+    page,
+    baseURL,
+    email: "admin@localhost",
+    password: "admin",
+  });
+  await resetPasswordAndReLogin({
+    page,
+    baseURL,
+    email: "admin@localhost",
+    oldPassword: "admin",
+    newPassword: "admin123",
+  });
+  await page.goto(`${baseURL}/settings/general`);
+  await page.waitForURL("**/settings/general");
+
+  // Add member user
+  await page.getByRole("button", { name: "Add User" }).click();
+  await page.getByLabel("Email").fill("member@localhost.com");
+  await page.getByLabel("Username").fill("member");
+  await page.getByLabel("Password", { exact: true }).fill("member");
+  await page.getByLabel("Confirm Password").fill("member");
+  await page.getByRole("dialog").getByLabel("member", { exact: true }).click();
+  await page.getByRole("option", { name: "member" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Add User" })
+    .click();
+  await expect(page.getByTestId("dialog")).not.toBeVisible();
+
+  // Add viewer user
+  await page.getByRole("button", { name: "Add User" }).click();
+  await page.getByLabel("Email").fill("viewer@localhost.com");
+  await page.getByLabel("Username").fill("viewer");
+  await page.getByLabel("Password", { exact: true }).fill("viewer");
+  await page.getByLabel("Confirm Password").fill("viewer");
+  await page.getByRole("dialog").getByLabel("member", { exact: true }).click();
+  await page.getByRole("option", { name: "viewer" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Add User" })
+    .click();
+  await expect(page.getByTestId("dialog")).not.toBeVisible();
+
+  await page.getByRole("button", { name: "Log Out" }).click();
+
+  await login({
+    page,
+    baseURL,
+    email: "member@localhost.com",
+    password: "member",
+  });
+  await resetPasswordAndReLogin({
+    page,
+    baseURL,
+    email: "member@localhost.com",
+    oldPassword: "member",
+    newPassword: "member123",
+  });
+  await page.getByRole("button", { name: "Log Out" }).click();
+
+  await login({
+    page,
+    baseURL,
+    email: "viewer@localhost.com",
+    password: "viewer",
+  });
+  await resetPasswordAndReLogin({
+    page,
+    baseURL,
+    email: "viewer@localhost.com",
+    oldPassword: "viewer",
+    newPassword: "viewer123",
+  });
+
+  await ctx.close();
+}
+
 setup(
   "authenticate and persist role storage states",
   async ({ browser, baseURL }) => {
@@ -68,90 +184,17 @@ setup(
 
     await fs.mkdir(AUTH_DIR, { recursive: true });
 
-    const bootstrapContext = await browser.newContext();
-    const page = await bootstrapContext.newPage();
-
-    await login({
-      page,
+    const probeCtx = await browser.newContext();
+    const probePage = await probeCtx.newPage();
+    const alreadyBootstrapped = await isAlreadyBootstrapped({
+      page: probePage,
       baseURL,
-      email: "admin@localhost",
-      password: "admin",
     });
-    await resetPasswordAndReLogin({
-      page,
-      baseURL,
-      email: "admin@localhost",
-      oldPassword: "admin",
-      newPassword: "admin123",
-    });
-    await page.goto(`${baseURL}/settings/general`);
-    await page.waitForURL("**/settings/general");
+    await probeCtx.close();
 
-    // Add member user
-    await page.getByRole("button", { name: "Add User" }).click();
-    await page.getByLabel("Email").fill("member@localhost.com");
-    await page.getByLabel("Username").fill("member");
-    await page.getByLabel("Password", { exact: true }).fill("member");
-    await page.getByLabel("Confirm Password").fill("member");
-    await page
-      .getByRole("dialog")
-      .getByLabel("member", { exact: true })
-      .click();
-    await page.getByRole("option", { name: "member" }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Add User" })
-      .click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-    // Add viewer user
-    await page.getByRole("button", { name: "Add User" }).click();
-    await page.getByLabel("Email").fill("viewer@localhost.com");
-    await page.getByLabel("Username").fill("viewer");
-    await page.getByLabel("Password", { exact: true }).fill("viewer");
-    await page.getByLabel("Confirm Password").fill("viewer");
-    await page
-      .getByRole("dialog")
-      .getByLabel("member", { exact: true })
-      .click();
-    await page.getByRole("option", { name: "viewer" }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Add User" })
-      .click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-    await page.getByRole("button", { name: "Log Out" }).click();
-
-    await login({
-      page,
-      baseURL,
-      email: "member@localhost.com",
-      password: "member",
-    });
-    await resetPasswordAndReLogin({
-      page,
-      baseURL,
-      email: "member@localhost.com",
-      oldPassword: "member",
-      newPassword: "member123",
-    });
-    await page.getByRole("button", { name: "Log Out" }).click();
-
-    await login({
-      page,
-      baseURL,
-      email: "viewer@localhost.com",
-      password: "viewer",
-    });
-    await resetPasswordAndReLogin({
-      page,
-      baseURL,
-      email: "viewer@localhost.com",
-      oldPassword: "viewer",
-      newPassword: "viewer123",
-    });
-    await bootstrapContext.close();
+    if (!alreadyBootstrapped) {
+      await bootstrapFreshServer({ browser, baseURL });
+    }
 
     const saveStorageStateForUser = async ({
       email,
