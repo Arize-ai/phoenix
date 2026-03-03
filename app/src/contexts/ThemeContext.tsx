@@ -110,6 +110,12 @@ export function ThemeProvider(
   }, [themeMode, systemTheme]);
 
   useEffect(() => {
+    if (props.themeMode) {
+      _setThemeMode(props.themeMode); // eslint-disable-line react-hooks-js/set-state-in-effect
+    }
+  }, [props.themeMode, setThemeMode]);
+
+  useEffect(() => {
     const isDarkSystemThemeMediaQuery = window.matchMedia(
       IS_DARK_SYSTEM_THEME_MEDIA_QUERY_STRING
     );
@@ -121,12 +127,6 @@ export function ThemeProvider(
       isDarkSystemThemeMediaQuery.removeEventListener("change", handleChange);
     };
   }, []);
-
-  useEffect(() => {
-    if (props.themeMode) {
-      _setThemeMode(props.themeMode);
-    }
-  }, [props.themeMode, setThemeMode]);
 
   useEffect(() => {
     if (props.disableBodyTheme) return;

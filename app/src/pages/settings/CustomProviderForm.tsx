@@ -6,8 +6,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
-  useState,
 } from "react";
 import type { Control, UseFormGetValues, UseFormReset } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -1082,6 +1082,68 @@ const testCredentialsQuery = graphql`
 `;
 
 type TestStatus = "idle" | "testing" | "valid" | "invalid" | "error";
+type CompletedTestStatus = Exclude<TestStatus, "idle" | "testing">;
+type TestConnectionState = {
+  isTesting: boolean;
+  lastTestResult: {
+    status: CompletedTestStatus;
+    errorMessage: string | null;
+  } | null;
+  lastTestedValuesSignature: string | null;
+};
+type TestConnectionAction =
+  | { type: "start" }
+  | { type: "complete" }
+  | {
+      type: "set_result";
+      payload: {
+        status: CompletedTestStatus;
+        errorMessage: string | null;
+        testedValuesSignature: string;
+      };
+    }
+  | { type: "clear" };
+
+const INITIAL_TEST_CONNECTION_STATE: TestConnectionState = {
+  isTesting: false,
+  lastTestResult: null,
+  lastTestedValuesSignature: null,
+};
+
+function testConnectionReducer(
+  state: TestConnectionState,
+  action: TestConnectionAction
+): TestConnectionState {
+  switch (action.type) {
+    case "start":
+      return {
+        ...state,
+        isTesting: true,
+      };
+    case "complete":
+      return {
+        ...state,
+        isTesting: false,
+      };
+    case "set_result":
+      return {
+        ...state,
+        lastTestResult: {
+          status: action.payload.status,
+          errorMessage: action.payload.errorMessage,
+        },
+        lastTestedValuesSignature: action.payload.testedValuesSignature,
+      };
+    case "clear":
+      return {
+        ...state,
+        lastTestResult: null,
+        lastTestedValuesSignature: null,
+      };
+    default:
+      return state;
+  }
+}
 
 /**
  * Fields required for credential testing, organized by SDK.
@@ -1163,8 +1225,10 @@ function TestConnectionButton({
   sdk: GenerativeModelSDK;
 }) {
   const environment = useRelayEnvironment();
-  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [testConnectionState, dispatchTestConnectionState] = useReducer(
+    testConnectionReducer,
+    INITIAL_TEST_CONNECTION_STATE
+  );
 
   // Watch credential fields for button enablement check
   const watchedCredentials = useWatch({
@@ -1174,6 +1238,12 @@ function TestConnectionButton({
 
   // Watch all form values to reset test status when any field changes
   const watchedFormValues = useWatch({ control });
+  // A stable signature of the current form inputs used to determine whether
+  // the latest test result is stale relative to what's currently on-screen.
+  const currentTestInputSignature = useMemo(
+    () => JSON.stringify(watchedFormValues),
+    [watchedFormValues]
+  );
 
   // Build a lookup object from watched credential values
   const credentialValues = useMemo(() => {
@@ -1187,21 +1257,33 @@ function TestConnectionButton({
   // Track whether in-flight test results should be ignored
   const shouldIgnoreResultRef = useRef(false);
 
-  // Reset test status when any form field changes
+  // Mark in-flight test results as stale when any field changes.
   useEffect(() => {
-    shouldIgnoreResultRef.current = true; // Mark in-flight results as stale
-    setTestStatus("idle");
-    setErrorMessage(null);
+    shouldIgnoreResultRef.current = true;
   }, [watchedFormValues]);
 
   const canTest = hasRequiredCredentials(sdk, credentialValues);
+  const { isTesting, lastTestResult, lastTestedValuesSignature } =
+    testConnectionState;
+  const isStale =
+    lastTestedValuesSignature != null &&
+    lastTestedValuesSignature !== currentTestInputSignature;
+  const testStatus: TestStatus = isTesting
+    ? "testing"
+    : isStale || lastTestResult == null
+      ? "idle"
+      : lastTestResult.status;
+  const errorMessage =
+    testStatus === "idle" || testStatus === "testing"
+      ? null
+      : (lastTestResult?.errorMessage ?? null);
 
   const handleTest = useCallback(async () => {
     if (!canTest) return;
 
-    shouldIgnoreResultRef.current = false; // This test's results are valid
-    setTestStatus("testing");
-    setErrorMessage(null);
+    shouldIgnoreResultRef.current = false;
+    dispatchTestConnectionState({ type: "start" });
+    const testedValuesSignature = JSON.stringify(getValues());
 
     try {
       const formValues = getValues();
@@ -1213,32 +1295,61 @@ function TestConnectionButton({
       ).toPromise();
 
       // Ignore result if form changed during request
-      if (shouldIgnoreResultRef.current) return;
+      if (shouldIgnoreResultRef.current) {
+        return;
+      }
 
       if (!result) {
-        setTestStatus("error");
-        setErrorMessage("No response received from server");
+        dispatchTestConnectionState({
+          type: "set_result",
+          payload: {
+            status: "error",
+            errorMessage: "No response received from server",
+            testedValuesSignature,
+          },
+        });
         return;
       }
 
       const error = result.testGenerativeModelCustomProviderCredentials.error;
 
       if (!error) {
-        setTestStatus("valid");
+        dispatchTestConnectionState({
+          type: "set_result",
+          payload: {
+            status: "valid",
+            errorMessage: null,
+            testedValuesSignature,
+          },
+        });
       } else {
-        setTestStatus("invalid");
-        setErrorMessage(error);
+        dispatchTestConnectionState({
+          type: "set_result",
+          payload: {
+            status: "invalid",
+            errorMessage: error,
+            testedValuesSignature,
+          },
+        });
       }
     } catch (err) {
       // Ignore error if form changed during request
-      if (shouldIgnoreResultRef.current) return;
-
-      setTestStatus("error");
-      setErrorMessage(err instanceof Error ? err.message : "Test failed");
+      if (shouldIgnoreResultRef.current) {
+        return;
+      }
+      dispatchTestConnectionState({
+        type: "set_result",
+        payload: {
+          status: "error",
+          errorMessage: err instanceof Error ? err.message : "Test failed",
+          testedValuesSignature,
+        },
+      });
+    } finally {
+      dispatchTestConnectionState({ type: "complete" });
     }
   }, [canTest, environment, getValues]);
 
-  const isTesting = testStatus === "testing";
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
 
   return (
@@ -1292,8 +1403,7 @@ function TestConnectionButton({
           }
           dismissable
           onDismissClick={() => {
-            setTestStatus("idle");
-            setErrorMessage(null);
+            dispatchTestConnectionState({ type: "clear" });
           }}
         >
           {testStatus === "valid"
