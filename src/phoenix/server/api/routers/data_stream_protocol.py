@@ -1,4 +1,4 @@
-"""Python re-implementation of Vercel AI SDK's streamText."""
+"""Data stream protocol implementation for AI SDK's streamText."""
 
 from __future__ import annotations
 

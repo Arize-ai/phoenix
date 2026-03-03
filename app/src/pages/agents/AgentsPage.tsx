@@ -27,8 +27,8 @@ export function AgentsPage() {
 
   const chatApiUrl = prependBasename(
     menuValue.customProvider
-      ? `/vercel_chat_stream?provider_type=custom&provider_id=${encodeURIComponent(menuValue.customProvider.id)}&model_name=${encodeURIComponent(menuValue.modelName)}`
-      : `/vercel_chat_stream?provider_type=builtin&provider=${encodeURIComponent(menuValue.provider)}&model_name=${encodeURIComponent(menuValue.modelName)}`
+      ? `/chat?provider_type=custom&provider_id=${encodeURIComponent(menuValue.customProvider.id)}&model_name=${encodeURIComponent(menuValue.modelName)}`
+      : `/chat?provider_type=builtin&provider=${encodeURIComponent(menuValue.provider)}&model_name=${encodeURIComponent(menuValue.modelName)}`
   );
 
   const handleChange = (model: ModelMenuValue) => {

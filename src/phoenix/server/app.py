@@ -159,7 +159,7 @@ from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoade
 from phoenix.server.api.routers import (
     create_auth_router,
     create_v1_router,
-    create_vercel_chat_stream_router,
+    create_chat_router,
     oauth2_router,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
@@ -1160,7 +1160,7 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    app.include_router(create_vercel_chat_stream_router(authentication_enabled))
+    app.include_router(create_chat_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:

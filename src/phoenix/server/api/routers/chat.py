@@ -107,18 +107,18 @@ def _get_pydantic_ai_model_from_builtin_provider(
     raise NotImplementedError(f"Unsupported built-in provider: {params.provider}")
 
 
-def create_vercel_chat_stream_router(authentication_enabled: bool) -> APIRouter:
+def create_chat_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(
-        tags=["vercel_chat_stream"], include_in_schema=False, dependencies=dependencies
+        tags=["chat"], include_in_schema=False, dependencies=dependencies
     )
 
-    @router.post("/vercel_chat_stream")
-    async def vercel_chat_stream(
+    @router.post("/chat")
+    async def chat(
         request: Request,
         params: Annotated[ChatSearchParamsModel, Query()],
     ) -> Response:
-        from phoenix.server.api.routers.vercel_stream_protocols import (
+        from phoenix.server.api.routers.data_stream_protocol import (
             stream_text,
         )
 

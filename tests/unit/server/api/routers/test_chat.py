@@ -6,7 +6,7 @@ import httpx
 from tests.unit.vcr import CustomVCR
 
 
-class TestVercelChatStreamRouter:
+class TestChatRouter:
     async def test_chat_completion(
         self,
         httpx_client: httpx.AsyncClient,
@@ -35,7 +35,7 @@ class TestVercelChatStreamRouter:
             ],
         }
         with custom_vcr.use_cassette():
-            response = await httpx_client.post("/vercel_chat_stream", params=params, json=body)
+            response = await httpx_client.post("/chat", params=params, json=body)
 
         assert response.status_code == 200
         events = _parse_server_sent_events(response.text)
