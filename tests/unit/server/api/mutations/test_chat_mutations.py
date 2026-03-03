@@ -228,6 +228,7 @@ class TestChatCompletionMutationMixin:
             experiment: node(id: $experimentId) {
               ... on Experiment {
                 projectName
+                isEphemeral
               }
             }
           }
@@ -263,6 +264,7 @@ class TestChatCompletionMutationMixin:
                     "invocationParameters": {},
                 },
                 "repetitions": 1,
+                "createEphemeralExperiment": True,
             }
         }
         custom_vcr.register_matcher(
@@ -305,6 +307,7 @@ class TestChatCompletionMutationMixin:
         assert (data := result.data)
         assert (field := data["experiment"])
         assert field["projectName"] == common_project_name
+        assert field["isEphemeral"] is True
 
     async def test_chat_completion_over_dataset_with_single_split(
         self,
