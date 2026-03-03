@@ -130,7 +130,7 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
-const AGGREGATE_THROTTLE_MS = 5000;
+const AGGREGATE_THROTTLE_MS = 2000;
 
 /**
  * Maximum number of dataset examples to sample for extracting available paths
@@ -980,6 +980,15 @@ export function PlaygroundDatasetExamplesTable({
     [flushPendingCostAndLatency]
   );
 
+  useEffect(() => {
+    return () => {
+      flushPendingAnnotations.flush();
+      flushPendingCostAndLatency.flush();
+      flushPendingAnnotations.cancel();
+      flushPendingCostAndLatency.cancel();
+    };
+  }, [flushPendingAnnotations, flushPendingCostAndLatency]);
+
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -1296,9 +1305,13 @@ export function PlaygroundDatasetExamplesTable({
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
+              flushPendingAnnotations.flush();
+              flushPendingCostAndLatency.flush();
               markPlaygroundInstanceComplete(instance.id);
             },
             onError: (error) => {
+              flushPendingAnnotations.flush();
+              flushPendingCostAndLatency.flush();
               markPlaygroundInstanceComplete(instance.id);
               const errorMessages =
                 getErrorMessagesFromRelaySubscriptionError(error);
@@ -1403,6 +1416,8 @@ export function PlaygroundDatasetExamplesTable({
     notifyError,
     onCompleted,
     onNext,
+    flushPendingAnnotations,
+    flushPendingCostAndLatency,
     playgroundStore,
     repetitions,
     resetData,
