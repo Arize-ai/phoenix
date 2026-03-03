@@ -10,6 +10,7 @@ import {
   getOptimizationBounds,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
+import { Skeleton } from "@phoenix/components/loading";
 import type { ExecutionState } from "@phoenix/components/types";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks";
@@ -171,34 +172,69 @@ function ExperimentAnnotationAggregateItem({
       </Flex>
 
       {/* Column 2: AVG prefix + score value */}
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <Text size="S" fontFamily="mono" color="gray-500">
-          AVG
-        </Text>
-        <AnnotationScoreText
-          size="S"
-          fontFamily="mono"
-          positiveOptimization={
-            executionState === "idle" ? undefined : positiveOptimization
-          }
-        >
-          <Truncate maxWidth="100%">
-            {meanScore != null ? floatFormatter(meanScore) : "--"}
-          </Truncate>
-        </AnnotationScoreText>
-      </Flex>
+      {executionState === "idle" ? (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Text size="S" fontFamily="mono" color="gray-500">
+            AVG
+          </Text>
+          <Text size="S" fontFamily="mono" color="text-300">
+            --
+          </Text>
+        </Flex>
+      ) : executionState === "running" ? (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Text size="S" fontFamily="mono" color="gray-500">
+            AVG
+          </Text>
+          <Skeleton width={40} height="1em" />
+        </Flex>
+      ) : (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Text size="S" fontFamily="mono" color="gray-500">
+            AVG
+          </Text>
+          <AnnotationScoreText
+            size="S"
+            fontFamily="mono"
+            positiveOptimization={positiveOptimization}
+          >
+            <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
+          </AnnotationScoreText>
+        </Flex>
+      )}
 
       {/* Column 3: Progress bar */}
-      <ProgressBar
-        css={css`
-          align-self: center;
-          --mod-barloader-fill-color: ${annotationColor};
-        `}
-        value={meanScore != null ? scorePercentile : 0}
-        height="var(--global-dimension-size-50)"
-        width="100%"
-        aria-label={`${config.name} average score`}
-      />
+      {executionState === "idle" ? (
+        <ProgressBar
+          css={css`
+            align-self: center;
+            --mod-barloader-fill-color: ${annotationColor};
+          `}
+          value={0}
+          height="var(--global-dimension-size-50)"
+          width="100%"
+          aria-label={`${config.name} average score`}
+        />
+      ) : executionState === "running" ? (
+        <Skeleton
+          width="100%"
+          height="var(--global-dimension-size-50)"
+          css={css`
+            align-self: center;
+          `}
+        />
+      ) : (
+        <ProgressBar
+          css={css`
+            align-self: center;
+            --mod-barloader-fill-color: ${annotationColor};
+          `}
+          value={meanScore != null ? scorePercentile : 0}
+          height="var(--global-dimension-size-50)"
+          width="100%"
+          aria-label={`${config.name} average score`}
+        />
+      )}
     </li>
   );
 }

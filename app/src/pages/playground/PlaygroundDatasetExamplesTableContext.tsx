@@ -106,12 +106,27 @@ type PlaygroundDatasetExamplesTableActions = {
     annotationName: AnnotationName;
     score: number | null;
   }) => void;
+  batchAddExperimentRunAnnotations: (
+    updates: Array<{
+      instanceId: InstanceId;
+      annotationName: AnnotationName;
+      score: number | null;
+    }>
+  ) => void;
   addRunCostAndLatency: (args: {
     instanceId: InstanceId;
     latencyMs: number | null;
     tokenCountTotal: number | null;
     cost: number | null;
   }) => void;
+  batchAddRunCostAndLatency: (
+    updates: Array<{
+      instanceId: InstanceId;
+      latencyMs: number | null;
+      tokenCountTotal: number | null;
+      cost: number | null;
+    }>
+  ) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
     instanceId: InstanceId;
@@ -338,6 +353,65 @@ const createPlaygroundDatasetExamplesTableStore = () => {
           },
         },
       });
+    },
+    batchAddExperimentRunAnnotations: (updates) => {
+      if (updates.length === 0) return;
+      const { annotationAggregates } = get();
+      const newAnnotationAggregates = { ...annotationAggregates };
+      for (const { instanceId, annotationName, score } of updates) {
+        if (score == null) continue;
+        const instanceAggregates = newAnnotationAggregates[instanceId] ?? {};
+        const prev = instanceAggregates[annotationName] ?? {
+          sum: 0,
+          count: 0,
+          meanScore: null,
+        };
+        const newSum = prev.sum + score;
+        const newCount = prev.count + 1;
+        newAnnotationAggregates[instanceId] = {
+          ...instanceAggregates,
+          [annotationName]: {
+            sum: newSum,
+            count: newCount,
+            meanScore: newSum / newCount,
+          },
+        };
+      }
+      set({ annotationAggregates: newAnnotationAggregates });
+    },
+    batchAddRunCostAndLatency: (updates) => {
+      if (updates.length === 0) return;
+      const { costAndLatencyAggregates } = get();
+      const newAggregates = { ...costAndLatencyAggregates };
+      for (const { instanceId, latencyMs, tokenCountTotal, cost } of updates) {
+        const prev = newAggregates[instanceId] ?? {
+          runCount: 0,
+          latencySum: 0,
+          latencyCount: 0,
+          tokenCountSum: 0,
+          tokenCountCount: 0,
+          costSum: 0,
+          costCount: 0,
+        };
+        newAggregates[instanceId] = {
+          runCount: prev.runCount + 1,
+          latencySum:
+            latencyMs != null ? prev.latencySum + latencyMs : prev.latencySum,
+          latencyCount:
+            latencyMs != null ? prev.latencyCount + 1 : prev.latencyCount,
+          tokenCountSum:
+            tokenCountTotal != null
+              ? prev.tokenCountSum + tokenCountTotal
+              : prev.tokenCountSum,
+          tokenCountCount:
+            tokenCountTotal != null
+              ? prev.tokenCountCount + 1
+              : prev.tokenCountCount,
+          costSum: cost != null ? prev.costSum + cost : prev.costSum,
+          costCount: cost != null ? prev.costCount + 1 : prev.costCount,
+        };
+      }
+      set({ costAndLatencyAggregates: newAggregates });
     },
     setExampleDataForInstance: ({ instanceId, data }) => {
       const exampleResponsesMap = get().exampleResponsesMap;

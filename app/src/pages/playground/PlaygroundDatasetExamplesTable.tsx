@@ -131,6 +131,7 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
+const AGGREGATE_THROTTLE_MS = 5000;
 
 /**
  * Maximum number of dataset examples to sample for extracting available paths
@@ -808,11 +809,26 @@ function PlaygroundInstanceOutputColumnHeader({
     [experimentId, costAndLatencyAggregate]
   );
 
-  const executionState: ExecutionState = isRunning
-    ? "running"
-    : experimentId != null
+  // Compute execution states independently so remounts happen at the right
+  // transition: skeleton is shown until the first streaming result arrives,
+  // then the component remounts into "complete" to display live data.
+  const costAndLatencyExecutionState: ExecutionState =
+    costAndLatencySummary != null
       ? "complete"
-      : "idle";
+      : isRunning
+        ? "running"
+        : experimentId != null
+          ? "complete"
+          : "idle";
+
+  const annotationExecutionState: ExecutionState =
+    annotationSummaries.length > 0
+      ? "complete"
+      : isRunning
+        ? "running"
+        : experimentId != null
+          ? "complete"
+          : "idle";
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
@@ -829,9 +845,12 @@ function PlaygroundInstanceOutputColumnHeader({
         </Flex>
         <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
       </Flex>
-      <ExperimentCostAndLatencySummary experiment={costAndLatencySummary} />
+      <ExperimentCostAndLatencySummary
+        executionState={costAndLatencyExecutionState}
+        experiment={costAndLatencySummary}
+      />
       <ExperimentAnnotationAggregates
-        executionState={executionState}
+        executionState={annotationExecutionState}
         annotationConfigs={evaluatorOutputConfigs}
         annotationSummaries={annotationSummaries}
       />
@@ -913,12 +932,71 @@ export function PlaygroundDatasetExamplesTable({
     usePlaygroundDatasetExamplesTableContext(
       (state) => state.appendExampleDataEvaluationChunk
     );
-  const addExperimentRunAnnotation = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.addExperimentRunAnnotation
+  const batchAddExperimentRunAnnotations =
+    usePlaygroundDatasetExamplesTableContext(
+      (state) => state.batchAddExperimentRunAnnotations
+    );
+  const batchAddRunCostAndLatency = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.batchAddRunCostAndLatency
   );
-  const addRunCostAndLatency = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.addRunCostAndLatency
+
+  const pendingAnnotations = useRef<
+    Array<{
+      instanceId: number;
+      annotationName: string;
+      score: number | null;
+    }>
+  >([]);
+  const pendingCostAndLatency = useRef<
+    Array<{
+      instanceId: number;
+      latencyMs: number | null;
+      tokenCountTotal: number | null;
+      cost: number | null;
+    }>
+  >([]);
+  const aggregateLastFlushTime = useRef(0);
+  const aggregateFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
   );
+
+  const scheduleAggregateFlush = useCallback(() => {
+    const now = Date.now();
+    const elapsed = now - aggregateLastFlushTime.current;
+    const remaining = AGGREGATE_THROTTLE_MS - elapsed;
+
+    const flush = () => {
+      aggregateFlushTimer.current = null;
+      aggregateLastFlushTime.current = Date.now();
+      const annotations = pendingAnnotations.current;
+      const costAndLatency = pendingCostAndLatency.current;
+      pendingAnnotations.current = [];
+      pendingCostAndLatency.current = [];
+      if (annotations.length > 0) {
+        batchAddExperimentRunAnnotations(annotations);
+      }
+      if (costAndLatency.length > 0) {
+        batchAddRunCostAndLatency(costAndLatency);
+      }
+    };
+
+    if (remaining <= 0) {
+      if (aggregateFlushTimer.current !== null) {
+        clearTimeout(aggregateFlushTimer.current);
+      }
+      flush();
+    } else if (aggregateFlushTimer.current === null) {
+      aggregateFlushTimer.current = setTimeout(flush, remaining);
+    }
+  }, [batchAddExperimentRunAnnotations, batchAddRunCostAndLatency]);
+
+  useEffect(() => {
+    return () => {
+      if (aggregateFlushTimer.current !== null) {
+        clearTimeout(aggregateFlushTimer.current);
+      }
+    };
+  }, []);
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -1002,12 +1080,13 @@ export function PlaygroundDatasetExamplesTable({
                 experimentRunId: chatCompletion.experimentRun?.id,
               },
             });
-            addRunCostAndLatency({
+            pendingCostAndLatency.current.push({
               instanceId,
               latencyMs: chatCompletion.span?.latencyMs ?? null,
               tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
               cost: chatCompletion.span?.costSummary?.total?.cost ?? null,
             });
+            scheduleAggregateFlush();
             incrementRunsCompleted(instanceId);
             break;
           case "ChatCompletionSubscriptionError":
@@ -1055,11 +1134,12 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               evaluationChunk: chatCompletion,
             });
-            addExperimentRunAnnotation({
+            pendingAnnotations.current.push({
               instanceId,
               annotationName: chatCompletion.evaluatorName,
               score: chatCompletion.experimentRunEvaluation?.score ?? null,
             });
+            scheduleAggregateFlush();
             incrementEvalsCompleted(instanceId);
             break;
           }
@@ -1072,8 +1152,7 @@ export function PlaygroundDatasetExamplesTable({
         }
       },
     [
-      addExperimentRunAnnotation,
-      addRunCostAndLatency,
+      scheduleAggregateFlush,
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
@@ -1514,7 +1593,10 @@ export function PlaygroundDatasetExamplesTable({
         header: () => (
           <Flex direction="column" gap="size-50">
             <span>reference output</span>
-            <ExperimentCostAndLatencySummary isPlaceholder={true} />
+            <ExperimentCostAndLatencySummary
+              executionState="idle"
+              isPlaceholder={true}
+            />
             <ExperimentAnnotationAggregates
               executionState="idle"
               annotationConfigs={evaluatorOutputConfigs}

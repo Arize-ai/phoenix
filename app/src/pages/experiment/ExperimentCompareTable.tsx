@@ -362,7 +362,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header: () => (
           <Flex direction="column" gap="size-50" width="100%">
             <span>reference output</span>
-            <ExperimentCostAndLatencySummary isPlaceholder={true} />
+            <ExperimentCostAndLatencySummary
+              executionState="idle"
+              isPlaceholder={true}
+            />
             <ExperimentAnnotationAggregates
               executionState="idle"
               annotationConfigs={annotationConfigs}
@@ -424,7 +427,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               </Flex>
               <div>
                 {experiment && (
-                  <ExperimentCostAndLatencySummary experiment={experiment} />
+                  <ExperimentCostAndLatencySummary
+                    executionState="complete"
+                    experiment={experiment}
+                  />
                 )}
               </div>
               <ExperimentAnnotationAggregates

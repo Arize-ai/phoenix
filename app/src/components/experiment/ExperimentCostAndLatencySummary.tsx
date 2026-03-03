@@ -15,6 +15,7 @@ import { Skeleton } from "@phoenix/components/loading";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import type { ExecutionState } from "@phoenix/components/types";
 
 import type { ExperimentCostAndLatencySummaryQuery } from "./__generated__/ExperimentCostAndLatencySummaryQuery.graphql";
 
@@ -35,7 +36,14 @@ export type ExperimentCostAndLatencySummaryExperiment = {
 
 type ExperimentCostAndLatencySummaryProps = {
   /**
-   * Pre-fetched experiment data
+   * The current execution state
+   * - idle: No experiment has been run yet (shows placeholder)
+   * - running: Experiment is in progress (shows skeleton loaders)
+   * - complete: Experiment finished (shows actual data)
+   */
+  executionState: ExecutionState;
+  /**
+   * Pre-fetched experiment data (required when executionState is "complete")
    */
   experiment?: ExperimentCostAndLatencySummaryExperiment | null;
   /**
@@ -54,17 +62,31 @@ const placeholderCSS = css`
  * Handles idle, running (loading), and complete states to prevent layout shifts.
  */
 export function ExperimentCostAndLatencySummary({
+  executionState,
   experiment,
   isPlaceholder = false,
 }: ExperimentCostAndLatencySummaryProps) {
-  const runCount = experiment?.runCount ?? 0;
-  const costSummary = experiment?.costSummary ?? {
-    total: {
-      cost: null,
-      tokens: null,
-    },
-  };
-  const averageRunLatencyMs = experiment?.averageRunLatencyMs ?? null;
+  if (executionState === "idle") {
+    return (
+      <ExperimentCostAndLatencySummaryPlaceholder
+        isPlaceholder={isPlaceholder}
+      />
+    );
+  }
+
+  if (executionState === "running") {
+    return <ExperimentCostAndLatencySummarySkeleton />;
+  }
+
+  if (experiment == null) {
+    return (
+      <ExperimentCostAndLatencySummaryPlaceholder
+        isPlaceholder={isPlaceholder}
+      />
+    );
+  }
+
+  const { runCount, costSummary, averageRunLatencyMs } = experiment;
   const costTotal = costSummary.total.cost;
   const tokenCountTotal = costSummary.total.tokens;
 
@@ -77,12 +99,7 @@ export function ExperimentCostAndLatencySummary({
     costTotal == null || runCount === 0 ? null : costTotal / runCount;
 
   return (
-    <Flex
-      direction="row"
-      gap="size-100"
-      alignItems="center"
-      css={isPlaceholder && placeholderCSS}
-    >
+    <Flex direction="row" gap="size-100" alignItems="center">
       <TooltipTrigger>
         <TriggerWrap>
           <Text size="S" fontFamily="mono" color="gray-500">
@@ -228,5 +245,10 @@ export function ConnectedExperimentCostAndLatencySummary({
       };
     }, [data.experiment]);
 
-  return <ExperimentCostAndLatencySummary experiment={experiment} />;
+  return (
+    <ExperimentCostAndLatencySummary
+      executionState="complete"
+      experiment={experiment}
+    />
+  );
 }
