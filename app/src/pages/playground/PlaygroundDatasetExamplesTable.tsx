@@ -6,6 +6,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { throttle } from "lodash";
 import type { SetStateAction } from "react";
 import {
   memo,
@@ -955,48 +956,63 @@ export function PlaygroundDatasetExamplesTable({
       cost: number | null;
     }>
   >([]);
-  const aggregateLastFlushTime = useRef(0);
-  const aggregateFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+
+  const flushPendingAnnotations = useMemo(
+    () =>
+      throttle(
+        () => {
+          const annotations = pendingAnnotations.current;
+          pendingAnnotations.current = [];
+          if (annotations.length > 0) {
+            batchAddExperimentRunAnnotations(annotations);
+          }
+        },
+        AGGREGATE_THROTTLE_MS,
+        { leading: true, trailing: true }
+      ),
+    [batchAddExperimentRunAnnotations]
+  );
+  const flushPendingCostAndLatency = useMemo(
+    () =>
+      throttle(
+        () => {
+          const costAndLatency = pendingCostAndLatency.current;
+          pendingCostAndLatency.current = [];
+          if (costAndLatency.length > 0) {
+            batchAddRunCostAndLatency(costAndLatency);
+          }
+        },
+        AGGREGATE_THROTTLE_MS,
+        { leading: true, trailing: true }
+      ),
+    [batchAddRunCostAndLatency]
   );
 
-  const scheduleAggregateFlush = useCallback(() => {
-    const now = Date.now();
-    const elapsed = now - aggregateLastFlushTime.current;
-    const remaining = AGGREGATE_THROTTLE_MS - elapsed;
+  const addAnnotationThrottled = useCallback(
+    (annotation: {
+      instanceId: number;
+      annotationName: string;
+      score: number | null;
+    }) => {
+      pendingAnnotations.current.push(annotation);
+      flushPendingAnnotations();
+    },
+    [flushPendingAnnotations]
+  );
 
-    const flush = () => {
-      aggregateFlushTimer.current = null;
-      aggregateLastFlushTime.current = Date.now();
-      const annotations = pendingAnnotations.current;
-      const costAndLatency = pendingCostAndLatency.current;
-      pendingAnnotations.current = [];
-      pendingCostAndLatency.current = [];
-      if (annotations.length > 0) {
-        batchAddExperimentRunAnnotations(annotations);
-      }
-      if (costAndLatency.length > 0) {
-        batchAddRunCostAndLatency(costAndLatency);
-      }
-    };
+  const addCostAndLatencyThrottled = useCallback(
+    (costAndLatency: {
+      instanceId: number;
+      latencyMs: number | null;
+      tokenCountTotal: number | null;
+      cost: number | null;
+    }) => {
+      pendingCostAndLatency.current.push(costAndLatency);
+      flushPendingCostAndLatency();
+    },
+    [flushPendingCostAndLatency]
+  );
 
-    if (remaining <= 0) {
-      if (aggregateFlushTimer.current !== null) {
-        clearTimeout(aggregateFlushTimer.current);
-      }
-      flush();
-    } else if (aggregateFlushTimer.current === null) {
-      aggregateFlushTimer.current = setTimeout(flush, remaining);
-    }
-  }, [batchAddExperimentRunAnnotations, batchAddRunCostAndLatency]);
-
-  useEffect(() => {
-    return () => {
-      if (aggregateFlushTimer.current !== null) {
-        clearTimeout(aggregateFlushTimer.current);
-      }
-    };
-  }, []);
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -1080,13 +1096,12 @@ export function PlaygroundDatasetExamplesTable({
                 experimentRunId: chatCompletion.experimentRun?.id,
               },
             });
-            pendingCostAndLatency.current.push({
+            addCostAndLatencyThrottled({
               instanceId,
               latencyMs: chatCompletion.span?.latencyMs ?? null,
               tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
               cost: chatCompletion.span?.costSummary?.total?.cost ?? null,
             });
-            scheduleAggregateFlush();
             incrementRunsCompleted(instanceId);
             break;
           case "ChatCompletionSubscriptionError":
@@ -1134,12 +1149,11 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               evaluationChunk: chatCompletion,
             });
-            pendingAnnotations.current.push({
+            addAnnotationThrottled({
               instanceId,
               annotationName: chatCompletion.evaluatorName,
               score: chatCompletion.experimentRunEvaluation?.score ?? null,
             });
-            scheduleAggregateFlush();
             incrementEvalsCompleted(instanceId);
             break;
           }
@@ -1152,7 +1166,8 @@ export function PlaygroundDatasetExamplesTable({
         }
       },
     [
-      scheduleAggregateFlush,
+      addAnnotationThrottled,
+      addCostAndLatencyThrottled,
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
