@@ -87,15 +87,12 @@ export PHOENIX_ENABLE_STRONG_PASSWORD_POLICY=True
 
 ## Brute Force Login Protection
 
-Phoenix includes built-in brute force login protection that temporarily locks accounts after repeated failed login attempts. This is enabled by default.
+Phoenix includes built-in brute force login protection that temporarily locks accounts after repeated failed login attempts. By default, after `5` failed attempts, the account is locked out for 5 minutes.
 
-* **PHOENIX\_DISABLE\_BRUTE\_FORCE\_LOGIN\_PROTECTION:** Set to `true` to disable brute force login protection. Defaults to `false`.
-* **PHOENIX\_BRUTE\_FORCE\_LOGIN\_PROTECTION\_MAX\_ATTEMPTS:** Maximum number of failed login attempts before temporary lockout. Defaults to `5`. Lockout duration is 5 minutes.
+* **PHOENIX\_BRUTE\_FORCE\_LOGIN\_PROTECTION\_MAX\_ATTEMPTS:** Maximum number of failed login attempts before temporary lockout. Defaults to `5`.
+* **PHOENIX\_DISABLE\_BRUTE\_FORCE\_LOGIN\_PROTECTION:** Set to `true` to disable brute force login protection entirely. Defaults to `false`.
 
 ```bash
-# Disable brute force protection (not recommended)
-export PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=true
-
 # Increase max attempts before lockout
 export PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS=10
 ```
