@@ -26,6 +26,10 @@ export const fileDropZoneCSS = css`
   &[data-disabled] {
     cursor: not-allowed;
     opacity: var(--global-opacity-disabled);
+
+    .file-drop-zone__trigger {
+      cursor: not-allowed;
+    }
   }
 
   .file-drop-zone__trigger {
