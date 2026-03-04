@@ -498,6 +498,9 @@ class Subscription:
                     span_cost_calculator=info.context.span_cost_calculator,
                     experiment_id=experiment.id,
                     playground_project_id=playground_project_id,
+                    on_span_insertion=lambda: info.context.event_queue.put(
+                        SpanInsertEvent(ids=(playground_project_id,))
+                    ),
                     evaluators=evaluators,
                     evaluator_project_ids=project_ids,
                 ),
@@ -564,6 +567,7 @@ async def _stream_chat_completion_over_dataset_example(
     span_cost_calculator: SpanCostCalculator,
     experiment_id: int,
     playground_project_id: int,
+    on_span_insertion: Callable[[], None],
     evaluators: list[BaseEvaluator],
     evaluator_project_ids: list[int],
 ) -> ChatStream:
@@ -694,6 +698,8 @@ async def _stream_chat_completion_over_dataset_example(
         if db_run is not None:
             session.add(db_run)
         await session.flush()
+    if all_db_traces:
+        on_span_insertion()
     if db_run is None:
         return
     task_db_trace = all_db_traces[0] if all_db_traces else None

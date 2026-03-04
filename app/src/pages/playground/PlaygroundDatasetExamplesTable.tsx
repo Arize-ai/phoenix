@@ -722,6 +722,21 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
+function getExecutionState({
+  hasData,
+  isRunning,
+  experimentId,
+}: {
+  hasData: boolean;
+  isRunning: boolean;
+  experimentId: string | null | undefined;
+}): ExecutionState {
+  if (hasData) return "complete";
+  if (isRunning) return "running";
+  if (experimentId != null) return "complete";
+  return "idle";
+}
+
 function PlaygroundInstanceOutputColumnHeader({
   instanceId,
   index,
@@ -785,35 +800,17 @@ function PlaygroundInstanceOutputColumnHeader({
       };
     }, [experimentId, costAggregateMetrics]);
 
-  let costExecutionState: ExecutionState;
-  switch (true) {
-    case costSummary != null:
-      costExecutionState = "complete";
-      break;
-    case isRunning:
-      costExecutionState = "running";
-      break;
-    case experimentId != null:
-      costExecutionState = "complete";
-      break;
-    default:
-      costExecutionState = "idle";
-  }
+  const costExecutionState = getExecutionState({
+    hasData: costSummary != null,
+    isRunning,
+    experimentId,
+  });
 
-  let annotationExecutionState: ExecutionState;
-  switch (true) {
-    case annotationSummaries.length > 0:
-      annotationExecutionState = "complete";
-      break;
-    case isRunning:
-      annotationExecutionState = "running";
-      break;
-    case experimentId != null:
-      annotationExecutionState = "complete";
-      break;
-    default:
-      annotationExecutionState = "idle";
-  }
+  const annotationExecutionState = getExecutionState({
+    hasData: annotationSummaries.length > 0,
+    isRunning,
+    experimentId,
+  });
 
   return (
     <Flex direction="column" gap="size-50" width="100%">
@@ -917,6 +914,8 @@ export function PlaygroundDatasetExamplesTable({
   const pendingExperimentRunAnnotations = useRef<ExperimentRunAnnotation[]>([]);
   const pendingExperimentRunCosts = useRef<ExperimentRunCost[]>([]);
 
+  // Throttled to avoid re-rendering aggregate statistics with every eval chunk;
+  // instead updates at most once per AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS for readability.
   const flushPendingExperimentMetrics = useMemo(
     () =>
       throttle(
