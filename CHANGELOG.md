@@ -1,5 +1,28 @@
 # Changelog
 
+## [13.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.7.0...arize-phoenix-v13.8.0) (2026-03-04)
+
+
+### Features
+
+* add integration icons for claude, langgraph ([#11823](https://github.com/Arize-ai/phoenix/issues/11823)) ([ccedc3d](https://github.com/Arize-ai/phoenix/commit/ccedc3d587349a3563df1e3ac73ce6d1907d29c1))
+* **agents:** pydantic vercel data stream protocol ([#11689](https://github.com/Arize-ai/phoenix/issues/11689)) ([bb65bf7](https://github.com/Arize-ai/phoenix/commit/bb65bf70c8bcc3b1df363fc1c2b337deb294a2f7))
+* **auth:** add brute force login protection ([#11851](https://github.com/Arize-ai/phoenix/issues/11851)) ([8df6fbe](https://github.com/Arize-ai/phoenix/commit/8df6fbe532ab5d1e62cd9417ff27bfdc4488fae7))
+* **evaluators:** incrementally update playground evaluation metrics ([#11814](https://github.com/Arize-ai/phoenix/issues/11814)) ([7ca8813](https://github.com/Arize-ai/phoenix/commit/7ca881362726b381fb9c9f225036befd62dbbca1))
+* File dropzone component ([#11817](https://github.com/Arize-ai/phoenix/issues/11817)) ([7feb04f](https://github.com/Arize-ai/phoenix/commit/7feb04fe047670c5121ddd91824328cf521f81d9))
+
+
+### Bug Fixes
+
+* make name non-nullable for output configs ([#11726](https://github.com/Arize-ai/phoenix/issues/11726)) ([0e7c2af](https://github.com/Arize-ai/phoenix/commit/0e7c2af3e5c76c8482377ce7fd0adc31f53a129b))
+* **playground:** eagerly run and yield playground dataset evaluations ([#11784](https://github.com/Arize-ai/phoenix/issues/11784)) ([70dbfec](https://github.com/Arize-ai/phoenix/commit/70dbfecac8cd2a54fa39ee5ab23a146ab2dc486d))
+
+
+### Documentation
+
+* add Python Claude Agent SDK integration ([#11854](https://github.com/Arize-ai/phoenix/issues/11854)) ([8883417](https://github.com/Arize-ai/phoenix/commit/8883417443d1c3601c7d21c08ecc3ddce7a1846d))
+* flatten Claude Agent SDK integration pages ([#11862](https://github.com/Arize-ai/phoenix/issues/11862)) ([7fbc2e2](https://github.com/Arize-ai/phoenix/commit/7fbc2e22ed464b75d9f128b3c19959061a94b1cd))
+
 ## [13.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.6.0...arize-phoenix-v13.7.0) (2026-03-02)
 
 
