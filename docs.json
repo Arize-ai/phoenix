@@ -506,13 +506,7 @@
                   "docs/phoenix/integrations/typescript/beeai/beeai-tracing-js"
                 ]
               },
-              {
-                "group": "Claude Agent SDK",
-                "pages": [
-                  "docs/phoenix/integrations/typescript/claude-agent-sdk",
-                  "docs/phoenix/integrations/typescript/claude-agent-sdk/claude-agent-sdk-tracing-ts"
-                ]
-              },
+              "docs/phoenix/integrations/typescript/claude-agent-sdk",
               {
                 "group": "LangChain",
                 "pages": [
@@ -576,13 +570,7 @@
                   "docs/phoenix/integrations/python/beeai/beeai-tracing-python"
                 ]
               },
-              {
-                "group": "Claude Agent SDK",
-                "pages": [
-                  "docs/phoenix/integrations/python/claude-agent-sdk",
-                  "docs/phoenix/integrations/python/claude-agent-sdk/claude-agent-sdk-tracing-py"
-                ]
-              },
+              "docs/phoenix/integrations/python/claude-agent-sdk",
               {
                 "group": "CrewAI",
                 "pages": [
