@@ -343,6 +343,7 @@ const ProjectAnnotationConfigCardContent = (
     removeAnnotationConfigFromProject,
   ]);
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     data: tableData,
     columns,

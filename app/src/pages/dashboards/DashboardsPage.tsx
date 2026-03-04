@@ -67,6 +67,7 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
     ],
     []
   );
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
     data: dashboards,

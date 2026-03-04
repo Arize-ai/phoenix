@@ -97,6 +97,7 @@ export function PromptVersionTagsConfigCard({
     }));
   }, [data]);
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

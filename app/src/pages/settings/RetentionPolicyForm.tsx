@@ -1,5 +1,5 @@
 import { CronExpressionParser } from "cron-parser";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import {
   Button,
@@ -33,9 +33,8 @@ type RetentionPolicyFormProps = {
   onCancel?: () => void;
 };
 export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
-  "use no memo";
   const { onSubmit, mode, isSubmitting, defaultValues } = props;
-  const { control, watch, handleSubmit } = useForm<RetentionPolicyFormParams>({
+  const { control, handleSubmit } = useForm<RetentionPolicyFormParams>({
     defaultValues: defaultValues ?? {
       name: "New Policy",
       numberOfTraces: null,
@@ -45,11 +44,9 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
     mode: "onChange",
   });
 
-  const [numberOfDays, numberOfTraces, schedule] = watch([
-    "numberOfDays",
-    "numberOfTraces",
-    "schedule",
-  ]);
+  const numberOfDays = useWatch({ control, name: "numberOfDays" });
+  const numberOfTraces = useWatch({ control, name: "numberOfTraces" });
+  const schedule = useWatch({ control, name: "schedule" });
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
