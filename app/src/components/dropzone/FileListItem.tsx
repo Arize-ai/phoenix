@@ -2,8 +2,8 @@ import { IconButton } from "@phoenix/components/button";
 import { Icon, FileOutline, CloseOutline } from "@phoenix/components/icon";
 import { ProgressBar } from "@phoenix/components/progress";
 
-import { formatFileSize } from "./FileDropZone";
 import type { FileListItemProps, FileWithProgress } from "./types";
+import { formatFileSize } from "./utils";
 
 /**
  * Returns status text based on file progress status

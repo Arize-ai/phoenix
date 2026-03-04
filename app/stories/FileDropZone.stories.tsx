@@ -1,15 +1,35 @@
+import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import { useCallback, useState } from "react";
 
 import {
   FileDropZone,
   FileList,
-  FileListItem,
   type FileDropZoneProps,
   type FileWithProgress,
   type FileRejection,
 } from "@phoenix/components";
 import { Flex, View, Text } from "@phoenix/components";
+
+const fileChipCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: var(--ac-global-color-grey-300);
+  border-radius: 12px;
+  font-size: var(--ac-global-dimension-font-size-75);
+  list-style: none;
+`;
+
+const fileChipRemoveButtonCSS = css`
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  color: var(--ac-global-text-color-700);
+`;
 
 const meta: Meta<typeof FileDropZone> = {
   title: "FileDropZone",
@@ -260,6 +280,8 @@ WithUploadProgress.args = {
 
 /**
  * FileList with render-function children for full control over each item.
+ * Renders compact file chips instead of the default list items to demonstrate
+ * the customization power of the render function pattern.
  */
 export const FileListWithRenderFunction: StoryFn<FileDropZoneProps> = (
   args
@@ -289,12 +311,17 @@ export const FileListWithRenderFunction: StoryFn<FileDropZoneProps> = (
     <View width="size-6000">
       <FileDropZone {...args} onSelect={handleSelect} />
       <FileList files={files} onRemove={handleRemove}>
-        {(fileWithProgress, index) => (
-          <FileListItem
-            file={fileWithProgress}
-            onRemove={handleRemove}
-            index={index}
-          />
+        {(fileWithProgress) => (
+          <li css={fileChipCSS}>
+            <span>{fileWithProgress.file.name}</span>
+            <button
+              onClick={() => handleRemove(fileWithProgress.file)}
+              css={fileChipRemoveButtonCSS}
+              aria-label={`Remove ${fileWithProgress.file.name}`}
+            >
+              ×
+            </button>
+          </li>
         )}
       </FileList>
     </View>
@@ -303,7 +330,7 @@ export const FileListWithRenderFunction: StoryFn<FileDropZoneProps> = (
 
 FileListWithRenderFunction.args = {
   allowsMultiple: true,
-  label: "Drop files — list uses render function per item",
+  label: "Drop files — renders compact file chips",
 };
 
 /**

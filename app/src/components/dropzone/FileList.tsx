@@ -16,35 +16,35 @@ export function FileList({
   onRemove,
   isDisabled,
   children,
+  "aria-label": ariaLabel = "Selected files",
 }: FileListProps) {
   if (files.length === 0) {
     return null;
   }
 
-  const getKey = (fileWithProgress: FileWithProgress, index: number) =>
-    `${index}-${fileWithProgress.file.name}-${fileWithProgress.file.size}-${fileWithProgress.file.lastModified}`;
+  const getKey = (fileWithProgress: FileWithProgress) =>
+    `${fileWithProgress.file.name}-${fileWithProgress.file.size}-${fileWithProgress.file.lastModified}`;
 
   const renderItem = (fileWithProgress: FileWithProgress, index: number) => {
     if (children) {
       return (
-        <Fragment key={getKey(fileWithProgress, index)}>
+        <Fragment key={getKey(fileWithProgress)}>
           {children(fileWithProgress, index)}
         </Fragment>
       );
     }
     return (
       <FileListItem
-        key={getKey(fileWithProgress, index)}
+        key={getKey(fileWithProgress)}
         file={fileWithProgress}
         onRemove={onRemove}
         isDisabled={isDisabled}
-        index={index}
       />
     );
   };
 
   return (
-    <ul css={fileListCSS}>
+    <ul css={fileListCSS} aria-label={ariaLabel}>
       {files.map((fileWithProgress, index) =>
         renderItem(fileWithProgress, index)
       )}

@@ -93,11 +93,6 @@ export interface FileListItemProps {
    * Whether the list is in a disabled state
    */
   isDisabled?: boolean;
-
-  /**
-   * Index of the item (for keying when used in a map)
-   */
-  index?: number;
 }
 
 export interface FileListProps {
@@ -115,6 +110,12 @@ export interface FileListProps {
    * Whether the file list is in a disabled state
    */
   isDisabled?: boolean;
+
+  /**
+   * Accessible label for the file list
+   * @default "Selected files"
+   */
+  "aria-label"?: string;
 
   /**
    * Optional render function called for each file with (file, index).

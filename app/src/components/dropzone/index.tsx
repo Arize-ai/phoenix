@@ -1,4 +1,5 @@
-export { FileDropZone, formatFileSize } from "./FileDropZone";
+export { FileDropZone } from "./FileDropZone";
+export { formatFileSize } from "./utils";
 export { FileList } from "./FileList";
 export { FileListItem } from "./FileListItem";
 export type {

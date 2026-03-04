@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useRef } from "react";
+import { type ChangeEvent, useCallback, useEffect, useRef } from "react";
 import { DropZone as ReactAriaDropZone, Text } from "react-aria-components";
 import type { DropItem, FileDropItem } from "react-aria-components";
 
@@ -6,6 +6,7 @@ import { Icon, CloudUpload } from "@phoenix/components/icon";
 
 import { fileDropZoneCSS } from "./styles";
 import type { FileDropZoneProps, FileRejection } from "./types";
+import { formatFileSize } from "./utils";
 
 /**
  * Checks if a file matches the accepted file types.
@@ -39,20 +40,6 @@ function isFileSizeValid(file: File, maxFileSize?: number): boolean {
 }
 
 /**
- * Formats file size for display
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(k)),
-    sizes.length - 1
-  );
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-}
-
-/**
  * A file drop zone component that combines drag-and-drop with click-to-browse.
  * Clicking anywhere in the zone opens the file dialog.
  * Built on React Aria's DropZone.
@@ -70,6 +57,23 @@ export function FileDropZone({
   ...ariaProps
 }: FileDropZoneProps) {
   const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // React Aria's DropZone doesn't expose an onKeyDown prop and may stop
+  // propagation of keyboard events. Attach a native listener directly on the
+  // DOM element so Enter/Space opens the file dialog.
+  useEffect(() => {
+    const el = dropZoneRef.current;
+    if (!el || isDisabled) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        hiddenInputRef.current?.click();
+      }
+    };
+    el.addEventListener("keydown", handleKeyDown);
+    return () => el.removeEventListener("keydown", handleKeyDown);
+  }, [isDisabled]);
 
   const processFiles = useCallback(
     (files: File[]) => {
@@ -141,8 +145,14 @@ export function FileDropZone({
         (item): item is FileDropItem => item.kind === "file"
       );
 
-      const files = await Promise.all(fileItems.map((item) => item.getFile()));
-      processFiles(files);
+      try {
+        const files = await Promise.all(
+          fileItems.map((item) => item.getFile())
+        );
+        processFiles(files);
+      } catch {
+        // File access can fail due to security restrictions or invalid handles
+      }
     },
     [processFiles]
   );
@@ -186,6 +196,7 @@ export function FileDropZone({
 
   return (
     <ReactAriaDropZone
+      ref={dropZoneRef}
       css={fileDropZoneCSS}
       onDrop={handleDrop}
       getDropOperation={getDropOperation}
@@ -202,29 +213,18 @@ export function FileDropZone({
             onChange={handleHiddenInputChange}
             hidden
           />
-          <div
-            className="file-drop-zone__trigger"
-            onClick={openFileDialog}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                openFileDialog();
-              }
-            }}
-            role="button"
-            tabIndex={isDisabled ? undefined : 0}
-          >
+          <div className="file-drop-zone__trigger" onClick={openFileDialog}>
             <div className="file-drop-zone__icon">
               <Icon svg={<CloudUpload />} />
             </div>
             <Text className="file-drop-zone__label">
               {isDropTarget ? "Drop files here" : label}
             </Text>
-            {displayDescription && (
+            {displayDescription ? (
               <Text className="file-drop-zone__description">
                 {displayDescription}
               </Text>
-            )}
+            ) : null}
           </div>
         </>
       )}
