@@ -5,6 +5,29 @@ import {
   removeBOM,
 } from "../csvUtils";
 
+/**
+ * Helper to create a File object from a string for testing streaming functions.
+ * Includes a polyfill for File.stream() which is not available in all test environments.
+ */
+function createFile(content: string, name = "test.csv"): File {
+  const file = new File([content], name, { type: "text/csv" });
+
+  // Polyfill stream() for test environment
+  if (!file.stream) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    (file as { stream: () => ReadableStream<Uint8Array> }).stream = () =>
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(data);
+          controller.close();
+        },
+      });
+  }
+
+  return file;
+}
+
 describe("removeBOM", () => {
   it("removes BOM from start of string", () => {
     expect(removeBOM("\uFEFFhello")).toBe("hello");
@@ -70,31 +93,39 @@ describe("parseCSVRow", () => {
 });
 
 describe("parseCSVColumns", () => {
-  it("parses header row from CSV text", () => {
-    expect(parseCSVColumns("a,b,c\n1,2,3\n4,5,6")).toEqual(["a", "b", "c"]);
+  it("parses header row from CSV text", async () => {
+    const file = createFile("a,b,c\n1,2,3\n4,5,6");
+    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
   });
 
-  it("handles Windows line endings", () => {
-    expect(parseCSVColumns("a,b,c\r\n1,2,3\r\n4,5,6")).toEqual(["a", "b", "c"]);
+  it("handles Windows line endings", async () => {
+    const file = createFile("a,b,c\r\n1,2,3\r\n4,5,6");
+    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
   });
 
-  it("handles BOM at start of file", () => {
-    expect(parseCSVColumns("\uFEFFa,b,c\n1,2,3")).toEqual(["a", "b", "c"]);
+  it("handles BOM at start of file", async () => {
+    const file = createFile("\uFEFFa,b,c\n1,2,3");
+    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
   });
 
-  it("handles quoted column names", () => {
-    expect(parseCSVColumns('"Column A","Column, B"\n1,2')).toEqual([
-      "Column A",
-      "Column, B",
-    ]);
+  it("handles quoted column names", async () => {
+    const file = createFile('"Column A","Column, B"\n1,2');
+    expect(await parseCSVColumns(file)).toEqual(["Column A", "Column, B"]);
   });
 
-  it("returns empty array for empty input", () => {
-    expect(parseCSVColumns("")).toEqual([]);
+  it("handles quoted column names containing newlines", async () => {
+    const file = createFile('"Column\nA","Column B"\n1,2');
+    expect(await parseCSVColumns(file)).toEqual(["Column\nA", "Column B"]);
   });
 
-  it("handles single line CSV (header only)", () => {
-    expect(parseCSVColumns("a,b,c")).toEqual(["a", "b", "c"]);
+  it("returns empty array for empty input", async () => {
+    const file = createFile("");
+    expect(await parseCSVColumns(file)).toEqual([]);
+  });
+
+  it("handles single line CSV (header only)", async () => {
+    const file = createFile("a,b,c");
+    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
   });
 });
 

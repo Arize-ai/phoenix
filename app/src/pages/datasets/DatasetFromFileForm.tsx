@@ -19,11 +19,8 @@ import {
 import { FileDropZone, FileList } from "@phoenix/components/dropzone";
 import type { FileRejection } from "@phoenix/components/dropzone";
 import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
-import { parseCSVColumnsStreaming } from "@phoenix/utils/csvUtils";
-import {
-  formatJSONLError,
-  parseJSONLKeysStreaming,
-} from "@phoenix/utils/jsonlUtils";
+import { parseCSVColumns } from "@phoenix/utils/csvUtils";
+import { formatJSONLError, parseJSONLKeys } from "@phoenix/utils/jsonlUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetFileType = "csv" | "jsonl" | null;
@@ -136,11 +133,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         setIsParsing(true);
         try {
           if (detectedType === "csv") {
-            const columnNames = await parseCSVColumnsStreaming(file);
+            const columnNames = await parseCSVColumns(file);
             setColumns(columnNames);
             onErrorClear?.();
           } else if (detectedType === "jsonl") {
-            const result = await parseJSONLKeysStreaming(file);
+            const result = await parseJSONLKeys(file);
             if (result.success) {
               setColumns(result.keys);
               onErrorClear?.();

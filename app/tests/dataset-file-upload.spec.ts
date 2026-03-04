@@ -1,10 +1,13 @@
 import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
+import { fileURLToPath } from "url";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-const FIXTURES_DIR = path.resolve("tests/fixtures");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const FIXTURES_DIR = path.join(__dirname, "fixtures");
 
 /**
  * Helper to click a select dropdown by its label text and return the open popover.
@@ -205,7 +208,7 @@ test.describe("Dataset File Upload", () => {
   });
 
   test.describe("Column Selectors", () => {
-    test("column selectors are hidden until file is uploaded", async ({
+    test("column selectors are disabled until file is uploaded", async ({
       page,
     }) => {
       await page.goto("/datasets");
@@ -216,19 +219,27 @@ test.describe("Dataset File Upload", () => {
         page.getByRole("heading", { name: "Create Dataset" })
       ).toBeVisible();
 
-      // Column selectors should not be visible before file upload
-      await expect(page.getByText("Input keys")).not.toBeVisible();
-      await expect(page.getByText("Output keys")).not.toBeVisible();
+      // Column selectors should be visible but disabled before file upload
+      await expect(page.getByText("Input keys")).toBeVisible();
+      await expect(page.getByText("Output keys")).toBeVisible();
+
+      // The select buttons should be disabled
+      const dialog = page.getByTestId("dialog");
+      const inputKeysButton = dialog
+        .locator("label", { hasText: "Input keys" })
+        .locator("xpath=..")
+        .getByRole("button");
+      await expect(inputKeysButton).toBeDisabled();
 
       // Upload a file
       const fileInput = page.locator('input[type="file"]');
       await fileInput.setInputFiles(path.join(FIXTURES_DIR, "simple.csv"));
 
-      // Now column selectors should be visible
-      await expect(page.getByText("Input keys")).toBeVisible();
-      await expect(page.getByText("Output keys")).toBeVisible();
-      await expect(page.getByText("Metadata keys")).toBeVisible();
-      await expect(page.getByText("Split keys")).toBeVisible();
+      // Wait for file to be processed
+      await expect(dialog.getByText("simple.csv")).toBeVisible();
+
+      // Now column selectors should be enabled
+      await expect(inputKeysButton).toBeEnabled();
     });
   });
 

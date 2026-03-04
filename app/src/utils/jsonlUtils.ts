@@ -24,62 +24,6 @@ function getTypeDescription(value: unknown): string {
 }
 
 /**
- * Parses JSONL text to extract all unique keys from all JSON objects.
- * Handles BOM, Windows/Unix line endings, and provides detailed error messages.
- */
-export function parseJSONLKeys(jsonlText: string): JSONLParseResult {
-  const text = removeBOM(jsonlText);
-  const lines = text.split(/\r?\n/);
-
-  const allKeys = new Set<string>();
-  let nonEmptyLineCount = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line === "") {
-      continue;
-    }
-
-    const lineNumber = i + 1; // 1-indexed line number in original file
-
-    let json: unknown;
-    try {
-      json = JSON.parse(line);
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          line: lineNumber,
-          message: `Invalid JSON - ${(error as Error).message}`,
-        },
-      };
-    }
-
-    if (typeof json !== "object" || json === null || Array.isArray(json)) {
-      return {
-        success: false,
-        error: {
-          line: lineNumber,
-          message: `Expected a JSON object, got ${getTypeDescription(json)}`,
-        },
-      };
-    }
-
-    Object.keys(json).forEach((key) => allKeys.add(key));
-    nonEmptyLineCount++;
-  }
-
-  if (nonEmptyLineCount === 0) {
-    return {
-      success: false,
-      error: { line: 0, message: "JSONL file is empty" },
-    };
-  }
-
-  return { success: true, keys: Array.from(allKeys) };
-}
-
-/**
  * Formats a JSONL parse error into a user-friendly error message.
  */
 export function formatJSONLError(error: JSONLParseError): string {
@@ -124,7 +68,7 @@ function parseJSONLLine(line: string): { keys: string[] } | null {
  * @param file - The file to parse
  * @param maxRows - Maximum number of rows to parse (default: 10)
  */
-export async function parseJSONLKeysStreaming(
+export async function parseJSONLKeys(
   file: File,
   maxRows: number = DEFAULT_MAX_ROWS
 ): Promise<JSONLParseResult> {

@@ -61,22 +61,6 @@ export function removeBOM(text: string): string {
 }
 
 /**
- * Parses CSV text to extract column names from the header row.
- * Handles BOM, Windows/Unix line endings, and quoted fields.
- */
-export function parseCSVColumns(csvText: string): string[] {
-  const text = removeBOM(csvText);
-
-  // Normalize line endings and get first line
-  const firstLine = text.split(/\r?\n/)[0];
-  if (!firstLine) {
-    return [];
-  }
-
-  return parseCSVRow(firstLine);
-}
-
-/**
  * Finds the end index of the first complete CSV row in a buffer.
  * Handles quoted fields that may contain newlines.
  * Returns -1 if no complete row is found.
@@ -126,7 +110,7 @@ export function findCompleteCSVRowEnd(buffer: string): number {
  * Only reads enough of the file to extract the header row.
  * Handles arbitrarily large files efficiently.
  */
-export async function parseCSVColumnsStreaming(file: File): Promise<string[]> {
+export async function parseCSVColumns(file: File): Promise<string[]> {
   const stream = file.stream();
   const reader = stream.getReader();
   const decoder = new TextDecoder();
