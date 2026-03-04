@@ -145,13 +145,16 @@ export function FileDropZone({
         (item): item is FileDropItem => item.kind === "file"
       );
 
-      try {
-        const files = await Promise.all(
-          fileItems.map((item) => item.getFile())
-        );
+      const results = await Promise.allSettled(
+        fileItems.map((item) => item.getFile())
+      );
+      const files = results
+        .filter(
+          (r): r is PromiseFulfilledResult<File> => r.status === "fulfilled"
+        )
+        .map((r) => r.value);
+      if (files.length > 0) {
         processFiles(files);
-      } catch {
-        // File access can fail due to security restrictions or invalid handles
       }
     },
     [processFiles]
