@@ -1,13 +1,10 @@
-import { Buffer } from "buffer";
 import { randomUUID } from "crypto";
 import path from "path";
-import { fileURLToPath } from "url";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const FIXTURES_DIR = path.join(__dirname, "fixtures");
+// Playwright runs from the app directory, so we can use a relative path
+const FIXTURES_DIR = path.join(process.cwd(), "tests", "fixtures");
 
 /**
  * Helper to click a select dropdown by its label text and return the open popover.
