@@ -24,6 +24,7 @@ phoenix.db*
 # Data files
 *.csv
 !tests/**/fixtures/*.csv
+!app/tests/fixtures/*.csv
 *.hdf
 *.hdf5
 
