@@ -325,6 +325,17 @@ auth:
   # When true, users can only authenticate via OAuth2/OIDC. Useful for SSO-only deployments.
   disableBasicAuth: false
 
+  # -- Enable strong password policy requiring 12+ characters with uppercase, lowercase, digit, and special character (PHOENIX_ENABLE_STRONG_PASSWORD_POLICY)
+  enableStrongPasswordPolicy: false
+
+  # -- Disable brute force login protection (PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION)
+  # When false (default), repeated failed logins will temporarily lock the account
+  disableBruteForceLoginProtection: false
+
+  # -- Maximum failed login attempts before temporary lockout (PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS)
+  # Only applies when brute force protection is enabled. Lockout duration is 5 minutes.
+  bruteForceLoginProtectionMaxAttempts: 5
+
   # -- Cookie path for authentication cookies (PHOENIX_COOKIES_PATH)
   # Set this when Phoenix is hosted under a sub-path
   cookiesPath: "/"
@@ -636,6 +647,9 @@ logging:
 
   # -- Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS)
   logMigrations: true
+
+  # -- Log all SQL statements to stdout for debugging (PHOENIX_LOG_SQL)
+  logSql: false
 
   # -- Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured)
   mode: "default"
