@@ -40,7 +40,7 @@ const useRegexEvaluatorForm = () => {
 
 export const RegexEvaluatorForm = () => {
   const form = useRegexEvaluatorForm();
-  const { control, getValues, setValue, trigger } = form;
+  const { control, getValues, trigger } = form;
   const store = useEvaluatorStoreInstance();
   const [textPath, setTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
@@ -113,7 +113,7 @@ export const RegexEvaluatorForm = () => {
           description="The text to search."
           defaultMode={textDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Text"
           literalPlaceholder="Enter text value"

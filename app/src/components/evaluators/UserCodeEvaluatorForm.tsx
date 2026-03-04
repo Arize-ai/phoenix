@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { CodeEditorFieldWrapper, PythonEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
+import { CodeEvaluatorOutputSection } from "@phoenix/components/evaluators/CodeEvaluatorOutputSection";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 
@@ -22,6 +23,18 @@ export const UserCodeEvaluatorForm = () => {
       <View marginBottom="size-200" flex="none">
         <Flex direction="column" gap="size-100">
           <Heading level={2} weight="heavy">
+            Evaluator Output
+          </Heading>
+          <Text color="text-500">
+            Configure the type and format of the annotation your evaluator will
+            produce.
+          </Text>
+          <CodeEvaluatorOutputSection />
+        </Flex>
+      </View>
+      <View marginBottom="size-200" flex="none">
+        <Flex direction="column" gap="size-100">
+          <Heading level={2} weight="heavy">
             Evaluator Code
           </Heading>
           <Text color="text-500">
@@ -35,7 +48,6 @@ export const UserCodeEvaluatorForm = () => {
             value={sourceCode}
             onChange={setSourceCode}
             height="200px"
-            placeholder="def score(output: str, input: str) -> dict: ..."
           />
         </LazyEditorWrapper>
       </CodeEditorFieldWrapper>

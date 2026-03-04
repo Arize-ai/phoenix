@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import { type PropsWithChildren, useMemo } from "react";
 
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
@@ -6,7 +6,11 @@ import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDeri
 export const LLMEvaluatorInputVariablesProvider = ({
   children,
 }: PropsWithChildren) => {
-  const { variableKeys: variables } = useDerivedPlaygroundVariables();
+  const { variableKeys } = useDerivedPlaygroundVariables();
+  const variables = useMemo(
+    () => variableKeys.map((name) => ({ name })),
+    [variableKeys]
+  );
 
   return (
     <EvaluatorInputVariablesProvider variables={variables}>

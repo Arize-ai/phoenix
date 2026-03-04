@@ -1,12 +1,7 @@
 import { css } from "@emotion/react";
 import { useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
-import type {
-  Control,
-  FieldValues,
-  Path,
-  UseFormSetValue,
-} from "react-hook-form";
+import type { Control, FieldValues, Path } from "react-hook-form";
 import { Controller } from "react-hook-form";
 
 import {
@@ -18,6 +13,7 @@ import {
   Input,
   Label,
   ListBox,
+  NumberField,
   Popover,
   Select,
   SelectItem,
@@ -62,10 +58,6 @@ export interface SwitchableEvaluatorInputProps<
    */
   control: Control<TFieldValues>;
   /**
-   * react-hook-form setValue function for clearing values on mode switch
-   */
-  setValue: UseFormSetValue<TFieldValues>;
-  /**
    * Options for the path mode ComboBox
    */
   pathOptions: PathOption[];
@@ -94,6 +86,12 @@ export interface SwitchableEvaluatorInputProps<
    * and the label is marked with an asterisk.
    */
   isRequired?: boolean;
+  /**
+   * The input type for literal mode. When "number", renders a numeric input
+   * and stores the value as a number in literalMapping.
+   * @default "text"
+   */
+  inputType?: "text" | "number";
 }
 
 const modeSelectCSS = css`
@@ -135,10 +133,19 @@ const inputContainerCSS = css`
   }
 `;
 
-const MODE_OPTIONS: Array<{ id: MappingMode; label: string }> = [
-  { id: "path", label: "Path" },
-  { id: "literal", label: "Text" },
-];
+const MODE_OPTIONS: Record<
+  "text" | "number",
+  Array<{ id: MappingMode; label: string }>
+> = {
+  text: [
+    { id: "path", label: "Path" },
+    { id: "literal", label: "Text" },
+  ],
+  number: [
+    { id: "path", label: "Path" },
+    { id: "literal", label: "Number" },
+  ],
+};
 
 export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   fieldName,
@@ -146,7 +153,6 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   description,
   defaultMode = "path",
   control,
-  setValue,
   pathOptions,
   pathPlaceholder = "Select a field path",
   literalPlaceholder = "Enter a value",
@@ -154,6 +160,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   onPathInputChange,
   hideLabel,
   isRequired,
+  inputType = "text",
   size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
   const [mode, setMode] = useState<MappingMode>(defaultMode);
@@ -163,23 +170,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
 
   const handleModeChange = (key: Key | Key[] | null) => {
     if (key && (key === "path" || key === "literal")) {
-      const newMode = key as MappingMode;
-      // Clear the previous mode's value before switching
-      if (newMode === "path") {
-        // Switching to path mode, clear the literal value
-        setValue(
-          literalFieldName,
-          undefined as TFieldValues[typeof literalFieldName]
-        );
-      } else {
-        // Switching to literal mode, clear the path value
-        onPathInputChange?.("");
-        setValue(
-          pathFieldName,
-          undefined as TFieldValues[typeof pathFieldName]
-        );
-      }
-      setMode(newMode);
+      setMode(key as MappingMode);
     }
   };
 
@@ -209,7 +200,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
           </Button>
           <Popover offset={0}>
             <ListBox>
-              {MODE_OPTIONS.map((opt) => (
+              {MODE_OPTIONS[inputType].map((opt) => (
                 <SelectItem key={opt.id} id={opt.id} textValue={opt.label}>
                   {opt.label}
                 </SelectItem>
@@ -275,6 +266,29 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                     )
                   }
                 </ComboBox>
+              )}
+            />
+          ) : inputType === "number" ? (
+            <Controller
+              name={literalFieldName}
+              control={control}
+              rules={requiredRules}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { error },
+              }) => (
+                <NumberField
+                  isInvalid={!!error}
+                  aria-label={`${label} literal value`}
+                  value={value == null ? NaN : Number(value)}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  size={size}
+                  id={`${fieldName}-${mode}`}
+                >
+                  <Input placeholder={literalPlaceholder} />
+                  {error && <FieldError>{error.message}</FieldError>}
+                </NumberField>
               )}
             />
           ) : (

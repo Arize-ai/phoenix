@@ -25,7 +25,10 @@ import type {
   EvaluatorOutputPreviewMutation,
   InlineLLMEvaluatorInput,
 } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
-import { createLLMEvaluatorPayload } from "@phoenix/components/evaluators/utils";
+import {
+  buildOutputConfigsInput,
+  createLLMEvaluatorPayload,
+} from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -149,11 +152,34 @@ export const EvaluatorOutputPreview = () => {
 
     let params:
       | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
+      | {
+          inlineCodeEvaluator: {
+            name: string;
+            sourceCode: string;
+            outputConfigs: ReturnType<typeof buildOutputConfigsInput>;
+            description?: string | null;
+          };
+        }
       | { builtInEvaluatorId: string };
     if (state.evaluator.isBuiltin) {
       invariant(state.evaluator.id, "evaluator id is required");
       params = {
         builtInEvaluatorId: state.evaluator.id,
+      };
+    } else if (state.evaluator.kind === "CODE") {
+      invariant(
+        state.sourceCode != null,
+        "source code is required for CODE evaluators"
+      );
+      const name = (state.evaluator.name || state.evaluator.globalName).trim();
+      const description = state.evaluator.description.trim() || undefined;
+      params = {
+        inlineCodeEvaluator: {
+          name,
+          sourceCode: state.sourceCode,
+          outputConfigs: buildOutputConfigsInput(state.outputConfigs),
+          description,
+        },
       };
     } else {
       invariant(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<276a7bf93efc4c4132bf7f8b8caf1417>>
+ * @generated SignedSource<<7909f43a97b804881679296d3a0d30fe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,12 +9,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type CreateCodeEvaluatorInput = {
+export type CreateDatasetCodeEvaluatorInput = {
+  datasetId: string;
   description?: string | null;
-  inputMapping?: EvaluatorInputMappingInput;
+  inputMapping?: EvaluatorInputMappingInput | null;
   language?: string;
-  metadata?: any | null;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput>;
   sourceCode: string;
@@ -50,13 +51,15 @@ export type FreeformAnnotationConfigInput = {
   name: string;
 };
 export type CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation$variables = {
-  input: CreateCodeEvaluatorInput;
+  connectionIds: ReadonlyArray<string>;
+  input: CreateDatasetCodeEvaluatorInput;
 };
 export type CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation$data = {
-  readonly createCodeEvaluator: {
+  readonly createDatasetCodeEvaluator: {
     readonly evaluator: {
       readonly id: string;
       readonly name: string;
+      readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row" | "PlaygroundDatasetSection_evaluator">;
     };
   };
 };
@@ -66,85 +69,518 @@ export type CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionIds"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EvaluatorInputMapping",
+  "kind": "LinkedField",
+  "name": "inputMapping",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "literalMapping",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pathMapping",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v9 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*: any*/),
+    (v8/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
+},
+v10 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*: any*/),
+    (v8/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
+      "storageKey": null
+    }
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/)
+  ],
+  "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v18 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
+  "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+};
+return {
+  "fragment": {
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
     ],
-    "concreteType": "CodeEvaluatorMutationPayload",
-    "kind": "LinkedField",
-    "name": "createCodeEvaluator",
-    "plural": false,
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
     "selections": [
       {
         "alias": null,
-        "args": null,
-        "concreteType": "CodeEvaluator",
+        "args": (v2/*: any*/),
+        "concreteType": "DatasetEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "evaluator",
+        "name": "createDatasetCodeEvaluator",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
+            "concreteType": "DatasetEvaluator",
+            "kind": "LinkedField",
+            "name": "evaluator",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/),
+              (v4/*: any*/),
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "PlaygroundDatasetSection_evaluator",
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v5/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "evaluator",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      (v6/*: any*/),
+                      (v7/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "outputConfigs",
+                    "plural": true,
+                    "selections": [
+                      (v9/*: any*/),
+                      (v10/*: any*/)
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              },
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "DatasetEvaluatorsTable_row",
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v11/*: any*/),
+                  (v12/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "user",
+                    "plural": false,
+                    "selections": [
+                      (v13/*: any*/),
+                      (v14/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "evaluator",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      (v4/*: any*/),
+                      (v6/*: any*/),
+                      (v15/*: any*/),
+                      (v12/*: any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v16/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "promptVersionTag",
+                            "plural": false,
+                            "selections": [
+                              (v4/*: any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersion",
+                            "kind": "LinkedField",
+                            "name": "promptVersion",
+                            "plural": false,
+                            "selections": [
+                              (v17/*: any*/),
+                              (v18/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "LLMEvaluator",
+                        "abstractKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              }
+            ],
             "storageKey": null
           }
         ],
         "storageKey": null
       }
     ],
-    "storageKey": null
-  }
-];
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
-    "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
-    "selections": (v1/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DatasetEvaluatorMutationPayload",
+        "kind": "LinkedField",
+        "name": "createDatasetCodeEvaluator",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetEvaluator",
+            "kind": "LinkedField",
+            "name": "evaluator",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/),
+              (v4/*: any*/),
+              (v5/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "evaluator",
+                "plural": false,
+                "selections": [
+                  (v19/*: any*/),
+                  (v3/*: any*/),
+                  (v6/*: any*/),
+                  (v7/*: any*/),
+                  (v4/*: any*/),
+                  (v15/*: any*/),
+                  (v12/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v16/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v4/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "promptVersion",
+                        "plural": false,
+                        "selections": [
+                          (v17/*: any*/),
+                          (v18/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "LLMEvaluator",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "outputConfigs",
+                "plural": true,
+                "selections": [
+                  (v19/*: any*/),
+                  (v9/*: any*/),
+                  (v10/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v3/*: any*/)
+                    ],
+                    "type": "Node",
+                    "abstractKey": "__isNode"
+                  }
+                ],
+                "storageKey": null
+              },
+              (v11/*: any*/),
+              (v12/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "User",
+                "kind": "LinkedField",
+                "name": "user",
+                "plural": false,
+                "selections": [
+                  (v13/*: any*/),
+                  (v14/*: any*/),
+                  (v3/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "filters": null,
+            "handle": "appendNode",
+            "key": "",
+            "kind": "LinkedHandle",
+            "name": "evaluator",
+            "handleArgs": [
+              {
+                "kind": "Variable",
+                "name": "connections",
+                "variableName": "connectionIds"
+              },
+              {
+                "kind": "Literal",
+                "name": "edgeTypeName",
+                "value": "DatasetEvaluatorEdge"
+              }
+            ]
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "b978b7f8c7265cde32cf9fc460a45b29",
+    "cacheID": "8c3ce865a353b69f1b96e9398d3aadb1",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(\n  $input: CreateCodeEvaluatorInput!\n) {\n  createCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cb2c233fbb5a381097025d466d3c798f";
+(node as any).hash = "ae9d102ae9a71f176dfc9af286ddc4e2";
 
 export default node;

@@ -38,7 +38,7 @@ const useExactMatchEvaluatorForm = () => {
 };
 
 export const ExactMatchEvaluatorForm = () => {
-  const { control, getValues, setValue, trigger } =
+  const { control, getValues, trigger } =
     useExactMatchEvaluatorForm();
   const store = useEvaluatorStoreInstance();
   const [expectedPath, setExpectedPath] = useState<string>(
@@ -83,7 +83,7 @@ export const ExactMatchEvaluatorForm = () => {
           description="The expected text to compare against."
           defaultMode={expectedDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Expected"
           literalPlaceholder="Enter expected value"
@@ -97,7 +97,7 @@ export const ExactMatchEvaluatorForm = () => {
           description="The actual text to compare."
           defaultMode={actualDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Actual"
           literalPlaceholder="Enter actual value"

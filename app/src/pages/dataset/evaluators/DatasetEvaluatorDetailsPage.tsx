@@ -21,6 +21,7 @@ import {
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
+import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorDetails";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
@@ -71,6 +72,7 @@ function DatasetEvaluatorDetailsPageContent({
 
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
+  const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
 
   return (
     <main css={mainCSS}>
@@ -119,6 +121,14 @@ function DatasetEvaluatorDetailsPageContent({
                 )}
                 {isBuiltInEvaluator && (
                   <BuiltInDatasetEvaluatorDetails
+                    datasetEvaluatorRef={datasetEvaluator}
+                    datasetId={datasetId}
+                    isEditSlideoverOpen={isEditSlideoverOpen}
+                    onEditSlideoverOpenChange={setIsEditSlideoverOpen}
+                  />
+                )}
+                {isCodeEvaluator && (
+                  <CodeDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
                     datasetId={datasetId}
                     isEditSlideoverOpen={isEditSlideoverOpen}

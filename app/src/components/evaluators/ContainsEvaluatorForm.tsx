@@ -39,7 +39,7 @@ const useContainsEvaluatorForm = () => {
 };
 
 export const ContainsEvaluatorForm = () => {
-  const { control, getValues, setValue, trigger } = useContainsEvaluatorForm();
+  const { control, getValues, trigger } = useContainsEvaluatorForm();
   const store = useEvaluatorStoreInstance();
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
@@ -84,7 +84,7 @@ export const ContainsEvaluatorForm = () => {
           description="The text to search for the words in."
           defaultMode={textDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Text"
           literalPlaceholder="Enter literal text value"
@@ -98,7 +98,7 @@ export const ContainsEvaluatorForm = () => {
           description="A comma separated list of words to search for in the text."
           defaultMode={wordsDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Words"
           literalPlaceholder="e.g. word1, word2, word3"

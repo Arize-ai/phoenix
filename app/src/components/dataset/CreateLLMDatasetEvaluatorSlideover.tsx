@@ -202,6 +202,13 @@ const CreateEvaluatorDialog = ({
           input,
           connectionIds: updateConnectionIds ?? [],
         },
+        updater: (store) => {
+          const datasetRecord = store.get(datasetId);
+          if (datasetRecord) {
+            const count = datasetRecord.getValue("evaluatorCount") as number;
+            datasetRecord.setValue(count + 1, "evaluatorCount");
+          }
+        },
         onCompleted: (response) => {
           const createdId = response.createDatasetLlmEvaluator.evaluator.id;
           onEvaluatorCreated?.(createdId);
@@ -221,6 +228,7 @@ const CreateEvaluatorDialog = ({
       instanceId,
       createLlmEvaluator,
       updateConnectionIds,
+      datasetId,
       onClose,
       notifySuccess,
       onEvaluatorCreated,

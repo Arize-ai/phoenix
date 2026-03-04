@@ -21,6 +21,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
+    ContinuousAnnotationConfig,
 )
 from phoenix.db.types.model_provider import (
     is_sdk_compatible_with_model_provider,
@@ -28,15 +29,16 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
-    EvaluationResult as EvaluationResultDict,
-)
-from phoenix.server.api.evaluators import (
+    CodeEvaluatorRunner,
     create_llm_evaluator_from_inline,
     evaluation_result_to_model,
     evaluation_result_to_span_annotation,
     get_builtin_evaluator_by_key,
     get_evaluator_project_ids,
     get_evaluators,
+)
+from phoenix.server.api.evaluators import (
+    EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_experiment_example_output
@@ -709,8 +711,42 @@ class ChatCompletionMutationMixin:
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
+            elif inline_code_evaluator := evaluator_input.inline_code_evaluator:
+                all_configs = _convert_output_config_inputs_to_pydantic(
+                    inline_code_evaluator.output_configs
+                )
+                filtered_configs: list[
+                    CategoricalAnnotationConfig | ContinuousAnnotationConfig
+                ] = []
+                for config in all_configs:
+                    if isinstance(
+                        config, (CategoricalAnnotationConfig, ContinuousAnnotationConfig)
+                    ):
+                        filtered_configs.append(config)
+
+                code_evaluator = CodeEvaluatorRunner(
+                    name=inline_code_evaluator.name,
+                    description=inline_code_evaluator.description,
+                    source_code=inline_code_evaluator.source_code,
+                    stored_input_schema={},
+                    stored_output_configs=filtered_configs,
+                    sandbox_backend=info.context.sandbox_backend,
+                )
+
+                eval_results = await code_evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping,
+                    name=code_evaluator.name,
+                    output_configs=filtered_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+
             else:
-                raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
+                raise BadRequest(
+                    "Either evaluator_id, inline_llm_evaluator, "
+                    "or inline_code_evaluator must be provided"
+                )
 
         return EvaluatorPreviewsPayload(results=all_results)
 

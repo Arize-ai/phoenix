@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<16fa2a50c57f5f59e3040b75ebe3db91>>
+ * @generated SignedSource<<a5b17029cb38cd3a6666e4cf7d0ab797>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type EvaluatorPreviewItemInput = {
 };
 export type EvaluatorPreviewInput = {
   builtInEvaluatorId?: string | null;
+  inlineCodeEvaluator?: InlineCodeEvaluatorInput | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {
@@ -101,6 +102,12 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+};
+export type InlineCodeEvaluatorInput = {
+  description?: string | null;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  sourceCode: string;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;

@@ -1158,6 +1158,100 @@ class TestCastTemplateVariableTypes:
         )
         assert result == {"key": 42}
 
+    def test_coerces_string_to_integer(self) -> None:
+        template_variables = {"count": "42"}
+        input_schema = {
+            "type": "object",
+            "properties": {"count": {"type": "integer"}},
+        }
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"count": 42}
+        assert isinstance(result["count"], int)
+
+    def test_coerces_string_to_number(self) -> None:
+        template_variables = {"score": "3.14"}
+        input_schema = {
+            "type": "object",
+            "properties": {"score": {"type": "number"}},
+        }
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"score": 3.14}
+        assert isinstance(result["score"], float)
+
+    def test_coerces_string_to_boolean_true(self) -> None:
+        for true_value in ("true", "True", "TRUE", "1", "yes", "Yes", "YES"):
+            template_variables = {"flag": true_value}
+            input_schema = {
+                "type": "object",
+                "properties": {"flag": {"type": "boolean"}},
+            }
+            result = cast_template_variable_types(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
+            assert result == {"flag": True}, f"Expected True for input '{true_value}'"
+            assert isinstance(result["flag"], bool)
+
+    def test_coerces_string_to_boolean_false(self) -> None:
+        for false_value in ("false", "False", "0", "no", "anything_else"):
+            template_variables = {"flag": false_value}
+            input_schema = {
+                "type": "object",
+                "properties": {"flag": {"type": "boolean"}},
+            }
+            result = cast_template_variable_types(
+                template_variables=template_variables,
+                input_schema=input_schema,
+            )
+            assert result == {"flag": False}, f"Expected False for input '{false_value}'"
+            assert isinstance(result["flag"], bool)
+
+    def test_leaves_already_typed_values_unchanged(self) -> None:
+        template_variables = {"count": 42, "flag": True, "score": 3.14}
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer"},
+                "flag": {"type": "boolean"},
+                "score": {"type": "number"},
+            },
+        }
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"count": 42, "flag": True, "score": 3.14}
+
+    def test_leaves_invalid_integer_string_unchanged(self) -> None:
+        template_variables = {"count": "not_a_number"}
+        input_schema = {
+            "type": "object",
+            "properties": {"count": {"type": "integer"}},
+        }
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"count": "not_a_number"}
+
+    def test_leaves_invalid_number_string_unchanged(self) -> None:
+        template_variables = {"score": "not_a_float"}
+        input_schema = {
+            "type": "object",
+            "properties": {"score": {"type": "number"}},
+        }
+        result = cast_template_variable_types(
+            template_variables=template_variables,
+            input_schema=input_schema,
+        )
+        assert result == {"score": "not_a_float"}
+
 
 class TestValidateTemplateVariables:
     def test_passes_with_valid_input(self) -> None:

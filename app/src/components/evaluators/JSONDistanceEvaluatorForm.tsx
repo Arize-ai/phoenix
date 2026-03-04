@@ -38,7 +38,7 @@ const useJSONDistanceEvaluatorForm = () => {
 };
 
 export const JSONDistanceEvaluatorForm = () => {
-  const { control, getValues, setValue, watch, trigger } =
+  const { control, getValues, watch, trigger } =
     useJSONDistanceEvaluatorForm();
   const parseStrings = watch("literalMapping.parse_strings") ?? true;
   const store = useEvaluatorStoreInstance();
@@ -84,7 +84,7 @@ export const JSONDistanceEvaluatorForm = () => {
           description="The expected JSON string."
           defaultMode={expectedDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Expected"
           literalPlaceholder="Enter expected JSON"
@@ -98,7 +98,7 @@ export const JSONDistanceEvaluatorForm = () => {
           description="The actual JSON string to compare."
           defaultMode={actualDefaultMode}
           control={control}
-          setValue={setValue}
+
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Actual"
           literalPlaceholder="Enter actual JSON"

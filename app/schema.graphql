@@ -625,6 +625,16 @@ input CreateDatasetBuiltinEvaluatorInput {
   description: String = null
 }
 
+input CreateDatasetCodeEvaluatorInput {
+  datasetId: ID!
+  name: Identifier!
+  sourceCode: String!
+  language: String! = "PYTHON"
+  description: String
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!]! = []
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -1418,6 +1428,7 @@ enum EvaluatorKind {
 input EvaluatorPreviewInput @oneOf {
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
 }
 
 input EvaluatorPreviewItemInput {
@@ -1925,6 +1936,13 @@ input GoogleGenAIHttpOptionsInput {
 
 scalar Identifier
 
+input InlineCodeEvaluatorInput {
+  name: String!
+  sourceCode: String!
+  outputConfigs: [AnnotationConfigInput!]!
+  description: String = null
+}
+
 input InlineLLMEvaluatorInput {
   name: String!
   promptVersion: ChatPromptVersionInput!
@@ -2069,6 +2087,7 @@ type Mutation {
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createDatasetCodeEvaluator(input: CreateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   updateCodeEvaluator(input: UpdateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!

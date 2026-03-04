@@ -443,6 +443,11 @@ def derive_input_schema(source_code: str, callable_name: str) -> dict[str, Any]:
     Parse source_code using the ast module and extract a JSON schema from the
     function signature of the callable with the given name.
 
+    The stored schema is required at evaluation time by three consumers:
+    - apply_input_mapping: auto-fills unmapped params from context via schema keys
+    - cast_template_variable_types: coerces values to schema-declared types
+    - validate_template_variables: JSON schema validation before execution
+
     Returns a JSON schema dict of the form:
         {"type": "object", "properties": {...}, "required": [...]}
 

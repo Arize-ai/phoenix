@@ -1,11 +1,14 @@
 import type { PropsWithChildren } from "react";
 
-import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
+import {
+  EvaluatorInputVariablesContext,
+  type EvaluatorParam,
+} from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 
 export const EvaluatorInputVariablesProvider = ({
   children,
   variables,
-}: PropsWithChildren<{ variables: string[] }>) => {
+}: PropsWithChildren<{ variables: EvaluatorParam[] }>) => {
   return (
     <EvaluatorInputVariablesContext.Provider value={variables}>
       {children}

@@ -1,8 +1,9 @@
 import type { PropsWithChildren } from "react";
 import { Suspense, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import type { Control, FieldValues, Path } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
-import { Loading, Text } from "@phoenix/components";
+import { Label, Loading, Switch, Text } from "@phoenix/components";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   escapeFieldNameForReactHookForm,
@@ -113,25 +114,39 @@ const EvaluatorInputMappingControls = () => {
   // the variable should be the key, the select field should have all flattened example keys as options
   return (
     <Flex direction="column" gap="size-100" width="100%">
-      {variables.map((variable) => {
-        // Escape the variable name for use with react-hook-form
-        const escapedVariable = escapeFieldNameForReactHookForm(variable);
+      {variables.map(({ name, type: paramType }) => {
+        const escapedVariable = escapeFieldNameForReactHookForm(name);
+
+        if (paramType === "boolean") {
+          return (
+            <BooleanParamInput
+              key={name}
+              name={name}
+              escapedName={escapedVariable}
+              control={control}
+            />
+          );
+        }
+
+        const inputType =
+          paramType === "integer" || paramType === "number" ? "number" : "text";
+
         return (
           <SwitchableEvaluatorInput
-            key={variable}
+            key={name}
             fieldName={escapedVariable}
-            label={variable}
+            label={name}
             size="M"
             defaultMode="path"
             control={control}
-            setValue={setValue}
             pathOptions={allExampleKeys}
-            pathPlaceholder={variable}
+            pathPlaceholder={name}
             literalPlaceholder="Enter a value"
-            pathInputValue={inputValues[variable] ?? ""}
+            pathInputValue={inputValues[name] ?? ""}
             onPathInputChange={(val) =>
               setValue(`pathMapping.${escapedVariable}`, val)
             }
+            inputType={inputType}
           />
         );
       })}
@@ -141,6 +156,43 @@ const EvaluatorInputMappingControls = () => {
         </Text>
       )}
     </Flex>
+  );
+};
+
+const BooleanParamInput = <TFieldValues extends FieldValues>({
+  name,
+  escapedName,
+  control,
+}: {
+  name: string;
+  escapedName: string;
+  control: Control<TFieldValues>;
+}) => {
+  const literalFieldName =
+    `literalMapping.${escapedName}` as `literalMapping.${string}` &
+      Path<TFieldValues>;
+  return (
+    <Controller
+      name={literalFieldName}
+      control={control}
+      defaultValue={false as TFieldValues[typeof literalFieldName]}
+      render={({ field }) => (
+        <Switch
+          {...field}
+          value={String(field.value ?? "")}
+          onChange={(value) => field.onChange(value)}
+          isSelected={Boolean(
+            typeof field.value === "boolean"
+              ? field.value
+              : typeof field.value === "string"
+                ? field.value.toLowerCase() === "true"
+                : false
+          )}
+        >
+          <Label>{name}</Label>
+        </Switch>
+      )}
+    />
   );
 };
 

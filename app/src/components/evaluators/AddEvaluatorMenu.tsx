@@ -117,6 +117,7 @@ export const AddEvaluatorMenu = ({
         isOpen={isCreateCodeEvaluatorOpen}
         onOpenChange={setIsCreateCodeEvaluatorOpen}
         datasetId={datasetId}
+        updateConnectionIds={updateConnectionIds}
       />
     </>
   );

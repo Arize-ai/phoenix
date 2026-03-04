@@ -241,9 +241,38 @@ export const DEFAULT_CODE_EVALUATOR_STORE_VALUES = {
   outputConfigs: [],
 } satisfies EvaluatorStoreProps;
 
-const DEFAULT_USER_CODE_SOURCE = `def score(output: str, input: str) -> dict:
-    return {"score": 0.0}
+/**
+ * Per-output-type source code templates for CODE evaluators.
+ */
+export const DEFAULT_CODE_SOURCE_SCORE = `def evaluate(output, input) -> float:
+    return 0.0
 `;
+
+export const DEFAULT_CODE_SOURCE_LABEL = `def evaluate(output, input) -> str:
+    return "good"
+`;
+
+export const DEFAULT_CODE_SOURCE_LABEL_AND_SCORE = `def evaluate(output, input) -> dict:
+    return {"label": "good", "score": 0.8}
+`;
+
+export const DEFAULT_CODE_SOURCE_GENERIC = `def evaluate(output, input) -> dict:
+    return {"score": 0.9, "label": "correct", "explanation": "The output is correct."}
+`;
+
+/**
+ * Maps each output shape to its default source code template.
+ */
+export const CODE_SHAPE_TEMPLATES: Record<
+  "generic" | "score" | "category",
+  string
+> = {
+  generic: DEFAULT_CODE_SOURCE_GENERIC,
+  score: DEFAULT_CODE_SOURCE_SCORE,
+  category: DEFAULT_CODE_SOURCE_LABEL,
+};
+
+const DEFAULT_USER_CODE_SOURCE = DEFAULT_CODE_SOURCE_GENERIC;
 
 /**
  * Default values for user-authored CODE evaluators.

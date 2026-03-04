@@ -23,6 +23,16 @@ class InlineLLMEvaluatorInput:
     description: Optional[str] = None
 
 
+@strawberry.input
+class InlineCodeEvaluatorInput:
+    """Defines an inline code evaluator without requiring persistence."""
+
+    name: str
+    source_code: str
+    output_configs: list[AnnotationConfigInput]
+    description: Optional[str] = None
+
+
 @strawberry.input(one_of=True)
 class EvaluatorPreviewInput:
     """
@@ -32,6 +42,7 @@ class EvaluatorPreviewInput:
 
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
+    inline_code_evaluator: Optional[InlineCodeEvaluatorInput] = UNSET
 
 
 @strawberry.input

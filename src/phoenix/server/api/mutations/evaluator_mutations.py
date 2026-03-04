@@ -260,6 +260,17 @@ class UpdateDatasetBuiltinEvaluatorInput:
 
 
 @strawberry.input
+class CreateDatasetCodeEvaluatorInput:
+    dataset_id: GlobalID
+    name: Identifier
+    source_code: str
+    language: str = "PYTHON"
+    description: Optional[str] = UNSET
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+    output_configs: list[AnnotationConfigInput] = strawberry.field(default_factory=list)
+
+
+@strawberry.input
 class CreateCodeEvaluatorInput:
     name: Identifier
     source_code: str
@@ -451,6 +462,92 @@ class EvaluatorMutationMixin:
                 # trigger an update of the updated_at field on the LLMEvaluator record.
                 llm_evaluator.updated_at = datetime.now(timezone.utc)
                 session.add(llm_evaluator)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "foreign" in str(e).lower():
+                raise BadRequest(f"Dataset with id {dataset_id} not found")
+            raise BadRequest(
+                f"An evaluator with name '{input.name}' already exists for this dataset"
+            )
+        return DatasetEvaluatorMutationPayload(
+            evaluator=DatasetEvaluator(
+                id=dataset_evaluator_record.id, db_record=dataset_evaluator_record
+            ),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_dataset_code_evaluator(
+        self, info: Info[Context, None], input: CreateDatasetCodeEvaluatorInput
+    ) -> DatasetEvaluatorMutationPayload:
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id, expected_type_name=Dataset.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            validated_name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_configs: list[AnnotationConfigType] = []
+        if input.output_configs:
+            try:
+                validate_unique_config_names(input.output_configs)
+            except ValueError as e:
+                raise BadRequest(str(e))
+            output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+
+        try:
+            async with info.context.db() as session:
+                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_id} not found")
+
+                input_mapping = (
+                    input.input_mapping.to_orm()
+                    if input.input_mapping is not None
+                    else InputMapping(literal_mapping={}, path_mapping={})
+                )
+
+                dataset_evaluator_record = models.DatasetEvaluators(
+                    dataset_id=dataset_id,
+                    name=validated_name,
+                    description=input.description if input.description is not UNSET else None,
+                    output_configs=output_configs,
+                    input_mapping=input_mapping,
+                    user_id=user_id,
+                    project=_get_project_for_dataset_evaluator(
+                        dataset_name=dataset_name,
+                        dataset_evaluator_name=str(evaluator_name),
+                    ),
+                )
+
+                code_evaluator = models.CodeEvaluator(
+                    name=evaluator_name,
+                    description=input.description if input.description is not UNSET else None,
+                    metadata_={},
+                    source_code=input.source_code,
+                    language=input.language,
+                    input_mapping=input_mapping,
+                    output_configs=output_configs,
+                    input_schema=derive_input_schema(input.source_code, "score"),
+                    user_id=user_id,
+                    dataset_evaluators=[dataset_evaluator_record],
+                )
+                code_evaluator.updated_at = datetime.now(timezone.utc)
+                session.add(code_evaluator)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             if "foreign" in str(e).lower():
                 raise BadRequest(f"Dataset with id {dataset_id} not found")
@@ -745,7 +842,8 @@ class EvaluatorMutationMixin:
                 code_evaluator.description = input.description
 
             if input.metadata is not UNSET:
-                code_evaluator.metadata_ = input.metadata or {}
+                assert isinstance(input.metadata, dict)
+                code_evaluator.metadata_ = input.metadata
 
             code_evaluator.updated_at = datetime.now(timezone.utc)
             code_evaluator.user_id = user_id

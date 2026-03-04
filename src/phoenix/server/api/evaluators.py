@@ -685,7 +685,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
-
         start_time = datetime.now(timezone.utc)
         tracer_ = tracer or NoOpTracer()
 
@@ -890,7 +889,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
     @staticmethod
     def _coerce_output(
-        raw_output: dict[str, Any],
+        raw_output: Any,
         output_configs: Sequence[EvaluatorOutputConfig],
     ) -> tuple[Optional[str], Optional[float], Optional[str]]:
         """
@@ -898,28 +897,39 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
         Returns (label, score, explanation).
         """
-        explanation = raw_output.get("explanation")
-        if isinstance(explanation, str):
-            pass
-        else:
-            explanation = None
+        explanation: Optional[str] = None
+        if isinstance(raw_output, dict):
+            _explanation = raw_output.get("explanation")
+            if isinstance(_explanation, str):
+                explanation = _explanation
 
         if not output_configs:
-            label = raw_output.get("label")
-            if not isinstance(label, str):
-                label = None
-            score = raw_output.get("score")
-            if not isinstance(score, (int, float)):
-                score = None
-            else:
-                score = float(score)
-            return label, score, explanation
+            if isinstance(raw_output, (int, float)) and not isinstance(raw_output, bool):
+                return None, float(raw_output), explanation
+            if isinstance(raw_output, str):
+                return raw_output, None, explanation
+            if isinstance(raw_output, dict):
+                label = raw_output.get("label")
+                if not isinstance(label, str):
+                    label = None
+                score = raw_output.get("score")
+                if not isinstance(score, (int, float)) or isinstance(score, bool):
+                    score = None
+                else:
+                    score = float(score)
+                return label, score, explanation
+            return None, None, explanation
 
         config = output_configs[0]
 
         if isinstance(config, CategoricalAnnotationConfig):
-            label = raw_output.get("label")
-            if not isinstance(label, str):
+            if isinstance(raw_output, str):
+                label = raw_output
+            elif isinstance(raw_output, dict):
+                label = raw_output.get("label")
+                if not isinstance(label, str):
+                    raise ValueError("Categorical output requires a string 'label' field")
+            else:
                 raise ValueError("Categorical output requires a string 'label' field")
             valid_labels = {v.label for v in config.values}
             if label not in valid_labels:
@@ -932,10 +942,28 @@ class CodeEvaluatorRunner(BaseEvaluator):
             return label, score, explanation
 
         elif isinstance(config, ContinuousAnnotationConfig):
-            score = raw_output.get("score")
-            if not isinstance(score, (int, float)):
+            if isinstance(raw_output, (int, float)) and not isinstance(raw_output, bool):
+                score = float(raw_output)
+            elif isinstance(raw_output, dict):
+                raw_score = raw_output.get("score")
+                score = (
+                    float(raw_score)
+                    if isinstance(raw_score, (int, float)) and not isinstance(raw_score, bool)
+                    else None
+                )
+            else:
+                score = None
+            if score is None:
                 raise ValueError("Continuous output requires a numeric 'score' field")
-            return None, float(score), explanation
+            if config.lower_bound is not None and score < config.lower_bound:
+                raise ValueError(
+                    f"Score {score} out of bounds [{config.lower_bound}, {config.upper_bound}]"
+                )
+            if config.upper_bound is not None and score > config.upper_bound:
+                raise ValueError(
+                    f"Score {score} out of bounds [{config.lower_bound}, {config.upper_bound}]"
+                )
+            return None, score, explanation
 
         return None, None, explanation
 
@@ -1365,8 +1393,21 @@ def cast_template_variable_types(
     for key, prop_schema in properties.items():
         if key in casted_template_variables:
             prop_type = prop_schema.get("type")
-            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
-                casted_template_variables[key] = str(casted_template_variables[key])
+            value = casted_template_variables[key]
+            if prop_type == "string" and not isinstance(value, str):
+                casted_template_variables[key] = str(value)
+            elif prop_type == "integer" and isinstance(value, str):
+                try:
+                    casted_template_variables[key] = int(value)
+                except (ValueError, TypeError):
+                    pass
+            elif prop_type == "number" and isinstance(value, str):
+                try:
+                    casted_template_variables[key] = float(value)
+                except (ValueError, TypeError):
+                    pass
+            elif prop_type == "boolean" and isinstance(value, str):
+                casted_template_variables[key] = value.lower() in ("true", "1", "yes")
 
     return casted_template_variables
 

@@ -11,6 +11,7 @@ import {
 } from "@phoenix/components/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { SourceCodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/SourceCodeEvaluatorInputVariablesProvider";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 export const EditCodeEvaluatorDialogContent = ({
@@ -88,11 +89,17 @@ export const EditCodeEvaluatorDialogContent = ({
             {error}
           </Alert>
         )}
-        <CodeEvaluatorInputVariablesProvider
-          evaluatorInputSchema={evaluatorInputSchema}
-        >
-          <EvaluatorForm />
-        </CodeEvaluatorInputVariablesProvider>
+        {evaluatorInputSchema == null ? (
+          <SourceCodeEvaluatorInputVariablesProvider>
+            <EvaluatorForm />
+          </SourceCodeEvaluatorInputVariablesProvider>
+        ) : (
+          <CodeEvaluatorInputVariablesProvider
+            evaluatorInputSchema={evaluatorInputSchema}
+          >
+            <EvaluatorForm />
+          </CodeEvaluatorInputVariablesProvider>
+        )}
       </fieldset>
     </DialogContent>
   );

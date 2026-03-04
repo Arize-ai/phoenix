@@ -25,10 +25,12 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 export function CreateCodeDatasetEvaluatorSlideover({
   datasetId,
+  updateConnectionIds,
   onEvaluatorCreated,
   ...props
 }: {
   datasetId: string;
+  updateConnectionIds?: string[];
   onEvaluatorCreated?: (evaluatorId: string) => void;
 } & ModalOverlayProps) {
   return (
@@ -47,6 +49,7 @@ export function CreateCodeDatasetEvaluatorSlideover({
                 <EvaluatorPlaygroundProvider>
                   <CreateCodeDatasetEvaluatorSlideoverContent
                     datasetId={datasetId}
+                    updateConnectionIds={updateConnectionIds}
                     onClose={close}
                     onEvaluatorCreated={onEvaluatorCreated}
                   />
@@ -62,26 +65,35 @@ export function CreateCodeDatasetEvaluatorSlideover({
 
 function CreateCodeDatasetEvaluatorSlideoverContent({
   datasetId,
+  updateConnectionIds,
   onClose,
   onEvaluatorCreated,
 }: {
   datasetId: string;
+  updateConnectionIds?: string[];
   onClose: () => void;
   onEvaluatorCreated?: (evaluatorId: string) => void;
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const [createCodeEvaluator, isCreating] =
+  const [createDatasetCodeEvaluator, isCreating] =
     useMutation<CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation>(
       graphql`
         mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(
-          $input: CreateCodeEvaluatorInput!
+          $input: CreateDatasetCodeEvaluatorInput!
+          $connectionIds: [ID!]!
         ) {
-          createCodeEvaluator(input: $input) {
-            evaluator {
+          createDatasetCodeEvaluator(input: $input) {
+            evaluator
+              @appendNode(
+                connections: $connectionIds
+                edgeTypeName: "DatasetEvaluatorEdge"
+              ) {
               id
               name
+              ...PlaygroundDatasetSection_evaluator
+              ...DatasetEvaluatorsTable_row
             }
           }
         }
@@ -101,7 +113,7 @@ function CreateCodeDatasetEvaluatorSlideoverContent({
   const onSubmit = (store: EvaluatorStoreInstance) => {
     setError(undefined);
     const {
-      evaluator: { name, description, inputMapping },
+      evaluator: { globalName, description, inputMapping },
       sourceCode,
       language,
       outputConfigs,
@@ -109,25 +121,33 @@ function CreateCodeDatasetEvaluatorSlideoverContent({
 
     const normalizedDescription = description.trim() || null;
 
-    createCodeEvaluator({
+    createDatasetCodeEvaluator({
       variables: {
         input: {
-          name,
+          datasetId,
+          name: globalName,
           sourceCode,
           language,
           inputMapping,
           outputConfigs: buildOutputConfigsInput(outputConfigs),
           description: normalizedDescription,
         },
+        connectionIds: updateConnectionIds ?? [],
+      },
+      updater: (store) => {
+        const datasetRecord = store.get(datasetId);
+        if (datasetRecord) {
+          const count = datasetRecord.getValue("evaluatorCount") as number;
+          datasetRecord.setValue(count + 1, "evaluatorCount");
+        }
       },
       onCompleted: (response) => {
-        const createdId = response.createCodeEvaluator.evaluator.id;
+        const createdId = response.createDatasetCodeEvaluator.evaluator.id;
         onEvaluatorCreated?.(createdId);
+        onClose();
         notifySuccess({
           title: "Code evaluator created",
-          message: "The code evaluator has been created.",
         });
-        onClose();
       },
       onError: (error) => {
         setError(
