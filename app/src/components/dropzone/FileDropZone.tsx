@@ -3,10 +3,10 @@ import { DropZone as ReactAriaDropZone, Text } from "react-aria-components";
 import type { DropItem, FileDropItem } from "react-aria-components";
 
 import { Icon, CloudUpload } from "@phoenix/components/icon";
+import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
 import { fileDropZoneCSS } from "./styles";
 import type { FileDropZoneProps, FileRejection } from "./types";
-import { formatFileSize } from "./utils";
 
 /**
  * Checks if a file matches the accepted file types.
@@ -95,7 +95,7 @@ export function FileDropZone({
           rejected.push({
             file,
             reason: "size",
-            message: `File too large. Maximum size: ${formatFileSize(maxFileSize!)}`,
+            message: `File too large. Maximum size: ${storageSizeFormatter(maxFileSize!)}`,
           });
           continue;
         }

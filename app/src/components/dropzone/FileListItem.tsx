@@ -1,9 +1,9 @@
 import { IconButton } from "@phoenix/components/button";
 import { Icon, FileOutline, CloseOutline } from "@phoenix/components/icon";
 import { ProgressBar } from "@phoenix/components/progress";
+import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
 import type { FileListItemProps, FileWithProgress } from "./types";
-import { formatFileSize } from "./utils";
 
 /**
  * Returns status text based on file progress status
@@ -46,7 +46,7 @@ export function FileListItem({
           {file.name}
         </span>
         <div className="file-list__meta">
-          <span>{formatFileSize(file.size)}</span>
+          <span>{storageSizeFormatter(file.size)}</span>
           {status && (
             <>
               <span>-</span>
