@@ -1,12 +1,7 @@
-import { useCallback } from "react";
-import {
-  DropZone as ReactAriaDropZone,
-  FileTrigger,
-  Text,
-} from "react-aria-components";
+import { type ChangeEvent, useCallback, useRef } from "react";
+import { DropZone as ReactAriaDropZone, Text } from "react-aria-components";
 import type { DropItem, FileDropItem } from "react-aria-components";
 
-import { Button } from "@phoenix/components/button";
 import { Icon, CloudUpload } from "@phoenix/components/icon";
 
 import { fileDropZoneCSS } from "./styles";
@@ -22,11 +17,9 @@ function isFileTypeAccepted(file: File, acceptedFileTypes?: string[]): boolean {
   }
 
   return acceptedFileTypes.some((type) => {
-    // Handle extension format (e.g., '.csv')
     if (type.startsWith(".")) {
       return file.name.toLowerCase().endsWith(type.toLowerCase());
     }
-    // Handle MIME type format (e.g., 'text/csv', 'image/*')
     if (type.endsWith("/*")) {
       const baseType = type.slice(0, -2);
       return file.type.startsWith(baseType);
@@ -60,8 +53,9 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * A file drop zone component that combines drag-and-drop functionality
- * with a file browser button. Built on React Aria's DropZone and FileTrigger.
+ * A file drop zone component that combines drag-and-drop with click-to-browse.
+ * Clicking anywhere in the zone opens the file dialog.
+ * Built on React Aria's DropZone.
  */
 export function FileDropZone({
   acceptedFileTypes,
@@ -72,23 +66,18 @@ export function FileDropZone({
   onSelectRejected,
   label = "Drag and drop files here",
   description,
-  browseButtonText = "Browse",
   isDisabled,
   ...ariaProps
 }: FileDropZoneProps) {
-  /**
-   * Processes files and separates them into accepted and rejected
-   */
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
+
   const processFiles = useCallback(
     (files: File[]) => {
       const accepted: File[] = [];
       const rejected: FileRejection[] = [];
-
-      // Check max files constraint
       const maxAllowed = allowsMultiple ? (maxFiles ?? Infinity) : 1;
 
       for (const file of files) {
-        // Check file type first
         if (!isFileTypeAccepted(file, acceptedFileTypes)) {
           rejected.push({
             file,
@@ -98,7 +87,6 @@ export function FileDropZone({
           continue;
         }
 
-        // Check file size
         if (!isFileSizeValid(file, maxFileSize)) {
           rejected.push({
             file,
@@ -108,7 +96,6 @@ export function FileDropZone({
           continue;
         }
 
-        // Check count limit based on accepted count, not iteration index
         if (accepted.length >= maxAllowed) {
           rejected.push({
             file,
@@ -139,24 +126,17 @@ export function FileDropZone({
     ]
   );
 
-  /**
-   * Handle files selected via FileTrigger (browse button)
-   */
-  const handleFileTriggerSelect = useCallback(
-    (fileList: FileList | null) => {
-      if (!fileList) return;
-      const files = Array.from(fileList);
-      processFiles(files);
+  const handleHiddenInputChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      if (!e.target.files) return;
+      processFiles(Array.from(e.target.files));
+      e.target.value = "";
     },
     [processFiles]
   );
 
-  /**
-   * Handle files dropped on the DropZone
-   */
   const handleDrop = useCallback(
     async (e: { items: DropItem[] }) => {
-      // Filter to only file items and get the File objects
       const fileItems = e.items.filter(
         (item): item is FileDropItem => item.kind === "file"
       );
@@ -167,30 +147,21 @@ export function FileDropZone({
     [processFiles]
   );
 
-  /**
-   * Determine if dragged items should be accepted
-   */
   const getDropOperation = useCallback(
     (types: { has: (type: string) => boolean }) => {
-      // If disabled, reject all drops
       if (isDisabled) {
         return "cancel" as const;
       }
 
-      // If no specific types required, accept all files
       if (!acceptedFileTypes || acceptedFileTypes.length === 0) {
         return "copy" as const;
       }
 
-      // Check if any of the dragged types match our accepted types
-      // Note: We can only check MIME types during drag, not extensions
       const hasAcceptedType = acceptedFileTypes.some((type) => {
         if (type.startsWith(".")) {
-          // Can't check extensions during drag, so allow and validate on drop
           return true;
         }
         if (type.endsWith("/*")) {
-          // For wildcard MIME types, allow the drop and validate on drop
           return true;
         }
         return types.has(type);
@@ -201,7 +172,12 @@ export function FileDropZone({
     [acceptedFileTypes, isDisabled]
   );
 
-  // Generate description text if not provided
+  const openFileDialog = useCallback(() => {
+    if (!isDisabled) {
+      hiddenInputRef.current?.click();
+    }
+  }, [isDisabled]);
+
   const displayDescription =
     description ??
     (acceptedFileTypes && acceptedFileTypes.length > 0
@@ -218,29 +194,38 @@ export function FileDropZone({
     >
       {({ isDropTarget }) => (
         <>
-          <div className="file-drop-zone__icon">
-            <Icon svg={<CloudUpload />} />
-          </div>
-          <Text className="file-drop-zone__label">
-            {isDropTarget ? "Drop files here" : label}
-          </Text>
-          <div className="file-drop-zone__browse-row">
-            <Text className="file-drop-zone__or-text">or</Text>
-            <FileTrigger
-              onSelect={handleFileTriggerSelect}
-              acceptedFileTypes={acceptedFileTypes}
-              allowsMultiple={allowsMultiple}
-            >
-              <Button size="S" isDisabled={isDisabled}>
-                {browseButtonText}
-              </Button>
-            </FileTrigger>
-          </div>
-          {displayDescription && (
-            <Text className="file-drop-zone__description">
-              {displayDescription}
+          <input
+            ref={hiddenInputRef}
+            type="file"
+            accept={acceptedFileTypes?.join(",")}
+            multiple={allowsMultiple}
+            onChange={handleHiddenInputChange}
+            hidden
+          />
+          <div
+            className="file-drop-zone__trigger"
+            onClick={openFileDialog}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openFileDialog();
+              }
+            }}
+            role="button"
+            tabIndex={isDisabled ? undefined : 0}
+          >
+            <div className="file-drop-zone__icon">
+              <Icon svg={<CloudUpload />} />
+            </div>
+            <Text className="file-drop-zone__label">
+              {isDropTarget ? "Drop files here" : label}
             </Text>
-          )}
+            {displayDescription && (
+              <Text className="file-drop-zone__description">
+                {displayDescription}
+              </Text>
+            )}
+          </div>
         </>
       )}
     </ReactAriaDropZone>

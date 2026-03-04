@@ -19,7 +19,7 @@ const meta: Meta<typeof FileDropZone> = {
     docs: {
       description: {
         component:
-          "A file drop zone component that combines drag-and-drop functionality with a file browser button.",
+          "A file drop zone component that combines drag-and-drop with click-to-browse. Clicking anywhere in the zone opens the file dialog.",
       },
     },
   },
@@ -49,10 +49,6 @@ const meta: Meta<typeof FileDropZone> = {
       control: { type: "text" },
       description: "Description text (e.g., accepted file types)",
     },
-    browseButtonText: {
-      control: { type: "text" },
-      description: "Text for the browse button",
-    },
     isDisabled: {
       control: { type: "boolean" },
       description: "Whether the drop zone is disabled",
@@ -64,7 +60,8 @@ const meta: Meta<typeof FileDropZone> = {
 export default meta;
 
 /**
- * Default drop zone that accepts all file types
+ * Default drop zone that accepts all file types.
+ * Click anywhere in the zone to open the file dialog.
  */
 export const Default: StoryFn<FileDropZoneProps> = (args) => {
   const [files, setFiles] = useState<File[]>([]);
@@ -208,7 +205,6 @@ export const WithUploadProgress: StoryFn<FileDropZoneProps> = (args) => {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
 
   const simulateUpload = useCallback((file: File) => {
-    // Add file with uploading status
     const newFile: FileWithProgress = {
       file,
       status: "uploading",
@@ -217,7 +213,6 @@ export const WithUploadProgress: StoryFn<FileDropZoneProps> = (args) => {
 
     setFiles((prev) => [...prev, newFile]);
 
-    // Simulate upload progress
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 20;
@@ -350,7 +345,7 @@ export const WithSizeLimit: StoryFn<FileDropZoneProps> = (args) => {
 };
 
 WithSizeLimit.args = {
-  maxFileSize: 1024 * 1024, // 1MB
+  maxFileSize: 1024 * 1024,
   description: "Maximum file size: 1MB",
 };
 
@@ -383,7 +378,6 @@ export const CustomLabels: StoryFn<FileDropZoneProps> = (args) => {
 CustomLabels.args = {
   label: "Upload your dataset",
   description: "Supports CSV and JSON formats up to 10MB",
-  browseButtonText: "Choose File",
   acceptedFileTypes: [".csv", ".json"],
 };
 

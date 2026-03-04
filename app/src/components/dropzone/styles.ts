@@ -3,10 +3,6 @@ import { css } from "@emotion/react";
 export const fileDropZoneCSS = css`
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-400);
   min-height: 160px;
   border: 1px solid var(--global-color-gray-200);
   border-radius: var(--global-rounding-medium);
@@ -32,6 +28,17 @@ export const fileDropZoneCSS = css`
     opacity: var(--global-opacity-disabled);
   }
 
+  .file-drop-zone__trigger {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-400);
+    cursor: pointer;
+  }
+
   .file-drop-zone__icon {
     color: var(--global-text-color-500);
   }
@@ -49,17 +56,6 @@ export const fileDropZoneCSS = css`
   .file-drop-zone__description {
     font-size: var(--global-font-size-s);
     color: var(--global-text-color-700);
-  }
-
-  .file-drop-zone__browse-row {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-  }
-
-  .file-drop-zone__or-text {
-    font-size: var(--global-font-size-s);
-    color: var(--global-text-color-500);
   }
 `;
 

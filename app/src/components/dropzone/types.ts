@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { DropZoneProps as ReactAriaDropZoneProps } from "react-aria-components";
 
 /**
@@ -70,12 +70,6 @@ export interface FileDropZoneProps extends Pick<
    * Description text displayed below the label (e.g., accepted file types)
    */
   description?: string;
-
-  /**
-   * Text for the browse button
-   * @default "Browse"
-   */
-  browseButtonText?: string;
 }
 
 export interface FileRejection {
@@ -123,11 +117,8 @@ export interface FileListProps {
   isDisabled?: boolean;
 
   /**
-   * Optional render function or component child. When a function, called for each file with (file, index).
-   * When a single React element (e.g. <FileListItem />), it is cloned for each file with file, onRemove, isDisabled, and index injected.
+   * Optional render function called for each file with (file, index).
    * When omitted, files are rendered with the default FileListItem.
    */
-  children?:
-    | ((file: FileWithProgress, index: number) => ReactNode)
-    | ReactElement<FileListItemProps>;
+  children?: (file: FileWithProgress, index: number) => ReactNode;
 }
