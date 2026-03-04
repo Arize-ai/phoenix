@@ -577,6 +577,13 @@
                 ]
               },
               {
+                "group": "Claude Agent SDK",
+                "pages": [
+                  "docs/phoenix/integrations/python/claude-agent-sdk",
+                  "docs/phoenix/integrations/python/claude-agent-sdk/claude-agent-sdk-tracing-py"
+                ]
+              },
+              {
                 "group": "CrewAI",
                 "pages": [
                   "docs/phoenix/integrations/python/crewai",
