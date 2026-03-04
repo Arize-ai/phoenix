@@ -277,6 +277,9 @@ class BruteForceLoginRateLimiter:
         self._cleanup_expired(now)
         key = key.strip().lower()
         record = self._fetch_record(key, now)
+        if record.blocked_until and record.blocked_until <= now:
+            record.failed_count = 0
+            record.blocked_until = 0.0
         record.failed_count += 1
         if record.failed_count >= self.max_attempts:
             record.blocked_until = now + self.window_seconds

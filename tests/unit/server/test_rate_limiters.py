@@ -231,6 +231,33 @@ def test_brute_force_unblocks_after_window() -> None:
         limiter.check("user@example.com")  # should not raise
 
 
+def test_brute_force_resets_failed_count_after_lockout_expires() -> None:
+    from phoenix.server.rate_limiters import (
+        BruteForceLoginLimitExceeded,
+        BruteForceLoginRateLimiter,
+    )
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=3, window_seconds=300.0)
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+    # After the window expires, a single failure should NOT re-lock the user
+    with freeze_time(start + 301):
+        limiter.check("user@example.com")  # should not raise
+        limiter.record_failure("user@example.com")  # 1st failure in new window
+        limiter.check("user@example.com")  # should not raise (1 < 3)
+        limiter.record_failure("user@example.com")  # 2nd failure
+        limiter.check("user@example.com")  # should not raise (2 < 3)
+        limiter.record_failure("user@example.com")  # 3rd failure — now locked again
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+
 def test_brute_force_normalizes_key() -> None:
     from phoenix.server.rate_limiters import (
         BruteForceLoginLimitExceeded,
