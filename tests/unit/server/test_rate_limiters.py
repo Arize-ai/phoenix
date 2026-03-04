@@ -6,7 +6,11 @@ from unittest import mock
 
 import pytest
 
-from phoenix.server.rate_limiters import ServerRateLimiter, TokenBucket, UnavailableTokensError
+from phoenix.server.rate_limiters import (
+    ServerRateLimiter,
+    TokenBucket,
+    UnavailableTokensError,
+)
 
 
 @contextmanager
@@ -159,3 +163,137 @@ def test_rate_limiter_caches_token_buckets() -> None:
         assert token_bucket.available_tokens() == 7.5
         limiter.make_request("test_key")
         assert token_bucket.tokens == 6.5
+
+
+# --- BruteForceLoginRateLimiter tests ---
+
+
+def test_brute_force_allows_login_under_threshold() -> None:
+    from phoenix.server.rate_limiters import BruteForceLoginRateLimiter
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=3, window_seconds=300.0)
+        # Should not raise for fewer than max_attempts failures
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.check("user@example.com")  # 2 failures < 3 max, should not raise
+
+
+def test_brute_force_blocks_after_max_attempts() -> None:
+    from phoenix.server.rate_limiters import (
+        BruteForceLoginLimitExceeded,
+        BruteForceLoginRateLimiter,
+    )
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=3, window_seconds=300.0)
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+
+def test_brute_force_resets_on_success() -> None:
+    from phoenix.server.rate_limiters import BruteForceLoginRateLimiter
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=3, window_seconds=300.0)
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.record_success("user@example.com")
+        # Counter should be reset; 2 more failures should not trigger block
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.check("user@example.com")  # should not raise
+
+
+def test_brute_force_unblocks_after_window() -> None:
+    from phoenix.server.rate_limiters import (
+        BruteForceLoginLimitExceeded,
+        BruteForceLoginRateLimiter,
+    )
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=3, window_seconds=300.0)
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+    # After the window expires, should be allowed again
+    with freeze_time(start + 301):
+        limiter.check("user@example.com")  # should not raise
+
+
+def test_brute_force_resets_failed_count_after_lockout_expires() -> None:
+    from phoenix.server.rate_limiters import (
+        BruteForceLoginLimitExceeded,
+        BruteForceLoginRateLimiter,
+    )
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=3, window_seconds=300.0)
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+    # After the window expires, a single failure should NOT re-lock the user
+    with freeze_time(start + 301):
+        limiter.check("user@example.com")  # should not raise
+        limiter.record_failure("user@example.com")  # 1st failure in new window
+        limiter.check("user@example.com")  # should not raise (1 < 3)
+        limiter.record_failure("user@example.com")  # 2nd failure
+        limiter.check("user@example.com")  # should not raise (2 < 3)
+        limiter.record_failure("user@example.com")  # 3rd failure — now locked again
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+
+def test_brute_force_normalizes_key() -> None:
+    from phoenix.server.rate_limiters import (
+        BruteForceLoginLimitExceeded,
+        BruteForceLoginRateLimiter,
+    )
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(max_attempts=2, window_seconds=300.0)
+        limiter.record_failure("  User@Example.COM  ")
+        limiter.record_failure("user@example.com")
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("USER@EXAMPLE.COM")
+
+
+def test_brute_force_partition_cleanup() -> None:
+    from phoenix.server.rate_limiters import (
+        BruteForceLoginLimitExceeded,
+        BruteForceLoginRateLimiter,
+    )
+
+    start = time.time()
+    with freeze_time(start):
+        limiter = BruteForceLoginRateLimiter(
+            max_attempts=2,
+            window_seconds=300.0,
+            partition_seconds=100.0,
+            active_partitions=2,
+        )
+        limiter.record_failure("user@example.com")
+        limiter.record_failure("user@example.com")
+        with pytest.raises(BruteForceLoginLimitExceeded):
+            limiter.check("user@example.com")
+
+    # After enough partition rotations, the record should be cleaned up
+    total_partitions = limiter.num_partitions
+    with freeze_time(start + total_partitions * limiter.partition_seconds + 1):
+        # All partitions have rotated; record should be gone
+        limiter.check("user@example.com")  # should not raise

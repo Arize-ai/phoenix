@@ -28,14 +28,21 @@ from phoenix.auth import (
 )
 from phoenix.config import (
     get_base_url,
+    get_env_brute_force_login_protection_max_attempts,
     get_env_disable_basic_auth,
+    get_env_disable_brute_force_login_protection,
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
 from phoenix.server.api.routers.ldap import get_or_create_ldap_user
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
-from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
+from phoenix.server.rate_limiters import (
+    BruteForceLoginLimitExceeded,
+    BruteForceLoginRateLimiter,
+    ServerRateLimiter,
+    fastapi_ip_rate_limiter,
+)
 from phoenix.server.types import (
     AccessTokenClaims,
     PasswordResetTokenClaims,
@@ -57,6 +64,36 @@ rate_limiter = ServerRateLimiter(
     partition_seconds=60,
     active_partitions=2,
 )
+
+brute_force_rate_limiter: BruteForceLoginRateLimiter | None = (
+    None
+    if get_env_disable_brute_force_login_protection()
+    else BruteForceLoginRateLimiter(
+        max_attempts=get_env_brute_force_login_protection_max_attempts(),
+    )
+)
+
+_BRUTE_FORCE_MESSAGE = "Too many failed login attempts. Please try again later."
+
+
+def _check_brute_force_limit(key: str) -> None:
+
+    if brute_force_rate_limiter is None:
+        return
+    try:
+        brute_force_rate_limiter.check(key)
+    except BruteForceLoginLimitExceeded:
+        raise HTTPException(status_code=429, detail=_BRUTE_FORCE_MESSAGE)
+
+
+def _record_brute_force_failure(key: str) -> None:
+    if brute_force_rate_limiter is not None:
+        brute_force_rate_limiter.record_failure(key)
+
+
+def _record_brute_force_success(key: str) -> None:
+    if brute_force_rate_limiter is not None:
+        brute_force_rate_limiter.record_success(key)
 
 
 def create_auth_router(ldap_enabled: bool = False) -> APIRouter:
@@ -118,6 +155,8 @@ async def _login(request: Request) -> Response:
     # Sanitize email by trimming and lowercasing
     email = sanitize_email(email)
 
+    _check_brute_force_limit(email)
+
     async with request.app.state.db() as session:
         user = await session.scalar(
             select(models.User)
@@ -129,6 +168,7 @@ async def _login(request: Request) -> Response:
             or (password_hash := user.password_hash) is None
             or (salt := user.password_salt) is None
         ):
+            _record_brute_force_failure(email)
             raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
     loop = asyncio.get_running_loop()
@@ -136,8 +176,10 @@ async def _login(request: Request) -> Response:
         is_valid_password, password=password, salt=salt, password_hash=password_hash
     )
     if not await loop.run_in_executor(None, password_is_valid):
+        _record_brute_force_failure(email)
         raise HTTPException(status_code=401, detail=LOGIN_FAILED_MESSAGE)
 
+    _record_brute_force_success(email)
     return await _create_auth_response(request, user)
 
 
@@ -280,6 +322,7 @@ async def _reset_password(request: Request) -> Response:
     async with request.app.state.db() as session:
         session.add(user)
         await session.flush()
+    _record_brute_force_success(sanitize_email(user.email))
     response = Response(status_code=204)
     assert (token_id := claims.token_id)
     await token_store.revoke(token_id)
@@ -304,10 +347,14 @@ async def _ldap_login(request: Request) -> Response:
     if not username or not password:
         raise HTTPException(status_code=401, detail="Username and password required")
 
+    lockout_key = username.strip().lower()
+    _check_brute_force_limit(lockout_key)
+
     # Authenticate against LDAP (reused authenticator, already parsed TLS config)
     user_info = await authenticator.authenticate(username, password)
 
     if not user_info:
+        _record_brute_force_failure(lockout_key)
         # Generic error message to prevent username enumeration
         raise HTTPException(status_code=401, detail="Invalid username and/or password")
 
@@ -315,6 +362,7 @@ async def _ldap_login(request: Request) -> Response:
     async with request.app.state.db() as session:
         user = await get_or_create_ldap_user(session, user_info, authenticator.config)
 
+    _record_brute_force_success(lockout_key)
     return await _create_auth_response(request, user)
 
 

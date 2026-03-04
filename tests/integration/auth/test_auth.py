@@ -1916,3 +1916,61 @@ class TestVercelChatStreamRouterAuth:
         api_key = logged_in_user.create_api_key(_app)
         response = _httpx_client(_app, api_key).post("/chat", params=_params, json=_body)
         assert response.status_code == 200
+
+
+class TestBruteForceLoginProtection:
+    """Tests for brute force login protection.
+
+    The brute force rate limiter is enabled by default (PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION
+    is not set). Default max_attempts is 5. Each test uses a unique email to avoid cross-test
+    interference since the rate limiter is a shared singleton in the server process.
+    """
+
+    def test_login_returns_429_after_max_failed_attempts(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, UserRoleInput.MEMBER)
+        client = _httpx_client(_app)
+        # Exhaust all 5 attempts with wrong passwords
+        for _ in range(5):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+        # Next attempt should be blocked with 429
+        resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+        assert resp.status_code == 429
+
+    def test_successful_login_resets_failure_counter(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, UserRoleInput.MEMBER)
+        client = _httpx_client(_app)
+        # Accumulate some failures (below threshold)
+        for _ in range(4):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+        # Successful login should reset the counter
+        resp = client.post("auth/login", json={"email": user.email, "password": user.password})
+        assert resp.status_code == 204
+        # Now 4 more failures should not trigger 429 (counter was reset)
+        for _ in range(4):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+
+    def test_blocked_login_even_with_correct_password(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, UserRoleInput.MEMBER)
+        client = _httpx_client(_app)
+        # Exhaust all attempts
+        for _ in range(5):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+        # Even correct password should be blocked
+        resp = client.post("auth/login", json={"email": user.email, "password": user.password})
+        assert resp.status_code == 429
