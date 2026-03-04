@@ -22,25 +22,29 @@ DATASET_NAME = "support-benchmark"
 
 EXAMPLES_V1: list[dict[str, Any]] = [
     {
+        "external_id": "q-ai",
         "input": {"question": "What is AI?"},
         "output": {"answer": "..."},
         "metadata": {},
     },
     {
+        "external_id": "q-ml",
         "input": {"question": "What is ML?"},
         "output": {"answer": "..."},
         "metadata": {},
     },
 ]
 
-# V2: keep "What is AI?" unchanged, delete "What is ML?", add "What is RL?"
+# V2: patch "What is AI?" with a better answer, delete "What is ML?", add "What is RL?"
 EXAMPLES_V2: list[dict[str, Any]] = [
     {
+        "external_id": "q-ai",
         "input": {"question": "What is AI?"},
-        "output": {"answer": "..."},
+        "output": {"answer": "Artificial Intelligence"},
         "metadata": {},
     },
     {
+        "external_id": "q-rl",
         "input": {"question": "What is RL?"},
         "output": {"answer": "..."},
         "metadata": {},

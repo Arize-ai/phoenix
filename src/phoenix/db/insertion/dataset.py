@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from collections import Counter, defaultdict
 from collections.abc import Awaitable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -621,6 +622,7 @@ async def upsert_dataset_examples_by_hash(
             session=session,
             dataset_id=dataset_id,
             span_rowid=span_rowid,
+            external_id=str(uuid.uuid4()),
             created_at=created_at,
         )
         await insert_dataset_example_revision(
@@ -842,19 +844,37 @@ async def upsert_dataset_examples_by_external_id(
         )
 
     # Insert CREATE revisions for new examples.
+    # Pre-load any existing dataset_examples rows for the external_ids we are about to create,
+    # so we can reuse a previously-deleted example's row rather than re-inserting and hitting
+    # the UNIQUE constraint on external_id.
+    to_create_external_ids = [ex.external_id for ex, _ in to_create if ex.external_id]
+    existing_id_by_external_id: dict[str, DatasetExampleId] = {}
+    if to_create_external_ids:
+        rows = (
+            await session.execute(
+                select(models.DatasetExample.id, models.DatasetExample.external_id).where(
+                    models.DatasetExample.external_id.in_(to_create_external_ids)
+                )
+            )
+        ).all()
+        existing_id_by_external_id = {row.external_id: row.id for row in rows}
+
     split_assignments: list[tuple[DatasetExampleId, str]] = []
     span_ids_to_resolve = [example.span_id for example, _ in to_create]
     span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
 
     for example, new_hash in to_create:
         span_rowid = span_id_to_rowid.get(example.span_id) if example.span_id else None
-        dataset_example_id = await insert_dataset_example(
-            session=session,
-            dataset_id=dataset_id,
-            span_rowid=span_rowid,
-            external_id=example.external_id,
-            created_at=created_at,
-        )
+        if example.external_id and example.external_id in existing_id_by_external_id:
+            dataset_example_id = existing_id_by_external_id[example.external_id]
+        else:
+            dataset_example_id = await insert_dataset_example(
+                session=session,
+                dataset_id=dataset_id,
+                span_rowid=span_rowid,
+                external_id=example.external_id,
+                created_at=created_at,
+            )
         await insert_dataset_example_revision(
             session=session,
             dataset_version_id=dataset_version_id,

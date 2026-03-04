@@ -10,25 +10,29 @@ const DATASET_NAME = "support-benchmark";
 
 const examplesV1: Example[] = [
   {
+    externalId: "q-ai",
     input: { question: "What is AI?" },
     output: { answer: "..." },
     metadata: {},
   },
   {
+    externalId: "q-ml",
     input: { question: "What is ML?" },
     output: { answer: "..." },
     metadata: {},
   },
 ];
 
-// V2: keep "What is AI?" unchanged, delete "What is ML?", add "What is RL?"
+// V2: patch "What is AI?" with a better answer, delete "What is ML?", add "What is RL?"
 const examplesV2: Example[] = [
   {
+    externalId: "q-ai",
     input: { question: "What is AI?" },
-    output: { answer: "..." },
+    output: { answer: "Artificial Intelligence" },
     metadata: {},
   },
   {
+    externalId: "q-rl",
     input: { question: "What is RL?" },
     output: { answer: "..." },
     metadata: {},
