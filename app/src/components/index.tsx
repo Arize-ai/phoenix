@@ -68,3 +68,4 @@ export * from "./checkbox";
 export * from "./switch";
 export * from "./menu";
 export * from "./PageHeader";
+export * from "./dropzone";
