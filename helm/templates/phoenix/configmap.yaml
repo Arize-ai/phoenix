@@ -20,6 +20,9 @@ data:
   PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.accessTokenExpiryMinutes | quote }}
   PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.passwordResetTokenExpiryMinutes | quote }}
   PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES: {{ .Values.auth.refreshTokenExpiryMinutes | quote }}
+  PHOENIX_ENABLE_STRONG_PASSWORD_POLICY: {{ .Values.auth.enableStrongPasswordPolicy | default false | quote }}
+  PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION: {{ .Values.auth.disableBruteForceLoginProtection | default false | quote }}
+  PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS: {{ .Values.auth.bruteForceLoginProtectionMaxAttempts | default 5 | quote }}
   {{- if .Values.auth.admins }}
   PHOENIX_ADMINS: {{ .Values.auth.admins | quote }}
   {{- end }}
@@ -155,6 +158,7 @@ data:
   PHOENIX_LOGGING_LEVEL: {{ .Values.logging.level | quote }}
   PHOENIX_DB_LOGGING_LEVEL: {{ .Values.logging.dbLevel | quote }}
   PHOENIX_LOG_MIGRATIONS: {{ .Values.logging.logMigrations | quote }}
+  PHOENIX_LOG_SQL: {{ .Values.logging.logSql | quote }}
 
   # TLS configuration
   PHOENIX_TLS_ENABLED: {{ .Values.tls.enabled | quote }}

@@ -85,6 +85,18 @@ When the strong password policy is enabled, passwords must meet all of the follo
 export PHOENIX_ENABLE_STRONG_PASSWORD_POLICY=True
 ```
 
+## Brute Force Login Protection
+
+Phoenix includes built-in brute force login protection that temporarily locks accounts after repeated failed login attempts. By default, after `5` failed attempts, the account is locked out for 5 minutes.
+
+* **PHOENIX\_BRUTE\_FORCE\_LOGIN\_PROTECTION\_MAX\_ATTEMPTS:** Maximum number of failed login attempts before temporary lockout. Defaults to `5`.
+* **PHOENIX\_DISABLE\_BRUTE\_FORCE\_LOGIN\_PROTECTION:** Set to `true` to disable brute force login protection entirely. Defaults to `false`.
+
+```bash
+# Increase max attempts before lockout
+export PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS=10
+```
+
 ## User Management
 
 Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of three roles: `admin`, `member`, or `viewer`. See permissions below to learn more about the permissions for each role.
@@ -859,8 +871,12 @@ The following optional environment variables provide additional control over aut
          <td>Forbid login via password and disable the creation of local users, which log in via passwords. This can be helpful in setups where authentication is handled entirely through OAuth2. Defaults to <code>False</code>.</td>
       </tr>
       <tr>
-         <td><strong>PHOENIX_DISABLE_RATE_LIMIT</strong></td>
-         <td>Disable rate limiting for login attempts. Defaults to <code>False</code>. Use with caution as this removes brute-force protection.</td>
+         <td><strong>PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION</strong></td>
+         <td>Disable brute force login protection. Defaults to <code>false</code>. Use with caution as this removes protection against repeated failed login attempts.</td>
+      </tr>
+      <tr>
+         <td><strong>PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS</strong></td>
+         <td>Maximum number of failed login attempts before temporary lockout. Defaults to <code>5</code>. Lockout duration is 5 minutes.</td>
       </tr>
       <tr>
          <td><strong>PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES</strong></td>
