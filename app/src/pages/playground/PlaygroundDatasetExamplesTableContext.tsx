@@ -9,6 +9,7 @@ import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 type InstanceId = number;
 export type ExampleId = string;
 export type RepetitionNumber = number;
+type AnnotationName = string;
 type ChatCompletionSubscriptionResult = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ChatCompletionSubscriptionResult" }
@@ -24,6 +25,49 @@ export type EvaluationChunk = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "EvaluationChunk" }
 >;
+
+/**
+ * A running sum/count used to compute a mean score incrementally.
+ */
+export type ExperimentRunAnnotationAggregateMetric = {
+  sum: number;
+  count: number;
+};
+
+/**
+ * Running sums/counts for cost, latency, and token metrics per instance.
+ * Each metric tracks its own count since any value can be null on a given run.
+ */
+export type ExperimentRunCostAggregateMetric = {
+  runCount: number;
+  latencySum: number;
+  latencyCount: number;
+  tokenCountSum: number;
+  tokenCountCount: number;
+  costSum: number;
+  costCount: number;
+};
+
+/**
+ * Represents an annotation score for a single experiment run.
+ * Used for tracking annotated metrics (e.g., evaluator scores) for a given instance.
+ */
+export type ExperimentRunAnnotation = {
+  instanceId: InstanceId;
+  annotationName: AnnotationName;
+  score: number | null;
+};
+
+/**
+ * Represents cost, latency, and token metrics for a single experiment run.
+ * Used for aggregating per-run LLM cost and performance data.
+ */
+export type ExperimentRunCost = {
+  instanceId: InstanceId;
+  latencyMs: number | null;
+  tokenCountTotal: number | null;
+  cost: number | null;
+};
 
 export type ExampleRunData = {
   content?: string | null;
@@ -69,6 +113,8 @@ type PlaygroundDatasetExamplesTableActions = {
     repetitionNumber: RepetitionNumber;
     evaluationChunk: EvaluationChunk;
   }) => void;
+  addRunAnnotations: (annotations: ExperimentRunAnnotation[]) => void;
+  addRunCosts: (costs: ExperimentRunCost[]) => void;
   setExampleDataForInstance: (args: {
     data: InstanceResponses;
     instanceId: InstanceId;
@@ -85,6 +131,11 @@ type PlaygroundDatasetExamplesTableActions = {
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
+  runAnnotationAggregateMetrics: Record<
+    InstanceId,
+    Record<AnnotationName, ExperimentRunAnnotationAggregateMetric>
+  >;
+  runCostAggregateMetrics: Record<InstanceId, ExperimentRunCostAggregateMetric>;
   repetitions: number;
   expandedCells: Record<string, boolean>;
 } & PlaygroundDatasetExamplesTableActions;
@@ -100,6 +151,8 @@ const createPlaygroundDatasetExamplesTableStore = () => {
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
     exampleResponsesMap: {},
+    runAnnotationAggregateMetrics: {},
+    runCostAggregateMetrics: {},
     repetitions: 1,
     expandedCells: {},
     updateExampleData: ({ instanceId, exampleId, repetitionNumber, patch }) => {
@@ -222,6 +275,66 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
+    addRunAnnotations: (annotations) => {
+      if (annotations.length === 0) return;
+      const { runAnnotationAggregateMetrics } = get();
+      const newrunAnnotationAggregateMetrics = {
+        ...runAnnotationAggregateMetrics,
+      };
+      for (const { instanceId, annotationName, score } of annotations) {
+        if (score == null) continue;
+        const instanceAggregates =
+          newrunAnnotationAggregateMetrics[instanceId] ?? {};
+        const prev = instanceAggregates[annotationName] ?? {
+          sum: 0,
+          count: 0,
+        };
+        const newSum = prev.sum + score;
+        const newCount = prev.count + 1;
+        newrunAnnotationAggregateMetrics[instanceId] = {
+          ...instanceAggregates,
+          [annotationName]: {
+            sum: newSum,
+            count: newCount,
+          },
+        };
+      }
+      set({ runAnnotationAggregateMetrics: newrunAnnotationAggregateMetrics });
+    },
+    addRunCosts: (costs) => {
+      if (costs.length === 0) return;
+      const { runCostAggregateMetrics } = get();
+      const newAggregates = { ...runCostAggregateMetrics };
+      for (const { instanceId, latencyMs, tokenCountTotal, cost } of costs) {
+        const prev = newAggregates[instanceId] ?? {
+          runCount: 0,
+          latencySum: 0,
+          latencyCount: 0,
+          tokenCountSum: 0,
+          tokenCountCount: 0,
+          costSum: 0,
+          costCount: 0,
+        };
+        newAggregates[instanceId] = {
+          runCount: prev.runCount + 1,
+          latencySum:
+            latencyMs != null ? prev.latencySum + latencyMs : prev.latencySum,
+          latencyCount:
+            latencyMs != null ? prev.latencyCount + 1 : prev.latencyCount,
+          tokenCountSum:
+            tokenCountTotal != null
+              ? prev.tokenCountSum + tokenCountTotal
+              : prev.tokenCountSum,
+          tokenCountCount:
+            tokenCountTotal != null
+              ? prev.tokenCountCount + 1
+              : prev.tokenCountCount,
+          costSum: cost != null ? prev.costSum + cost : prev.costSum,
+          costCount: cost != null ? prev.costCount + 1 : prev.costCount,
+        };
+      }
+      set({ runCostAggregateMetrics: newAggregates });
+    },
     setExampleDataForInstance: ({ instanceId, data }) => {
       const exampleResponsesMap = get().exampleResponsesMap;
       set({
@@ -232,7 +345,13 @@ const createPlaygroundDatasetExamplesTableStore = () => {
       });
     },
     resetData: () => {
-      set({ exampleResponsesMap: {}, repetitions: 1, expandedCells: {} });
+      set({
+        exampleResponsesMap: {},
+        runAnnotationAggregateMetrics: {},
+        runCostAggregateMetrics: {},
+        repetitions: 1,
+        expandedCells: {},
+      });
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions });

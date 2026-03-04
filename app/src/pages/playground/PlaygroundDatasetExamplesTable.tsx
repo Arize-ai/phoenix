@@ -6,12 +6,12 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { throttle } from "lodash";
 import type { SetStateAction } from "react";
 import {
   memo,
   type ReactNode,
   type RefObject,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -51,16 +51,14 @@ import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
   CELL_PRIMARY_CONTENT_HEIGHT,
-  ConnectedExperimentAnnotationAggregates,
-  ConnectedExperimentCostAndLatencySummary,
   ExperimentAnnotationAggregates,
-  ExperimentAnnotationAggregatesSkeleton,
   ExperimentCostAndLatencySummary,
-  ExperimentCostAndLatencySummarySkeleton,
+  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
+import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
 import { CellTop, OverflowCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -72,6 +70,7 @@ import {
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import type { ExecutionState } from "@phoenix/components/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -114,6 +113,8 @@ import {
 } from "./InstanceVariablesContext";
 import type {
   EvaluationChunk,
+  ExperimentRunAnnotation,
+  ExperimentRunCost,
   ExampleRunData,
   InstanceResponses,
 } from "./PlaygroundDatasetExamplesTableContext";
@@ -133,6 +134,7 @@ import {
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
+const AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS = 2000;
 
 /**
  * Maximum number of dataset examples to sample for extracting available paths
@@ -721,6 +723,124 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
+function getExecutionState({
+  hasData,
+  isRunning,
+  experimentId,
+}: {
+  hasData: boolean;
+  isRunning: boolean;
+  experimentId: string | null | undefined;
+}): ExecutionState {
+  if (hasData) return "complete";
+  if (isRunning) return "running";
+  if (experimentId != null) return "complete";
+  return "idle";
+}
+
+function PlaygroundInstanceOutputColumnHeader({
+  instanceId,
+  index,
+  experimentId,
+  isRunning,
+  evaluatorOutputConfigs,
+}: {
+  instanceId: number;
+  index: number;
+  experimentId: string | null | undefined;
+  isRunning: boolean;
+  evaluatorOutputConfigs: readonly AnnotationConfig[];
+}) {
+  const annotationAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.runAnnotationAggregateMetrics[instanceId] ?? null
+  );
+  const costAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.runCostAggregateMetrics[instanceId] ?? null
+  );
+  const annotationSummaries = useMemo<AnnotationSummary[]>(() => {
+    if (annotationAggregateMetrics == null) {
+      return [];
+    }
+    return Object.entries(annotationAggregateMetrics).map(
+      ([annotationName, metric]) => ({
+        annotationName,
+        meanScore: metric.count > 0 ? metric.sum / metric.count : null,
+      })
+    );
+  }, [annotationAggregateMetrics]);
+  const costSummary =
+    useMemo<ExperimentCostAndLatencySummaryExperiment | null>(() => {
+      const resolvedExperimentId = experimentId ?? null;
+      if (
+        resolvedExperimentId == null ||
+        costAggregateMetrics == null ||
+        costAggregateMetrics.runCount === 0
+      ) {
+        return null;
+      }
+      return {
+        id: resolvedExperimentId,
+        averageRunLatencyMs:
+          costAggregateMetrics.latencyCount > 0
+            ? costAggregateMetrics.latencySum /
+              costAggregateMetrics.latencyCount
+            : null,
+        runCount: costAggregateMetrics.runCount,
+        costSummary: {
+          total: {
+            cost:
+              costAggregateMetrics.costCount > 0
+                ? costAggregateMetrics.costSum
+                : null,
+            tokens:
+              costAggregateMetrics.tokenCountCount > 0
+                ? costAggregateMetrics.tokenCountSum
+                : null,
+          },
+        },
+      };
+    }, [experimentId, costAggregateMetrics]);
+
+  const costExecutionState = getExecutionState({
+    hasData: costSummary != null,
+    isRunning,
+    experimentId,
+  });
+
+  const annotationExecutionState = getExecutionState({
+    hasData: annotationSummaries.length > 0,
+    isRunning,
+    experimentId,
+  });
+
+  return (
+    <Flex direction="column" gap="size-50" width="100%">
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        justifyContent="space-between"
+        width="100%"
+      >
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <AlphabeticIndexIcon index={index} size="XS" />
+          <span>Output</span>
+        </Flex>
+        <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
+      </Flex>
+      <ExperimentCostAndLatencySummary
+        executionState={costExecutionState}
+        experiment={costSummary}
+      />
+      <ExperimentAnnotationAggregates
+        executionState={annotationExecutionState}
+        annotationConfigs={evaluatorOutputConfigs}
+        annotationSummaries={annotationSummaries}
+      />
+    </Flex>
+  );
+}
+
 export function PlaygroundDatasetExamplesTable({
   datasetId,
   splitIds,
@@ -785,6 +905,66 @@ export function PlaygroundDatasetExamplesTable({
     usePlaygroundDatasetExamplesTableContext(
       (state) => state.appendExampleDataEvaluationChunk
     );
+  const addRunAnnotations = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.addRunAnnotations
+  );
+  const addRunCosts = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.addRunCosts
+  );
+
+  const pendingExperimentRunAnnotations = useRef<ExperimentRunAnnotation[]>([]);
+  const pendingExperimentRunCosts = useRef<ExperimentRunCost[]>([]);
+
+  // Throttled to avoid re-rendering aggregate statistics with every eval chunk;
+  // instead updates at most once per AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS for readability.
+  const flushPendingExperimentMetrics = useMemo(
+    () =>
+      throttle(
+        () => {
+          const annotations = pendingExperimentRunAnnotations.current;
+          pendingExperimentRunAnnotations.current = [];
+          if (annotations.length > 0) {
+            addRunAnnotations(annotations);
+          }
+
+          const costs = pendingExperimentRunCosts.current;
+          pendingExperimentRunCosts.current = [];
+          if (costs.length > 0) {
+            addRunCosts(costs);
+          }
+        },
+        AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS,
+        { leading: true, trailing: true }
+      ),
+    [addRunAnnotations, addRunCosts]
+  );
+  const handleExperimentRunAnnotation = useCallback(
+    (annotation: ExperimentRunAnnotation) => {
+      pendingExperimentRunAnnotations.current.push(annotation);
+      flushPendingExperimentMetrics();
+    },
+    [flushPendingExperimentMetrics]
+  );
+  const handleExperimentRunCost = useCallback(
+    (cost: ExperimentRunCost) => {
+      pendingExperimentRunCosts.current.push(cost);
+      flushPendingExperimentMetrics();
+    },
+    [flushPendingExperimentMetrics]
+  );
+  const resetPendingExperimentMetrics = useCallback(() => {
+    flushPendingExperimentMetrics.cancel();
+    pendingExperimentRunAnnotations.current = [];
+    pendingExperimentRunCosts.current = [];
+  }, [flushPendingExperimentMetrics]);
+
+  useEffect(() => {
+    return () => {
+      flushPendingExperimentMetrics.flush();
+      flushPendingExperimentMetrics.cancel();
+    };
+  }, [flushPendingExperimentMetrics]);
+
   const setRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.setRepetitions
   );
@@ -868,6 +1048,12 @@ export function PlaygroundDatasetExamplesTable({
                 experimentRunId: chatCompletion.experimentRun?.id,
               },
             });
+            handleExperimentRunCost({
+              instanceId,
+              latencyMs: chatCompletion.span?.latencyMs ?? null,
+              tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
+              cost: chatCompletion.span?.costSummary?.total?.cost ?? null,
+            });
             incrementRunsCompleted(instanceId);
             break;
           case "ChatCompletionSubscriptionError":
@@ -915,6 +1101,11 @@ export function PlaygroundDatasetExamplesTable({
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
               evaluationChunk: chatCompletion,
             });
+            handleExperimentRunAnnotation({
+              instanceId,
+              annotationName: chatCompletion.evaluatorName,
+              score: chatCompletion.experimentRunEvaluation?.score ?? null,
+            });
             incrementEvalsCompleted(instanceId);
             break;
           }
@@ -927,6 +1118,8 @@ export function PlaygroundDatasetExamplesTable({
         }
       },
     [
+      handleExperimentRunAnnotation,
+      handleExperimentRunCost,
       appendExampleDataTextChunk,
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
@@ -1027,8 +1220,34 @@ export function PlaygroundDatasetExamplesTable({
             response.chatCompletionOverDataset
           ),
         });
+        const runCosts: ExperimentRunCost[] = [];
+        const runAnnotations: ExperimentRunAnnotation[] = [];
+        for (const example of response.chatCompletionOverDataset.examples) {
+          const { repetition } = example;
+          runCosts.push({
+            instanceId,
+            latencyMs: repetition.span?.latencyMs ?? null,
+            tokenCountTotal: repetition.span?.tokenCountTotal ?? null,
+            cost: repetition.span?.costSummary?.total?.cost ?? null,
+          });
+          for (const evaluation of repetition.evaluations) {
+            const annotation = evaluation.annotation;
+            if (annotation == null) {
+              continue;
+            }
+            runAnnotations.push({
+              instanceId,
+              annotationName: annotation.name,
+              score: annotation.score,
+            });
+          }
+        }
+        addRunCosts(runCosts);
+        addRunAnnotations(runAnnotations);
       },
     [
+      addRunAnnotations,
+      addRunCosts,
       markPlaygroundInstanceComplete,
       notifyError,
       repetitions,
@@ -1043,6 +1262,7 @@ export function PlaygroundDatasetExamplesTable({
       return;
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
+    resetPendingExperimentMetrics();
     resetData();
 
     // Calculate total runs and evals for progress tracking
@@ -1088,9 +1308,11 @@ export function PlaygroundDatasetExamplesTable({
             variables,
             onNext: onNext(instance.id),
             onCompleted: () => {
+              flushPendingExperimentMetrics.flush();
               markPlaygroundInstanceComplete(instance.id);
             },
             onError: (error) => {
+              flushPendingExperimentMetrics.flush();
               markPlaygroundInstanceComplete(instance.id);
               const errorMessages =
                 getErrorMessagesFromRelaySubscriptionError(error);
@@ -1114,6 +1336,7 @@ export function PlaygroundDatasetExamplesTable({
         subscriptions.push(subscription);
       }
       return () => {
+        resetPendingExperimentMetrics();
         for (const subscription of subscriptions) {
           subscription.dispose();
         }
@@ -1175,6 +1398,7 @@ export function PlaygroundDatasetExamplesTable({
         disposables.push(disposable);
       }
       return () => {
+        resetPendingExperimentMetrics();
         for (const disposable of disposables) {
           disposable.dispose();
         }
@@ -1195,6 +1419,8 @@ export function PlaygroundDatasetExamplesTable({
     notifyError,
     onCompleted,
     onNext,
+    resetPendingExperimentMetrics,
+    flushPendingExperimentMetrics,
     playgroundStore,
     repetitions,
     resetData,
@@ -1301,55 +1527,13 @@ export function PlaygroundDatasetExamplesTable({
       return {
         id: `instance-${instance.id}`,
         header: () => (
-          <Flex direction="column" gap="size-50" width="100%">
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              justifyContent="space-between"
-              width="100%"
-            >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <AlphabeticIndexIcon index={index} size="XS" />
-                <span>Output</span>
-              </Flex>
-              <PlaygroundInstanceProgressIndicator instanceId={instance.id} />
-            </Flex>
-            {isRunning ? (
-              <ExperimentCostAndLatencySummary executionState="running" />
-            ) : experimentId != null ? (
-              <Suspense fallback={<ExperimentCostAndLatencySummarySkeleton />}>
-                <ConnectedExperimentCostAndLatencySummary
-                  experimentId={experimentId}
-                />
-              </Suspense>
-            ) : (
-              <ExperimentCostAndLatencySummary executionState="idle" />
-            )}
-            {isRunning ? (
-              <ExperimentAnnotationAggregatesSkeleton
-                annotationConfigs={evaluatorOutputConfigs}
-              />
-            ) : experimentId != null ? (
-              <Suspense
-                fallback={
-                  <ExperimentAnnotationAggregatesSkeleton
-                    annotationConfigs={evaluatorOutputConfigs}
-                  />
-                }
-              >
-                <ConnectedExperimentAnnotationAggregates
-                  experimentId={experimentId}
-                  annotationConfigs={evaluatorOutputConfigs}
-                />
-              </Suspense>
-            ) : (
-              <ExperimentAnnotationAggregates
-                executionState="idle"
-                annotationConfigs={evaluatorOutputConfigs}
-              />
-            )}
-          </Flex>
+          <PlaygroundInstanceOutputColumnHeader
+            instanceId={instance.id}
+            index={index}
+            experimentId={experimentId}
+            isRunning={isRunning}
+            evaluatorOutputConfigs={evaluatorOutputConfigs}
+          />
         ),
 
         cell: ({ row }) => {
