@@ -38,6 +38,7 @@ from phoenix.server.api.routers.ldap import get_or_create_ldap_user
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import (
+    BruteForceLoginLimitExceeded,
     BruteForceLoginRateLimiter,
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -76,7 +77,6 @@ _BRUTE_FORCE_MESSAGE = "Too many failed login attempts. Please try again later."
 
 
 def _check_brute_force_limit(key: str) -> None:
-    from phoenix.server.rate_limiters import BruteForceLoginLimitExceeded
 
     if brute_force_rate_limiter is None:
         return
