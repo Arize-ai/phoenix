@@ -104,11 +104,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
   const processFile = useCallback(
     (file: File) => {
-      // Reset column selections when a new file is uploaded
+      // Reset column selections and clear stale columns when a new file is uploaded
       resetField("input_keys");
       resetField("output_keys");
       resetField("metadata_keys");
       resetField("split_keys");
+      setColumns([]);
 
       // Detect file type
       const detectedType = detectFileType(file.name);
@@ -142,10 +143,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               setColumns(result.keys);
               onErrorClear?.();
             } else {
+              setColumns([]);
               onDatasetCreateError(new Error(formatJSONLError(result.error)));
             }
           }
         } catch (error) {
+          setColumns([]);
           onDatasetCreateError(
             error instanceof Error ? error : new Error("Failed to parse file")
           );
