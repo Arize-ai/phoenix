@@ -1,5 +1,31 @@
 import { randomUUID } from "crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+async function createProject(
+  page: Page,
+  projectName: string,
+  description: string
+) {
+  await page.goto("/projects");
+  await page.waitForURL("**/projects");
+  await page.getByRole("button", { name: "New Project" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a New Project" })
+  ).toBeVisible();
+  await page.getByRole("tab", { name: /Manual|From scratch/i }).click();
+  await page.getByLabel("Project Name").fill(projectName);
+  await page.getByLabel("Description").fill(description);
+  await page.getByRole("button", { name: "Create Project" }).click();
+  await expect(page).toHaveURL(/\/projects\/.+/);
+}
+
+async function clickSortableHeaderAndExpect(
+  header: Locator,
+  direction: "ascending" | "descending"
+) {
+  await header.locator(".sort").click();
+  await expect(header).toHaveAttribute("aria-sort", direction);
+}
 
 test.describe.serial("Projects", () => {
   const projectName = `test-project-${randomUUID()}`;
@@ -19,14 +45,10 @@ test.describe.serial("Projects", () => {
       .fill("A project created manually from scratch in Playwright");
 
     await page.getByRole("button", { name: "Create Project" }).click();
-
-    // Wait for SPA navigation to the project detail page.
-    // Use toHaveURL instead of waitForURL because React Router's client-side
-    // navigation doesn't trigger a full page "load" event.
+    // toHaveURL because React Router client-side nav doesn't trigger a full "load" event
     await expect(page).toHaveURL(/\/projects\/.+/);
 
-    // Verify the project detail page loaded by checking the breadcrumb link
-    // (the project name appears in the breadcrumbs, not as a heading)
+    // Project name appears in breadcrumbs, not as a heading
     await expect(
       page.getByRole("list", { name: "Breadcrumbs" }).getByRole("link", {
         name: projectName,
@@ -44,21 +66,12 @@ test.describe.serial("Projects", () => {
       name: "Search projects by name",
     });
     await search.fill(projectName);
-
-    const projectCard = page
-      .locator("li")
-      .filter({ has: page.getByRole("heading", { name: projectName }) });
-    const projectRow = page
-      .getByRole("row")
-      .filter({ has: page.getByRole("link", { name: projectName }) });
-
-    if ((await projectCard.count()) > 0) {
-      await expect(projectCard.first()).toBeVisible();
-      await projectCard.first().getByRole("button").last().click();
-    } else {
-      await expect(projectRow.first()).toBeVisible();
-      await projectRow.first().getByRole("button").last().click();
-    }
+    const projectItem = page
+      .locator("tr, li")
+      .filter({ hasText: projectName })
+      .first();
+    await expect(projectItem).toBeVisible();
+    await projectItem.getByRole("button").last().click();
 
     await page.getByRole("menuitem", { name: "Delete" }).click();
     await expect(
@@ -66,8 +79,6 @@ test.describe.serial("Projects", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Delete Project" }).click();
-
-    // Wait for the confirmation dialog to close (indicates delete mutation + refetch completed)
     await expect(
       page.getByRole("heading", { name: "Delete Project", exact: true })
     ).not.toBeVisible();
@@ -78,5 +89,67 @@ test.describe.serial("Projects", () => {
     await expect(
       page.getByRole("heading", { name: projectName, exact: true })
     ).not.toBeVisible();
+  });
+
+  test("supports table filtering and sorting on projects page", async ({
+    page,
+  }) => {
+    const id = randomUUID().slice(0, 8);
+    const projectNameA = `compiler-project-${id}-a`;
+    const projectNameZ = `compiler-project-${id}-z`;
+
+    await createProject(page, projectNameA, "Compiler sort test project A");
+    await createProject(page, projectNameZ, "Compiler sort test project Z");
+
+    await page.goto("/projects");
+    await page.waitForURL("**/projects");
+
+    await page.getByRole("radio", { name: "Table view" }).click();
+
+    const search = page.getByRole("searchbox", {
+      name: "Search projects by name",
+    });
+    await search.fill(`compiler-project-${id}`);
+    await expect(page.getByRole("link", { name: projectNameA })).toBeVisible();
+    await expect(page.getByRole("link", { name: projectNameZ })).toBeVisible();
+
+    const table = page.getByTestId("projects-table");
+    await expect(table).toBeVisible();
+    const nameHeader = page.getByRole("columnheader", { name: "name" });
+
+    await clickSortableHeaderAndExpect(nameHeader, "ascending");
+    await expect(page.getByRole("link", { name: projectNameA })).toBeVisible();
+
+    await clickSortableHeaderAndExpect(nameHeader, "descending");
+    await expect(page.getByRole("link", { name: projectNameZ })).toBeVisible();
+
+    await search.fill(projectNameA);
+    await expect(page.getByRole("link", { name: projectNameA })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: projectNameZ })
+    ).not.toBeVisible();
+  });
+
+  test("project table remains usable after mutation workflows", async ({
+    page,
+  }) => {
+    const postMutationProject = `compiler-post-mutation-${randomUUID().slice(0, 8)}`;
+    await createProject(
+      page,
+      postMutationProject,
+      "Created after previous mutations to verify table stability"
+    );
+
+    await page.goto("/projects");
+    await page.waitForURL("**/projects");
+
+    const search = page.getByRole("searchbox", {
+      name: "Search projects by name",
+    });
+    await search.fill(postMutationProject);
+
+    await expect(
+      page.getByRole("link", { name: postMutationProject })
+    ).toBeVisible();
   });
 });

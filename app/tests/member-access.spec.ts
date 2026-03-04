@@ -38,3 +38,18 @@ test("should be able to create a new project", async ({ page }) => {
 
   await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
 });
+
+test("projects table search remains interactive for members", async ({
+  page,
+}) => {
+  await page.goto("/projects");
+  await page.waitForURL("**/projects");
+
+  const search = page.getByRole("searchbox", {
+    name: "Search projects by name",
+  });
+  await expect(search).toBeVisible();
+  await search.fill(`member-search-${randomUUID().slice(0, 8)}`);
+  await expect(search).toHaveValue(/member-search-/);
+  await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
+});

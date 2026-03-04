@@ -443,6 +443,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
       ref={tableContainerRef}
     >
       <table
+        data-testid="datasets-table"
         css={selectableTableCSS}
         style={{
           ...columnSizeVars,
@@ -453,56 +454,69 @@ export function DatasetsTable(props: DatasetsTableProps) {
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  colSpan={header.colSpan}
-                  key={header.id}
-                  style={{
-                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
-                    ...getCommonPinningStyles(header.column),
-                  }}
-                >
-                  {header.isPlaceholder ? null : (
-                    <>
-                      <div
-                        {...{
-                          className: header.column.getCanSort() ? "sort" : "",
-                          onClick: header.column.getToggleSortingHandler(),
-                          style: {
-                            textAlign: header.column.columnDef.meta?.textAlign,
-                          },
-                        }}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getIsSorted() ? (
-                          <Icon
-                            className="sort-icon"
-                            svg={
-                              header.column.getIsSorted() === "asc" ? (
-                                <Icons.ArrowUpFilled />
-                              ) : (
-                                <Icons.ArrowDownFilled />
-                              )
-                            }
-                          />
-                        ) : null}
-                      </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
-                    </>
-                  )}
-                </th>
-              ))}
+              {headerGroup.headers.map((header) => {
+                const sortDir = header.column.getIsSorted();
+                return (
+                  <th
+                    colSpan={header.colSpan}
+                    key={header.id}
+                    aria-sort={
+                      sortDir === "asc"
+                        ? "ascending"
+                        : sortDir === "desc"
+                          ? "descending"
+                          : header.column.getCanSort()
+                            ? "none"
+                            : undefined
+                    }
+                    style={{
+                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                      ...getCommonPinningStyles(header.column),
+                    }}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <>
+                        <div
+                          {...{
+                            className: header.column.getCanSort() ? "sort" : "",
+                            onClick: header.column.getToggleSortingHandler(),
+                            style: {
+                              textAlign:
+                                header.column.columnDef.meta?.textAlign,
+                            },
+                          }}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {header.column.getIsSorted() ? (
+                            <Icon
+                              className="sort-icon"
+                              svg={
+                                header.column.getIsSorted() === "asc" ? (
+                                  <Icons.ArrowUpFilled />
+                                ) : (
+                                  <Icons.ArrowDownFilled />
+                                )
+                              }
+                            />
+                          ) : null}
+                        </div>
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
+                        />
+                      </>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           ))}
         </thead>

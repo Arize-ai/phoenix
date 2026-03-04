@@ -855,46 +855,58 @@ function ProjectsTable({
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    colSpan={header.colSpan}
-                    key={header.id}
-                    style={{
-                      width: header.getSize(),
-                    }}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <div
-                        {...{
-                          className: header.column.getCanSort() ? "sort" : "",
-                          onClick: header.column.getToggleSortingHandler(),
-                          style: {
-                            left: header.getStart(),
-                            width: header.getSize(),
-                            textWrap: "nowrap",
-                          },
-                        }}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getIsSorted() ? (
-                          <Icon
-                            className="sort-icon"
-                            svg={
-                              header.column.getIsSorted() === "asc" ? (
-                                <Icons.ArrowUpFilled />
-                              ) : (
-                                <Icons.ArrowDownFilled />
-                              )
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    )}
-                  </th>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const sortDir = header.column.getIsSorted();
+                  return (
+                    <th
+                      colSpan={header.colSpan}
+                      key={header.id}
+                      aria-sort={
+                        sortDir === "asc"
+                          ? "ascending"
+                          : sortDir === "desc"
+                            ? "descending"
+                            : header.column.getCanSort()
+                              ? "none"
+                              : undefined
+                      }
+                      style={{
+                        width: header.getSize(),
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <div
+                          {...{
+                            className: header.column.getCanSort() ? "sort" : "",
+                            onClick: header.column.getToggleSortingHandler(),
+                            style: {
+                              left: header.getStart(),
+                              width: header.getSize(),
+                              textWrap: "nowrap",
+                            },
+                          }}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {header.column.getIsSorted() ? (
+                            <Icon
+                              className="sort-icon"
+                              svg={
+                                header.column.getIsSorted() === "asc" ? (
+                                  <Icons.ArrowUpFilled />
+                                ) : (
+                                  <Icons.ArrowDownFilled />
+                                )
+                              }
+                            />
+                          ) : null}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>

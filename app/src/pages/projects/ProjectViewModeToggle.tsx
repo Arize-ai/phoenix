@@ -36,7 +36,11 @@ export const ProjectViewModeToggle = () => {
       size="M"
     >
       <TooltipTrigger delay={100}>
-        <ToggleButton id="grid" leadingVisual={<Icon svg={<Icons.Grid />} />} />
+        <ToggleButton
+          id="grid"
+          aria-label="Grid view"
+          leadingVisual={<Icon svg={<Icons.Grid />} />}
+        />
         <Tooltip offset={10}>
           <View
             padding="size-100"
@@ -52,6 +56,7 @@ export const ProjectViewModeToggle = () => {
       <TooltipTrigger delay={100}>
         <ToggleButton
           id="table"
+          aria-label="Table view"
           leadingVisual={<Icon svg={<Icons.ListOutline />} />}
         />
         <Tooltip offset={10}>

@@ -40,3 +40,20 @@ test("should not be able to create a new project", async ({ page }) => {
     page.getByRole("button", { name: "New Project" })
   ).not.toBeVisible();
 });
+
+test("projects table renders for viewers and allows filtering input", async ({
+  page,
+}) => {
+  await page.goto("/projects");
+  await page.waitForURL("**/projects");
+
+  const search = page.getByRole("searchbox", {
+    name: "Search projects by name",
+  });
+  await expect(search).toBeVisible();
+  await search.fill(`viewer-search-${randomUUID().slice(0, 8)}`);
+  await expect(search).toHaveValue(/viewer-search-/);
+  await expect(
+    page.getByRole("button", { name: "New Project" })
+  ).not.toBeVisible();
+});

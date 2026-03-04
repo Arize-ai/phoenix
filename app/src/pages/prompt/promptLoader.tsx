@@ -22,6 +22,9 @@ export async function promptLoader(args: LoaderFunctionArgs) {
     promptLoaderQuery,
     {
       id: promptId as string,
+    },
+    {
+      fetchPolicy: "store-and-network",
     }
   );
   const data = await fetchQuery<promptLoaderQueryType>(

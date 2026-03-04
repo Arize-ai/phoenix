@@ -98,4 +98,30 @@ test.describe("Prompt Management", () => {
       page.getByRole("tabpanel").getByText("very angry chatbot")
     ).toBeVisible();
   });
+
+  test("prompts table shows created prompt rows and navigates from row links", async ({
+    page,
+  }) => {
+    const promptName = `compiler-table-prompt-${randomUUID().slice(0, 8)}`;
+
+    await page.goto("/playground");
+    await page.waitForURL("**/playground");
+    await page.getByRole("button", { name: "Save Prompt" }).click();
+    await page.getByPlaceholder("Select or enter new prompt").click();
+    await page.getByPlaceholder("Select or enter new prompt").fill(promptName);
+    await page.getByLabel("Prompt Description").fill("table row test prompt");
+    await page.getByRole("button", { name: "Create Prompt" }).click();
+    await expect(page).toHaveURL(/promptId=/);
+
+    await page.goto("/prompts");
+    await page.waitForURL("**/prompts");
+
+    const row = page.getByRole("row").filter({
+      has: page.getByRole("link", { name: promptName }),
+    });
+    await expect(row).toBeVisible();
+    await row.getByRole("link", { name: promptName }).click();
+
+    await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
+  });
 });
