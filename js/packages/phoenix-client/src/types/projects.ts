@@ -10,11 +10,6 @@ export type ProjectIdentifier =
   | { projectName: string };
 
 /**
- * @deprecated Use {@link ProjectIdentifier} instead.
- */
-export type ProjectSelector = ProjectIdentifier;
-
-/**
  * Resolves a {@link ProjectIdentifier} union to a plain string
  * suitable for the REST `project_identifier` path parameter.
  */
