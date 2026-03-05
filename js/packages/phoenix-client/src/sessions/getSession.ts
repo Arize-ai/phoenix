@@ -28,14 +28,17 @@ export async function getSession({
   sessionId,
 }: GetSessionParams): Promise<Session> {
   const client = _client || createClient();
-  const { data: { data: sessionData } = { data: undefined } } =
-    await client.GET("/v1/sessions/{session_identifier}", {
+  const { data, error } = await client.GET(
+    "/v1/sessions/{session_identifier}",
+    {
       params: {
         path: {
           session_identifier: sessionId,
         },
       },
-    });
-  invariant(sessionData, "Failed to get session");
-  return toSession(sessionData);
+    }
+  );
+  if (error) throw error;
+  invariant(data?.data, "Failed to get session");
+  return toSession(data.data);
 }

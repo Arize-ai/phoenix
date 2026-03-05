@@ -10,6 +10,8 @@ import { toSession } from "./sessionUtils";
 
 export type ListSessionsParams = ClientFn & ProjectIdentifier;
 
+type SessionsResponse = components["schemas"]["GetSessionsResponseBody"];
+
 const DEFAULT_PAGE_SIZE = 100;
 
 /**
@@ -35,28 +37,27 @@ export async function listSessions(
   const projectIdentifier = resolveProjectIdentifier(params);
 
   const sessions: Session[] = [];
-  let cursor: string | null = null;
+  let cursor: string | null | undefined = null;
 
   do {
-    const res: {
-      data?: components["schemas"]["GetSessionsResponseBody"];
-    } = await client.GET("/v1/projects/{project_identifier}/sessions", {
-      params: {
-        path: {
-          project_identifier: projectIdentifier,
+    const response: { data?: SessionsResponse; error?: unknown } =
+      await client.GET("/v1/projects/{project_identifier}/sessions", {
+        params: {
+          path: {
+            project_identifier: projectIdentifier,
+          },
+          query: {
+            cursor,
+            limit: DEFAULT_PAGE_SIZE,
+          },
         },
-        query: {
-          cursor,
-          limit: DEFAULT_PAGE_SIZE,
-        },
-      },
-    });
+      });
 
-    cursor = res.data?.next_cursor ?? null;
-    const data = res.data?.data;
-    invariant(data, "Failed to list sessions");
+    if (response.error) throw response.error;
+    invariant(response.data?.data, "Failed to list sessions");
 
-    sessions.push(...data.map(toSession));
+    cursor = response.data.next_cursor ?? null;
+    sessions.push(...response.data.data.map(toSession));
   } while (cursor != null);
 
   return sessions;
