@@ -12,6 +12,8 @@ from phoenix.client.utils.annotation_helpers import (
 )
 from phoenix.client.utils.encode_path_param import encode_path_param
 
+DEFAULT_TIMEOUT_IN_SECONDS = 5
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -30,17 +32,23 @@ class Sessions:
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
-    def get(self, *, session_id: str) -> v1.SessionData:
+    def get(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             The session data.
         """
         url = f"v1/sessions/{encode_path_param(session_id)}"
-        response = self._client.get(url)
+        response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
         return cast(v1.GetSessionResponseBody, response.json())["data"]
 
@@ -50,6 +58,7 @@ class Sessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SessionData]:
         """List sessions for a project.
 
@@ -57,6 +66,7 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A list of session data.
@@ -76,7 +86,7 @@ class Sessions:
                 params["cursor"] = next_cursor
             if limit is not None:
                 params["limit"] = min(limit - len(all_sessions), 100)
-            response = self._client.get(url, params=params)
+            response = self._client.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             data = cast(v1.GetSessionsResponseBody, response.json())
             all_sessions.extend(data["data"])
@@ -87,12 +97,29 @@ class Sessions:
                 break
         return all_sessions
 
+    def list_sessions(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.SessionData]:
+        """List sessions for a project. Alias for `list()`."""
+        return self.list(
+            project_id=project_id,
+            project_name=project_name,
+            limit=limit,
+            timeout=timeout,
+        )
+
     def get_sessions_dataframe(
         self,
         *,
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
 
@@ -100,13 +127,16 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
         """
         import pandas as pd
 
-        sessions = self.list(project_id=project_id, project_name=project_name, limit=limit)
+        sessions = self.list(
+            project_id=project_id, project_name=project_name, limit=limit, timeout=timeout
+        )
         rows = [
             {
                 "id": s["id"],
@@ -440,17 +470,23 @@ class AsyncSessions:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
-    async def get(self, *, session_id: str) -> v1.SessionData:
+    async def get(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             The session data.
         """
         url = f"v1/sessions/{encode_path_param(session_id)}"
-        response = await self._client.get(url)
+        response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
         return cast(v1.GetSessionResponseBody, response.json())["data"]
 
@@ -460,6 +496,7 @@ class AsyncSessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SessionData]:
         """List sessions for a project.
 
@@ -467,6 +504,7 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A list of session data.
@@ -486,7 +524,7 @@ class AsyncSessions:
                 params["cursor"] = next_cursor
             if limit is not None:
                 params["limit"] = min(limit - len(all_sessions), 100)
-            response = await self._client.get(url, params=params)
+            response = await self._client.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             data = cast(v1.GetSessionsResponseBody, response.json())
             all_sessions.extend(data["data"])
@@ -497,12 +535,29 @@ class AsyncSessions:
                 break
         return all_sessions
 
+    async def list_sessions(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.SessionData]:
+        """List sessions for a project. Alias for `list()`."""
+        return await self.list(
+            project_id=project_id,
+            project_name=project_name,
+            limit=limit,
+            timeout=timeout,
+        )
+
     async def get_sessions_dataframe(
         self,
         *,
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
 
@@ -510,13 +565,16 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
         """
         import pandas as pd
 
-        sessions = await self.list(project_id=project_id, project_name=project_name, limit=limit)
+        sessions = await self.list(
+            project_id=project_id, project_name=project_name, limit=limit, timeout=timeout
+        )
         rows = [
             {
                 "id": s["id"],
