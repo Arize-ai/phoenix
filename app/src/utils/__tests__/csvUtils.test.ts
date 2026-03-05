@@ -118,9 +118,9 @@ describe("parseCSVColumns", () => {
     expect(await parseCSVColumns(file)).toEqual(["Column\nA", "Column B"]);
   });
 
-  it("returns empty array for empty input", async () => {
+  it("throws for empty input", async () => {
     const file = createFile("");
-    expect(await parseCSVColumns(file)).toEqual([]);
+    await expect(parseCSVColumns(file)).rejects.toThrow("CSV file is empty");
   });
 
   it("handles single line CSV (header only)", async () => {

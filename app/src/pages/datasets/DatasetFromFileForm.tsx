@@ -117,6 +117,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       setFileType(detectedType);
 
       if (!detectedType) {
+        setValue("file", null, { shouldValidate: true });
+        resetField("name");
         onDatasetCreateError(
           new Error("Unsupported file type. Please upload a CSV or JSONL file.")
         );
