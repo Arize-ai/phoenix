@@ -349,7 +349,9 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             <Controller
               control={control}
               name="file"
-              rules={{ required: "Please select a CSV or JSONL file" }}
+              rules={{
+                required: "Drop or select a CSV or JSONL file",
+              }}
               render={({ fieldState: { error } }) => (
                 <div>
                   <FileInput
