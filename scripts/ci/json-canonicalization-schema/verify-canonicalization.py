@@ -24,7 +24,7 @@ import os
 
 from json import loads
 
-from org.webpki.json.Canonicalize import canonicalize
+from phoenix.vendor.json_canonicalization_scheme import canonicalize
 
 # Our test program
 if not len(sys.argv) in (1,2):
@@ -61,7 +61,7 @@ def oneTurn(fileName):
       utf8InHex += '{0:02x}'.format(c)
     print(utf8InHex + result)
 
-testData = os.path.join(os.path.split(os.path.split(os.path.dirname(os.path.abspath(__file__)))[0])[0],'testdata')
+testData = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'testdata')
 inputPath = os.path.join(testData, 'input')
 outputPath = os.path.join(testData, 'output')
 if len(sys.argv) == 1:

@@ -34,6 +34,7 @@ jobs:
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
       migrations: ${{ steps.filter.outputs.migrations }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -63,6 +64,8 @@ jobs:
               - "tox.ini"
             migrations:
               - "src/phoenix/db/migrations/versions/**"
+            json_canonicalization_schema:
+              - "src/phoenix/vendor/json_canonicalization_scheme/**/*.py"
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
@@ -77,6 +80,7 @@ jobs:
           echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
           echo "migrations: ${{ steps.filter.outputs.migrations }}"
           echo "uv_lock: ${{ steps.filter.outputs.uv_lock }}"
+          echo "json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}"
 
   phoenix-client:
     name: Phoenix Client
@@ -144,6 +148,53 @@ jobs:
         with:
           version: "0.9.18"
       - run: uvx tox run -e phoenix_otel -- -ra -x
+
+  test-json-canonicalization-schema:
+    name: JSON Canonicalization Schema (${{ matrix.py }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.json_canonicalization_schema == 'true' }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - py: "3.10"
+            os: ubuntu-latest
+          - py: "3.11"
+            os: macos-latest
+          - py: "3.12"
+            os: ubuntu-latest
+          - py: "3.13"
+            os: windows-latest
+          - py: "3.14"
+            os: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            Makefile
+            scripts/ci/json-canonicalization-schema/
+            src/phoenix/vendor/json_canonicalization_scheme/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.18"
+      - name: Install make (Windows)
+        if: runner.os == 'Windows'
+        run: choco install make --no-progress -y
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: .jcs-test-data
+          key: jcs-test-data
+      - name: Run JSON canonicalization schema tests
+        shell: bash
+        run: make test-jcs
 
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
@@ -549,6 +600,7 @@ jobs:
       - unit-tests
       - integration-tests
       - test-migrations
+      - test-json-canonicalization-schema
       - phoenix-client-canary-tests-sdk
     if: always()
     runs-on: ubuntu-latest

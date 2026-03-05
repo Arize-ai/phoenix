@@ -279,9 +279,7 @@ exclude = [
   "packages/",
   "scripts/",
   "sdist/",
-  "src/phoenix/client/",
-  "src/phoenix/evals/",
-  "src/phoenix/otel/",
+  "src/phoenix/vendor/json_canonicalization_scheme/",
   "tutorials/",
   "js/",
 ]
@@ -322,6 +320,7 @@ exclude = [
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
   "json-canonicalization/",
+  "src/phoenix/vendor/json_canonicalization_scheme",
 ]
 line-length = 100
 target-version = "py310"
