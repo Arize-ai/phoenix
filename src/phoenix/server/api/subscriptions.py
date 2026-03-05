@@ -220,11 +220,12 @@ async def _cleanup_chat_completion_over_dataset_resources(
     in_progress: list[
         tuple[
             DatasetExampleNodeID,
+            RepetitionNumber,
             ChatStream,
             asyncio.Task[ChatCompletionSubscriptionPayload],
         ]
     ],
-    not_started: list[tuple[DatasetExampleNodeID, ChatStream]],
+    not_started: list[tuple[DatasetExampleNodeID, RepetitionNumber, ChatStream]],
 ) -> None:
     """
     Cleanup all resources on cancellation or error. MUST be called in a finally block.
@@ -245,27 +246,27 @@ async def _cleanup_chat_completion_over_dataset_resources(
     logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
 
     # 1. Cancel all tasks (no-op for done tasks)
-    for _, _, task in in_progress:
+    for _, _, _, task in in_progress:
         task.cancel()
 
     # 2. Wait for tasks to process cancellation and release generators
     if in_progress:
         await asyncio.gather(
-            *[task for _, _, task in in_progress],
+            *[task for _, _, _, task in in_progress],
             return_exceptions=True,
         )
 
     # 3. Now safe to close generators
     if in_progress:
         await asyncio.gather(
-            *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            *[stream.aclose() for _, _, stream, _ in in_progress if inspect.isasyncgen(stream)],
             return_exceptions=True,
         )
 
     # 4. Close not-started generators (no tasks to cancel, just close directly)
     if not_started:
         await asyncio.gather(
-            *[stream.aclose() for _, stream in not_started if inspect.isasyncgen(stream)],
+            *[stream.aclose() for _, _, stream in not_started if inspect.isasyncgen(stream)],
             return_exceptions=True,
         )
 
@@ -486,9 +487,10 @@ class Subscription:
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
-        not_started: list[tuple[DatasetExampleNodeID, ChatStream]] = [
+        not_started: list[tuple[DatasetExampleNodeID, RepetitionNumber, ChatStream]] = [
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
+                repetition_number,
                 _stream_chat_completion_over_dataset_example(
                     input=input,
                     llm_client=llm_client,
@@ -513,6 +515,7 @@ class Subscription:
         in_progress: list[
             tuple[
                 DatasetExampleNodeID,
+                RepetitionNumber,
                 ChatStream,
                 asyncio.Task[ChatCompletionSubscriptionPayload],
             ]
@@ -521,16 +524,16 @@ class Subscription:
         try:
             while not_started or in_progress:
                 while not_started and len(in_progress) < max_in_progress:
-                    ex_id, stream = not_started.pop()
+                    ex_id, rep_num, stream = not_started.pop()
                     task = _create_task_with_timeout(stream)
-                    in_progress.append((ex_id, stream, task))
-                async_tasks_to_run = [task for _, _, task in in_progress]
+                    in_progress.append((ex_id, rep_num, stream, task))
+                async_tasks_to_run = [task for _, _, _, task in in_progress]
                 completed_tasks, _ = await asyncio.wait(
                     async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
                 )
                 for completed_task in completed_tasks:
-                    idx = [task for _, _, task in in_progress].index(completed_task)
-                    example_id, stream, _ = in_progress[idx]
+                    idx = [task for _, _, _, task in in_progress].index(completed_task)
+                    example_id, repetition_number, stream, _ = in_progress[idx]
                     try:
                         yield completed_task.result()
                     except StopAsyncIteration:
@@ -538,18 +541,21 @@ class Subscription:
                     except asyncio.TimeoutError:
                         del in_progress[idx]  # removes timed-out stream
                         yield ChatCompletionSubscriptionError(
-                            message="Playground task timed out", dataset_example_id=example_id
+                            message="Playground task timed out",
+                            dataset_example_id=example_id,
+                            repetition_number=repetition_number,
                         )
                     except Exception as error:
                         del in_progress[idx]  # removes failed stream
                         yield ChatCompletionSubscriptionError(
                             message="An unexpected error occurred",
                             dataset_example_id=example_id,
+                            repetition_number=repetition_number,
                         )
                         logger.exception(error)
                     else:
                         task = _create_task_with_timeout(stream)
-                        in_progress[idx] = (example_id, stream, task)
+                        in_progress[idx] = (example_id, repetition_number, stream, task)
         finally:
             await _cleanup_chat_completion_over_dataset_resources(
                 in_progress=in_progress,
@@ -678,15 +684,26 @@ async def _stream_chat_completion_over_dataset_example(
             eval_tracer: Optional[Tracer] = None
             if input.tracing_enabled:
                 eval_tracer = Tracer(span_cost_calculator=span_cost_calculator)
-            eval_results: list[EvaluationResult] = await evaluator.evaluate(
-                context=context_dict,
-                input_mapping=evaluator_input.input_mapping.to_orm(),
-                name=name,
-                output_configs=configs,
-                tracer=eval_tracer,
-            )
-            if eval_tracer is not None:
-                all_db_traces.extend(eval_tracer.get_db_traces(project_id=eval_project_id))
+            try:
+                eval_results: list[EvaluationResult] = await evaluator.evaluate(
+                    context=context_dict,
+                    input_mapping=evaluator_input.input_mapping.to_orm(),
+                    name=name,
+                    output_configs=configs,
+                    tracer=eval_tracer,
+                )
+            except Exception as eval_error:
+                logger.exception(eval_error)
+                yield EvaluationChunk(
+                    evaluator_name=name,
+                    error=str(eval_error),
+                    dataset_example_id=example_id,
+                    repetition_number=repetition_number,
+                )
+                continue
+            finally:
+                if eval_tracer is not None:
+                    all_db_traces.extend(eval_tracer.get_db_traces(project_id=eval_project_id))
             db_run.annotations.extend([evaluation_result_to_model(r) for r in eval_results])
     # Capture annotation objects from the in-memory collections before the session takes
     # ownership and expires them on flush/close, making lazy loads impossible afterward.
