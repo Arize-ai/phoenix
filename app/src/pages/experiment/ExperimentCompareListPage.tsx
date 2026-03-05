@@ -57,9 +57,9 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/core/tooltip";
+import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
-import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";

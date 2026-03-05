@@ -30,7 +30,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 const meta: Meta<typeof Menu> = {
   title: "Menu",

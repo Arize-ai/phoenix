@@ -16,7 +16,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { DropOverlay, FileInput, DropZone } from "@phoenix/components/dropzone";
+import {
+  DropOverlay,
+  FileInput,
+  DropZone,
+} from "@phoenix/components/core/dropzone";
 import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
 import { parseCSVColumns } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLKeys } from "@phoenix/utils/jsonlUtils";

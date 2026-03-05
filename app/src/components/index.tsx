@@ -34,4 +34,3 @@ export * from "./core/tooltip/ContextualHelp";
 // design system based components
 export * from "./core";
 export * from "./datetime";
-export * from "./dropzone";

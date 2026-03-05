@@ -26,6 +26,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ExperimentTokenCount,
   SequenceNumberToken,
@@ -47,7 +48,6 @@ import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {

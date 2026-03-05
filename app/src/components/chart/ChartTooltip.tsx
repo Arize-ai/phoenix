@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 
 import { Text } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 /**
  * Component that renders a small preview of the plot item

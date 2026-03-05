@@ -3,7 +3,7 @@ import { DropZone as ReactAriaDropZone, Text } from "react-aria-components";
 import type { DropItem, FileDropItem } from "react-aria-components";
 
 import { Icon, CloudUpload } from "@phoenix/components/core/icon";
-import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
+import { storageSizeFormatter } from "@phoenix/components/core/utils/storageSizeFormatUtils";
 
 import { fileDropZoneCSS } from "./styles";
 import type { FileDropZoneProps, FileRejection } from "./types";

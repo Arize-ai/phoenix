@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { useMemo } from "react";
 
 import { Flex, Text } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 const metadataLabelCSS = css`
   border-radius: var(--global-dimension-size-50);

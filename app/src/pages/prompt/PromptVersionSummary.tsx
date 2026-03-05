@@ -3,8 +3,8 @@ import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Flex, Text, Token, View } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useCurrentTime } from "@phoenix/hooks";
 
 import type { PromptVersionSummaryFragment$key } from "./__generated__/PromptVersionSummaryFragment.graphql";

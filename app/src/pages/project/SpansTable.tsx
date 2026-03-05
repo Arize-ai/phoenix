@@ -31,6 +31,7 @@ import {
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -43,7 +44,6 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";

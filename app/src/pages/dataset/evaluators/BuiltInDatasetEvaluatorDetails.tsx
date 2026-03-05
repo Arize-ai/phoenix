@@ -5,6 +5,7 @@ import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { Flex, Heading, Text } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { ContainsEvaluatorDetails } from "@phoenix/components/evaluators/ContainsEvaluatorDetails";
@@ -16,7 +17,6 @@ import { LevenshteinDistanceEvaluatorCodeBlock } from "@phoenix/components/evalu
 import { LevenshteinDistanceEvaluatorDetails } from "@phoenix/components/evaluators/LevenshteinDistanceEvaluatorDetails";
 import { RegexEvaluatorCodeBlock } from "@phoenix/components/evaluators/RegexEvaluatorCodeBlock";
 import { RegexEvaluatorDetails } from "@phoenix/components/evaluators/RegexEvaluatorDetails";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import type { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 const boxCSS = css`

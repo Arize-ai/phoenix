@@ -33,12 +33,12 @@ import {
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";

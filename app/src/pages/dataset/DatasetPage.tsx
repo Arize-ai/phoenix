@@ -16,8 +16,8 @@ import {
   Tabs,
   Token,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { DatasetLabelConfigButton } from "@phoenix/components/dataset";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 import type { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 

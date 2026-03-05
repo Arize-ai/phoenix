@@ -25,13 +25,13 @@ import { graphql, readInlineData } from "react-relay";
 import { Link, useNavigate } from "react-router";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import type { EvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/EvaluatorsTable_row.graphql";
 import type {
   EvaluatorFilter,

@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components/annotation";
 import { Skeleton } from "@phoenix/components/core/loading";
 import type { ExecutionState } from "@phoenix/components/core/types";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";

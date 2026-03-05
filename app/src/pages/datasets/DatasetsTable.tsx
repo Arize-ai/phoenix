@@ -29,6 +29,7 @@ import {
   LinkButton,
   Token,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { CompactJSONCell } from "@phoenix/components/table";
 import {
@@ -37,7 +38,6 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   useNotifyError,
   useNotifySuccess,

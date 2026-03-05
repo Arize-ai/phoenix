@@ -41,6 +41,8 @@ import {
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
+import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { ExperimentOutputContent } from "@phoenix/components/experiment/ExperimentOutputContent";
 import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
@@ -48,8 +50,6 @@ import {
   compactResizeHandleCSS,
   resizeHandleCSS,
 } from "@phoenix/components/resize";
-import { LineClamp } from "@phoenix/components/utility/LineClamp";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   type AnnotationSummaries,
   areAllExperimentRunsSelected,

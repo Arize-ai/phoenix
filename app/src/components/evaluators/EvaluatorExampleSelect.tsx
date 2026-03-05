@@ -11,8 +11,8 @@ import {
   SelectItem,
   SelectValue,
 } from "@phoenix/components/core/select";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { EvaluatorExampleSelectQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleSelectQuery.graphql";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 export type EvaluatorExampleSelectProps = {
