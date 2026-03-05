@@ -77,3 +77,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
+
+  slack:
+    name: Slack notification
+    needs: [push_to_registry]
+    if: always() && needs.push_to_registry.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send message to Slack
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "type": "mrkdwn",
+              "text": ":x: Docker Nightly Publication Failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
