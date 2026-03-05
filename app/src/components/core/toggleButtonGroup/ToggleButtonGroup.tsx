@@ -4,12 +4,12 @@ import {
   type ToggleButtonGroupProps as AriaToggleButtonGroupProps,
 } from "react-aria-components";
 
+import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
 import type {
   SizingProps,
   StylableProps,
 } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/components/core/utils";
-import { SizeProvider } from "@phoenix/contexts";
 
 const baseToggleButtonGroupCSS = css(`
   position: relative;

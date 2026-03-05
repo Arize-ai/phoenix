@@ -4,9 +4,9 @@ import { forwardRef, useState } from "react";
 import type { TextFieldProps as AriaTextFieldProps } from "react-aria-components";
 import { TextField as AriaTextField } from "react-aria-components";
 
+import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { SizingProps } from "@phoenix/components/core/types";
-import { SizeProvider } from "@phoenix/contexts/SizeContext";
 
 import { CredentialContext } from "./CredentialContext";
 import { textFieldCSS } from "./styles";

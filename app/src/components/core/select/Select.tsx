@@ -4,12 +4,12 @@ import { forwardRef } from "react";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Select as AriaSelect } from "react-aria-components";
 
+import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
 import { selectCSS } from "@phoenix/components/core/select/styles";
 import type {
   SizingProps,
   StylableProps,
 } from "@phoenix/components/core/types";
-import { SizeProvider } from "@phoenix/contexts";
 
 import { fieldBaseCSS } from "../field/styles";
 

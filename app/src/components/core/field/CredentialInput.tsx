@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import type { InputProps as AriaInputProps } from "react-aria-components";
 import { Button, Input as AriaInput } from "react-aria-components";
 
-import { useSize } from "@phoenix/contexts/SizeContext";
+import { useSize } from "@phoenix/components/core/contexts/SizeContext";
 
 import { Icon, Icons } from "../icon";
 import { useCredentialContext } from "./CredentialContext";

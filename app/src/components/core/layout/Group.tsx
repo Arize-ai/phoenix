@@ -3,8 +3,8 @@ import { forwardRef } from "react";
 import type { GroupProps as AriaGroupProps } from "react-aria-components";
 import { Group as AriaGroup } from "react-aria-components";
 
+import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
 import type { ComponentSize } from "@phoenix/components/core/types";
-import { SizeProvider } from "@phoenix/contexts";
 
 /**
  * A forwardRef wrapper around react-aria-components Group.
