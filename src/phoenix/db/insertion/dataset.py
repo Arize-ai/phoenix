@@ -88,24 +88,6 @@ async def insert_dataset_version(
     return cast(DatasetVersionId, id_)
 
 
-async def insert_dataset_example(
-    session: AsyncSession,
-    dataset_id: DatasetId,
-    span_rowid: Optional[SpanRowId] = None,
-    created_at: Optional[datetime] = None,
-) -> DatasetExampleId:
-    id_ = await session.scalar(
-        insert(models.DatasetExample)
-        .values(
-            dataset_id=dataset_id,
-            span_rowid=span_rowid,
-            created_at=created_at,
-        )
-        .returning(models.DatasetExample.id)
-    )
-    return cast(DatasetExampleId, id_)
-
-
 class RevisionKind(Enum):
     CREATE = "CREATE"
     PATCH = "PATCH"
@@ -116,32 +98,6 @@ class RevisionKind(Enum):
         if isinstance(v, str) and v and v.isascii() and not v.isupper():
             return cls(v.upper())
         raise ValueError(f"Invalid revision kind: {v}")
-
-
-async def insert_dataset_example_revision(
-    session: AsyncSession,
-    dataset_version_id: DatasetVersionId,
-    dataset_example_id: DatasetExampleId,
-    input: Mapping[str, Any],
-    output: Mapping[str, Any],
-    metadata: Optional[Mapping[str, Any]] = None,
-    revision_kind: RevisionKind = RevisionKind.CREATE,
-    created_at: Optional[datetime] = None,
-) -> DatasetExampleRevisionId:
-    id_ = await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .values(
-            dataset_version_id=dataset_version_id,
-            dataset_example_id=dataset_example_id,
-            input=input,
-            output=output,
-            metadata_=metadata,
-            revision_kind=revision_kind.value,
-            created_at=created_at,
-        )
-        .returning(models.DatasetExampleRevision.id)
-    )
-    return cast(DatasetExampleRevisionId, id_)
 
 
 async def bulk_insert_dataset_examples(
@@ -257,34 +213,45 @@ async def bulk_insert_dataset_example_revisions(
 async def resolve_span_ids_to_rowids(
     session: AsyncSession,
     span_ids: list[Optional[str]],
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> dict[str, int]:
     """
     Batch resolve span_id strings to database row IDs.
 
     Args:
         session: Database session
-        span_ids: List of OTEL span ID strings
+        span_ids: List of OTEL span ID strings (duplicates are handled efficiently)
+        batch_size: Number of span IDs per query batch (default: DEFAULT_BATCH_SIZE)
 
     Returns:
         Dictionary mapping span_id to Span.id (database row ID)
     """
-    # Filter out None and empty strings
-    valid_span_ids = [sid for sid in span_ids if sid]
-    if not valid_span_ids:
+    # Filter out None and empty strings, then deduplicate
+    # Deduplication is critical: 10,000 examples referencing the same 5 span IDs
+    # should only use 5 query parameters, not 10,000
+    unique_span_ids = {sid for sid in span_ids if sid}
+    if not unique_span_ids:
         return {}
-
-    # Query spans table for matching span_ids
-    result = await session.execute(
-        select(models.Span.span_id, models.Span.id).where(models.Span.span_id.in_(valid_span_ids))
-    )
 
     # Build mapping of span_id (string) to span row ID (int)
     span_id_to_rowid: dict[str, int] = {}
-    for span_id, row_id in result.all():
-        span_id_to_rowid[span_id] = row_id
+
+    # Process in batches to avoid exceeding database parameter limits
+    # (e.g., SQLite's 32,767 limit for bound parameters)
+    unique_span_ids_list = list(unique_span_ids)
+    for i in range(0, len(unique_span_ids_list), batch_size):
+        batch = unique_span_ids_list[i : i + batch_size]
+
+        # Query spans table for matching span_ids in this batch
+        result = await session.execute(
+            select(models.Span.span_id, models.Span.id).where(models.Span.span_id.in_(batch))
+        )
+
+        for span_id, row_id in result.all():
+            span_id_to_rowid[span_id] = row_id
 
     # Log warnings for span IDs that couldn't be resolved
-    missing_span_ids = set(valid_span_ids) - set(span_id_to_rowid.keys())
+    missing_span_ids = unique_span_ids - set(span_id_to_rowid.keys())
     if missing_span_ids:
         logger.warning(
             f"Could not resolve {len(missing_span_ids)} span IDs to database records. "
@@ -339,10 +306,16 @@ async def bulk_create_dataset_splits(
 async def bulk_assign_examples_to_splits(
     session: AsyncSession,
     assignments: list[tuple[DatasetExampleId, int]],
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> None:
     """
     Bulk assign examples to splits.
     assignments is a list of (dataset_example_id, dataset_split_id) tuples.
+
+    Args:
+        session: Database session
+        assignments: List of (dataset_example_id, dataset_split_id) tuples
+        batch_size: Number of records per batch insert (default: DEFAULT_BATCH_SIZE)
     """
     if not assignments:
         return
@@ -352,32 +325,37 @@ async def bulk_assign_examples_to_splits(
     from typing_extensions import assert_never
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    records = [
-        {
-            "dataset_example_id": example_id,
-            "dataset_split_id": split_id,
-        }
-        for example_id, split_id in assignments
-    ]
 
-    # Use index_elements instead of constraint name because the table uses
-    # a PrimaryKeyConstraint, not a unique constraint
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        pg_stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
-        await session.execute(
-            pg_stmt.on_conflict_do_nothing(
-                index_elements=["dataset_split_id", "dataset_example_id"]
+    # Process in batches to avoid exceeding database parameter limits
+    # (e.g., SQLite's 32,767 limit, PostgreSQL's similar constraints)
+    for i in range(0, len(assignments), batch_size):
+        batch = assignments[i : i + batch_size]
+        records = [
+            {
+                "dataset_example_id": example_id,
+                "dataset_split_id": split_id,
+            }
+            for example_id, split_id in batch
+        ]
+
+        # Use index_elements instead of constraint name because the table uses
+        # a PrimaryKeyConstraint, not a unique constraint
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            pg_stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
+            await session.execute(
+                pg_stmt.on_conflict_do_nothing(
+                    index_elements=["dataset_split_id", "dataset_example_id"]
+                )
             )
-        )
-    elif dialect is SupportedSQLDialect.SQLITE:
-        sqlite_stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
-        await session.execute(
-            sqlite_stmt.on_conflict_do_nothing(
-                index_elements=["dataset_split_id", "dataset_example_id"]
+        elif dialect is SupportedSQLDialect.SQLITE:
+            sqlite_stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
+            await session.execute(
+                sqlite_stmt.on_conflict_do_nothing(
+                    index_elements=["dataset_split_id", "dataset_example_id"]
+                )
             )
-        )
-    else:
-        assert_never(dialect)
+        else:
+            assert_never(dialect)
 
 
 class DatasetAction(Enum):
