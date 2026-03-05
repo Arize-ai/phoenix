@@ -9,7 +9,7 @@ import type {
   SizingProps,
   StylableProps,
 } from "@phoenix/components/core/types";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 const baseRadioGroupCSS = css(`
   // fixes esoteric overflow bug with VisuallyHidden, which is used by Radio

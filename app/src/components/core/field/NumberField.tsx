@@ -6,7 +6,7 @@ import { NumberField as AriaNumberField } from "react-aria-components";
 
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { SizingProps } from "@phoenix/components/core/types";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 import { textFieldCSS } from "./styles";
 

@@ -11,7 +11,7 @@ import type {
   TextColorValue,
   TextSize,
 } from "@phoenix/components/core/types";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 import { colorValue, useStyleProps } from "../utils";
 import { textBaseCSS } from "./styles";

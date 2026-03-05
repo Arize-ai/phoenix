@@ -8,8 +8,8 @@ import type {
   SizingProps,
   StylableProps,
 } from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/components/core/utils";
 import { SizeProvider } from "@phoenix/contexts";
-import { classNames } from "@phoenix/utils";
 
 const baseToggleButtonGroupCSS = css(`
   position: relative;

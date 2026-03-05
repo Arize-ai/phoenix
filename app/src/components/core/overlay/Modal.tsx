@@ -7,7 +7,7 @@ import {
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 import type { SizingProps } from "../types";
 

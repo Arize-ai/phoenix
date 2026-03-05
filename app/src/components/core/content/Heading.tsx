@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import type { HeadingProps as AriaHeadingProps } from "react-aria-components";
 import { Heading as AriaHeading } from "react-aria-components";
 
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 import { headingBaseCSS, textBaseCSS } from "./styles";
 import type { Weight } from "./types";

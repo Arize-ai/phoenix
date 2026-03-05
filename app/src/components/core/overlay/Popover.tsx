@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import type { PopoverProps } from "react-aria-components";
 import { Popover as AriaPopover } from "react-aria-components";
 
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 const popoverSlideKeyframes = keyframes`
  100% {

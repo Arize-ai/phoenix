@@ -10,7 +10,7 @@ import {
   MenuTrigger as AriaMenuTrigger,
 } from "react-aria-components";
 
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";

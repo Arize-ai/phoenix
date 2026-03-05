@@ -3,7 +3,7 @@ import type { LabelProps } from "react-aria-components";
 
 import { Label } from "@phoenix/components";
 import { ANNOTATION_INPUT_LABEL_WIDTH } from "@phoenix/components/annotation/constants";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 export const AnnotationInputLabel = (props: LabelProps) => {
   return (

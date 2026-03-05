@@ -2,7 +2,7 @@ import { css, keyframes } from "@emotion/react";
 import type { HTMLAttributes } from "react";
 import { forwardRef } from "react";
 
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 import type { BorderRadiusToken } from "../types/sizing";
 

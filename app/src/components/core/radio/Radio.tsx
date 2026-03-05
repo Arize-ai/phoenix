@@ -5,7 +5,7 @@ import {
 } from "react-aria-components";
 
 import type { StylableProps } from "@phoenix/components/core/types";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/components/core/utils";
 
 const baseRadioCSS = css(`
   display: flex;

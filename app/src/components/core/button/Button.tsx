@@ -4,8 +4,8 @@ import { forwardRef, useCallback } from "react";
 import type { ButtonRenderProps } from "react-aria-components";
 import { Button as AriaButton } from "react-aria-components";
 
+import { classNames } from "@phoenix/components/core/utils";
 import { useSize } from "@phoenix/contexts";
-import { classNames } from "@phoenix/utils";
 
 import { buttonCSS } from "./styles";
 import type { ButtonProps } from "./types";

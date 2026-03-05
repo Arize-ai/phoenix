@@ -10,8 +10,8 @@ import {
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { buttonCSS } from "@phoenix/components/core/button";
 import type { StylableProps } from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/components/core/utils";
 import { useSize } from "@phoenix/contexts";
-import { classNames } from "@phoenix/utils";
 
 const baseToggleButtonCSS = css(
   buttonCSS,
