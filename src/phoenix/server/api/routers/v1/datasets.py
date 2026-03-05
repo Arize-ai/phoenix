@@ -364,7 +364,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "inputs"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "action": {"type": "string", "enum": ["create", "append", "upsert"]},
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "inputs": {"type": "array", "items": {"type": "object"}},
@@ -391,6 +391,16 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 },
                                 "description": "Span IDs to link examples back to spans",
                             },
+                            "external_ids": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": ("Optional external ID per example."),
+                            },
                         },
                     }
                 },
@@ -399,7 +409,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "input_keys[]", "output_keys[]", "file"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "action": {"type": "string", "enum": ["create", "append", "upsert"]},
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "input_keys[]": {
@@ -450,14 +460,20 @@ async def upload_dataset(
         )
     examples: Union[Examples, Awaitable[Examples]]
     if request_content_type.startswith("application/json"):
+        json_data = await request.json()
         try:
-            examples, action, name, description = await run_in_threadpool(
-                _process_json, await request.json()
-            )
+            examples, action, name, description = await run_in_threadpool(_process_json, json_data)
         except ValueError as e:
             raise HTTPException(
                 detail=str(e),
                 status_code=422,
+            )
+        if action is DatasetAction.UPSERT:
+            raise HTTPException(detail="action=upsert is not yet implemented", status_code=501)
+        if action is not DatasetAction.UPSERT and json_data.get("external_ids") is not None:
+            raise HTTPException(
+                detail="external_ids is only supported for action=upsert",
+                status_code=501,
             )
         if action is DatasetAction.CREATE:
             async with request.app.state.db() as session:
@@ -485,6 +501,8 @@ async def upload_dataset(
                     detail=str(e),
                     status_code=422,
                 )
+            if action is DatasetAction.UPSERT:
+                raise HTTPException(detail="action=upsert is not yet implemented", status_code=501)
             if action is DatasetAction.CREATE:
                 async with request.app.state.db() as session:
                     if await _check_table_exists(session, name):
