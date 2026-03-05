@@ -13,9 +13,11 @@ export const selectCSS = css`
     width: 100%;
     text-wrap: nowrap;
 
-    &[data-pressed],
-    &:hover {
-      --button-border-color: var(--global-input-field-border-color-active);
+    &:not([data-disabled="true"]) {
+      &[data-pressed],
+      &:hover {
+        --button-border-color: var(--global-input-field-border-color-active);
+      }
     }
   }
 

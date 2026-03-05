@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
+import type { DropItem, FileDropItem } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -12,12 +13,10 @@ import {
   Input,
   Label,
   Text,
-  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
-import { FileDropZone, FileList } from "@phoenix/components/dropzone";
-import type { FileRejection } from "@phoenix/components/dropzone";
+import { DropOverlay, FileInput, DropZone } from "@phoenix/components/dropzone";
 import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
 import { parseCSVColumns } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLKeys } from "@phoenix/utils/jsonlUtils";
@@ -42,9 +41,6 @@ export type DatasetFromFileFormProps = {
   onErrorClear?: () => void;
 };
 
-/**
- * Detects the file type based on file extension
- */
 function detectFileType(fileName: string): DatasetFileType {
   const lowerName = fileName.toLowerCase();
   if (lowerName.endsWith(".csv")) {
@@ -56,7 +52,9 @@ function detectFileType(fileName: string): DatasetFileType {
   return null;
 }
 
-const formBodyStyles = css`
+const ACCEPTED_FILE_TYPES = [".csv", ".jsonl"];
+
+const formBodyCSS = css`
   max-height: calc(100vh - 280px);
   overflow-y: auto;
   padding: var(--global-dimension-size-200);
@@ -65,13 +63,17 @@ const formBodyStyles = css`
   }
 `;
 
-const dropZoneContainerStyles = css`
+const formGridCSS = css`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--global-dimension-size-200);
   margin-bottom: var(--global-dimension-size-200);
 `;
 
 /**
  * Form for creating a dataset from a CSV or JSONL file.
- * Automatically detects file type based on extension.
+ * The entire form is a drop target -- users can drop a file anywhere
+ * or use the FileInput browse button.
  */
 export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const { onDatasetCreated, onDatasetCreateError, onErrorClear } = props;
@@ -104,14 +106,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
   const processFile = useCallback(
     (file: File) => {
-      // Reset column selections and clear stale columns when a new file is uploaded
       resetField("input_keys");
       resetField("output_keys");
       resetField("metadata_keys");
       resetField("split_keys");
       setColumns([]);
 
-      // Detect file type
       const detectedType = detectFileType(file.name);
       setFileType(detectedType);
 
@@ -122,14 +122,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         return;
       }
 
-      // Set file in form
       setValue("file", file, { shouldValidate: true, shouldDirty: true });
 
-      // Extract dataset name from filename (without extension)
       const name = file.name.replace(/\.(csv|jsonl)$/i, "");
       setValue("name", name);
 
-      // Parse file contents using streaming (handles large files efficiently)
       const parseFile = async () => {
         setIsParsing(true);
         try {
@@ -170,13 +167,24 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     [processFile]
   );
 
-  const handleFileRejected = useCallback(
-    (rejections: FileRejection[]) => {
-      if (rejections.length > 0) {
-        onDatasetCreateError(new Error(rejections[0].message));
+  const handleFileDrop = useCallback(
+    async (e: { items: DropItem[] }) => {
+      const fileItems = e.items.filter(
+        (item): item is FileDropItem => item.kind === "file"
+      );
+      const results = await Promise.allSettled(
+        fileItems.map((item) => item.getFile())
+      );
+      const files = results
+        .filter(
+          (r): r is PromiseFulfilledResult<File> => r.status === "fulfilled"
+        )
+        .map((r) => r.value);
+      if (files.length > 0) {
+        processFile(files[0]);
       }
     },
-    [onDatasetCreateError]
+    [processFile]
   );
 
   const handleFileRemove = useCallback(() => {
@@ -200,7 +208,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       setIsSubmitting(true);
       const formData = new FormData();
 
-      // For JSONL files, ensure the correct content type
       if (fileType === "jsonl") {
         const jsonlFile = new File([data.file], data.file.name, {
           type: "application/jsonl",
@@ -254,190 +261,203 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
   const shouldDisableFields = isSubmitting || isParsing || !selectedFile;
 
+  const fileDescription = isParsing ? (
+    <Text slot="description" color="text-700">
+      Parsing...
+    </Text>
+  ) : columns.length > 0 ? (
+    <Text slot="description" color="success">
+      <Flex direction="row" gap="size-50" alignItems="center">
+        <Icon svg={<Icons.CheckmarkOutline />} color="success" />
+        <span>
+          {columns.length} {fileType === "csv" ? "column" : "key"}
+          {columns.length !== 1 ? "s" : ""} detected
+        </span>
+      </Flex>
+    </Text>
+  ) : (
+    <Text slot="description">&nbsp;</Text>
+  );
+
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
-      <div css={formBodyStyles}>
-        <Controller
-          control={control}
-          name="file"
-          rules={{ required: "Please select a CSV or JSONL file" }}
-          render={({ fieldState: { error } }) => (
-            <div css={dropZoneContainerStyles}>
-              {!selectedFile ? (
-                <FileDropZone
-                  acceptedFileTypes={[".csv", ".jsonl"]}
-                  allowsMultiple={false}
-                  onSelect={handleFileSelect}
-                  onSelectRejected={handleFileRejected}
-                  label="Drag and drop your dataset file"
-                  description="Supports CSV and JSONL formats"
-                  aria-label="Dataset file upload"
+    <DropZone
+      onDrop={handleFileDrop}
+      getDropOperation={() => (isSubmitting ? "cancel" : "copy")}
+    >
+      <DropOverlay>
+        {selectedFile ? "Drop file to replace current" : "Drop file"}
+      </DropOverlay>
+      <Form onSubmit={handleSubmit(onSubmit)}>
+        <div css={formBodyCSS}>
+          <div css={formGridCSS}>
+            <Controller
+              name="name"
+              control={control}
+              rules={{
+                required: "Dataset name is required",
+              }}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  value={value.toString()}
+                  isDisabled={shouldDisableFields}
+                >
+                  <Label>Name</Label>
+                  <Input placeholder="e.g. Golden Dataset" />
+                  {error?.message && <FieldError>{error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+
+            <Controller
+              name="description"
+              control={control}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  isDisabled={shouldDisableFields}
+                  value={value.toString()}
+                >
+                  <Label>Description (optional)</Label>
+                  <Input placeholder="e.g. For sentiment analysis" />
+                  {error?.message ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : null}
+                </TextField>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="file"
+              rules={{ required: "Please select a CSV or JSONL file" }}
+              render={({ fieldState: { error } }) => (
+                <div>
+                  <FileInput
+                    file={selectedFile}
+                    acceptedFileTypes={ACCEPTED_FILE_TYPES}
+                    onSelect={handleFileSelect}
+                    onClear={handleFileRemove}
+                    isDisabled={isSubmitting}
+                  >
+                    {error?.message ? (
+                      <Text slot="description" color="danger">
+                        {error.message}
+                      </Text>
+                    ) : (
+                      fileDescription
+                    )}
+                  </FileInput>
+                </div>
+              )}
+            />
+
+            <Controller
+              name="split_keys"
+              control={control}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnMultiSelector
+                  label="Split"
+                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
+                  columns={columns}
+                  selectedColumns={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                  isDisabled={shouldDisableFields}
                 />
-              ) : (
-                <FileList
-                  files={[
-                    {
-                      file: selectedFile,
-                      status: isParsing ? "parsing" : "complete",
-                    },
-                  ]}
-                  onRemove={handleFileRemove}
-                  isDisabled={isSubmitting}
-                />
               )}
-              {error?.message && (
-                <View marginTop="size-200">
-                  <Text color="danger" size="S">
-                    {error.message}
-                  </Text>
-                </View>
-              )}
-            </div>
-          )}
-        />
+            />
+          </div>
 
-        <Controller
-          name="name"
-          control={control}
-          rules={{
-            required: "Dataset name is required",
-          }}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              isInvalid={invalid}
-              onChange={onChange}
-              onBlur={onBlur}
-              value={value.toString()}
-              isDisabled={shouldDisableFields}
+          <Controller
+            name="input_keys"
+            control={control}
+            rules={{
+              required: "At least one input key is required",
+            }}
+            render={({ field: { value, onChange }, fieldState: { error } }) => (
+              <ColumnMultiSelector
+                label="Input keys"
+                description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
+                columns={columns}
+                selectedColumns={value}
+                onChange={onChange}
+                errorMessage={error?.message}
+                isDisabled={shouldDisableFields}
+              />
+            )}
+          />
+
+          <Controller
+            name="output_keys"
+            control={control}
+            render={({ field: { value, onChange }, fieldState: { error } }) => (
+              <ColumnMultiSelector
+                label="Output keys"
+                description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
+                columns={columns}
+                selectedColumns={value}
+                onChange={onChange}
+                errorMessage={error?.message}
+                isDisabled={shouldDisableFields}
+              />
+            )}
+          />
+
+          <Controller
+            name="metadata_keys"
+            control={control}
+            render={({ field: { value, onChange }, fieldState: { error } }) => (
+              <ColumnMultiSelector
+                label="Metadata keys"
+                description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
+                columns={columns}
+                selectedColumns={value}
+                onChange={onChange}
+                errorMessage={error?.message}
+                isDisabled={shouldDisableFields}
+              />
+            )}
+          />
+        </div>
+
+        <View
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" justifyContent="end">
+            <Button
+              type="submit"
+              isDisabled={!isValid || isSubmitting}
+              variant={isDirty ? "primary" : "default"}
+              size="S"
+              leadingVisual={
+                isSubmitting ? (
+                  <Icon svg={<Icons.LoadingOutline />} />
+                ) : undefined
+              }
             >
-              <Label>Dataset Name</Label>
-              <Input placeholder="e.g. Golden Dataset" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The name of the dataset</Text>
-              )}
-            </TextField>
-          )}
-        />
-
-        <Controller
-          name="description"
-          control={control}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              isInvalid={invalid}
-              onChange={onChange}
-              onBlur={onBlur}
-              isDisabled={shouldDisableFields}
-              value={value.toString()}
-            >
-              <Label>Description</Label>
-              <TextArea placeholder="e.g. A dataset for structured data extraction" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">The description of the dataset</Text>
-              )}
-            </TextField>
-          )}
-        />
-
-        <Controller
-          name="input_keys"
-          control={control}
-          rules={{
-            required: "At least one input key is required",
-          }}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Input keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
-              isDisabled={shouldDisableFields}
-            />
-          )}
-        />
-
-        <Controller
-          name="output_keys"
-          control={control}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Output keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
-              isDisabled={shouldDisableFields}
-            />
-          )}
-        />
-
-        <Controller
-          name="metadata_keys"
-          control={control}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Metadata keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
-              isDisabled={shouldDisableFields}
-            />
-          )}
-        />
-
-        <Controller
-          name="split_keys"
-          control={control}
-          render={({ field: { value, onChange }, fieldState: { error } }) => (
-            <ColumnMultiSelector
-              label="Split keys"
-              description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
-              columns={columns}
-              selectedColumns={value}
-              onChange={onChange}
-              errorMessage={error?.message}
-              isDisabled={shouldDisableFields}
-            />
-          )}
-        />
-      </div>
-
-      <View
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderTopColor="light"
-        borderTopWidth="thin"
-      >
-        <Flex direction="row" justifyContent="end">
-          <Button
-            type="submit"
-            isDisabled={!isValid || isSubmitting}
-            variant={isDirty ? "primary" : "default"}
-            size="S"
-            leadingVisual={
-              isSubmitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
-            }
-          >
-            {isSubmitting ? "Creating..." : "Create Dataset"}
-          </Button>
-        </Flex>
-      </View>
-    </Form>
+              {isSubmitting ? "Creating..." : "Create Dataset"}
+            </Button>
+          </Flex>
+        </View>
+      </Form>
+    </DropZone>
   );
 }
