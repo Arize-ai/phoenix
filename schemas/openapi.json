@@ -2666,6 +2666,27 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
+          },
+          {
+            "name": "trace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more trace IDs",
+              "title": "Trace Id"
+            },
+            "description": "Filter by one or more trace IDs"
           }
         ],
         "responses": {
@@ -2801,6 +2822,27 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
+          },
+          {
+            "name": "trace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by one or more trace IDs",
+              "title": "Trace Id"
+            },
+            "description": "Filter by one or more trace IDs"
           }
         ],
         "responses": {

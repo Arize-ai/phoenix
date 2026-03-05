@@ -1106,3 +1106,116 @@ async def test_phoenix_openinference_span_kind_extraction(
     span = spans[0]
     assert span.span_kind == "LLM"
     assert "openinference.span.kind" not in span.attributes
+
+
+@pytest.fixture
+async def multi_trace_project(db: DbSessionFactory) -> None:
+    """Insert a project with two traces, each containing spans."""
+    async with db() as session:
+        project = models.Project(name="multi-trace")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+
+        trace_a = models.Trace(
+            project_rowid=project.id,
+            trace_id="traceaaa00000000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=1),
+        )
+        trace_b = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracebbb00000000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=1),
+        )
+        session.add_all([trace_a, trace_b])
+        await session.flush()
+
+        span_ids = [
+            ["aaa00000", "aaa00001"],
+            ["bbb00000", "bbb00001"],
+        ]
+        for i, trace in enumerate([trace_a, trace_b]):
+            for j in range(2):
+                session.add(
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=span_ids[i][j],
+                        parent_id=None,
+                        name=f"span-t{i}-{j}",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(minutes=j),
+                        end_time=base_time + timedelta(minutes=j, seconds=30),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    )
+                )
+        await session.flush()
+
+
+async def test_span_search_filter_by_single_trace_id(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans",
+        params={"trace_id": "traceaaa00000000"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2
+    assert all(s.context.trace_id == "traceaaa00000000" for s in spans)
+
+
+async def test_span_search_filter_by_multiple_trace_ids(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans",
+        params=[("trace_id", "traceaaa00000000"), ("trace_id", "tracebbb00000000")],
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 4
+
+
+async def test_span_search_filter_by_nonexistent_trace_id(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans",
+        params={"trace_id": "does-not-exist"},
+    )
+    assert resp.is_success
+    assert resp.json()["data"] == []
+
+
+async def test_otlp_span_search_filter_by_single_trace_id(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans/otlpv1",
+        params={"trace_id": "tracebbb00000000"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2
+    assert all(s.trace_id == "tracebbb00000000" for s in spans)
+
+
+async def test_otlp_span_search_filter_by_multiple_trace_ids(
+    httpx_client: httpx.AsyncClient, multi_trace_project: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/multi-trace/spans/otlpv1",
+        params=[("trace_id", "traceaaa00000000"), ("trace_id", "tracebbb00000000")],
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 4

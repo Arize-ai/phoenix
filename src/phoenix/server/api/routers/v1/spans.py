@@ -603,6 +603,10 @@ async def span_search_otlpv1(
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
+    trace_id: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by one or more trace IDs",
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -626,6 +630,8 @@ async def span_search_otlpv1(
         stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
     if end_time:
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+    if trace_id:
+        stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
 
     if cursor:
         try:
@@ -650,7 +656,7 @@ async def span_search_otlpv1(
 
     # Convert ORM rows -> OTLP-style spans
     result_spans: list[OtlpSpan] = []
-    for span_orm, trace_id in rows:
+    for span_orm, span_trace_id in rows:
         try:
             status_code_enum = StatusCode(span_orm.status_code or "UNSET")
         except ValueError:
@@ -703,7 +709,7 @@ async def span_search_otlpv1(
 
         result_spans.append(
             OtlpSpan(
-                trace_id=trace_id,
+                trace_id=span_trace_id,
                 span_id=span_orm.span_id,
                 parent_span_id=span_orm.parent_id,
                 name=span_orm.name,
@@ -740,6 +746,10 @@ async def span_search(
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
+    trace_id: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by one or more trace IDs",
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -761,6 +771,8 @@ async def span_search(
         stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
     if end_time:
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+    if trace_id:
+        stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
 
     if cursor:
         try:
@@ -785,7 +797,7 @@ async def span_search(
 
     # Convert ORM rows -> Phoenix spans
     result_spans: list[Span] = []
-    for span_orm, trace_id in rows:
+    for span_orm, span_trace_id in rows:
         # Convert events to Phoenix Event list
         events: list[SpanEvent] = []
         for event in span_orm.events:
@@ -837,7 +849,7 @@ async def span_search(
                 id=str(GlobalID("Span", str(span_orm.id))),
                 name=span_orm.name or "",
                 context=SpanContext(
-                    trace_id=trace_id,
+                    trace_id=span_trace_id,
                     span_id=span_orm.span_id or "",
                 ),
                 span_kind=openinference_span_kind,
