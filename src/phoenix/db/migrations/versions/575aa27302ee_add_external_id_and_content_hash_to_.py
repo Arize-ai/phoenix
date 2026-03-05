@@ -19,23 +19,25 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "dataset_examples", sa.Column("external_id", sa.String(), nullable=True, index=True)
-    )
-    op.create_unique_constraint(
-        "uq_dataset_examples_dataset_id_external_id",
-        "dataset_examples",
-        ["dataset_id", "external_id"],
-    )
-    op.add_column(
-        "dataset_example_revisions",
-        sa.Column("content_hash", sa.String(), nullable=True, index=True),
-    )
+    with op.batch_alter_table("dataset_examples") as batch_op:
+        batch_op.add_column(sa.Column("external_id", sa.String(), nullable=True))
+        batch_op.create_index("ix_dataset_examples_external_id", ["external_id"])
+        batch_op.create_unique_constraint(
+            "uq_dataset_examples_dataset_id_external_id",
+            ["dataset_id", "external_id"],
+        )
+
+    with op.batch_alter_table("dataset_example_revisions") as batch_op:
+        batch_op.add_column(sa.Column("content_hash", sa.String(), nullable=True))
+        batch_op.create_index("ix_dataset_example_revisions_content_hash", ["content_hash"])
 
 
 def downgrade() -> None:
-    op.drop_column("dataset_example_revisions", "content_hash")
-    op.drop_constraint(
-        "uq_dataset_examples_dataset_id_external_id", "dataset_examples", type_="unique"
-    )
-    op.drop_column("dataset_examples", "external_id")
+    with op.batch_alter_table("dataset_example_revisions") as batch_op:
+        batch_op.drop_index("ix_dataset_example_revisions_content_hash")
+        batch_op.drop_column("content_hash")
+
+    with op.batch_alter_table("dataset_examples") as batch_op:
+        batch_op.drop_constraint("uq_dataset_examples_dataset_id_external_id", type_="unique")
+        batch_op.drop_index("ix_dataset_examples_external_id")
+        batch_op.drop_column("external_id")
