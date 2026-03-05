@@ -3,20 +3,12 @@ import invariant from "tiny-invariant";
 import type { components } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import type { ProjectIdentifier, Session } from "../types/sessions";
+import type { ProjectIdentifier } from "../types/projects";
+import { resolveProjectIdentifier } from "../types/projects";
+import type { Session } from "../types/sessions";
 import { toSession } from "./sessionUtils";
 
 export type ListSessionsParams = ClientFn & ProjectIdentifier;
-
-/**
- * Resolves a {@link ProjectIdentifier} union to a plain string
- * suitable for the REST `project_identifier` path parameter.
- */
-function resolveProjectIdentifier(identifier: ProjectIdentifier): string {
-  if ("project" in identifier) return identifier.project;
-  if ("projectId" in identifier) return identifier.projectId;
-  return identifier.projectName;
-}
 
 const DEFAULT_PAGE_SIZE = 100;
 
@@ -60,7 +52,7 @@ export async function listSessions(
       },
     });
 
-    cursor = res.data?.next_cursor || null;
+    cursor = res.data?.next_cursor ?? null;
     const data = res.data?.data;
     invariant(data, "Failed to list sessions");
 
