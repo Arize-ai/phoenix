@@ -11,7 +11,7 @@ export const dropOverlayCSS = css`
   align-items: center;
   justify-content: center;
   border-radius: var(--global-rounding-medium);
-  background-color: var(--global-color-primary-100);
+  background: rgba(0 0 0 / 0.5);
   color: var(--global-text-color-900);
   font-size: var(--global-font-size-l);
   font-weight: 500;
