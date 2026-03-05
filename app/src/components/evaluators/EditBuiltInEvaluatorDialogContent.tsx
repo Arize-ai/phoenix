@@ -1,14 +1,14 @@
 import { css } from "@emotion/react";
 import { useState } from "react";
 
-import { Alert } from "@phoenix/components/alert";
-import { Button } from "@phoenix/components/button";
+import { Alert } from "@phoenix/components/core/alert";
+import { Button } from "@phoenix/components/core/button";
 import {
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";

@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";

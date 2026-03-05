@@ -7,8 +7,8 @@ import type {
 } from "react-aria-components";
 import { DateField as AriaDateField } from "react-aria-components";
 
-import { fieldBaseCSS } from "../field/styles";
-import type { StylableProps } from "../types";
+import { fieldBaseCSS } from "../core/field/styles";
+import type { StylableProps } from "../core/types";
 
 export interface DateFieldProps<T extends DateValue>
   extends AriaDateFieldProps<T>, StylableProps {}

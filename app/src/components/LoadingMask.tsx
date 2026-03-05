@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { ProgressCircle } from "./progress";
+import { ProgressCircle } from "./core/progress";
 
 export const LoadingMask = () => {
   return (

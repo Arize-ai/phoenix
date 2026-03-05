@@ -1,6 +1,6 @@
 import { Outlet } from "react-router";
 
-import { ToastRegion } from "@phoenix/components/toast/ToastRegion";
+import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
 
 export function RootLayout() {
   return (

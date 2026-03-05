@@ -25,10 +25,10 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { Skeleton } from "@phoenix/components/core/loading";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
-import { Skeleton } from "@phoenix/components/loading";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifySuccess } from "@phoenix/contexts";

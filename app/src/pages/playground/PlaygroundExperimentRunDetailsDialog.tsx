@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";

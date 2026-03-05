@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
 
 import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
-import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { CellTop, OverflowCell } from "@phoenix/components/table";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
+import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { CellTop, OverflowCell } from "@phoenix/components/table";
 
 const contentCSS = css`
   flex: none;

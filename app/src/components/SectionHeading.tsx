@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 
-import { Heading } from "@phoenix/components/content";
+import { Heading } from "@phoenix/components/core/content";
 
 /**
  * A SectionHeading is a component that displays a heading with borders.

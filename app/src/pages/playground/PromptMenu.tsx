@@ -24,7 +24,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field";
+import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 import type { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";

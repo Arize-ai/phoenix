@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 
-import type { ButtonProps } from "@phoenix/components/button";
-import { Button } from "@phoenix/components/button";
-import { Icon, Icons } from "@phoenix/components/icon";
+import type { ButtonProps } from "@phoenix/components/core/button";
+import { Button } from "@phoenix/components/core/button";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 
 export type LoadMoreButtonProps = {
   onLoadMore: () => void;

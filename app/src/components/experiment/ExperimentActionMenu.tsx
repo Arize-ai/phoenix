@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";

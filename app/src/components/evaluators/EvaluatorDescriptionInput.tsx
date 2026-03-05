@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { FieldError, Input, Label } from "@phoenix/components";
-import { TextField, type TextFieldProps } from "@phoenix/components/field";
+import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,

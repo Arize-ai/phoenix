@@ -1,5 +1,5 @@
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
-import type { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/core/types";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { isProgrammingLanguage } from "@phoenix/types/code";
 

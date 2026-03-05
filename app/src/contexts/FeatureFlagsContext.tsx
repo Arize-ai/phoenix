@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 
 type FeatureFlag = "agents";
 export type FeatureFlagsContextType = {

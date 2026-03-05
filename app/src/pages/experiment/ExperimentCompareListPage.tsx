@@ -50,15 +50,15 @@ import {
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { useExperimentColors } from "@phoenix/components/experiment";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import {
   RichTooltip,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
+import { useExperimentColors } from "@phoenix/components/experiment";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";

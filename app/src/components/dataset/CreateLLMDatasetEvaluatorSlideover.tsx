@@ -3,16 +3,16 @@ import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
+import { Dialog } from "@phoenix/components/core/dialog";
+import { Loading } from "@phoenix/components/core/loading";
+import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
-import { Dialog } from "@phoenix/components/dialog";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
-import { Loading } from "@phoenix/components/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {

@@ -22,8 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
-import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
+} from "@phoenix/components/core/dialog";
+import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";

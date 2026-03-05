@@ -3,11 +3,15 @@ import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Button, Flex, Label, Text } from "@phoenix/components";
+import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { ListBox } from "@phoenix/components/core/listbox";
+import { Popover } from "@phoenix/components/core/overlay";
+import {
+  Select,
+  SelectItem,
+  SelectValue,
+} from "@phoenix/components/core/select";
 import type { EvaluatorExampleSelectQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleSelectQuery.graphql";
-import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
-import { ListBox } from "@phoenix/components/listbox";
-import { Popover } from "@phoenix/components/overlay";
-import { Select, SelectItem, SelectValue } from "@phoenix/components/select";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 

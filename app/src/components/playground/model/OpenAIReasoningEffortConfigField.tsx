@@ -7,9 +7,9 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
-import { Button } from "@phoenix/components/button";
-import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
-import { Popover } from "@phoenix/components/overlay";
+import { Button } from "@phoenix/components/core/button";
+import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { Popover } from "@phoenix/components/core/overlay";
 
 type OpenAIReasoningEffortConfigFieldProps = {
   value: unknown;

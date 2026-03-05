@@ -19,8 +19,11 @@ import {
   ChartTooltipItem,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
+import type {
+  ComponentSize,
+  SizingProps,
+} from "@phoenix/components/core/types";
 import { useTimeRange } from "@phoenix/components/datetime";
-import type { ComponentSize, SizingProps } from "@phoenix/components/types";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";

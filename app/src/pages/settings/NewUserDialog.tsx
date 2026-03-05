@@ -15,7 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import type { LDAPUserFormParams } from "@phoenix/components/settings/LDAPUserForm";
 import { LDAPUserForm } from "@phoenix/components/settings/LDAPUserForm";
 import type { OAuthUserFormParams } from "@phoenix/components/settings/OAuthUserForm";

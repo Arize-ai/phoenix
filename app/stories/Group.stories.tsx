@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Button } from "../src/components/button/Button";
-import { Group } from "../src/components/layout/Group";
+import { Button } from "../src/components/core/button/Button";
+import { Group } from "../src/components/core/layout/Group";
 
 /**
  * Group visually connects a set of buttons or controls, making them appear as a single component.

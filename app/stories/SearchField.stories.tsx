@@ -10,7 +10,7 @@ import {
   SearchField,
   Text,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field";
+import { SearchIcon } from "@phoenix/components/core/field";
 
 const meta: Meta = {
   title: "SearchField",

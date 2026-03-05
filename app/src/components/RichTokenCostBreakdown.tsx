@@ -3,8 +3,8 @@ import {
   useSequentialChartColors,
 } from "@phoenix/components/chart/colors";
 import { SegmentChart } from "@phoenix/components/chart/SegmentChart";
-import { Text } from "@phoenix/components/content";
-import { Flex } from "@phoenix/components/layout";
+import { Text } from "@phoenix/components/core/content";
+import { Flex } from "@phoenix/components/core/layout";
 
 type RichTokenCostBreakdownProps = {
   valueLabel: string;

@@ -27,9 +27,9 @@ import {
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
+import { Skeleton } from "@phoenix/components/core/loading";
+import type { ExecutionState } from "@phoenix/components/core/types";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
-import { Skeleton } from "@phoenix/components/loading";
-import type { ExecutionState } from "@phoenix/components/types";
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 

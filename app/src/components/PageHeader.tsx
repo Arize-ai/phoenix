@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-import { Heading, Text } from "./content";
-import { Flex } from "./layout";
-import { View } from "./view";
+import { Heading, Text } from "./core/content";
+import { Flex } from "./core/layout";
+import { View } from "./core/view";
 
 export type PageHeaderProps = {
   /**

@@ -44,6 +44,12 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/core/tooltip";
+import type { ExecutionState } from "@phoenix/components/core/types";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   type AnnotationError,
@@ -62,15 +68,9 @@ import type { AnnotationSummary } from "@phoenix/components/experiment/Experimen
 import { CellTop, OverflowCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components/tooltip";
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import type { ExecutionState } from "@phoenix/components/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
-import type { RichTooltipProps } from "@phoenix/components/tooltip";
+import type { RichTooltipProps } from "@phoenix/components/core/tooltip";
 import {
   RichTooltip,
   RichTooltipActions,
@@ -9,7 +9,7 @@ import {
   RichTooltipTitle,
   TooltipArrow,
   TooltipTrigger,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
 
 /**
  * RichTooltips display structured, detailed information when users hover over, focus on, or tap an element.

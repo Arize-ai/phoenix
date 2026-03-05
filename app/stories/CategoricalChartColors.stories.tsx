@@ -9,7 +9,7 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
 
 const meta: Meta = {
   title: "charting/CategoricalChartColors",

@@ -11,7 +11,7 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 
 export function ColumnMultiSelector(props: {
   description?: string;

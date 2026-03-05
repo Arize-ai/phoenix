@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { BASE_URL } from "@phoenix/config";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";

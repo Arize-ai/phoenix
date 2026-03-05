@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 
 import type { DatasetHistoryDialogQuery } from "./__generated__/DatasetHistoryDialogQuery.graphql";
 import { DatasetHistoryTable } from "./DatasetHistoryTable";

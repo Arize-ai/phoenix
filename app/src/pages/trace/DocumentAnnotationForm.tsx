@@ -13,7 +13,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox";
+import { ComboBox, ComboBoxItem } from "@phoenix/components/core/combobox";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import type { DocumentAnnotationFormCreateMutation } from "./__generated__/DocumentAnnotationFormCreateMutation.graphql";

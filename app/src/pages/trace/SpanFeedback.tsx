@@ -10,9 +10,9 @@ import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { Icons } from "@phoenix/components/icon";
-import { Icon } from "@phoenix/components/icon/Icon";
-import { Flex } from "@phoenix/components/layout/Flex";
+import { Icons } from "@phoenix/components/core/icon";
+import { Icon } from "@phoenix/components/core/icon/Icon";
+import { Flex } from "@phoenix/components/core/layout/Flex";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";

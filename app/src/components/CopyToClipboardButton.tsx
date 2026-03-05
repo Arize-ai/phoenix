@@ -3,10 +3,10 @@ import copy from "copy-to-clipboard";
 import type { RefObject } from "react";
 import { useCallback, useState } from "react";
 
-import type { ButtonProps } from "./button";
-import { Button } from "./button";
-import { Icon, Icons } from "./icon";
-import { Tooltip, TooltipTrigger } from "./tooltip";
+import type { ButtonProps } from "./core/button";
+import { Button } from "./core/button";
+import { Icon, Icons } from "./core/icon";
+import { Tooltip, TooltipTrigger } from "./core/tooltip";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
 

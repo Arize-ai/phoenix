@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import type { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";

@@ -8,10 +8,12 @@ import {
 } from "react-relay";
 import invariant from "tiny-invariant";
 
+import { Dialog } from "@phoenix/components/core/dialog";
+import { Loading } from "@phoenix/components/core/loading";
+import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import type { EditLLMDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluator.graphql";
 import type { EditLLMDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import type { EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
-import { Dialog } from "@phoenix/components/dialog";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -19,8 +21,6 @@ import {
   inferIncludeExplanationFromPrompt,
   updateLLMEvaluatorPayload,
 } from "@phoenix/components/evaluators/utils";
-import { Loading } from "@phoenix/components/loading";
-import { Modal, ModalOverlay } from "@phoenix/components/overlay/Modal";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {

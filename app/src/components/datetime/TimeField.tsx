@@ -7,7 +7,7 @@ import type {
 } from "react-aria-components";
 import { TimeField as AriaTimeField } from "react-aria-components";
 
-import { fieldBaseCSS } from "../field/styles";
+import { fieldBaseCSS } from "../core/field/styles";
 
 export type TimeFieldProps<T extends TimeValue> = AriaTimeFieldProps<T>;
 

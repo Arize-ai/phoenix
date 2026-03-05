@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Button, DialogTrigger, Icon, Icons } from "@phoenix/components";
-import { Modal, ModalOverlay } from "@phoenix/components/overlay";
+import { Modal, ModalOverlay } from "@phoenix/components/core/overlay";
 
 import { NewPromptLabelDialog } from "./NewPromptLabelDialog";
 

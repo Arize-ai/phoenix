@@ -1,13 +1,13 @@
 import { Dialog, Modal } from "@phoenix/components";
-import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
-import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
+import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
+import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
 
 type NewDatasetSplitDialogProps = {
   onCompleted?: () => void;

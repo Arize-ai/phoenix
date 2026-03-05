@@ -1,4 +1,4 @@
-import type { ColorValue } from "@phoenix/components/types";
+import type { ColorValue } from "@phoenix/components/core/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type { SpanStatusCodeType } from "./types";

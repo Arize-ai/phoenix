@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Label, Text } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   httpHeadersJSONSchema,

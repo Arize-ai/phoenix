@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
-import { Text } from "../content";
-import { Icon, Icons } from "../icon";
+import { Text } from "../core/content";
+import { Icon, Icons } from "../core/icon";
 import type { ErrorBoundaryFallbackProps } from "./types";
 
 /**

@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 
 function ConfirmNavigationDialogFooter({ blocker }: { blocker: Blocker }) {
   return (

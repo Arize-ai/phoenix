@@ -1,4 +1,4 @@
-import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox";
+import { ComboBox, ComboBoxItem } from "@phoenix/components/core/combobox";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 const AWS_REGIONS = [

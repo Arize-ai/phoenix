@@ -1,6 +1,6 @@
-import { IconButton } from "@phoenix/components/button";
-import { Icon, FileOutline, CloseOutline } from "@phoenix/components/icon";
-import { ProgressBar } from "@phoenix/components/progress";
+import { IconButton } from "@phoenix/components/core/button";
+import { Icon, FileOutline, CloseOutline } from "@phoenix/components/core/icon";
+import { ProgressBar } from "@phoenix/components/core/progress";
 import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
 import type { FileListItemProps, FileWithProgress } from "./types";

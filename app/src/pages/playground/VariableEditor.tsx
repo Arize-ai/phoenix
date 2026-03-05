@@ -5,7 +5,7 @@ import ReactCodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 
 import { Label } from "@phoenix/components";
 import { CodeWrap } from "@phoenix/components/code";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
 
 type VariableEditorProps = {

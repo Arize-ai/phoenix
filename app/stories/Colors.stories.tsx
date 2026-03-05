@@ -5,7 +5,7 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
 
 import { GLOBAL_COLORS } from "./constants/colorConstants";
 

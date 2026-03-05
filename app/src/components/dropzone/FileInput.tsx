@@ -1,7 +1,11 @@
 import { type ChangeEvent, useCallback, useRef } from "react";
 
-import { IconButton } from "@phoenix/components/button";
-import { Icon, CloseOutline, FolderOutline } from "@phoenix/components/icon";
+import { IconButton } from "@phoenix/components/core/button";
+import {
+  Icon,
+  CloseOutline,
+  FolderOutline,
+} from "@phoenix/components/core/icon";
 
 import { fileInputCSS } from "./styles";
 import type { FileInputProps } from "./types";

@@ -13,14 +13,14 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { Checkbox } from "@phoenix/components/checkbox";
+import { Checkbox } from "@phoenix/components/core/checkbox";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 

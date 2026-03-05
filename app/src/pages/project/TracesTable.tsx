@@ -38,12 +38,12 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { ContextualHelp } from "@phoenix/components/tooltip/ContextualHelp";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";

@@ -30,12 +30,12 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { ContextualHelp } from "@phoenix/components/tooltip/ContextualHelp";
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";

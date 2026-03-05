@@ -4,8 +4,8 @@ import {
   type RadioGroupProps as AriaRadioGroupProps,
 } from "react-aria-components";
 
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import type { StylableProps } from "@phoenix/components/types";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
+import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils";
 
 const gradientCircleRadioGroupCSS = css`

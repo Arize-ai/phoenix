@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifySuccess } from "@phoenix/contexts";
 

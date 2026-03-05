@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { View } from "@phoenix/components/view";
+import { View } from "@phoenix/components/core/view";
 
 export function PaddedCell({ children }: { children: ReactNode }) {
   return (

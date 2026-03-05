@@ -2,8 +2,8 @@ import { css } from "@emotion/react";
 import type { Ref } from "react";
 import { forwardRef } from "react";
 
-import type { KeyboardProps } from "./content/Keyboard";
-import { Keyboard } from "./content/Keyboard";
+import type { KeyboardProps } from "./core/content/Keyboard";
+import { Keyboard } from "./core/content/Keyboard";
 
 const keyboardTokenCSS = css`
   background-color: var(--global-color-primary-100);

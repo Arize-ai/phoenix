@@ -3,7 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 
 import type { ButtonProps } from "@phoenix/components";
 import { Button } from "@phoenix/components";
-import { Keyboard, VisuallyHidden } from "@phoenix/components/content";
+import { Keyboard, VisuallyHidden } from "@phoenix/components/core/content";
 const meta: Meta = {
   title: "Button",
   component: Button,

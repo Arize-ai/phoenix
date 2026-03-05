@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 
 /**
  * Displays the key one time for the user to copy.

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 

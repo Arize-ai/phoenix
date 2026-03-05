@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { TraceDetails } from "@phoenix/pages/trace";
 
 export function TraceDetailsDialog({

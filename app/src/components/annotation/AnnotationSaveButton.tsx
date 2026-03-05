@@ -3,8 +3,8 @@ import type { PressEvent } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { Flex, Keyboard, VisuallyHidden } from "@phoenix/components";
-import type { ButtonProps } from "@phoenix/components/button";
-import { Button } from "@phoenix/components/button";
+import type { ButtonProps } from "@phoenix/components/core/button";
+import { Button } from "@phoenix/components/core/button";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 type AnnotationSaveButtonProps = ButtonProps;

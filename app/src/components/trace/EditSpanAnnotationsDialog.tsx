@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 
 import type { SpanAnnotationsEditorProps } from "./SpanAnnotationsEditor";
 import { SpanAnnotationsEditor } from "./SpanAnnotationsEditor";

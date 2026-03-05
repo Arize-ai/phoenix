@@ -1,10 +1,10 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 
-import { Button } from "../src/components/button/Button";
-import type { IconButtonProps } from "../src/components/button/IconButton";
-import { IconButton } from "../src/components/button/IconButton";
-import { Icon } from "../src/components/icon/Icon";
+import { Button } from "../src/components/core/button/Button";
+import type { IconButtonProps } from "../src/components/core/button/IconButton";
+import { IconButton } from "../src/components/core/button/IconButton";
+import { Icon } from "../src/components/core/icon/Icon";
 import {
   AlertTriangleOutline,
   ArrowRight,
@@ -14,7 +14,7 @@ import {
   SearchOutline,
   SettingsOutline,
   TrashOutline,
-} from "../src/components/icon/Icons";
+} from "../src/components/core/icon/Icons";
 
 const meta: Meta = {
   title: "IconButton",

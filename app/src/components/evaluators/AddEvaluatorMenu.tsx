@@ -7,9 +7,18 @@ import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 import z from "zod";
 
-import type { ButtonProps } from "@phoenix/components/button";
-import { Button } from "@phoenix/components/button";
-import { Text } from "@phoenix/components/content";
+import type { ButtonProps } from "@phoenix/components/core/button";
+import { Button } from "@phoenix/components/core/button";
+import { Text } from "@phoenix/components/core/content";
+import { Icon, Icons } from "@phoenix/components/core/icon";
+import { Flex } from "@phoenix/components/core/layout";
+import {
+  Menu,
+  MenuContainer,
+  MenuItem,
+  MenuSectionTitle,
+  MenuTrigger,
+} from "@phoenix/components/core/menu";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
@@ -18,15 +27,6 @@ import {
 import type { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
-import { Icon, Icons } from "@phoenix/components/icon";
-import { Flex } from "@phoenix/components/layout";
-import {
-  Menu,
-  MenuContainer,
-  MenuItem,
-  MenuSectionTitle,
-  MenuTrigger,
-} from "@phoenix/components/menu";
 
 export const AddEvaluatorMenu = ({
   size,

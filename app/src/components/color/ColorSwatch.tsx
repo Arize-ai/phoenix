@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { ColorSwatchProps as AriaColorSwatchProps } from "react-aria-components";
 import { ColorSwatch as AriaColorSwatch } from "react-aria-components";
 
-import type { SizingProps } from "@phoenix/components/types";
+import type { SizingProps } from "@phoenix/components/core/types";
 
 type ColorSwatchShape = "square" | "circle";
 

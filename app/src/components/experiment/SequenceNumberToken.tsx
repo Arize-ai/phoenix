@@ -1,4 +1,4 @@
-import { Token } from "@phoenix/components/token";
+import { Token } from "@phoenix/components/core/token";
 
 export function SequenceNumberToken({
   sequenceNumber,

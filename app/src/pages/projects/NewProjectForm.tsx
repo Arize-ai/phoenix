@@ -12,7 +12,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import {
   GradientCircle,
   GradientCircleRadio,

@@ -9,7 +9,10 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import { FieldDangerIcon, FieldSuccessIcon } from "@phoenix/components/field";
+import {
+  FieldDangerIcon,
+  FieldSuccessIcon,
+} from "@phoenix/components/core/field";
 
 const meta: Meta = {
   title: "TextField",
