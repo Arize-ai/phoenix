@@ -21,7 +21,7 @@
 import binascii
 import struct
 
-from org.webpki.json.NumberToJson import convert2Es6Format
+from phoenix.vendor.json_canonicalization_scheme import convert2Es6Format
 
 INVALID_NUMBER = 'null'
 

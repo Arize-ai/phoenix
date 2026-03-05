@@ -27,6 +27,7 @@ phoenix.db*
 !app/tests/fixtures/*.csv
 *.hdf
 *.hdf5
+.jcs-test-data/
 
 # Testing
 coverage.xml

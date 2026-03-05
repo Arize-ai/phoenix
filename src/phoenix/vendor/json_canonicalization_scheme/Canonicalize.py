@@ -25,7 +25,7 @@
 
 import re
 
-from org.webpki.json.NumberToJson import convert2Es6Format
+from .NumberToJson import convert2Es6Format
 
 try:
     from _json import encode_basestring_ascii as c_encode_basestring_ascii
