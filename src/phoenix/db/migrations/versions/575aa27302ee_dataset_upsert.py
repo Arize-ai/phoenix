@@ -1,4 +1,4 @@
-"""add_external_id_and_content_hash_to_dataset_tables
+"""dataset_upsert
 
 Revision ID: 575aa27302ee
 Revises: f1a6b2f0c9d5
