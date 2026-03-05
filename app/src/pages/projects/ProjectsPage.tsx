@@ -44,11 +44,11 @@ import {
   View,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
+import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
-import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";

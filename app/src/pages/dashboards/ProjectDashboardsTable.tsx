@@ -9,7 +9,7 @@ import {
 import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
-import { Link } from "@phoenix/components/Link";
+import { Link } from "@phoenix/components/core/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 

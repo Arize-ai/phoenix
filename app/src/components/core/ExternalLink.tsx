@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Icon, Icons } from "./core/icon";
+import { Icon, Icons } from "./icon";
 
 export type ExternalLinkProps = {
   href: string;

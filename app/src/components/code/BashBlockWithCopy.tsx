@@ -1,4 +1,4 @@
-import { CopyToClipboardButton } from "../CopyToClipboardButton";
+import { CopyToClipboardButton } from "../core/CopyToClipboardButton";
 import { BashBlock } from "./BashBlock";
 import { codeBlockWithCopyCSS } from "./styles";
 

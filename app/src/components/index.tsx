@@ -19,20 +19,19 @@ export type {
   Selection,
 } from "react-aria-components";
 
-export * from "./Link";
-export * from "./ExternalLink";
-export * from "./LoadingMask";
-export * from "./ViewSummaryAside";
-export * from "./CopyToClipboardButton";
-export * from "./SectionHeading";
-export * from "./Empty";
+export * from "./core/Link";
+export * from "./core/ExternalLink";
+export * from "./core/LoadingMask";
+export * from "./core/ViewSummaryAside";
+export * from "./core/CopyToClipboardButton";
+export * from "./core/SectionHeading";
+export * from "./core/Empty";
 export * from "./exception";
-export * from "./KeyboardToken";
+export * from "./core/KeyboardToken";
 export * from "./color/ColorSwatch";
 export * from "./core/tooltip/ContextualHelp";
 
 // design system based components
 export * from "./core";
 export * from "./datetime";
-export * from "./PageHeader";
 export * from "./dropzone";

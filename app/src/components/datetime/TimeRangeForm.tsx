@@ -12,8 +12,8 @@ import {
 import { Controller, useForm } from "react-hook-form";
 
 import { Button } from "../core/button";
+import { DateField } from "../core/datetime/DateField";
 import { Icon, Icons } from "../core/icon";
-import { DateField } from "./DateField";
 
 const containerCSS = css`
   display: flex;
