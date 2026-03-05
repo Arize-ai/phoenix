@@ -1,14 +1,15 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import type { ProjectSelector } from "../types/projects";
+import type { ProjectIdentifier } from "../types/projects";
+import { resolveProjectIdentifier } from "../types/projects";
 
 /**
  * Parameters to get spans from a project using auto-generated types
  */
 export interface GetSpansParams extends ClientFn {
   /** The project to get spans from */
-  project: ProjectSelector;
+  project: ProjectIdentifier;
   /** Inclusive lower bound time. Must be a valid ISO 8601 string or Date object. */
   startTime?: Date | string | null;
   /** Exclusive upper bound time. Must be a valid ISO 8601 string or Date object. */
@@ -87,8 +88,7 @@ export async function getSpans({
   endTime,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
-  const projectIdentifier =
-    "projectId" in project ? project.projectId : project.projectName;
+  const projectIdentifier = resolveProjectIdentifier(project);
 
   const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {
     limit,
