@@ -1,5 +1,25 @@
 import type { PlaygroundState } from "./types";
 
+export const selectInstanceExperimentId =
+  (instanceId: number) => (state: PlaygroundState) =>
+    state.instances.find((i) => i.id === instanceId)?.experimentId ?? null;
+
+export const selectInstanceActiveRunId =
+  (instanceId: number) => (state: PlaygroundState) =>
+    state.instances.find((i) => i.id === instanceId)?.activeRunId ?? null;
+
+export const selectInstanceTemplate =
+  (instanceId: number) => (state: PlaygroundState) =>
+    state.instances.find((i) => i.id === instanceId)?.template;
+
+export const selectInstanceModel =
+  (instanceId: number) => (state: PlaygroundState) =>
+    state.instances.find((i) => i.id === instanceId)?.model;
+
+export const selectInstanceIsDirty =
+  (instanceId: number) => (state: PlaygroundState) =>
+    state.dirtyInstances[instanceId] ?? false;
+
 /**
  * Curried selector to get an instance by id
  * @param instanceId

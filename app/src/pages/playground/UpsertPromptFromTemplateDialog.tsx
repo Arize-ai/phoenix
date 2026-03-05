@@ -91,18 +91,13 @@ export const UpsertPromptFromTemplateDialog = ({
       if (!instance) {
         return;
       }
-      state.updateInstance({
-        instanceId,
-        patch: {
-          prompt: {
-            id: promptId,
-            name: promptName,
-            version: promptVersion,
-            tag,
-          },
-        },
-        dirty: false,
+      state.setInstancePrompt(instanceId, {
+        id: promptId,
+        name: promptName,
+        version: promptVersion,
+        tag,
       });
+      state.setDirty(instanceId, false);
     },
     [store, instanceId]
   );

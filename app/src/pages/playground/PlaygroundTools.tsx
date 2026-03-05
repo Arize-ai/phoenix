@@ -20,7 +20,10 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
       (instance) => instance.id === props.playgroundInstanceId
     )
   );
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceTools = usePlaygroundContext(
+    (state) => state.setInstanceTools
+  );
+  const setDirty = usePlaygroundContext((state) => state.setDirty);
   if (instance == null) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
@@ -59,13 +62,8 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
             provider={provider}
             choice={instance.toolChoice}
             onChange={(choice) => {
-              updateInstance({
-                instanceId,
-                patch: {
-                  toolChoice: choice,
-                },
-                dirty: true,
-              });
+              setInstanceTools(instanceId, tools, choice);
+              setDirty(instanceId, true);
             }}
             toolNames={toolNames}
           />

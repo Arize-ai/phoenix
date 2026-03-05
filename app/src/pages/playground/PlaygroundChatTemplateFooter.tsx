@@ -29,7 +29,10 @@ export function PlaygroundChatTemplateFooter({
   disableNewTool,
 }: PlaygroundChatTemplateFooterProps) {
   const instances = usePlaygroundContext((state) => state.instances);
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceTools = usePlaygroundContext(
+    (state) => state.setInstanceTools
+  );
+  const setDirty = usePlaygroundContext((state) => state.setDirty);
   const addMessage = usePlaygroundContext((state) => state.addMessage);
   const upsertInvocationParameterInput = usePlaygroundContext(
     (state) => state.upsertInvocationParameterInput
@@ -116,11 +119,8 @@ export function PlaygroundChatTemplateFooter({
                 patch.toolChoice = convertedChoice;
               }
             }
-            updateInstance({
-              instanceId,
-              patch,
-              dirty: true,
-            });
+            setInstanceTools(instanceId, patch.tools!, patch.toolChoice);
+            setDirty(instanceId, true);
           }}
         >
           Tool

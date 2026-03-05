@@ -588,9 +588,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
     (state) => state.repetitions
   );
-  const examplesByRepetitionNumber = usePlaygroundDatasetExamplesTableContext(
-    (store) => store.exampleResponsesMap[instanceId]?.[exampleId]
-  );
   const expandedCellKey = makeExpandedCellKey(
     instanceId,
     exampleId,
@@ -613,9 +610,10 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     },
     [setExpandedCell, instanceId, exampleId, repetitionNumber]
   );
-  const exampleData = useMemo(() => {
-    return examplesByRepetitionNumber?.[repetitionNumber];
-  }, [examplesByRepetitionNumber, repetitionNumber]);
+  const exampleData = usePlaygroundDatasetExamplesTableContext(
+    (store) =>
+      store.exampleResponsesMap[instanceId]?.[exampleId]?.[repetitionNumber]
+  );
   return exampleData == null ? (
     <EmptyExampleOutput
       isRunning={isRunning}
@@ -884,7 +882,9 @@ export function PlaygroundDatasetExamplesTable({
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
 
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceExperimentId = usePlaygroundContext(
+    (state) => state.setInstanceExperimentId
+  );
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
@@ -1029,11 +1029,7 @@ export function PlaygroundDatasetExamplesTable({
         const chatCompletion = response.chatCompletionOverDataset;
         switch (chatCompletion.__typename) {
           case "ChatCompletionSubscriptionExperiment":
-            updateInstance({
-              instanceId,
-              patch: { experimentId: chatCompletion.experiment.id },
-              dirty: null,
-            });
+            setInstanceExperimentId(instanceId, chatCompletion.experiment.id);
             break;
           case "ChatCompletionSubscriptionResult":
             if (chatCompletion.datasetExampleId == null) {
@@ -1126,8 +1122,8 @@ export function PlaygroundDatasetExamplesTable({
       incrementEvalsCompleted,
       incrementRunsCompleted,
       incrementRunsFailed,
+      setInstanceExperimentId,
       updateExampleData,
-      updateInstance,
     ]
   );
 
@@ -1207,13 +1203,10 @@ export function PlaygroundDatasetExamplesTable({
           });
           return;
         }
-        updateInstance({
+        setInstanceExperimentId(
           instanceId,
-          patch: {
-            experimentId: response.chatCompletionOverDataset.experimentId,
-          },
-          dirty: null,
-        });
+          response.chatCompletionOverDataset.experimentId
+        );
         setExampleDataForInstance({
           instanceId,
           data: createExampleResponsesForInstance(
@@ -1252,8 +1245,8 @@ export function PlaygroundDatasetExamplesTable({
       notifyError,
       repetitions,
       setExampleDataForInstance,
+      setInstanceExperimentId,
       setRepetitions,
-      updateInstance,
     ]
   );
 
@@ -1261,7 +1254,8 @@ export function PlaygroundDatasetExamplesTable({
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming, updateInstance } = playgroundStore.getState();
+    const { instances, streaming, setInstanceExperimentId } =
+      playgroundStore.getState();
     resetPendingExperimentMetrics();
     resetData();
 
@@ -1273,11 +1267,7 @@ export function PlaygroundDatasetExamplesTable({
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
         const { activeRunId } = instance;
-        updateInstance({
-          instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
+        setInstanceExperimentId(instance.id, null);
         if (activeRunId === null) {
           continue;
         }
@@ -1348,11 +1338,7 @@ export function PlaygroundDatasetExamplesTable({
         if (activeRunId === null) {
           continue;
         }
-        updateInstance({
-          instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
+        setInstanceExperimentId(instance.id, null);
 
         // Initialize progress for this instance (non-streaming mode)
         initExperimentRunProgress(instance.id, {

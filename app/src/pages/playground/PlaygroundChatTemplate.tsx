@@ -83,7 +83,10 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
 
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceTemplate = usePlaygroundContext(
+    (state) => state.setInstanceTemplate
+  );
+  const setDirty = usePlaygroundContext((state) => state.setDirty);
 
   const appendedMessagesPath = props.appendedMessagesPath;
   const instanceSelector = useMemo(() => selectPlaygroundInstance(id), [id]);
@@ -131,16 +134,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           (messageId) => messageId === over.id
         );
         const newMessageIds = arrayMove(messageIds, activeIndex, overIndex);
-        updateInstance({
-          instanceId: id,
-          patch: {
-            template: {
-              __type: "chat",
-              messageIds: newMessageIds,
-            },
-          },
-          dirty: true,
-        });
+        setInstanceTemplate(id, { __type: "chat", messageIds: newMessageIds });
+        setDirty(id, true);
       }}
     >
       <SortableContext items={messageIds}>

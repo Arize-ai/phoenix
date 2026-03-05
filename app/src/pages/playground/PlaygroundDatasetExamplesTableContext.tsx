@@ -397,6 +397,33 @@ export function PlaygroundDatasetExamplesTableProvider({
   );
 }
 
+export const selectExampleContent =
+  (
+    instanceId: InstanceId,
+    exampleId: ExampleId,
+    repetition: RepetitionNumber
+  ) =>
+  (s: PlaygroundDatasetExamplesTableState) =>
+    s.exampleResponsesMap[instanceId]?.[exampleId]?.[repetition]?.content;
+
+export const selectExampleToolCalls =
+  (
+    instanceId: InstanceId,
+    exampleId: ExampleId,
+    repetition: RepetitionNumber
+  ) =>
+  (s: PlaygroundDatasetExamplesTableState) =>
+    s.exampleResponsesMap[instanceId]?.[exampleId]?.[repetition]?.toolCalls;
+
+export const selectExampleEvaluations =
+  (
+    instanceId: InstanceId,
+    exampleId: ExampleId,
+    repetition: RepetitionNumber
+  ) =>
+  (s: PlaygroundDatasetExamplesTableState) =>
+    s.exampleResponsesMap[instanceId]?.[exampleId]?.[repetition]?.evaluations;
+
 export function usePlaygroundDatasetExamplesTableContext<T>(
   selector: (state: PlaygroundDatasetExamplesTableState) => T,
   equalityFn?: (left: T, right: T) => boolean

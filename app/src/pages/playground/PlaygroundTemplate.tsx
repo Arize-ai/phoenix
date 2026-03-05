@@ -35,7 +35,12 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstancePrompt = usePlaygroundContext(
+    (state) => state.setInstancePrompt
+  );
+  const resetInstanceWithPromptConfig = usePlaygroundContext(
+    (state) => state.resetInstanceWithPromptConfig
+  );
   const addMessage = usePlaygroundContext((state) => state.addMessage);
   const setDirty = usePlaygroundContext((state) => state.setDirty);
   const instances = usePlaygroundContext((state) => state.instances);
@@ -60,8 +65,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       promptTagName: string | null;
     }) => {
       if (!promptId && !promptVersionId && !promptTagName) {
-        const patch = { prompt: null };
-        updateInstance({ instanceId, patch, dirty: false });
+        setInstancePrompt(instanceId, null);
+        setDirty(instanceId, false);
         return;
       }
 
@@ -71,18 +76,14 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         tagName: promptTagName,
       });
       if (response) {
-        // delete all message references from the instance
-        updateInstance({
-          instanceId,
-          patch: {
-            ...response.instance,
-            template: {
-              __type: "chat",
-              messageIds: [],
-            },
-          },
-          dirty: false,
+        // atomically reset config and clear runtime state for the new prompt
+        resetInstanceWithPromptConfig(instanceId, {
+          prompt: response.instance.prompt ?? null,
+          model: response.instance.model,
+          tools: response.instance.tools,
+          toolChoice: response.instance.toolChoice,
         });
+        setDirty(instanceId, false);
         // normalize messages and add their references to the instance
         addMessage({
           playgroundInstanceId: instanceId,
@@ -93,7 +94,13 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         setDirty(instanceId, false);
       }
     },
-    [instanceId, updateInstance, addMessage, setDirty]
+    [
+      instanceId,
+      addMessage,
+      setDirty,
+      setInstancePrompt,
+      resetInstanceWithPromptConfig,
+    ]
   );
 
   if (!instance) {

@@ -785,26 +785,109 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       );
     },
 
-    updateInstance: ({ instanceId, patch, dirty }) => {
-      const instances = get().instances;
+    setInstanceExperimentId: (instanceId, experimentId) => {
       set(
         {
-          dirtyInstances: {
-            ...get().dirtyInstances,
-            ...(dirty != null ? { [instanceId]: dirty } : {}),
-          },
-          instances: instances.map((instance) => {
-            if (instance.id === instanceId) {
-              return {
-                ...instance,
-                ...patch,
-              };
-            }
-            return instance;
+          instances: get().instances.map((i) =>
+            i.id === instanceId ? { ...i, experimentId } : i
+          ),
+        },
+        false,
+        { type: "setInstanceExperimentId" }
+      );
+    },
+    setInstanceActiveRunId: (instanceId, activeRunId) => {
+      set(
+        {
+          instances: get().instances.map((i) =>
+            i.id === instanceId ? { ...i, activeRunId } : i
+          ),
+        },
+        false,
+        { type: "setInstanceActiveRunId" }
+      );
+    },
+    setInstancePrompt: (instanceId, prompt) => {
+      set(
+        {
+          instances: get().instances.map((i) =>
+            i.id === instanceId ? { ...i, prompt } : i
+          ),
+        },
+        false,
+        { type: "setInstancePrompt" }
+      );
+    },
+    setInstanceTemplate: (instanceId, template) => {
+      set(
+        {
+          instances: get().instances.map((i) =>
+            i.id === instanceId ? { ...i, template } : i
+          ),
+        },
+        false,
+        { type: "setInstanceTemplate" }
+      );
+    },
+    setInstanceModel: (instanceId, model) => {
+      set(
+        {
+          instances: get().instances.map((i) =>
+            i.id === instanceId ? { ...i, model } : i
+          ),
+        },
+        false,
+        { type: "setInstanceModel" }
+      );
+    },
+    setInstanceTools: (instanceId, tools, toolChoice) => {
+      set(
+        {
+          instances: get().instances.map((i) =>
+            i.id === instanceId
+              ? {
+                  ...i,
+                  tools,
+                  ...(toolChoice !== undefined ? { toolChoice } : {}),
+                }
+              : i
+          ),
+        },
+        false,
+        { type: "setInstanceTools" }
+      );
+    },
+    resetInstanceWithPromptConfig: (
+      instanceId,
+      { prompt, model, tools, toolChoice }
+    ) => {
+      set(
+        {
+          instances: get().instances.map((i) => {
+            if (i.id !== instanceId) return i;
+            return {
+              ...i,
+              prompt,
+              model,
+              tools,
+              ...(toolChoice !== undefined ? { toolChoice } : {}),
+              template: { __type: "chat", messageIds: [] },
+              activeRunId: null,
+              selectedRepetitionNumber: 1,
+              repetitions: {
+                1: {
+                  output: null,
+                  spanId: null,
+                  error: null,
+                  status: "notStarted",
+                  toolCalls: {},
+                },
+              },
+            };
           }),
         },
         false,
-        { type: "updateInstance" }
+        { type: "resetInstanceWithPromptConfig" }
       );
     },
     runPlaygroundInstances: () => {

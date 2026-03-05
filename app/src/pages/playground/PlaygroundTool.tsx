@@ -56,7 +56,10 @@ export function PlaygroundTool({
 }: PlaygroundInstanceProps & {
   toolId: Tool["id"];
 }) {
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceTools = usePlaygroundContext(
+    (state) => state.setInstanceTools
+  );
+  const setDirty = usePlaygroundContext((state) => state.setDirty);
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
@@ -82,22 +85,13 @@ export function PlaygroundTool({
 
   const updateTool = useCallback(
     (definition: Tool["definition"]) => {
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        patch: {
-          tools: instanceTools.map((t) =>
-            t.id === tool.id
-              ? {
-                  ...t,
-                  definition,
-                }
-              : t
-          ),
-        },
-        dirty: true,
-      });
+      setInstanceTools(
+        playgroundInstanceId,
+        instanceTools.map((t) => (t.id === tool.id ? { ...t, definition } : t))
+      );
+      setDirty(playgroundInstanceId, true);
     },
-    [instanceTools, playgroundInstanceId, tool.id, updateInstance]
+    [instanceTools, playgroundInstanceId, setDirty, setInstanceTools, tool.id]
   );
 
   const deleteTool = useCallback(() => {
@@ -112,21 +106,16 @@ export function PlaygroundTool({
     } else if (deletingToolChoice) {
       newToolChoice = "auto";
     }
-    updateInstance({
-      instanceId: playgroundInstanceId,
-      patch: {
-        tools: newTools,
-        toolChoice: newToolChoice,
-      },
-      dirty: true,
-    });
+    setInstanceTools(playgroundInstanceId, newTools, newToolChoice);
+    setDirty(playgroundInstanceId, true);
   }, [
     instanceTools,
     playgroundInstanceId,
+    setDirty,
+    setInstanceTools,
     toolId,
     toolChoice,
     toolName,
-    updateInstance,
   ]);
 
   const toolDefinitionString = useMemo(() => {

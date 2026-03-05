@@ -395,18 +395,59 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   deleteMessage: (params: { instanceId: number; messageId: number }) => void;
 
   /**
-   * Update an instance of the playground
+   * Set the experiment id for an instance (narrow action — does not touch dirty state)
    */
-  updateInstance: (params: {
-    instanceId: number;
-    patch: Partial<PlaygroundNormalizedInstance>;
-    /**
-     * Should this update mark the instance as dirty?
-     *
-     * null means the dirty state should not be changed
-     */
-    dirty: boolean | null;
-  }) => void;
+  setInstanceExperimentId(
+    instanceId: number,
+    experimentId: string | null
+  ): void;
+  /**
+   * Set the active run id for an instance (narrow action — does not touch dirty state)
+   */
+  setInstanceActiveRunId(instanceId: number, runId: number | null): void;
+  /**
+   * Set the prompt hub prompt for an instance (narrow action — does not touch dirty state)
+   */
+  setInstancePrompt(
+    instanceId: number,
+    prompt: PlaygroundInstancePrompt | null
+  ): void;
+  /**
+   * Set the template for an instance (narrow action — does not touch dirty state)
+   */
+  setInstanceTemplate(
+    instanceId: number,
+    template:
+      | PlaygroundNormalizedChatTemplate
+      | PlaygroundTextCompletionTemplate
+  ): void;
+  /**
+   * Replace the full model config for an instance (narrow action — does not touch dirty state)
+   */
+  setInstanceModel(instanceId: number, model: ModelConfig): void;
+  /**
+   * Set the tools (and optionally toolChoice) for an instance (narrow action — does not touch dirty state)
+   */
+  setInstanceTools(
+    instanceId: number,
+    tools: Tool[],
+    toolChoice?: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice
+  ): void;
+  /**
+   * Atomically reset an instance's config from a loaded prompt version.
+   * Clears runtime state (repetitions, activeRunId, selectedRepetitionNumber) and sets
+   * template to an empty chat template (caller is responsible for adding messages via addMessage).
+   * Does not touch dirty state.
+   */
+  resetInstanceWithPromptConfig(
+    instanceId: number,
+    config: {
+      prompt: PlaygroundInstancePrompt | null;
+      model: ModelConfig;
+      tools: Tool[];
+      toolChoice?: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice;
+    }
+  ): void;
   /**
    * Update the invocation parameters for a model
    */
