@@ -12,7 +12,15 @@ export type GetSessionParams = ClientFn & {
 };
 
 /**
- * Get a session by ID or session_id.
+ * Fetch a single session by its GlobalID or user-provided session_id string.
+ *
+ * @example
+ * ```ts
+ * import { getSession } from "@arizeai/phoenix-client/sessions";
+ *
+ * const session = await getSession({ sessionId: "my-session-id" });
+ * console.log(session.traces.length);
+ * ```
  */
 export async function getSession({
   client: _client,
