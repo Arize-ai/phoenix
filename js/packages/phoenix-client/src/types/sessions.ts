@@ -1,6 +1,17 @@
 import type { Node } from "./core";
 
 /**
+ * Identifies a project. Accepts any of:
+ * - `project` — a project ID or name (the server accepts either)
+ * - `projectId` — an explicit project ID
+ * - `projectName` — an explicit project name
+ */
+export type ProjectIdentifier =
+  | { project: string }
+  | { projectId: string }
+  | { projectName: string };
+
+/**
  * A trace that belongs to a session.
  */
 export interface SessionTrace extends Node {

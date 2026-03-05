@@ -3,14 +3,20 @@ import invariant from "tiny-invariant";
 import type { components } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import type { Session } from "../types/sessions";
+import type { ProjectIdentifier, Session } from "../types/sessions";
+import { toSession } from "./sessionUtils";
 
-export type ListSessionsParams = ClientFn & {
-  /**
-   * The project identifier: either project ID or project name.
-   */
-  projectIdentifier: string;
-};
+export type ListSessionsParams = ClientFn & ProjectIdentifier;
+
+/**
+ * Resolves a {@link ProjectIdentifier} union to a plain string
+ * suitable for the REST `project_identifier` path parameter.
+ */
+function resolveProjectIdentifier(identifier: ProjectIdentifier): string {
+  if ("project" in identifier) return identifier.project;
+  if ("projectId" in identifier) return identifier.projectId;
+  return identifier.projectName;
+}
 
 const DEFAULT_PAGE_SIZE = 100;
 
@@ -22,7 +28,7 @@ const DEFAULT_PAGE_SIZE = 100;
  * import { listSessions } from "@arizeai/phoenix-client/sessions";
  *
  * const sessions = await listSessions({
- *   projectIdentifier: "my-project",
+ *   project: "my-project",
  * });
  *
  * for (const session of sessions) {
@@ -30,11 +36,11 @@ const DEFAULT_PAGE_SIZE = 100;
  * }
  * ```
  */
-export async function listSessions({
-  client: _client,
-  projectIdentifier,
-}: ListSessionsParams): Promise<Session[]> {
-  const client = _client || createClient();
+export async function listSessions(
+  params: ListSessionsParams
+): Promise<Session[]> {
+  const client = params.client || createClient();
+  const projectIdentifier = resolveProjectIdentifier(params);
 
   const sessions: Session[] = [];
   let cursor: string | null = null;
@@ -58,21 +64,7 @@ export async function listSessions({
     const data = res.data?.data;
     invariant(data, "Failed to list sessions");
 
-    sessions.push(
-      ...data.map((s) => ({
-        id: s.id,
-        sessionId: s.session_id,
-        projectId: s.project_id,
-        startTime: s.start_time,
-        endTime: s.end_time,
-        traces: s.traces.map((trace) => ({
-          id: trace.id,
-          traceId: trace.trace_id,
-          startTime: trace.start_time,
-          endTime: trace.end_time,
-        })),
-      }))
-    );
+    sessions.push(...data.map(toSession));
   } while (cursor != null);
 
   return sessions;

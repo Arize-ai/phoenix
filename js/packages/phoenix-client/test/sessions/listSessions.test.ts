@@ -52,7 +52,7 @@ describe("listSessions", () => {
     });
 
     const sessions = await listSessions({
-      projectIdentifier: "my-project",
+      project: "my-project",
     });
 
     expect(mockGet).toHaveBeenCalledOnce();
@@ -101,7 +101,7 @@ describe("listSessions", () => {
       });
 
     const sessions = await listSessions({
-      projectIdentifier: "my-project",
+      project: "my-project",
     });
 
     expect(mockGet).toHaveBeenCalledTimes(2);
@@ -129,8 +129,8 @@ describe("listSessions", () => {
       data: undefined,
     });
 
-    await expect(
-      listSessions({ projectIdentifier: "my-project" })
-    ).rejects.toThrow("Failed to list sessions");
+    await expect(listSessions({ project: "my-project" })).rejects.toThrow(
+      "Failed to list sessions"
+    );
   });
 });
