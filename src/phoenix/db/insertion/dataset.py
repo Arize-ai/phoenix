@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Awaitable, Iterable, Iterator, Mapping
+from collections.abc import Awaitable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -13,6 +13,9 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
+
+# Batch size for bulk inserts - tuned for good performance across SQLite and PostgreSQL
+DEFAULT_BATCH_SIZE = 1000
 
 logger = logging.getLogger(__name__)
 
@@ -85,24 +88,6 @@ async def insert_dataset_version(
     return cast(DatasetVersionId, id_)
 
 
-async def insert_dataset_example(
-    session: AsyncSession,
-    dataset_id: DatasetId,
-    span_rowid: Optional[SpanRowId] = None,
-    created_at: Optional[datetime] = None,
-) -> DatasetExampleId:
-    id_ = await session.scalar(
-        insert(models.DatasetExample)
-        .values(
-            dataset_id=dataset_id,
-            span_rowid=span_rowid,
-            created_at=created_at,
-        )
-        .returning(models.DatasetExample.id)
-    )
-    return cast(DatasetExampleId, id_)
-
-
 class RevisionKind(Enum):
     CREATE = "CREATE"
     PATCH = "PATCH"
@@ -115,63 +100,158 @@ class RevisionKind(Enum):
         raise ValueError(f"Invalid revision kind: {v}")
 
 
-async def insert_dataset_example_revision(
+async def bulk_insert_dataset_examples(
+    session: AsyncSession,
+    dataset_id: DatasetId,
+    span_rowids: Sequence[Optional[SpanRowId]],
+    created_at: Optional[datetime] = None,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+) -> list[DatasetExampleId]:
+    """
+    Bulk insert dataset examples and return their IDs in order.
+
+    Args:
+        session: Database session
+        dataset_id: The dataset to add examples to
+        span_rowids: List of span row IDs (or None) for each example, in order
+        created_at: Timestamp for all examples
+        batch_size: Number of records per batch insert
+
+    Returns:
+        List of created example IDs in the same order as span_rowids
+    """
+    if not span_rowids:
+        return []
+
+    all_ids: list[DatasetExampleId] = []
+
+    # Process in batches
+    for i in range(0, len(span_rowids), batch_size):
+        batch = span_rowids[i : i + batch_size]
+        records = [
+            {
+                "dataset_id": dataset_id,
+                "span_rowid": span_rowid,
+                "created_at": created_at,
+            }
+            for span_rowid in batch
+        ]
+
+        # Use INSERT ... RETURNING to get IDs in order
+        result = await session.execute(
+            insert(models.DatasetExample).values(records).returning(models.DatasetExample.id)
+        )
+        batch_ids = [cast(DatasetExampleId, row[0]) for row in result.fetchall()]
+        all_ids.extend(batch_ids)
+
+    return all_ids
+
+
+async def bulk_insert_dataset_example_revisions(
     session: AsyncSession,
     dataset_version_id: DatasetVersionId,
-    dataset_example_id: DatasetExampleId,
-    input: Mapping[str, Any],
-    output: Mapping[str, Any],
-    metadata: Optional[Mapping[str, Any]] = None,
+    example_ids: Sequence[DatasetExampleId],
+    examples: Sequence[ExampleContent],
     revision_kind: RevisionKind = RevisionKind.CREATE,
     created_at: Optional[datetime] = None,
-) -> DatasetExampleRevisionId:
-    id_ = await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .values(
-            dataset_version_id=dataset_version_id,
-            dataset_example_id=dataset_example_id,
-            input=input,
-            output=output,
-            metadata_=metadata,
-            revision_kind=revision_kind.value,
-            created_at=created_at,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+) -> list[DatasetExampleRevisionId]:
+    """
+    Bulk insert dataset example revisions.
+
+    Args:
+        session: Database session
+        dataset_version_id: The version to add revisions to
+        example_ids: List of example IDs (must match order of examples)
+        examples: List of example content
+        revision_kind: The kind of revision (CREATE, PATCH, DELETE)
+        created_at: Timestamp for all revisions
+        batch_size: Number of records per batch insert
+
+    Returns:
+        List of created revision IDs in order
+    """
+    if not example_ids or not examples:
+        return []
+
+    if len(example_ids) != len(examples):
+        raise ValueError(
+            f"example_ids and examples must have same length: {len(example_ids)} != {len(examples)}"
         )
-        .returning(models.DatasetExampleRevision.id)
-    )
-    return cast(DatasetExampleRevisionId, id_)
+
+    all_ids: list[DatasetExampleRevisionId] = []
+
+    # Process in batches
+    for i in range(0, len(example_ids), batch_size):
+        batch_example_ids = example_ids[i : i + batch_size]
+        batch_examples = examples[i : i + batch_size]
+
+        records = [
+            {
+                "dataset_version_id": dataset_version_id,
+                "dataset_example_id": example_id,
+                "input": example.input,
+                "output": example.output,
+                "metadata_": example.metadata,
+                "revision_kind": revision_kind.value,
+                "created_at": created_at,
+            }
+            for example_id, example in zip(batch_example_ids, batch_examples)
+        ]
+
+        result = await session.execute(
+            insert(models.DatasetExampleRevision)
+            .values(records)
+            .returning(models.DatasetExampleRevision.id)
+        )
+        batch_ids = [cast(DatasetExampleRevisionId, row[0]) for row in result.fetchall()]
+        all_ids.extend(batch_ids)
+
+    return all_ids
 
 
 async def resolve_span_ids_to_rowids(
     session: AsyncSession,
     span_ids: list[Optional[str]],
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> dict[str, int]:
     """
     Batch resolve span_id strings to database row IDs.
 
     Args:
         session: Database session
-        span_ids: List of OTEL span ID strings
+        span_ids: List of OTEL span ID strings (duplicates are handled efficiently)
+        batch_size: Number of span IDs per query batch (default: DEFAULT_BATCH_SIZE)
 
     Returns:
         Dictionary mapping span_id to Span.id (database row ID)
     """
-    # Filter out None and empty strings
-    valid_span_ids = [sid for sid in span_ids if sid]
-    if not valid_span_ids:
+    # Filter out None and empty strings, then deduplicate
+    # Deduplication is critical: 10,000 examples referencing the same 5 span IDs
+    # should only use 5 query parameters, not 10,000
+    unique_span_ids = {sid for sid in span_ids if sid}
+    if not unique_span_ids:
         return {}
-
-    # Query spans table for matching span_ids
-    result = await session.execute(
-        select(models.Span.span_id, models.Span.id).where(models.Span.span_id.in_(valid_span_ids))
-    )
 
     # Build mapping of span_id (string) to span row ID (int)
     span_id_to_rowid: dict[str, int] = {}
-    for span_id, row_id in result.all():
-        span_id_to_rowid[span_id] = row_id
+
+    # Process in batches to avoid exceeding database parameter limits
+    # (e.g., SQLite's 32,767 limit for bound parameters)
+    unique_span_ids_list = list(unique_span_ids)
+    for i in range(0, len(unique_span_ids_list), batch_size):
+        batch = unique_span_ids_list[i : i + batch_size]
+
+        # Query spans table for matching span_ids in this batch
+        result = await session.execute(
+            select(models.Span.span_id, models.Span.id).where(models.Span.span_id.in_(batch))
+        )
+
+        for span_id, row_id in result.all():
+            span_id_to_rowid[span_id] = row_id
 
     # Log warnings for span IDs that couldn't be resolved
-    missing_span_ids = set(valid_span_ids) - set(span_id_to_rowid.keys())
+    missing_span_ids = unique_span_ids - set(span_id_to_rowid.keys())
     if missing_span_ids:
         logger.warning(
             f"Could not resolve {len(missing_span_ids)} span IDs to database records. "
@@ -226,10 +306,16 @@ async def bulk_create_dataset_splits(
 async def bulk_assign_examples_to_splits(
     session: AsyncSession,
     assignments: list[tuple[DatasetExampleId, int]],
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> None:
     """
     Bulk assign examples to splits.
     assignments is a list of (dataset_example_id, dataset_split_id) tuples.
+
+    Args:
+        session: Database session
+        assignments: List of (dataset_example_id, dataset_split_id) tuples
+        batch_size: Number of records per batch insert (default: DEFAULT_BATCH_SIZE)
     """
     if not assignments:
         return
@@ -239,32 +325,37 @@ async def bulk_assign_examples_to_splits(
     from typing_extensions import assert_never
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    records = [
-        {
-            "dataset_example_id": example_id,
-            "dataset_split_id": split_id,
-        }
-        for example_id, split_id in assignments
-    ]
 
-    # Use index_elements instead of constraint name because the table uses
-    # a PrimaryKeyConstraint, not a unique constraint
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        pg_stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
-        await session.execute(
-            pg_stmt.on_conflict_do_nothing(
-                index_elements=["dataset_split_id", "dataset_example_id"]
+    # Process in batches to avoid exceeding database parameter limits
+    # (e.g., SQLite's 32,767 limit, PostgreSQL's similar constraints)
+    for i in range(0, len(assignments), batch_size):
+        batch = assignments[i : i + batch_size]
+        records = [
+            {
+                "dataset_example_id": example_id,
+                "dataset_split_id": split_id,
+            }
+            for example_id, split_id in batch
+        ]
+
+        # Use index_elements instead of constraint name because the table uses
+        # a PrimaryKeyConstraint, not a unique constraint
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            pg_stmt = pg_insert(models.DatasetSplitDatasetExample).values(records)
+            await session.execute(
+                pg_stmt.on_conflict_do_nothing(
+                    index_elements=["dataset_split_id", "dataset_example_id"]
+                )
             )
-        )
-    elif dialect is SupportedSQLDialect.SQLITE:
-        sqlite_stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
-        await session.execute(
-            sqlite_stmt.on_conflict_do_nothing(
-                index_elements=["dataset_split_id", "dataset_example_id"]
+        elif dialect is SupportedSQLDialect.SQLITE:
+            sqlite_stmt = sqlite_insert(models.DatasetSplitDatasetExample).values(records)
+            await session.execute(
+                sqlite_stmt.on_conflict_do_nothing(
+                    index_elements=["dataset_split_id", "dataset_example_id"]
+                )
             )
-        )
-    else:
-        assert_never(dialect)
+        else:
+            assert_never(dialect)
 
 
 class DatasetAction(Enum):
@@ -320,48 +411,52 @@ async def add_dataset_examples(
     # Collect all examples first to batch resolve span IDs
     examples_list = list((await examples) if isinstance(examples, Awaitable) else examples)
 
+    if not examples_list:
+        return DatasetExampleAdditionEvent(
+            dataset_id=dataset_id, dataset_version_id=dataset_version_id
+        )
+
     # Batch resolve span IDs to row IDs
     span_ids_to_resolve = [ex.span_id for ex in examples_list]
     span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
 
-    # Process examples and collect split assignments (by name, resolved to IDs after iteration)
+    # Prepare span_rowids list for bulk insert (preserving order)
+    span_rowids: list[Optional[SpanRowId]] = [
+        span_id_to_rowid.get(ex.span_id) if ex.span_id else None for ex in examples_list
+    ]
+
+    # Bulk insert all examples at once
+    try:
+        example_ids = await bulk_insert_dataset_examples(
+            session=session,
+            dataset_id=dataset_id,
+            span_rowids=span_rowids,
+            created_at=created_at,
+        )
+    except Exception:
+        logger.exception(f"Failed to bulk insert dataset examples for {dataset_id=}")
+        raise
+
+    # Bulk insert all revisions at once
+    try:
+        await bulk_insert_dataset_example_revisions(
+            session=session,
+            dataset_version_id=dataset_version_id,
+            example_ids=example_ids,
+            examples=examples_list,
+            created_at=created_at,
+        )
+    except Exception:
+        logger.exception(
+            f"Failed to bulk insert dataset example revisions for {dataset_version_id=}"
+        )
+        raise
+
+    # Collect split assignments by name for bulk insert
     split_assignments: list[tuple[DatasetExampleId, str]] = []
-    for example in examples_list:
-        # Get span row ID if available
-        span_rowid = None
-        if example.span_id:
-            span_rowid = span_id_to_rowid.get(example.span_id)
-
-        try:
-            dataset_example_id = await insert_dataset_example(
-                session=session,
-                dataset_id=dataset_id,
-                span_rowid=span_rowid,
-                created_at=created_at,
-            )
-        except Exception:
-            logger.exception(f"Failed to insert dataset example for {dataset_id=}")
-            raise
-        try:
-            await insert_dataset_example_revision(
-                session=session,
-                dataset_version_id=dataset_version_id,
-                dataset_example_id=dataset_example_id,
-                input=example.input,
-                output=example.output,
-                metadata=example.metadata,
-                created_at=created_at,
-            )
-        except Exception:
-            logger.exception(
-                f"Failed to insert dataset example revision for {dataset_version_id=}, "
-                f"{dataset_example_id=}"
-            )
-            raise
-
-        # Collect split assignments by name for bulk insert later
+    for example_id, example in zip(example_ids, examples_list):
         for split_name in example.splits:
-            split_assignments.append((dataset_example_id, split_name))
+            split_assignments.append((example_id, split_name))
 
     # Bulk create splits and assign examples after iteration
     if split_assignments:
