@@ -194,36 +194,6 @@ class TestAsyncSessionsList:
         assert len(result) == 2
 
 
-class TestListSessionsAlias:
-    def test_list_sessions_delegates_to_list(self) -> None:
-        sessions = [_make_session_data(id="id1", session_id="s1")]
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert "/projects/my-project/sessions" in request.url.path
-            return httpx.Response(200, json={"data": sessions, "next_cursor": None})
-
-        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result: list[v1.SessionData] = Sessions(client).list_sessions(project_name="my-project")
-        assert len(result) == 1
-        assert result[0]["session_id"] == "s1"
-
-
-class TestAsyncListSessionsAlias:
-    @pytest.mark.anyio
-    async def test_list_sessions_delegates_to_list(self) -> None:
-        sessions = [_make_session_data(id="id1", session_id="s1")]
-
-        async def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(200, json={"data": sessions, "next_cursor": None})
-
-        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        result: list[v1.SessionData] = await AsyncSessions(client).list_sessions(
-            project_name="my-project"
-        )
-        assert len(result) == 1
-        assert result[0]["session_id"] == "s1"
-
-
 class TestAsyncGetSessionsDataframe:
     @pytest.mark.anyio
     async def test_returns_dataframe(self) -> None:

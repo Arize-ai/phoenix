@@ -97,22 +97,6 @@ class Sessions:
                 break
         return all_sessions
 
-    def list_sessions(
-        self,
-        *,
-        project_id: Optional[str] = None,
-        project_name: Optional[str] = None,
-        limit: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> list[v1.SessionData]:
-        """List sessions for a project. Alias for `list()`."""
-        return self.list(
-            project_id=project_id,
-            project_name=project_name,
-            limit=limit,
-            timeout=timeout,
-        )
-
     def get_sessions_dataframe(
         self,
         *,
@@ -534,22 +518,6 @@ class AsyncSessions:
             if not (next_cursor := data.get("next_cursor")):
                 break
         return all_sessions
-
-    async def list_sessions(
-        self,
-        *,
-        project_id: Optional[str] = None,
-        project_name: Optional[str] = None,
-        limit: Optional[int] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> list[v1.SessionData]:
-        """List sessions for a project. Alias for `list()`."""
-        return await self.list(
-            project_id=project_id,
-            project_name=project_name,
-            limit=limit,
-            timeout=timeout,
-        )
 
     async def get_sessions_dataframe(
         self,
