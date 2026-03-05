@@ -53,7 +53,7 @@ verify('7fffffffffffffff', INVALID_NUMBER)
 verify('7ff0000000000000', INVALID_NUMBER)
 verify('fff0000000000000', INVALID_NUMBER)
 # Change the file path below according to your installation
-file = open('c:\\es6\\numbers\\es6testfile100m.txt','r')
+file = open("/tmp/es6testfile100m.txt", "r")
 lineCount = 0;
 while True:
     line = file.readline();
