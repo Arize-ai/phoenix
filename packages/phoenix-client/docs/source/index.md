@@ -7,7 +7,7 @@ Welcome to the Phoenix Client documentation. This lightweight Python client prov
 - **[Prompts](api/prompts)** - Manage prompt templates and versions
 - **[Spans](api/spans)** - Access and analyze traces and spans
 - **[Annotations](api/annotations)** - Add annotations, evals, and feedback to spans
-- **[Sessions](api/sessions)** - Add session annotations to multi-turn conversations and threads
+- **[Sessions](api/sessions)** - Retrieve sessions, list sessions for a project, and annotate multi-turn conversations
 - **[Projects](api/projects)** - Organize your work with project management
 
 ## Installation
@@ -569,6 +569,82 @@ updated_project = client.projects.update(
     description="Updated: Customer support bot with sentiment analysis and quality metrics"
 )
 print(f"Updated project description: {updated_project['description']}")
+```
+
+### Sessions
+
+Retrieve and annotate multi-turn conversation sessions:
+
+```python
+# List sessions for a project
+sessions = client.sessions.list(project_name="my-llm-app")
+for session in sessions:
+    print(f"Session: {session['session_id']} ({len(session['traces'])} traces)")
+    print(f"Start: {session['start_time']}, End: {session['end_time']}")
+
+# List with a limit
+recent_sessions = client.sessions.list(project_name="my-llm-app", limit=10)
+
+# Get sessions as a pandas DataFrame
+sessions_df = client.sessions.get_sessions_dataframe(project_name="my-llm-app")
+print(sessions_df.head())
+
+# Get a specific session by ID
+session = client.sessions.get(session_id="my-session-id")
+print(f"Session: {session['session_id']}")
+print(f"Traces: {len(session['traces'])}")
+
+# Add a session annotation
+client.sessions.add_session_annotation(
+    session_id="my-session-id",
+    annotation_name="quality",
+    annotator_kind="HUMAN",
+    label="good",
+    score=0.9,
+    explanation="The conversation was helpful and coherent",
+)
+
+# Add annotation synchronously to get the inserted annotation ID
+annotation = client.sessions.add_session_annotation(
+    session_id="my-session-id",
+    annotation_name="sentiment",
+    annotator_kind="LLM",
+    label="positive",
+    score=0.85,
+    sync=True,
+)
+print(f"Annotation ID: {annotation['id']}")
+
+# Bulk annotation logging
+annotations = [
+    {
+        "session_id": "session-123",
+        "name": "helpfulness",
+        "annotator_kind": "HUMAN",
+        "result": {"label": "helpful", "score": 0.9},
+    },
+    {
+        "session_id": "session-456",
+        "name": "relevance",
+        "annotator_kind": "LLM",
+        "result": {"label": "relevant", "score": 0.8},
+    },
+]
+client.sessions.log_session_annotations(session_annotations=annotations)
+
+# Bulk annotations from a DataFrame
+import pandas as pd
+
+df = pd.DataFrame({
+    "session_id": ["session-123", "session-456"],
+    "label": ["positive", "neutral"],
+    "score": [0.9, 0.5],
+})
+client.sessions.log_session_annotations_dataframe(
+    dataframe=df,
+    annotation_name="sentiment",
+    annotator_kind="HUMAN",
+)
 ```
 
 ## API Reference

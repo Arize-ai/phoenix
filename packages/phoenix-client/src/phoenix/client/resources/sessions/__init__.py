@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, cast, overload
+from typing import TYPE_CHECKING, Any, Iterable, List, Literal, Optional, cast, overload
 
 import httpx
 
@@ -59,7 +59,7 @@ class Sessions:
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> list[v1.SessionData]:
+    ) -> List[v1.SessionData]:
         """List sessions for a project.
 
         Args:
@@ -78,7 +78,7 @@ class Sessions:
         project_identifier = project_name if project_name else project_id
         assert project_identifier
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
-        all_sessions: list[v1.SessionData] = []
+        all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
         while True:
             params: dict[str, Any] = {}
@@ -258,7 +258,7 @@ class Sessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     def log_session_annotations(
@@ -274,14 +274,14 @@ class Sessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     def log_session_annotations(
         self,
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations.
 
         Args:
@@ -343,7 +343,7 @@ class Sessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     def log_session_annotations_dataframe(
@@ -363,7 +363,7 @@ class Sessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     def log_session_annotations_dataframe(
         self,
@@ -372,7 +372,7 @@ class Sessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame.
 
         This method allows you to create multiple session annotations at once by providing the data
@@ -436,7 +436,7 @@ class Sessions:
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
         # Process DataFrame chunks using iterator
-        all_responses: list[InsertedSessionAnnotation] = []
+        all_responses: List[InsertedSessionAnnotation] = []
         for chunk in _chunk_session_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
@@ -481,7 +481,7 @@ class AsyncSessions:
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> list[v1.SessionData]:
+    ) -> List[v1.SessionData]:
         """List sessions for a project.
 
         Args:
@@ -500,7 +500,7 @@ class AsyncSessions:
         project_identifier = project_name if project_name else project_id
         assert project_identifier
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
-        all_sessions: list[v1.SessionData] = []
+        all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
         while True:
             params: dict[str, Any] = {}
@@ -680,7 +680,7 @@ class AsyncSessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     async def log_session_annotations(
@@ -696,14 +696,14 @@ class AsyncSessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     async def log_session_annotations(
         self,
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations asynchronously.
 
         Args:
@@ -765,7 +765,7 @@ class AsyncSessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     async def log_session_annotations_dataframe(
@@ -785,7 +785,7 @@ class AsyncSessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     async def log_session_annotations_dataframe(
         self,
@@ -794,7 +794,7 @@ class AsyncSessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame asynchronously.
 
         This method allows you to create multiple session annotations at once by providing the data
@@ -858,7 +858,7 @@ class AsyncSessions:
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
         # Process DataFrame chunks using iterator
-        all_responses: list[InsertedSessionAnnotation] = []
+        all_responses: List[InsertedSessionAnnotation] = []
         for chunk in _chunk_session_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
