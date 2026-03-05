@@ -1,5 +1,16 @@
 # @arizeai/phoenix-client
 
+## 6.1.0
+
+### Minor Changes
+
+- 6296d0a: Replace `projectIdentifier: string` with a `ProjectIdentifier` discriminated union on `listSessions`. Callers can now pass `{ project: "name-or-id" }`, `{ projectId: "..." }`, or `{ projectName: "..." }` for explicit intent and better IDE autocompletion.
+- 6296d0a: Add `getSession` and `listSessions` APIs for querying session data. `getSession` fetches a single session by ID or name, while `listSessions` returns paginated sessions for a project with cursor-based pagination.
+
+### Patch Changes
+
+- b8ba989: Removed deprecated `ProjectSelector` type alias. Use `ProjectIdentifier` instead.
+
 ## 6.0.0
 
 ### Major Changes
