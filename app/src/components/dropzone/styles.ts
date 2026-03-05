@@ -1,5 +1,30 @@
 import { css } from "@emotion/react";
 
+export const dropZoneCSS = css`
+  position: relative;
+`;
+
+export const dropOverlayCSS = css`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--global-rounding-medium);
+  background: rgba(0 0 0 / 0.5);
+  color: var(--global-text-color-900);
+  font-size: var(--global-font-size-l);
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 1;
+
+  [data-drop-target] > & {
+    opacity: 1;
+  }
+`;
+
 export const fileDropZoneCSS = css`
   display: flex;
   flex-direction: column;
@@ -127,5 +152,81 @@ export const fileListCSS = css`
 
   .file-list__remove {
     flex-shrink: 0;
+  }
+`;
+
+export const fileInputCSS = css`
+  display: flex;
+  flex-direction: column;
+
+  .file-input__label {
+    padding: 5px 0;
+    display: inline-block;
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+    font-weight: var(--font-weight-heavy);
+  }
+
+  .file-input__control {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    background-color: var(--global-input-field-background-color);
+    border: var(--global-border-size-thin) solid
+      var(--global-input-field-border-color);
+    border-radius: var(--global-rounding-small);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-50)
+      var(--global-dimension-size-50) var(--global-dimension-size-125);
+    min-height: var(--global-input-height-m);
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out;
+
+    &:hover:not([data-disabled]) {
+      border-color: var(--global-input-field-border-color-active);
+    }
+  }
+
+  &[data-disabled] {
+    opacity: var(--global-opacity-disabled);
+
+    .file-input__control {
+      cursor: not-allowed;
+    }
+  }
+
+  .file-input__name {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--global-font-size-s);
+    color: var(--global-text-color-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-input__placeholder {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--global-font-size-s);
+    color: var(--text-color-placeholder);
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-input__actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  [slot="description"] {
+    font-size: var(--global-font-size-xs);
+    padding-top: var(--global-dimension-static-size-50);
+    color: var(--global-text-color-500);
+    line-height: var(--global-dimension-static-font-size-200);
+    min-height: var(--global-dimension-static-font-size-200);
+    display: inline-block;
   }
 `;

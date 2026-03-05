@@ -20,6 +20,7 @@ export function ColumnMultiSelector(props: {
   columns: string[];
   selectedColumns: string[];
   onChange: (selectedColumns: string[]) => void;
+  isDisabled?: boolean;
 }) {
   const {
     columns,
@@ -28,6 +29,7 @@ export function ColumnMultiSelector(props: {
     label,
     description,
     errorMessage,
+    isDisabled,
   } = props;
   const noColumns = columns.length === 0;
   const items = useMemo(() => {
@@ -38,7 +40,7 @@ export function ColumnMultiSelector(props: {
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>
       <Select
-        isDisabled={noColumns}
+        isDisabled={noColumns || isDisabled}
         placeholder="Select columns"
         selectionMode="multiple"
         onChange={(keys) => {

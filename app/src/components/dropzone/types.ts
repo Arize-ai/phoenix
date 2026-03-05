@@ -16,7 +16,7 @@ export interface FileWithProgress {
   /**
    * Current status of the file
    */
-  status?: "pending" | "uploading" | "complete" | "error";
+  status?: "pending" | "uploading" | "parsing" | "complete" | "error";
   /**
    * Error message if status is 'error'
    */
@@ -122,4 +122,70 @@ export interface FileListProps {
    * When omitted, files are rendered with the default FileListItem.
    */
   children?: (file: FileWithProgress, index: number) => ReactNode;
+}
+
+export interface DropOverlayProps {
+  /**
+   * Text displayed centered in the overlay when a drop target is active.
+   * Can also be passed as `children`.
+   */
+  children?: ReactNode;
+}
+
+export interface FileInputProps {
+  /**
+   * The currently selected file, or null if none
+   */
+  file: File | null;
+
+  /**
+   * Accepted file types as MIME types or file extensions.
+   * Examples: ['text/csv', 'application/json', '.csv', '.json']
+   */
+  acceptedFileTypes?: string[];
+
+  /**
+   * Callback when a file is selected via the browse button
+   */
+  onSelect?: (files: File[]) => void;
+
+  /**
+   * Callback when the file is cleared
+   */
+  onClear?: () => void;
+
+  /**
+   * Whether the input is disabled
+   */
+  isDisabled?: boolean;
+
+  /**
+   * Label text displayed above the input
+   * @default "File"
+   */
+  label?: string;
+
+  /**
+   * Placeholder text when no file is selected
+   * @default "No file selected"
+   */
+  placeholder?: string;
+
+  /**
+   * Slot-based children rendered below the input control.
+   * Use `<Text slot="description">` for help text or status messages.
+   *
+   * @example
+   * ```tsx
+   * <FileInput file={file} onSelect={handleSelect}>
+   *   <Text slot="description">320 examples</Text>
+   * </FileInput>
+   * ```
+   */
+  children?: ReactNode;
+
+  /**
+   * Accessible label for the file input
+   */
+  "aria-label"?: string;
 }

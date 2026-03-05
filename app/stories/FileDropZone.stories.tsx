@@ -1,15 +1,19 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import { useCallback, useState } from "react";
+import type { DropItem, FileDropItem } from "react-aria-components";
 
 import {
   FileDropZone,
+  FileInput,
   FileList,
   type FileDropZoneProps,
+  type FileInputProps,
   type FileWithProgress,
   type FileRejection,
 } from "@phoenix/components";
 import { Flex, View, Text } from "@phoenix/components";
+import { DropOverlay, DropZone } from "@phoenix/components/dropzone";
 
 const fileChipCSS = css`
   display: inline-flex;
@@ -446,3 +450,140 @@ export const MultipleSideBySide: StoryFn = () => {
     </Flex>
   );
 };
+
+/**
+ * Compact single-file input with browse and clear buttons.
+ */
+export const FileInputDefault: StoryFn<FileInputProps> = () => {
+  const [file, setFile] = useState<File | null>(null);
+
+  return (
+    <View width="size-6000">
+      <FileInput
+        file={file}
+        onSelect={(files) => setFile(files[0] ?? null)}
+        onClear={() => setFile(null)}
+      />
+    </View>
+  );
+};
+
+FileInputDefault.storyName = "FileInput / Default";
+
+/**
+ * FileInput with accepted file types and a description slot.
+ */
+export const FileInputWithDescription: StoryFn<FileInputProps> = () => {
+  const [file, setFile] = useState<File | null>(null);
+
+  return (
+    <View width="size-6000">
+      <FileInput
+        file={file}
+        acceptedFileTypes={[".csv", ".jsonl"]}
+        onSelect={(files) => setFile(files[0] ?? null)}
+        onClear={() => setFile(null)}
+      >
+        {file ? (
+          <Text slot="description" color="success">
+            File loaded successfully
+          </Text>
+        ) : (
+          <Text slot="description" color="text-700">
+            Accepts CSV and JSONL files
+          </Text>
+        )}
+      </FileInput>
+    </View>
+  );
+};
+
+FileInputWithDescription.storyName = "FileInput / With Description";
+
+/**
+ * FileInput in a disabled state with a file pre-selected.
+ */
+export const FileInputDisabled: StoryFn<FileInputProps> = () => {
+  const mockFile = new File(["test"], "dataset.csv", { type: "text/csv" });
+
+  return (
+    <View width="size-6000">
+      <FileInput file={mockFile} isDisabled />
+    </View>
+  );
+};
+
+FileInputDisabled.storyName = "FileInput / Disabled";
+
+const dropZoneFormCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-300);
+  border: 1px solid var(--global-color-gray-200);
+  border-radius: var(--global-rounding-medium);
+  background-color: var(--global-color-gray-50);
+`;
+
+/**
+ * Composable DropZone + DropOverlay wrapping a form with a FileInput.
+ * Drop a file anywhere on the form area to select it, or use the browse button.
+ * The overlay label changes depending on whether a file is already selected.
+ */
+export const DropZoneWithOverlay: StoryFn = () => {
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleSelect = useCallback((files: File[]) => {
+    if (files.length > 0) {
+      setFile(files[0]);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e: { items: DropItem[] }) => {
+    const fileItems = e.items.filter(
+      (item): item is FileDropItem => item.kind === "file"
+    );
+    const results = await Promise.allSettled(
+      fileItems.map((item) => item.getFile())
+    );
+    const files = results
+      .filter(
+        (r): r is PromiseFulfilledResult<File> => r.status === "fulfilled"
+      )
+      .map((r) => r.value);
+    if (files.length > 0) {
+      setFile(files[0]);
+    }
+  }, []);
+
+  return (
+    <View width="size-6000">
+      <DropZone onDrop={handleDrop} getDropOperation={() => "copy"}>
+        <DropOverlay>
+          {file ? "Drop file to replace current" : "Drop file"}
+        </DropOverlay>
+        <div css={dropZoneFormCSS}>
+          <FileInput
+            file={file}
+            acceptedFileTypes={[".csv", ".json"]}
+            onSelect={handleSelect}
+            onClear={() => setFile(null)}
+          >
+            {file ? (
+              <Text slot="description" color="success">
+                File ready
+              </Text>
+            ) : (
+              <Text slot="description" color="text-700">
+                Drop a file anywhere on this form, or browse
+              </Text>
+            )}
+          </FileInput>
+          <Text>Other form fields would go here...</Text>
+        </div>
+      </DropZone>
+    </View>
+  );
+};
+
+DropZoneWithOverlay.storyName = "DropZone / With Overlay";

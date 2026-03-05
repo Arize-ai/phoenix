@@ -17,12 +17,17 @@ import { classNames } from "@phoenix/utils";
 
 export type DialogProps = AriaDialogProps;
 
+const dialogCSS = css`
+  overscroll-behavior: none !important;
+`;
+
 export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
   ({ children, ...props }, ref) => {
     return (
       <AriaDialog
         data-testid="dialog"
         {...props}
+        css={dialogCSS}
         className={classNames(props.className, "react-aria-Dialog")}
         ref={ref}
       >
