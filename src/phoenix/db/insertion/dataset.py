@@ -361,6 +361,7 @@ async def bulk_assign_examples_to_splits(
 class DatasetAction(Enum):
     CREATE = "create"
     APPEND = "append"
+    UPSERT = "upsert"
 
     @classmethod
     def _missing_(cls, v: Any) -> "DatasetAction":

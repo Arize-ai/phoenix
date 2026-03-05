@@ -1140,7 +1140,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "upsert"
                     ]
                   },
                   "name": {
@@ -1200,6 +1201,20 @@
                       ]
                     },
                     "description": "Span IDs to link examples back to spans"
+                  },
+                  "external_ids": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Optional external ID per example."
                   }
                 }
               }
@@ -1218,7 +1233,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "upsert"
                     ]
                   },
                   "name": {
