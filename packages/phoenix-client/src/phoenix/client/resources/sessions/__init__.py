@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, cast, overload
 
 import httpx
@@ -8,6 +10,7 @@ from phoenix.client.utils.annotation_helpers import (
     _create_session_annotation,  # pyright: ignore[reportPrivateUsage]
     _validate_session_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
+from phoenix.client.utils.encode_path_param import encode_path_param
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -17,11 +20,105 @@ InsertedSessionAnnotation = v1.InsertedSessionAnnotation
 SessionAnnotationData = v1.SessionAnnotationData
 AnnotateSessionsRequestBody = v1.AnnotateSessionsRequestBody
 AnnotateSessionsResponseBody = v1.AnnotateSessionsResponseBody
+SessionData = v1.SessionData
+SessionTraceData = v1.SessionTraceData
+GetSessionResponseBody = v1.GetSessionResponseBody
+GetSessionsResponseBody = v1.GetSessionsResponseBody
 
 
 class Sessions:
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
+
+    def get(self, *, session_id: str) -> v1.SessionData:
+        """Get a session by ID or session_id string.
+
+        Args:
+            session_id: The session identifier (GlobalID or user-provided session_id).
+
+        Returns:
+            The session data.
+        """
+        url = f"v1/sessions/{encode_path_param(session_id)}"
+        response = self._client.get(url)
+        response.raise_for_status()
+        return cast(v1.GetSessionResponseBody, response.json())["data"]
+
+    def list(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> list[v1.SessionData]:
+        """List sessions for a project.
+
+        Args:
+            project_id: The ID of the project.
+            project_name: The name of the project.
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            A list of session data.
+        """
+        if not project_id and not project_name:
+            raise ValueError("Either project_id or project_name must be provided.")
+        if project_id and project_name:
+            raise ValueError("Only one of project_id or project_name can be provided.")
+        project_identifier = project_name if project_name else project_id
+        assert project_identifier
+        url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
+        all_sessions: list[v1.SessionData] = []
+        next_cursor: Optional[str] = None
+        while True:
+            params: dict[str, Any] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            if limit is not None:
+                params["limit"] = min(limit - len(all_sessions), 100)
+            response = self._client.get(url, params=params)
+            response.raise_for_status()
+            data = cast(v1.GetSessionsResponseBody, response.json())
+            all_sessions.extend(data["data"])
+            if limit is not None and len(all_sessions) >= limit:
+                all_sessions = all_sessions[:limit]
+                break
+            if not (next_cursor := data.get("next_cursor")):
+                break
+        return all_sessions
+
+    def get_sessions_dataframe(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> "pd.DataFrame":
+        """Get sessions as a pandas DataFrame.
+
+        Args:
+            project_id: The ID of the project.
+            project_name: The name of the project.
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
+        """
+        import pandas as pd
+
+        sessions = self.list(project_id=project_id, project_name=project_name, limit=limit)
+        rows = [
+            {
+                "id": s["id"],
+                "session_id": s["session_id"],
+                "project_id": s["project_id"],
+                "start_time": s["start_time"],
+                "end_time": s["end_time"],
+                "num_traces": len(s["traces"]),
+            }
+            for s in sessions
+        ]
+        return pd.DataFrame(rows)
 
     @overload
     def add_session_annotation(
@@ -342,6 +439,96 @@ class Sessions:
 class AsyncSessions:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
+
+    async def get(self, *, session_id: str) -> v1.SessionData:
+        """Get a session by ID or session_id string.
+
+        Args:
+            session_id: The session identifier (GlobalID or user-provided session_id).
+
+        Returns:
+            The session data.
+        """
+        url = f"v1/sessions/{encode_path_param(session_id)}"
+        response = await self._client.get(url)
+        response.raise_for_status()
+        return cast(v1.GetSessionResponseBody, response.json())["data"]
+
+    async def list(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> list[v1.SessionData]:
+        """List sessions for a project.
+
+        Args:
+            project_id: The ID of the project.
+            project_name: The name of the project.
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            A list of session data.
+        """
+        if not project_id and not project_name:
+            raise ValueError("Either project_id or project_name must be provided.")
+        if project_id and project_name:
+            raise ValueError("Only one of project_id or project_name can be provided.")
+        project_identifier = project_name if project_name else project_id
+        assert project_identifier
+        url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
+        all_sessions: list[v1.SessionData] = []
+        next_cursor: Optional[str] = None
+        while True:
+            params: dict[str, Any] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            if limit is not None:
+                params["limit"] = min(limit - len(all_sessions), 100)
+            response = await self._client.get(url, params=params)
+            response.raise_for_status()
+            data = cast(v1.GetSessionsResponseBody, response.json())
+            all_sessions.extend(data["data"])
+            if limit is not None and len(all_sessions) >= limit:
+                all_sessions = all_sessions[:limit]
+                break
+            if not (next_cursor := data.get("next_cursor")):
+                break
+        return all_sessions
+
+    async def get_sessions_dataframe(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> "pd.DataFrame":
+        """Get sessions as a pandas DataFrame.
+
+        Args:
+            project_id: The ID of the project.
+            project_name: The name of the project.
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
+        """
+        import pandas as pd
+
+        sessions = await self.list(project_id=project_id, project_name=project_name, limit=limit)
+        rows = [
+            {
+                "id": s["id"],
+                "session_id": s["session_id"],
+                "project_id": s["project_id"],
+                "start_time": s["start_time"],
+                "end_time": s["end_time"],
+                "num_traces": len(s["traces"]),
+            }
+            for s in sessions
+        ]
+        return pd.DataFrame(rows)
 
     @overload
     async def add_session_annotation(
