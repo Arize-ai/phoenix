@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { DropItem, FileDropItem } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
 
@@ -81,6 +81,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const [fileType, setFileType] = useState<DatasetFileType>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const parseGeneration = useRef(0);
 
   const {
     control,
@@ -127,15 +128,18 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       const name = file.name.replace(/\.(csv|jsonl)$/i, "");
       setValue("name", name);
 
+      const generation = ++parseGeneration.current;
       const parseFile = async () => {
         setIsParsing(true);
         try {
           if (detectedType === "csv") {
             const columnNames = await parseCSVColumns(file);
+            if (generation !== parseGeneration.current) return;
             setColumns(columnNames);
             onErrorClear?.();
           } else if (detectedType === "jsonl") {
             const result = await parseJSONLKeys(file);
+            if (generation !== parseGeneration.current) return;
             if (result.success) {
               setColumns(result.keys);
               onErrorClear?.();
@@ -145,12 +149,15 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             }
           }
         } catch (error) {
+          if (generation !== parseGeneration.current) return;
           setColumns([]);
           onDatasetCreateError(
             error instanceof Error ? error : new Error("Failed to parse file")
           );
         } finally {
-          setIsParsing(false);
+          if (generation === parseGeneration.current) {
+            setIsParsing(false);
+          }
         }
       };
       parseFile();
@@ -444,7 +451,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           <Flex direction="row" justifyContent="end">
             <Button
               type="submit"
-              isDisabled={!isValid || isSubmitting}
+              isDisabled={!isValid || isSubmitting || isParsing}
               variant={isDirty ? "primary" : "default"}
               size="S"
               leadingVisual={

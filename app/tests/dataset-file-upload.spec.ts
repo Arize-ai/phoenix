@@ -79,11 +79,11 @@ test.describe("Dataset File Upload", () => {
       await page.keyboard.press("Escape");
 
       // Verify the dataset name was auto-populated from filename
-      await expect(page.getByLabel("Dataset Name")).toHaveValue("simple");
+      await expect(page.getByLabel("Name")).toHaveValue("simple");
 
       // Change to a unique name before creating (to avoid conflicts with other test runs)
-      await page.getByLabel("Dataset Name").clear();
-      await page.getByLabel("Dataset Name").fill(datasetName);
+      await page.getByLabel("Name").clear();
+      await page.getByLabel("Name").fill(datasetName);
 
       // Create the dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
@@ -258,8 +258,8 @@ test.describe("Dataset File Upload", () => {
       await expect(dialog.getByText("simple.csv")).toBeVisible();
 
       // Change dataset name
-      await page.getByLabel("Dataset Name").clear();
-      await page.getByLabel("Dataset Name").fill(datasetName);
+      await page.getByLabel("Name").clear();
+      await page.getByLabel("Name").fill(datasetName);
 
       // Select input key
       const inputKeysListbox = await openSelectByLabel(page, "Input keys");
@@ -303,8 +303,8 @@ test.describe("Dataset File Upload", () => {
       await expect(dialog.getByText("simple.jsonl")).toBeVisible();
 
       // Change dataset name
-      await page.getByLabel("Dataset Name").clear();
-      await page.getByLabel("Dataset Name").fill(datasetName);
+      await page.getByLabel("Name").clear();
+      await page.getByLabel("Name").fill(datasetName);
 
       // Select input key
       const inputKeysListbox2 = await openSelectByLabel(page, "Input keys");

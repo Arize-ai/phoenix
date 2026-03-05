@@ -144,7 +144,7 @@ export async function parseCSVColumns(file: File): Promise<string[]> {
       return parseCSVRow(buffer);
     }
 
-    return [];
+    throw new Error("CSV file is empty");
   } finally {
     reader.cancel();
   }
