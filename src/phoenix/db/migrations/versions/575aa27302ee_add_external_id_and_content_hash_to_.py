@@ -32,8 +32,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table("dataset_example_revisions") as batch_op:
+        batch_op.drop_index("ix_dataset_example_revisions_content_hash")
         batch_op.drop_column("content_hash")
 
     with op.batch_alter_table("dataset_examples") as batch_op:
+        batch_op.drop_index("ix_dataset_examples_external_id")
         batch_op.drop_constraint("uq_dataset_examples_dataset_id_external_id", type_="unique")
         batch_op.drop_column("external_id")
