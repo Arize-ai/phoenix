@@ -66,7 +66,6 @@ describe("listSessions", () => {
           query: {
             cursor: null,
             limit: 100,
-            order: undefined,
           },
         },
       }
@@ -119,36 +118,6 @@ describe("listSessions", () => {
           query: {
             cursor: "cursor1",
             limit: 100,
-            order: undefined,
-          },
-        },
-      }
-    );
-  });
-
-  it("should pass order parameter", async () => {
-    mockGet.mockResolvedValueOnce({
-      data: {
-        data: mockSessions,
-      },
-    });
-
-    await listSessions({
-      projectIdentifier: "my-project",
-      order: "desc",
-    });
-
-    expect(mockGet).toHaveBeenCalledWith(
-      "/v1/projects/{project_identifier}/sessions",
-      {
-        params: {
-          path: {
-            project_identifier: "my-project",
-          },
-          query: {
-            cursor: null,
-            limit: 100,
-            order: "desc",
           },
         },
       }

@@ -10,10 +10,6 @@ export type ListSessionsParams = ClientFn & {
    * The project identifier: either project ID or project name.
    */
   projectIdentifier: string;
-  /**
-   * Sort order by ID: 'asc' (ascending) or 'desc' (descending).
-   */
-  order?: "asc" | "desc";
 };
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -37,7 +33,6 @@ const DEFAULT_PAGE_SIZE = 100;
 export async function listSessions({
   client: _client,
   projectIdentifier,
-  order,
 }: ListSessionsParams): Promise<Session[]> {
   const client = _client || createClient();
 
@@ -55,7 +50,6 @@ export async function listSessions({
         query: {
           cursor,
           limit: DEFAULT_PAGE_SIZE,
-          order,
         },
       },
     });
