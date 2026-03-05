@@ -701,8 +701,9 @@ async def _stream_chat_completion_over_dataset_example(
                     repetition_number=repetition_number,
                 )
                 continue
-            if eval_tracer is not None:
-                all_db_traces.extend(eval_tracer.get_db_traces(project_id=eval_project_id))
+            finally:
+                if eval_tracer is not None:
+                    all_db_traces.extend(eval_tracer.get_db_traces(project_id=eval_project_id))
             db_run.annotations.extend([evaluation_result_to_model(r) for r in eval_results])
     # Capture annotation objects from the in-memory collections before the session takes
     # ownership and expires them on flush/close, making lazy loads impossible afterward.
