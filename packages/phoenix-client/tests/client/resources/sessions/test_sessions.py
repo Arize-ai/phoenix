@@ -1,4 +1,3 @@
-
 import httpx
 import pandas as pd
 import pytest
@@ -57,12 +56,16 @@ class TestSessionsGet:
 
 class TestSessionsList:
     def test_list_requires_project_identifier(self) -> None:
-        client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test")
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
+        )
         with pytest.raises(ValueError, match="Either project_id or project_name"):
             Sessions(client).list()
 
     def test_list_rejects_both_identifiers(self) -> None:
-        client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test")
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
+        )
         with pytest.raises(ValueError, match="Only one of"):
             Sessions(client).list(project_id="p1", project_name="p1")
 
@@ -134,7 +137,14 @@ class TestGetSessionsDataframe:
 
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 2
-        assert list(df.columns) == ["id", "session_id", "project_id", "start_time", "end_time", "num_traces"]
+        assert list(df.columns) == [
+            "id",
+            "session_id",
+            "project_id",
+            "start_time",
+            "end_time",
+            "num_traces",
+        ]
         assert df.iloc[0]["num_traces"] == 3
         assert df.iloc[1]["num_traces"] == 0
 

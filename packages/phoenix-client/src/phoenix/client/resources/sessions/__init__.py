@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, cast, overload
+from typing import TYPE_CHECKING, Any, Iterable, List, Literal, Optional, cast, overload
 
 import httpx
 
@@ -11,6 +11,8 @@ from phoenix.client.utils.annotation_helpers import (
     _validate_session_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
 from phoenix.client.utils.encode_path_param import encode_path_param
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -30,17 +32,23 @@ class Sessions:
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
-    def get(self, *, session_id: str) -> v1.SessionData:
+    def get(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             The session data.
         """
         url = f"v1/sessions/{encode_path_param(session_id)}"
-        response = self._client.get(url)
+        response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
         return cast(v1.GetSessionResponseBody, response.json())["data"]
 
@@ -50,13 +58,15 @@ class Sessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
-    ) -> list[v1.SessionData]:
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> List[v1.SessionData]:
         """List sessions for a project.
 
         Args:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A list of session data.
@@ -68,7 +78,7 @@ class Sessions:
         project_identifier = project_name if project_name else project_id
         assert project_identifier
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
-        all_sessions: list[v1.SessionData] = []
+        all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
         while True:
             params: dict[str, Any] = {}
@@ -76,7 +86,7 @@ class Sessions:
                 params["cursor"] = next_cursor
             if limit is not None:
                 params["limit"] = min(limit - len(all_sessions), 100)
-            response = self._client.get(url, params=params)
+            response = self._client.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             data = cast(v1.GetSessionsResponseBody, response.json())
             all_sessions.extend(data["data"])
@@ -93,6 +103,7 @@ class Sessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
 
@@ -100,13 +111,16 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
         """
         import pandas as pd
 
-        sessions = self.list(project_id=project_id, project_name=project_name, limit=limit)
+        sessions = self.list(
+            project_id=project_id, project_name=project_name, limit=limit, timeout=timeout
+        )
         rows = [
             {
                 "id": s["id"],
@@ -244,7 +258,7 @@ class Sessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     def log_session_annotations(
@@ -260,14 +274,14 @@ class Sessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     def log_session_annotations(
         self,
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations.
 
         Args:
@@ -329,7 +343,7 @@ class Sessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     def log_session_annotations_dataframe(
@@ -349,7 +363,7 @@ class Sessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     def log_session_annotations_dataframe(
         self,
@@ -358,7 +372,7 @@ class Sessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame.
 
         This method allows you to create multiple session annotations at once by providing the data
@@ -422,7 +436,7 @@ class Sessions:
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
         # Process DataFrame chunks using iterator
-        all_responses: list[InsertedSessionAnnotation] = []
+        all_responses: List[InsertedSessionAnnotation] = []
         for chunk in _chunk_session_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
@@ -440,17 +454,23 @@ class AsyncSessions:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
-    async def get(self, *, session_id: str) -> v1.SessionData:
+    async def get(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             The session data.
         """
         url = f"v1/sessions/{encode_path_param(session_id)}"
-        response = await self._client.get(url)
+        response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
         return cast(v1.GetSessionResponseBody, response.json())["data"]
 
@@ -460,13 +480,15 @@ class AsyncSessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
-    ) -> list[v1.SessionData]:
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> List[v1.SessionData]:
         """List sessions for a project.
 
         Args:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A list of session data.
@@ -478,7 +500,7 @@ class AsyncSessions:
         project_identifier = project_name if project_name else project_id
         assert project_identifier
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
-        all_sessions: list[v1.SessionData] = []
+        all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
         while True:
             params: dict[str, Any] = {}
@@ -486,7 +508,7 @@ class AsyncSessions:
                 params["cursor"] = next_cursor
             if limit is not None:
                 params["limit"] = min(limit - len(all_sessions), 100)
-            response = await self._client.get(url, params=params)
+            response = await self._client.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             data = cast(v1.GetSessionsResponseBody, response.json())
             all_sessions.extend(data["data"])
@@ -503,6 +525,7 @@ class AsyncSessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
 
@@ -510,13 +533,16 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            timeout: Optional timeout in seconds for the request.
 
         Returns:
             A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
         """
         import pandas as pd
 
-        sessions = await self.list(project_id=project_id, project_name=project_name, limit=limit)
+        sessions = await self.list(
+            project_id=project_id, project_name=project_name, limit=limit, timeout=timeout
+        )
         rows = [
             {
                 "id": s["id"],
@@ -654,7 +680,7 @@ class AsyncSessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     async def log_session_annotations(
@@ -670,14 +696,14 @@ class AsyncSessions:
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     async def log_session_annotations(
         self,
         *,
         session_annotations: Iterable[SessionAnnotationData],
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations asynchronously.
 
         Args:
@@ -739,7 +765,7 @@ class AsyncSessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: Literal[True],
-    ) -> list[InsertedSessionAnnotation]: ...
+    ) -> List[InsertedSessionAnnotation]: ...
 
     @overload
     async def log_session_annotations_dataframe(
@@ -759,7 +785,7 @@ class AsyncSessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool,
-    ) -> Optional[list[InsertedSessionAnnotation]]: ...
+    ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
     async def log_session_annotations_dataframe(
         self,
@@ -768,7 +794,7 @@ class AsyncSessions:
         annotation_name: Optional[str] = None,
         annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
         sync: bool = False,
-    ) -> Optional[list[InsertedSessionAnnotation]]:
+    ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame asynchronously.
 
         This method allows you to create multiple session annotations at once by providing the data
@@ -832,7 +858,7 @@ class AsyncSessions:
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
         # Process DataFrame chunks using iterator
-        all_responses: list[InsertedSessionAnnotation] = []
+        all_responses: List[InsertedSessionAnnotation] = []
         for chunk in _chunk_session_annotations_dataframe(
             dataframe=dataframe,
             annotation_name=annotation_name,
