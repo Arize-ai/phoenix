@@ -20,14 +20,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     with op.batch_alter_table("dataset_examples") as batch_op:
-        batch_op.add_column(sa.Column("external_id", sa.String(), nullable=True, index=True))
+        batch_op.add_column(sa.Column("external_id", sa.String(), nullable=True))
+        batch_op.create_index("ix_dataset_examples_external_id", ["external_id"])
         batch_op.create_unique_constraint(
             "uq_dataset_examples_dataset_id_external_id",
             ["dataset_id", "external_id"],
         )
 
     with op.batch_alter_table("dataset_example_revisions") as batch_op:
-        batch_op.add_column(sa.Column("content_hash", sa.String(), nullable=True, index=True))
+        batch_op.add_column(sa.Column("content_hash", sa.String(), nullable=True))
+        batch_op.create_index("ix_dataset_example_revisions_content_hash", ["content_hash"])
 
 
 def downgrade() -> None:
