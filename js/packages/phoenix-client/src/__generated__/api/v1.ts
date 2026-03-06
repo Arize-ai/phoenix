@@ -3987,7 +3987,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "upsert";
                     name: string;
                     description?: string;
                     inputs: Record<string, unknown>[];
@@ -3997,10 +3997,12 @@ export interface operations {
                     splits?: (string | string[] | null)[];
                     /** @description Span IDs to link examples back to spans */
                     span_ids?: (string | null)[];
+                    /** @description Optional external ID per example. */
+                    external_ids?: (string | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "upsert";
                     name: string;
                     description?: string;
                     "input_keys[]": string[];
