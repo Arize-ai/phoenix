@@ -6,7 +6,7 @@ export type CounterProps = PropsWithChildren<{
    * The color of the counter
    * @default 'default'
    **/
-  variant?: "default" | "danger";
+  variant?: "default" | "danger" | "quiet";
 }>;
 
 const counterCSS = css`
@@ -20,8 +20,14 @@ const counterCSS = css`
   line-height: var(--global-line-height-xs);
   text-align: center;
   color: var(--global-text-color-900);
+  font-family: "Geist Mono", monospace;
   &[data-variant="danger"] {
     background-color: var(--global-background-color-danger);
+  }
+  &[data-variant="quiet"] {
+    border: none;
+    background: transparent;
+    color: var(--global-text-color-500);
   }
 `;
 
