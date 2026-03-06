@@ -1343,6 +1343,8 @@ class DatasetExample(HasId):
         back_populates="dataset_example",
     )
 
+    __table_args__ = (UniqueConstraint("dataset_id", "external_id"),)
+
 
 class DatasetExampleRevision(HasId):
     __tablename__ = "dataset_example_revisions"
@@ -1362,6 +1364,7 @@ class DatasetExampleRevision(HasId):
             "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
         ),
     )
+    content_hash: Mapped[Optional[str]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
