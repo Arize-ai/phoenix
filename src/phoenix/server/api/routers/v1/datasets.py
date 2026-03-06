@@ -468,13 +468,6 @@ async def upload_dataset(
                 detail=str(e),
                 status_code=422,
             )
-        if action is DatasetAction.UPSERT:
-            raise HTTPException(detail="action=upsert is not yet implemented", status_code=501)
-        if action is not DatasetAction.UPSERT and json_data.get("external_ids") is not None:
-            raise HTTPException(
-                detail="external_ids is only supported for action=upsert",
-                status_code=501,
-            )
         if action is DatasetAction.CREATE:
             async with request.app.state.db() as session:
                 if await _check_table_exists(session, name):
@@ -501,8 +494,6 @@ async def upload_dataset(
                     detail=str(e),
                     status_code=422,
                 )
-            if action is DatasetAction.UPSERT:
-                raise HTTPException(detail="action=upsert is not yet implemented", status_code=501)
             if action is DatasetAction.CREATE:
                 async with request.app.state.db() as session:
                     if await _check_table_exists(session, name):
@@ -568,8 +559,10 @@ async def upload_dataset(
     if sync:
         async with request.app.state.db() as session:
             event = await operation(session)
-            dataset_id = event.dataset_id
-            version_id = event.dataset_version_id
+        if event is None:
+            return UploadDatasetResponseBody(data=UploadDatasetData(dataset_id="", version_id=""))
+        dataset_id = event.dataset_id
+        version_id = event.dataset_version_id
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
             data=UploadDatasetData(
@@ -631,7 +624,7 @@ def _process_json(
         raise ValueError("Dataset name is required")
     description = data.get("description") or ""
     inputs = data.get("inputs")
-    if not inputs:
+    if inputs is None:
         raise ValueError("input is required")
     if not isinstance(inputs, list) or not _is_all_dict(inputs):
         raise ValueError("Input should be a list containing only dictionary objects")
@@ -660,6 +653,24 @@ def _process_json(
             raise ValueError(
                 f"span_ids must have same length as inputs ({len(span_ids)} != {len(inputs)})"
             )
+
+    # Validate external_ids format if provided
+    external_ids = data.get("external_ids")
+    if external_ids is not None:
+        if not isinstance(external_ids, list):
+            raise ValueError("external_ids must be a list")
+        if len(external_ids) != len(inputs):
+            raise ValueError(
+                f"external_ids must have same length as inputs "
+                f"({len(external_ids)} != {len(inputs)})"
+            )
+        # Validate no duplicate non-None external_ids
+        seen: set[str] = set()
+        for eid in external_ids:
+            if eid is not None:
+                if eid in seen:
+                    raise ValueError(f"Duplicate external_id in request: {eid!r}")
+                seen.add(eid)
 
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
@@ -703,12 +714,20 @@ def _process_json(
                 if span_id_value.strip():
                     span_id = span_id_value.strip()
 
+        # Extract external_id for this example
+        external_id: Optional[str] = None
+        if external_ids is not None:
+            eid_value = external_ids[i]
+            if eid_value is not None:
+                external_id = str(eid_value)
+
         example = ExampleContent(
             input=obj,
             output=outputs[i] if outputs else {},
             metadata=metadata[i] if metadata else {},
             splits=frozenset(split_set),
             span_id=span_id,
+            external_id=external_id,
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")

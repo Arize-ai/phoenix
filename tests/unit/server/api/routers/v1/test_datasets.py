@@ -1464,3 +1464,121 @@ async def test_post_dataset_upload_append_with_splits(
         )
         assert len(ex3_splits) == 1
         assert ex3_splits[0].name == "test"
+
+
+# ---------------------------------------------------------------------------
+# Upsert REST API tests
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_duplicate_external_ids_in_request_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": "ds",
+            "inputs": [{"a": 1}, {"a": 2}],
+            "external_ids": ["same-id", "same-id"],
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_upsert_outputs_length_mismatch_with_inputs_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": "ds",
+            "inputs": [{"a": 1}, {"a": 2}],
+            "outputs": [{"b": 1}],
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_upsert_metadata_length_mismatch_with_inputs_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": "ds",
+            "inputs": [{"a": 1}, {"a": 2}],
+            "metadata": [{"m": 1}],
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_upsert_external_ids_length_mismatch_with_inputs_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": "ds",
+            "inputs": [{"a": 1}, {"a": 2}],
+            "external_ids": ["e1"],
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_upsert_missing_name_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "inputs": [{"a": 1}],
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_upsert_missing_inputs_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": "ds",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_upsert_empty_examples_list_does_not_create_new_version(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": "empty-upsert-ds",
+            "inputs": [],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        version_count = len(
+            list(
+                await session.scalars(
+                    select(models.DatasetVersion)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == "empty-upsert-ds")
+                )
+            )
+        )
+    assert version_count == 0

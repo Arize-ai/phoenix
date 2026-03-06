@@ -5,10 +5,12 @@ from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
+    DatasetAction,
     ExampleContent,
     add_dataset_examples,
     bulk_assign_examples_to_splits,
     bulk_create_dataset_splits,
+    compute_content_hash,
     resolve_span_ids_to_rowids,
 )
 from phoenix.server.types import DbSessionFactory
@@ -522,3 +524,509 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
         )
         all_assignments = result.scalars().all()
         assert len(all_assignments) == 10
+
+
+# ---------------------------------------------------------------------------
+# Upsert helpers
+# ---------------------------------------------------------------------------
+
+
+async def _upsert(
+    db: DbSessionFactory,
+    name: str,
+    examples: list[ExampleContent],
+) -> None:
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            name=name,
+            examples=examples,
+            action=DatasetAction.UPSERT,
+        )
+
+
+async def _append(
+    db: DbSessionFactory,
+    name: str,
+    examples: list[ExampleContent],
+) -> None:
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            name=name,
+            examples=examples,
+            action=DatasetAction.APPEND,
+        )
+
+
+async def _get_revisions(db: DbSessionFactory, name: str) -> list[models.DatasetExampleRevision]:
+    async with db() as session:
+        result = await session.scalars(
+            select(models.DatasetExampleRevision)
+            .join(models.DatasetExample)
+            .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetExampleRevision.id)
+        )
+        return list(result)
+
+
+async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetVersion]:
+    async with db() as session:
+        result = await session.scalars(
+            select(models.DatasetVersion)
+            .join(models.Dataset)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetVersion.id)
+        )
+        return list(result)
+
+
+# ---------------------------------------------------------------------------
+# Deduplication: matched pairs (8 tests)
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_ext_id_ext_id_matching_hash_carries_over(
+    db: DbSessionFactory,
+) -> None:
+    """prev has ext_id, incoming has same ext_id, same hash → carry-over (no new version)."""
+    name = "ds"
+    ex = ExampleContent(input={"a": 1}, output={"b": 2}, external_id="e1")
+    await _append(db, name, [ex])
+
+    versions_before = await _get_versions(db, name)
+    await _upsert(db, name, [ex])
+
+    versions_after = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    # No new version should be created
+    assert len(versions_after) == len(versions_before)
+    # Only the original CREATE revision
+    assert len(revisions) == 1
+    assert revisions[0].revision_kind == "CREATE"
+
+
+async def test_upsert_ext_id_ext_id_differing_hash_adds_patch_revision(
+    db: DbSessionFactory,
+) -> None:
+    """prev has ext_id, incoming has same ext_id, different hash → PATCH revision on same example."""
+    name = "ds"
+    await _append(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    assert len(revisions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert "CREATE" in kinds
+    assert "PATCH" in kinds
+    # Both revisions belong to the same DatasetExample
+    assert revisions[0].dataset_example_id == revisions[1].dataset_example_id
+
+
+async def test_upsert_ext_id_no_ext_id_matching_hash_carries_over(
+    db: DbSessionFactory,
+) -> None:
+    """prev has ext_id, incoming has no ext_id, same hash → carry-over via hash fallback."""
+    name = "ds"
+    inp = {"a": 1}
+    # Set up prev with external_id
+    await _append(db, name, [ExampleContent(input=inp, output={}, external_id="e1")])
+
+    versions_before = await _get_versions(db, name)
+    # Upsert with same content but no external_id
+    await _upsert(db, name, [ExampleContent(input=inp, output={})])
+
+    versions_after = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    # carry-over: no new version
+    assert len(versions_after) == len(versions_before)
+    assert len(revisions) == 1
+
+
+async def test_upsert_ext_id_no_ext_id_differing_hash_adds_delete_revision(
+    db: DbSessionFactory,
+) -> None:
+    """prev has ext_id, incoming has no ext_id, different hash → DELETE old + CREATE new."""
+    name = "ds"
+    await _append(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={})])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert "DELETE" in kinds
+    assert "CREATE" in kinds
+
+
+async def test_upsert_no_ext_id_ext_id_matching_hash_carries_over(
+    db: DbSessionFactory,
+) -> None:
+    """prev has no ext_id, incoming has ext_id, same hash → carry-over; no external_id written."""
+    name = "ds"
+    inp = {"a": 1}
+    await _append(db, name, [ExampleContent(input=inp, output={})])
+
+    versions_before = await _get_versions(db, name)
+    await _upsert(db, name, [ExampleContent(input=inp, output={}, external_id="new-id")])
+
+    versions_after = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    # carry-over: no new version
+    assert len(versions_after) == len(versions_before)
+    assert len(revisions) == 1
+
+    # external_id NOT written to existing row (it was inserted without one)
+    async with db() as session:
+        example = await session.scalar(
+            select(models.DatasetExample).join(models.Dataset).where(models.Dataset.name == name)
+        )
+    assert example is not None
+    assert example.external_id is None
+
+
+async def test_upsert_no_ext_id_ext_id_differing_hash_creates_and_deletes(
+    db: DbSessionFactory,
+) -> None:
+    """prev has no ext_id, incoming has ext_id, different hash → CREATE new + DELETE old."""
+    name = "ds"
+    await _append(db, name, [ExampleContent(input={"a": 1}, output={})])
+    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert "DELETE" in kinds
+    assert "CREATE" in kinds
+
+
+async def test_upsert_no_ext_id_no_ext_id_matching_hash_carries_over(
+    db: DbSessionFactory,
+) -> None:
+    """prev has no ext_id, incoming has no ext_id, same hash → carry-over."""
+    name = "ds"
+    ex = ExampleContent(input={"a": 1}, output={})
+    await _append(db, name, [ex])
+
+    versions_before = await _get_versions(db, name)
+    await _upsert(db, name, [ex])
+
+    versions_after = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(versions_after) == len(versions_before)
+    assert len(revisions) == 1
+
+
+async def test_upsert_no_ext_id_no_ext_id_differing_hash_creates_and_deletes(
+    db: DbSessionFactory,
+) -> None:
+    """prev has no ext_id, incoming has no ext_id, different hash → CREATE new + DELETE old."""
+    name = "ds"
+    await _append(db, name, [ExampleContent(input={"a": 1}, output={})])
+    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={})])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert "DELETE" in kinds
+    assert "CREATE" in kinds
+
+
+# ---------------------------------------------------------------------------
+# Deduplication: deleted examples
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_deleted_ext_id_example_recreated_on_upsert(
+    db: DbSessionFactory,
+) -> None:
+    """Deleted example with external_id → upserting same ext_id revives it (same row, new CREATE)."""
+    name = "ds"
+    # 1. Create example with ext_id="e1"
+    await _append(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    # 2. Upsert with a different example → "e1" gets DELETE
+    await _upsert(db, name, [ExampleContent(input={"z": 99}, output={})])
+    # 3. Upsert "e1" again → deleted "e1" revived with new CREATE revision on same row
+    await _upsert(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name)
+                .where(models.DatasetExample.external_id == "e1")
+            )
+        )
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+
+    # Only 1 DatasetExample row with ext_id="e1" (unique constraint; row revived)
+    assert len(examples) == 1
+    kinds = [r.revision_kind for r in revisions]
+    # original CREATE, DELETE, revival CREATE (plus CREATE/DELETE for the {"z":99} example)
+    assert kinds.count("CREATE") >= 2
+    assert "DELETE" in kinds
+
+
+async def test_upsert_deleted_no_ext_id_example_recreated_on_upsert(
+    db: DbSessionFactory,
+) -> None:
+    """Deleted example (no ext_id) → upserting same content creates a new DatasetExample."""
+    name = "ds"
+    ex = ExampleContent(input={"a": 1}, output={})
+    # 1. Create example
+    await _append(db, name, [ex])
+    # 2. Upsert with different content → original gets DELETE
+    await _upsert(db, name, [ExampleContent(input={"z": 99}, output={})])
+    # 3. Upsert original content again → deleted example absent from active → CREATE new row
+    await _upsert(db, name, [ex])
+
+    async with db() as session:
+        all_examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+
+    # At least 2 DatasetExample rows (original + new)
+    assert len(all_examples) >= 2
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds.count("CREATE") >= 2
+    assert "DELETE" in kinds
+
+
+# ---------------------------------------------------------------------------
+# Deduplication: cardinality
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_same_hash_prev_one_req_many_adds_create_revision(
+    db: DbSessionFactory,
+) -> None:
+    """1 prev, 2 req with same hash → 1 carry-over, 1 CREATE."""
+    name = "ds"
+    ex = ExampleContent(input={"a": 1}, output={})
+    await _append(db, name, [ex])
+    await _upsert(db, name, [ex, ex])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds.count("CREATE") == 2  # original CREATE + new CREATE for second
+    assert "DELETE" not in kinds
+
+
+async def test_upsert_same_hash_prev_many_req_one_adds_delete_revision(
+    db: DbSessionFactory,
+) -> None:
+    """2 prev, 1 req with same hash → 1 carry-over, 1 DELETE."""
+    name = "ds"
+    ex = ExampleContent(input={"a": 1}, output={})
+    await _append(db, name, [ex, ex])
+    await _upsert(db, name, [ex])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert "DELETE" in kinds
+    assert kinds.count("CREATE") == 2  # two original CREATEs
+
+
+# ---------------------------------------------------------------------------
+# Mixed batches
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_batch_with_mix_of_new_unchanged_and_changed_examples(
+    db: DbSessionFactory,
+) -> None:
+    """3 examples: unchanged (carry-over), changed (patch), new (create)."""
+    name = "ds"
+    e_unchanged = ExampleContent(input={"a": 1}, output={}, external_id="unchanged")
+    e_changed_old = ExampleContent(input={"b": 1}, output={}, external_id="changed")
+    e_changed_new = ExampleContent(input={"b": 2}, output={}, external_id="changed")
+    e_new = ExampleContent(input={"c": 1}, output={}, external_id="new")
+
+    await _append(db, name, [e_unchanged, e_changed_old])
+    await _upsert(db, name, [e_unchanged, e_changed_new, e_new])
+
+    revisions = await _get_revisions(db, name)
+    versions = await _get_versions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert "PATCH" in kinds
+    assert "CREATE" in kinds
+    assert "DELETE" not in kinds
+    # 2 original CREATEs + 1 PATCH + 1 new CREATE
+    assert len(revisions) == 4
+
+
+async def test_upsert_batch_with_mix_of_examples_with_and_without_external_ids(
+    db: DbSessionFactory,
+) -> None:
+    """Mixed batch: examples with and without external_ids."""
+    name = "ds"
+    e_with_id = ExampleContent(input={"a": 1}, output={}, external_id="e1")
+    e_no_id = ExampleContent(input={"b": 1}, output={})
+
+    await _append(db, name, [e_with_id, e_no_id])
+    # Upsert same examples
+    await _upsert(db, name, [e_with_id, e_no_id])
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    # Both carry-over → no new version
+    assert len(versions) == 1
+    assert len(revisions) == 2
+
+
+# ---------------------------------------------------------------------------
+# Dataset lifecycle
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_creates_new_dataset_when_name_does_not_exist(
+    db: DbSessionFactory,
+) -> None:
+    """Upsert on non-existent dataset creates Dataset + DatasetVersion + CREATE revisions."""
+    name = "brand-new"
+    await _upsert(db, name, [ExampleContent(input={"x": 1}, output={})])
+
+    async with db() as session:
+        dataset = await session.scalar(select(models.Dataset).where(models.Dataset.name == name))
+        assert dataset is not None
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(versions) == 1
+    assert len(revisions) == 1
+    assert revisions[0].revision_kind == "CREATE"
+
+
+async def test_upsert_creates_new_version_on_existing_dataset(
+    db: DbSessionFactory,
+) -> None:
+    """Upsert with changes creates a second DatasetVersion."""
+    name = "ds"
+    await _append(db, name, [ExampleContent(input={"a": 1}, output={})])
+    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={})])
+
+    versions = await _get_versions(db, name)
+    assert len(versions) == 2
+
+
+async def test_upsert_does_not_create_new_version_for_unchanged_examples(
+    db: DbSessionFactory,
+) -> None:
+    """All carry-over → no new version, returns existing version_id."""
+    name = "ds"
+    ex = ExampleContent(input={"a": 1}, output={})
+    await _append(db, name, [ex])
+
+    versions_before = await _get_versions(db, name)
+    prior_version_id = versions_before[0].id
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            name=name,
+            examples=[ex],
+            action=DatasetAction.UPSERT,
+        )
+
+    versions_after = await _get_versions(db, name)
+    assert len(versions_after) == len(versions_before)
+    assert event is not None
+    assert event.dataset_version_id == prior_version_id
+
+
+async def test_upsert_with_no_prior_version_creates_all_examples(
+    db: DbSessionFactory,
+) -> None:
+    """Dataset exists but has no versions → all examples are new → CREATE all."""
+    name = "ds"
+    # Create dataset without any examples/versions
+    async with db() as session:
+        await session.execute(insert(models.Dataset).values(name=name, metadata_={}))
+
+    await _upsert(
+        db,
+        name,
+        [
+            ExampleContent(input={"a": 1}, output={}),
+            ExampleContent(input={"b": 2}, output={}),
+        ],
+    )
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(versions) == 1
+    assert len(revisions) == 2
+    assert all(r.revision_kind == "CREATE" for r in revisions)
+
+
+# ---------------------------------------------------------------------------
+# Content hash correctness
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_examples_differing_only_in_key_order_share_same_content_hash(
+    db: DbSessionFactory,
+) -> None:
+    """Two ExampleContent with same values but different key order → same content_hash."""
+    ex1 = ExampleContent(input={"a": 1, "b": 2}, output={})
+    ex2 = ExampleContent(input={"b": 2, "a": 1}, output={})
+
+    h1 = compute_content_hash(ex1.input, ex1.output, ex1.metadata)
+    h2 = compute_content_hash(ex2.input, ex2.output, ex2.metadata)
+    assert h1 == h2
+
+    name = "ds"
+    await _append(db, name, [ex1])
+
+    versions_before = await _get_versions(db, name)
+    # Upsert ex2 (same content, different key order) → should carry-over
+    await _upsert(db, name, [ex2])
+
+    versions_after = await _get_versions(db, name)
+    assert len(versions_after) == len(versions_before)
