@@ -362,7 +362,6 @@ check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have pe
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 test-jcs: ## Test JSON canonicalization schema implementation
-	@mkdir -p .jcs-test-data
 	@if [ ! -f .jcs-test-data/es6testfile100m.txt ]; then \
 		echo -e "$(CYAN)Downloading ES6 numbers test file...$(NC)"; \
 		curl -fL https://github.com/cyberphone/json-canonicalization/releases/download/es6testfile/es6testfile100m.txt.gz | gunzip > .jcs-test-data/es6testfile100m.txt; \
