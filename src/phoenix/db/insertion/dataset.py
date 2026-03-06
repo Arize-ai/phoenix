@@ -1,11 +1,11 @@
 import logging
 from collections import deque
-from collections.abc import Awaitable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, cast
 
 from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -225,7 +225,7 @@ async def bulk_insert_dataset_example_revisions(
                 "output": example.output,
                 "metadata_": example.metadata,
                 "content_hash": compute_content_hash(
-                    example.input, example.output, example.metadata
+                    input=example.input, output=example.output, metadata=example.metadata
                 ),
                 "revision_kind": revision_kind.value,
                 "created_at": created_at,
@@ -467,7 +467,7 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
 async def add_dataset_examples(
     session: AsyncSession,
     name: str,
-    examples: Union[Examples, Awaitable[Examples]],
+    examples: Examples,
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
@@ -516,7 +516,7 @@ async def add_dataset_examples(
         raise
 
     # Collect all examples first to batch resolve span IDs
-    examples_list = list((await examples) if isinstance(examples, Awaitable) else examples)
+    examples_list = list(examples)
 
     if not examples_list:
         return DatasetExampleAdditionEvent(
@@ -602,16 +602,18 @@ async def add_dataset_examples(
 async def _upsert_dataset_examples(
     session: AsyncSession,
     name: str,
-    examples: Union[Examples, Awaitable[Examples]],
+    examples: Examples,
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
 ) -> Optional[DatasetExampleAdditionEvent]:
+    examples_ = list(examples)
+    if not examples_:
+        return None
     if created_at is None:
         created_at = datetime.now(timezone.utc)
 
-    # Find or create dataset
     dataset_id: Optional[DatasetId] = await session.scalar(
         select(models.Dataset.id).where(models.Dataset.name == name)
     )
@@ -625,13 +627,6 @@ async def _upsert_dataset_examples(
             user_id=user_id,
         )
 
-    # Collect examples
-    examples_list = list((await examples) if isinstance(examples, Awaitable) else examples)
-
-    # Empty list → no version created
-    if not examples_list:
-        return None
-
     # Get active previous examples (non-deleted)
     previous = await _get_external_ids_and_content_hashes_for_most_recent_version(
         session, dataset_id
@@ -639,7 +634,15 @@ async def _upsert_dataset_examples(
 
     # Compute content hash for each incoming example
     incoming: list[tuple[ExampleContent, str]] = [
-        (ex, compute_content_hash(ex.input, ex.output, ex.metadata)) for ex in examples_list
+        (
+            example,
+            compute_content_hash(
+                input=example.input,
+                output=example.output,
+                metadata=example.metadata,
+            ),
+        )
+        for example in examples_
     ]
 
     # Build lookup maps
