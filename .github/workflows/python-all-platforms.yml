@@ -174,7 +174,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
-        py: [3.9, 3.12]
+        py: ["3.10", "3.12"]
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4

@@ -2,7 +2,7 @@
 name = "arize-phoenix-evals"
 description = "LLM Evaluations"
 readme = "README.md"
-requires-python = ">=3.8, <3.14"
+requires-python = ">=3.10, <3.14"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,8 +15,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -81,7 +79,7 @@ only-packages = true
 exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py38"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
