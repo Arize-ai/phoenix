@@ -321,7 +321,6 @@ exclude = [
   "*.pyi",
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
-  "json-canonicalization/",
   "src/phoenix/vendor/json_canonicalization_scheme",
 ]
 line-length = 100
