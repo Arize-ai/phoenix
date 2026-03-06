@@ -78,6 +78,7 @@ phoenix = "phoenix.server.main:main"
 [dependency-groups]
 dev = [
   "hatch",
+  "uv==0.9.18",  # uv is a dependency of `hatch`, so we explicitly pin the `uv` dependency to match the project `uv` version
   "hatchling",
   "check-wheel-contents",
   "twine",
