@@ -11,7 +11,6 @@
   - [Building the Package](#building-the-package)
   - [Installing a Phoenix Build](#installing-a-phoenix-build)
   - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-  - [Publishing a New Release](#publishing-a-new-release)
   - [Best Practices](#best-practices)
     - [REST API](#rest-api)
       - [HTTP Methods](#http-methods)
@@ -236,21 +235,6 @@ The code below installs the `main` branch in [Colab](https://colab.research.goog
 !npm install -g -s npm@latest
 %pip install git+https://github.com/Arize-ai/phoenix.git@main
 ```
-
-## Publishing a New Release
-
-To publish a new release, follow the steps below.
-
-1. Make sure your branch is up-to-date with `main`
-2. Update the version number in `src/phoenix/version.py`
-3. Remove the `dist` folder with `rm -rf dist`.
-4. By default, the web app is not rebuilt. Change directory to `app` and run `rm -rf node_modules && pnpm install --frozen-lockfile && pnpm run build` to rebuild the web app.
-5. From the root directory of the repo, build the package with `make build-python`.
-6. Publish the package with `uv publish --token <your-pypi-token>`. Note you must publish using a pypi token.
-7. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
-8. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
-9. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
-10. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
 
 ## Best Practices
 
