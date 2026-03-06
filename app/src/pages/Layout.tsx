@@ -104,8 +104,8 @@ function SideNav() {
           <li>
             <NavLink
               to="/projects"
-              text="Projects"
-              leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              text="Tracing"
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
               trailingVisual={
                 loaderData?.projectCount != null ? (
                   <Counter>{loaderData.projectCount}</Counter>
