@@ -108,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12]
+        py: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
         with:
