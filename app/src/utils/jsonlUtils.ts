@@ -164,3 +164,164 @@ export async function parseJSONLKeys(
     reader.cancel();
   }
 }
+
+/**
+ * Parses a single JSONL line and returns the parsed object.
+ * Returns null if the line is empty/whitespace or not a valid JSON object.
+ */
+function parseJSONLRowLine(line: string): Record<string, unknown> | null {
+  const trimmed = line.trim();
+  if (trimmed === "") {
+    return null;
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(trimmed);
+  } catch {
+    // Skip invalid JSON lines
+    return null;
+  }
+
+  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+    // Skip non-object values
+    return null;
+  }
+
+  return json as Record<string, unknown>;
+}
+
+/**
+ * Parses JSONL rows from a file using streaming.
+ * Only reads enough of the file to parse the first N valid rows.
+ * Handles arbitrarily large files efficiently.
+ * Invalid JSON lines are skipped (not treated as errors).
+ *
+ * @param file - The file to parse
+ * @param maxRows - Maximum number of rows to parse (default: 10)
+ * @returns Array of parsed JSON objects
+ */
+export async function parseJSONLRows(
+  file: File,
+  maxRows: number = DEFAULT_MAX_ROWS
+): Promise<Record<string, unknown>[]> {
+  const stream = file.stream();
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let bomChecked = false;
+  const rows: Record<string, unknown>[] = [];
+
+  try {
+    while (rows.length < maxRows) {
+      const { done, value } = await reader.read();
+
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+      }
+
+      // Remove BOM on first chunk
+      if (!bomChecked) {
+        buffer = removeBOM(buffer);
+        bomChecked = true;
+      }
+
+      // Process complete lines in the buffer
+      let newlineIndex: number;
+      while (
+        rows.length < maxRows &&
+        (newlineIndex = buffer.indexOf("\n")) !== -1
+      ) {
+        let line = buffer.slice(0, newlineIndex);
+        buffer = buffer.slice(newlineIndex + 1);
+
+        // Handle Windows line endings
+        if (line.endsWith("\r")) {
+          line = line.slice(0, -1);
+        }
+
+        const result = parseJSONLRowLine(line);
+        if (result !== null) {
+          rows.push(result);
+        }
+      }
+
+      if (done) {
+        // Process any remaining content in the buffer (file doesn't end with newline)
+        if (buffer.trim() !== "" && rows.length < maxRows) {
+          const result = parseJSONLRowLine(buffer);
+          if (result !== null) {
+            rows.push(result);
+          }
+        }
+        break;
+      }
+    }
+
+    return rows;
+  } finally {
+    reader.cancel();
+  }
+}
+
+/**
+ * Counts the total number of valid JSON object rows in a JSONL file using streaming.
+ * Invalid JSON lines are skipped (not counted).
+ * Handles arbitrarily large files efficiently.
+ */
+export async function countJSONLRows(file: File): Promise<number> {
+  const stream = file.stream();
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let bomChecked = false;
+  let count = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+      }
+
+      // Remove BOM on first chunk
+      if (!bomChecked) {
+        buffer = removeBOM(buffer);
+        bomChecked = true;
+      }
+
+      // Count complete lines in the buffer
+      let newlineIndex: number;
+      while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+        let line = buffer.slice(0, newlineIndex);
+        buffer = buffer.slice(newlineIndex + 1);
+
+        // Handle Windows line endings
+        if (line.endsWith("\r")) {
+          line = line.slice(0, -1);
+        }
+
+        const result = parseJSONLRowLine(line);
+        if (result !== null) {
+          count++;
+        }
+      }
+
+      if (done) {
+        // Process any remaining content in the buffer
+        if (buffer.trim() !== "") {
+          const result = parseJSONLRowLine(buffer);
+          if (result !== null) {
+            count++;
+          }
+        }
+        break;
+      }
+    }
+
+    return count;
+  } finally {
+    reader.cancel();
+  }
+}

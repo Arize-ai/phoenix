@@ -1,11 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import type {
   CreateDatasetFormMutation,
   CreateDatasetFormMutation$data,
 } from "./__generated__/CreateDatasetFormMutation.graphql";
-import type { DatasetFormParams } from "./DatasetForm";
+import type { DatasetFormHandle, DatasetFormParams } from "./DatasetForm";
 import { DatasetForm } from "./DatasetForm";
 
 export type CreateDatasetFormProps = {
@@ -13,11 +13,18 @@ export type CreateDatasetFormProps = {
     dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
   ) => void;
   onDatasetCreateError: (error: Error) => void;
+  ref?: React.Ref<DatasetFormHandle>;
+  onValidChange?: (isValid: boolean) => void;
+  onSubmittingChange?: (isSubmitting: boolean) => void;
 };
 
-export function CreateDatasetForm(props: CreateDatasetFormProps) {
-  const { onDatasetCreated, onDatasetCreateError } = props;
-
+export function CreateDatasetForm({
+  onDatasetCreated,
+  onDatasetCreateError,
+  ref,
+  onValidChange,
+  onSubmittingChange,
+}: CreateDatasetFormProps) {
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
     mutation CreateDatasetFormMutation(
       $name: String!
@@ -68,12 +75,19 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
     },
     [commit, onDatasetCreated, onDatasetCreateError]
   );
+  useEffect(() => {
+    onSubmittingChange?.(isCommitting);
+  }, [isCommitting, onSubmittingChange]);
+
   return (
     <DatasetForm
+      ref={ref}
       isSubmitting={isCommitting}
       onSubmit={onSubmit}
       submitButtonText={isCommitting ? "Creating..." : "Create Dataset"}
       formMode="create"
+      onValidChange={onValidChange}
+      hideFooter={!!ref}
     />
   );
 }

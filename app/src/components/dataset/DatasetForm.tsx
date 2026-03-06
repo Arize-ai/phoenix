@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { useEffect, useImperativeHandle } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -28,6 +29,11 @@ export type DatasetFormParams = {
   metadata: string;
 };
 
+export type DatasetFormHandle = {
+  submit: () => void;
+  reset: () => void;
+};
+
 export function DatasetForm({
   datasetName,
   datasetDescription,
@@ -36,6 +42,9 @@ export function DatasetForm({
   isSubmitting,
   submitButtonText,
   formMode,
+  ref,
+  onValidChange,
+  hideFooter,
 }: {
   datasetName?: string | null;
   datasetDescription?: string | null;
@@ -44,18 +53,36 @@ export function DatasetForm({
   isSubmitting: boolean;
   submitButtonText: string;
   formMode: "create" | "edit";
+  ref?: React.Ref<DatasetFormHandle>;
+  onValidChange?: (isValid: boolean) => void;
+  hideFooter?: boolean;
 }) {
   const {
     control,
     handleSubmit,
-    formState: { isDirty },
+    reset: resetForm,
+    formState: { isDirty, isValid },
   } = useForm<DatasetFormParams>({
+    mode: "onChange",
     defaultValues: {
       name: datasetName ?? "Dataset " + new Date().toISOString(),
       description: datasetDescription ?? "",
       metadata: JSON.stringify(datasetMetadata, null, 2) ?? "{}",
     },
   });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      submit: () => handleSubmit(onSubmit)(),
+      reset: () => resetForm(),
+    }),
+    [handleSubmit, onSubmit, resetForm]
+  );
+
+  useEffect(() => {
+    onValidChange?.(isValid);
+  }, [isValid, onValidChange]);
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
@@ -134,28 +161,28 @@ export function DatasetForm({
           )}
         />
       </div>
-      <View
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderTopColor="light"
-        borderTopWidth="thin"
-      >
-        <Flex direction="row" justifyContent="end">
-          <Button
-            // Only allow submission if the form is dirty for edits
-            // When creating allow the user to click create without any changes as the form will be prefilled with valid values
-            isDisabled={
-              (formMode === "edit" ? !isDirty : false) || isSubmitting
-            }
-            variant={isDirty ? "primary" : "default"}
-            size="S"
-            type="submit"
-          >
-            {submitButtonText}
-          </Button>
-        </Flex>
-      </View>
+      {!hideFooter && (
+        <View
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" justifyContent="end">
+            <Button
+              isDisabled={
+                (formMode === "edit" ? !isDirty : false) || isSubmitting
+              }
+              variant={isDirty ? "primary" : "default"}
+              size="S"
+              type="submit"
+            >
+              {submitButtonText}
+            </Button>
+          </Flex>
+        </View>
+      )}
     </Form>
   );
 }
