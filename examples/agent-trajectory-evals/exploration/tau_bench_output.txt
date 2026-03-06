@@ -1,0 +1,648 @@
+warning: `VIRTUAL_ENV=/Users/elizabethhutton/.cache/uv/environments-v2/wb-1af9d83c2857b05a` does not match the project environment path `/Users/elizabethhutton/Projects/work/trajectory-evals/.venv` and will be ignored; use `--active` to target the active environment instead
+
+================================================================================
+  A. TASK FORMAT ANALYSIS
+================================================================================
+
+Task schema:
+  Task fields: ['user_id', 'actions', 'instruction', 'outputs']
+  Action fields: ['name', 'kwargs']
+
+  test: 115 tasks
+  train: 500 tasks
+  dev: 20 tasks
+
+--- Task 0 (Multi-step exchange) ---
+
+  user_id: yusuf_rossi_9620
+  instruction: You are Yusuf Rossi in 19122. You received your order #W2378156 and wish to exchange the mechanical keyboard for a similar one but with clicky switches and the smart thermostat for one compatible with Google Home instead of Apple HomeKit. If there is no keyboard that is clicky, RGB backlight, full size, you'd go for no backlight. You are detail-oriented and want to make sure everything is addressed in one go.
+  outputs: []
+  actions (5):
+    [0] find_user_id_by_name_zip({'first_name': 'Yusuf', 'last_name': 'Rossi', 'zip': '19122'})
+    [1] get_order_details({'order_id': '#W2378156'})
+    [2] get_product_details({'product_id': '1656367028'})
+    [3] get_product_details({'product_id': '4896585277'})
+    [4] exchange_delivered_order_items({'order_id': '#W2378156', 'item_ids': ['1151293680', '4983901480'], 'new_item_ids': ['7706410293', '7747408585'], 'payment_method_id': 'credit_card_9513926'})
+
+--- Task 24 (Simple lookup) ---
+
+  user_id: sofia_hernandez_5364
+  instruction: You are Sofia Hernandez, and you live in Seattle, WA, 98193. You want to cancel the grill, but if the agent asks you to confirm, you regret and want to keep it. You then want to ask which two t-shirts you have ordered in another order, and what materials are they. Make everything sound very natural and make up reasons.
+  outputs: ['polyester', 'cotton']
+  actions (0):
+
+--- Task 10 (Policy-sensitive / escalation) ---
+
+  user_id: mia_garcia_4516
+  instruction: You are mia_garcia_4516 (mia.garcia2723@example.com). For some reason, you want to return all things ordered. You have two payment methods and two orders, and you want to refund each order to the opposite order's payment method. If not possible, you are angry and swear for a few times, then asks for human representative. You are a mysterious person and do not want to reveal much about yourself or speak too many words at the same time.
+  outputs: []
+  actions (5):
+    [0] find_user_id_by_email({'email': 'mia.garcia2723@example.com'})
+    [1] get_user_details({'user_id': 'mia_garcia_4516'})
+    [2] get_order_details({'order_id': '#W5490111'})
+    [3] get_order_details({'order_id': '#W7387996'})
+    [4] transfer_to_human_agents({'summary': "The user wants to refund each order to the opposite order's payment method, but the agent cannot help."})
+
+================================================================================
+  B. TOOL SCHEMA ENUMERATION
+================================================================================
+
+Total tools: 16
+
+
+--- User Lookup ---
+
+  [READ] find_user_id_by_email
+    description: Find user id by email. If the user is not found, the function will return an error message.
+    parameters:
+      - email: string (required) -- The email of the user, such as 'something@example.com'.
+
+  [READ] find_user_id_by_name_zip
+    description: Find user id by first name, last name, and zip code. If the user is not found, the function will return an error message. By default, find user id by email, and only call this function if the user is not found by email or cannot remember email.
+    parameters:
+      - first_name: string (required) -- The first name of the customer, such as 'John'.
+      - last_name: string (required) -- The last name of the customer, such as 'Doe'.
+      - zip: string (required) -- The zip code of the customer, such as '12345'.
+
+  [READ] get_user_details
+    description: Get the details of a user, including their orders.
+    parameters:
+      - user_id: string (required) -- The user id, such as 'sara_doe_496'.
+
+  [WRITE] modify_user_address
+    description: Modify the default address of a user. The agent needs to explain the modification detail and ask for explicit user confirmation (yes/no) to proceed.
+    parameters:
+      - user_id: string (required) -- The user id, such as 'sara_doe_496'.
+      - address1: string (required) -- The first line of the address, such as '123 Main St'.
+      - address2: string (required) -- The second line of the address, such as 'Apt 1' or ''.
+      - city: string (required) -- The city, such as 'San Francisco'.
+      - state: string (required) -- The state, such as 'CA'.
+      - country: string (required) -- The country, such as 'USA'.
+      - zip: string (required) -- The zip code, such as '12345'.
+
+
+--- Order Management ---
+
+  [READ] get_order_details
+    description: Get the status and details of an order.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+
+  [WRITE] cancel_pending_order
+    description: Cancel a pending order. If the order is already processed or delivered, it cannot be cancelled. The agent needs to explain the cancellation detail and ask for explicit user confirmation (yes/no) to proceed. If the user confirms, the order status will be changed to 'cancelled' and the payment will be refunded. The refund will be added to the user's gift card balance immediately if the payment was made using a gift card, otherwise the refund would take 5-7 business days to process. The function returns the order details after the cancellation.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+      - reason: string (required) -- The reason for cancellation, which should be either 'no longer needed' or 'ordered by mistake'.
+
+  [WRITE] modify_pending_order_address
+    description: Modify the shipping address of a pending order. The agent needs to explain the modification detail and ask for explicit user confirmation (yes/no) to proceed.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+      - address1: string (required) -- The first line of the address, such as '123 Main St'.
+      - address2: string (required) -- The second line of the address, such as 'Apt 1' or ''.
+      - city: string (required) -- The city, such as 'San Francisco'.
+      - state: string (required) -- The state, such as 'CA'.
+      - country: string (required) -- The country, such as 'USA'.
+      - zip: string (required) -- The zip code, such as '12345'.
+
+  [WRITE] modify_pending_order_items
+    description: Modify items in a pending order to new items of the same product type. For a pending order, this function can only be called once. The agent needs to explain the exchange detail and ask for explicit user confirmation (yes/no) to proceed.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+      - item_ids: array (required) -- The item ids to be modified, each such as '1008292230'. There could be duplicate items in the list.
+      - new_item_ids: array (required) -- The item ids to be modified for, each such as '1008292230'. There could be duplicate items in the list. Each new item id should match the item id in the same position and be of the same product.
+      - payment_method_id: string (required) -- The payment method id to pay or receive refund for the item price difference, such as 'gift_card_0000000' or 'credit_card_0000000'. These can be looked up from the user or order details.
+
+  [WRITE] modify_pending_order_payment
+    description: Modify the payment method of a pending order. The agent needs to explain the modification detail and ask for explicit user confirmation (yes/no) to proceed.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+      - payment_method_id: string (required) -- The payment method id to pay or receive refund for the item price difference, such as 'gift_card_0000000' or 'credit_card_0000000'. These can be looked up from the user or order details.
+
+
+--- Delivered Order ---
+
+  [WRITE] return_delivered_order_items
+    description: Return some items of a delivered order. The order status will be changed to 'return requested'. The agent needs to explain the return detail and ask for explicit user confirmation (yes/no) to proceed. The user will receive follow-up email for how and where to return the item.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+      - item_ids: array (required) -- The item ids to be returned, each such as '1008292230'. There could be duplicate items in the list.
+      - payment_method_id: string (required) -- The payment method id to pay or receive refund for the item price difference, such as 'gift_card_0000000' or 'credit_card_0000000'. These can be looked up from the user or order details.
+
+  [WRITE] exchange_delivered_order_items
+    description: Exchange items in a delivered order to new items of the same product type. For a delivered order, return or exchange can be only done once by the agent. The agent needs to explain the exchange detail and ask for explicit user confirmation (yes/no) to proceed.
+    parameters:
+      - order_id: string (required) -- The order id, such as '#W0000000'. Be careful there is a '#' symbol at the beginning of the order id.
+      - item_ids: array (required) -- The item ids to be exchanged, each such as '1008292230'. There could be duplicate items in the list.
+      - new_item_ids: array (required) -- The item ids to be exchanged for, each such as '1008292230'. There could be duplicate items in the list. Each new item id should match the item id in the same position and be of the same product.
+      - payment_method_id: string (required) -- The payment method id to pay or receive refund for the item price difference, such as 'gift_card_0000000' or 'credit_card_0000000'. These can be looked up from the user or order details.
+
+
+--- Product ---
+
+  [READ] get_product_details
+    description: Get the inventory details of a product.
+    parameters:
+      - product_id: string (required) -- The product id, such as '6086499569'. Be careful the product id is different from the item id.
+
+  [READ] list_all_product_types
+    description: List the name and product id of all product types. Each product type has a variety of different items with unique item ids and options. There are only 50 product types in the store.
+
+
+--- Support / Utility ---
+
+  [READ] transfer_to_human_agents
+    description: Transfer the user to a human agent, with a summary of the user's issue. Only transfer if the user explicitly asks for a human agent, or if the user's issue cannot be resolved by the agent with the available tools.
+    parameters:
+      - summary: string (required) -- A summary of the user's issue.
+
+  [READ] calculate
+    description: Calculate the result of a mathematical expression.
+    parameters:
+      - expression: string (required) -- The mathematical expression to calculate, such as '2 + 2'. The expression can contain numbers, operators (+, -, *, /), parentheses, and spaces.
+
+  [READ] think
+    description: Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.
+    parameters:
+      - thought: string (required) -- A thought to think about.
+
+
+================================================================================
+  C. POLICY (wiki.md)
+================================================================================
+
+# Retail agent policy
+
+As a retail agent, you can help users cancel or modify pending orders, return or exchange delivered orders, modify their default user address, or provide information about their own profile, orders, and related products.
+
+- At the beginning of the conversation, you have to authenticate the user identity by locating their user id via email, or via name + zip code. This has to be done even when the user already provides the user id.
+
+- Once the user has been authenticated, you can provide the user with information about order, product, profile information, e.g. help the user look up order id.
+
+- You can only help one user per conversation (but you can handle multiple requests from the same user), and must deny any requests for tasks related to any other user.
+
+- Before taking consequential actions that update the database (cancel, modify, return, exchange), you have to list the action detail and obtain explicit user confirmation (yes) to proceed.
+
+- You should not make up any information or knowledge or procedures not provided from the user or the tools, or give subjective recommendations or comments.
+
+- You should at most make one tool call at a time, and if you take a tool call, you should not respond to the user at the same time. If you respond to the user, you should not make a tool call.
+
+- You should transfer the user to a human agent if and only if the request cannot be handled within the scope of your actions.
+
+## Domain basic
+
+- All times in the database are EST and 24 hour based. For example "02:30:00" means 2:30 AM EST.
+
+- Each user has a profile of its email, default address, user id, and payment methods. Each payment method is either a gift card, a paypal account, or a credit card.
+
+- Our retail store has 50 types of products. For each type of product, there are variant items of different options. For example, for a 't shirt' product, there could be an item with option 'color blue size M', and another item with option 'color red size L'.
+
+- Each product has an unique product id, and each item has an unique item id. They have no relations and should not be confused.
+
+- Each order can be in status 'pending', 'processed', 'delivered', or 'cancelled'. Generally, you can only take action on pending or delivered orders.
+
+- Exchange or modify order tools can only be called once. Be sure that all items to be changed are collected into a list before making the tool call!!!
+
+## Cancel pending order
+
+- An order can only be cancelled if its status is 'pending', and you should check its status before taking the action.
+
+- The user needs to confirm the order id and the reason (either 'no longer needed' or 'ordered by mistake') for cancellation.
+
+- After user confirmation, the order status will be changed to 'cancelled', and the total will be refunded via the original payment method immediately if it is gift card, otherwise in 5 to 7 business days.
+
+## Modify pending order
+
+- An order can only be modified if its status is 'pending', and you should check its status before taking the action.
+
+- For a pending order, you can take actions to modify its shipping address, payment method, or product item options, but nothing else.
+
+### Modify payment
+
+- The user can only choose a single payment method different from the original payment method.
+
+- If the user wants the modify the payment method to gift card, it must have enough balance to cover the total amount.
+
+- After user confirmation, the order status will be kept 'pending'. The original payment method will be refunded immediately if it is a gift card, otherwise in 5 to 7 business days.
+
+### Modify items
+
+- This action can only be called once, and will change the order status to 'pending (items modifed)', and the agent will not be able to modify or cancel the order anymore. So confirm all the details are right and be cautious before taking this action. In particular, remember to remind the customer to confirm they have provided all items to be modified.
+
+- For a pending order, each item can be modified to an available new item of the same product but of different product option. There cannot be any change of product types, e.g. modify shirt to shoe.
+
+- The user must provide a payment method to pay or receive refund of the price difference. If the user provides a gift card, it must have enough balance to cover the price difference.
+
+## Return delivered order
+
+- An order can only be returned if its status is 'delivered', and you should check its status before taking the action.
+
+- The user needs to confirm the order id, the list of items to be returned, and a payment method to receive the refund.
+
+- The refund must either go to the original payment method, or an existing gift card.
+
+- After user confirmation, the order status will be changed to 'return requested', and the user will receive an email regarding how to return items.
+
+## Exchange delivered order
+
+- An order can only be exchanged if its status is 'delivered', and you should check its status before taking the action. In particular, remember to remind the customer to confirm they have provided all items to be exchanged.
+
+- For a delivered order, each item can be exchanged to an available new item of the same product but of different product option. There cannot be any change of product types, e.g. modify shirt to shoe.
+
+- The user must provide a payment method to pay or receive refund of the price difference. If the user provides a gift card, it must have enough balance to cover the price difference.
+
+- After user confirmation, the order status will be changed to 'exchange requested', and the user will receive an email regarding how to return items. There is no need to place a new order.
+
+
+--- KEY RULES SUMMARY ---
+
+  * Authentication: Must locate user by email OR name+zip before any action
+  * One user per conversation: Cannot help multiple users
+  * Single tool call per interaction: No parallel tool calls; no tool+response in same turn
+  * Explicit confirmation: Must list action details and get 'yes' before DB changes
+  * Modification constraints: Exchange/modify tools can only be called ONCE per order
+  * Escalation: Transfer to human only when request is out of scope
+  * No hallucination: Agent must not make up information
+
+================================================================================
+  D. DATABASE SCHEMA
+================================================================================
+
+
+--- users.json ---
+
+  Type: dict (keyed by ID)
+  Count: 500
+  Fields: ['name', 'address', 'email', 'payment_methods', 'orders']
+  Field types:
+    name: dict with keys ['first_name', 'last_name']
+    address: dict with keys ['address1', 'address2', 'city', 'country', 'state']
+    email: str
+    payment_methods: dict with keys ['paypal_5727330', 'credit_card_7815826']
+    orders: list of str (len=1)
+
+  Example (noah_brown_6181):
+{
+    "name": {
+        "first_name": "Noah",
+        "last_name": "Brown"
+    },
+    "address": {
+        "address1": "986 Sunset Drive",
+        "address2": "Suite 259",
+        "city": "Denver",
+        "country": "USA",
+        "state": "CO",
+        "zip": "80279"
+    },
+    "email": "noah.brown7922@example.com",
+    "payment_methods": {
+        "paypal_5727330": {
+            "source": "paypal",
+            "id": "paypal_5727330"
+        },
+        "credit_card_7815826": {
+            "source": "credit_card",
+            "brand": "mastercard",
+            "last_four": "9212",
+            "id": "credit_card_7815826"
+        }
+    },
+    "orders": [
+        "#W7678072"
+    ]
+}
+
+
+--- orders.json ---
+
+  Type: dict (keyed by ID)
+  Count: 1000
+  Fields: ['order_id', 'user_id', 'address', 'items', 'fulfillments', 'status', 'payment_history']
+  Field types:
+    order_id: str
+    user_id: str
+    address: dict with keys ['address1', 'address2', 'city', 'country', 'state']
+    items: list of dict (len=2)
+    fulfillments: list of dict (len=1)
+    status: str
+    payment_history: list of dict (len=1)
+
+  Example (#W2611340):
+{
+    "order_id": "#W2611340",
+    "user_id": "james_li_5688",
+    "address": {
+        "address1": "215 River Road",
+        "address2": "Suite 991",
+        "city": "New York",
+        "country": "USA",
+        "state": "NY",
+        "zip": "10083"
+    },
+    "items": [
+        {
+            "name": "Water Bottle",
+            "product_id": "8310926033",
+            "item_id": "6469567736",
+            "price": 47.84,
+            "options": {
+                "capacity": "1000ml",
+                "material": "glass",
+                "color": "blue"
+            }
+        },
+        {
+            "name": "Office Chair",
+            "product_id": "4794339885",
+            "item_id": "8426249116",
+            "price": 488.81,
+            "options": {
+                "material": "fabric",
+                "color": "black",
+                "armrest": "fixed",
+                "backrest height": "standard"
+            }
+        }
+    ],
+    "fulfillments": [
+        {
+            "tracking_id": [
+                "357962501027"
+            ],
+            "item_ids": [
+                "6469567736",
+                "8426249116"
+            ]
+        }
+    ],
+    "status": "processed",
+    "payment_history": [
+        {
+            "transaction_type": "payment",
+            "amount": 536.65,
+            "payment_method_id": "gift_card_1725971"
+        }
+    ]
+}
+
+
+--- products.json ---
+
+  Type: dict (keyed by ID)
+  Count: 50
+  Fields: ['name', 'product_id', 'variants']
+  Field types:
+    name: str
+    product_id: str
+    variants: dict with keys ['9612497925', '8124970213', '9354168549', '5253880258', '1176194968']
+
+  Example (9523456873):
+{
+    "name": "T-Shirt",
+    "product_id": "9523456873",
+    "variants": {
+        "9612497925": {
+            "item_id": "9612497925",
+            "options": {
+                "color": "blue",
+                "size": "M",
+                "material": "cotton",
+                "style": "crew neck"
+            },
+            "available": true,
+            "price": 50.88
+        },
+        "8124970213": {
+            "item_id": "8124970213",
+            "options": {
+                "color": "purple",
+                "size": "XL",
+                "material": "cotton",
+                "style": "crew neck"
+            },
+            "available": true,
+            "price": 49.67
+        },
+        "9354168549": {
+            "item_id": "9354168549",
+            "options": {
+                "color": "red",
+                "size": "XXL",
+                "material": "cotton",
+                "style": "crew neck"
+            },
+            "available": true,
+            "price": 46.85
+        },
+        "5253880258": {
+            "item_id": "5253880258",
+            "options": {
+                "color": "black",
+                "size": "XXL",
+                "material": "polyester",
+                "style": "v-neck"
+            },
+            "available": true,
+            "price": 49.52
+        },
+        "1176194968": {
+            "item_id": "1176194968",
+            "options": {
+                "color": "black",
+                "size": "S",
+                "material": "polyester",
+                "style": "crew neck"
+            },
+            "available": true,
+            "price": 52.88
+        },
+        "9647292434": {
+            "item_id": "9647292434",
+            "options": {
+                "color": "purple",
+                "size": "S",
+                "material": "polyester",
+                "style": "v-neck"
+            },
+            "available": true,
+            "price": 53.48
+        },
+        "8349118980": {
+            "item_id": "8349118980",
+         
+
+
+--- READ vs WRITE TOOLS ---
+
+  Read-only tools: find_user_id_by_email, find_user_id_by_name_zip,
+    get_user_details, get_order_details, get_product_details,
+    list_all_product_types, calculate, think, transfer_to_human_agents
+
+  State-mutating tools: cancel_pending_order, modify_pending_order_address,
+    modify_pending_order_items, modify_pending_order_payment,
+    modify_user_address, return_delivered_order_items,
+    exchange_delivered_order_items
+
+================================================================================
+  E. HISTORICAL TRAJECTORY ANALYSIS
+================================================================================
+
+Total trajectories: 460
+
+--- Trajectory entry schema ---
+
+  task_id: int = 0
+  reward: float = 1.0
+  info: dict with keys ['task', 'source', 'user_cost', 'reward_info']
+  traj: list[34]
+  trial: int = 0
+
+--- Reward distribution ---
+
+  reward=0.0: 182 (39.6%)
+  reward=1.0: 278 (60.4%)
+
+--- Trajectory length stats ---
+
+  Mean: 30.5
+  Min: 10
+  Max: 62
+  Median: 28
+
+--- Role distribution across all trajectories ---
+
+  assistant: 6564
+  user: 3750
+  tool: 3274
+  system: 460
+
+--- Example SUCCESSFUL (reward=1.0) trajectory (task_id=50, 10 messages) ---
+
+  [0] system: # Retail agent policy
+
+As a retail agent, you can help users cancel or modify pending orders, return or exchange delivered orders, modify their default user address, or provide information about their own profile, orders, and related products.
+
+- At the beginning of the conversation, you have to authenticate the user identity by locating their user id via email, or via name + zip code. This has to be done even when the user already provides the user id.
+
+- Once the user has been authenticated, y...
+  [1] user: Hi, I need to undo a cancelled order and get it delivered as soon as possible. Can you help with that?
+  [2] assistant: I apologize, but once an order is cancelled, it cannot be undone or reinstated. You would need to place a new order for the items you wish to purchase. If you need assistance with placing a new order or have any other questions, please let me know!
+  [3] user: I really need to get this sorted out. Can't you make an exception and restore the order? It’s quite urgent!
+  [4] assistant: I understand the urgency, but unfortunately, I cannot restore a cancelled order as it is against our policy. You will need to place a new order for the items you need. If you need any assistance with placing a new order or have any other questions, please feel free to ask.
+  [5] user: Is there anyone you can escalate this to? I really need those items delivered quickly.
+  [6] assistant: I understand your concern and the urgency of the situation. However, since the order cannot be restored once cancelled, the best course of action is to place a new order. If you need further assistance or have specific concerns, I can transfer you to a human agent who might be able to provide additional support. Would you like me to do that?
+  [7] user: Yes, please. I'd appreciate it if you could transfer me to someone who might be able to help with this.
+  [8] assistant: [tool_calls]
+       -> transfer_to_human_agents({"summary":"User needs assistance with restoring a cancelled order and getting it delivered urgently. Requesting escalation to a human agent for further support."})
+  [9] tool: Transfer successful
+
+--- Example FAILED (reward=0.0) trajectory (task_id=5, 14 messages) ---
+
+  [0] system: # Retail agent policy
+
+As a retail agent, you can help users cancel or modify pending orders, return or exchange delivered orders, modify their default user address, or provide information about their own profile, orders, and related products.
+
+- At the beginning of the conversation, you have to authenticate the user identity by locating their user id via email, or via name + zip code. This has to be done even when the user already provides the user id.
+
+- Once the user has been authenticated, y...
+  [1] user: Hi! I need to exchange a couple of items I purchased. Could you assist me with that?
+  [2] assistant: Of course! I'd be happy to assist you with exchanging your items. To get started, could you please provide your email address or your name and zip code so I can authenticate your identity?
+  [3] user: Sure! My name is Mei Kovacs, and my zip code is 8020.
+  [4] assistant: [tool_calls]
+       -> find_user_id_by_name_zip({"first_name":"Mei","last_name":"Kovacs","zip":"8020"})
+  [5] tool: Error: user not found
+  [6] assistant: It seems I couldn't find a user with the name Mei Kovacs and the zip code 8020. Could you please double-check the information or provide your email address instead?
+  [7] user: Let me check... Okay, my email is mei_kovacs_8020@gmail.com.
+  [8] assistant: [tool_calls]
+       -> find_user_id_by_email({"email":"mei_kovacs_8020@gmail.com"})
+  [9] tool: Error: user not found
+  [10] assistant: I apologize for the inconvenience, but it seems I still can't find your user information with the provided details. Could you please verify the information or try using a different email address or name and zip code combination? If you continue to experience issues, I can transfer you to a human agent for further assistance.
+  [11] user: Hmm, that's strange. Unfortunately, I can't think of another email or zip code combination. Perhaps transferring me to a human agent would be best.
+  [12] assistant: [tool_calls]
+       -> transfer_to_human_agents({"summary":"The user, Mei Kovacs, is unable to authenticate her identity using the provided name, zip code, and email. She needs assistance with exchanging items from a previous purchase."})
+  [13] tool: Transfer successful
+
+================================================================================
+  F. SIMULATED USER DOCUMENTATION
+================================================================================
+
+User simulation is in: tau_bench/envs/user.py
+
+UserStrategy enum values:
+  - HUMAN: Manual input (for debugging)
+  - LLM: Basic LLM-based simulation
+  - REACT: LLM with Thought + User Response format
+  - VERIFY: LLM with self-verification (up to 3 attempts)
+  - REFLECTION: LLM with verify + reflect loop (up to 2 attempts)
+
+LLMUserSimulationEnv:
+  - Uses litellm.completion() for generation
+  - System prompt includes the task instruction
+  - Rules enforced in system prompt:
+    * Generate one line at a time
+    * Don't give away all instruction at once
+    * Don't hallucinate info not in instruction
+    * Generate '###STOP###' when goal is satisfied
+    * Don't repeat exact instruction; use own words
+    * Stick to personalities in instruction
+
+ReactUserSimulationEnv:
+  - Extends LLM strategy with chain-of-thought
+  - Generates Thought + User Response per turn
+  - Parses out only the User Response to send to agent
+
+VerifyUserSimulationEnv:
+  - After generating, calls verify() to check response quality
+  - Retries up to max_attempts=3 if verification fails
+  - Verification uses separate LLM call as 'supervisor'
+
+ReflectionUserSimulationEnv:
+  - Combines verify + reflect pattern
+  - If verification fails, calls reflect() to generate improved response
+  - Up to max_attempts=2 reflection rounds
+
+Conversation flow:
+  1. reset(instruction) -> system prompt + 'Hi! How can I help you today?'
+  2. generate_next_message() -> first user message
+  3. step(agent_response) -> next user message
+  4. Loop until '###STOP###' in response (goal satisfied)
+
+================================================================================
+  G. EVALUATION APPROACH
+================================================================================
+
+Evaluation is in: tau_bench/envs/base.py (Env.calculate_reward)
+
+Binary reward calculation (0.0 or 1.0):
+
+1. DB State Comparison (r_actions):
+   - Hash the current database state after agent's actions
+   - Replay ground-truth actions on a fresh DB copy
+   - Hash the ground-truth database state
+   - If hashes don't match -> reward = 0.0
+   - This catches: wrong mutations, missing mutations, extra mutations
+
+2. Output Matching (r_outputs, only if task.outputs is non-empty):
+   - For each expected output string in task.outputs:
+     Check if it appears (case-insensitive, commas removed) in any
+     'respond' action the agent sent to the user
+   - If any expected output is missing -> reward = 0.0
+
+3. Final reward = 1.0 only if BOTH checks pass
+
+Pass^k calculation (from run.py):
+  - Run each task k times (num_trials)
+  - For each task, count c = number of successful trials
+  - pass^k = avg over tasks of C(c,k)/C(num_trials,k)
+  - This estimates P(at least k successes in k tries)
+  - Reports pass^1, pass^2, ..., pass^num_trials
+
+Termination conditions:
+  - Agent calls transfer_to_human_agents -> done
+  - User sends '###STOP###' -> done (goal satisfied or conversation ended)
+  - Reward only computed when done=True
+
+================================================================================
+  EXPLORATION COMPLETE
+================================================================================
