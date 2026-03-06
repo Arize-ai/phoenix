@@ -1,0 +1,7 @@
+# Local vendor checkout for tau-bench
+vendor/
+
+# Local run artifacts
+results/
+results/phoenix-traces/
+tau_bench_openai_agents/phoenix_traces/
