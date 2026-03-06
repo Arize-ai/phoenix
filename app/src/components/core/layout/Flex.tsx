@@ -10,7 +10,7 @@ import {
   responsiveDimensionValue,
   useStyleProps,
 } from "@phoenix/components/core/utils";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 export interface FlexProps extends DOMProps, FlexStyleProps {
   /** Children of the flex container. */

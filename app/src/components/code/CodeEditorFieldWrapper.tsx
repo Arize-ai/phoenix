@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 
 import { Label, Text } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 const codeEditorFormWrapperCSS = css`
   &.is-hovered {

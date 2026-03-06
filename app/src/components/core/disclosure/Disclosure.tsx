@@ -11,7 +11,7 @@ import {
   Heading,
 } from "react-aria-components";
 
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";

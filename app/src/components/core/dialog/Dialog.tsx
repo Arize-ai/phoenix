@@ -13,7 +13,7 @@ import { Heading } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import type { FlexProps } from "@phoenix/components/core/layout";
 import { Flex } from "@phoenix/components/core/layout";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 export type DialogProps = AriaDialogProps;
 

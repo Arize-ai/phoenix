@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, Ref } from "react";
 import { forwardRef } from "react";
 
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 export interface KeyboardProps extends PropsWithChildren {
   className?: string;

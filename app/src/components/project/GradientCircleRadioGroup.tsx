@@ -6,7 +6,7 @@ import {
 
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { StylableProps } from "@phoenix/components/core/types";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 const gradientCircleRadioGroupCSS = css`
   position: relative;

@@ -12,12 +12,12 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
-import { classNames } from "@phoenix/components/core/utils";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";

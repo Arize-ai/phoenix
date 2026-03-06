@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 type SpanImageProps = {
   /**

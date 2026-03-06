@@ -5,7 +5,7 @@ import type { ButtonRenderProps } from "react-aria-components";
 import { Button as AriaButton } from "react-aria-components";
 
 import { useSize } from "@phoenix/components/core/contexts/SizeContext";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { buttonCSS } from "./styles";
 import type { ButtonProps } from "./types";

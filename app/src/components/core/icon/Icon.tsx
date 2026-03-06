@@ -3,7 +3,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 
 import type { ColorValue, StylableProps } from "@phoenix/components/core/types";
 import { colorValue } from "@phoenix/components/core/utils";
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 interface IconProps extends StylableProps, HTMLAttributes<HTMLElement> {
   svg: ReactNode;

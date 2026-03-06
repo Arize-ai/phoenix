@@ -1,7 +1,7 @@
 import { IconButton } from "@phoenix/components/core/button";
 import { Icon, FileOutline, CloseOutline } from "@phoenix/components/core/icon";
 import { ProgressBar } from "@phoenix/components/core/progress";
-import { storageSizeFormatter } from "@phoenix/components/core/utils/storageSizeFormatUtils";
+import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
 import type { FileListItemProps, FileWithProgress } from "./types";
 

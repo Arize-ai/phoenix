@@ -2,7 +2,7 @@ import type { Ref } from "react";
 import { forwardRef } from "react";
 import { OverlayArrow } from "react-aria-components";
 
-import { classNames } from "@phoenix/components/core/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 import type { StylableProps } from "../types";
 
