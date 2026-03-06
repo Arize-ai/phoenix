@@ -67,16 +67,6 @@ js/examples/notebooks/**/deno.lock
 /packages/phoenix-otel/src/__init__.py
 /packages/phoenix-otel/src/phoenix/__init__.py
 
-# Symbolic links
-# Note that this can affect hatch build for those packages. That's why
-# we need to un-ignore it if it's an actual folder (i.e. with the trailing /).
-/src/phoenix/client
-!src/phoenix/client/
-/src/phoenix/evals
-!src/phoenix/evals/
-/src/phoenix/otel
-!src/phoenix/otel/
-
 # Caches
 .pnpm-store
 
