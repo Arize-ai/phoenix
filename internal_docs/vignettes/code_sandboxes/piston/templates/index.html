@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python Function Runner</title>
+
+  <!-- CodeMirror 5 — simple script-tag CDN, no module loading issues -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/python/python.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #111318;
+      --surface: #191d27;
+      --surface2: #1e2233;
+      --border: #262d42;
+      --accent: #5b8dee;
+      --accent-dim: rgba(91,141,238,0.12);
+      --text: #dde3f0;
+      --text-muted: #5a637a;
+      --text-label: #8891a8;
+      --green: #4ade91;
+      --green-dim: rgba(74,222,145,0.1);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.1);
+      --yellow: #fbbf24;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 48px 1fr 8px 480px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+    }
+
+    .logo {
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-mark {
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+
+    .sep { width: 1px; height: 20px; background: var(--border); }
+
+    /* ── Examples dropdown ── */
+    .examples-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .examples-select {
+      appearance: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 0.8rem;
+      padding: 5px 28px 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      min-width: 170px;
+    }
+    .examples-select:hover { border-color: var(--accent); background: var(--surface); }
+    .examples-select:focus { border-color: var(--accent); }
+
+    .examples-arrow {
+      position: absolute;
+      right: 9px;
+      pointer-events: none;
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      line-height: 1;
+    }
+
+    .py-badge {
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(91,141,238,0.25);
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.err { background: var(--red); }
+
+    .run-btn {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      font-family: var(--sans);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .run-btn:hover { opacity: 0.88; }
+    .run-btn:active { transform: scale(0.96); }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+    }
+    .run-btn.loading .spinner { display: block; }
+    .run-btn.loading .run-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Top editors row ── */
+    .editors-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+    }
+
+    /* ── Drag handle ── */
+    .drag-handle {
+      background: var(--border);
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .drag-handle::after {
+      content: '';
+      width: 32px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* ── Output row ── */
+    .output-row {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 80px;
+    }
+
+    /* ── Pane chrome ── */
+    .pane {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid var(--border);
+    }
+    .pane:last-child { border-right: none; }
+
+    .pane-header {
+      flex-shrink: 0;
+      height: 34px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+    }
+
+    .pane-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-label);
+    }
+
+    .pane-hint {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-left: auto;
+    }
+
+    .pane-body {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+
+    /* CodeMirror 5 overrides */
+    .pane-body .CodeMirror {
+      height: 100%;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      background: transparent;
+    }
+    .pane-body .CodeMirror-scroll { height: 100%; }
+    .pane-body .CodeMirror-gutters { background: #1e2233; border-right: 1px solid var(--border); }
+
+    /* ── Output pane ── */
+    .output-pane-header {
+      flex-shrink: 0;
+      height: 34px;
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+    }
+
+    .output-meta {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chip {
+      font-size: 0.7rem;
+      font-family: var(--mono);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      background: var(--surface);
+    }
+    .chip.ok { color: var(--green); border-color: rgba(74,222,145,0.3); background: var(--green-dim); }
+    .chip.err { color: var(--red); border-color: rgba(248,113,113,0.3); background: var(--red-dim); }
+
+    .output-body {
+      flex: 1;
+      overflow: auto;
+      padding: 14px 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre;
+    }
+
+    .output-empty {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-family: var(--sans);
+    }
+
+    /* JSON syntax coloring */
+    .jk { color: #7ec8e3; }           /* key */
+    .js { color: #a5d6a7; }           /* string value */
+    .jn { color: #ffb74d; }           /* number */
+    .jb { color: #ba68c8; }           /* bool / null */
+    .jp { color: var(--text-muted); } /* punctuation */
+    .je { color: var(--red); }        /* error value */
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="shell" id="shell">
+
+  <header>
+    <div class="logo">
+      <div class="logo-mark">𝑓</div>
+      Python Function Runner
+    </div>
+    <div class="sep"></div>
+    <span class="py-badge">python · piston</span>
+    <div class="sep"></div>
+    <div class="examples-wrap">
+      <select class="examples-select" id="examples-select">
+        <option value="">— Examples —</option>
+        <option value="levenshtein">String Distance</option>
+        <option value="anagram_groups">Anagram Groups</option>
+        <option value="caesar_cipher">Caesar Cipher</option>
+        <option value="word_frequency">Word Frequency</option>
+        <option value="flatten_dict">Flatten Dict</option>
+        <option value="prime_factors">Prime Factors</option>
+        <option value="run_length">Run-Length Encode</option>
+        <option value="cosine_similarity">Cosine Similarity</option>
+      </select>
+      <span class="examples-arrow">▾</span>
+    </div>
+    <div class="header-right">
+      <div class="status">
+        <div class="dot" id="dot"></div>
+        <span id="status-txt">connecting…</span>
+      </div>
+      <button class="run-btn" id="run-btn" disabled>
+        <span class="run-label">▶ Run</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="editors-row" id="editors-row">
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-title">Function Definition</span>
+        <span class="pane-hint">def …</span>
+      </div>
+      <div class="pane-body" id="fn-editor"></div>
+    </div>
+
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-title">Arguments</span>
+        <span class="pane-hint">{"key": value, ...}  · Python dict</span>
+      </div>
+      <div class="pane-body" id="args-editor"></div>
+    </div>
+  </div>
+
+  <div class="drag-handle" id="drag-handle"></div>
+
+  <div class="output-row" id="output-row">
+    <div class="output-pane-header">
+      <span class="pane-title">Output</span>
+      <div class="output-meta" id="output-meta" style="display:none">
+        <span class="chip" id="chip-ver"></span>
+        <span class="chip" id="chip-time"></span>
+        <span class="chip" id="chip-exit"></span>
+      </div>
+    </div>
+    <div class="output-body" id="output-body">
+      <span class="output-empty">Run your function to see the output dict here.</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+
+// ── Examples ─────────────────────────────────────────────────────────────────
+const EXAMPLES = {
+  levenshtein: {
+    fn: `def levenshtein(s1, s2):
+    """Edit distance between two strings (insertions, deletions, substitutions)."""
+    m, n = len(s1), len(s2)
+    dp = list(range(n + 1))
+    for i in range(1, m + 1):
+        prev = dp[:]
+        dp[0] = i
+        for j in range(1, n + 1):
+            if s1[i - 1] == s2[j - 1]:
+                dp[j] = prev[j - 1]
+            else:
+                dp[j] = 1 + min(prev[j], dp[j - 1], prev[j - 1])
+    return {"distance": dp[n], "s1_len": m, "s2_len": n}`,
+    args: `{
+    "s1": "kitten",
+    "s2": "sitting"
+}`,
+  },
+
+  anagram_groups: {
+    fn: `def anagram_groups(words):
+    """Group words that are anagrams of each other."""
+    groups = {}
+    for w in words:
+        key = "".join(sorted(w.lower()))
+        groups.setdefault(key, []).append(w)
+    result = [g for g in groups.values() if len(g) > 1]
+    return {
+        "groups": result,
+        "total_words": len(words),
+        "anagram_groups_found": len(result),
+    }`,
+    args: `{
+    "words": ["eat", "tea", "tan", "ate", "nat", "bat", "listen", "silent", "enlist"]
+}`,
+  },
+
+  caesar_cipher: {
+    fn: `def caesar_cipher(text, shift):
+    """Encode text with a Caesar (ROT-n) cipher. Pass shift=13 for ROT-13."""
+    result = []
+    for ch in text:
+        if ch.isalpha():
+            base = ord('A') if ch.isupper() else ord('a')
+            result.append(chr((ord(ch) - base + shift) % 26 + base))
+        else:
+            result.append(ch)
+    encoded = "".join(result)
+    return {
+        "encoded": encoded,
+        "decoded": caesar_cipher(encoded, -shift)["encoded"],
+        "shift": shift,
+    }`,
+    args: `{
+    "text": "The Quick Brown Fox Jumps Over The Lazy Dog",
+    "shift": 13
+}`,
+  },
+
+  word_frequency: {
+    fn: `def word_frequency(text, top_n=10):
+    """Return the top-N most frequent words in a block of text."""
+    import re
+    words = re.findall(r"[a-z']+", text.lower())
+    stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at",
+                 "to", "for", "of", "with", "is", "are", "was", "be"}
+    counts = {}
+    for w in words:
+        if w not in stopwords:
+            counts[w] = counts.get(w, 0) + 1
+    ranked = sorted(counts.items(), key=lambda x: -x[1])[:top_n]
+    return {
+        "top_words": dict(ranked),
+        "total_words": len(words),
+        "unique_words": len(counts),
+    }`,
+    args: `{
+    "text": "To be or not to be that is the question whether tis nobler in the mind to suffer the slings and arrows of outrageous fortune or to take arms against a sea of troubles",
+    "top_n": 8
+}`,
+  },
+
+  flatten_dict: {
+    fn: `def flatten_dict(data, prefix="", sep="."):
+    """Flatten a nested dict into a single-level dict with dot-notation keys."""
+    out = {}
+    for key, val in data.items():
+        full_key = f"{prefix}{sep}{key}" if prefix else key
+        if isinstance(val, dict):
+            out.update(flatten_dict(val, full_key, sep))
+        elif isinstance(val, list):
+            for i, item in enumerate(val):
+                k = f"{full_key}[{i}]"
+                if isinstance(item, dict):
+                    out.update(flatten_dict(item, k, sep))
+                else:
+                    out[k] = item
+        else:
+            out[full_key] = val
+    return out`,
+    args: `{
+    "data": {
+        "user": {
+            "name": "Alice",
+            "address": {
+                "city": "Wonderland",
+                "zip": "12345"
+            },
+            "scores": [98, 87, 95]
+        },
+        "active": True
+    }
+}`,
+  },
+
+  prime_factors: {
+    fn: `def prime_factors(n):
+    """Return the prime factorization of n."""
+    if n < 2:
+        return {"factors": [], "n": n, "is_prime": False}
+    factors = []
+    d = 2
+    while d * d <= n:
+        while n % d == 0:
+            factors.append(d)
+            n //= d
+        d += 1
+    if n > 1:
+        factors.append(n)
+    from collections import Counter
+    counts = Counter(factors)
+    return {
+        "factors": factors,
+        "factor_counts": dict(counts),
+        "is_prime": len(factors) == 1,
+        "num_distinct_factors": len(counts),
+    }`,
+    args: `{
+    "n": 720720
+}`,
+  },
+
+  run_length: {
+    fn: `def run_length(s):
+    """Run-length encode a string. 'aaabbc' -> '3a2bc'."""
+    if not s:
+        return {"encoded": "", "original_len": 0, "encoded_len": 0, "ratio": 0}
+    result = []
+    count = 1
+    for i in range(1, len(s)):
+        if s[i] == s[i - 1]:
+            count += 1
+        else:
+            result.append(f"{count}{s[i-1]}" if count > 1 else s[i-1])
+            count = 1
+    result.append(f"{count}{s[-1]}" if count > 1 else s[-1])
+    encoded = "".join(result)
+    return {
+        "encoded": encoded,
+        "original_len": len(s),
+        "encoded_len": len(encoded),
+        "compression_ratio": round(len(encoded) / len(s), 3),
+    }`,
+    args: `{
+    "s": "aaaaaabbbbbbbbcccddddddddddeeeeeeeeeeeeeeee"
+}`,
+  },
+
+  cosine_similarity: {
+    fn: `def cosine_similarity(vec_a, vec_b):
+    """Cosine similarity between two vectors. Returns value in [-1, 1]."""
+    if len(vec_a) != len(vec_b):
+        raise ValueError("Vectors must have the same length")
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    mag_a = sum(x**2 for x in vec_a) ** 0.5
+    mag_b = sum(x**2 for x in vec_b) ** 0.5
+    if mag_a == 0 or mag_b == 0:
+        raise ValueError("Zero vector has no direction")
+    similarity = dot / (mag_a * mag_b)
+    return {
+        "similarity": round(similarity, 6),
+        "dot_product": dot,
+        "magnitude_a": round(mag_a, 6),
+        "magnitude_b": round(mag_b, 6),
+        "angle_degrees": round(__import__("math").acos(max(-1, min(1, similarity))) * 180 / __import__("math").pi, 3),
+    }`,
+    args: `{
+    "vec_a": [1, 2, 3, 4, 5],
+    "vec_b": [5, 4, 3, 2, 1]
+}`,
+  },
+};
+
+// ── CodeMirror 5 editor factory ───────────────────────────────────────────────
+function makeEditor(elementId, value) {
+  return CodeMirror(document.getElementById(elementId), {
+    value,
+    mode: "python",
+    theme: "dracula",
+    lineNumbers: true,
+    indentWithTabs: false,
+    tabSize: 4,
+    indentUnit: 4,
+    matchBrackets: true,
+    lineWrapping: true,
+    extraKeys: {
+      "Tab": cm => cm.execCommand("indentMore"),
+      "Shift-Tab": cm => cm.execCommand("indentLess"),
+    },
+  });
+}
+
+const fnView  = makeEditor("fn-editor",   EXAMPLES.levenshtein.fn);
+const argsView = makeEditor("args-editor", EXAMPLES.levenshtein.args);
+
+// ── Drag handle to resize output row ─────────────────────────────────────────
+(function initDrag() {
+  const shell = document.getElementById("shell");
+  const handle = document.getElementById("drag-handle");
+  let dragging = false, startY = 0, startOutputH = 0;
+
+  handle.addEventListener("mousedown", e => {
+    dragging = true;
+    startY = e.clientY;
+    startOutputH = document.getElementById("output-row").offsetHeight;
+    document.body.style.userSelect = "none";
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const delta = startY - e.clientY;
+    const newH = Math.max(80, Math.min(startOutputH + delta, window.innerHeight - 160));
+    shell.style.gridTemplateRows = `48px 1fr 8px ${newH}px`;
+  });
+  window.addEventListener("mouseup", () => {
+    dragging = false;
+    document.body.style.userSelect = "";
+  });
+})();
+
+// ── Status check ─────────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch("/health");
+    const d = await r.json();
+    const ok = d.piston === "ok";
+    document.getElementById("dot").className = "dot " + (ok ? "ok" : "err");
+    document.getElementById("status-txt").textContent = ok ? "Piston ready" : "Piston unavailable";
+    document.getElementById("run-btn").disabled = !ok;
+  } catch {
+    document.getElementById("dot").className = "dot err";
+    document.getElementById("status-txt").textContent = "App unreachable";
+  }
+}
+
+checkStatus();
+setInterval(checkStatus, 10_000);
+
+// ── JSON syntax highlighting ─────────────────────────────────────────────────
+function colorizeJson(obj) {
+  const raw = JSON.stringify(obj, null, 2);
+  return raw
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"([^"]+)"(\s*:)/g, '<span class="jk">"$1"</span><span class="jp">$2</span>')
+    .replace(/:\s*"([^"]*)"/g, (_, v) => `: <span class="js">"${v}"</span>`)
+    .replace(/:\s*(-?\d+\.?\d*)/g, (_, v) => `: <span class="jn">${v}</span>`)
+    .replace(/:\s*(true|false|null)/g, (_, v) => `: <span class="jb">${v}</span>`)
+    .replace(/([{}\[\],])/g, '<span class="jp">$1</span>');
+}
+
+// ── Execute ──────────────────────────────────────────────────────────────────
+async function run() {
+  const btn = document.getElementById("run-btn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+
+  const fnDef = fnView.getValue();
+  const argsDict = argsView.getValue().trim() || "{}";
+
+  const outBody = document.getElementById("output-body");
+  outBody.innerHTML = `<span class="output-empty" style="display:flex;align-items:center;gap:8px;">
+    <span style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite;display:inline-block;"></span>
+    Executing…
+  </span>`;
+
+  try {
+    const resp = await fetch("/api/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ function_def: fnDef, args_dict: argsDict }),
+    });
+    const data = await resp.json();
+
+    // meta chips
+    const meta = document.getElementById("output-meta");
+    meta.style.display = "flex";
+    if (data.python_version) {
+      document.getElementById("chip-ver").textContent = `python ${data.python_version}`;
+    }
+    if (data.wall_time != null) {
+      document.getElementById("chip-time").textContent = `${data.wall_time}ms`;
+    }
+    const exitChip = document.getElementById("chip-exit");
+    if (data.exit_code != null) {
+      exitChip.textContent = `exit ${data.exit_code}`;
+      exitChip.className = "chip " + (data.exit_code === 0 ? "ok" : "err");
+    }
+
+    // output display
+    if (data.error) {
+      outBody.innerHTML = `<span class="je">${escHtml(data.error)}</span>`;
+    } else if (data.output) {
+      const output = data.output;
+      if ("error" in output) {
+        outBody.innerHTML = `<span class="je">${escHtml(output.error)}</span>`;
+      } else {
+        outBody.innerHTML = colorizeJson(output);
+      }
+    } else {
+      outBody.innerHTML = `<span class="output-empty">No output returned.</span>`;
+    }
+  } catch (err) {
+    outBody.innerHTML = `<span class="je">${escHtml(String(err))}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ── Load example into editors ─────────────────────────────────────────────────
+function loadExample(key) {
+  const ex = EXAMPLES[key];
+  if (!ex) return;
+  fnView.setValue(ex.fn);
+  argsView.setValue(ex.args);
+  // Clear output
+  document.getElementById("output-body").innerHTML =
+    `<span class="output-empty">Run your function to see the output dict here.</span>`;
+  document.getElementById("output-meta").style.display = "none";
+}
+
+document.getElementById("examples-select").addEventListener("change", e => {
+  if (e.target.value) loadExample(e.target.value);
+  e.target.value = ""; // reset so same example can be re-selected
+});
+
+document.getElementById("run-btn").addEventListener("click", run);
+window.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+});
+</script>
+</body>
+</html>

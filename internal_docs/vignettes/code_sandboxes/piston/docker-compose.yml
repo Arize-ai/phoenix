@@ -1,0 +1,56 @@
+services:
+  # ── Piston code-execution engine ────────────────────────────────────────────
+  piston:
+    image: ghcr.io/engineer-man/piston
+    privileged: true          # required by Piston's isolate sandbox
+    restart: unless-stopped
+    ports:
+      - "2000:2000"
+    volumes:
+      - piston-data:/piston   # persist installed Python runtime
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2000/api/v2/runtimes',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # ── Install Python runtime once, then exit ──────────────────────────────────
+  piston-init:
+    image: curlimages/curl:latest
+    depends_on:
+      piston:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Installing Python..."
+        curl -sf -X POST "http://piston:2000/api/v2/packages" \
+          -H 'Content-Type: application/json' \
+          -d '{"language": "python", "version": "*"}'
+        echo ""
+        echo "Python runtime installed."
+
+  # ── Playground web app ───────────────────────────────────────────────────────
+  playground:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PISTON_URL: http://piston:2000
+    depends_on:
+      piston:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  piston-data:
+    driver: local
