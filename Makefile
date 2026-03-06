@@ -367,8 +367,8 @@ test-jcs: ## Test JSON canonicalization schema implementation
 		curl -fL https://github.com/cyberphone/json-canonicalization/releases/download/es6testfile/es6testfile100m.txt.gz | gunzip > .jcs-test-data/es6testfile100m.txt; \
 	fi
 	@echo -e "$(CYAN)Running JSON canonicalization tests...$(NC)"
-	@PYTHONPATH=src $(UV) run --no-project python scripts/ci/json-canonicalization-schema/verify-canonicalization.py
-	@PYTHONPATH=src $(UV) run --no-project python scripts/ci/json-canonicalization-schema/verify-numbers.py
+	@PYTHONPATH=src $(UV) run python scripts/ci/json-canonicalization-schema/verify-canonicalization.py
+	@PYTHONPATH=src $(UV) run python scripts/ci/json-canonicalization-schema/verify-numbers.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 test-helm: ## Run comprehensive Helm chart tests
