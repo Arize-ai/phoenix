@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.30.0...arize-phoenix-client-v1.31.0) (2026-03-06)
+
+
+### Features
+
+* **client:** add session retrieval methods to Python client SDK ([#11879](https://github.com/Arize-ai/phoenix/issues/11879)) ([3669813](https://github.com/Arize-ai/phoenix/commit/3669813c7486b128d8858de6ef1cffa3e8d5c020))
+* **client:** add timeout and list_sessions alias to sessions API ([#11897](https://github.com/Arize-ai/phoenix/issues/11897)) ([a4befc0](https://github.com/Arize-ai/phoenix/commit/a4befc0f6bfe3a0641eca58eb2f35226ec54f4d6))
+
 ## [1.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.29.1...arize-phoenix-client-v1.30.0) (2026-03-02)
 
 
