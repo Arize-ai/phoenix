@@ -259,6 +259,43 @@ const experiment = await runExperiment({
 
 </Note>
 
+## Sessions
+
+Retrieve session data for multi-turn conversations. Sessions group related traces from a conversation into a single timeline.
+
+### Get a Session
+
+```javascript
+import { getSession } from "@arizeai/phoenix-client/sessions";
+
+const session = await getSession({ sessionId: "my-session-id" });
+console.log(`Session: ${session.sessionId}, Traces: ${session.traces.length}`);
+
+// Each trace includes traceId, startTime, and endTime
+for (const trace of session.traces) {
+  console.log(`  Turn: ${trace.traceId} (${trace.startTime} - ${trace.endTime})`);
+}
+```
+
+### List Sessions
+
+```javascript
+import { listSessions } from "@arizeai/phoenix-client/sessions";
+
+// By project name
+const sessions = await listSessions({ projectName: "my-chatbot" });
+
+// By project ID
+const sessionsById = await listSessions({ projectId: "project-abc-123" });
+
+// Using the shorthand `project` identifier
+const sessionsByProject = await listSessions({ project: "my-chatbot" });
+
+for (const session of sessions) {
+  console.log(`${session.sessionId}: ${session.traces.length} traces`);
+}
+```
+
 ## Compatibility
 
 This package utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate types from the Phoenix OpenAPI spec.
