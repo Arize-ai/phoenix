@@ -4635,6 +4635,8 @@ export interface operations {
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
                 end_time?: string | null;
+                /** @description Filter by one or more trace IDs */
+                trace_id?: string[] | null;
             };
             header?: never;
             path: {
@@ -4694,6 +4696,8 @@ export interface operations {
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
                 end_time?: string | null;
+                /** @description Filter by one or more trace IDs */
+                trace_id?: string[] | null;
             };
             header?: never;
             path: {
