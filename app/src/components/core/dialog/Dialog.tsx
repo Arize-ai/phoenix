@@ -39,19 +39,26 @@ export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
 
 Dialog.displayName = "Dialog";
 
-export type DialogContentProps = FlexProps;
+export type DialogContentProps = HTMLAttributes<HTMLDivElement>;
+
+const dialogContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
 
 export const DialogContent = ({ children, ...props }: DialogContentProps) => {
   return (
-    <Flex
-      direction="column"
-      height="100%"
+    <div
       data-testid="dialog-content"
       {...props}
+      css={dialogContentCSS}
       className={classNames(props.className, "react-aria-DialogContent")}
     >
       {children}
-    </Flex>
+    </div>
   );
 };
 
@@ -115,6 +122,33 @@ export const DialogTitleExtra = ({
     >
       {children}
     </Flex>
+  );
+};
+
+export type DialogFooterProps = HTMLAttributes<HTMLDivElement>;
+
+const dialogFooterCSS = css`
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  border-top: var(--global-border-size-thin) solid var(--global-border-color-dark);
+  flex-shrink: 0;
+`;
+
+export const DialogFooter = ({ children, ...props }: DialogFooterProps) => {
+  return (
+    <div
+      {...props}
+      css={dialogFooterCSS}
+      className={classNames(props.className, "dialog__footer")}
+    >
+      <Flex
+        width="100%"
+        justifyContent="end"
+        alignItems="center"
+        gap="size-100"
+      >
+        {children}
+      </Flex>
+    </div>
   );
 };
 

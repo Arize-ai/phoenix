@@ -1,24 +1,32 @@
 import { css } from "@emotion/react";
-import { useEffect, useImperativeHandle } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
+  Alert,
   Button,
+  DialogFooter,
   FieldError,
-  Flex,
   Form,
   Input,
   Label,
   Text,
   TextArea,
   TextField,
-  View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-const formBodyStyles = css`
-  max-height: calc(100vh - 280px);
+const formCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
+
+const formBodyCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--global-dimension-size-200);
 `;
@@ -29,11 +37,6 @@ export type DatasetFormParams = {
   metadata: string;
 };
 
-export type DatasetFormHandle = {
-  submit: () => void;
-  reset: () => void;
-};
-
 export function DatasetForm({
   datasetName,
   datasetDescription,
@@ -42,9 +45,8 @@ export function DatasetForm({
   isSubmitting,
   submitButtonText,
   formMode,
-  ref,
-  onValidChange,
-  hideFooter,
+  errorMessage,
+  onCancel,
 }: {
   datasetName?: string | null;
   datasetDescription?: string | null;
@@ -53,15 +55,13 @@ export function DatasetForm({
   isSubmitting: boolean;
   submitButtonText: string;
   formMode: "create" | "edit";
-  ref?: React.Ref<DatasetFormHandle>;
-  onValidChange?: (isValid: boolean) => void;
-  hideFooter?: boolean;
+  errorMessage?: string | null;
+  onCancel?: () => void;
 }) {
   const {
     control,
     handleSubmit,
-    reset: resetForm,
-    formState: { isDirty, isValid },
+    formState: { isDirty },
   } = useForm<DatasetFormParams>({
     mode: "onChange",
     defaultValues: {
@@ -71,22 +71,14 @@ export function DatasetForm({
     },
   });
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      submit: () => handleSubmit(onSubmit)(),
-      reset: () => resetForm(),
-    }),
-    [handleSubmit, onSubmit, resetForm]
-  );
-
-  useEffect(() => {
-    onValidChange?.(isValid);
-  }, [isValid, onValidChange]);
-
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
-      <div css={formBodyStyles}>
+    <Form onSubmit={handleSubmit(onSubmit)} css={formCSS}>
+      <div css={formBodyCSS}>
+        {errorMessage && (
+          <Alert variant="danger" banner>
+            {errorMessage}
+          </Alert>
+        )}
         <Controller
           name="name"
           control={control}
@@ -161,28 +153,26 @@ export function DatasetForm({
           )}
         />
       </div>
-      {!hideFooter && (
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
+      <DialogFooter>
+        {onCancel && (
+          <Button
+            variant="default"
+            size="S"
+            onPress={onCancel}
+            isDisabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+        )}
+        <Button
+          isDisabled={(formMode === "edit" ? !isDirty : false) || isSubmitting}
+          variant={isDirty ? "primary" : "default"}
+          size="S"
+          type="submit"
         >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              isDisabled={
-                (formMode === "edit" ? !isDirty : false) || isSubmitting
-              }
-              variant={isDirty ? "primary" : "default"}
-              size="S"
-              type="submit"
-            >
-              {submitButtonText}
-            </Button>
-          </Flex>
-        </View>
-      )}
+          {submitButtonText}
+        </Button>
+      </DialogFooter>
     </Form>
   );
 }

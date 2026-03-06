@@ -1,30 +1,29 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
+
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type {
   CreateDatasetFormMutation,
   CreateDatasetFormMutation$data,
 } from "./__generated__/CreateDatasetFormMutation.graphql";
-import type { DatasetFormHandle, DatasetFormParams } from "./DatasetForm";
+import type { DatasetFormParams } from "./DatasetForm";
 import { DatasetForm } from "./DatasetForm";
 
 export type CreateDatasetFormProps = {
   onDatasetCreated: (
     dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
   ) => void;
-  onDatasetCreateError: (error: Error) => void;
-  ref?: React.Ref<DatasetFormHandle>;
-  onValidChange?: (isValid: boolean) => void;
-  onSubmittingChange?: (isSubmitting: boolean) => void;
+  onDatasetCreateError?: (error: Error) => void;
+  onCancel?: () => void;
 };
 
 export function CreateDatasetForm({
   onDatasetCreated,
   onDatasetCreateError,
-  ref,
-  onValidChange,
-  onSubmittingChange,
+  onCancel,
 }: CreateDatasetFormProps) {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
     mutation CreateDatasetFormMutation(
       $name: String!
@@ -69,25 +68,23 @@ export function CreateDatasetForm({
           }
         },
         onError: (error) => {
-          onDatasetCreateError(error);
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          setErrorMessage(formattedError?.[0] ?? error.message);
+          onDatasetCreateError?.(error);
         },
       });
     },
     [commit, onDatasetCreated, onDatasetCreateError]
   );
-  useEffect(() => {
-    onSubmittingChange?.(isCommitting);
-  }, [isCommitting, onSubmittingChange]);
 
   return (
     <DatasetForm
-      ref={ref}
       isSubmitting={isCommitting}
       onSubmit={onSubmit}
       submitButtonText={isCommitting ? "Creating..." : "Create Dataset"}
       formMode="create"
-      onValidChange={onValidChange}
-      hideFooter={!!ref}
+      errorMessage={errorMessage}
+      onCancel={onCancel}
     />
   );
 }

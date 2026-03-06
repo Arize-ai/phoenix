@@ -1,15 +1,12 @@
 import { css } from "@emotion/react";
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
 import {
+  Alert,
+  Button,
+  DialogFooter,
   FieldError,
   Form,
   Icon,
@@ -81,17 +78,9 @@ type CreateDatasetFromFileParams = {
   metadata: Record<string, unknown>;
 };
 
-export type DatasetFormHandle = {
-  submit: () => void;
-  reset: () => void;
-};
-
 export type DatasetFromFileFormProps = {
   onDatasetCreated: (dataset: { id: string; name: string }) => void;
-  onDatasetCreateError: (error: Error) => void;
-  onErrorClear?: () => void;
-  onValidChange?: (isValid: boolean) => void;
-  onSubmittingChange?: (isSubmitting: boolean) => void;
+  onCancel: () => void;
 };
 
 function detectFileType(fileName: string): DatasetFileType {
@@ -190,13 +179,10 @@ const previewTableContainerCSS = css`
  */
 export function DatasetFromFileForm({
   onDatasetCreated,
-  onDatasetCreateError,
-  onErrorClear,
-  onValidChange,
-  onSubmittingChange,
-  ref,
-}: DatasetFromFileFormProps & { ref?: React.Ref<DatasetFormHandle> }) {
+  onCancel,
+}: DatasetFromFileFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<PreviewData>([]);
   const [totalRowCount, setTotalRowCount] = useState<number | null>(null);
@@ -268,8 +254,8 @@ export function DatasetFromFileForm({
       if (!detectedType) {
         setValue("file", null, { shouldValidate: true });
         resetField("name");
-        onDatasetCreateError(
-          new Error("Unsupported file type. Please upload a CSV or JSONL file.")
+        setErrorMessage(
+          "Unsupported file type. Please upload a CSV or JSONL file."
         );
         return;
       }
@@ -304,7 +290,7 @@ export function DatasetFromFileForm({
             setValue("metadata_keys", autoAssigned.metadata, {
               shouldDirty: true,
             });
-            onErrorClear?.();
+            setErrorMessage(null);
           } else if (detectedType === "jsonl") {
             // Parse keys first, then rows and count
             const keysResult = await parseJSONLKeys(file);
@@ -330,14 +316,12 @@ export function DatasetFromFileForm({
               setValue("metadata_keys", autoAssigned.metadata, {
                 shouldDirty: true,
               });
-              onErrorClear?.();
+              setErrorMessage(null);
             } else {
               setColumns([]);
               setPreviewRows([]);
               setTotalRowCount(null);
-              onDatasetCreateError(
-                new Error(formatJSONLError(keysResult.error))
-              );
+              setErrorMessage(formatJSONLError(keysResult.error));
             }
           }
         } catch (error) {
@@ -345,8 +329,8 @@ export function DatasetFromFileForm({
           setColumns([]);
           setPreviewRows([]);
           setTotalRowCount(null);
-          onDatasetCreateError(
-            error instanceof Error ? error : new Error("Failed to parse file")
+          setErrorMessage(
+            error instanceof Error ? error.message : "Failed to parse file"
           );
         } finally {
           if (generation === parseGeneration.current) {
@@ -356,7 +340,7 @@ export function DatasetFromFileForm({
       };
       parseFile();
     },
-    [resetField, setValue, onDatasetCreateError, onErrorClear]
+    [resetField, setValue]
   );
 
   const handleFileSelect = useCallback(
@@ -379,8 +363,8 @@ export function DatasetFromFileForm({
     resetField("metadata_keys");
     resetField("split_keys");
     resetField("name");
-    onErrorClear?.();
-  }, [setValue, resetField, onErrorClear]);
+    setErrorMessage(null);
+  }, [setValue, resetField]);
 
   const handleColumnAssignerReset = useCallback(() => {
     const autoAssigned = computeAutoAssignment(columns);
@@ -453,31 +437,16 @@ export function DatasetFromFileForm({
           });
         })
         .catch((error) => {
-          onDatasetCreateError(error);
+          setErrorMessage(
+            error instanceof Error ? error.message : "Failed to create dataset"
+          );
         })
         .finally(() => {
           setIsSubmitting(false);
         });
     },
-    [fileType, onDatasetCreated, onDatasetCreateError, setIsSubmitting]
+    [fileType, onDatasetCreated]
   );
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      submit: () => handleSubmit(onSubmit)(),
-      reset: handleFileRemove,
-    }),
-    [handleSubmit, onSubmit, handleFileRemove]
-  );
-
-  useEffect(() => {
-    onValidChange?.(isValid);
-  }, [isValid, onValidChange]);
-
-  useEffect(() => {
-    onSubmittingChange?.(isSubmitting);
-  }, [isSubmitting, onSubmittingChange]);
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
 
@@ -506,15 +475,19 @@ export function DatasetFromFileForm({
   };
 
   return (
-    <Form css={formContainerCSS}>
+    <Form css={formContainerCSS} onSubmit={handleSubmit(onSubmit)}>
       <div css={formBodyCSS}>
+        {errorMessage && (
+          <Alert variant="danger" banner>
+            {errorMessage}
+          </Alert>
+        )}
         <FileList
           files={[fileListItem]}
           onRemove={handleFileRemove}
           isDisabled={isSubmitting}
         />
 
-        {/* Dataset details */}
         <div css={formGridCSS}>
           <Controller
             name="name"
@@ -563,7 +536,6 @@ export function DatasetFromFileForm({
           />
         </div>
 
-        {/* File Preview Section */}
         {hasPreviewData && (
           <div css={sectionCSS}>
             <div css={sectionHeaderCSS}>
@@ -585,7 +557,6 @@ export function DatasetFromFileForm({
           </div>
         )}
 
-        {/* Column Assignment Section */}
         {columns.length > 0 && (
           <div css={sectionCSS}>
             <div css={sectionHeaderCSS}>
@@ -620,7 +591,6 @@ export function DatasetFromFileForm({
           </div>
         )}
 
-        {/* Split key selector */}
         {columns.length > 0 && (
           <div css={sectionCSS}>
             <Controller
@@ -644,7 +614,6 @@ export function DatasetFromFileForm({
           </div>
         )}
 
-        {/* Dataset Preview Section */}
         {hasPreviewData && (
           <div css={sectionCSS}>
             <div css={sectionHeaderCSS}>
@@ -663,6 +632,27 @@ export function DatasetFromFileForm({
           </div>
         )}
       </div>
+      <DialogFooter>
+        <Button
+          variant="default"
+          size="S"
+          onPress={onCancel}
+          isDisabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          size="S"
+          type="submit"
+          isDisabled={!isValid || isSubmitting || isParsing}
+          leadingVisual={
+            isSubmitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+          }
+        >
+          {isSubmitting ? "Creating..." : "Create Dataset"}
+        </Button>
+      </DialogFooter>
     </Form>
   );
 }
