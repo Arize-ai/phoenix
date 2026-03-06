@@ -36,7 +36,7 @@ const fileChipRemoveButtonCSS = css`
 `;
 
 const meta: Meta<typeof FileDropZone> = {
-  title: "FileDropZone",
+  title: "Core/FileDropZone",
   component: FileDropZone,
   parameters: {
     layout: "centered",

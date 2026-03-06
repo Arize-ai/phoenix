@@ -4,7 +4,7 @@ import type { TimeFieldProps, TimeValue } from "@phoenix/components";
 import { DateInput, DateSegment, Label, TimeField } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "TimeField",
+  title: "Core/TimeField",
   component: TimeField,
   parameters: {
     layout: "centered",

@@ -9,7 +9,7 @@ import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
  * ToastRegion manages the display of one or more queued toasts
  */
 const meta: Meta = {
-  title: "ToastRegion",
+  title: "Core/ToastRegion",
   component: ToastRegion,
   parameters: {
     layout: "centered",

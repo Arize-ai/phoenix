@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components/core/dialog";
 
 const meta: Meta = {
-  title: "Modal",
+  title: "Core/Modal",
   component: Modal,
 };
 

@@ -31,7 +31,7 @@ import { Video } from "../src/components/core/media";
  * - Poster image support
  */
 const meta: Meta<typeof Video> = {
-  title: "Media/Video",
+  title: "Core/Media/Video",
   component: Video,
   parameters: {
     layout: "centered",

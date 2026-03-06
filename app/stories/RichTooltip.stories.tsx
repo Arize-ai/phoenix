@@ -17,7 +17,7 @@ import {
  * Unlike regular tooltips, rich tooltips can contain formatted content and interactive elements using composition.
  */
 const meta = {
-  title: "RichTooltip",
+  title: "Core/RichTooltip",
   component: RichTooltip,
   parameters: {
     layout: "centered",

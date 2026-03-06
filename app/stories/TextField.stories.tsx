@@ -15,7 +15,7 @@ import {
 } from "@phoenix/components/core/field";
 
 const meta: Meta = {
-  title: "TextField",
+  title: "Core/TextField",
   component: TextField,
   parameters: {
     controls: { expanded: true },

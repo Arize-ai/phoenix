@@ -18,7 +18,7 @@ import { Group } from "../src/components/core/layout/Group";
  * The `size` prop can be used to control the sizing of the group and its children.
  */
 const meta: Meta<typeof Group> = {
-  title: "Layout/Group",
+  title: "Core/Layout/Group",
   component: Group,
   parameters: {
     layout: "centered",

@@ -5,7 +5,7 @@ import type { SwitchProps } from "@phoenix/components";
 import { Flex, Switch } from "@phoenix/components";
 
 const meta: Meta<SwitchProps> = {
-  title: "Switch",
+  title: "Core/Switch",
   component: Switch,
   parameters: {
     controls: { expanded: true },

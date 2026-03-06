@@ -10,7 +10,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "DateField",
+  title: "Core/DateField",
   component: DateField,
   parameters: {
     layout: "centered",

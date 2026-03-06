@@ -17,7 +17,7 @@ import {
 } from "../src/components/core/icon/Icons";
 
 const meta: Meta = {
-  title: "IconButton",
+  title: "Core/IconButton",
   component: IconButton,
   parameters: {
     layout: "centered",

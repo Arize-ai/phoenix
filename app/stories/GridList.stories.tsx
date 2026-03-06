@@ -17,7 +17,7 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation/Annotatio
 import type { Annotation } from "@phoenix/components/annotation/types";
 
 const meta: Meta = {
-  title: "GridList",
+  title: "Core/GridList",
   component: GridList,
 };
 

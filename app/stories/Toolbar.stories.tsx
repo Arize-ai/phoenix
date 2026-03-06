@@ -22,7 +22,7 @@ import {
  */
 
 const meta: Meta<typeof Toolbar> = {
-  title: "Toolbar",
+  title: "Core/Toolbar",
   component: Toolbar,
   subcomponents: { Separator },
   parameters: {
