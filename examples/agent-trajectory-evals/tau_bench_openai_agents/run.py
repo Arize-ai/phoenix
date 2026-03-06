@@ -76,13 +76,14 @@ def print_result(result: ConversationResult) -> None:
 
 
 async def run_tasks(
-    task_ids: list[int] | None = None,
+    task_ids: list[str] | None = None,
     enable_phoenix: bool = True,
 ) -> list[ConversationResult]:
     """Run selected tau-bench tasks and collect results.
 
     Args:
-        task_ids: Specific task IDs to run, or None for all selected.
+        task_ids: Specific task labels to run (e.g. ["dev:0", "train:35"]),
+                  or None for all selected.
         enable_phoenix: Whether to set up Phoenix instrumentation.
 
     Returns:
@@ -188,10 +189,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run tau-bench tasks with OpenAI Agents SDK")
     parser.add_argument(
         "--tasks",
-        type=int,
+        type=str,
         nargs="*",
         default=None,
-        help=f"Task IDs to run (default: all selected: {SELECTED_TASK_IDS})",
+        help=f"Task labels to run, e.g. dev:0 train:35 (default: all selected: {SELECTED_TASK_IDS})",
     )
     parser.add_argument(
         "--no-phoenix",
