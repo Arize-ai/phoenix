@@ -543,7 +543,7 @@ async def add_dataset_examples(
     span_rowids: list[Optional[SpanRowId]] = [
         span_id_to_rowid.get(ex.span_id) if ex.span_id else None for ex in examples_list
     ]
-    external_ids: list[Optional[str]] = [ex.external_id for ex in examples_list]
+    external_ids: list[Optional[str]] = [example.external_id for example in examples_list]
 
     # Bulk insert all examples at once
     try:
