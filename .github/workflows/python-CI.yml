@@ -176,10 +176,6 @@ jobs:
             Makefile
             scripts/ci/json-canonicalization-schema/
             src/phoenix/vendor/json_canonicalization_scheme/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
