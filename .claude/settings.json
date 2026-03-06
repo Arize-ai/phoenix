@@ -10,7 +10,7 @@
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r uv tool run ruff check --fix >&2 || { [ $? -eq 1 ] && exit 2; }"
+            "command": "jq -r '.tool_input.file_path | select(endswith(\".py\"))' | xargs -r uv tool run ruff check --fix --unfixable=F401 >&2 || { [ $? -eq 1 ] && exit 2; }"
           },
           {
             "type": "command",
@@ -34,7 +34,7 @@
           },
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path | select(contains(\"src/phoenix/db/migrations/versions\"))' | xargs -r sh -c 'tox run -e ddl_extract >&2' || { [ $? -eq 1 ] && exit 2; }"
+            "command": "jq -r '.tool_input.file_path | select(contains(\"src/phoenix/db/migrations/versions\"))' | xargs -r sh -c 'make schema-ddl >&2' || { [ $? -eq 1 ] && exit 2; }"
           },
           {
             "type": "command",
