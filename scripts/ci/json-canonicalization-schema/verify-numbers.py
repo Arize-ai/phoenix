@@ -17,6 +17,7 @@
 ##############################################################################
 
 # Test program for ES6-JSON/JCS number serialization
+# mypy: ignore-errors
 
 import binascii
 import struct
@@ -54,8 +55,7 @@ verify("8000000000000000", "0")
 verify("7fffffffffffffff", INVALID_NUMBER)
 verify("7ff0000000000000", INVALID_NUMBER)
 verify("fff0000000000000", INVALID_NUMBER)
-# Change the file path below according to your installation
-file = open("/tmp/es6testfile100m.txt", "r")
+file = open(".jcs-test-data/es6testfile100m.txt", "r")
 lineCount = 0
 while True:
     line = file.readline()
