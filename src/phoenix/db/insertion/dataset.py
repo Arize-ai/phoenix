@@ -7,12 +7,12 @@ from enum import Enum
 from itertools import chain
 from typing import Any, Optional, Union, cast
 
-from sqlalchemy import and_, insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
 from phoenix.utilities.content_hashing import compute_content_hash
 
@@ -26,6 +26,8 @@ DatasetVersionId: TypeAlias = int
 DatasetExampleId: TypeAlias = int
 DatasetExampleRevisionId: TypeAlias = int
 SpanRowId: TypeAlias = int
+ExternalId: TypeAlias = str
+ContentHash: TypeAlias = str
 
 
 @dataclass(frozen=True)
@@ -222,6 +224,9 @@ async def bulk_insert_dataset_example_revisions(
                 "input": example.input,
                 "output": example.output,
                 "metadata_": example.metadata,
+                "content_hash": compute_content_hash(
+                    example.input, example.output, example.metadata
+                ),
                 "revision_kind": revision_kind.value,
                 "created_at": created_at,
             }
@@ -427,53 +432,36 @@ class DatasetAction(Enum):
         raise ValueError(f"Invalid dateset action: {v}")
 
 
-async def _get_active_previous_examples(
+async def _get_external_ids_and_content_hashes_for_most_recent_version(
     session: AsyncSession,
     dataset_id: DatasetId,
 ) -> list[tuple[DatasetExampleId, Optional[str], str]]:
     """Return (example_id, external_id, content_hash) for all active (non-deleted) examples."""
-    # Correlated subquery: latest DatasetVersion.id for each DatasetExample
-    latest_ver_for_example = (
-        select(models.DatasetVersion.id)
-        .join(
-            models.DatasetExampleRevision,
-            models.DatasetExampleRevision.dataset_version_id == models.DatasetVersion.id,
+    latest_version_id = await session.scalar(
+        select(func.max(models.DatasetVersion.id)).where(
+            models.DatasetVersion.dataset_id == dataset_id
         )
-        .where(models.DatasetExampleRevision.dataset_example_id == models.DatasetExample.id)
-        .where(models.DatasetVersion.dataset_id == dataset_id)
-        .order_by(models.DatasetVersion.created_at.desc())
-        .limit(1)
-        .correlate(models.DatasetExample)
-        .scalar_subquery()
     )
+    if latest_version_id is None:
+        return []
+
+    revisions_subq = get_dataset_example_revisions(
+        latest_version_id, dataset_id=dataset_id
+    ).subquery()
 
     result = await session.execute(
         select(
-            models.DatasetExample.id,
+            revisions_subq.c.dataset_example_id,
             models.DatasetExample.external_id,
-            models.DatasetExampleRevision.content_hash,
-            models.DatasetExampleRevision.input,
-            models.DatasetExampleRevision.output,
-            models.DatasetExampleRevision.metadata_,
+            revisions_subq.c.content_hash,
         )
         .join(
-            models.DatasetExampleRevision,
-            and_(
-                models.DatasetExampleRevision.dataset_example_id == models.DatasetExample.id,
-                models.DatasetExampleRevision.dataset_version_id == latest_ver_for_example,
-            ),
+            models.DatasetExample, models.DatasetExample.id == revisions_subq.c.dataset_example_id
         )
-        .where(models.DatasetExample.dataset_id == dataset_id)
-        .where(models.DatasetExampleRevision.revision_kind != RevisionKind.DELETE.value)
+        .where(revisions_subq.c.content_hash.isnot(None))
     )
 
-    rows = result.all()
-    out: list[tuple[DatasetExampleId, Optional[str], str]] = []
-    for example_id, external_id, content_hash, inp, outp, meta in rows:
-        if content_hash is None:
-            content_hash = compute_content_hash(inp, outp, meta)
-        out.append((example_id, external_id, content_hash))
-    return out
+    return [(row.dataset_example_id, row.external_id, row.content_hash) for row in result]
 
 
 async def add_dataset_examples(
@@ -645,7 +633,9 @@ async def _upsert_dataset_examples(
         return None
 
     # Get active previous examples (non-deleted)
-    previous = await _get_active_previous_examples(session, dataset_id)
+    previous = await _get_external_ids_and_content_hashes_for_most_recent_version(
+        session, dataset_id
+    )
 
     # Compute content hash for each incoming example
     incoming: list[tuple[ExampleContent, str]] = [
