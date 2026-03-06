@@ -175,7 +175,7 @@ jobs:
           sparse-checkout: |
             Makefile
             scripts/ci/json-canonicalization-schema/
-            src/phoenix/vendor/json_canonicalization_scheme/
+            src/phoenix/
             .jcs-test-data/
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
