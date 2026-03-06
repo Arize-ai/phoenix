@@ -45,7 +45,6 @@ const labelCSS = css`
 
 export type ColumnChipProps = {
   column: string;
-  onHoverChange?: (column: string | null) => void;
   /** Tab index for keyboard navigation (roving tabindex pattern) */
   tabIndex?: number;
   /** Callback when chip receives focus */
@@ -56,7 +55,6 @@ export type ColumnChipProps = {
 
 export function ColumnChip({
   column,
-  onHoverChange,
   tabIndex = 0,
   onFocus,
   isAssigned = false,
@@ -68,14 +66,6 @@ export function ColumnChip({
       return [{ "text/plain": column }];
     },
   });
-
-  const handleMouseEnter = () => {
-    onHoverChange?.(column);
-  };
-
-  const handleMouseLeave = () => {
-    onHoverChange?.(null);
-  };
 
   const handleFocus = () => {
     onFocus?.();
@@ -89,8 +79,6 @@ export function ColumnChip({
       data-chip
       data-dragging={isDragging}
       data-assigned={isAssigned}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       onFocus={handleFocus}
       role="option"
       tabIndex={tabIndex}

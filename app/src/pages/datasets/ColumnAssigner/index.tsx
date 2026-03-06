@@ -3,4 +3,4 @@ export type {
   ColumnAssignerProps,
   ColumnAssignerValue,
 } from "./ColumnAssigner";
-export { getAutoAssignment } from "./constants";
+export { getAutoAssignment, isAutoSplitColumn } from "./constants";

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
@@ -21,6 +21,7 @@ import {
   FileList,
   type FileWithProgress,
 } from "@phoenix/components/core/dropzone";
+import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import {
   countCSVRows,
   parseCSVColumns,
@@ -38,18 +39,28 @@ import {
   ColumnAssigner,
   type ColumnAssignerValue,
   getAutoAssignment,
+  isAutoSplitColumn,
 } from "./ColumnAssigner";
 import { ColumnMultiSelector } from "./ColumnMultiSelector";
 import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
 
+type AutoAssignmentResult = ColumnAssignerValue & { split: string[] };
+
 /**
- * Auto-assign columns based on exact name matching.
- * Only "input", "output", and "metadata" columns are auto-assigned.
+ * Auto-assign columns based on name matching heuristics.
  */
-function computeAutoAssignment(columns: string[]): ColumnAssignerValue {
-  const result: ColumnAssignerValue = { input: [], output: [], metadata: [] };
+function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
+  const result: AutoAssignmentResult = {
+    input: [],
+    output: [],
+    metadata: [],
+    split: [],
+  };
   for (const column of columns) {
+    if (isAutoSplitColumn(column)) {
+      result.split.push(column);
+    }
     const bucket = getAutoAssignment(column);
     if (bucket === "input") {
       result.input.push(column);
@@ -58,9 +69,12 @@ function computeAutoAssignment(columns: string[]): ColumnAssignerValue {
     } else if (bucket === "metadata") {
       result.metadata.push(column);
     }
-    // "source" bucket means no auto-assignment
   }
   return result;
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
 type DatasetFileType = "csv" | "jsonl" | null;
@@ -158,18 +172,33 @@ const sectionCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
-const sectionHeaderCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  font-size: var(--global-font-size-s);
-  color: var(--global-text-color-700);
-`;
-
 const previewTableContainerCSS = css`
   border: 1px solid var(--global-color-gray-200);
-  border-radius: var(--global-rounding-medium);
-  overflow: hidden;
+  height: 300px;
+  overflow: auto;
+  overscroll-behavior: none;
+`;
+
+const previewTabsCSS = css`
+  height: auto;
+`;
+
+const previewTabHeaderCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const previewTabPanelCSS = css`
+  height: auto;
+  overflow: visible;
+  margin-top: -1px;
+`;
+
+const rowCountCSS = css`
+  font-size: var(--global-font-size-s);
+  color: var(--global-text-color-700);
+  padding-right: var(--global-dimension-size-100);
 `;
 
 /**
@@ -188,10 +217,9 @@ export function DatasetFromFileForm({
   const [totalRowCount, setTotalRowCount] = useState<number | null>(null);
   const [fileType, setFileType] = useState<DatasetFileType>(null);
   const [isParsing, setIsParsing] = useState(false);
-  const [highlightedColumn, setHighlightedColumn] = useState<string | null>(
-    null
-  );
   const parseGeneration = useRef(0);
+  const [previewTab, setPreviewTab] = useState<"file" | "dataset">("file");
+  const hasAutoSwitched = useRef(false);
 
   const {
     control,
@@ -226,6 +254,15 @@ export function DatasetFromFileForm({
     metadata: metadataKeys,
   };
 
+  const hasAssignments =
+    inputKeys.length + outputKeys.length + metadataKeys.length > 0;
+  useEffect(() => {
+    if (hasAssignments && !hasAutoSwitched.current) {
+      setPreviewTab("dataset");
+      hasAutoSwitched.current = true;
+    }
+  }, [hasAssignments]);
+
   const handleColumnAssignerChange = useCallback(
     (value: ColumnAssignerValue) => {
       setValue("input_keys", value.input, {
@@ -247,6 +284,8 @@ export function DatasetFromFileForm({
       setColumns([]);
       setPreviewRows([]);
       setTotalRowCount(null);
+      setPreviewTab("file");
+      hasAutoSwitched.current = false;
 
       const detectedType = detectFileType(file.name);
       setFileType(detectedType);
@@ -290,6 +329,7 @@ export function DatasetFromFileForm({
             setValue("metadata_keys", autoAssigned.metadata, {
               shouldDirty: true,
             });
+            setValue("split_keys", autoAssigned.split, { shouldDirty: true });
             setErrorMessage(null);
           } else if (detectedType === "jsonl") {
             // Parse keys first, then rows and count
@@ -314,6 +354,9 @@ export function DatasetFromFileForm({
                 shouldDirty: true,
               });
               setValue("metadata_keys", autoAssigned.metadata, {
+                shouldDirty: true,
+              });
+              setValue("split_keys", autoAssigned.split, {
                 shouldDirty: true,
               });
               setErrorMessage(null);
@@ -364,17 +407,35 @@ export function DatasetFromFileForm({
     resetField("split_keys");
     resetField("name");
     setErrorMessage(null);
+    setPreviewTab("file");
+    hasAutoSwitched.current = false;
   }, [setValue, resetField]);
 
   const handleColumnAssignerReset = useCallback(() => {
     const autoAssigned = computeAutoAssignment(columns);
-    setValue("input_keys", autoAssigned.input, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("output_keys", autoAssigned.output, { shouldDirty: true });
-    setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
-  }, [columns, setValue]);
+    const splitKeys = watch("split_keys");
+
+    const isAlreadyDefault =
+      arraysEqual(inputKeys, autoAssigned.input) &&
+      arraysEqual(outputKeys, autoAssigned.output) &&
+      arraysEqual(metadataKeys, autoAssigned.metadata) &&
+      arraysEqual(splitKeys, autoAssigned.split);
+
+    if (isAlreadyDefault) {
+      setValue("input_keys", [], { shouldDirty: true, shouldValidate: true });
+      setValue("output_keys", [], { shouldDirty: true });
+      setValue("metadata_keys", [], { shouldDirty: true });
+      setValue("split_keys", [], { shouldDirty: true });
+    } else {
+      setValue("input_keys", autoAssigned.input, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("output_keys", autoAssigned.output, { shouldDirty: true });
+      setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
+      setValue("split_keys", autoAssigned.split, { shouldDirty: true });
+    }
+  }, [columns, inputKeys, outputKeys, metadataKeys, setValue, watch]);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {
@@ -538,31 +599,46 @@ export function DatasetFromFileForm({
 
         {hasPreviewData && (
           <div css={sectionCSS}>
-            <div css={sectionHeaderCSS}>
-              <Icon svg={<Icons.FileOutline />} />
-              <span>File Preview</span>
-              <span>
-                {totalRowCount !== null && totalRowCount > previewRows.length
-                  ? `(showing ${previewRows.length} of ${totalRowCount} rows)`
-                  : `(${previewRows.length} row${previewRows.length === 1 ? "" : "s"})`}
-              </span>
-            </div>
-            <div css={previewTableContainerCSS}>
-              <RowPreviewTable
-                columns={columns}
-                rows={previewRows}
-                highlightedColumn={highlightedColumn}
-              />
-            </div>
+            <Tabs
+              css={previewTabsCSS}
+              selectedKey={previewTab}
+              onSelectionChange={(key) =>
+                setPreviewTab(key as "file" | "dataset")
+              }
+            >
+              <div css={previewTabHeaderCSS}>
+                <TabList>
+                  <Tab id="file">File Preview</Tab>
+                  <Tab id="dataset">Dataset Preview</Tab>
+                </TabList>
+                <span css={rowCountCSS}>
+                  {totalRowCount !== null && totalRowCount > previewRows.length
+                    ? `showing ${previewRows.length} of ${totalRowCount} rows`
+                    : `${previewRows.length} row${previewRows.length === 1 ? "" : "s"}`}
+                </span>
+              </div>
+              <TabPanel css={previewTabPanelCSS} id="file">
+                <div css={previewTableContainerCSS}>
+                  <RowPreviewTable columns={columns} rows={previewRows} />
+                </div>
+              </TabPanel>
+              <TabPanel css={previewTabPanelCSS} id="dataset">
+                <div css={previewTableContainerCSS}>
+                  <DatasetPreviewTable
+                    columns={columns}
+                    rows={previewRows}
+                    inputColumns={inputKeys}
+                    outputColumns={outputKeys}
+                    metadataColumns={metadataKeys}
+                  />
+                </div>
+              </TabPanel>
+            </Tabs>
           </div>
         )}
 
         {columns.length > 0 && (
           <div css={sectionCSS}>
-            <div css={sectionHeaderCSS}>
-              <Icon svg={<Icons.GridOutline />} />
-              <span>Assign Columns</span>
-            </div>
             <Controller
               name="input_keys"
               control={control}
@@ -576,7 +652,6 @@ export function DatasetFromFileForm({
                     columns={columns}
                     value={columnAssignerValue}
                     onChange={handleColumnAssignerChange}
-                    onColumnHover={setHighlightedColumn}
                     onReset={handleColumnAssignerReset}
                     fileType={fileType}
                   />
@@ -588,11 +663,6 @@ export function DatasetFromFileForm({
                 </>
               )}
             />
-          </div>
-        )}
-
-        {columns.length > 0 && (
-          <div css={sectionCSS}>
             <Controller
               name="split_keys"
               control={control}
@@ -602,7 +672,7 @@ export function DatasetFromFileForm({
               }) => (
                 <ColumnMultiSelector
                   label="Split Column (optional)"
-                  description={`Select a ${fileType === "csv" ? "column" : "key"} to automatically assign examples to splits`}
+                  description={`Select one or more ${fileType === "csv" ? "column" : "key"}s to automatically assign examples to splits`}
                   columns={columns}
                   selectedColumns={value}
                   onChange={onChange}
@@ -611,24 +681,6 @@ export function DatasetFromFileForm({
                 />
               )}
             />
-          </div>
-        )}
-
-        {hasPreviewData && (
-          <div css={sectionCSS}>
-            <div css={sectionHeaderCSS}>
-              <Icon svg={<Icons.DatabaseOutline />} />
-              <span>Dataset Preview</span>
-            </div>
-            <div css={previewTableContainerCSS}>
-              <DatasetPreviewTable
-                columns={columns}
-                rows={previewRows}
-                inputColumns={inputKeys}
-                outputColumns={outputKeys}
-                metadataColumns={metadataKeys}
-              />
-            </div>
           </div>
         )}
       </div>

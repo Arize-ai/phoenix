@@ -10,9 +10,7 @@ import { useMemo } from "react";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 
 const containerCSS = css`
-  max-height: 250px;
-  overflow: auto;
-  overscroll-behavior: none;
+  min-height: 0;
 `;
 
 const cellCSS = css`
@@ -22,14 +20,9 @@ const cellCSS = css`
   text-overflow: ellipsis;
 `;
 
-const highlightedHeaderCSS = css`
-  background-color: var(--global-color-primary-100);
-`;
-
 type RowPreviewTableProps = {
   columns: string[];
   rows: string[][] | Record<string, unknown>[];
-  highlightedColumn?: string | null;
 };
 
 type RowData = Record<string, string>;
@@ -44,11 +37,7 @@ function formatCellValue(value: unknown): string {
   return String(value);
 }
 
-export function RowPreviewTable({
-  columns,
-  rows,
-  highlightedColumn,
-}: RowPreviewTableProps) {
+export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
   "use no memo";
   const columnHelper = createColumnHelper<RowData>();
 
@@ -96,24 +85,16 @@ export function RowPreviewTable({
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const isHighlighted =
-                  highlightedColumn != null &&
-                  header.column.id === highlightedColumn;
-                return (
-                  <th
-                    key={header.id}
-                    css={[cellCSS, isHighlighted && highlightedHeaderCSS]}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
-                );
-              })}
+              {headerGroup.headers.map((header) => (
+                <th key={header.id} css={cellCSS}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </th>
+              ))}
             </tr>
           ))}
         </thead>

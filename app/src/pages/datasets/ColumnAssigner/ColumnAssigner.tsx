@@ -20,9 +20,9 @@ const headerCSS = css`
   gap: var(--global-dimension-size-200);
 `;
 
-const bucketsContainerCSS = css`
+const assignmentBucketsCSS = css`
   display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
   gap: var(--global-dimension-size-100);
 `;
 
@@ -36,7 +36,6 @@ export type ColumnAssignerProps = {
   columns: string[];
   value: ColumnAssignerValue;
   onChange: (value: ColumnAssignerValue) => void;
-  onColumnHover?: (column: string | null) => void;
   onReset?: () => void;
   /**
    * File type determines the label for the source bucket:
@@ -46,19 +45,12 @@ export type ColumnAssignerProps = {
   fileType?: "csv" | "jsonl" | null;
 };
 
-// Bucket order: source first, then input, output, metadata
-const BUCKET_ORDER: ColumnBucketType[] = [
-  "source",
-  "input",
-  "output",
-  "metadata",
-];
+const ASSIGNMENT_BUCKETS: ColumnBucketType[] = ["input", "output", "metadata"];
 
 export function ColumnAssigner({
   columns,
   value,
   onChange,
-  onColumnHover,
   onReset,
   fileType,
 }: ColumnAssignerProps) {
@@ -139,15 +131,20 @@ export function ColumnAssigner({
           </Button>
         )}
       </div>
-      <div css={bucketsContainerCSS}>
-        {BUCKET_ORDER.map((bucket) => (
+      <ColumnBucket
+        bucket="source"
+        label={getLabel("source")}
+        columns={assignment.source}
+        onDrop={(column) => handleDrop("source", column)}
+      />
+      <div css={assignmentBucketsCSS}>
+        {ASSIGNMENT_BUCKETS.map((bucket) => (
           <ColumnBucket
             key={bucket}
             bucket={bucket}
             label={getLabel(bucket)}
             columns={assignment[bucket]}
             onDrop={(column) => handleDrop(bucket, column)}
-            onColumnHover={onColumnHover}
           />
         ))}
       </div>

@@ -6,10 +6,9 @@ import { useDrop } from "react-aria";
 import { ColumnChip } from "./ColumnChip";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
 
-const bucketCSS = css`
+const bucketBaseCSS = css`
   display: flex;
   flex-direction: column;
-  height: 180px;
   padding: var(--global-dimension-size-100);
   border: 1px solid var(--global-color-gray-400);
   border-radius: var(--global-rounding-medium);
@@ -22,14 +21,18 @@ const bucketCSS = css`
     background-color: var(--global-background-color-200);
   }
 
-  &[data-is-source="true"] {
-    background-color: var(--global-background-color-200);
-  }
-
   &:focus-visible {
     outline: 2px solid var(--global-color-primary);
     outline-offset: -2px;
   }
+`;
+
+const assignmentBucketCSS = css`
+  height: 180px;
+`;
+
+const sourceBucketCSS = css`
+  background-color: var(--global-background-color-200);
 `;
 
 const titleCSS = css`
@@ -47,7 +50,14 @@ const chipsContainerCSS = css`
   gap: var(--global-dimension-size-50);
   flex: 1;
   overflow-y: auto;
-  min-height: 0; /* Allow flex child to shrink below content size */
+  min-height: 0;
+`;
+
+const sourceChipsContainerCSS = css`
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--global-dimension-size-50);
 `;
 
 export type ColumnBucketProps = {
@@ -56,7 +66,6 @@ export type ColumnBucketProps = {
   label?: string;
   columns: string[];
   onDrop: (column: string) => void;
-  onColumnHover?: (column: string | null) => void;
 };
 
 export function ColumnBucket({
@@ -64,7 +73,6 @@ export function ColumnBucket({
   label,
   columns,
   onDrop,
-  onColumnHover,
 }: ColumnBucketProps) {
   const ref = useRef<HTMLDivElement>(null);
   const chipsContainerRef = useRef<HTMLDivElement>(null);
@@ -175,7 +183,7 @@ export function ColumnBucket({
       role="listbox"
       aria-label={label ?? bucket.toUpperCase()}
       tabIndex={0}
-      css={bucketCSS}
+      css={[bucketBaseCSS, isSource ? sourceBucketCSS : assignmentBucketCSS]}
       data-drop-target={isDropTarget}
       data-is-source={isSource}
       onKeyDown={handleKeyDown}
@@ -183,12 +191,14 @@ export function ColumnBucket({
       onBlur={handleBlur}
     >
       <div css={titleCSS}>{label ?? bucket.toUpperCase()}</div>
-      <div css={chipsContainerCSS} ref={chipsContainerRef}>
+      <div
+        css={isSource ? sourceChipsContainerCSS : chipsContainerCSS}
+        ref={chipsContainerRef}
+      >
         {columns.map((column, index) => (
           <ColumnChip
             key={column}
             column={column}
-            onHoverChange={onColumnHover}
             tabIndex={focusedIndex === index ? 0 : -1}
             onFocus={() => handleChipFocus(index)}
             isAssigned={!isSource}

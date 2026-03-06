@@ -15,9 +15,7 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 const CELL_CONTENT_HEIGHT = 120;
 
 const containerCSS = css`
-  max-height: 300px;
-  overflow: auto;
-  overscroll-behavior: none;
+  min-height: 0;
 `;
 
 const headerColumnCSS = css`
@@ -171,7 +169,7 @@ export function DatasetPreviewTable({
   if (!hasAnyAssignments) {
     return (
       <div css={noAssignmentsCSS}>
-        Assign columns above to preview the dataset structure
+        Assign columns below to preview the dataset structure
       </div>
     );
   }
