@@ -227,6 +227,7 @@ export function DatasetFromFileForm({
     resetField,
     setValue,
     watch,
+    getValues,
     formState: { isValid },
   } = useForm<CreateDatasetFromFileParams>({
     mode: "onChange",
@@ -411,9 +412,13 @@ export function DatasetFromFileForm({
     hasAutoSwitched.current = false;
   }, [setValue, resetField]);
 
+  const handlePreviewTabChange = useCallback((key: React.Key) => {
+    setPreviewTab(key as "file" | "dataset");
+  }, []);
+
   const handleColumnAssignerReset = useCallback(() => {
     const autoAssigned = computeAutoAssignment(columns);
-    const splitKeys = watch("split_keys");
+    const splitKeys = getValues("split_keys");
 
     const isAlreadyDefault =
       arraysEqual(inputKeys, autoAssigned.input) &&
@@ -435,7 +440,7 @@ export function DatasetFromFileForm({
       setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
       setValue("split_keys", autoAssigned.split, { shouldDirty: true });
     }
-  }, [columns, inputKeys, outputKeys, metadataKeys, setValue, watch]);
+  }, [columns, inputKeys, outputKeys, metadataKeys, setValue, getValues]);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {
@@ -602,9 +607,7 @@ export function DatasetFromFileForm({
             <Tabs
               css={previewTabsCSS}
               selectedKey={previewTab}
-              onSelectionChange={(key) =>
-                setPreviewTab(key as "file" | "dataset")
-              }
+              onSelectionChange={handlePreviewTabChange}
             >
               <div css={previewTabHeaderCSS}>
                 <TabList>

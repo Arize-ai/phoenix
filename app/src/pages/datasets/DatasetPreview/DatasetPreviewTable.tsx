@@ -45,6 +45,9 @@ type DatasetPreviewRow = {
   metadata: Record<string, unknown>;
 };
 
+// Hoisted outside component - createColumnHelper returns a stateless factory
+const columnHelper = createColumnHelper<DatasetPreviewRow>();
+
 function PreviewCell({ value }: { value: Record<string, unknown> }) {
   const isEmpty = Object.keys(value).length === 0;
   return (
@@ -129,8 +132,6 @@ export function DatasetPreviewTable({
     });
   }, [rows, columns, inputColumns, outputColumns, metadataColumns]);
 
-  const columnHelper = createColumnHelper<DatasetPreviewRow>();
-
   const tableColumns = useMemo(
     () => [
       columnHelper.accessor("input", {
@@ -146,12 +147,7 @@ export function DatasetPreviewTable({
         cell: (info) => <PreviewCell value={info.getValue()} />,
       }),
     ],
-    [
-      columnHelper,
-      inputColumns.length,
-      outputColumns.length,
-      metadataColumns.length,
-    ]
+    [inputColumns.length, outputColumns.length, metadataColumns.length]
   );
 
   // eslint-disable-next-line react-hooks-js/incompatible-library

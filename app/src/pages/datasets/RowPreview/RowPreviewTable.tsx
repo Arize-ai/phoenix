@@ -27,6 +27,9 @@ type RowPreviewTableProps = {
 
 type RowData = Record<string, string>;
 
+// Hoisted outside component - createColumnHelper returns a stateless factory
+const columnHelper = createColumnHelper<RowData>();
+
 function formatCellValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "";
@@ -39,8 +42,6 @@ function formatCellValue(value: unknown): string {
 
 export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
   "use no memo";
-  const columnHelper = createColumnHelper<RowData>();
-
   const tableColumns = useMemo(
     () =>
       columns.map((col) =>
@@ -49,7 +50,7 @@ export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
           cell: (info) => info.getValue(),
         })
       ),
-    [columns, columnHelper]
+    [columns]
   );
 
   const tableData = useMemo<RowData[]>(() => {
