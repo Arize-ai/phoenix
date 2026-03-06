@@ -21,7 +21,7 @@ By default, `pytest` is configured to run in verbose mode. When running a large 
 ### Other
 
 - `tox run -e clean_jupyter_notebooks` - Clean notebook metadata (required after editing)
-- `hatch build` - Build Python package
+- `make build-python` - Build Python package
 
 ## Code Style
 

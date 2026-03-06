@@ -189,7 +189,7 @@ pnpm run build
 Then, from the root directory of the repo, run
 
 ```bash
-hatch build
+make build-python
 ```
 
 If successful, a source distribution (a tarball) and a Python `wheel` will appear in the `dist` folder at the repo base directory.
@@ -245,8 +245,8 @@ To publish a new release, follow the steps below.
 2. Update the version number in `src/phoenix/version.py`
 3. Remove the `dist` folder with `rm -rf dist`.
 4. By default, the web app is not rebuilt. Change directory to `app` and run `rm -rf node_modules && pnpm install --frozen-lockfile && pnpm run build` to rebuild the web app.
-5. From the root directory of the repo, build the package with `hatch build`.
-6. Publish the package with `hatch publish -u __token__`. Note you must publish using a pypi token. The token should be stored securely in your `.pypirc` file (see [docs](https://packaging.python.org/en/latest/specifications/pypirc/))
+5. From the root directory of the repo, build the package with `make build-python`.
+6. Publish the package with `uv publish --token <your-pypi-token>`. Note you must publish using a pypi token.
 7. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
 8. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
 9. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
