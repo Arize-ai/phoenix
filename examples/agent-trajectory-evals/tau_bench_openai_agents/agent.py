@@ -53,7 +53,7 @@ _TRACER = trace_api.get_tracer(__name__)
 class ConversationResult:
     """Result of running a single task conversation."""
 
-    task_id: int
+    task_id: str  # e.g. "dev:0", "train:35"
     task: Task
     turns: list[dict[str, str]] = field(default_factory=list)
     terminated_by: str = ""  # "user_stop", "transfer_to_human", "max_turns"
@@ -82,7 +82,7 @@ def create_agent() -> Agent[None]:
 
 async def run_conversation(
     agent: Agent[None],
-    task_id: int,
+    task_id: str,
     task: Task,
     user_model: str = "gpt-4o",
     max_turns: int = 30,
@@ -95,7 +95,7 @@ async def run_conversation(
 
     Args:
         agent: The OpenAI Agents SDK Agent instance.
-        task_id: Index of the task in TASKS_TEST.
+        task_id: Task label like "dev:0" or "train:35".
         task: The tau-bench Task with instruction and ground truth.
         user_model: Model for the simulated user. Defaults to gpt-4o.
         max_turns: Maximum conversation turns before forced termination.
