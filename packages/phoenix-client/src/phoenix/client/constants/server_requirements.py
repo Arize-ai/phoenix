@@ -55,3 +55,10 @@ LIST_PROJECT_TRACES = RouteRequirement(
     path="/v1/projects/{project_identifier}/traces",
     min_server_version=Version(13, 15, 0),
 )
+
+DATASET_UPLOAD_EXAMPLE_IDS = ParameterRequirement(
+    parameter_name="example_ids",
+    parameter_location="body",
+    route="POST /v1/datasets/upload",
+    min_server_version=Version(15, 0, 0),
+)
