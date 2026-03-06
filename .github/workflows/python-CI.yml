@@ -176,6 +176,7 @@ jobs:
             Makefile
             scripts/ci/json-canonicalization-schema/
             src/phoenix/
+            packages/
             .jcs-test-data/
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
