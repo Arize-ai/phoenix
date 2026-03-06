@@ -8,7 +8,6 @@ SHELL := /bin/bash
 TOX := tox
 PNPM := pnpm
 UV := uv
-HATCH := hatch
 NODE := node
 
 # Directories
@@ -122,8 +121,6 @@ check-tools: ## Verify required tools are installed
 	@echo -e "$(GREEN)✓$(NC) tox found: $$($(TOX) --version)"
 	@command -v $(NODE) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: node is not installed. Install from https://nodejs.org$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) node found: $$($(NODE) --version)"
-	@command -v $(HATCH) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: hatch is not installed. Run: pip install hatch$(NC)"; exit 1; }
-	@echo -e "$(GREEN)✓$(NC) hatch found: $$($(HATCH) --version)"
 	@echo -e "$(GREEN)All required tools are installed!$(NC)"
 
 #=============================================================================
@@ -316,7 +313,7 @@ lint: lint-python lint-frontend lint-ts ## Lint all code (Python + frontend + Ty
 
 build-python: ## Build Python package
 	@echo -e "$(CYAN)Building Python package...$(NC)"
-	@$(HATCH) build
+	@$(UV) build
 	@echo -e "$(GREEN)✓ dist/$(NC)"
 
 build-frontend: ## Build frontend for production

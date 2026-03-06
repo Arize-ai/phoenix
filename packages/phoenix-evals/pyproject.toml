@@ -77,22 +77,6 @@ packages = ["src/phoenix"]
 [tool.hatch.build]
 only-packages = true
 
-[tool.hatch.envs.publish]
-dependencies = [
-  "check-wheel-contents",
-  "twine",
-]
-
-[tool.hatch.envs.publish.scripts]
-testpypi = [
-  "check-wheel-contents dist/",
-  "twine upload --verbose --repository testpypi dist/*",
-]
-pypi = [
-  "check-wheel-contents dist/",
-  "twine upload --verbose dist/*",
-]
-
 [tool.ruff]
 exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]

@@ -77,8 +77,7 @@ phoenix = "phoenix.server.main:main"
 
 [dependency-groups]
 dev = [
-  "hatch",
-  "uv==0.9.18",  # uv is a dependency of `hatch`, so we explicitly pin the `uv` dependency to match the project `uv` version
+  "uv==0.9.18",
   "hatchling",
   "check-wheel-contents",
   "twine",
@@ -268,22 +267,6 @@ addopts = [
 ]
 testpaths = [
   "tests",
-]
-
-[tool.hatch.envs.publish]
-dependencies = [
-  "check-wheel-contents",
-  "twine",
-]
-
-[tool.hatch.envs.publish.scripts]
-testpypi = [
-  "check-wheel-contents dist/",
-  "twine upload  --verbose --repository testpypi dist/*",
-]
-pypi = [
-  "check-wheel-contents dist/",
-  "twine upload --verbose dist/*",
 ]
 
 [tool.mypy]
