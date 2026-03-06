@@ -458,7 +458,7 @@ async def upload_dataset(
             detail="Missing content-type header",
             status_code=400,
         )
-    examples: Union[Examples, Awaitable[Examples]]
+    examples: Examples
     if request_content_type.startswith("application/json"):
         json_data = await request.json()
         try:
@@ -782,7 +782,7 @@ async def _process_pyarrow(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
-) -> Awaitable[Examples]:
+) -> Examples:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
@@ -804,7 +804,7 @@ async def _process_pyarrow(
                 span_id=_get_span_id(row, span_id_key),
             )
 
-    return run_in_threadpool(get_examples)
+    return await run_in_threadpool(get_examples)
 
 
 async def _process_jsonl(

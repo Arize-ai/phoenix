@@ -648,8 +648,8 @@ async def _upsert_dataset_examples(
     # Build lookup maps
     # ext_id_map: external_id → (example_id, prev_content_hash)  [only entries with external_id]
     # hash_map: content_hash → deque of example_ids              [ALL previous examples]
-    ext_id_map: dict[str, tuple[DatasetExampleId, str]] = {}
-    hash_map: dict[str, deque[DatasetExampleId]] = {}
+    ext_id_map: dict[ExternalID, tuple[DatasetExampleId, ContentHash]] = {}
+    hash_map: dict[ContentHash, deque[DatasetExampleId]] = {}
 
     for example_id, external_id, content_hash in previous:
         if external_id is not None:
