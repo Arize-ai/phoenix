@@ -136,6 +136,7 @@ async def bulk_insert_dataset_examples(
     session: AsyncSession,
     dataset_id: DatasetId,
     span_rowids: Sequence[Optional[SpanRowId]],
+    external_ids: Optional[Sequence[Optional[str]]] = None,
     created_at: Optional[datetime] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> list[DatasetExampleId]:
@@ -146,6 +147,7 @@ async def bulk_insert_dataset_examples(
         session: Database session
         dataset_id: The dataset to add examples to
         span_rowids: List of span row IDs (or None) for each example, in order
+        external_ids: Optional list of external IDs (or None) for each example, in order
         created_at: Timestamp for all examples
         batch_size: Number of records per batch insert
 
@@ -160,13 +162,15 @@ async def bulk_insert_dataset_examples(
     # Process in batches
     for i in range(0, len(span_rowids), batch_size):
         batch = span_rowids[i : i + batch_size]
+        batch_external_ids = external_ids[i : i + batch_size] if external_ids is not None else None
         records = [
             {
                 "dataset_id": dataset_id,
                 "span_rowid": span_rowid,
+                "external_id": batch_external_ids[j] if batch_external_ids is not None else None,
                 "created_at": created_at,
             }
-            for span_rowid in batch
+            for j, span_rowid in enumerate(batch)
         ]
 
         # Use INSERT ... RETURNING to get IDs in order
@@ -543,10 +547,11 @@ async def add_dataset_examples(
     span_ids_to_resolve = [ex.span_id for ex in examples_list]
     span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
 
-    # Prepare span_rowids list for bulk insert (preserving order)
+    # Prepare span_rowids and external_ids lists for bulk insert (preserving order)
     span_rowids: list[Optional[SpanRowId]] = [
         span_id_to_rowid.get(ex.span_id) if ex.span_id else None for ex in examples_list
     ]
+    external_ids: list[Optional[str]] = [ex.external_id for ex in examples_list]
 
     # Bulk insert all examples at once
     try:
@@ -554,6 +559,7 @@ async def add_dataset_examples(
             session=session,
             dataset_id=dataset_id,
             span_rowids=span_rowids,
+            external_ids=external_ids,
             created_at=created_at,
         )
     except Exception:
