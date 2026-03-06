@@ -1,0 +1,517 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+TRAJECT-Bench Dataset Exploration
+Dataset: bigboss24/TRAJECT-Bench
+Split: test
+
+================================================================================
+  A. Dataset Configuration Survey
+================================================================================
+
+Total configs: 28
+
+Parallel configs: 18
+  - parallel_ecommerce_hard
+  - parallel_ecommerce_simple
+  - parallel_education_hard
+  - parallel_education_simple
+  - parallel_email_hard
+  - parallel_email_simple
+  - parallel_finance_hard
+  - parallel_finance_simple
+  - parallel_gaming_hard
+  - parallel_gaming_simple
+  - parallel_music_hard
+  - parallel_music_simple
+  - parallel_news_media_hard
+  - parallel_news_media_simple
+  - parallel_travel_hard
+  - parallel_travel_simple
+  - parallel_weather_hard
+  - parallel_weather_simple
+
+Sequential configs: 10
+  - sequential_ecommerce
+  - sequential_education
+  - sequential_email
+  - sequential_finance
+  - sequential_gaming
+  - sequential_mapping
+  - sequential_music
+  - sequential_news_media
+  - sequential_travel
+  - sequential_weather
+
+--- Row counts per config ---
+
+  parallel_ecommerce_hard                        split=test    rows=200
+  parallel_ecommerce_simple                      split=test    rows=200
+  parallel_education_hard                        split=test    rows=200
+  parallel_education_simple                      split=test    rows=200
+  parallel_email_hard                            split=test    rows=200
+  parallel_email_simple                          split=test    rows=200
+  parallel_finance_hard                          split=test    rows=200
+  parallel_finance_simple                        split=test    rows=200
+  parallel_gaming_hard                           split=test    rows=200
+  parallel_gaming_simple                         split=test    rows=200
+  parallel_music_hard                            split=test    rows=200
+  parallel_music_simple                          split=test    rows=200
+  parallel_news_media_hard                       split=test    rows=200
+  parallel_news_media_simple                     split=test    rows=200
+  parallel_travel_hard                           split=test    rows=200
+  parallel_travel_simple                         split=test    rows=200
+  parallel_weather_hard                          split=test    rows=200
+  parallel_weather_simple                        split=test    rows=200
+  sequential_ecommerce                           split=test    rows=200
+  sequential_education                           split=test    rows=200
+  WARNING: Failed to load sequential_email: Unable to find 'hf://datasets/bigboss24/TRAJECT-Bench@fbd4151a4897c4115679e184bf6c427d9d90e955/sequential/Email/traj_que
+  sequential_email                               FAILED TO LOAD
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 135 examples [00:00, 4275.38 examples/s]
+  sequential_finance                             split=test    rows=135
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 185 examples [00:00, 6454.12 examples/s]
+  sequential_gaming                              split=test    rows=185
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 200 examples [00:00, 6012.00 examples/s]
+  sequential_mapping                             split=test    rows=200
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 200 examples [00:00, 5759.15 examples/s]
+  sequential_music                               split=test    rows=200
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 180 examples [00:00, 11064.01 examples/s]
+  sequential_news_media                          split=test    rows=180
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 170 examples [00:00, 4720.28 examples/s]
+  sequential_travel                              split=test    rows=170
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 200 examples [00:00, 6650.03 examples/s]
+  sequential_weather                             split=test    rows=200
+
+  Parallel total:   3600
+  Sequential total: 1670
+  Grand total:      5270
+
+================================================================================
+  B. Schema Analysis
+================================================================================
+
+--- Parallel config: parallel_ecommerce_simple ---
+Columns: ['query', 'tool_list', 'trajectory_type', 'final_answer', 'task_name', 'task_description', 'tool_count']
+Features:
+  query: Value('string')
+  tool_list: Value('string')
+  trajectory_type: Value('string')
+  final_answer: Value('string')
+  task_name: Value('string')
+  task_description: Value('string')
+  tool_count: Value('int64')
+
+--- Example (parallel) ---
+  [query]: I'm researching a product with SKU W004939121 on Wayfair. I first checked the product reviews, specifically looking at the most helpful feedback (page 1, sorted by helpfulness) to understand customer experiences. Then I retrieved detailed product specifications and features using Wayfair's product information service. I also wanted to compare regional availability, so I checked Aliexpress's base region parameters to understand global market options for similar products.
+  [tool_list]: [{"tool name": "Wayfair: reviews/list", "tool description": "Lists reviews related to a specific product, providing customer feedback and ratings for the item you're interested in. This API connects to Wayfair.com's comprehensive database, allowing you to access the same product review information available on the retail platform. The endpoint helps shoppers make informed purchasing decisions by retrieving authentic customer experiences, ratings, and opinions about furniture, home décor, and oth...
+  [trajectory_type]: parallel
+  [final_answer]: I've gathered some information to help with your apartment furnishing needs, though there are some limitations in what I could retrieve.
+
+## Wayfair Sofa Information
+
+I checked the Zipcode Design Imani Square Arm Sleeper sofa (SKU: W004939121) on Wayfair and found the following:
+
+### Customer Reviews
+- Average Rating: 4.77 out of 5 stars
+- Total Reviews: 7,724
+- Rating Distribution:
+  - 5 stars: 6,634 reviews
+  - 4 stars: 706 reviews
+  - 3 stars: 190 reviews
+  - 2 stars: 98 reviews
+  - 1 star: 9...
+  [task_name]: Comprehensive Product Research & Purchase
+  [task_description]: A full pre-purchase workflow involving cross-platform search, product details and review analysis, historical price tracking, seller reputation check, and final cost estimation including tax and shipping.
+  [tool_count]: 3
+
+--- Sequential config: sequential_ecommerce ---
+Columns: ['query', 'final_answer', 'tool list', 'sequence_name', 'sequence_description', 'num_tools_used', 'num_successful_tools', 'domain', 'executable']
+Features:
+  query: Value('string')
+  final_answer: Value('string')
+  tool list: Value('string')
+  sequence_name: Value('string')
+  sequence_description: Value('string')
+  num_tools_used: Value('int64')
+  num_successful_tools: Value('int64')
+  domain: Value('string')
+  executable: Value('bool')
+
+--- Example (sequential) ---
+  [query]: I'm looking for some new running shoes and want to compare options. Can you first search for running shoes on Zappos sorted by best sellers, then check what's available at BestBuy focusing on their most popular shoe category, and finally get some auto-complete suggestions for shoes on Wayfair?
+  [final_answer]: I've compared running shoe options across multiple retailers for you:
+
+1. **Zappos**: Successfully searched for running shoes sorted by best sellers. The search returned 102,281 total results with the first 50 displayed. The results can be filtered by gender (Women: 66,043 options, Men: 29,515 options, Girls: 8,779 options, Boys: 8,421 options) and product type (Shoes: 62,217 options). Zappos appears to have the most comprehensive selection of running shoes among the retailers checked.
+
+2. **Bes...
+  [tool list]: [{"tool name": "Zappos Realtime Data: Zappos search product", "tool description": "A user searches for a product (e.g., 'crocs') on Zappos. The output contains a 'product name' within the search results.", "required parameters": [{"name": "keyword", "value": "running shoes"}], "optional parameters": [{"name": "sort", "value": "best_seller"}, {"name": "page", "value": 1}], "execution_status": "success", "executed_output": "{'currentResultCount': 50, 'totalResultCount': 102281, 'facetPredictionMod...
+  [sequence_name]: Zappos Search → BestBuy Search → Wayfair Search Suggestions
+  [sequence_description]: This sequence models a comparative shopper who searches for a product on Zappos, then BestBuy, and finally uses the product title to get search suggestions on Wayfair.
+  [num_tools_used]: 3
+  [num_successful_tools]: 3
+  [domain]: eCommerce
+  [executable]: True
+
+--- Column comparison ---
+  Shared:          ['final_answer', 'query']
+  Parallel only:   ['task_description', 'task_name', 'tool_count', 'tool_list', 'trajectory_type']
+  Sequential only: ['domain', 'executable', 'num_successful_tools', 'num_tools_used', 'sequence_description', 'sequence_name', 'tool list']
+
+================================================================================
+  C. Tool Schema Deep Dive
+================================================================================
+
+--- Tool object schema (parallel) ---
+  tool name: str = Wayfair: reviews/list
+  tool description: str = Lists reviews related to a specific product, providing customer feedback and ratings for the item you're interested in. This API connects to Wayfair.com's comprehensive database, allowing you to acces...
+  required parameters: list = [{'name': 'sku', 'value': 'W004939121'}]
+  optional parameters: list = [{'name': 'page', 'value': '1'}, {'name': 'sort_order', 'value': 'HELPFUL'}]
+  parent tool name: str = Wayfair
+  API name: str = reviews/list
+  domain name: str = eCommerce
+  executed_output: str = {'data': {'product': {'customer_reviews': {'sku': 'LFMF3204', 'average_rating_value': 4.77, 'rating_count': 7724, 'histogram_stats': [{'rating': 5, 'count': 6634}, {'rating': 4, 'count': 706}, {'ratin...
+
+--- Tool object schema (sequential) ---
+  tool name: str = Zappos Realtime Data: Zappos search product
+  tool description: str = A user searches for a product (e.g., 'crocs') on Zappos. The output contains a 'product name' within the search results.
+  required parameters: list = [{'name': 'keyword', 'value': 'running shoes'}]
+  optional parameters: list = [{'name': 'sort', 'value': 'best_seller'}, {'name': 'page', 'value': 1}]
+  execution_status: str = success
+  executed_output: str = {'currentResultCount': 50, 'totalResultCount': 102281, 'facetPredictionModel': None, 'filters': [], 'recommendations': [], 'facets': [{'facetField': 'txAttrFacet_Gender', 'facetFieldDisplayName': 'Gen...
+  API name: str = Zappos search product
+  domain name: str = eCommerce
+  parent tool name: str = Zappos Realtime Data
+  sequence_step: dict = {'step_number': 1, 'tool_name': 'Zappos Realtime Data: Zappos search product', 'description': "A user searches for a product (e.g., 'crocs') on Zappos. The output contains a 'product name' within the ...
+  original_description: str = {'tool name': 'Zappos Realtime Data: Zappos search product', 'use description': "A user searches for a product (e.g., 'crocs') on Zappos. The output contains a 'product name' within the search results...
+
+--- Tool field comparison ---
+  Shared:          ['API name', 'domain name', 'executed_output', 'optional parameters', 'parent tool name', 'required parameters', 'tool description', 'tool name']
+  Parallel only:   []
+  Sequential only: ['execution_status', 'original_description', 'sequence_step']
+
+--- Unique parent tools and APIs per domain ---
+  Education             parent_tools= 25  APIs= 55
+    sample parents      : ['Climate_change', 'DEI', 'Dictionary', 'Dictionary Data API', 'Dr Almotawa Quotes']
+  Email                 parent_tools= 12  APIs= 18
+    sample parents      : ['Alpha Email Verification', 'Blaze Verify', 'Easy Email Validation', 'Email API', 'Email Address Validator']
+  Finance               parent_tools= 16  APIs=153
+    sample parents      : ['Alpha Vantage', 'Binance Futures Leaderboard', 'Bybit', 'Exchange Rate API', 'Financial Modeling Prep']
+  Gaming                parent_tools= 18  APIs= 45
+    sample parents      : ['CSGO matches and tournaments', 'Card Draw Simulator', 'CheapShark - Game Deals', 'Chess Puzzles', 'Dice Roll Simulator']
+  Mapping               parent_tools= 13  APIs= 32
+    sample parents      : ['Address From To Latitude Longitude', 'City List', 'Geocode - Forward and Reverse', 'Geocoding by API-Ninjas', 'MapFanAPI - Route']
+  Music                 parent_tools= 25  APIs= 97
+    sample parents      : ['50K Radio Stations', 'Apple Music', 'Billboard', 'Billboard API_v2', 'Billboard-API']
+  News_Media            parent_tools= 33  APIs= 72
+    sample parents      : ['AI News - Global', 'ALL Crypto News Feed', 'Anime News Net', 'Arabic news API', 'BizToc']
+  Travel                parent_tools= 19  APIs= 82
+    sample parents      : ['AI Trip Planner', 'Airbnb listings', 'Airport Guide - Aviation Info', 'BART', 'Booking.com_v2']
+  Weather               parent_tools= 23  APIs= 81
+    sample parents      : ['AI Weather by Meteosource', 'Air Quality', 'Cloud Cast', 'Easy Weather', 'Foreca Weather']
+  eCommerce             parent_tools= 10  APIs= 28
+    sample parents      : ['Aliexpress DataHub', 'Amazon Japan Scraper', 'Amazon Pricing and Product Info', 'Asos', 'BestBuy Product Data']
+
+--- Diverse executed_output examples ---
+
+  [STRUCTURED]
+    Config: parallel_ecommerce_hard
+    Tool:   Wayfair: reviews/list
+    Output: {'data': {'product': {'customer_reviews': {'sku': 'LFMF3204', 'average_rating_value': 4.77, 'rating_count': 7724, 'histogram_stats': [{'rating': 5, 'count': 6634}, {'rating': 4, 'count': 706}, {'rating': 3, 'count': 190}, {'rating': 2, 'count': 98}, {'rating': 1, 'count': 96}], 'reviews': [{'is_kit_child': False, 'review_id': 27884092, 'rating': 5, 'date': '01/13/2019', 'has_verified_buyer_status': True, 'reviewer_name': 'Kathy', 'reviewer_location': 'LITTLE FALLS, NJ', 'headline': '', 'product_...
+
+  [ERROR]
+    Config: parallel_ecommerce_hard
+    Tool:   Amazon Pricing and Product Info: Main Endpoint
+    Output: {'requestSuccessful': True, 'requestInfo': {'domain': 'com', 'asin': 'B01N2RJ0HI'}, 'responseErrors': None, 'responseData': {'asin': 'B01N2RJ0HI', 'soldByAmazonPrice': -0.01, 'buyBoxPrice': -0.01, 'buyBoxSellerId': None, 'buyBoxIsFba': False, 'buyBoxIsAmazon': False, 'buyBoxIsPrime': None, 'buyBoxLocalAvailabilityMessage': None, 'buyBoxMinOrderQuantity': None, 'buyBoxMaxOrderQuantity': None, 'priceCoupon': None, 'title': 'Gtracing Gaming Chair Racing Office Computer Ergonomic Video Game Chair Ba...
+
+  [EMPTY]
+    Config: parallel_ecommerce_hard
+    Tool:   Aliexpress DataHub: Aliexpress - Store Item Search 2
+    Output: 
+
+================================================================================
+  D. Parallel vs Sequential Comparison
+================================================================================
+
+--- PARALLEL: tools are independent (no data dependency) ---
+
+  Example 0: query=I'm researching a product with SKU W004939121 on Wayfair. I first checked the product reviews, specifically looking at the most helpful feedback (page...
+  Tool count: 3
+    Tool 1: Wayfair: reviews/list
+      Params: sku=W004939121
+    Tool 2: Wayfair: products/get-common-info
+      Params: sku=W004939121
+    Tool 3: Aliexpress DataHub: Aliexpress - User Basic Parameters
+      Params: 
+  -> Tools use independent parameters (no output-to-input flow)
+
+  Example 1: query=Show me images of the Wayfair product with SKU W003078383, then search for products from AliExpress store ID 1102051418 (seller ID 231651707), and fin...
+  Tool count: 3
+    Tool 1: Wayfair: products/get-images
+      Params: sku=W003078383
+    Tool 2: Aliexpress DataHub: Aliexpress - Store Item Search 2
+      Params: 
+    Tool 3: Weee grocery API (sayweee.com) - browsing/searching/details: product details (zipcode, product_id)
+      Params: zipcode=77494, product_id=85180
+  -> Tools use independent parameters (no output-to-input flow)
+
+--- SEQUENTIAL: tools form a dependency chain ---
+
+  Example 0: query=I'm looking for some new running shoes and want to compare options. Can you first search for running shoes on Zappos sorted by best sellers, then chec...
+  Sequence: Zappos Search → BestBuy Search → Wayfair Search Suggestions
+  Num tools: 3
+    Step {'step_number': 1, 'tool_name': 'Zappos Realtime Data: Zappos search product', 'description': "A user searches for a product (e.g., 'crocs') on Zappos. The output contains a 'product name' within the search results.", 'param_for_next_tool': 'product_name', 'original_description': '{\'tool name\': \'Zappos Realtime Data: Zappos search product\', \'use description\': "A user searches for a product (e.g., \'crocs\') on Zappos. The output contains a \'product name\' within the search results.", \'param for next tool\': \'product_name\'}'}: Zappos Realtime Data: Zappos search product  [status=success]
+      Params: keyword=running shoes, sort=best_seller, page=1
+      Output preview: {'currentResultCount': 50, 'totalResultCount': 102281, 'facetPredictionModel': None, 'filters': [], 'recommendations': [], 'facets': [{'facetField': '...
+    Step {'step_number': 2, 'tool_name': 'BestBuy Product Data: BestBuyProductData', 'description': "The 'product_name' from the Zappos search is used as the 'keyword' to find similar items on BestBuy. The output contains a 'title' for a BestBuy product.", 'param_for_next_tool': 'title', 'original_description': '{\'tool name\': \'BestBuy Product Data: BestBuyProductData\', \'use description\': "The \'product_name\' from the Zappos search is used as the \'keyword\' to find similar items on BestBuy. The output contains a \'title\' for a BestBuy product.", \'param for next tool\': \'title\'}'}: BestBuy Product Data: BestBuyProductData  [status=success]
+      Params: keyword=Shoes, page=1
+      Output preview: {'Error': "BestBuy API returned no data, You have entered ''Shoes'' as search keyword. Please check the keyword you entered and try again."}
+    Step {'step_number': 3, 'tool_name': 'Wayfair: auto-complete', 'description': "Finally, the product 'title' from the BestBuy search is used as the 'query' to get auto-complete search suggestions on Wayfair.", 'param_for_next_tool': '', 'original_description': '{\'tool name\': \'Wayfair: auto-complete\', \'use description\': "Finally, the product \'title\' from the BestBuy search is used as the \'query\' to get auto-complete search suggestions on Wayfair.", \'param for next tool\': \'\'}'}: Wayfair: auto-complete  [status=success]
+      Params: query=Shoes
+      Output preview: {'summary': {'request_id': '', 'transaction_id': 'dCOBWzW8R3ObaKq3aq9Agg==', 'page_type': 'General', 'response_hash': '2ca25384d6f37807b238015f745005e...
+  -> Each step's output may inform the next step's parameters
+
+  Example 1: query=I'm looking for highly-rated running shoes. Can you first search Zappos for running shoes sorted by customer rating? Then I'd like to see what Best Bu...
+  Sequence: Zappos Search → BestBuy Search → Wayfair Search Suggestions
+  Num tools: 3
+    Step {'step_number': 1, 'tool_name': 'Zappos Realtime Data: Zappos search product', 'description': "A user searches for a product (e.g., 'crocs') on Zappos. The output contains a 'product name' within the search results.", 'param_for_next_tool': 'product_name', 'original_description': '{\'tool name\': \'Zappos Realtime Data: Zappos search product\', \'use description\': "A user searches for a product (e.g., \'crocs\') on Zappos. The output contains a \'product name\' within the search results.", \'param for next tool\': \'product_name\'}'}: Zappos Realtime Data: Zappos search product  [status=success]
+      Params: keyword=running shoes, sort=customer_rating, page=1
+      Output preview: {'currentResultCount': 50, 'totalResultCount': 103069, 'facetPredictionModel': None, 'filters': [], 'recommendations': [], 'facets': [{'facetField': '...
+    Step {'step_number': 2, 'tool_name': 'BestBuy Product Data: BestBuyProductData', 'description': "The 'product_name' from the Zappos search is used as the 'keyword' to find similar items on BestBuy. The output contains a 'title' for a BestBuy product.", 'param_for_next_tool': 'title', 'original_description': '{\'tool name\': \'BestBuy Product Data: BestBuyProductData\', \'use description\': "The \'product_name\' from the Zappos search is used as the \'keyword\' to find similar items on BestBuy. The output contains a \'title\' for a BestBuy product.", \'param for next tool\': \'title\'}'}: BestBuy Product Data: BestBuyProductData  [status=success]
+      Params: keyword=Shoes, page=1
+      Output preview: {'Error': "BestBuy API returned no data, You have entered ''Shoes'' as search keyword. Please check the keyword you entered and try again."}
+    Step {'step_number': 3, 'tool_name': 'Wayfair: auto-complete', 'description': "Finally, the product 'title' from the BestBuy search is used as the 'query' to get auto-complete search suggestions on Wayfair.", 'param_for_next_tool': '', 'original_description': '{\'tool name\': \'Wayfair: auto-complete\', \'use description\': "Finally, the product \'title\' from the BestBuy search is used as the \'query\' to get auto-complete search suggestions on Wayfair.", \'param for next tool\': \'\'}'}: Wayfair: auto-complete  [status=success]
+      Params: query=Shoes
+      Output preview: {'summary': {'request_id': '', 'transaction_id': 'dCOBWzW8R3ObaKq3aq9Agg==', 'page_type': 'General', 'response_hash': '2ca25384d6f37807b238015f745005e...
+  -> Each step's output may inform the next step's parameters
+
+
+================================================================================
+  E. Domain Distribution
+================================================================================
+
+  Domain               | Par. Simple |   Par. Hard |  Sequential |   Total
+  ---------------------+-------------+-------------+-------------+--------
+  ecommerce            |         200 |         200 |         200 |     600
+  education            |         200 |         200 |         200 |     600
+  email                |         200 |         200 |           - |     400
+  finance              |         200 |         200 |         135 |     535
+  gaming               |         200 |         200 |         185 |     585
+  mapping              |           - |           - |         200 |     200
+  music                |         200 |         200 |         200 |     600
+  news_media           |         200 |         200 |         180 |     580
+  travel               |         200 |         200 |         170 |     570
+  weather              |         200 |         200 |         200 |     600
+  ---------------------+-------------+-------------+-------------+--------
+  TOTAL                |             |             |             |    5270
+
+--- Domains with both parallel and sequential ---
+  + ecommerce
+  + education
+  - email (parallel only)
+  + finance
+  + gaming
+  - mapping (sequential only)
+  + music
+  + news_media
+  + travel
+  + weather
+
+================================================================================
+  F. Executed Output Analysis
+================================================================================
+
+Sampled 50 tool outputs across configs
+
+--- Output type distribution ---
+  structured_json     :  32 (64.0%)
+  error_response      :   9 (18.0%)
+  list_array          :   4 (8.0%)
+  other               :   3 (6.0%)
+  empty               :   2 (4.0%)
+
+--- Examples of each type ---
+
+  [STRUCTURED_JSON]
+    Config: parallel_ecommerce_simple
+    Tool:   Zappos Realtime Data: Zappos product detail by Product ID
+    Status: N/A
+    Output: {'statusCode': '200', 'product': [{'reviewSummary': {'reviewWithMostVotes': {'id': '5602296', 'otherShoes': '', 'summary': "Folks, let's not equate a soft shoe with 'support.' These are expensive slippers, with a totally flat arch and sides that give. This means they are comfortable, but not supportive. I'm keeping them as summer work slippers- I walk to work in athletic shoes, keep these in the o...
+
+  [ERROR_RESPONSE]
+    Config: sequential_music
+    Tool:   Miza: Playlist extraction
+    Status: failed
+    Output: ERROR: Failed after 5 attempts
+
+  [EMPTY]
+    Config: parallel_education_hard
+    Tool:   Random Words: Get a random word
+    Status: N/A
+    Output: 
+
+  [LIST_ARRAY]
+    Config: parallel_news_media_simple
+    Tool:   Climate Change News_v5: All Climate Change News
+    Status: N/A
+    Output: [{'title': '\n\t\t\t\t\tSP-OIL SPORTS\n\t\t\t\t\n\t\t\n\t\t\tCops needs to crack down on climate yobs & be like Jonny Bairstow, says PM\t\t\n\n\t\t\t', 'url': 'https://www.thesun.co.uk/news/22913232/climate-oil-jonny-baristow-rishi-sunak/', 'source': 'sun'}, {'title': "\n\t\t\t\t\twrong climate\n\t\t\t\t\n\t\t\n\t\t\tCountryfile fans 'switch off' as they blast BBC for 'scamming' audience\t\t\n\n\t...
+
+  [OTHER]
+    Config: parallel_email_hard
+    Tool:   fast Email verifier: disposable Domain and Suggest Domain
+    Status: N/A
+    Output: <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Service Suspended</title>
+</head>
+<body>
+This service has been suspended.
+</body>
+</html>
+
+
+--- Execution status distribution (sequential configs) ---
+  success: 2669
+  failed: 396
+
+================================================================================
+  G. Evaluation Metrics Documentation
+================================================================================
+
+  Exact Match (EM)
+    Definition: Compares predicted tool-use trajectories against ground truth. Checks whether the selected tool names align precisely -- the complete set (and optionally order) must match.
+    Our use:    Core metric for tool selection accuracy. For parallel tasks, order-agnostic set comparison. For sequential tasks, order matters.
+
+  Inclusion
+    Definition: Measures the proportion of ground-truth tools present in the predicted trajectory, even if ordering or extra tools differ. Reveals partial task completion.
+    Our use:    Useful as a softer metric when agents pick extra tools. Maps to recall of ground-truth tool set.
+
+  Tool Usage (Argument Correctness)
+    Definition: Checks if the predicted tool parameters match the ground truth. Validates schema constraints, formats, and value accuracy for tool inputs.
+    Our use:    Critical for parameter correctness evaluation. Each tool call's arguments must match expected values. Maps directly to our argument accuracy metric.
+
+  Trajectory Satisfaction (Traj-Satisfy)
+    Definition: LLM-judge metric determining to what extent a predicted trajectory can solve the user query (0-10 scale). Used when gold traces are unavailable. Reportedly tracks EM closely.
+    Our use:    Useful as LLM-as-judge fallback for open-ended tasks. We can use this approach for tasks where multiple valid trajectories exist.
+
+  Accuracy (Solution Accuracy)
+    Definition: Measures if the predicted final answer matches the ground truth answer by prompting an LLM judge. Assesses end-to-end task completion beyond just tool selection.
+    Our use:    End-to-end metric. We compare the agent's final response against the ground truth final_answer field.
+
+  Retrieval Rate
+    Definition: For retrieval-based methods, measures what proportion of ground truth tools are retrieved from candidate tool sets.
+    Our use:    Relevant if we implement tool retrieval/filtering as a preprocessing step before tool selection.
+
+--- Additional sequential-specific metrics ---
+  Dependency Satisfaction:
+    Definition: Checks whether sequential tool dependencies are respected.
+                Output of tool N must be available/referenced by tool N+1.
+    Our use:    For sequential tasks, verify the agent respects the
+                dependency chain. A tool that needs prior output should
+                not be called before its dependency completes.
+
+  Order Satisfaction:
+    Definition: Checks if tools are invoked in the correct order for
+                sequential tasks.
+    Our use:    For sequential tasks, the order of tool calls must match
+                the ground truth sequence.
+
+================================================================================
+  H. Candidate Task Subset Selection
+================================================================================
+
+--- Selecting parallel simple candidates (2-3 tools) ---
+
+--- Selecting parallel hard candidates (5+ tools) ---
+
+--- Selecting sequential candidates (3-5 steps) ---
+
+
+--- Selected 9 candidate tasks ---
+
+  Candidate 1: [parallel_simple]
+    Config: parallel_ecommerce_simple, Index: 0
+    Query:  I'm researching a product with SKU W004939121 on Wayfair. I first checked the product reviews, specifically looking at the most helpful feedback (page 1, sorted by helpfulness) to understand customer ...
+    Tools (3): ['Wayfair: reviews/list', 'Wayfair: products/get-common-info', 'Aliexpress DataHub: Aliexpress - User Basic Parameters']
+    Domains: {'eCommerce'}
+    Has error output: False
+    Rationale: Simple parallel task with few tools -- baseline for tool selection accuracy.
+
+  Candidate 2: [parallel_simple]
+    Config: parallel_ecommerce_simple, Index: 1
+    Query:  Show me images of the Wayfair product with SKU W003078383, then search for products from AliExpress store ID 1102051418 (seller ID 231651707), and finally retrieve details for grocery product ID 85180...
+    Tools (3): ['Wayfair: products/get-images', 'Aliexpress DataHub: Aliexpress - Store Item Search 2', 'Weee grocery API (sayweee.com) - browsing/searching/details: product details (zipcode, product_id)']
+    Domains: {'eCommerce'}
+    Has error output: False
+    Rationale: Simple parallel task with few tools -- baseline for tool selection accuracy.
+
+  Candidate 3: [parallel_simple]
+    Config: parallel_ecommerce_simple, Index: 2
+    Query:  I need information about eCommerce across different platforms. First, list all countries where Asos sells products in English. Then, show me auto-complete suggestions for 'ergonomic gaming chair' on W...
+    Tools (3): ['Asos: countries/list', 'Wayfair: auto-complete', 'Amazon Pricing and Product Info: Main Endpoint']
+    Domains: {'eCommerce'}
+    Has error output: True
+    Rationale: Simple parallel task with few tools -- baseline for tool selection accuracy.
+
+  Candidate 4: [parallel_hard]
+    Config: parallel_ecommerce_hard, Index: 10
+    Query:  I'm redecorating my living room and thinking about getting a sectional sofa from Wayfair. I found a model with SKU W003078383 that I like, but I want to know if there's a warranty included. Could you ...
+    Tools (5): ['Asos: v2/auto-complete', 'Wayfair: auto-complete', 'Wayfair: reviews/list', 'Wayfair: products/get-warranty-services', 'Wayfair: products/get-similar-items']
+    Domains: {'eCommerce'}
+    Has error output: False
+    Rationale: Complex parallel task with many tools -- tests scaling and multi-domain handling.
+
+  Candidate 5: [parallel_hard]
+    Config: parallel_ecommerce_hard, Index: 11
+    Query:  I'm setting up a home office in Katy, Texas (77494) and need some help finding furniture. I'm interested in that Wayfair office chair I saw (SKU W003078383) but I'm also curious about what categories ...
+    Tools (5): ['Zappos Realtime Data: Category List', 'Asos: categories/list', 'Wayfair: products/get-common-info', 'Weee grocery API (sayweee.com) - browsing/searching/details: product details (zipcode, product_id)', 'Aliexpress DataHub: Aliexpress - Item Search 2']
+    Domains: {'eCommerce'}
+    Has error output: False
+    Rationale: Complex parallel task with many tools -- tests scaling and multi-domain handling.
+
+  Candidate 6: [parallel_hard]
+    Config: parallel_ecommerce_hard, Index: 12
+    Query:  I'm moving into my new apartment in San Francisco (zip 94105) and I'm looking at the Wayfair Meeks 90" Upholstered Sofa for my living room. Could you tell me how much it costs, what financing options ...
+    Tools (5): ['Wayfair: products/get-pricing', 'Wayfair: products/get-financing-offers', 'Wayfair: reviews/list', 'Ikea API: Countries', 'Weee grocery API (sayweee.com) - browsing/searching/details: product details (zipcode, product_id)']
+    Domains: {'eCommerce'}
+    Has error output: False
+    Rationale: Complex parallel task with many tools -- tests scaling and multi-domain handling.
+
+  Candidate 7: [sequential]
+    Config: sequential_travel, Index: 0
+    Query:  I'm planning a trip and need to browse through the top 100 cities. From those cities, I want to specifically search for hotels in Cooper Landing since it's alphabetically first on my list. After findi...
+    Tools (3): ['Priceline com Provider: Download cities', 'Priceline com Provider: Search hotels locations', 'Priceline com Provider: Hotel details']
+    Domains: {'Travel'}
+    Has error output: False
+    Sequence: Geographic Search → Hotel Search → Hotel Details
+    Executable: True
+    Rationale: Sequential chain -- tests dependency tracking and ordered execution.
+
+  Candidate 8: [sequential]
+    Config: sequential_travel, Index: 1
+    Query:  I'm planning a trip to Alaska and need to browse through a list of about 50 cities. From that list, I want to identify the westernmost city based on longitude. After finding it, could you search for a...
+    Tools (3): ['Priceline com Provider: Download cities', 'Priceline com Provider: Search hotels locations', 'Priceline com Provider: Hotel details']
+    Domains: {'Travel'}
+    Has error output: True
+    Sequence: Geographic Search → Hotel Search → Hotel Details
+    Executable: True
+    Rationale: Sequential chain -- tests dependency tracking and ordered execution.
+
+  Candidate 9: [sequential]
+    Config: sequential_travel, Index: 2
+    Query:  I'm looking for hotels in the northernmost city in the US. Can you first show me a list of 50 cities, then search for hotels with "Palmer" in the name across all search types, and finally give me deta...
+    Tools (3): ['Priceline com Provider: Download cities', 'Priceline com Provider: Search hotels locations', 'Priceline com Provider: Hotel details']
+    Domains: {'Travel'}
+    Has error output: True
+    Sequence: Geographic Search → Hotel Search → Hotel Details
+    Executable: True
+    Rationale: Sequential chain -- tests dependency tracking and ordered execution.
+
+  Coverage check:
+    Domains covered: ['Travel', 'eCommerce']
+    Has error output task: True
+    Required domains present: {'eCommerce', 'Travel'}
+
+================================================================================
+  Exploration complete!
+================================================================================
