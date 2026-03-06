@@ -26,7 +26,7 @@ DatasetVersionId: TypeAlias = int
 DatasetExampleId: TypeAlias = int
 DatasetExampleRevisionId: TypeAlias = int
 SpanRowId: TypeAlias = int
-ExternalId: TypeAlias = str
+ExternalID: TypeAlias = str
 ContentHash: TypeAlias = str
 
 
@@ -435,7 +435,7 @@ class DatasetAction(Enum):
 async def _get_external_ids_and_content_hashes_for_most_recent_version(
     session: AsyncSession,
     dataset_id: DatasetId,
-) -> list[tuple[DatasetExampleId, Optional[str], str]]:
+) -> list[tuple[DatasetExampleId, ExternalID, ContentHash]]:
     """Return (example_id, external_id, content_hash) for all active (non-deleted) examples."""
     latest_version_id = await session.scalar(
         select(func.max(models.DatasetVersion.id)).where(
