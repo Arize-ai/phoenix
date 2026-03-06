@@ -10,10 +10,10 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
     bulk_assign_examples_to_splits,
     bulk_create_dataset_splits,
-    compute_content_hash,
     resolve_span_ids_to_rowids,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_content_hash
 
 
 async def test_create_dataset(

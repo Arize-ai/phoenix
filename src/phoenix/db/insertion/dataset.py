@@ -158,10 +158,12 @@ async def bulk_insert_dataset_examples(
             {
                 "dataset_id": dataset_id,
                 "span_rowid": span_rowid,
-                "external_id": batch_external_ids[j] if batch_external_ids is not None else None,
+                "external_id": batch_external_ids[batch_idx]
+                if batch_external_ids is not None
+                else None,
                 "created_at": created_at,
             }
-            for j, span_rowid in enumerate(batch)
+            for batch_idx, span_rowid in enumerate(batch)
         ]
 
         # Use INSERT ... RETURNING to get IDs in order
@@ -180,7 +182,6 @@ async def bulk_insert_dataset_example_revisions(
     example_ids: Sequence[DatasetExampleId],
     examples: Sequence[ExampleContent],
     revision_kind: RevisionKind = RevisionKind.CREATE,
-    content_hash: Optional[str] = None,
     created_at: Optional[datetime] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> list[DatasetExampleRevisionId]:
