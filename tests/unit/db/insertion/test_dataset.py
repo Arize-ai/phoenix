@@ -1017,8 +1017,8 @@ async def test_upsert_examples_differing_only_in_key_order_share_same_content_ha
     ex1 = ExampleContent(input={"a": 1, "b": 2}, output={})
     ex2 = ExampleContent(input={"b": 2, "a": 1}, output={})
 
-    h1 = compute_content_hash(ex1.input, ex1.output, ex1.metadata)
-    h2 = compute_content_hash(ex2.input, ex2.output, ex2.metadata)
+    h1 = compute_content_hash(input=ex1.input, output=ex1.output, metadata=ex1.metadata)
+    h2 = compute_content_hash(input=ex2.input, output=ex2.output, metadata=ex2.metadata)
     assert h1 == h2
 
     name = "ds"
