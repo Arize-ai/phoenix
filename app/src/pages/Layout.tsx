@@ -108,7 +108,7 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               trailingVisual={
                 loaderData?.projectCount != null ? (
-                  <Counter>{loaderData.projectCount}</Counter>
+                  <Counter variant="quiet">{loaderData.projectCount}</Counter>
                 ) : undefined
               }
               isExpanded={isSideNavExpanded}
@@ -121,7 +121,7 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
               trailingVisual={
                 loaderData?.datasetCount != null ? (
-                  <Counter>{loaderData.datasetCount}</Counter>
+                  <Counter variant="quiet">{loaderData.datasetCount}</Counter>
                 ) : undefined
               }
               isExpanded={isSideNavExpanded}
@@ -142,7 +142,7 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.Scale />} />}
               trailingVisual={
                 loaderData?.evaluatorCount != null ? (
-                  <Counter>{loaderData.evaluatorCount}</Counter>
+                  <Counter variant="quiet">{loaderData.evaluatorCount}</Counter>
                 ) : undefined
               }
               isExpanded={isSideNavExpanded}
@@ -155,7 +155,7 @@ function SideNav() {
               leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
               trailingVisual={
                 loaderData?.promptCount != null ? (
-                  <Counter>{loaderData.promptCount}</Counter>
+                  <Counter variant="quiet">{loaderData.promptCount}</Counter>
                 ) : undefined
               }
               isExpanded={isSideNavExpanded}

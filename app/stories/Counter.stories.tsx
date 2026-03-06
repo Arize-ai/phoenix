@@ -32,3 +32,13 @@ Danger.args = {
   children: "12,000",
   variant: "danger",
 };
+
+/**
+ * The `quiet` variant removes the border and background
+ */
+export const Quiet = Template.bind({});
+
+Quiet.args = {
+  children: "1.2k",
+  variant: "quiet",
+};
