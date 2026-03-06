@@ -1,4 +1,3 @@
-import hashlib
 import logging
 from collections import deque
 from collections.abc import Awaitable, Iterable, Iterator, Mapping, Sequence
@@ -15,7 +14,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
-from phoenix.vendor.json_canonicalization_scheme import canonicalize
+from phoenix.utilities.content_hashing import compute_content_hash
 
 # Batch size for bulk inserts - tuned for good performance across SQLite and PostgreSQL
 DEFAULT_BATCH_SIZE = 1000
@@ -46,14 +45,6 @@ Examples: TypeAlias = Iterable[ExampleContent]
 class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
-
-
-def compute_content_hash(
-    input: dict[str, Any], output: dict[str, Any], metadata: dict[str, Any]
-) -> str:
-    data = {"input": input, "metadata": metadata, "output": output}
-    canonical: bytes = canonicalize(data)  # type: ignore[no-untyped-call]
-    return hashlib.sha256(canonical).hexdigest()
 
 
 async def insert_dataset(
