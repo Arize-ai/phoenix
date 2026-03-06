@@ -19,6 +19,7 @@ Phoenix Client provides a interface for interacting with the Phoenix platform vi
 - **Experiments** - Run evaluations and track experiment results
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
+- **Sessions** - Retrieve and list multi-turn conversation sessions
 
 ## Installation
 
@@ -261,10 +262,44 @@ new_project = client.projects.create(
 print(f"Created project with ID: {new_project['id']}")
 ```
 
+## Sessions
+
+Retrieve session data for multi-turn conversations. Sessions group related traces from a conversation into a single timeline.
+
+```python
+# Get a specific session by ID
+session = client.sessions.get(session_id="my-session-id")
+print(f"Session: {session['session_id']}, Traces: {len(session['traces'])}")
+
+# List sessions for a project
+sessions = client.sessions.list(project_name="my-chatbot")
+for s in sessions:
+    print(f"{s['session_id']}: {len(s['traces'])} traces")
+
+# List with a limit
+recent = client.sessions.list(project_name="my-chatbot", limit=10)
+
+# Get sessions as a pandas DataFrame
+df = client.sessions.get_sessions_dataframe(project_name="my-chatbot")
+print(df[["session_id", "start_time", "end_time", "num_traces"]])
+```
+
+### Async Usage
+
+```python
+from phoenix.client import AsyncClient
+
+async_client = AsyncClient()
+
+session = await async_client.sessions.get(session_id="my-session-id")
+sessions = await async_client.sessions.list(project_name="my-chatbot", limit=10)
+df = await async_client.sessions.get_sessions_dataframe(project_name="my-chatbot")
+```
+
 ---
 
 ## Reference Documentation
 
 <Card title="Full API Reference" icon="arrow-up-right-from-square" href="https://arize-phoenix.readthedocs.io/projects/client/">
-  Complete API documentation for datasets, experiments, prompts, spans, and annotations
+  Complete API documentation for datasets, experiments, prompts, spans, sessions, and annotations
 </Card>
