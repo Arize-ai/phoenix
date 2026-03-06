@@ -27,7 +27,7 @@ import {
   Text,
   useFilter,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field";
+import { SearchIcon } from "@phoenix/components/core/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";

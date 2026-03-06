@@ -1,7 +1,7 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationScoreText } from "./AnnotationScoreText";

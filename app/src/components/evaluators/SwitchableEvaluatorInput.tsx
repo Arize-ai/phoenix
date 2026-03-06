@@ -25,9 +25,9 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
-import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
-import type { SizingProps } from "@phoenix/components/types";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
+import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import type { SizingProps } from "@phoenix/components/core/types";
 
 type MappingMode = "path" | "literal";
 

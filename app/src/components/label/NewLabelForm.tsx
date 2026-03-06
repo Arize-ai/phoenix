@@ -17,7 +17,7 @@ import {
   ColorSwatchPicker,
   ColorSwatchPickerItem,
 } from "@phoenix/components/color";
-import { fieldBaseCSS } from "@phoenix/components/field/styles";
+import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 
 export type LabelParams = {
   name: string;

@@ -1,6 +1,6 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { BashBlock } from "@phoenix/components/code";
-import { Empty } from "@phoenix/components/Empty";
+import { Empty } from "@phoenix/components/core/Empty";
 
 import type { PlaygroundQuery$data } from "./__generated__/PlaygroundQuery.graphql";
 

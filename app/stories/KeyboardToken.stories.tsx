@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { KeyboardToken } from "../src/components/KeyboardToken";
+import { KeyboardToken } from "../src/components/core/KeyboardToken";
 
 /**
  * KeyboardToken visually represents a keyboard key or shortcut, styled to look like a keyboard key.
@@ -19,7 +19,7 @@ import { KeyboardToken } from "../src/components/KeyboardToken";
  * - Can be used inline with text
  */
 const meta: Meta<typeof KeyboardToken> = {
-  title: "Content/KeyboardToken",
+  title: "Core/Content/KeyboardToken",
   component: KeyboardToken,
   parameters: {
     layout: "centered",

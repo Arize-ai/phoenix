@@ -22,9 +22,9 @@ import {
   Token,
   useFilter,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
-import { SearchIcon } from "@phoenix/components/field";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import type { Mutable } from "@phoenix/typeUtils";
 

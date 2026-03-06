@@ -17,7 +17,7 @@ import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";

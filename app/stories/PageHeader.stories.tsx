@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "PageHeader",
+  title: "Core/PageHeader",
   component: PageHeader,
   parameters: {
     controls: { expanded: true },

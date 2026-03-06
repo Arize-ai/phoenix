@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
-import type { LoadMoreButtonProps } from "@phoenix/components/LoadMoreButton";
-import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
+import type { LoadMoreButtonProps } from "@phoenix/components/core/LoadMoreButton";
+import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 
 const rowCSS = css`
   position: relative;

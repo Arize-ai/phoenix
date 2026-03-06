@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../../../.oxlintrc.json"],
+  "rules": {
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@phoenix/components/core",
+            "message": "Do not import from the core barrel within core; use deep imports."
+          },
+          {
+            "name": "@phoenix/components",
+            "message": "Do not import from the components barrel within core; use deep imports."
+          }
+        ]
+      }
+    ]
+  }
+}

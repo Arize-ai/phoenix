@@ -27,8 +27,8 @@ import {
   Token,
   View,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SearchIcon } from "@phoenix/components/core/field";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 import type { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
 

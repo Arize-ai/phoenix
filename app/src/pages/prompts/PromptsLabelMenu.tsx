@@ -20,7 +20,7 @@ import {
   useFilter,
   View,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field";
+import { SearchIcon } from "@phoenix/components/core/field";
 import type { PromptsLabelMenuQuery } from "@phoenix/pages/prompts/__generated__/PromptsLabelMenuQuery.graphql";
 
 type PromptsLabelMenuProps = {

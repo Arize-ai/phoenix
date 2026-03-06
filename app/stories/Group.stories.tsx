@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Button } from "../src/components/button/Button";
-import { Group } from "../src/components/layout/Group";
+import { Button } from "../src/components/core/button/Button";
+import { Group } from "../src/components/core/layout/Group";
 
 /**
  * Group visually connects a set of buttons or controls, making them appear as a single component.
@@ -18,7 +18,7 @@ import { Group } from "../src/components/layout/Group";
  * The `size` prop can be used to control the sizing of the group and its children.
  */
 const meta: Meta<typeof Group> = {
-  title: "Layout/Group",
+  title: "Core/Layout/Group",
   component: Group,
   parameters: {
     layout: "centered",

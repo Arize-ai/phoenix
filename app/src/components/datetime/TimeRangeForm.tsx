@@ -11,9 +11,9 @@ import {
 } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
 
-import { Button } from "../button";
-import { Icon, Icons } from "../icon";
-import { DateField } from "./DateField";
+import { Button } from "../core/button";
+import { DateField } from "../core/datetime/DateField";
+import { Icon, Icons } from "../core/icon";
 
 const containerCSS = css`
   display: flex;

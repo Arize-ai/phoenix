@@ -9,6 +9,7 @@ import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
 import { Card, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Skeleton } from "@phoenix/components/core/loading/Skeleton";
 import type {
   ContentPartInput,
   EvaluatorPromptPreviewQuery,
@@ -17,7 +18,6 @@ import type {
 } from "@phoenix/components/evaluators/__generated__/EvaluatorPromptPreviewQuery.graphql";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
-import { Skeleton } from "@phoenix/components/loading/Skeleton";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";

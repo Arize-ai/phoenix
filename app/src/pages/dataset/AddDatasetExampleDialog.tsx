@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {

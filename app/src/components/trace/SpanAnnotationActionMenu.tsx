@@ -21,7 +21,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
 

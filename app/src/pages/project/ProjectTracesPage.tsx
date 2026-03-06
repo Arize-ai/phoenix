@@ -3,7 +3,7 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components/loading/Loading";
+import { Loading } from "@phoenix/components/core/loading/Loading";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";

@@ -1,12 +1,12 @@
 import { Dialog, Modal, ModalOverlay } from "@phoenix/components";
-import { EditDatasetForm } from "@phoenix/components/dataset";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
+import { EditDatasetForm } from "@phoenix/components/dataset";
 
 export type EditDatasetDialogProps = {
   datasetName: string;

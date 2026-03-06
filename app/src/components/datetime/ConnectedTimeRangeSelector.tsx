@@ -1,6 +1,6 @@
 import { startTransition, useCallback } from "react";
 
-import type { ComponentSize } from "@phoenix/components/types";
+import type { ComponentSize } from "@phoenix/components/core/types";
 
 import { useTimeRange } from "./TimeRangeContext";
 import { TimeRangeSelector } from "./TimeRangeSelector";

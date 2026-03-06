@@ -9,7 +9,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
 
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";

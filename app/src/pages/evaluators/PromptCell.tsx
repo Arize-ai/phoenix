@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import { Flex, Link, Text, Token } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 export const PromptCell = ({
   prompt,

@@ -15,14 +15,14 @@ import {
 } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
-import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
+import { CopyToClipboardButton } from "@phoenix/components/core/CopyToClipboardButton";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 
 /**
  * Displays the key one time for the user to copy.

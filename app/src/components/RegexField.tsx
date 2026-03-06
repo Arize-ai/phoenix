@@ -4,13 +4,13 @@ import { FieldError, Input, Label } from "react-aria-components";
 import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
 
 import type { RegexFieldQuery } from "@phoenix/components/__generated__/RegexFieldQuery.graphql";
-import { Text } from "@phoenix/components/content";
-import type { TextFieldProps } from "@phoenix/components/field";
+import { Text } from "@phoenix/components/core/content";
+import type { TextFieldProps } from "@phoenix/components/core/field";
 import {
   FieldDangerIcon,
   FieldSuccessIcon,
   TextField,
-} from "@phoenix/components/field";
+} from "@phoenix/components/core/field";
 
 type RegexFieldProps = {
   value: string;

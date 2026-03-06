@@ -9,7 +9,7 @@ import {
   DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
-} from "@phoenix/components/disclosure";
+} from "@phoenix/components/core/disclosure";
 import { useDebouncedJSONSync } from "@phoenix/hooks";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 

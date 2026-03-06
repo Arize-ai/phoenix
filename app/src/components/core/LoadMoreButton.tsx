@@ -1,0 +1,39 @@
+import { css } from "@emotion/react";
+
+import type { ButtonProps } from "./button";
+import { Button } from "./button";
+import { Icon, Icons } from "./icon";
+
+export type LoadMoreButtonProps = {
+  onLoadMore: () => void;
+  isLoadingNext: boolean;
+  buttonProps?: ButtonProps;
+};
+
+const buttonCSS = css`
+  border-radius: 16px;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-200) !important;
+`;
+
+export const LoadMoreButton = ({
+  onLoadMore,
+  isLoadingNext,
+  buttonProps,
+}: LoadMoreButtonProps) => {
+  return (
+    <Button
+      onPress={() => {
+        onLoadMore();
+      }}
+      size="S"
+      css={buttonCSS}
+      isDisabled={isLoadingNext}
+      leadingVisual={
+        isLoadingNext ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+      }
+      {...buttonProps}
+    >
+      {isLoadingNext ? "Loading..." : "Load More"}
+    </Button>
+  );
+};

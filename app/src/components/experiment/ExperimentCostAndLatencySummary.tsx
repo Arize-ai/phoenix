@@ -9,11 +9,11 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import { Skeleton } from "@phoenix/components/loading";
+import { Skeleton } from "@phoenix/components/core/loading";
+import type { ExecutionState } from "@phoenix/components/core/types";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import type { ExecutionState } from "@phoenix/components/types";
 
 import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";
 import { ExperimentAverageRunTokenCount } from "./ExperimentAverageRunTokenCount";

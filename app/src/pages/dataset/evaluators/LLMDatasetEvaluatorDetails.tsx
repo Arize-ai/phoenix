@@ -4,11 +4,11 @@ import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { Flex, Heading, Text } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import type { LLMDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/LLMDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import { PromptLink } from "@phoenix/pages/evaluators/PromptCell";
 

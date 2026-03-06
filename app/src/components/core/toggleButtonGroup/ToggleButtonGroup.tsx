@@ -1,0 +1,77 @@
+import { css } from "@emotion/react";
+import {
+  ToggleButtonGroup as AriaToggleButtonGroup,
+  type ToggleButtonGroupProps as AriaToggleButtonGroupProps,
+} from "react-aria-components";
+
+import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
+import type {
+  SizingProps,
+  StylableProps,
+} from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/utils/classNames";
+
+const baseToggleButtonGroupCSS = css(`
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: fit-content;
+  & > button {
+    border-radius: 0;
+    z-index: 1;
+
+    &[data-disabled] {
+      z-index: 0;
+    }
+
+    &[data-selected],
+    &[data-focus-visible] {
+      z-index: 2;
+    }
+  }
+
+  & > .toggle-button:not(:first-of-type):not([data-selected="true"]) {
+    border-left: none;
+  }
+    
+  & > .toggle-button[data-selected="true"]:not(:first-of-type) {
+    margin-left: -1px;
+  }
+
+  & > .toggle-button:first-of-type {
+    border-radius: var(--global-rounding-small) 0 0 var(--global-rounding-small);
+  }
+
+  & > .toggle-button:last-of-type {
+    border-radius: 0 var(--global-rounding-small) var(--global-rounding-small) 0;
+  }
+
+  &:has(.toggle-button[data-focus-visible]) {
+    border-radius: var(--global-rounding-small);
+    outline: 1px solid var(--global-input-field-border-color-active);
+    outline-offset: 1px;
+  }
+`);
+
+export type ToggleButtonGroupProps = AriaToggleButtonGroupProps;
+
+export const ToggleButtonGroup = ({
+  size = "M",
+  css: cssProp,
+  className,
+  selectionMode = "single",
+  ...props
+}: ToggleButtonGroupProps & SizingProps & StylableProps) => {
+  return (
+    <SizeProvider size={size}>
+      <AriaToggleButtonGroup
+        data-size={size}
+        className={classNames("toggle-button-group", className)}
+        css={css(baseToggleButtonGroupCSS, cssProp)}
+        selectionMode={selectionMode}
+        {...props}
+      />
+    </SizeProvider>
+  );
+};

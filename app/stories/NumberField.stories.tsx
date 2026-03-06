@@ -12,7 +12,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "NumberField",
+  title: "Core/NumberField",
   component: NumberField,
 
   parameters: {

@@ -15,14 +15,14 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
-import { DatasetSelect, NewDatasetButton } from "@phoenix/components/dataset";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
+import { DatasetSelect, NewDatasetButton } from "@phoenix/components/dataset";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 

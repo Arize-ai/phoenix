@@ -10,9 +10,10 @@ import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { Icons } from "@phoenix/components/icon";
-import { Icon } from "@phoenix/components/icon/Icon";
-import { Flex } from "@phoenix/components/layout/Flex";
+import { Icons } from "@phoenix/components/core/icon";
+import { Icon } from "@phoenix/components/core/icon/Icon";
+import { Flex } from "@phoenix/components/core/layout/Flex";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -20,7 +21,6 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import type {

@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
-import type { TooltipProps } from "@phoenix/components/tooltip";
+import type { TooltipProps } from "@phoenix/components/core/tooltip";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
 
 /**
  * Tooltips display helpful information when users hover over, focus on, or tap an element.
@@ -14,7 +14,7 @@ import {
  * The tooltip component wraps react-aria-components' Tooltip with Phoenix design system styling.
  */
 const meta = {
-  title: "Tooltip",
+  title: "Core/Tooltip",
   component: Tooltip,
   parameters: {
     layout: "centered",

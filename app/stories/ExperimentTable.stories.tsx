@@ -11,18 +11,18 @@ import { useMemo, useState } from "react";
 import { Flex, Icon, IconButton, Icons, Text, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
-import { CellTop } from "@phoenix/components/table";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
-} from "@phoenix/components/tooltip";
+} from "@phoenix/components/core/tooltip";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { CellTop } from "@phoenix/components/table";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 // Mock data types

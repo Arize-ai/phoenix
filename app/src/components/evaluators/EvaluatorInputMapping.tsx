@@ -3,13 +3,13 @@ import { Suspense, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import { Loading, Text } from "@phoenix/components";
+import { Flex } from "@phoenix/components/core/layout/Flex";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   escapeFieldNameForReactHookForm,
   unescapeFieldNameFromReactHookForm,
 } from "@phoenix/components/evaluators/fieldNameUtils";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
-import { Flex } from "@phoenix/components/layout/Flex";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,

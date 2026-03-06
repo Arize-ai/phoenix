@@ -1,7 +1,7 @@
 import { memo } from "react";
 
 import { Flex, Text } from "@phoenix/components";
-import { ProgressCircle } from "@phoenix/components/progress/ProgressCircle";
+import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 interface ProgressIndicatorProps {

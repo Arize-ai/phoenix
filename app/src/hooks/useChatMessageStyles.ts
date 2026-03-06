@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import type { ViewStyleProps } from "@phoenix/components/types";
+import type { ViewStyleProps } from "@phoenix/components/core/types";
 import { ChatRoleMap } from "@phoenix/constants/generativeConstants";
 
 export function useChatMessageStyles(

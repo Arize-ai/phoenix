@@ -18,10 +18,10 @@ import {
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 

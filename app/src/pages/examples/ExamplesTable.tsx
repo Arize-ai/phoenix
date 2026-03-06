@@ -17,8 +17,8 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
+import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
-import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";

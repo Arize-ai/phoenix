@@ -4,7 +4,7 @@ import type { LinkButtonProps } from "@phoenix/components";
 import { LinkButton } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "LinkButton",
+  title: "Core/LinkButton",
   component: LinkButton,
   parameters: {
     layout: "centered",

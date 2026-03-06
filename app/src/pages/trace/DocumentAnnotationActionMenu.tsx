@@ -20,7 +20,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@phoenix/components/dialog";
+} from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 

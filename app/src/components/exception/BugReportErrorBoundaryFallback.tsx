@@ -1,9 +1,9 @@
 import { css } from "@emotion/react";
 
-import { Button } from "../button";
-import { ExternalLink } from "../ExternalLink";
-import { Flex } from "../layout";
-import { View } from "../view";
+import { Button } from "../core/button";
+import { ExternalLink } from "../core/ExternalLink";
+import { Flex } from "../core/layout";
+import { View } from "../core/view";
 import { isConnectionTimeoutError } from "./isConnectionTimeoutError";
 import type { ErrorBoundaryFallbackProps } from "./types";
 

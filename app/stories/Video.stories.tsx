@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Video } from "../src/components/media";
+import { Video } from "../src/components/core/media";
 
 /**
  * The Video component is a wrapper around the HTML5 video element that provides a simple,
@@ -31,7 +31,7 @@ import { Video } from "../src/components/media";
  * - Poster image support
  */
 const meta: Meta<typeof Video> = {
-  title: "Media/Video",
+  title: "Core/Media/Video",
   component: Video,
   parameters: {
     layout: "centered",

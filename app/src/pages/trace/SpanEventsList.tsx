@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanEventsListQuery } from "./__generated__/SpanEventsListQuery.graphql";

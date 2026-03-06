@@ -24,9 +24,9 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { Toolbar } from "@phoenix/components/core/toolbar";
+import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
 import { FloatCell, IntCell, TextCell } from "@phoenix/components/table";
-import { Toolbar } from "@phoenix/components/toolbar";
-import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
 
 import { IndeterminateCheckboxCell } from "../src/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "../src/components/table/styles";

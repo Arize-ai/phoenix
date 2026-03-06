@@ -2,14 +2,14 @@ import type { Meta, StoryFn } from "@storybook/react";
 import type { ComponentProps } from "react";
 
 import { Button, Flex } from "@phoenix/components";
-import { ToastRegion } from "@phoenix/components/toast/ToastRegion";
+import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
 import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 /**
  * ToastRegion manages the display of one or more queued toasts
  */
 const meta: Meta = {
-  title: "ToastRegion",
+  title: "Core/ToastRegion",
   component: ToastRegion,
   parameters: {
     layout: "centered",

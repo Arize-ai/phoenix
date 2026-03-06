@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
-import type { TokenProps } from "@phoenix/components/token";
-import { Token } from "@phoenix/components/token";
+import type { TokenProps } from "@phoenix/components/core/token";
+import { Token } from "@phoenix/components/core/token";
 import type { EvaluatorKind } from "@phoenix/types";
 
 export function EvaluatorKindToken(props: {

@@ -13,7 +13,7 @@ import {
   type FileRejection,
 } from "@phoenix/components";
 import { Flex, View, Text } from "@phoenix/components";
-import { DropOverlay, DropZone } from "@phoenix/components/dropzone";
+import { DropOverlay, DropZone } from "@phoenix/components/core/dropzone";
 
 const fileChipCSS = css`
   display: inline-flex;
@@ -36,7 +36,7 @@ const fileChipRemoveButtonCSS = css`
 `;
 
 const meta: Meta<typeof FileDropZone> = {
-  title: "FileDropZone",
+  title: "Core/FileDropZone",
   component: FileDropZone,
   parameters: {
     layout: "centered",

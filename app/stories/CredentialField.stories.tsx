@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "CredentialField",
+  title: "Core/CredentialField",
   component: CredentialField,
 
   parameters: {

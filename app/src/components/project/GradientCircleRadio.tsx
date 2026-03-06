@@ -4,8 +4,8 @@ import {
   type RadioProps as AriaRadioProps,
 } from "react-aria-components";
 
-import type { StylableProps } from "@phoenix/components/types";
-import { classNames } from "@phoenix/utils";
+import type { StylableProps } from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { GradientCircle } from "./GradientCircle";
 

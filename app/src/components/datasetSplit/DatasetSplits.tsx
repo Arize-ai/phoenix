@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { Token } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 const ulCSS = css`
   display: flex;

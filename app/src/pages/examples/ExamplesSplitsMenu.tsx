@@ -18,7 +18,7 @@ import {
   Token,
   useFilter,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/field";
+import { SearchIcon } from "@phoenix/components/core/field";
 import type { ExamplesSplitsMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitsMenuQuery.graphql";
 import type { Mutable } from "@phoenix/typeUtils";
 

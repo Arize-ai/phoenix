@@ -9,7 +9,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { EvaluatorKind } from "@phoenix/types";
 
 export type EvaluatorItem = {

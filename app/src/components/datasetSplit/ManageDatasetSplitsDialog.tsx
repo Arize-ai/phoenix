@@ -13,16 +13,16 @@ import {
   ModalOverlay,
   View,
 } from "@phoenix/components";
-import { Checkbox } from "@phoenix/components/checkbox";
-import { NewDatasetSplitDialog } from "@phoenix/components/dataset/NewDatasetSplitDialog";
+import { Checkbox } from "@phoenix/components/core/checkbox";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
-import { DebouncedSearch } from "@phoenix/components/field/DebouncedSearch";
+} from "@phoenix/components/core/dialog";
+import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
+import { NewDatasetSplitDialog } from "@phoenix/components/dataset/NewDatasetSplitDialog";
 
 import type {
   ManageDatasetSplitsDialogQuery,

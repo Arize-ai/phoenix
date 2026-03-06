@@ -6,7 +6,7 @@ import { Toast } from "@phoenix/components";
 import type { NotificationParams } from "@phoenix/contexts";
 
 const meta: Meta = {
-  title: "Toast",
+  title: "Core/Toast",
   component: Toast,
   parameters: {
     layout: "centered",

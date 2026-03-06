@@ -1,4 +1,4 @@
-import { CopyToClipboardButton } from "../CopyToClipboardButton";
+import { CopyToClipboardButton } from "../core/CopyToClipboardButton";
 import { codeBlockWithCopyCSS } from "./styles";
 import { TypeScriptBlock } from "./TypeScriptBlock";
 

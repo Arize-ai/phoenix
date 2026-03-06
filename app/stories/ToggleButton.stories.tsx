@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Icon, Icons, ToggleButton } from "@phoenix/components";
 
 export default {
-  title: "ToggleButton",
+  title: "Core/ToggleButton",
   component: ToggleButton,
   parameters: {
     layout: "centered",

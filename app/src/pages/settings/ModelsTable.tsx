@@ -20,19 +20,19 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import {
+  RichTooltip,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/core/tooltip";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import {
-  RichTooltip,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components/tooltip";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import type {
   GenerativeModelKind,
   ModelsTable_generativeModels$data,

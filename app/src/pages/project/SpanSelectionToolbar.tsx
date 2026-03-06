@@ -19,14 +19,14 @@ import {
   Toolbar,
   View,
 } from "@phoenix/components";
-import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import {
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/dialog";
-import { FloatingToolbarContainer } from "@phoenix/components/toolbar/FloatingToolbarContainer";
+} from "@phoenix/components/core/dialog";
+import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
+import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";

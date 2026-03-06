@@ -34,6 +34,7 @@ import {
   View,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -51,7 +52,6 @@ import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentA
 import { CellTop, OverflowCell, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { Truncate } from "@phoenix/components/utility/Truncate";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
