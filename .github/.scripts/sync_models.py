@@ -250,7 +250,7 @@ def update_manifest(
             )
             manifest.models.append(new_model)
 
-    manifest.models.sort(key=lambda model: model.name)
+    manifest.models.sort(key=lambda model: ("/" in model.name, model.name))
     print(f"Updated {num_updated_models} models from LiteLLM")
     return manifest
 
