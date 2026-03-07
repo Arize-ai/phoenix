@@ -1,5 +1,6 @@
 import json
 import re
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any
@@ -36,11 +37,35 @@ class ModelConfig(BaseModel):
     name: str
     name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
     source: ModelSource
+    provider: str | None = None
     token_prices: list[TokenPrice]
 
 
 class ModelCostManifest(BaseModel):
     models: list[ModelConfig]
+
+
+PROVIDER_PREFIXES: dict[str, str | None] = {
+    "cerebras/": "cerebras",
+    "groq/": "groq",
+    "moonshot/": None,
+}
+
+
+def parse_provider_prefix(model_id: str) -> tuple[bool, str | None, str]:
+    """Return (matched, provider, stripped_name) or (False, None, model_id) if no prefix match."""
+    for prefix, provider in PROVIDER_PREFIXES.items():
+        if model_id.startswith(prefix):
+            return True, provider, model_id[len(prefix) :]
+    return False, None, model_id
+
+
+@dataclass
+class LiteLLMPricingEntry:
+    name: str  # Full LiteLLM ID (e.g., "groq/llama-3.3-70b-versatile")
+    provider: str | None  # Phoenix provider string (e.g., "groq") or None
+    name_pattern: str  # Stripped name for regex (e.g., "llama-3.3-70b-versatile")
+    token_prices: list[TokenPrice]
 
 
 def filter_models(model_ids: list[str]) -> list[str]:
@@ -72,6 +97,13 @@ def filter_models(model_ids: list[str]) -> list[str]:
     exclude_regexes = [re.compile(pattern) for pattern in exclude_patterns]
     filtered_models = []
     for model_id in model_ids:
+        # Models with known provider prefixes bypass include/exclude filtering
+        matched, _, stripped_name = parse_provider_prefix(model_id)
+        if matched:
+            if stripped_name and not stripped_name.endswith("/"):
+                filtered_models.append(model_id)
+            continue
+
         if any(regex.search(model_id) for regex in exclude_regexes):
             continue
 
@@ -93,7 +125,7 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
-def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
+def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         if (
@@ -108,7 +140,7 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
     for model_id in filtered_model_ids:
         print(f"  - {model_id}")
 
-    transformed: dict[str, list[TokenPrice]] = {}
+    pricing_entries: list[LiteLLMPricingEntry] = []
 
     for model_id in filtered_model_ids:
         model_info = data[model_id]
@@ -170,19 +202,31 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
             )
 
         if token_prices:
-            transformed[model_id] = token_prices
+            _, provider, stripped_name = parse_provider_prefix(model_id)
+            pricing_entries.append(
+                LiteLLMPricingEntry(
+                    name=model_id,
+                    provider=provider,
+                    name_pattern=stripped_name,
+                    token_prices=token_prices,
+                )
+            )
 
-    return transformed
+    return pricing_entries
 
 
 def update_manifest(
     manifest: ModelCostManifest,
-    update_token_prices: dict[str, list[TokenPrice]],
+    litellm_entries: list[LiteLLMPricingEntry],
 ) -> ModelCostManifest:
+    entries_by_name: dict[str, LiteLLMPricingEntry] = {
+        entry.name: entry for entry in litellm_entries
+    }
+
     # Remove LiteLLM models that are no longer in the remote data
     for index in reversed(range(len(manifest.models))):
         model = manifest.models[index]
-        if model.source == ModelSource.LITELLM and model.name not in update_token_prices:
+        if model.source == ModelSource.LITELLM and model.name not in entries_by_name:
             removed_model = manifest.models.pop(index)
             print(f"Removed LiteLLM model no longer in remote data: {removed_model.name}")
 
@@ -190,24 +234,26 @@ def update_manifest(
     for index, model in enumerate(manifest.models):
         model_name_to_index[model.name] = index
 
-    num_updated_models = 0
-    for model_name, token_prices in update_token_prices.items():
-        if model_name in model_name_to_index:
-            index = model_name_to_index[model_name]
-            manifest.models[index].token_prices = token_prices
-            num_updated_models += 1
+    num_updated = 0
+    for entry in litellm_entries:
+        if entry.name in model_name_to_index:
+            index = model_name_to_index[entry.name]
+            manifest.models[index].token_prices = entry.token_prices
+            manifest.models[index].provider = entry.provider
+            num_updated += 1
         else:
-            escaped_model_name = re.escape(model_name).replace("\\-", "-")
+            escaped_name_pattern = re.escape(entry.name_pattern).replace("\\-", "-")
             new_model = ModelConfig(
-                name=model_name,
-                name_pattern=escaped_model_name,  # seed an initial name pattern
+                name=entry.name,
+                name_pattern=escaped_name_pattern,
                 source=ModelSource.LITELLM,
-                token_prices=token_prices,
+                provider=entry.provider,
+                token_prices=entry.token_prices,
             )
             manifest.models.append(new_model)
 
-    manifest.models.sort(key=lambda model: model.name)
-    print(f"Updated {num_updated_models} models from LiteLLM")
+    manifest.models.sort(key=lambda model: ("/" in model.name, model.name))
+    print(f"Updated {num_updated} models from LiteLLM")
     return manifest
 
 
@@ -218,29 +264,29 @@ def main() -> int:
     url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
     try:
-        litellm_models = fetch_data(url)
+        remote_data = fetch_data(url)
     except Exception as error:
         print(f"Error fetching model data from LiteLLM: {error}")
         return 1
 
     with open(local_file_path, "r") as file:
-        data = json.load(file)
-    manifest = ModelCostManifest.model_validate(data)
+        manifest_json = json.load(file)
+    manifest = ModelCostManifest.model_validate(manifest_json)
 
-    transformed_data = transform_remote_data(litellm_models)
-    print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
+    litellm_entries = extract_litellm_entries(remote_data)
+    print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
 
-    updated_manifest = update_manifest(manifest, transformed_data)
+    updated_manifest = update_manifest(manifest, litellm_entries)
 
-    if data != updated_manifest:
+    if manifest_json != updated_manifest:
         with open(local_file_path, "w") as file:
-            file.write(updated_manifest.model_dump_json(indent=2))
+            file.write(updated_manifest.model_dump_json(indent=2, exclude_none=True))
         print("Model data updated successfully")
     else:
         print("No changes detected")
 
     print(f"Total models in file: {len(updated_manifest.models)}")
-    print(f"Models from this sync: {len(transformed_data)}")
+    print(f"Models from this sync: {len(litellm_entries)}")
 
     return 0
 
