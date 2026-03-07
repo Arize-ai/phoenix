@@ -29,7 +29,7 @@ const switchCSS = css`
     height: var(--switch-track-height);
     background: var(--switch-track-bg);
     border-radius: var(--global-rounding-full);
-    transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     flex-shrink: 0;
 
@@ -44,7 +44,7 @@ const switchCSS = css`
       border-radius: 50%;
       transition:
         transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
-        background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        background 200ms cubic-bezier(0.4, 0, 0.2, 1);
     }
   }
 
