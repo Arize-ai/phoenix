@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useCallback, useState } from "react";
 import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
+  useMutation,
   usePreloadedQuery,
   useRefetchableFragment,
 } from "react-relay";
@@ -12,6 +13,8 @@ import {
   Card,
   CopyToClipboardButton,
   Flex,
+  Icon,
+  Icons,
   Input,
   Label,
   ListBox,
@@ -24,9 +27,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useProjectContext } from "@phoenix/contexts";
 
 import type { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
+import type { ProjectConfigPagePatchProjectMutation } from "./__generated__/ProjectConfigPagePatchProjectMutation.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import { isProjectTab } from "./constants";
 import { ProjectAnnotationConfigCard } from "./ProjectAnnotationConfigCard";
@@ -35,6 +40,9 @@ import {
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectRetentionPolicyCard } from "./ProjectRetentionPolicyCard";
+import type { ProjectFormParams } from "../projects/ProjectForm";
+import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
+
 const projectConfigPageCSS = css`
   overflow-y: auto;
 `;
@@ -88,17 +96,33 @@ const ProjectConfigContent = ({
   );
 };
 
+/**
+ * Find matching gradient preset from start/end colors, or default to first preset.
+ */
+function findGradientPreset(
+  startColor: string,
+  endColor: string
+): string {
+  const match = GRADIENT_PRESETS.find(
+    (p) =>
+      p.startColor.toLowerCase() === startColor.toLowerCase() &&
+      p.endColor.toLowerCase() === endColor.toLowerCase()
+  );
+  return match?.id ?? GRADIENT_PRESETS[0].id;
+}
+
 const ProjectConfigCard = ({
   project,
 }: {
   project: ProjectConfigPage_projectConfigCard$key;
 }) => {
-  const [data] = useRefetchableFragment(
+  const [data, refetch] = useRefetchableFragment(
     graphql`
       fragment ProjectConfigPage_projectConfigCard on Project
       @refetchable(queryName: "ProjectConfigPageProjectConfigCardQuery") {
         id
         name
+        description
         gradientStartColor
         gradientEndColor
       }
@@ -111,8 +135,106 @@ const ProjectConfigCard = ({
     setDefaultTab: state.setDefaultTab,
   }));
 
+  const [isEditing, setIsEditing] = useState(false);
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+
+  const [commit, isCommitting] =
+    useMutation<ProjectConfigPagePatchProjectMutation>(graphql`
+      mutation ProjectConfigPagePatchProjectMutation(
+        $input: PatchProjectInput!
+      ) {
+        patchProject(input: $input) {
+          project {
+            id
+            description
+            gradientStartColor
+            gradientEndColor
+          }
+        }
+      }
+    `);
+
+  const handleSubmit = useCallback(
+    (params: ProjectFormParams) => {
+      commit({
+        variables: {
+          input: {
+            id: data.id,
+            description: params.description,
+            gradientStartColor: params.gradientStartColor,
+            gradientEndColor: params.gradientEndColor,
+          },
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "Project updated",
+            message: "Project settings have been saved.",
+          });
+          refetch({}, { fetchPolicy: "network-only" });
+          setIsEditing(false);
+        },
+        onError: () => {
+          notifyError({
+            title: "Failed to update project",
+            message: "An error occurred while saving project settings.",
+          });
+        },
+      });
+    },
+    [commit, data.id, notifySuccess, notifyError, refetch]
+  );
+
+  if (isEditing) {
+    return (
+      <Card title="Project Settings">
+        <View padding="size-200">
+          <Flex direction="row" gap="size-100" alignItems="end" width="100%">
+            <TextField
+              value={data.name}
+              isReadOnly
+              css={css`
+                width: 100%;
+              `}
+            >
+              <Label>Project Name</Label>
+              <Input />
+            </TextField>
+            <CopyToClipboardButton text={data.name} size="M" />
+          </Flex>
+        </View>
+        <ProjectForm
+          onSubmit={handleSubmit}
+          isSubmitting={isCommitting}
+          submitButtonText={isCommitting ? "Saving..." : "Save"}
+          hideNameField
+          onCancel={() => setIsEditing(false)}
+          defaultValues={{
+            description: data.description ?? "",
+            gradientPreset: findGradientPreset(
+              data.gradientStartColor,
+              data.gradientEndColor
+            ),
+          }}
+        />
+      </Card>
+    );
+  }
+
   return (
-    <Card title="Project Settings">
+    <Card
+      title="Project Settings"
+      extra={
+        <Button
+          variant="default"
+          size="S"
+          leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+          onPress={() => setIsEditing(true)}
+        >
+          Edit
+        </Button>
+      }
+    >
       <View padding="size-200">
         <Flex direction="row" gap="size-200">
           <div
@@ -151,6 +273,12 @@ const ProjectConfigCard = ({
                 </TextField>
                 <CopyToClipboardButton text={data.name} size="M" />
               </Flex>
+              {data.description && (
+                <TextField value={data.description} isReadOnly>
+                  <Label>Description</Label>
+                  <Input />
+                </TextField>
+              )}
               <Select
                 value={defaultTab}
                 onChange={(key) => {

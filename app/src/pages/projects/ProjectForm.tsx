@@ -31,7 +31,7 @@ export type ProjectFormParams = {
 const URI_SAFE_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
 // Predefined gradient options
-const GRADIENT_PRESETS = [
+export const GRADIENT_PRESETS = [
   {
     id: "blue-purple",
     label: "Blue Purple",
@@ -106,14 +106,20 @@ const GRADIENT_PRESETS = [
   },
 ] as const;
 
-export function NewProjectForm({
+export function ProjectForm({
   onSubmit,
   isSubmitting,
   submitButtonText,
+  defaultValues,
+  hideNameField,
+  onCancel,
 }: {
   onSubmit: (params: ProjectFormParams) => void;
   isSubmitting: boolean;
   submitButtonText: string;
+  defaultValues?: Partial<ProjectFormParams>;
+  hideNameField?: boolean;
+  onCancel?: () => void;
 }) {
   const {
     control,
@@ -124,6 +130,7 @@ export function NewProjectForm({
       name: "",
       description: "",
       gradientPreset: "blue-purple",
+      ...defaultValues,
     },
   });
 
@@ -196,48 +203,50 @@ export function NewProjectForm({
             />
           </Flex>
         </View>
-        <Controller
-          name="name"
-          control={control}
-          rules={{
-            required: "Project name is required",
-            pattern: {
-              value: URI_SAFE_PATTERN,
-              message:
-                "Project name must be URI safe. Use only letters, numbers, hyphens, underscores, and dots. No spaces or special characters.",
-            },
-            minLength: {
-              value: 1,
-              message: "Project name must be at least 1 character long",
-            },
-            maxLength: {
-              value: 100,
-              message: "Project name must be less than 100 characters long",
-            },
-          }}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              isInvalid={invalid}
-              onChange={onChange}
-              onBlur={onBlur}
-              value={value.toString()}
-            >
-              <Label>Project Name</Label>
-              <Input placeholder="e.x. my-ai-project" />
-              {error?.message ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">
-                  The name of the project. Must be URI safe (letters, numbers,
-                  hyphens, underscores, dots only).
-                </Text>
-              )}
-            </TextField>
-          )}
-        />
+        {!hideNameField && (
+          <Controller
+            name="name"
+            control={control}
+            rules={{
+              required: "Project name is required",
+              pattern: {
+                value: URI_SAFE_PATTERN,
+                message:
+                  "Project name must be URI safe. Use only letters, numbers, hyphens, underscores, and dots. No spaces or special characters.",
+              },
+              minLength: {
+                value: 1,
+                message: "Project name must be at least 1 character long",
+              },
+              maxLength: {
+                value: 100,
+                message: "Project name must be less than 100 characters long",
+              },
+            }}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                isInvalid={invalid}
+                onChange={onChange}
+                onBlur={onBlur}
+                value={value.toString()}
+              >
+                <Label>Project Name</Label>
+                <Input placeholder="e.x. my-ai-project" />
+                {error?.message ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    The name of the project. Must be URI safe (letters, numbers,
+                    hyphens, underscores, dots only).
+                  </Text>
+                )}
+              </TextField>
+            )}
+          />
+        )}
         <Controller
           name="description"
           control={control}
@@ -267,7 +276,12 @@ export function NewProjectForm({
         paddingTop="size-100"
         paddingBottom="size-100"
       >
-        <Flex direction="row" justifyContent="end">
+        <Flex direction="row" justifyContent="end" gap="size-100">
+          {onCancel && (
+            <Button variant="default" size="M" onPress={onCancel}>
+              Cancel
+            </Button>
+          )}
           <Button
             isDisabled={isSubmitting}
             variant={isDirty ? "primary" : "default"}

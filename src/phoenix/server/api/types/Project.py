@@ -79,6 +79,22 @@ class Project(Node):
         return name
 
     @strawberry.field
+    async def description(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            description = self.db_record.description
+        else:
+            description = cast(
+                Optional[str],
+                await info.context.data_loaders.project_fields.load(
+                    (self.id, models.Project.description),
+                ),
+            )
+        return description
+
+    @strawberry.field
     async def gradient_start_color(
         self,
         info: Info[Context, None],
