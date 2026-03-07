@@ -9,6 +9,7 @@ import {
 } from "react-relay";
 
 import {
+  Alert,
   Button,
   Card,
   CopyToClipboardButton,
@@ -27,7 +28,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { useProjectContext } from "@phoenix/contexts";
 
 import type { ProjectFormParams } from "../projects/ProjectForm";
@@ -133,8 +134,8 @@ const ProjectConfigCard = ({
   }));
 
   const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const [commit, isCommitting] =
     useMutation<ProjectConfigPagePatchProjectMutation>(graphql`
@@ -152,6 +153,7 @@ const ProjectConfigCard = ({
 
   const handleSubmit = useCallback(
     (params: ProjectFormParams) => {
+      setError(null);
       commit({
         variables: {
           input: {
@@ -170,19 +172,23 @@ const ProjectConfigCard = ({
           setIsEditing(false);
         },
         onError: () => {
-          notifyError({
-            title: "Failed to update project",
-            message: "An error occurred while saving project settings.",
-          });
+          setError("An error occurred while saving project settings.");
         },
       });
     },
-    [commit, data.id, notifySuccess, notifyError, refetch]
+    [commit, data.id, notifySuccess, refetch]
   );
 
   if (isEditing) {
     return (
       <Card title="Project Settings">
+        {error && (
+          <View padding="size-200" paddingBottom="size-0">
+            <Alert variant="danger" banner>
+              {error}
+            </Alert>
+          </View>
+        )}
         <View padding="size-200">
           <Flex direction="row" gap="size-100" alignItems="end" width="100%">
             <TextField
