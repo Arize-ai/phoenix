@@ -2144,6 +2144,20 @@ export const RepeatOutline = () => (
   </svg>
 );
 
+export const RecordOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+    <circle
+      cx="9"
+      cy="9"
+      r="8"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    />
+    <circle cx="9" cy="9" r="4.5" fill="currentColor" />
+  </svg>
+);
+
 export const Robot = () => (
   <svg
     width="17"
