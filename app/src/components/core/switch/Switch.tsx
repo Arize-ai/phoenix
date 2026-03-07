@@ -5,6 +5,15 @@ import type { SwitchProps as AriaSwitchProps } from "react-aria-components";
 import { Switch as AriaSwitch } from "react-aria-components";
 
 const switchCSS = css`
+  --switch-track-width: 36px;
+  --switch-track-height: 20px;
+  --switch-track-bg: var(--global-color-gray-400);
+  --switch-track-bg-selected: var(--global-color-primary);
+  --switch-thumb-size: 16px;
+  --switch-thumb-bg: var(--global-color-gray-900);
+  --switch-thumb-bg-selected: var(--global-color-gray-50);
+  --switch-thumb-inset: 2px;
+
   display: flex;
   position: relative;
   align-items: center;
@@ -13,70 +22,59 @@ const switchCSS = css`
   font-size: var(--global-font-size-m);
   line-height: var(--global-line-height-m);
   white-space: nowrap;
+  cursor: pointer;
 
   .indicator {
-    width: var(--global-dimension-size-400);
-    height: var(--global-dimension-size-150);
-    background: var(--global-color-gray-300);
-    border-radius: var(--global-rounding-medium);
-    transition: background 0.1s ease-in-out;
+    width: var(--switch-track-width);
+    height: var(--switch-track-height);
+    background: var(--switch-track-bg);
+    border-radius: 9999px;
+    transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    flex-shrink: 0;
 
     &:before {
       content: "";
       position: absolute;
-      top: 50%;
-      left: 0;
-      transform: translateY(-50%);
-      width: var(--global-dimension-size-250);
-      height: var(--global-dimension-size-250);
-      background: var(--global-color-gray-500);
+      top: var(--switch-thumb-inset);
+      left: var(--switch-thumb-inset);
+      width: var(--switch-thumb-size);
+      height: var(--switch-thumb-size);
+      background: var(--switch-thumb-bg);
       border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      transition: all 0.1s ease-in-out;
+      transition:
+        transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
     }
+  }
 
-    &:hover::after {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: calc(var(--global-dimension-size-250) / 2);
-      transform: translate(-50%, -50%);
-      width: var(--global-dimension-size-350);
-      height: var(--global-dimension-size-350);
-      background: var(--global-color-primary);
-      border-radius: 50%;
-      opacity: 0.4;
-      transition: all 0.1s ease-in-out;
-    }
+  &:hover .indicator {
+    opacity: 0.85;
   }
 
   &[data-selected] {
     .indicator {
-      background: var(--global-color-primary-700);
+      background: var(--switch-track-bg-selected);
 
       &:before {
-        background: var(--global-color-primary);
-        transform: translateY(-50%)
-          translateX(
-            calc(
-              var(--global-dimension-size-400) - var(--global-dimension-size-250)
-            )
-          );
+        transform: translateX(var(--switch-thumb-size));
+        background: var(--switch-thumb-bg-selected);
       }
+    }
 
-      &:hover::after {
-        left: calc(
-          var(--global-dimension-size-400) - var(--global-dimension-size-250) +
-            var(--global-dimension-size-250) / 2
-        );
-      }
+    &:hover .indicator {
+      opacity: 0.9;
     }
   }
 
   &[data-focus-visible] .indicator {
     outline: 2px solid var(--focus-ring-color);
     outline-offset: 2px;
+  }
+
+  &[data-disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   &[data-label-placement="start"] {
