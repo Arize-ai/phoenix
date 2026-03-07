@@ -37,6 +37,10 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   DEEPSEEK: ["required", "auto", "none"] as const,
   XAI: ["required", "auto", "none"] as const,
   OLLAMA: ["required", "auto", "none"] as const,
+  CEREBRAS: ["required", "auto", "none"] as const,
+  FIREWORKS: ["required", "auto", "none"] as const,
+  GROQ: ["required", "auto", "none"] as const,
+  MOONSHOT: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
   GOOGLE: ["any", "auto", "none"] as const,
@@ -62,6 +66,10 @@ export const findToolChoiceType = (
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "CEREBRAS":
+    case "FIREWORKS":
+    case "GROQ":
+    case "MOONSHOT":
     case "OPENAI":
       if (
         isObject(choice) &&
@@ -269,6 +277,10 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
+            case "CEREBRAS":
+            case "FIREWORKS":
+            case "GROQ":
+            case "MOONSHOT":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -314,6 +326,10 @@ export function ToolChoiceSelector<
             case "DEEPSEEK":
             case "XAI":
             case "OLLAMA":
+            case "CEREBRAS":
+            case "FIREWORKS":
+            case "GROQ":
+            case "MOONSHOT":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(

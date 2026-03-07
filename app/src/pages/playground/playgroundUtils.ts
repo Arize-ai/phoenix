@@ -171,6 +171,10 @@ export function processAttributeToolCalls({
         case "XAI":
         case "AWS":
         case "OLLAMA":
+        case "CEREBRAS":
+        case "FIREWORKS":
+        case "GROQ":
+        case "MOONSHOT":
           return {
             id: tool_call.id ?? "",
             type: "function" as const,
@@ -1010,6 +1014,10 @@ export const createToolCallForProvider = (
     case "XAI":
     case "AWS":
     case "OLLAMA":
+    case "CEREBRAS":
+    case "FIREWORKS":
+    case "GROQ":
+    case "MOONSHOT":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();

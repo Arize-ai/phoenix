@@ -6953,7 +6953,11 @@
           "DEEPSEEK",
           "XAI",
           "OLLAMA",
-          "AWS"
+          "AWS",
+          "CEREBRAS",
+          "FIREWORKS",
+          "GROQ",
+          "MOONSHOT"
         ],
         "title": "ModelProvider"
       },
@@ -7873,6 +7877,72 @@
         "type": "object",
         "title": "PromptAzureOpenAIInvocationParametersContent"
       },
+      "PromptCerebrasInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "cerebras",
+            "title": "Type"
+          },
+          "cerebras": {
+            "$ref": "#/components/schemas/PromptCerebrasInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "cerebras"
+        ],
+        "title": "PromptCerebrasInvocationParameters"
+      },
+      "PromptCerebrasInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptCerebrasInvocationParametersContent"
+      },
       "PromptChatTemplate": {
         "properties": {
           "type": {
@@ -8008,6 +8078,72 @@
         "type": "object",
         "title": "PromptDeepSeekInvocationParametersContent"
       },
+      "PromptFireworksInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "fireworks",
+            "title": "Type"
+          },
+          "fireworks": {
+            "$ref": "#/components/schemas/PromptFireworksInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "fireworks"
+        ],
+        "title": "PromptFireworksInvocationParameters"
+      },
+      "PromptFireworksInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptFireworksInvocationParametersContent"
+      },
       "PromptGoogleInvocationParameters": {
         "properties": {
           "type": {
@@ -8065,6 +8201,72 @@
         "type": "object",
         "title": "PromptGoogleInvocationParametersContent"
       },
+      "PromptGroqInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "groq",
+            "title": "Type"
+          },
+          "groq": {
+            "$ref": "#/components/schemas/PromptGroqInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "groq"
+        ],
+        "title": "PromptGroqInvocationParameters"
+      },
+      "PromptGroqInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptGroqInvocationParametersContent"
+      },
       "PromptMessage": {
         "properties": {
           "role": {
@@ -8121,6 +8323,72 @@
           "content"
         ],
         "title": "PromptMessage"
+      },
+      "PromptMoonshotInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "moonshot",
+            "title": "Type"
+          },
+          "moonshot": {
+            "$ref": "#/components/schemas/PromptMoonshotInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "moonshot"
+        ],
+        "title": "PromptMoonshotInvocationParameters"
+      },
+      "PromptMoonshotInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptMoonshotInvocationParametersContent"
       },
       "PromptOllamaInvocationParameters": {
         "properties": {
@@ -8581,6 +8849,18 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAwsInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptCerebrasInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptFireworksInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptGroqInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptMoonshotInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -8590,8 +8870,12 @@
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "cerebras": "#/components/schemas/PromptCerebrasInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
+                "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
+                "groq": "#/components/schemas/PromptGroqInvocationParameters",
+                "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
@@ -8715,6 +8999,18 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAwsInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptCerebrasInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptFireworksInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptGroqInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptMoonshotInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -8724,8 +9020,12 @@
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "cerebras": "#/components/schemas/PromptCerebrasInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
+                "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
+                "groq": "#/components/schemas/PromptGroqInvocationParameters",
+                "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"

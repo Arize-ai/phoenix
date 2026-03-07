@@ -295,7 +295,29 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
+class PromptCerebrasInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+
+
 class PromptDeepSeekInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+
+
+class PromptFireworksInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
     max_completion_tokens: NotRequired[int]
@@ -314,6 +336,28 @@ class PromptGoogleInvocationParametersContent(TypedDict):
     frequency_penalty: NotRequired[float]
     top_p: NotRequired[float]
     top_k: NotRequired[int]
+
+
+class PromptGroqInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+
+
+class PromptMoonshotInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class PromptOllamaInvocationParametersContent(TypedDict):
@@ -739,14 +783,34 @@ class PromptAzureOpenAIInvocationParameters(TypedDict):
     azure_openai: PromptAzureOpenAIInvocationParametersContent
 
 
+class PromptCerebrasInvocationParameters(TypedDict):
+    type: Literal["cerebras"]
+    cerebras: PromptCerebrasInvocationParametersContent
+
+
 class PromptDeepSeekInvocationParameters(TypedDict):
     type: Literal["deepseek"]
     deepseek: PromptDeepSeekInvocationParametersContent
 
 
+class PromptFireworksInvocationParameters(TypedDict):
+    type: Literal["fireworks"]
+    fireworks: PromptFireworksInvocationParametersContent
+
+
 class PromptGoogleInvocationParameters(TypedDict):
     type: Literal["google"]
     google: PromptGoogleInvocationParametersContent
+
+
+class PromptGroqInvocationParameters(TypedDict):
+    type: Literal["groq"]
+    groq: PromptGroqInvocationParametersContent
+
+
+class PromptMoonshotInvocationParameters(TypedDict):
+    type: Literal["moonshot"]
+    moonshot: PromptMoonshotInvocationParametersContent
 
 
 class PromptOllamaInvocationParameters(TypedDict):
@@ -862,7 +926,18 @@ class PromptChatTemplate(TypedDict):
 
 class PromptVersionData(TypedDict):
     model_provider: Literal[
-        "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "OLLAMA", "AWS"
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
@@ -877,6 +952,10 @@ class PromptVersionData(TypedDict):
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
         PromptAwsInvocationParameters,
+        PromptCerebrasInvocationParameters,
+        PromptFireworksInvocationParameters,
+        PromptGroqInvocationParameters,
+        PromptMoonshotInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]

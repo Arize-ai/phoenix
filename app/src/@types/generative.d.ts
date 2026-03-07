@@ -7,7 +7,11 @@ declare type ModelProvider =
   | "DEEPSEEK"
   | "XAI"
   | "OLLAMA"
-  | "AWS";
+  | "AWS"
+  | "CEREBRAS"
+  | "FIREWORKS"
+  | "GROQ"
+  | "MOONSHOT";
 
 /**
  * The role of a chat message

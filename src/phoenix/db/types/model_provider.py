@@ -65,6 +65,10 @@ class ModelProvider(Enum):
     XAI = "XAI"
     OLLAMA = "OLLAMA"
     AWS = "AWS"
+    CEREBRAS = "CEREBRAS"
+    FIREWORKS = "FIREWORKS"
+    GROQ = "GROQ"
+    MOONSHOT = "MOONSHOT"
 
 
 def is_sdk_compatible_with_model_provider(
@@ -85,6 +89,10 @@ def is_sdk_compatible_with_model_provider(
             ModelProvider.DEEPSEEK,
             ModelProvider.XAI,
             ModelProvider.OLLAMA,
+            ModelProvider.CEREBRAS,
+            ModelProvider.FIREWORKS,
+            ModelProvider.GROQ,
+            ModelProvider.MOONSHOT,
         )
     if sdk == "anthropic":
         return model_provider is ModelProvider.ANTHROPIC

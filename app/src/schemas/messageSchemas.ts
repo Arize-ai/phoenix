@@ -412,6 +412,10 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "CEREBRAS":
+    case "FIREWORKS":
+    case "GROQ":
+    case "MOONSHOT":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
@@ -443,6 +447,10 @@ type ProviderToMessageMap = {
   DEEPSEEK: OpenAIMessage;
   XAI: OpenAIMessage;
   OLLAMA: OpenAIMessage;
+  CEREBRAS: OpenAIMessage;
+  FIREWORKS: OpenAIMessage;
+  GROQ: OpenAIMessage;
+  MOONSHOT: OpenAIMessage;
   AWS: AwsMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
