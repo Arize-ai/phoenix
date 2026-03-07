@@ -1,5 +1,30 @@
 # Changelog
 
+## [13.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.8.0...arize-phoenix-v13.9.0) (2026-03-07)
+
+
+### Features
+
+* add record icon ([#11928](https://github.com/Arize-ai/phoenix/issues/11928)) ([6190c91](https://github.com/Arize-ai/phoenix/commit/6190c91fe1e1cdbea82ec2cc65ba1688aedbeb9e))
+* **api:** add trace_id filter to GET spans REST endpoints ([#11895](https://github.com/Arize-ai/phoenix/issues/11895)) ([99cd8ba](https://github.com/Arize-ai/phoenix/commit/99cd8ba68fdeaf93f9c2a88a0cbaa936f4b09900))
+* **ui:** filetype-agnostic dataset upload ([#11832](https://github.com/Arize-ai/phoenix/issues/11832)) ([af08e30](https://github.com/Arize-ai/phoenix/commit/af08e30c5412014f15aa5c270eef240e0bd91b88)), closes [#11536](https://github.com/Arize-ai/phoenix/issues/11536)
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 1.31.0 ([#11899](https://github.com/Arize-ai/phoenix/issues/11899)) ([db0286b](https://github.com/Arize-ai/phoenix/commit/db0286b223ed37b7bf171958f5209de008f23971))
+* **playground:** handle eval exceptions and include repetition_number in errors ([#11871](https://github.com/Arize-ai/phoenix/issues/11871)) ([2b7add5](https://github.com/Arize-ai/phoenix/commit/2b7add56b08ba08a8913e5f3b3d7a8bf0c4f2537))
+
+
+### Performance Improvements
+
+* **db:** use bulk inserts for dataset example creation ([#11856](https://github.com/Arize-ai/phoenix/issues/11856)) ([b2776ca](https://github.com/Arize-ai/phoenix/commit/b2776cae3f670972a28fc9f1fd958177535dbc7b))
+
+
+### Documentation
+
+* **helm:** add PHOENIX_LOG_SQL and brute force protection settings ([#11866](https://github.com/Arize-ai/phoenix/issues/11866)) ([95e8c42](https://github.com/Arize-ai/phoenix/commit/95e8c425b975fd8d915a3500c0a1acda76317d94))
+
 ## [13.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.7.0...arize-phoenix-v13.8.0) (2026-03-04)
 
 
