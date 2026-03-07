@@ -47,7 +47,6 @@ class ModelCostManifest(BaseModel):
 
 PROVIDER_PREFIXES: dict[str, str] = {
     "cerebras/": "cerebras",
-    "fireworks_ai/": "fireworks",
     "groq/": "groq",
     "moonshot/": "moonshot",
 }
