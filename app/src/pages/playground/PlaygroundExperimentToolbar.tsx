@@ -6,7 +6,8 @@ import {
   Heading,
   Icon,
   Icons,
-  Text,
+  RecordIcon,
+  Timer,
   View,
 } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
@@ -62,11 +63,8 @@ export function PlaygroundExperimentToolbar({
           </Heading>
           {isRunning ? (
             <Flex alignItems="center" gap="size-100">
-              <Icon key="loading" svg={<Icons.LoadingOutline />} />
-              <Text>
-                {instances.length} experiment{instances.length > 1 ? "s" : ""}{" "}
-                running
-              </Text>
+              <RecordIcon isActive />
+              <Timer size="S" color="text-700" />
             </Flex>
           ) : null}
           {experimentIds.length > 0 && !isRunning ? (
