@@ -61,7 +61,7 @@ def parse_provider_prefix(model_id: str) -> tuple[bool, str | None, str]:
 
 
 @dataclass
-class ModelCostManifestEntry:
+class LiteLLMPricingEntry:
     name: str  # Full LiteLLM ID (e.g., "groq/llama-3.3-70b-versatile")
     provider: str | None  # Phoenix provider string (e.g., "groq") or None
     name_pattern: str  # Stripped name for regex (e.g., "llama-3.3-70b-versatile")
@@ -125,7 +125,7 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
-def transform_remote_data(data: dict[str, Any]) -> list[ModelCostManifestEntry]:
+def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         if (
@@ -140,7 +140,7 @@ def transform_remote_data(data: dict[str, Any]) -> list[ModelCostManifestEntry]:
     for model_id in filtered_model_ids:
         print(f"  - {model_id}")
 
-    transformed: list[ModelCostManifestEntry] = []
+    pricing_entries: list[LiteLLMPricingEntry] = []
 
     for model_id in filtered_model_ids:
         model_info = data[model_id]
@@ -203,8 +203,8 @@ def transform_remote_data(data: dict[str, Any]) -> list[ModelCostManifestEntry]:
 
         if token_prices:
             _, provider, stripped_name = parse_provider_prefix(model_id)
-            transformed.append(
-                ModelCostManifestEntry(
+            pricing_entries.append(
+                LiteLLMPricingEntry(
                     name=model_id,
                     provider=provider,
                     name_pattern=stripped_name,
@@ -212,19 +212,21 @@ def transform_remote_data(data: dict[str, Any]) -> list[ModelCostManifestEntry]:
                 )
             )
 
-    return transformed
+    return pricing_entries
 
 
 def update_manifest(
     manifest: ModelCostManifest,
-    transformed_models: list[ModelCostManifestEntry],
+    litellm_entries: list[LiteLLMPricingEntry],
 ) -> ModelCostManifest:
-    update_by_name: dict[str, ModelCostManifestEntry] = {tm.name: tm for tm in transformed_models}
+    entries_by_name: dict[str, LiteLLMPricingEntry] = {
+        entry.name: entry for entry in litellm_entries
+    }
 
     # Remove LiteLLM models that are no longer in the remote data
     for index in reversed(range(len(manifest.models))):
         model = manifest.models[index]
-        if model.source == ModelSource.LITELLM and model.name not in update_by_name:
+        if model.source == ModelSource.LITELLM and model.name not in entries_by_name:
             removed_model = manifest.models.pop(index)
             print(f"Removed LiteLLM model no longer in remote data: {removed_model.name}")
 
@@ -232,26 +234,26 @@ def update_manifest(
     for index, model in enumerate(manifest.models):
         model_name_to_index[model.name] = index
 
-    num_updated_models = 0
-    for tm in transformed_models:
-        if tm.name in model_name_to_index:
-            index = model_name_to_index[tm.name]
-            manifest.models[index].token_prices = tm.token_prices
-            manifest.models[index].provider = tm.provider
-            num_updated_models += 1
+    num_updated = 0
+    for entry in litellm_entries:
+        if entry.name in model_name_to_index:
+            index = model_name_to_index[entry.name]
+            manifest.models[index].token_prices = entry.token_prices
+            manifest.models[index].provider = entry.provider
+            num_updated += 1
         else:
-            escaped_name_pattern = re.escape(tm.name_pattern).replace("\\-", "-")
+            escaped_name_pattern = re.escape(entry.name_pattern).replace("\\-", "-")
             new_model = ModelConfig(
-                name=tm.name,
+                name=entry.name,
                 name_pattern=escaped_name_pattern,
                 source=ModelSource.LITELLM,
-                provider=tm.provider,
-                token_prices=tm.token_prices,
+                provider=entry.provider,
+                token_prices=entry.token_prices,
             )
             manifest.models.append(new_model)
 
     manifest.models.sort(key=lambda model: ("/" in model.name, model.name))
-    print(f"Updated {num_updated_models} models from LiteLLM")
+    print(f"Updated {num_updated} models from LiteLLM")
     return manifest
 
 
@@ -262,21 +264,21 @@ def main() -> int:
     url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
     try:
-        litellm_models = fetch_data(url)
+        remote_data = fetch_data(url)
     except Exception as error:
         print(f"Error fetching model data from LiteLLM: {error}")
         return 1
 
     with open(local_file_path, "r") as file:
-        data = json.load(file)
-    manifest = ModelCostManifest.model_validate(data)
+        manifest_json = json.load(file)
+    manifest = ModelCostManifest.model_validate(manifest_json)
 
-    transformed_data = transform_remote_data(litellm_models)
-    print(f"Found {len(transformed_data)} models with pricing from LiteLLM")
+    litellm_entries = extract_litellm_entries(remote_data)
+    print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
 
-    updated_manifest = update_manifest(manifest, transformed_data)
+    updated_manifest = update_manifest(manifest, litellm_entries)
 
-    if data != updated_manifest:
+    if manifest_json != updated_manifest:
         with open(local_file_path, "w") as file:
             file.write(updated_manifest.model_dump_json(indent=2, exclude_none=True))
         print("Model data updated successfully")
@@ -284,7 +286,7 @@ def main() -> int:
         print("No changes detected")
 
     print(f"Total models in file: {len(updated_manifest.models)}")
-    print(f"Models from this sync: {len(transformed_data)}")
+    print(f"Models from this sync: {len(litellm_entries)}")
 
     return 0
 
