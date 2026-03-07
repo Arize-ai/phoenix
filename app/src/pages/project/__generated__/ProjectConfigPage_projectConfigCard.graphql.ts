@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b95a8a79697d662de282a7f7815007b0>>
+ * @generated SignedSource<<7b076d96c55724740f3740ed94c07b10>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectConfigPage_projectConfigCard$data = {
+  readonly description: string | null;
   readonly gradientEndColor: string;
   readonly gradientStartColor: string;
   readonly id: string;
@@ -60,6 +61,13 @@ const node: ReaderFragment = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "description",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "gradientStartColor",
       "storageKey": null
     },
@@ -75,6 +83,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "3bd54e77e19bb08ca53696b5fc9a5c22";
+(node as any).hash = "e294130f503d033996b6a81daef6a2f3";
 
 export default node;

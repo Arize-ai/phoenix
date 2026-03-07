@@ -130,6 +130,66 @@ test.describe.serial("Projects", () => {
     ).not.toBeVisible();
   });
 
+  test("can edit project description and gradient from config tab", async ({
+    page,
+  }) => {
+    const editProjectName = `test-edit-project-${randomUUID().slice(0, 8)}`;
+    await createProject(page, editProjectName, "Original description");
+
+    // Navigate to the Config tab
+    await page.getByRole("tab", { name: "Config" }).click();
+
+    // Locate the Project Settings card
+    const settingsCard = page
+      .locator("section")
+      .filter({ has: page.getByRole("heading", { name: "Project Settings" }) });
+    await expect(settingsCard).toBeVisible();
+
+    // Verify the Edit button is visible
+    const editButton = settingsCard.getByRole("button", { name: "Edit" });
+    await expect(editButton).toBeVisible();
+
+    // Verify the project name is displayed as read-only
+    await expect(settingsCard.getByLabel("Project Name")).toHaveValue(
+      editProjectName
+    );
+
+    // Click Edit to enter edit mode
+    await editButton.click();
+
+    // Verify the description field is visible and editable
+    const descriptionField = settingsCard.getByLabel("Description");
+    await expect(descriptionField).toBeVisible();
+
+    // Update the description
+    await descriptionField.fill("Updated description");
+
+    // Save changes
+    await settingsCard.getByRole("button", { name: "Save" }).click();
+
+    // After save, should exit edit mode — Edit button should reappear
+    await expect(editButton).toBeVisible();
+
+    // Verify the updated description is shown in read-only mode
+    await expect(settingsCard.getByLabel("Description")).toHaveValue(
+      "Updated description"
+    );
+
+    // Re-enter edit mode and verify description is pre-filled
+    await editButton.click();
+    await expect(settingsCard.getByLabel("Description")).toHaveValue(
+      "Updated description"
+    );
+
+    // Cancel should exit edit mode without saving
+    await settingsCard.getByLabel("Description").fill("Should not be saved");
+    await settingsCard.getByRole("button", { name: "Cancel" }).click();
+    await expect(editButton).toBeVisible();
+    await expect(settingsCard.getByLabel("Description")).toHaveValue(
+      "Updated description"
+    );
+  });
+
   test("project table remains usable after mutation workflows", async ({
     page,
   }) => {

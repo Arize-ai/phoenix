@@ -5,8 +5,8 @@ import { useNavigate } from "react-router";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import type { ManualProjectGuideCreateProjectMutation } from "./__generated__/ManualProjectGuideCreateProjectMutation.graphql";
-import type { ProjectFormParams } from "./NewProjectForm";
-import { NewProjectForm } from "./NewProjectForm";
+import type { ProjectFormParams } from "./ProjectForm";
+import { ProjectForm } from "./ProjectForm";
 
 export function ManualProjectGuide({
   refetchProjects,
@@ -76,7 +76,7 @@ export function ManualProjectGuide({
   );
 
   return (
-    <NewProjectForm
+    <ProjectForm
       onSubmit={onSubmit}
       isSubmitting={isCommitting}
       submitButtonText={isCommitting ? "Creating..." : "Create Project"}

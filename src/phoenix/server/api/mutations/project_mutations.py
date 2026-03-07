@@ -3,6 +3,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import load_only
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -13,6 +14,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
 from phoenix.server.api.input_types.CreateProjectInput import CreateProjectInput
+from phoenix.server.api.input_types.PatchProjectInput import PatchProjectInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project, to_gql_project
@@ -94,3 +96,30 @@ class ProjectMutationMixin:
                 await session.execute(stmt.where(models.ProjectSession.id.in_(chunk)))
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    async def patch_project(
+        self,
+        info: Info[Context, None],
+        input: PatchProjectInput,
+    ) -> ProjectMutationPayload:
+        project_id = from_global_id_with_expected_type(
+            global_id=input.id, expected_type_name="Project"
+        )
+        async with info.context.db() as session:
+            project = await session.scalar(
+                select(models.Project).where(models.Project.id == project_id)
+            )
+            if project is None:
+                raise ValueError(f"Unknown project: {input.id}")
+            if input.description is not UNSET:
+                project.description = (input.description or "").strip() or None
+            if input.gradient_start_color is not UNSET:
+                project.gradient_start_color = (
+                    input.gradient_start_color or ""
+                ).strip() or project.gradient_start_color
+            if input.gradient_end_color is not UNSET:
+                project.gradient_end_color = (
+                    input.gradient_end_color or ""
+                ).strip() or project.gradient_end_color
+        return ProjectMutationPayload(project=to_gql_project(project), query=Query())
