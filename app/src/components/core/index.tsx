@@ -46,3 +46,4 @@ export * from "./utility/LineClamp";
 export * from "./utility/Truncate";
 export * from "./datetime/DateField";
 export * from "./datetime/TimeField";
+export * from "./timer";

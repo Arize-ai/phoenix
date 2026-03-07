@@ -1,8 +1,6 @@
 import { css } from "@emotion/react";
 
-export const textBaseCSS = css`
-  margin: 0;
-  font-weight: 400;
+export const textSizeCSS = css`
   &[data-size="XS"] {
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
@@ -23,6 +21,16 @@ export const textBaseCSS = css`
     font-size: var(--global-font-size-xl);
     line-height: var(--global-line-height-xl);
   }
+  &[data-size="XXL"] {
+    font-size: var(--global-font-size-xxl);
+    line-height: var(--global-line-height-xxl);
+  }
+`;
+
+export const textBaseCSS = css`
+  margin: 0;
+  font-weight: 400;
+  ${textSizeCSS};
   &[data-weight="heavy"] {
     font-weight: 600;
   }

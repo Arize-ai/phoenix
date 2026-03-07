@@ -5,7 +5,6 @@ import type { TextProps as AriaTextProps } from "react-aria-components";
 import { Text as AriaText } from "react-aria-components";
 
 import type {
-  ColorValue,
   DOMProps,
   StyleProps,
   TextColorValue,
@@ -13,8 +12,9 @@ import type {
 } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { colorValue, useStyleProps } from "../utils";
+import { useStyleProps } from "../utils";
 import { textBaseCSS } from "./styles";
+import { getTextColor } from "./textUtils";
 import type { TextElementType, Weight } from "./types";
 
 export interface TextProps extends AriaTextProps, DOMProps, StyleProps {
@@ -57,17 +57,6 @@ export interface TextProps extends AriaTextProps, DOMProps, StyleProps {
    */
   isDisabled?: boolean;
 }
-
-const getTextColor = (color: TextColorValue): string => {
-  if (color === "inherit") {
-    return "inherit";
-  }
-  if (color.startsWith("text-")) {
-    const [, num] = color.split("-");
-    return `var(--global-text-color-${num})`;
-  }
-  return colorValue(color as ColorValue);
-};
 
 const textCSS = (color: TextColorValue) =>
   css(
