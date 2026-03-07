@@ -1,5 +1,6 @@
 import json
 import re
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any
@@ -36,11 +37,36 @@ class ModelConfig(BaseModel):
     name: str
     name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
     source: ModelSource
+    provider: str = ""
     token_prices: list[TokenPrice]
 
 
 class ModelCostManifest(BaseModel):
     models: list[ModelConfig]
+
+
+PROVIDER_PREFIXES: dict[str, str] = {
+    "cerebras/": "cerebras",
+    "fireworks_ai/": "fireworks",
+    "groq/": "groq",
+    "moonshot/": "moonshot",
+}
+
+
+def parse_provider_prefix(model_id: str) -> tuple[str, str]:
+    """Return (provider, stripped_name) or ("", model_id) if no prefix match."""
+    for prefix, provider in PROVIDER_PREFIXES.items():
+        if model_id.startswith(prefix):
+            return provider, model_id[len(prefix) :]
+    return "", model_id
+
+
+@dataclass
+class TransformedModel:
+    name: str  # Full LiteLLM ID (e.g., "groq/llama-3.3-70b-versatile")
+    provider: str  # Phoenix provider string (e.g., "groq") or ""
+    name_pattern: str  # Stripped name for regex (e.g., "llama-3.3-70b-versatile")
+    token_prices: list[TokenPrice]
 
 
 def filter_models(model_ids: list[str]) -> list[str]:
@@ -72,6 +98,13 @@ def filter_models(model_ids: list[str]) -> list[str]:
     exclude_regexes = [re.compile(pattern) for pattern in exclude_patterns]
     filtered_models = []
     for model_id in model_ids:
+        # Models with known provider prefixes bypass include/exclude filtering
+        provider, stripped_name = parse_provider_prefix(model_id)
+        if provider:
+            if stripped_name and not stripped_name.endswith("/"):
+                filtered_models.append(model_id)
+            continue
+
         if any(regex.search(model_id) for regex in exclude_regexes):
             continue
 
@@ -93,7 +126,7 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
-def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
+def transform_remote_data(data: dict[str, Any]) -> list[TransformedModel]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         if (
@@ -108,7 +141,7 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
     for model_id in filtered_model_ids:
         print(f"  - {model_id}")
 
-    transformed: dict[str, list[TokenPrice]] = {}
+    transformed: list[TransformedModel] = []
 
     for model_id in filtered_model_ids:
         model_info = data[model_id]
@@ -170,19 +203,29 @@ def transform_remote_data(data: dict[str, Any]) -> dict[str, list[TokenPrice]]:
             )
 
         if token_prices:
-            transformed[model_id] = token_prices
+            provider, stripped_name = parse_provider_prefix(model_id)
+            transformed.append(
+                TransformedModel(
+                    name=model_id,
+                    provider=provider,
+                    name_pattern=stripped_name,
+                    token_prices=token_prices,
+                )
+            )
 
     return transformed
 
 
 def update_manifest(
     manifest: ModelCostManifest,
-    update_token_prices: dict[str, list[TokenPrice]],
+    transformed_models: list[TransformedModel],
 ) -> ModelCostManifest:
+    update_by_name: dict[str, TransformedModel] = {tm.name: tm for tm in transformed_models}
+
     # Remove LiteLLM models that are no longer in the remote data
     for index in reversed(range(len(manifest.models))):
         model = manifest.models[index]
-        if model.source == ModelSource.LITELLM and model.name not in update_token_prices:
+        if model.source == ModelSource.LITELLM and model.name not in update_by_name:
             removed_model = manifest.models.pop(index)
             print(f"Removed LiteLLM model no longer in remote data: {removed_model.name}")
 
@@ -191,18 +234,20 @@ def update_manifest(
         model_name_to_index[model.name] = index
 
     num_updated_models = 0
-    for model_name, token_prices in update_token_prices.items():
-        if model_name in model_name_to_index:
-            index = model_name_to_index[model_name]
-            manifest.models[index].token_prices = token_prices
+    for tm in transformed_models:
+        if tm.name in model_name_to_index:
+            index = model_name_to_index[tm.name]
+            manifest.models[index].token_prices = tm.token_prices
+            manifest.models[index].provider = tm.provider
             num_updated_models += 1
         else:
-            escaped_model_name = re.escape(model_name).replace("\\-", "-")
+            escaped_name_pattern = re.escape(tm.name_pattern).replace("\\-", "-")
             new_model = ModelConfig(
-                name=model_name,
-                name_pattern=escaped_model_name,  # seed an initial name pattern
+                name=tm.name,
+                name_pattern=escaped_name_pattern,
                 source=ModelSource.LITELLM,
-                token_prices=token_prices,
+                provider=tm.provider,
+                token_prices=tm.token_prices,
             )
             manifest.models.append(new_model)
 
