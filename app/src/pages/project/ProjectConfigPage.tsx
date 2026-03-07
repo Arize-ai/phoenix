@@ -30,6 +30,8 @@ import {
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useProjectContext } from "@phoenix/contexts";
 
+import type { ProjectFormParams } from "../projects/ProjectForm";
+import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
 import type { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
 import type { ProjectConfigPagePatchProjectMutation } from "./__generated__/ProjectConfigPagePatchProjectMutation.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
@@ -40,8 +42,6 @@ import {
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectRetentionPolicyCard } from "./ProjectRetentionPolicyCard";
-import type { ProjectFormParams } from "../projects/ProjectForm";
-import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
 
 const projectConfigPageCSS = css`
   overflow-y: auto;
@@ -99,10 +99,7 @@ const ProjectConfigContent = ({
 /**
  * Find matching gradient preset from start/end colors, or default to first preset.
  */
-function findGradientPreset(
-  startColor: string,
-  endColor: string
-): string {
+function findGradientPreset(startColor: string, endColor: string): string {
   const match = GRADIENT_PRESETS.find(
     (p) =>
       p.startColor.toLowerCase() === startColor.toLowerCase() &&
@@ -141,9 +138,7 @@ const ProjectConfigCard = ({
 
   const [commit, isCommitting] =
     useMutation<ProjectConfigPagePatchProjectMutation>(graphql`
-      mutation ProjectConfigPagePatchProjectMutation(
-        $input: PatchProjectInput!
-      ) {
+      mutation ProjectConfigPagePatchProjectMutation($input: PatchProjectInput!) {
         patchProject(input: $input) {
           project {
             id
