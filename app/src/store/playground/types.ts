@@ -260,6 +260,12 @@ export interface PlaygroundProps {
    * @default 1
    */
   repetitions: number;
+  /**
+   * The time when the current experiment started running.
+   * Used to display elapsed time in the toolbar.
+   * @default null
+   */
+  runStartTime: Date | null;
 }
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
