@@ -40,7 +40,6 @@ export function PlaygroundExperimentToolbar({
   query,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
-  const runStartTime = usePlaygroundContext((state) => state.runStartTime);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
     return instances
@@ -65,11 +64,7 @@ export function PlaygroundExperimentToolbar({
           {isRunning ? (
             <Flex alignItems="center" gap="size-100">
               <RecordIcon isActive />
-              <Timer
-                startTime={runStartTime ?? undefined}
-                size="S"
-                color="text-700"
-              />
+              <Timer size="S" color="text-700" />
             </Flex>
           ) : null}
           {experimentIds.length > 0 && !isRunning ? (

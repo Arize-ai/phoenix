@@ -257,7 +257,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   > = (set, get) => ({
     streaming: true,
     repetitions: 1,
-    runStartTime: null,
     operationType: "chat",
     inputMode: "manual",
     dirtyInstances: {},
@@ -813,7 +812,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const repetitions = get().repetitions;
       set(
         {
-          runStartTime: new Date(),
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: generateRunId(),
@@ -840,7 +838,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const instances = get().instances;
       set(
         {
-          runStartTime: null,
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: null,
@@ -895,16 +892,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         false,
         { type: "markPlaygroundInstanceComplete" }
       );
-      // Clear experiment start time when all instances are done
-      const updatedInstances = get().instances;
-      const allDone = updatedInstances.every(
-        (instance) => instance.activeRunId == null
-      );
-      if (allDone) {
-        set({ runStartTime: null }, false, {
-          type: "clearRunStartTime",
-        });
-      }
     },
     setTemplateFormat: (templateFormat: TemplateFormat) => {
       set({ templateFormat }, false, { type: "setTemplateFormat" });
