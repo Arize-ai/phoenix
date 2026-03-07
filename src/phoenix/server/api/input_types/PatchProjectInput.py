@@ -4,7 +4,7 @@ import strawberry
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 
-from phoenix.server.api.input_types._helpers import validate_hex_color
+from phoenix.server.api.input_types.helpers import validate_hex_color
 
 
 @strawberry.input
