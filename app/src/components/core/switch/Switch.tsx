@@ -5,14 +5,14 @@ import type { SwitchProps as AriaSwitchProps } from "react-aria-components";
 import { Switch as AriaSwitch } from "react-aria-components";
 
 const switchCSS = css`
-  --switch-track-width: 36px;
-  --switch-track-height: 20px;
+  --switch-track-width: var(--global-dimension-static-size-450);
+  --switch-track-height: var(--global-dimension-static-size-250);
   --switch-track-bg: var(--global-color-gray-400);
   --switch-track-bg-selected: var(--global-color-primary);
-  --switch-thumb-size: 16px;
+  --switch-thumb-size: var(--global-dimension-static-size-200);
   --switch-thumb-bg: var(--global-color-gray-900);
   --switch-thumb-bg-selected: var(--global-color-gray-50);
-  --switch-thumb-inset: 2px;
+  --switch-thumb-inset: var(--global-dimension-static-size-25);
 
   display: flex;
   position: relative;
@@ -28,7 +28,7 @@ const switchCSS = css`
     width: var(--switch-track-width);
     height: var(--switch-track-height);
     background: var(--switch-track-bg);
-    border-radius: 9999px;
+    border-radius: var(--global-rounding-full);
     transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     flex-shrink: 0;

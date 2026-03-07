@@ -19,10 +19,10 @@ import { NumberField } from "../field/NumberField";
 import type { StylableProps } from "../types";
 
 const sliderCSS = css`
-  --slider-thumb-size: 16px;
+  --slider-thumb-size: var(--global-dimension-static-size-200);
   --slider-thumb-bg: white;
   --slider-thumb-border-color: var(--global-color-gray-400);
-  --slider-track-height: 4px;
+  --slider-track-height: var(--global-dimension-static-size-50);
   --slider-track-bg: var(--global-color-gray-300);
   --slider-filled-color: var(--global-color-primary);
   --slider-ring-color: var(--global-color-primary-200);
@@ -58,7 +58,7 @@ const sliderCSS = css`
       position: absolute;
       background: var(--slider-track-bg);
       height: 100%;
-      border-radius: 9999px;
+      border-radius: var(--global-rounding-full);
     }
 
     /* Filled track line */
@@ -68,7 +68,7 @@ const sliderCSS = css`
       position: absolute;
       background: var(--slider-filled-color);
       height: 100%;
-      border-radius: 9999px;
+      border-radius: var(--global-rounding-full);
     }
   }
 
