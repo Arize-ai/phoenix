@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { TextColorValue, TextSize } from "@phoenix/components/core/types";
 
-import { getTextColor, textSizeCSS } from "../content/textUtils";
+import { textSizeCSS } from "../content/styles";
+import { getTextColor } from "../content/textUtils";
 
 export type TimerProps = {
   /**

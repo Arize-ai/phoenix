@@ -1,6 +1,31 @@
 import { css } from "@emotion/react";
 
-import { textSizeCSS } from "./textUtils";
+export const textSizeCSS = css`
+  &[data-size="XS"] {
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+  }
+  &[data-size="S"] {
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
+  &[data-size="M"] {
+    font-size: var(--global-font-size-m);
+    line-height: var(--global-line-height-m);
+  }
+  &[data-size="L"] {
+    font-size: var(--global-font-size-l);
+    line-height: var(--global-line-height-l);
+  }
+  &[data-size="XL"] {
+    font-size: var(--global-font-size-xl);
+    line-height: var(--global-line-height-xl);
+  }
+  &[data-size="XXL"] {
+    font-size: var(--global-font-size-xxl);
+    line-height: var(--global-line-height-xxl);
+  }
+`;
 
 export const textBaseCSS = css`
   margin: 0;
