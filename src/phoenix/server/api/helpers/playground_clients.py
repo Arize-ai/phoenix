@@ -1120,7 +1120,11 @@ class FireworksStreamingClient(OpenAIBaseStreamingClient):
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "meta-llama/llama-4-scout-17b-16e-instruct",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
         "qwen/qwen3-32b",
+        "groq/compound",
+        "groq/compound-mini",
     ],
 )
 class GroqStreamingClient(OpenAIBaseStreamingClient):
@@ -1131,9 +1135,14 @@ class GroqStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k2-turbo-preview",
+        "kimi-k2-thinking-turbo",
+        "kimi-k2-thinking",
+        "kimi-k2.5",
         "moonshot-v1-128k",
         "moonshot-v1-32k",
-        "kimi-k2.5",
+        "moonshot-v1-8k",
+        "moonshot-v1-auto",
     ],
 )
 class MoonshotStreamingClient(OpenAIBaseStreamingClient):

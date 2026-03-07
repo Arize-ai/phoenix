@@ -34,7 +34,7 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   OLLAMA: [],
   AWS: ["nova", "titan"],
   CEREBRAS: [],
-  FIREWORKS: ["accounts/fireworks"],
+  FIREWORKS: [],
   GROQ: [],
   MOONSHOT: ["moonshot", "kimi"],
 };
