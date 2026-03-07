@@ -1154,23 +1154,6 @@ const appGlobalStylesCSS = css`
   }
 `;
 
-const recordingCSS = css`
-  :root,
-  .theme {
-    --recording-indicator-color: var(--global-color-red-600);
-  }
-
-  @keyframes recording-pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.4;
-    }
-  }
-`;
-
 const codeMirrorOverridesCSS = css`
   .theme--light {
     .cm-editor {
@@ -1232,8 +1215,7 @@ export function GlobalStyles() {
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
         chartCSS,
-        fontFamilyCSS,
-        recordingCSS
+        fontFamilyCSS
       )}
     />
   );

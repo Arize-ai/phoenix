@@ -2145,16 +2145,16 @@ export const RepeatOutline = () => (
 );
 
 export const RecordOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <circle
-      cx="9"
-      cy="9"
-      r="8"
+      cx="12"
+      cy="12"
+      r="10.25"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"
     />
-    <circle cx="9" cy="9" r="4.5" fill="currentColor" />
+    <circle cx="12" cy="12" r="6" fill="currentColor" />
   </svg>
 );
 

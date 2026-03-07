@@ -1,7 +1,16 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 
 import { Icon } from "./Icon";
 import { RecordOutline } from "./Icons";
+
+const recordingPulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+`;
 
 export interface RecordIconProps {
   isActive?: boolean;
@@ -14,8 +23,10 @@ export const RecordIcon = ({ isActive = false }: RecordIconProps) => {
       css={
         isActive
           ? css`
-              color: var(--recording-indicator-color);
-              animation: recording-pulse 1.5s ease-in-out infinite;
+              color: var(--global-color-red-600);
+              svg circle:last-child {
+                animation: ${recordingPulse} 1.5s ease-in-out infinite;
+              }
             `
           : undefined
       }
