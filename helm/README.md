@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 5.0.10](https://img.shields.io/badge/Version-5.0.10-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 13.8.0](https://img.shields.io/badge/AppVersion-13.8.0-informational?style=flat-square)
+![Version: 5.0.11](https://img.shields.io/badge/Version-5.0.11-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 13.9.0](https://img.shields.io/badge/AppVersion-13.9.0-informational?style=flat-square)
 
 <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=helm/README.md" />
 
@@ -38,12 +38,15 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.accessTokenExpiryMinutes | int | `60` | Duration in minutes before access tokens expire and require renewal (PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES) |
 | auth.admins | string | `""` | Semicolon-separated list of username and email pairs to create as admin users on startup (PHOENIX_ADMINS) Format: "username=email;username2=email2" (e.g., "John Doe=john@example.com;Jane Doe=jane@example.com") These users will be created with random passwords that must be reset on first login |
 | auth.allowedOrigins | list | `[]` | List of allowed CORS origins for cross-origin requests to the Phoenix API (PHOENIX_ALLOWED_ORIGINS) |
+| auth.bruteForceLoginProtectionMaxAttempts | int | `5` | Maximum failed login attempts before temporary lockout (PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS) Only applies when brute force protection is enabled. Lockout duration is 5 minutes. |
 | auth.cookiesPath | string | `"/"` | Cookie path for authentication cookies (PHOENIX_COOKIES_PATH) Set this when Phoenix is hosted under a sub-path |
 | auth.createSecret | bool | `true` | Create Secret Boolean - Should the secret be created. If False and auth is enabled, this must preexist |
 | auth.csrfTrustedOrigins | list | `[]` | List of trusted origins for CSRF protection to prevent cross-site request forgery attacks (PHOENIX_CSRF_TRUSTED_ORIGINS) |
 | auth.defaultAdminPassword | string | `"admin"` | Default password for the admin user on initial setup (PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) |
 | auth.disableBasicAuth | bool | `false` | Disable password-based authentication (PHOENIX_DISABLE_BASIC_AUTH) When true, users can only authenticate via OAuth2/OIDC. Useful for SSO-only deployments. |
+| auth.disableBruteForceLoginProtection | bool | `false` | Disable brute force login protection (PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION) When false (default), repeated failed logins will temporarily lock the account |
 | auth.enableAuth | bool | `true` | Enable authentication and authorization for Phoenix (PHOENIX_ENABLE_AUTH) |
+| auth.enableStrongPasswordPolicy | bool | `false` | Enable strong password policy requiring 12+ characters with uppercase, lowercase, digit, and special character (PHOENIX_ENABLE_STRONG_PASSWORD_POLICY) |
 | auth.ldap.allowSignUp | bool | `true` | Allow automatic user creation on first LDAP login. Set to false to require pre-provisioned users. |
 | auth.ldap.attrDisplayName | string | `"displayName"` | LDAP attribute containing user's display name. |
 | auth.ldap.attrEmail | string | `"mail"` | LDAP attribute containing user's email address. Valid values:   - "mail" (or other attribute name): Use that LDAP attribute for email   - "null": No-email mode for directories without email When using no-email mode ("null"):   - attrUniqueId is REQUIRED (users identified by unique ID instead of email)   - allowSignUp must be true (users auto-provisioned on first login)   - auth.admins cannot be used (use groupRoleMappings for admin assignment) |
@@ -121,7 +124,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-13.8.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-13.9.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -134,6 +137,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | logging.dbLevel | string | `"warning"` | Database logging level (debug, info, warning, error) PHOENIX_DB_LOGGING_LEVEL |
 | logging.level | string | `"info"` | Application logging level (debug, info, warning, error) PHOENIX_LOGGING_LEVEL |
 | logging.logMigrations | bool | `true` | Enable logging of database migration operations (PHOENIX_LOG_MIGRATIONS) |
+| logging.logSql | bool | `false` | Log all SQL statements to stdout for debugging (PHOENIX_LOG_SQL) |
 | logging.mode | string | `"default"` | Logging mode configuration - PHOENIX_LOGGING_MODE (default|structured) |
 | persistence.accessModes | list | `["ReadWriteOnce"]` | Access modes for the persistent volume |
 | persistence.annotations | object | `{}` | Annotations to add to the PVC |
