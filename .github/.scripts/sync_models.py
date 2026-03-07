@@ -37,7 +37,7 @@ class ModelConfig(BaseModel):
     name: str
     name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
     source: ModelSource
-    provider: str = ""
+    provider: str | None = None
     token_prices: list[TokenPrice]
 
 
@@ -53,18 +53,18 @@ PROVIDER_PREFIXES: dict[str, str] = {
 }
 
 
-def parse_provider_prefix(model_id: str) -> tuple[str, str]:
-    """Return (provider, stripped_name) or ("", model_id) if no prefix match."""
+def parse_provider_prefix(model_id: str) -> tuple[str | None, str]:
+    """Return (provider, stripped_name) or (None, model_id) if no prefix match."""
     for prefix, provider in PROVIDER_PREFIXES.items():
         if model_id.startswith(prefix):
             return provider, model_id[len(prefix) :]
-    return "", model_id
+    return None, model_id
 
 
 @dataclass
 class TransformedModel:
     name: str  # Full LiteLLM ID (e.g., "groq/llama-3.3-70b-versatile")
-    provider: str  # Phoenix provider string (e.g., "groq") or ""
+    provider: str | None  # Phoenix provider string (e.g., "groq") or None
     name_pattern: str  # Stripped name for regex (e.g., "llama-3.3-70b-versatile")
     token_prices: list[TokenPrice]
 
@@ -238,7 +238,7 @@ def update_manifest(
         if tm.name in model_name_to_index:
             index = model_name_to_index[tm.name]
             manifest.models[index].token_prices = tm.token_prices
-            manifest.models[index].provider = tm.provider
+            manifest.models[index].provider = tm.provider or None
             num_updated_models += 1
         else:
             escaped_name_pattern = re.escape(tm.name_pattern).replace("\\-", "-")
@@ -246,7 +246,7 @@ def update_manifest(
                 name=tm.name,
                 name_pattern=escaped_name_pattern,
                 source=ModelSource.LITELLM,
-                provider=tm.provider,
+                provider=tm.provider or None,
                 token_prices=tm.token_prices,
             )
             manifest.models.append(new_model)
@@ -279,7 +279,7 @@ def main() -> int:
 
     if data != updated_manifest:
         with open(local_file_path, "w") as file:
-            file.write(updated_manifest.model_dump_json(indent=2))
+            file.write(updated_manifest.model_dump_json(indent=2, exclude_none=True))
         print("Model data updated successfully")
     else:
         print("No changes detected")
