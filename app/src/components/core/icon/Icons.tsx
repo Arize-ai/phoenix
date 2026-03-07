@@ -2419,4 +2419,3 @@ export const TrashOutline = () => (
     </g>
   </svg>
 );
-
