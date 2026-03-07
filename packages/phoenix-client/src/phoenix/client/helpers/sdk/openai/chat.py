@@ -198,6 +198,10 @@ class _InvocationParametersConversion:
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
             v1.PromptAwsInvocationParameters,
+            v1.PromptCerebrasInvocationParameters,
+            v1.PromptFireworksInvocationParameters,
+            v1.PromptGroqInvocationParameters,
+            v1.PromptMoonshotInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -333,6 +337,82 @@ class _InvocationParametersConversion:
                 ans["frequency_penalty"] = google_params["frequency_penalty"]
             if "stop_sequences" in google_params:
                 ans["stop"] = list(google_params["stop_sequences"])
+        elif obj["type"] == "cerebras":
+            cerebras_params: v1.PromptCerebrasInvocationParametersContent
+            cerebras_params = obj["cerebras"]
+            if "max_completion_tokens" in cerebras_params:
+                ans["max_completion_tokens"] = cerebras_params["max_completion_tokens"]
+            if "max_tokens" in cerebras_params:
+                ans["max_tokens"] = cerebras_params["max_tokens"]
+            if "temperature" in cerebras_params:
+                ans["temperature"] = cerebras_params["temperature"]
+            if "top_p" in cerebras_params:
+                ans["top_p"] = cerebras_params["top_p"]
+            if "presence_penalty" in cerebras_params:
+                ans["presence_penalty"] = cerebras_params["presence_penalty"]
+            if "frequency_penalty" in cerebras_params:
+                ans["frequency_penalty"] = cerebras_params["frequency_penalty"]
+            if "seed" in cerebras_params:
+                ans["seed"] = cerebras_params["seed"]
+            if "reasoning_effort" in cerebras_params:
+                ans["reasoning_effort"] = cerebras_params["reasoning_effort"]
+        elif obj["type"] == "fireworks":
+            fireworks_params: v1.PromptFireworksInvocationParametersContent
+            fireworks_params = obj["fireworks"]
+            if "max_completion_tokens" in fireworks_params:
+                ans["max_completion_tokens"] = fireworks_params["max_completion_tokens"]
+            if "max_tokens" in fireworks_params:
+                ans["max_tokens"] = fireworks_params["max_tokens"]
+            if "temperature" in fireworks_params:
+                ans["temperature"] = fireworks_params["temperature"]
+            if "top_p" in fireworks_params:
+                ans["top_p"] = fireworks_params["top_p"]
+            if "presence_penalty" in fireworks_params:
+                ans["presence_penalty"] = fireworks_params["presence_penalty"]
+            if "frequency_penalty" in fireworks_params:
+                ans["frequency_penalty"] = fireworks_params["frequency_penalty"]
+            if "seed" in fireworks_params:
+                ans["seed"] = fireworks_params["seed"]
+            if "reasoning_effort" in fireworks_params:
+                ans["reasoning_effort"] = fireworks_params["reasoning_effort"]
+        elif obj["type"] == "groq":
+            groq_params: v1.PromptGroqInvocationParametersContent
+            groq_params = obj["groq"]
+            if "max_completion_tokens" in groq_params:
+                ans["max_completion_tokens"] = groq_params["max_completion_tokens"]
+            if "max_tokens" in groq_params:
+                ans["max_tokens"] = groq_params["max_tokens"]
+            if "temperature" in groq_params:
+                ans["temperature"] = groq_params["temperature"]
+            if "top_p" in groq_params:
+                ans["top_p"] = groq_params["top_p"]
+            if "presence_penalty" in groq_params:
+                ans["presence_penalty"] = groq_params["presence_penalty"]
+            if "frequency_penalty" in groq_params:
+                ans["frequency_penalty"] = groq_params["frequency_penalty"]
+            if "seed" in groq_params:
+                ans["seed"] = groq_params["seed"]
+            if "reasoning_effort" in groq_params:
+                ans["reasoning_effort"] = groq_params["reasoning_effort"]
+        elif obj["type"] == "moonshot":
+            moonshot_params: v1.PromptMoonshotInvocationParametersContent
+            moonshot_params = obj["moonshot"]
+            if "max_completion_tokens" in moonshot_params:
+                ans["max_completion_tokens"] = moonshot_params["max_completion_tokens"]
+            if "max_tokens" in moonshot_params:
+                ans["max_tokens"] = moonshot_params["max_tokens"]
+            if "temperature" in moonshot_params:
+                ans["temperature"] = moonshot_params["temperature"]
+            if "top_p" in moonshot_params:
+                ans["top_p"] = moonshot_params["top_p"]
+            if "presence_penalty" in moonshot_params:
+                ans["presence_penalty"] = moonshot_params["presence_penalty"]
+            if "frequency_penalty" in moonshot_params:
+                ans["frequency_penalty"] = moonshot_params["frequency_penalty"]
+            if "seed" in moonshot_params:
+                ans["seed"] = moonshot_params["seed"]
+            if "reasoning_effort" in moonshot_params:
+                ans["reasoning_effort"] = moonshot_params["reasoning_effort"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans

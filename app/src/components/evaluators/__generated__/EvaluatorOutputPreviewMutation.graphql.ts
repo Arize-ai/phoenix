@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<16fa2a50c57f5f59e3040b75ebe3db91>>
+ * @generated SignedSource<<aa1ebc35ebf287e5e5379b4da4dd2bf2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type EvaluatorPreviewsInput = {

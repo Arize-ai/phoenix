@@ -226,7 +226,14 @@ class _InvocationParametersConversion:
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
             v1.PromptGoogleInvocationParameters,
+            v1.PromptDeepSeekInvocationParameters,
+            v1.PromptXAIInvocationParameters,
+            v1.PromptOllamaInvocationParameters,
             v1.PromptAwsInvocationParameters,
+            v1.PromptCerebrasInvocationParameters,
+            v1.PromptFireworksInvocationParameters,
+            v1.PromptGroqInvocationParameters,
+            v1.PromptMoonshotInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -292,6 +299,69 @@ class _InvocationParametersConversion:
                 ans["temperature"] = aws_params["temperature"]
             if "top_p" in aws_params:
                 ans["top_p"] = aws_params["top_p"]
+        elif obj["type"] == "deepseek":
+            deepseek_params: v1.PromptDeepSeekInvocationParametersContent
+            deepseek_params = obj["deepseek"]
+            if "max_tokens" in deepseek_params:
+                ans["max_tokens"] = deepseek_params["max_tokens"]
+            if "temperature" in deepseek_params:
+                ans["temperature"] = deepseek_params["temperature"]
+            if "top_p" in deepseek_params:
+                ans["top_p"] = deepseek_params["top_p"]
+        elif obj["type"] == "xai":
+            xai_params: v1.PromptXAIInvocationParametersContent
+            xai_params = obj["xai"]
+            if "max_tokens" in xai_params:
+                ans["max_tokens"] = xai_params["max_tokens"]
+            if "temperature" in xai_params:
+                ans["temperature"] = xai_params["temperature"]
+            if "top_p" in xai_params:
+                ans["top_p"] = xai_params["top_p"]
+        elif obj["type"] == "ollama":
+            ollama_params: v1.PromptOllamaInvocationParametersContent
+            ollama_params = obj["ollama"]
+            if "max_tokens" in ollama_params:
+                ans["max_tokens"] = ollama_params["max_tokens"]
+            if "temperature" in ollama_params:
+                ans["temperature"] = ollama_params["temperature"]
+            if "top_p" in ollama_params:
+                ans["top_p"] = ollama_params["top_p"]
+        elif obj["type"] == "cerebras":
+            cerebras_params: v1.PromptCerebrasInvocationParametersContent
+            cerebras_params = obj["cerebras"]
+            if "max_tokens" in cerebras_params:
+                ans["max_tokens"] = cerebras_params["max_tokens"]
+            if "temperature" in cerebras_params:
+                ans["temperature"] = cerebras_params["temperature"]
+            if "top_p" in cerebras_params:
+                ans["top_p"] = cerebras_params["top_p"]
+        elif obj["type"] == "fireworks":
+            fireworks_params: v1.PromptFireworksInvocationParametersContent
+            fireworks_params = obj["fireworks"]
+            if "max_tokens" in fireworks_params:
+                ans["max_tokens"] = fireworks_params["max_tokens"]
+            if "temperature" in fireworks_params:
+                ans["temperature"] = fireworks_params["temperature"]
+            if "top_p" in fireworks_params:
+                ans["top_p"] = fireworks_params["top_p"]
+        elif obj["type"] == "groq":
+            groq_params: v1.PromptGroqInvocationParametersContent
+            groq_params = obj["groq"]
+            if "max_tokens" in groq_params:
+                ans["max_tokens"] = groq_params["max_tokens"]
+            if "temperature" in groq_params:
+                ans["temperature"] = groq_params["temperature"]
+            if "top_p" in groq_params:
+                ans["top_p"] = groq_params["top_p"]
+        elif obj["type"] == "moonshot":
+            moonshot_params: v1.PromptMoonshotInvocationParametersContent
+            moonshot_params = obj["moonshot"]
+            if "max_tokens" in moonshot_params:
+                ans["max_tokens"] = moonshot_params["max_tokens"]
+            if "temperature" in moonshot_params:
+                ans["temperature"] = moonshot_params["temperature"]
+            if "top_p" in moonshot_params:
+                ans["top_p"] = moonshot_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
