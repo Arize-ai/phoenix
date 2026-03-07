@@ -9,6 +9,8 @@ const meta: Meta = {
   component: Timer,
   parameters: {
     layout: "centered",
+    // Timer is inherently dynamic; disable chromatic snapshots by default
+    chromatic: { disableSnapshot: true },
   },
 };
 
