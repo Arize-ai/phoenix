@@ -61,7 +61,7 @@ def parse_provider_prefix(model_id: str) -> tuple[bool, str | None, str]:
 
 
 @dataclass
-class LiteLLMModel:
+class ModelCostManifestEntry:
     name: str  # Full LiteLLM ID (e.g., "groq/llama-3.3-70b-versatile")
     provider: str | None  # Phoenix provider string (e.g., "groq") or None
     name_pattern: str  # Stripped name for regex (e.g., "llama-3.3-70b-versatile")
@@ -125,7 +125,7 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
-def transform_remote_data(data: dict[str, Any]) -> list[LiteLLMModel]:
+def transform_remote_data(data: dict[str, Any]) -> list[ModelCostManifestEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
         if (
@@ -140,7 +140,7 @@ def transform_remote_data(data: dict[str, Any]) -> list[LiteLLMModel]:
     for model_id in filtered_model_ids:
         print(f"  - {model_id}")
 
-    transformed: list[LiteLLMModel] = []
+    transformed: list[ModelCostManifestEntry] = []
 
     for model_id in filtered_model_ids:
         model_info = data[model_id]
@@ -204,7 +204,7 @@ def transform_remote_data(data: dict[str, Any]) -> list[LiteLLMModel]:
         if token_prices:
             _, provider, stripped_name = parse_provider_prefix(model_id)
             transformed.append(
-                LiteLLMModel(
+                ModelCostManifestEntry(
                     name=model_id,
                     provider=provider,
                     name_pattern=stripped_name,
@@ -217,9 +217,9 @@ def transform_remote_data(data: dict[str, Any]) -> list[LiteLLMModel]:
 
 def update_manifest(
     manifest: ModelCostManifest,
-    transformed_models: list[LiteLLMModel],
+    transformed_models: list[ModelCostManifestEntry],
 ) -> ModelCostManifest:
-    update_by_name: dict[str, LiteLLMModel] = {tm.name: tm for tm in transformed_models}
+    update_by_name: dict[str, ModelCostManifestEntry] = {tm.name: tm for tm in transformed_models}
 
     # Remove LiteLLM models that are no longer in the remote data
     for index in reversed(range(len(manifest.models))):
