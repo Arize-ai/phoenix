@@ -8,6 +8,20 @@ from phoenix.server.types import DbSessionFactory
 
 from ....graphql import AsyncGraphQLClient
 
+PATCH_PROJECT_MUTATION = """
+    mutation($input: PatchProjectInput!) {
+        patchProject(input: $input) {
+            project {
+                id
+                name
+                description
+                gradientStartColor
+                gradientEndColor
+            }
+        }
+    }
+"""
+
 
 class TestProjectMutations:
     async def test_clear_project(
@@ -193,19 +207,7 @@ class TestProjectMutations:
 
         global_id = str(GlobalID("Project", str(project_id)))
         result = await gql_client.execute(
-            query="""
-            mutation($input: PatchProjectInput!) {
-                patchProject(input: $input) {
-                    project {
-                        id
-                        name
-                        description
-                        gradientStartColor
-                        gradientEndColor
-                    }
-                }
-            }
-            """,
+            query=PATCH_PROJECT_MUTATION,
             variables={
                 "input": {
                     "id": global_id,
@@ -242,18 +244,7 @@ class TestProjectMutations:
 
         global_id = str(GlobalID("Project", str(project_id)))
         result = await gql_client.execute(
-            query="""
-            mutation($input: PatchProjectInput!) {
-                patchProject(input: $input) {
-                    project {
-                        id
-                        description
-                        gradientStartColor
-                        gradientEndColor
-                    }
-                }
-            }
-            """,
+            query=PATCH_PROJECT_MUTATION,
             variables={
                 "input": {
                     "id": global_id,
@@ -284,18 +275,7 @@ class TestProjectMutations:
 
         global_id = str(GlobalID("Project", str(project_id)))
         result = await gql_client.execute(
-            query="""
-            mutation($input: PatchProjectInput!) {
-                patchProject(input: $input) {
-                    project {
-                        id
-                        description
-                        gradientStartColor
-                        gradientEndColor
-                    }
-                }
-            }
-            """,
+            query=PATCH_PROJECT_MUTATION,
             variables={
                 "input": {
                     "id": global_id,
@@ -327,15 +307,7 @@ class TestProjectMutations:
 
         global_id = str(GlobalID("Project", str(project_id)))
         result = await gql_client.execute(
-            query="""
-            mutation($input: PatchProjectInput!) {
-                patchProject(input: $input) {
-                    project {
-                        id
-                    }
-                }
-            }
-            """,
+            query=PATCH_PROJECT_MUTATION,
             variables={
                 "input": {
                     "id": global_id,

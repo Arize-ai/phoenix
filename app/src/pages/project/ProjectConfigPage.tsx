@@ -28,8 +28,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { useNotifySuccess } from "@phoenix/contexts";
-import { useProjectContext } from "@phoenix/contexts";
+import { useNotifySuccess, useProjectContext } from "@phoenix/contexts";
 
 import type { ProjectFormParams } from "../projects/ProjectForm";
 import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
@@ -109,12 +108,26 @@ function findGradientPreset(startColor: string, endColor: string): string {
   return match?.id ?? GRADIENT_PRESETS[0].id;
 }
 
+const nameFieldCSS = css`
+  width: 100%;
+`;
+
+const ReadOnlyNameField = ({ name }: { name: string }) => (
+  <Flex direction="row" gap="size-100" alignItems="end" width="100%">
+    <TextField value={name} isReadOnly css={nameFieldCSS}>
+      <Label>Project Name</Label>
+      <Input />
+    </TextField>
+    <CopyToClipboardButton text={name} size="M" />
+  </Flex>
+);
+
 const ProjectConfigCard = ({
   project,
 }: {
   project: ProjectConfigPage_projectConfigCard$key;
 }) => {
-  const [data, refetch] = useRefetchableFragment(
+  const [data] = useRefetchableFragment(
     graphql`
       fragment ProjectConfigPage_projectConfigCard on Project
       @refetchable(queryName: "ProjectConfigPageProjectConfigCardQuery") {
@@ -168,7 +181,6 @@ const ProjectConfigCard = ({
             title: "Project updated",
             message: "Project settings have been saved.",
           });
-          refetch({}, { fetchPolicy: "network-only" });
           setIsEditing(false);
         },
         onError: () => {
@@ -176,7 +188,7 @@ const ProjectConfigCard = ({
         },
       });
     },
-    [commit, data.id, notifySuccess, refetch]
+    [commit, data.id, notifySuccess]
   );
 
   if (isEditing) {
@@ -190,26 +202,17 @@ const ProjectConfigCard = ({
           </View>
         )}
         <View padding="size-200">
-          <Flex direction="row" gap="size-100" alignItems="end" width="100%">
-            <TextField
-              value={data.name}
-              isReadOnly
-              css={css`
-                width: 100%;
-              `}
-            >
-              <Label>Project Name</Label>
-              <Input />
-            </TextField>
-            <CopyToClipboardButton text={data.name} size="M" />
-          </Flex>
+          <ReadOnlyNameField name={data.name} />
         </View>
         <ProjectForm
           onSubmit={handleSubmit}
           isSubmitting={isCommitting}
           submitButtonText={isCommitting ? "Saving..." : "Save"}
           hideNameField
-          onCancel={() => setIsEditing(false)}
+          onCancel={() => {
+            setIsEditing(false);
+            setError(null);
+          }}
           defaultValues={{
             description: data.description ?? "",
             gradientPreset: findGradientPreset(
@@ -256,24 +259,7 @@ const ProjectConfigCard = ({
             `}
           >
             <Flex direction="column" gap="size-100" width="100%">
-              <Flex
-                direction="row"
-                gap="size-100"
-                alignItems="end"
-                width="100%"
-              >
-                <TextField
-                  value={data.name}
-                  isReadOnly
-                  css={css`
-                    width: 100%;
-                  `}
-                >
-                  <Label>Project Name</Label>
-                  <Input />
-                </TextField>
-                <CopyToClipboardButton text={data.name} size="M" />
-              </Flex>
+              <ReadOnlyNameField name={data.name} />
               {data.description && (
                 <TextField value={data.description} isReadOnly>
                   <Label>Description</Label>
