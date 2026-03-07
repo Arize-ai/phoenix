@@ -5,13 +5,16 @@ import { CodeEditorFieldWrapper, PythonEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { CodeEvaluatorOutputSection } from "@phoenix/components/evaluators/CodeEvaluatorOutputSection";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { SandboxTypeSelector } from "@phoenix/components/evaluators/SandboxTypeSelector";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 export const UserCodeEvaluatorForm = () => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   if (evaluatorKind !== "CODE") {
     throw new Error("UserCodeEvaluatorForm called for non-CODE evaluator");
   }
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
   const { sourceCode, setSourceCode } = useEvaluatorStore(
     useShallow((state) => ({
       sourceCode: state.sourceCode,
@@ -20,6 +23,11 @@ export const UserCodeEvaluatorForm = () => {
   );
   return (
     <>
+      {isSandboxEnabled ? (
+        <View marginBottom="size-200" flex="none">
+          <SandboxTypeSelector />
+        </View>
+      ) : null}
       <View marginBottom="size-200" flex="none">
         <Flex direction="column" gap="size-100">
           <Heading level={2} weight="heavy">

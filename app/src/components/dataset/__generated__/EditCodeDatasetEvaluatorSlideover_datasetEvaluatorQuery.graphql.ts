@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b759b503557774c97e09b905aa95652b>>
+ * @generated SignedSource<<be862c025db2d28c66ced686dacea9a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
 export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;
@@ -22,11 +23,13 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
       readonly description: string | null;
       readonly evaluator: {
         readonly description: string | null;
+        readonly environmentMismatch?: boolean;
         readonly id: string;
         readonly inputSchema?: any | null;
         readonly kind: EvaluatorKind;
         readonly language?: string;
         readonly name: string;
+        readonly sandboxBackendType?: SandboxBackendType;
         readonly sourceCode?: string;
       };
       readonly id: string;
@@ -231,6 +234,20 @@ v12 = {
       "kind": "ScalarField",
       "name": "inputSchema",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "sandboxBackendType",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "environmentMismatch",
+      "storageKey": null
     }
   ],
   "type": "CodeEvaluator",
@@ -400,16 +417,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d6f7b5490a20c4974ea56b4f83e14616",
+    "cacheID": "68d8f8786d66bb87438d5261a84a9110",
     "id": null,
     "metadata": {},
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            annotationType\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            annotationType\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on CodeEvaluator {\n            sourceCode\n            language\n            inputSchema\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            annotationType\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            annotationType\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        evaluator {\n          __typename\n          id\n          name\n          kind\n          description\n          ... on CodeEvaluator {\n            sourceCode\n            language\n            inputSchema\n            sandboxBackendType\n            environmentMismatch\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8336832e14ed3a5e240b4d461b141291";
+(node as any).hash = "a574b65d4947b6926ee14cd07c5a41e6";
 
 export default node;

@@ -47,6 +47,18 @@ export function useViewerCanManageRetentionPolicy() {
   return true;
 }
 
+/**
+ * Returns true if the viewer can manage sandbox configuration
+ * Note: when the app is not configured with auth, we assume the user is an admin
+ */
+export function useViewerCanManageSandboxConfig() {
+  const { viewer } = useViewer();
+  if (viewer && viewer?.role?.name !== "ADMIN") {
+    return false;
+  }
+  return true;
+}
+
 export function ViewerProvider({
   query,
   children,

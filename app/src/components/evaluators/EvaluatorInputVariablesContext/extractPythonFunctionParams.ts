@@ -1,6 +1,6 @@
 import type { EvaluatorParam } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 
-const DEF_REGEX = /def\s+score\s*\(([^)]*)\)/;
+const DEF_REGEX = /def\s+evaluate\s*\(([^)]*)\)/;
 
 type JsonSchemaType = NonNullable<EvaluatorParam["type"]>;
 

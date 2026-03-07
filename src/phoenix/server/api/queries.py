@@ -123,6 +123,13 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     ToolResultContentPart,
     ToolResultContentValue,
 )
+from phoenix.server.api.types.SandboxConfig import (
+    SandboxAdapterInfo,
+    SandboxBackendStatusCode,
+    SandboxBackendType,
+    SandboxConfigFieldSpec,
+    SandboxEnvVarSpec,
+)
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -135,6 +142,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.sandbox import _SANDBOX_ADAPTER_METADATA, get_sandbox_adapters
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
@@ -1752,6 +1760,84 @@ class Query:
         )
         async with info.context.db() as session:
             return await session.scalar(stmt) or 0
+
+    @strawberry.field
+    async def sandbox_backends(
+        self,
+        info: Info[Context, None],
+    ) -> list[SandboxAdapterInfo]:
+        from phoenix.server.api.types.SandboxConfig import SandboxConfig as SandboxConfigGQL
+
+        # Fetch all sandbox config rows from DB
+        async with info.context.db() as session:
+            result = await session.execute(select(models.SandboxConfig))
+            db_configs = {row.backend_type: row for row in result.scalars().all()}
+
+        # installed_adapters maps key → adapter_cls for packages that are importable
+        installed_adapters = dict(get_sandbox_adapters())
+        adapter_infos: list[SandboxAdapterInfo] = []
+
+        # Iterate _SANDBOX_ADAPTER_METADATA (all four adapters, always present)
+        # so uninstalled adapters appear with NOT_INSTALLED status and setup instructions.
+        for key, meta in _SANDBOX_ADAPTER_METADATA.items():
+            if key not in installed_adapters:
+                status = SandboxBackendStatusCode.NOT_INSTALLED
+            else:
+                adapter_cls = installed_adapters[key]
+                adapter_instance = adapter_cls()
+                if not adapter_instance.is_installed():
+                    status = SandboxBackendStatusCode.NOT_INSTALLED
+                elif not adapter_instance.has_credentials():
+                    status = SandboxBackendStatusCode.NEEDS_CREDENTIALS
+                elif adapter_cls.config_required and not db_configs.get(key):
+                    status = SandboxBackendStatusCode.NEEDS_CONFIG
+                else:
+                    status = SandboxBackendStatusCode.AVAILABLE
+
+            # Build current_config from DB row if present
+            current_config = None
+            db_row = db_configs.get(key)
+            if db_row is not None:
+                current_config = SandboxConfigGQL(
+                    id=strawberry.ID(str(db_row.id)),
+                    backend_type=SandboxBackendType(db_row.backend_type),
+                    config=db_row.config,
+                    timeout=db_row.timeout,
+                    session_mode=db_row.session_mode,
+                    config_hash=db_row.config_hash,
+                    created_at=db_row.created_at,
+                    updated_at=db_row.updated_at,
+                )
+
+            adapter_infos.append(
+                SandboxAdapterInfo(
+                    key=key,
+                    label=meta.label,
+                    description=meta.description,
+                    status=status,
+                    env_vars=[
+                        SandboxEnvVarSpec(
+                            name=v.name, required=v.required, description=v.description
+                        )
+                        for v in meta.env_vars
+                    ],
+                    config_fields=[
+                        SandboxConfigFieldSpec(
+                            key=f.key,
+                            label=f.label,
+                            placeholder=f.placeholder,
+                            description=f.description,
+                        )
+                        for f in meta.config_fields
+                    ],
+                    config_required=meta.config_required,
+                    has_session_mode=meta.has_session_mode,
+                    setup_instructions=meta.setup_instructions,
+                    current_config=current_config,
+                )
+            )
+
+        return adapter_infos
 
 
 def _consolidate_sqlite_db_table_stats(

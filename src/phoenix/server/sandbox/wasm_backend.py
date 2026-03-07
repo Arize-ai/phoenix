@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
-from wasmtime import (  # type: ignore[import-not-found]
+from wasmtime import (
     Config,
     Engine,
     ExitTrap,
@@ -20,12 +22,18 @@ from wasmtime import (  # type: ignore[import-not-found]
 
 from phoenix.config import get_working_dir
 
-from .types import ExecutionResult, UnsupportedOperation
+from .types import ExecutionResult, SandboxAdapter, SandboxBackend
+
+_HASH_LENGTH = 16
 
 logger = logging.getLogger(__name__)
 
 # Epoch tick interval for timeout enforcement (seconds).
 _EPOCH_TICK_INTERVAL = 0.5
+
+# Module-level cache: maps WASM binary path → (Engine, Module).
+# Avoids recompiling the large WASM binary on every WASMBackend() call.
+_wasm_module_cache: dict[Path, tuple[Engine, Module]] = {}
 
 
 def _default_wasm_binary() -> Path:
@@ -61,11 +69,24 @@ class WASMBackend:
                 "[sandbox] extra is installed."
             )
 
-        config = Config()
-        config.epoch_interruption = True
-        self._engine = Engine(config)
-        self._module = Module.from_file(self._engine, str(wasm_path))
+        if wasm_path in _wasm_module_cache:
+            self._engine, self._module = _wasm_module_cache[wasm_path]
+        else:
+            config = Config()
+            config.epoch_interruption = True
+            self._engine = Engine(config)
+            self._module = Module.from_file(self._engine, str(wasm_path))
+            _wasm_module_cache[wasm_path] = (self._engine, self._module)
+        self._env_hash = self._compute_hash(wasm_path)
         self._pool = ThreadPoolExecutor(max_workers=max_workers)
+
+    @staticmethod
+    def _compute_hash(wasm_path: Path) -> str:
+        h = hashlib.sha256(wasm_path.read_bytes())
+        return h.hexdigest()[:_HASH_LENGTH]
+
+    def environment_hash(self) -> str:
+        return self._env_hash
 
     def _run_in_wasm(self, code: str, timeout: float) -> ExecutionResult:
         """Synchronous WASM execution — called inside a thread pool worker."""
@@ -148,13 +169,6 @@ class WASMBackend:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self._pool, self._run_in_wasm, code, timeout)
 
-    async def install(self, packages: list[str]) -> None:
-        raise UnsupportedOperation(
-            "WASMBackend does not support third-party packages. "
-            "Evaluator code must use Python stdlib only. "
-            "Use the container backend for evaluators that require packages."
-        )
-
     async def close(self) -> None:
         self._pool.shutdown(wait=False)
 
@@ -163,3 +177,28 @@ class WASMBackend:
 
     async def __aexit__(self, *_args: object) -> None:
         await self.close()
+
+
+def _wasm_binary_path() -> Path:
+    return get_working_dir() / "sandbox" / "python-3.12.0.wasm"
+
+
+class WASMAdapter(SandboxAdapter):
+    _key = "WASM"
+    label = "WASM (Local)"
+    description = "Runs code evaluators locally using WebAssembly."
+    python_packages = ["wasmtime"]
+    env_vars: list[Any] = []
+    config_fields: list[Any] = []
+    config_required = False
+    has_session_mode = False
+    setup_instructions = ['pip install "arize-phoenix[sandbox]"']
+
+    def is_installed(self) -> bool:
+        if not super().is_installed():
+            return False
+        return _wasm_binary_path().exists()
+
+    def create_backend(self, config: dict[str, Any], credentials: dict[str, Any]) -> SandboxBackend:
+        wasm_path = _wasm_binary_path()
+        return WASMBackend(wasm_binary=wasm_path)

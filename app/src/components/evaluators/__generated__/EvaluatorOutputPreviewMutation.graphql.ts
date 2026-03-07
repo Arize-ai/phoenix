@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a5b17029cb38cd3a6666e4cf7d0ab797>>
+ * @generated SignedSource<<01745f52ea7f329d404596a41871744c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
+export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
 export type EvaluatorPreviewsInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   previews: ReadonlyArray<EvaluatorPreviewItemInput>;
@@ -107,6 +108,7 @@ export type InlineCodeEvaluatorInput = {
   description?: string | null;
   name: string;
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  sandboxBackendType?: SandboxBackendType | null;
   sourceCode: string;
 };
 export type EvaluatorInputMappingInput = {

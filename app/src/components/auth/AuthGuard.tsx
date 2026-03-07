@@ -3,6 +3,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 import {
   useViewer,
   useViewerCanManageRetentionPolicy,
+  useViewerCanManageSandboxConfig,
   useViewerCanModify,
 } from "@phoenix/contexts";
 
@@ -53,6 +54,22 @@ export function CanManageRetentionPolicy(
   const { fallback = null, children } = props;
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   if (!canManageRetentionPolicy) {
+    return <>{fallback}</>;
+  }
+  return children;
+}
+
+/**
+ * Users can manage sandbox configuration if:
+ * - Authentication is disabled
+ * - Authentication is enabled and the user is an admin
+ */
+export function CanManageSandboxConfig(
+  props: PropsWithChildren<AuthGuardProps>
+) {
+  const { fallback = null, children } = props;
+  const canManage = useViewerCanManageSandboxConfig();
+  if (!canManage) {
     return <>{fallback}</>;
   }
   return children;

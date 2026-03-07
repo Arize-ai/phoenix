@@ -27,6 +27,7 @@ from phoenix.server.api.mutations.project_trace_retention_policy_mutations impor
 from phoenix.server.api.mutations.prompt_label_mutations import PromptLabelMutationMixin
 from phoenix.server.api.mutations.prompt_mutations import PromptMutationMixin
 from phoenix.server.api.mutations.prompt_version_tag_mutations import PromptVersionTagMutationMixin
+from phoenix.server.api.mutations.sandbox_config_mutations import SandboxConfigMutationMixin
 from phoenix.server.api.mutations.secret_mutations import SecretMutationMixin
 from phoenix.server.api.mutations.span_annotations_mutations import SpanAnnotationMutationMixin
 from phoenix.server.api.mutations.trace_annotations_mutations import TraceAnnotationMutationMixin
@@ -49,6 +50,7 @@ class Mutation(
     ModelMutationMixin,
     ProjectMutationMixin,
     ProjectTraceRetentionPolicyMutationMixin,
+    SandboxConfigMutationMixin,
     PromptMutationMixin,
     PromptVersionTagMutationMixin,
     PromptLabelMutationMixin,

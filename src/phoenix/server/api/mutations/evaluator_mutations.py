@@ -45,6 +45,7 @@ from phoenix.server.api.types.Evaluator import (
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
+from phoenix.server.api.types.SandboxConfig import SandboxBackendType
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -281,6 +282,7 @@ class CreateCodeEvaluatorInput:
     output_configs: list[AnnotationConfigInput] = strawberry.field(default_factory=list)
     description: Optional[str] = None
     metadata: Optional[JSON] = None
+    sandbox_backend_type: Optional[SandboxBackendType] = None
 
 
 @strawberry.input
@@ -293,6 +295,7 @@ class UpdateCodeEvaluatorInput:
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
     description: Optional[str] = UNSET
     metadata: Optional[JSON] = UNSET
+    sandbox_backend_type: Optional[SandboxBackendType] = UNSET
 
 
 @strawberry.type
@@ -542,7 +545,7 @@ class EvaluatorMutationMixin:
                     language=input.language,
                     input_mapping=input_mapping,
                     output_configs=output_configs,
-                    input_schema=derive_input_schema(input.source_code, "score"),
+                    input_schema=derive_input_schema(input.source_code, "evaluate"),
                     user_id=user_id,
                     dataset_evaluators=[dataset_evaluator_record],
                 )
@@ -764,8 +767,26 @@ class EvaluatorMutationMixin:
                 raise BadRequest(str(e))
             output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 
+        sandbox_config_id = None
+        sandbox_config_hash = None
+        backend_type = input.sandbox_backend_type
+
         try:
             async with info.context.db() as session:
+                if backend_type is not None and backend_type != SandboxBackendType.WASM:
+                    config_row = await session.scalar(
+                        select(models.SandboxConfig).where(
+                            models.SandboxConfig.backend_type == backend_type.value
+                        )
+                    )
+                    if config_row is None:
+                        raise BadRequest(
+                            f"No sandbox configuration found for backend type "
+                            f"'{backend_type.value}'. Please configure it in Settings first."
+                        )
+                    sandbox_config_id = config_row.id
+                    sandbox_config_hash = config_row.config_hash
+
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
                 code_evaluator = models.CodeEvaluator(
                     name=evaluator_name,
@@ -775,8 +796,10 @@ class EvaluatorMutationMixin:
                     language=input.language,
                     input_mapping=input.input_mapping.to_orm(),
                     output_configs=output_configs,
-                    input_schema=derive_input_schema(input.source_code, "score"),
+                    input_schema=derive_input_schema(input.source_code, "evaluate"),
                     user_id=user_id,
+                    sandbox_config_id=sandbox_config_id,
+                    sandbox_config_hash=sandbox_config_hash,
                 )
                 code_evaluator.updated_at = datetime.now(timezone.utc)
                 session.add(code_evaluator)
@@ -821,7 +844,7 @@ class EvaluatorMutationMixin:
 
             if input.source_code is not UNSET and input.source_code is not None:
                 code_evaluator.source_code = input.source_code
-                code_evaluator.input_schema = derive_input_schema(input.source_code, "score")
+                code_evaluator.input_schema = derive_input_schema(input.source_code, "evaluate")
 
             if input.language is not UNSET and input.language is not None:
                 code_evaluator.language = input.language
@@ -844,6 +867,25 @@ class EvaluatorMutationMixin:
             if input.metadata is not UNSET:
                 assert isinstance(input.metadata, dict)
                 code_evaluator.metadata_ = input.metadata
+
+            if input.sandbox_backend_type is not UNSET:
+                backend_type = input.sandbox_backend_type
+                if backend_type is None or backend_type == SandboxBackendType.WASM:
+                    code_evaluator.sandbox_config_id = None
+                    code_evaluator.sandbox_config_hash = None
+                else:
+                    config_row = await session.scalar(
+                        select(models.SandboxConfig).where(
+                            models.SandboxConfig.backend_type == backend_type.value
+                        )
+                    )
+                    if config_row is None:
+                        raise BadRequest(
+                            f"No sandbox configuration found for backend type "
+                            f"'{backend_type.value}'. Please configure it in Settings first."
+                        )
+                    code_evaluator.sandbox_config_id = config_row.id
+                    code_evaluator.sandbox_config_hash = config_row.config_hash
 
             code_evaluator.updated_at = datetime.now(timezone.utc)
             code_evaluator.user_id = user_id

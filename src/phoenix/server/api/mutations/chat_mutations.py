@@ -387,7 +387,6 @@ class ChatCompletionMutationMixin:
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,
-                    sandbox_backend=info.context.sandbox_backend,
                 )
                 project_ids = await get_evaluator_project_ids(
                     dataset_evaluator_node_ids=dataset_evaluator_node_ids,
@@ -515,7 +514,6 @@ class ChatCompletionMutationMixin:
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,
-                    sandbox_backend=info.context.sandbox_backend,
                 )
             for repetition_number, result in enumerate(results, start=1):
                 if isinstance(result, BaseException):
@@ -724,13 +722,24 @@ class ChatCompletionMutationMixin:
                     ):
                         filtered_configs.append(config)
 
+                from phoenix.server.sandbox import get_or_create_backend
+
+                backend_type_str = (
+                    inline_code_evaluator.sandbox_backend_type.value
+                    if inline_code_evaluator.sandbox_backend_type
+                    else "WASM"
+                )
+                async with info.context.db() as _sandbox_session:
+                    sandbox_backend = await get_or_create_backend(
+                        backend_type_str, _sandbox_session, input.credentials
+                    )
                 code_evaluator = CodeEvaluatorRunner(
                     name=inline_code_evaluator.name,
                     description=inline_code_evaluator.description,
                     source_code=inline_code_evaluator.source_code,
                     stored_input_schema={},
                     stored_output_configs=filtered_configs,
-                    sandbox_backend=info.context.sandbox_backend,
+                    sandbox_backend=sandbox_backend,
                 )
 
                 eval_results = await code_evaluator.evaluate(

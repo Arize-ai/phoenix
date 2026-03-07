@@ -1,10 +1,12 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import type { Key } from "react-aria-components";
 import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
+import { useViewerCanManageSandboxConfig } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -21,7 +23,7 @@ const settingsPageInnerCSS = css`
   margin-right: auto;
 `;
 
-const tabs: { id: string; label: string }[] = [
+const baseTabs: { id: string; label: string }[] = [
   { id: "general", label: "General" },
   { id: "providers", label: "AI Providers" },
   { id: "models", label: "Models" },
@@ -31,7 +33,18 @@ const tabs: { id: string; label: string }[] = [
   { id: "data", label: "Data Retention" },
 ];
 
+const sandboxTab = { id: "sandbox", label: "Sandbox" };
+
 export function SettingsPage() {
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
+  const canManageSandbox = useViewerCanManageSandboxConfig();
+  const tabs = useMemo(
+    () =>
+      isSandboxEnabled && canManageSandbox
+        ? [...baseTabs, sandboxTab]
+        : baseTabs,
+    [isSandboxEnabled, canManageSandbox]
+  );
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const tab = pathname.split("/settings")[1].replace("/", "");

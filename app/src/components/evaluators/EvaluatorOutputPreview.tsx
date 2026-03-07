@@ -24,6 +24,7 @@ import { JSONBlock } from "@phoenix/components/code";
 import type {
   EvaluatorOutputPreviewMutation,
   InlineLLMEvaluatorInput,
+  SandboxBackendType,
 } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import {
   buildOutputConfigsInput,
@@ -118,6 +119,9 @@ export const EvaluatorOutputPreview = () => {
   >([]);
   const evaluatorStore = useEvaluatorStoreInstance();
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
+  const sandboxBackendType = useEvaluatorStore(
+    (state) => state.sandboxBackendType as SandboxBackendType
+  );
   const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
   const evaluatorName = useEvaluatorStore(
     (state) => state.evaluator.name || state.evaluator.globalName
@@ -158,6 +162,7 @@ export const EvaluatorOutputPreview = () => {
             sourceCode: string;
             outputConfigs: ReturnType<typeof buildOutputConfigsInput>;
             description?: string | null;
+            sandboxBackendType?: SandboxBackendType | null;
           };
         }
       | { builtInEvaluatorId: string };
@@ -179,6 +184,7 @@ export const EvaluatorOutputPreview = () => {
           sourceCode: state.sourceCode,
           outputConfigs: buildOutputConfigsInput(state.outputConfigs),
           description,
+          sandboxBackendType,
         },
       };
     } else {

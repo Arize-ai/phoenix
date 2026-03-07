@@ -15,7 +15,7 @@ from phoenix.server.sandbox.types import ExecutionResult
 
 def _make_runner(
     *,
-    source_code: str = "def score(text): return {'label': 'good'}",
+    source_code: str = "def evaluate(text): return {'label': 'good'}",
     input_schema: Optional[dict[str, Any]] = None,
     output_configs: Optional[list[EvaluatorOutputConfig]] = None,
     sandbox_backend: Optional[AsyncMock] = None,

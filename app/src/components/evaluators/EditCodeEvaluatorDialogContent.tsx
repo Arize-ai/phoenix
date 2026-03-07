@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { Alert } from "@phoenix/components/alert";
 import { Button } from "@phoenix/components/button";
@@ -20,6 +20,7 @@ export const EditCodeEvaluatorDialogContent = ({
   mode,
   error,
   evaluatorInputSchema = null,
+  banner,
 }: {
   onClose: () => void;
   onSubmit: () => void;
@@ -27,6 +28,7 @@ export const EditCodeEvaluatorDialogContent = ({
   mode: "create" | "update";
   error?: string;
   evaluatorInputSchema?: unknown;
+  banner?: ReactNode;
 }) => {
   const store = useEvaluatorStoreInstance();
   const [showValidationError, setShowValidationError] = useState(false);
@@ -89,6 +91,7 @@ export const EditCodeEvaluatorDialogContent = ({
             {error}
           </Alert>
         )}
+        {banner}
         {evaluatorInputSchema == null ? (
           <SourceCodeEvaluatorInputVariablesProvider>
             <EvaluatorForm />

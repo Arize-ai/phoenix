@@ -651,7 +651,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         source_code: str,
         stored_input_schema: dict[str, Any],
         stored_output_configs: list[EvaluatorOutputConfig],
-        sandbox_backend: Optional[SandboxBackend],
+        sandbox_backend: Optional[SandboxBackend] = None,
     ) -> None:
         self._name = name
         self._description = description
@@ -757,7 +757,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     f"{self._source_code}\n"
                     f"_inputs = json.loads({json.dumps(json.dumps(inputs))})\n"
                     "try:\n"
-                    "    _result = score(**_inputs)\n"
+                    "    _result = evaluate(**_inputs)\n"
                     "    print(json.dumps(_result))\n"
                     "except Exception as _e:\n"
                     "    print(str(_e), file=sys.stderr)\n"
@@ -1131,7 +1131,6 @@ async def get_evaluators(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: list[GenerativeCredentialInput] | None = None,
-    sandbox_backend: Optional[SandboxBackend] = None,
 ) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator node IDs.
@@ -1276,6 +1275,14 @@ async def get_evaluators(
                 for c in code_eval.output_configs
                 if isinstance(c, (CategoricalAnnotationConfig, ContinuousAnnotationConfig))
             ]
+            from phoenix.server.sandbox import get_or_create_backend
+
+            backend_type = "WASM"
+            if code_eval.sandbox_config_id is not None:
+                sandbox_cfg = await session.get(models.SandboxConfig, code_eval.sandbox_config_id)
+                if sandbox_cfg is not None:
+                    backend_type = sandbox_cfg.backend_type
+            backend = await get_or_create_backend(backend_type, session, credentials)
             evaluators.append(
                 CodeEvaluatorRunner(
                     name=str(code_eval.name),
@@ -1283,7 +1290,7 @@ async def get_evaluators(
                     source_code=code_eval.source_code,
                     stored_input_schema=code_eval.input_schema,
                     stored_output_configs=output_configs,
-                    sandbox_backend=sandbox_backend,
+                    sandbox_backend=backend,
                 )
             )
         else:

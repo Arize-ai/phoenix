@@ -30,6 +30,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.SandboxConfig import SandboxBackendType
 
 from .Identifier import Identifier
 
@@ -282,6 +283,48 @@ class CodeEvaluator(Evaluator, Node):
                 config, (CategoricalAnnotationConfigModel, ContinuousAnnotationConfigModel)
             )
         ]
+
+    @strawberry.field
+    async def sandbox_backend_type(
+        self,
+        info: Info[Context, None],
+    ) -> SandboxBackendType:
+        if self.db_record:
+            config_id = self.db_record.sandbox_config_id
+        else:
+            config_id = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.sandbox_config_id),
+            )
+        if config_id is None:
+            return SandboxBackendType.WASM
+        async with info.context.db() as session:
+            config = await session.get(models.SandboxConfig, config_id)
+        if config is None:
+            return SandboxBackendType.WASM
+        return SandboxBackendType(config.backend_type)
+
+    @strawberry.field
+    async def environment_mismatch(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        if self.db_record:
+            evaluator_hash = self.db_record.sandbox_config_hash
+            config_id = self.db_record.sandbox_config_id
+        else:
+            evaluator_hash = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.sandbox_config_hash),
+            )
+            config_id = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.sandbox_config_id),
+            )
+        if evaluator_hash is None or config_id is None:
+            return False
+        async with info.context.db() as session:
+            config = await session.get(models.SandboxConfig, config_id)
+        if config is None:
+            return True
+        return config.config_hash != evaluator_hash
 
     @strawberry.field
     async def user(

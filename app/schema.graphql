@@ -534,6 +534,8 @@ type CodeEvaluator implements Evaluator & Node {
   sourceCode: String!
   language: String!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  sandboxBackendType: SandboxBackendType!
+  environmentMismatch: Boolean!
   user: User
 }
 
@@ -614,6 +616,7 @@ input CreateCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]! = []
   description: String = null
   metadata: JSON = null
+  sandboxBackendType: SandboxBackendType = null
 }
 
 input CreateDatasetBuiltinEvaluatorInput {
@@ -751,6 +754,14 @@ input CreatePromptLabelInput {
 input CreatePromptVersionTagInput {
   name: Identifier!
   description: String = null
+}
+
+input CreateSandboxConfigInput {
+  backendType: SandboxBackendType!
+  config: JSON! = {}
+  timeout: Int! = 30
+  sessionMode: Boolean! = false
+  credentials: [GenerativeCredentialInput!]
 }
 
 input CreateSpanAnnotationInput {
@@ -1941,6 +1952,7 @@ input InlineCodeEvaluatorInput {
   sourceCode: String!
   outputConfigs: [AnnotationConfigInput!]!
   description: String = null
+  sandboxBackendType: SandboxBackendType = null
 }
 
 input InlineLLMEvaluatorInput {
@@ -2108,6 +2120,9 @@ type Mutation {
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  createSandboxConfig(input: CreateSandboxConfigInput!): SandboxConfig!
+  updateSandboxConfig(input: UpdateSandboxConfigInput!): SandboxConfig!
+  deleteSandboxConfig(id: ID!): SandboxConfig!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
@@ -2804,6 +2819,7 @@ type Query {
   datasetCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
+  sandboxBackends: [SandboxAdapterInfo!]!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -2830,6 +2846,57 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
+}
+
+type SandboxAdapterInfo {
+  key: String!
+  label: String!
+  description: String!
+  status: SandboxBackendStatusCode!
+  envVars: [SandboxEnvVarSpec!]!
+  configFields: [SandboxConfigFieldSpec!]!
+  configRequired: Boolean!
+  hasSessionMode: Boolean!
+  setupInstructions: [String!]!
+  currentConfig: SandboxConfig
+}
+
+enum SandboxBackendStatusCode {
+  AVAILABLE
+  NOT_INSTALLED
+  NEEDS_CREDENTIALS
+  NEEDS_CONFIG
+}
+
+enum SandboxBackendType {
+  WASM
+  E2B
+  VERCEL
+  DAYTONA
+}
+
+type SandboxConfig {
+  id: ID!
+  backendType: SandboxBackendType!
+  config: JSON!
+  timeout: Int!
+  sessionMode: Boolean!
+  configHash: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type SandboxConfigFieldSpec {
+  key: String!
+  label: String!
+  placeholder: String!
+  description: String!
+}
+
+type SandboxEnvVarSpec {
+  name: String!
+  required: Boolean!
+  description: String!
 }
 
 type Secret implements Node {
@@ -3584,6 +3651,7 @@ input UpdateCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]
   description: String
   metadata: JSON
+  sandboxBackendType: SandboxBackendType
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {
@@ -3617,6 +3685,14 @@ input UpdateModelMutationInput {
 type UpdateModelMutationPayload {
   model: GenerativeModel!
   query: Query!
+}
+
+input UpdateSandboxConfigInput {
+  id: ID!
+  config: JSON = null
+  timeout: Int = null
+  sessionMode: Boolean = null
+  credentials: [GenerativeCredentialInput!]
 }
 
 input UpsertOrDeleteSecretsMutationInput {

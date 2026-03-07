@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4fb47d70e16237fb836d59b675b04a05>>
+ * @generated SignedSource<<405fd08e5877da5ac3e917261ce9041d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,9 +11,11 @@
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
+    readonly environmentMismatch?: boolean;
     readonly kind: EvaluatorKind;
     readonly language?: string;
     readonly outputConfigs?: ReadonlyArray<{
@@ -26,6 +28,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
         readonly score: number | null;
       }>;
     }>;
+    readonly sandboxBackendType?: SandboxBackendType;
     readonly sourceCode?: string;
   };
   readonly id: string;
@@ -128,6 +131,20 @@ return {
             {
               "alias": null,
               "args": null,
+              "kind": "ScalarField",
+              "name": "sandboxBackendType",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "environmentMismatch",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
               "concreteType": null,
               "kind": "LinkedField",
               "name": "outputConfigs",
@@ -206,6 +223,6 @@ return {
 };
 })();
 
-(node as any).hash = "318901b4d1ad7500752dd81a7775b9f7";
+(node as any).hash = "82b7b227727530f668bf82fbed5beb7d";
 
 export default node;

@@ -687,6 +687,28 @@ ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DA
 The default retention policy for traces in days.
 """
 
+ENV_PHOENIX_SANDBOX_PROVIDER = "PHOENIX_SANDBOX_PROVIDER"
+"""
+The sandbox backend to use for executing evaluator code.
+Accepted values: ``wasm``, ``e2b``, ``vercel``.
+If unset, the backend is auto-detected (WASM if wasmtime is installed and the
+binary is present, otherwise no sandboxing).
+"""
+
+ENV_PHOENIX_SANDBOX_API_KEY = "PHOENIX_SANDBOX_API_KEY"
+"""
+API key for the E2B sandbox backend (``PHOENIX_SANDBOX_PROVIDER=e2b``).
+Obtain from https://e2b.dev.
+"""
+
+ENV_PHOENIX_SANDBOX_TOKEN = "PHOENIX_SANDBOX_TOKEN"
+"""
+Personal access token for the Vercel sandbox backend
+(``PHOENIX_SANDBOX_PROVIDER=vercel``).
+In Vercel-hosted deployments, ``VERCEL_OIDC_TOKEN`` is auto-populated and
+takes precedence. This variable is the fallback for self-hosted Phoenix.
+"""
+
 
 @dataclass(frozen=True)
 class TLSConfig:

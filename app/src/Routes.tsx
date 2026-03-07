@@ -27,6 +27,7 @@ import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
+import { SettingsSandboxPage } from "@phoenix/pages/settings/SettingsSandboxPage";
 
 import type {
   DatasetLoaderData,
@@ -366,6 +367,13 @@ const router = createBrowserRouter(
               loader={settingsPromptsPageLoader}
               handle={{
                 crumb: () => "Prompts",
+              }}
+            />
+            <Route
+              path="sandbox"
+              element={<SettingsSandboxPage />}
+              handle={{
+                crumb: () => "Sandbox",
               }}
             />
           </Route>

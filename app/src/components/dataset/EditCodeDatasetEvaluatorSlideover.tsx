@@ -14,9 +14,11 @@ import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@p
 import type { EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation.graphql";
 import { EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { SandboxMismatchBanner } from "@phoenix/components/evaluators/SandboxMismatchBanner";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   DEFAULT_USER_CODE_EVALUATOR_STORE_VALUES,
   type EvaluatorStoreInstance,
@@ -130,6 +132,8 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                     sourceCode
                     language
                     inputSchema
+                    sandboxBackendType
+                    environmentMismatch
                   }
                 }
               }
@@ -197,6 +201,8 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         evaluator.sourceCode ??
         DEFAULT_USER_CODE_EVALUATOR_STORE_VALUES.sourceCode,
       language: "PYTHON" as const,
+      sandboxBackendType: evaluator.sandboxBackendType ?? "WASM",
+      savedSandboxBackendType: evaluator.sandboxBackendType ?? "WASM",
       outputConfigs,
     } satisfies EvaluatorStoreProps;
   }, [datasetEvaluator, evaluator, datasetId, datasetEvaluatorId]);
@@ -208,6 +214,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       sourceCode,
       language,
       outputConfigs,
+      sandboxBackendType,
     } = store.getState();
 
     const normalizedDescription = description.trim() || null;
@@ -222,6 +229,8 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           inputMapping,
           outputConfigs: buildOutputConfigsInput(outputConfigs),
           description: normalizedDescription,
+          sandboxBackendType: sandboxBackendType as
+            EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation["variables"]["input"]["sandboxBackendType"],
         },
       },
       onCompleted: () => {
@@ -240,6 +249,9 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     });
   };
 
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
+  const environmentMismatch = evaluator.environmentMismatch ?? false;
+
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {({ store }) => (
@@ -250,6 +262,11 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           mode="update"
           error={error}
           evaluatorInputSchema={evaluator.inputSchema}
+          banner={
+            isSandboxEnabled && environmentMismatch ? (
+              <SandboxMismatchBanner />
+            ) : undefined
+          }
         />
       )}
     </EvaluatorStoreProvider>

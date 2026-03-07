@@ -46,6 +46,37 @@ JSON_ = (
 
 
 def upgrade() -> None:
+    op.create_table(
+        "sandbox_configs",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "backend_type",
+            sa.String,
+            nullable=False,
+        ),
+        sa.Column("config", JSON_, nullable=False, server_default="{}"),
+        sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
+        sa.Column("session_mode", sa.Boolean, nullable=False, server_default=sa.text("0")),
+        sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("backend_type"),
+        sa.CheckConstraint(
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            name="valid_sandbox_backend_type",
+        ),
+    )
+
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -87,17 +118,38 @@ def upgrade() -> None:
                 nullable=False,
             ),
         )
+        batch_op.add_column(
+            sa.Column(
+                "sandbox_config_id",
+                sa.Integer,
+                sa.ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
+                nullable=True,
+            ),
+        )
+        batch_op.add_column(
+            sa.Column(
+                "sandbox_config_hash",
+                sa.String(16),
+                nullable=True,
+            ),
+        )
         batch_op.create_check_constraint(
             constraint_name="valid_code_evaluator_language",
             condition="language IN ('PYTHON')",
         )
+        batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
 
 
 def downgrade() -> None:
     with op.batch_alter_table("code_evaluators") as batch_op:
+        batch_op.drop_index("ix_code_evaluators_sandbox_config_id")
         batch_op.drop_constraint("valid_code_evaluator_language", type_="check")
+        batch_op.drop_column("sandbox_config_hash")
+        batch_op.drop_column("sandbox_config_id")
         batch_op.drop_column("input_schema")
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
         batch_op.drop_column("language")
         batch_op.drop_column("source_code")
+
+    op.drop_table("sandbox_configs")

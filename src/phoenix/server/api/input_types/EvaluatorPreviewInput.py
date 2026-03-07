@@ -11,6 +11,7 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.types.SandboxConfig import SandboxBackendType
 
 
 @strawberry.input
@@ -31,6 +32,7 @@ class InlineCodeEvaluatorInput:
     source_code: str
     output_configs: list[AnnotationConfigInput]
     description: Optional[str] = None
+    sandbox_backend_type: Optional[SandboxBackendType] = None
 
 
 @strawberry.input(one_of=True)

@@ -56,6 +56,10 @@ export type EvaluatorStoreProps = {
   sourceCode: string;
   /** Language of the source code (currently only PYTHON) */
   language: "PYTHON";
+  /** Selected sandbox backend type for code evaluators */
+  sandboxBackendType: string;
+  /** The sandbox backend type the evaluator was last saved with (undefined in create flows) */
+  savedSandboxBackendType?: string;
 };
 
 export type EvaluatorStoreActions = {
@@ -98,6 +102,8 @@ export type EvaluatorStoreActions = {
   setShowPromptPreview: (showPromptPreview: boolean) => void;
   /** Sets the source code for user-authored CODE evaluators. */
   setSourceCode: (sourceCode: string) => void;
+  /** Sets the sandbox backend type for code evaluators. */
+  setSandboxBackendType: (sandboxBackendType: string) => void;
 
   // Multi-output config CRUD actions
   /** Adds a new output config to the array. */
@@ -206,6 +212,7 @@ export const DEFAULT_STORE_VALUES = {
   outputConfigs: [] as AnnotationConfig[],
   sourceCode: "",
   language: "PYTHON" as const,
+  sandboxBackendType: "WASM",
 } satisfies DeepPartial<EvaluatorStoreProps>;
 
 /**
@@ -514,6 +521,9 @@ export const createEvaluatorStore = (
           },
           setSourceCode(sourceCode) {
             set({ sourceCode }, undefined, "setSourceCode");
+          },
+          setSandboxBackendType(sandboxBackendType) {
+            set({ sandboxBackendType }, undefined, "setSandboxBackendType");
           },
           setIncludeExplanation(includeExplanation) {
             set(

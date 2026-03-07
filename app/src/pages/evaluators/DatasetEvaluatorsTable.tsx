@@ -22,8 +22,15 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { SandboxMismatchIcon } from "@phoenix/components/evaluators/SandboxMismatchBanner";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components/tooltip";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -233,6 +240,9 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
               modelProvider
             }
           }
+          ... on CodeEvaluator {
+            environmentMismatch
+          }
         }
       }
     `,
@@ -294,6 +304,7 @@ export const DatasetEvaluatorsTable = ({
   onSelectCodeEvaluator,
 }: DatasetEvaluatorsTableProps) => {
   "use no memo";
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
   const { sort, setSort, filter } = useDatasetEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const sorting = useMemo(
@@ -325,10 +336,31 @@ export const DatasetEvaluatorsTable = ({
         accessorKey: "name",
         size: 200,
         cell: ({ getValue, row }) => {
+          const evaluator = row.original.evaluator;
+          const showMismatch =
+            isSandboxEnabled &&
+            evaluator.kind === "CODE" &&
+            !!evaluator.environmentMismatch;
           return (
-            <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
-              {getValue() as string}
-            </Link>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
+                {getValue() as string}
+              </Link>
+              {showMismatch && (
+                <span onClick={(e) => e.stopPropagation()}>
+                  <TooltipTrigger delay={0}>
+                    <TriggerWrap>
+                      <SandboxMismatchIcon />
+                    </TriggerWrap>
+                    <Tooltip>
+                      <TooltipArrow />
+                      The sandbox environment has changed since this evaluator
+                      was created.
+                    </Tooltip>
+                  </TooltipTrigger>
+                </span>
+              )}
+            </Flex>
           );
         },
       },
@@ -431,7 +463,7 @@ export const DatasetEvaluatorsTable = ({
       });
     }
     return cols;
-  }, [datasetId, updateConnectionIds]);
+  }, [datasetId, isSandboxEnabled, updateConnectionIds]);
 
   const table = useReactTable({
     columns,

@@ -1,24 +1,17 @@
-import { css } from "@emotion/react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { Flex, Heading, Text } from "@phoenix/components";
+import { CodeBlock } from "@phoenix/components/CodeBlock";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
-import { ReadOnlyCategoricalConfig } from "@phoenix/components/evaluators/ReadOnlyCategoricalConfig";
-import { ReadOnlyContinuousConfig } from "@phoenix/components/evaluators/ReadOnlyContinuousConfig";
-import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import { SandboxMismatchBanner } from "@phoenix/components/evaluators/SandboxMismatchBanner";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
-import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import { isProgrammingLanguage } from "@phoenix/types/code";
 
-const boxCSS = css`
-  background-color: var(--global-background-color-dark);
-  border-radius: var(--global-rounding-medium);
-  padding: var(--global-dimension-static-size-200);
-  margin-top: var(--global-dimension-static-size-50);
-  border: 1px solid var(--global-border-color-default);
-  overflow: hidden;
-`;
+import { OutputConfigsSection, Section } from "./EvaluatorDetailShared";
+import type { OutputConfig } from "./EvaluatorDetailShared";
 
 export function CodeDatasetEvaluatorDetails({
   datasetEvaluatorRef,
@@ -45,6 +38,8 @@ export function CodeDatasetEvaluatorDetails({
           ... on CodeEvaluator {
             sourceCode
             language
+            sandboxBackendType
+            environmentMismatch
             outputConfigs {
               ... on CategoricalAnnotationConfig {
                 name
@@ -75,77 +70,56 @@ export function CodeDatasetEvaluatorDetails({
     );
   }
 
+  const isSandboxEnabled = useFeatureFlag("sandboxing");
+  const environmentMismatch = evaluator.environmentMismatch ?? false;
   const inputMapping = datasetEvaluator.inputMapping;
-  const outputConfigs = evaluator.outputConfigs ?? [];
+  const outputConfigs = (evaluator.outputConfigs ??
+    []) as readonly OutputConfig[];
+
+  // Map DB language string (e.g. "PYTHON") to ProgrammingLanguage (e.g. "Python")
+  const rawLanguage = evaluator.language;
+  const capitalizedLanguage = rawLanguage
+    ? rawLanguage.charAt(0).toUpperCase() + rawLanguage.slice(1).toLowerCase()
+    : null;
+  const language =
+    capitalizedLanguage && isProgrammingLanguage(capitalizedLanguage)
+      ? capitalizedLanguage
+      : null;
 
   return (
     <>
       <Flex direction="column" gap="size-300">
-        {outputConfigs.length > 0 && (
-          <Flex direction="column" gap="size-100">
-            <Heading level={2}>
-              {outputConfigs.length === 1
-                ? "Evaluator Annotation"
-                : `Evaluator Annotations (${outputConfigs.length})`}
-            </Heading>
-            {outputConfigs.map((config, idx) => {
-              const isCategorical = "values" in config && config.values;
-              const storeConfig: AnnotationConfig = isCategorical
-                ? {
-                    name: config.name ?? "",
-                    optimizationDirection:
-                      config.optimizationDirection ?? "NONE",
-                    values: config.values!.map((v) => ({
-                      label: v.label,
-                      score: v.score ?? undefined,
-                    })),
-                  }
-                : {
-                    name: config.name ?? "",
-                    optimizationDirection:
-                      config.optimizationDirection ?? "NONE",
-                    lowerBound: config.lowerBound ?? null,
-                    upperBound: config.upperBound ?? null,
-                  };
-              return (
-                <EvaluatorStoreProvider
-                  key={config.name || idx}
-                  initialState={
-                    {
-                      evaluator: { kind: "CODE" },
-                      outputConfigs: [storeConfig],
-                    } as Parameters<
-                      typeof EvaluatorStoreProvider
-                    >[0]["initialState"]
-                  }
-                >
-                  {isCategorical ? (
-                    <ReadOnlyCategoricalConfig isReadOnly />
-                  ) : (
-                    <ReadOnlyContinuousConfig isReadOnly />
-                  )}
-                </EvaluatorStoreProvider>
-              );
-            })}
-          </Flex>
-        )}
+        {isSandboxEnabled && environmentMismatch ? (
+          <SandboxMismatchBanner />
+        ) : null}
+        <OutputConfigsSection configs={outputConfigs} />
         <Flex direction="column" gap="size-100">
           <Heading level={2}>Source Code</Heading>
-          <Text size="S" color="text-700">
-            Language: {evaluator.language}
-          </Text>
-          <div css={boxCSS}>
-            <pre
-              css={css`
-                margin: 0;
-                white-space: pre-wrap;
-                word-break: break-word;
-                font-size: var(--global-font-size-sm);
-              `}
-            >
-              {evaluator.sourceCode}
-            </pre>
-          </div>
+          {rawLanguage && (
+            <Text size="S" color="text-700">
+              Language: {rawLanguage}
+            </Text>
+          )}
+          {isSandboxEnabled && evaluator.sandboxBackendType != null && (
+            <Text size="S" color="text-700">
+              Execution Backend: {evaluator.sandboxBackendType}
+            </Text>
+          )}
+          {evaluator.sourceCode != null &&
+            (language != null ? (
+              <CodeBlock language={language} value={evaluator.sourceCode} />
+            ) : (
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontSize: "var(--global-font-size-sm)",
+                }}
+              >
+                {evaluator.sourceCode}
+              </pre>
+            ))}
         </Flex>
         <CodeEvaluatorInputMapping inputMapping={inputMapping} />
       </Flex>
@@ -180,29 +154,26 @@ function CodeEvaluatorInputMapping({
   }
 
   return (
-    <Flex direction="column" gap="size-100">
-      <Heading level={2}>Input Mapping</Heading>
-      <div css={boxCSS}>
-        <Flex direction="column" gap="size-100">
-          {pathMapping &&
-            Object.entries(pathMapping).map(([key, value]) => (
-              <Text key={key} size="S">
-                <Text weight="heavy">{key}:</Text> {value || "Not mapped"}
-              </Text>
-            ))}
-          {literalMapping &&
-            Object.entries(literalMapping).map(([key, value]) => (
-              <Text key={key} size="S">
-                <Text weight="heavy">{key}:</Text>{" "}
-                {typeof value === "boolean"
-                  ? value
-                    ? "Yes"
-                    : "No"
-                  : String(value)}
-              </Text>
-            ))}
-        </Flex>
-      </div>
-    </Flex>
+    <Section title="Input Mapping">
+      <Flex direction="column" gap="size-100">
+        {pathMapping &&
+          Object.entries(pathMapping).map(([key, value]) => (
+            <Text key={key} size="S">
+              <Text weight="heavy">{key}:</Text> {value || "Not mapped"}
+            </Text>
+          ))}
+        {literalMapping &&
+          Object.entries(literalMapping).map(([key, value]) => (
+            <Text key={key} size="S">
+              <Text weight="heavy">{key}:</Text>{" "}
+              {typeof value === "boolean"
+                ? value
+                  ? "Yes"
+                  : "No"
+                : String(value)}
+            </Text>
+          ))}
+      </Flex>
+    </Section>
   );
 }

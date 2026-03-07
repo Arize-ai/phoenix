@@ -87,7 +87,6 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.email.types import EmailSender
-from phoenix.server.sandbox.types import SandboxBackend
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -234,8 +233,6 @@ class Context(BaseContext):
     secret: Optional[Secret] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
-    sandbox_backend: Optional[SandboxBackend] = None
-
     def get_secret(self) -> Secret:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
 
