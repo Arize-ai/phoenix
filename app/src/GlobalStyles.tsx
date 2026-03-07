@@ -989,6 +989,8 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-rounding-small: var(--global-dimension-static-size-50);
     --global-rounding-medium: var(--global-dimension-static-size-100);
     --global-rounding-large: var(--global-dimension-static-size-200);
+    /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
+    --global-rounding-full: 9999px;
 
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);

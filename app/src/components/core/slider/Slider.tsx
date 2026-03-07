@@ -19,13 +19,13 @@ import { NumberField } from "../field/NumberField";
 import type { StylableProps } from "../types";
 
 const sliderCSS = css`
-  --slider-handle-width: var(--global-dimension-size-250);
-  --slider-handle-height: var(--global-dimension-size-250);
-  --slider-handle-halo-width: var(--global-dimension-size-350);
-  --slider-handle-border-radius: var(--global-dimension-size-250);
-  --slider-handle-background-color: white;
-  --slider-track-height: var(--global-dimension-size-100);
+  --slider-thumb-size: var(--global-dimension-static-size-200);
+  --slider-thumb-bg: white;
+  --slider-thumb-border-color: var(--global-color-gray-400);
+  --slider-track-height: var(--global-dimension-static-size-50);
+  --slider-track-bg: var(--global-color-gray-300);
   --slider-filled-color: var(--global-color-primary);
+  --slider-ring-color: var(--global-color-primary-200);
 
   display: grid;
   grid-template-areas:
@@ -48,7 +48,7 @@ const sliderCSS = css`
   .slider__track {
     grid-area: track;
     position: relative;
-    height: var(--slider-track-height, var(--global-border-size-thick));
+    height: var(--slider-track-height);
     width: 100%;
 
     /* Background track line */
@@ -56,9 +56,9 @@ const sliderCSS = css`
       content: "";
       display: block;
       position: absolute;
-      background: var(--global-color-gray-300);
+      background: var(--slider-track-bg);
       height: 100%;
-      border-radius: var(--global-border-size-thicker);
+      border-radius: var(--global-rounding-full);
     }
 
     /* Filled track line */
@@ -68,51 +68,29 @@ const sliderCSS = css`
       position: absolute;
       background: var(--slider-filled-color);
       height: 100%;
-      border-radius: var(--global-border-size-thicker);
+      border-radius: var(--global-rounding-full);
     }
   }
 
   .slider__thumb {
-    width: var(--slider-handle-width, var(--global-dimension-size-200));
-    height: var(--slider-handle-height, var(--global-dimension-size-200));
-    border-radius: var(
-      --slider-handle-border-radius,
-      var(--global-rounding-medium)
-    );
-    background-color: var(--slider-handle-background-color);
-    border: 2px solid var(--background-color);
-    box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25);
+    width: var(--slider-thumb-size);
+    height: var(--slider-thumb-size);
+    border-radius: 50%;
+    background: var(--slider-thumb-bg);
+    border: 2px solid var(--slider-thumb-border-color);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
     forced-color-adjust: none;
-    transition: border-width
-      var(--slider-animation-duration, var(--global-animation-duration-100))
-      ease-in-out;
+    transition: box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
 
-    /* show a halo when hovering over the thumb */
-    &:hover::after {
-      content: "";
-      position: absolute;
-      background: white;
-      opacity: 0.5;
-      display: block;
-      width: var(--slider-handle-halo-width);
-      height: var(--slider-handle-halo-width);
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      border-radius: var(
-        --slider-handle-border-radius,
-        var(--global-rounding-medium)
-      );
-      z-index: -1;
-    }
-
+    &:hover,
+    &[data-focus-visible],
     &[data-dragging] {
-      background: white;
+      box-shadow: 0 0 0 4px var(--slider-ring-color);
     }
 
     &[data-focus-visible] {
-      outline: 2px solid var(--focus-ring-color);
+      outline: none;
     }
   }
 
@@ -133,23 +111,23 @@ const sliderCSS = css`
     }
 
     .slider__track {
-      height: var(--slider-track-height, var(--global-border-size-thick));
-      width: calc(100% - var(--slider-handle-width));
-      left: calc(var(--slider-handle-width) / 2);
+      height: var(--slider-track-height);
+      width: calc(100% - var(--slider-thumb-size));
+      left: calc(var(--slider-thumb-size) / 2);
 
       /* background track line */
       &:before {
-        left: calc(var(--slider-handle-width) / -2);
-        width: calc(100% + var(--slider-handle-width));
+        left: calc(var(--slider-thumb-size) / -2);
+        width: calc(100% + var(--slider-thumb-size));
         top: 50%;
         transform: translateY(-50%);
       }
 
       /* filled track line */
       &:after {
-        left: calc(var(--slider-start) - var(--slider-handle-width) / 2);
+        left: calc(var(--slider-start) - var(--slider-thumb-size) / 2);
         width: calc(
-          var(--slider-end) - var(--slider-start) + var(--slider-handle-width)
+          var(--slider-end) - var(--slider-start) + var(--slider-thumb-size)
         );
         top: 50%;
         transform: translateY(-50%);

@@ -21,6 +21,9 @@ import {
   Select,
   SelectChevronUpDownIcon,
   SelectValue,
+  Slider,
+  SliderNumberField,
+  Switch,
   Tag,
   TagGroup,
   TagList,
@@ -226,6 +229,47 @@ const Template: StoryFn = () => {
           <Select size="M">
             <SelectContent />
           </Select>
+        </Flex>
+      </View>
+      <View
+        padding="size-200"
+        borderWidth="thin"
+        borderColor="dark"
+        borderRadius="medium"
+        marginTop="size-200"
+      >
+        <Flex direction="row" gap="size-400" alignItems="start">
+          <Flex direction="column" gap="size-200" width="200px">
+            <Switch>Enable notifications</Switch>
+            <Switch defaultSelected>Dark mode</Switch>
+            <Switch>Airplane mode</Switch>
+            <Switch isDisabled>Disabled switch</Switch>
+          </Flex>
+          <Flex direction="column" gap="size-200" flex="1 1 auto">
+            <Slider
+              label="Volume"
+              defaultValue={75}
+              minValue={0}
+              maxValue={100}
+            />
+            <Slider
+              label="Brightness"
+              defaultValue={50}
+              minValue={0}
+              maxValue={100}
+            >
+              <SliderNumberField />
+            </Slider>
+            <Slider
+              label="Opacity"
+              defaultValue={0.8}
+              minValue={0}
+              maxValue={1}
+              step={0.1}
+            >
+              <SliderNumberField />
+            </Slider>
+          </Flex>
         </Flex>
       </View>
       <View

@@ -3,13 +3,12 @@ import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
 import {
-  Button,
   Flex,
   Heading,
   Icon,
+  IconButton,
   Icons,
   Tooltip,
-  TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
@@ -167,34 +166,31 @@ function TraceTreeToolbar() {
         <Heading level={3}>Trace</Heading>
         <Flex direction="row" gap="size-100" className="trace-tree-controls">
           <TooltipTrigger>
-            <Button
-              variant="default"
+            <IconButton
               size="S"
               aria-label={isCollapsed ? "Expand all" : "Collapse all"}
               onPress={() => {
                 setIsCollapsed(!isCollapsed);
               }}
-              leadingVisual={
-                <Icon
-                  svg={
-                    isCollapsed ? (
-                      <Icons.RowCollapseOutline />
-                    ) : (
-                      <Icons.RowExpandOutline />
-                    )
-                  }
-                />
-              }
-            />
+            >
+              <Icon
+                svg={
+                  isCollapsed ? (
+                    <Icons.RowCollapseOutline />
+                  ) : (
+                    <Icons.RowExpandOutline />
+                  )
+                }
+              />
+            </IconButton>
             <Tooltip offset={-5}>
-              <TooltipArrow />
               {isCollapsed
                 ? "Expand all nested spans"
                 : "Collapse all nested spans"}
             </Tooltip>
           </TooltipTrigger>
           <TooltipTrigger>
-            <Button
+            <IconButton
               size="S"
               aria-label={
                 showMetricsInTraceTree
@@ -204,20 +200,18 @@ function TraceTreeToolbar() {
               onPress={() => {
                 setShowMetricsInTraceTree(!showMetricsInTraceTree);
               }}
-              leadingVisual={
-                <Icon
-                  svg={
-                    showMetricsInTraceTree ? (
-                      <Icons.TimerOutline />
-                    ) : (
-                      <Icons.TimerOffOutline />
-                    )
-                  }
-                />
-              }
-            />
+            >
+              <Icon
+                svg={
+                  showMetricsInTraceTree ? (
+                    <Icons.TimerOutline />
+                  ) : (
+                    <Icons.TimerOffOutline />
+                  )
+                }
+              />
+            </IconButton>
             <Tooltip offset={-5}>
-              <TooltipArrow />
               {showMetricsInTraceTree
                 ? "Hide metrics in trace tree"
                 : "Show metrics in trace tree"}

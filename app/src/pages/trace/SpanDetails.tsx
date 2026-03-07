@@ -134,8 +134,6 @@ const spanHasException = (span: Span) => {
  * Card props to apply across all cards
  */
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };
 
@@ -691,13 +689,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   return (
     <Flex direction="column" gap="size-200">
-      <Card
-        collapsible
-        backgroundColor="light"
-        borderColor="light"
-        titleSeparator={false}
-        title={modelNameTitleEl}
-      >
+      <Card collapsible titleSeparator={false} title={modelNameTitleEl}>
         <Tabs>
           <TabList>
             {hasInputMessages && <Tab id="input-messages">Input Messages</Tab>}
