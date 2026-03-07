@@ -1745,7 +1745,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -2122,6 +2122,37 @@ export interface components {
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
+        /** PromptCerebrasInvocationParameters */
+        PromptCerebrasInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cerebras";
+            cerebras: components["schemas"]["PromptCerebrasInvocationParametersContent"];
+        };
+        /** PromptCerebrasInvocationParametersContent */
+        PromptCerebrasInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+        };
         /** PromptChatTemplate */
         PromptChatTemplate: {
             /**
@@ -2175,6 +2206,37 @@ export interface components {
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
+        /** PromptFireworksInvocationParameters */
+        PromptFireworksInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "fireworks";
+            fireworks: components["schemas"]["PromptFireworksInvocationParametersContent"];
+        };
+        /** PromptFireworksInvocationParametersContent */
+        PromptFireworksInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+        };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
             /**
@@ -2201,6 +2263,37 @@ export interface components {
             /** Top K */
             top_k?: number;
         };
+        /** PromptGroqInvocationParameters */
+        PromptGroqInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "groq";
+            groq: components["schemas"]["PromptGroqInvocationParametersContent"];
+        };
+        /** PromptGroqInvocationParametersContent */
+        PromptGroqInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+        };
         /** PromptMessage */
         PromptMessage: {
             /**
@@ -2210,6 +2303,37 @@ export interface components {
             role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
             /** Content */
             content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+        };
+        /** PromptMoonshotInvocationParameters */
+        PromptMoonshotInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "moonshot";
+            moonshot: components["schemas"]["PromptMoonshotInvocationParametersContent"];
+        };
+        /** PromptMoonshotInvocationParametersContent */
+        PromptMoonshotInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
         /** PromptOllamaInvocationParameters */
         PromptOllamaInvocationParameters: {
@@ -2397,7 +2521,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -2416,7 +2540,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;

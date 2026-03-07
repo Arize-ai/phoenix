@@ -828,6 +828,10 @@ describe("processAttributeToolCalls", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanToolCall, expectedUnknownToolCall],
+    CEREBRAS: ["CEREBRAS", testSpanToolCall, expectedTestOpenAIToolCall],
+    FIREWORKS: ["FIREWORKS", testSpanToolCall, expectedTestOpenAIToolCall],
+    GROQ: ["GROQ", testSpanToolCall, expectedTestOpenAIToolCall],
+    MOONSHOT: ["MOONSHOT", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1366,6 +1370,10 @@ describe("getToolsFromAttributes", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    CEREBRAS: ["CEREBRAS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(

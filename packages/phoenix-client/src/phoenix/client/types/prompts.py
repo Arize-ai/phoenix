@@ -61,7 +61,18 @@ class PromptVersion:
         model_name: str,
         description: Optional[str] = None,
         model_provider: Literal[
-            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "AWS", "OLLAMA"
+            "OPENAI",
+            "AZURE_OPENAI",
+            "ANTHROPIC",
+            "GOOGLE",
+            "DEEPSEEK",
+            "XAI",
+            "AWS",
+            "OLLAMA",
+            "CEREBRAS",
+            "FIREWORKS",
+            "GROQ",
+            "MOONSHOT",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -84,7 +95,18 @@ class PromptVersion:
         self._template_type: Literal["CHAT"] = "CHAT"
         self._model_name = model_name
         self._model_provider: Literal[
-            "OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE", "DEEPSEEK", "XAI", "AWS", "OLLAMA"
+            "OPENAI",
+            "AZURE_OPENAI",
+            "ANTHROPIC",
+            "GOOGLE",
+            "DEEPSEEK",
+            "XAI",
+            "AWS",
+            "OLLAMA",
+            "CEREBRAS",
+            "FIREWORKS",
+            "GROQ",
+            "MOONSHOT",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -97,6 +119,10 @@ class PromptVersion:
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
             v1.PromptAwsInvocationParameters,
+            v1.PromptCerebrasInvocationParameters,
+            v1.PromptFireworksInvocationParameters,
+            v1.PromptGroqInvocationParameters,
+            v1.PromptMoonshotInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -139,6 +165,26 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptAwsInvocationParameters(
                 type="aws",
                 aws=v1.PromptAwsInvocationParametersContent(),
+            )
+        elif model_provider == "CEREBRAS":
+            self._invocation_parameters = v1.PromptCerebrasInvocationParameters(
+                type="cerebras",
+                cerebras=v1.PromptCerebrasInvocationParametersContent(),
+            )
+        elif model_provider == "FIREWORKS":
+            self._invocation_parameters = v1.PromptFireworksInvocationParameters(
+                type="fireworks",
+                fireworks=v1.PromptFireworksInvocationParametersContent(),
+            )
+        elif model_provider == "GROQ":
+            self._invocation_parameters = v1.PromptGroqInvocationParameters(
+                type="groq",
+                groq=v1.PromptGroqInvocationParametersContent(),
+            )
+        elif model_provider == "MOONSHOT":
+            self._invocation_parameters = v1.PromptMoonshotInvocationParameters(
+                type="moonshot",
+                moonshot=v1.PromptMoonshotInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -425,6 +471,10 @@ def _to_sdk(
         "XAI",
         "OLLAMA",
         "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -443,4 +493,12 @@ def _to_sdk(
         return "openai"
     if model_provider == "AWS":
         return "boto3"
+    if model_provider == "CEREBRAS":
+        return "openai"
+    if model_provider == "FIREWORKS":
+        return "openai"
+    if model_provider == "GROQ":
+        return "openai"
+    if model_provider == "MOONSHOT":
+        return "openai"
     assert_never(model_provider)

@@ -1866,6 +1866,10 @@ enum GenerativeProviderKey {
   XAI
   OLLAMA
   AWS
+  CEREBRAS
+  FIREWORKS
+  GROQ
+  MOONSHOT
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2011,6 +2015,10 @@ enum ModelProvider {
   XAI
   OLLAMA
   AWS
+  CEREBRAS
+  FIREWORKS
+  GROQ
+  MOONSHOT
 }
 
 input ModelsInput {

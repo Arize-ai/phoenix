@@ -362,6 +362,22 @@ class PromptOllamaInvocationParametersContent(PromptOpenAIInvocationParametersCo
     pass
 
 
+class PromptCerebrasInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
+class PromptFireworksInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
+class PromptGroqInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
+class PromptMoonshotInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
@@ -380,6 +396,26 @@ class PromptXAIInvocationParameters(DBBaseModel):
 class PromptOllamaInvocationParameters(DBBaseModel):
     type: Literal["ollama"]
     ollama: PromptOllamaInvocationParametersContent
+
+
+class PromptCerebrasInvocationParameters(DBBaseModel):
+    type: Literal["cerebras"]
+    cerebras: PromptCerebrasInvocationParametersContent
+
+
+class PromptFireworksInvocationParameters(DBBaseModel):
+    type: Literal["fireworks"]
+    fireworks: PromptFireworksInvocationParametersContent
+
+
+class PromptGroqInvocationParameters(DBBaseModel):
+    type: Literal["groq"]
+    groq: PromptGroqInvocationParametersContent
+
+
+class PromptMoonshotInvocationParameters(DBBaseModel):
+    type: Literal["moonshot"]
+    moonshot: PromptMoonshotInvocationParametersContent
 
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
@@ -451,6 +487,10 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptXAIInvocationParameters,
         PromptOllamaInvocationParameters,
         PromptAwsInvocationParameters,
+        PromptCerebrasInvocationParameters,
+        PromptFireworksInvocationParameters,
+        PromptGroqInvocationParameters,
+        PromptMoonshotInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -475,6 +515,14 @@ def get_raw_invocation_parameters(
         return invocation_parameters.ollama.model_dump()
     if isinstance(invocation_parameters, PromptAwsInvocationParameters):
         return invocation_parameters.aws.model_dump()
+    if isinstance(invocation_parameters, PromptCerebrasInvocationParameters):
+        return invocation_parameters.cerebras.model_dump()
+    if isinstance(invocation_parameters, PromptFireworksInvocationParameters):
+        return invocation_parameters.fireworks.model_dump()
+    if isinstance(invocation_parameters, PromptGroqInvocationParameters):
+        return invocation_parameters.groq.model_dump()
+    if isinstance(invocation_parameters, PromptMoonshotInvocationParameters):
+        return invocation_parameters.moonshot.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -492,6 +540,10 @@ def is_prompt_invocation_parameters(
             PromptXAIInvocationParameters,
             PromptOllamaInvocationParameters,
             PromptAwsInvocationParameters,
+            PromptCerebrasInvocationParameters,
+            PromptFireworksInvocationParameters,
+            PromptGroqInvocationParameters,
+            PromptMoonshotInvocationParameters,
         ),
     )
 
@@ -550,6 +602,32 @@ def validate_invocation_parameters(
             type="aws",
             aws=PromptAwsInvocationParametersContent.model_validate(invocation_parameters),
         )
+    elif model_provider is ModelProvider.CEREBRAS:
+        return PromptCerebrasInvocationParameters(
+            type="cerebras",
+            cerebras=PromptCerebrasInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.FIREWORKS:
+        return PromptFireworksInvocationParameters(
+            type="fireworks",
+            fireworks=PromptFireworksInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.GROQ:
+        return PromptGroqInvocationParameters(
+            type="groq",
+            groq=PromptGroqInvocationParametersContent.model_validate(invocation_parameters),
+        )
+    elif model_provider is ModelProvider.MOONSHOT:
+        return PromptMoonshotInvocationParameters(
+            type="moonshot",
+            moonshot=PromptMoonshotInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
     assert_never(model_provider)
 
 
@@ -565,6 +643,10 @@ def normalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
+        or model_provider is ModelProvider.CEREBRAS
+        or model_provider is ModelProvider.FIREWORKS
+        or model_provider is ModelProvider.GROQ
+        or model_provider is ModelProvider.MOONSHOT
     ):
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -588,6 +670,10 @@ def normalize_tools(
             or model_provider is ModelProvider.DEEPSEEK
             or model_provider is ModelProvider.XAI
             or model_provider is ModelProvider.OLLAMA
+            or model_provider is ModelProvider.CEREBRAS
+            or model_provider is ModelProvider.FIREWORKS
+            or model_provider is ModelProvider.GROQ
+            or model_provider is ModelProvider.MOONSHOT
         ):
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
         elif model_provider is ModelProvider.AWS:
@@ -616,6 +702,10 @@ def denormalize_tools(
         or model_provider is ModelProvider.DEEPSEEK
         or model_provider is ModelProvider.XAI
         or model_provider is ModelProvider.OLLAMA
+        or model_provider is ModelProvider.CEREBRAS
+        or model_provider is ModelProvider.FIREWORKS
+        or model_provider is ModelProvider.GROQ
+        or model_provider is ModelProvider.MOONSHOT
     ):
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
         if tools.tool_choice:

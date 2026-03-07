@@ -1090,6 +1090,64 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.CEREBRAS,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "llama3.1-8b",
+        "gpt-oss-120b",
+    ],
+)
+class CerebrasStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.FIREWORKS,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
+)
+class FireworksStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GROQ,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3-32b",
+        "groq/compound",
+        "groq/compound-mini",
+    ],
+)
+class GroqStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.MOONSHOT,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "kimi-k2-turbo-preview",
+        "kimi-k2-thinking-turbo",
+        "kimi-k2-thinking",
+        "kimi-k2.5",
+        "moonshot-v1-128k",
+        "moonshot-v1-32k",
+        "moonshot-v1-8k",
+        "moonshot-v1-auto",
+    ],
+)
+class MoonshotStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -2849,6 +2907,154 @@ async def _get_builtin_provider_client(
             )
 
         client_factory = create_ollama_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.CEREBRAS:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "CEREBRAS_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "CEREBRAS_API_KEY")).get(
+                "CEREBRAS_API_KEY"
+            )
+            or getenv("CEREBRAS_API_KEY")
+        )
+        base_url = obj.base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.cerebras.ai/v1":
+                raise BadRequest(
+                    "An API key is required for Cerebras models. "
+                    "Set the CEREBRAS_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_cerebras_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_cerebras_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.FIREWORKS:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "FIREWORKS_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "FIREWORKS_API_KEY")).get(
+                "FIREWORKS_API_KEY"
+            )
+            or getenv("FIREWORKS_API_KEY")
+        )
+        base_url = (
+            obj.base_url or getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1"
+        )
+
+        if not api_key:
+            if base_url == "https://api.fireworks.ai/inference/v1":
+                raise BadRequest(
+                    "An API key is required for Fireworks models. "
+                    "Set the FIREWORKS_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_fireworks_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_fireworks_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.GROQ:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "GROQ_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "GROQ_API_KEY")).get("GROQ_API_KEY")
+            or getenv("GROQ_API_KEY")
+        )
+        base_url = obj.base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
+
+        if not api_key:
+            if base_url == "https://api.groq.com/openai/v1":
+                raise BadRequest(
+                    "An API key is required for Groq models. "
+                    "Set the GROQ_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_groq_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_groq_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.MOONSHOT:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "MOONSHOT_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "MOONSHOT_API_KEY")).get(
+                "MOONSHOT_API_KEY"
+            )
+            or getenv("MOONSHOT_API_KEY")
+        )
+        base_url = obj.base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.moonshot.ai/v1":
+                raise BadRequest(
+                    "An API key is required for Moonshot models. "
+                    "Set the MOONSHOT_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_moonshot_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_moonshot_client
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,

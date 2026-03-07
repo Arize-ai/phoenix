@@ -200,6 +200,38 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    CEREBRAS: [
+      [
+        "return tools as they are for cerebras",
+        "CEREBRAS",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
+    FIREWORKS: [
+      [
+        "return tools as they are for fireworks",
+        "FIREWORKS",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
+    GROQ: [
+      [
+        "return tools as they are for groq",
+        "GROQ",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
+    MOONSHOT: [
+      [
+        "return tools as they are for moonshot",
+        "MOONSHOT",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
   };
 
   test.for(Object.values(ProviderToToolTestMap).flat())(
@@ -539,6 +571,38 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for google",
         "GOOGLE",
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+      ],
+    ],
+    CEREBRAS: [
+      [
+        "return tools as they are for cerebras",
+        "CEREBRAS",
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+      ],
+    ],
+    FIREWORKS: [
+      [
+        "return tools as they are for fireworks",
+        "FIREWORKS",
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+      ],
+    ],
+    GROQ: [
+      [
+        "return tools as they are for groq",
+        "GROQ",
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+      ],
+    ],
+    MOONSHOT: [
+      [
+        "return tools as they are for moonshot",
+        "MOONSHOT",
         [{ id: 1, editorType: "json", definition: { test: "test" } }],
         [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],

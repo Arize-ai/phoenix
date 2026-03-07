@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a274c4861438d0d814ef6bb5ba19ce2f>>
+ * @generated SignedSource<<665d3dfa4d13f1f4c3fb842902d3ee57>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "DEEPSEEK" | "GOOGLE" | "OLLAMA" | "OPENAI" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "XAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type EditModelButtonQuery$variables = {
   id: string;

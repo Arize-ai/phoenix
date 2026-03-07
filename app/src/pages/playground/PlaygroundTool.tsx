@@ -140,6 +140,10 @@ export function PlaygroundTool({
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":
+      case "CEREBRAS":
+      case "FIREWORKS":
+      case "GROQ":
+      case "MOONSHOT":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;

@@ -233,6 +233,10 @@ type ProviderToToolCallMap = {
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
   OLLAMA: OpenAIToolCall;
+  CEREBRAS: OpenAIToolCall;
+  FIREWORKS: OpenAIToolCall;
+  GROQ: OpenAIToolCall;
+  MOONSHOT: OpenAIToolCall;
   AWS: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
@@ -282,6 +286,10 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
+    case "CEREBRAS":
+    case "FIREWORKS":
+    case "GROQ":
+    case "MOONSHOT":
       return toolCall as ProviderToToolCallMap[T];
     case "AWS":
       return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];

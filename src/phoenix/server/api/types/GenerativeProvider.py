@@ -23,6 +23,10 @@ class GenerativeProviderKey(Enum):
     XAI = "xAI"
     OLLAMA = "Ollama"
     AWS = "AWS Bedrock"
+    CEREBRAS = "Cerebras"
+    FIREWORKS = "Fireworks"
+    GROQ = "Groq"
+    MOONSHOT = "Moonshot"
 
     @classmethod
     def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
@@ -44,6 +48,14 @@ class GenerativeProviderKey(Enum):
             return cls.OLLAMA
         elif model_provider is ModelProvider.AWS:
             return cls.AWS
+        elif model_provider is ModelProvider.CEREBRAS:
+            return cls.CEREBRAS
+        elif model_provider is ModelProvider.FIREWORKS:
+            return cls.FIREWORKS
+        elif model_provider is ModelProvider.GROQ:
+            return cls.GROQ
+        elif model_provider is ModelProvider.MOONSHOT:
+            return cls.MOONSHOT
         assert_never(model_provider)
 
     def to_model_provider(self) -> "ModelProvider":
@@ -63,6 +75,14 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.XAI
         if self is GenerativeProviderKey.OLLAMA:
             return ModelProvider.OLLAMA
+        if self is GenerativeProviderKey.CEREBRAS:
+            return ModelProvider.CEREBRAS
+        if self is GenerativeProviderKey.FIREWORKS:
+            return ModelProvider.FIREWORKS
+        if self is GenerativeProviderKey.GROQ:
+            return ModelProvider.GROQ
+        if self is GenerativeProviderKey.MOONSHOT:
+            return ModelProvider.MOONSHOT
         assert_never(self)
 
 
@@ -76,6 +96,10 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         GenerativeProviderKey.OLLAMA: "ollama",
         GenerativeProviderKey.DEEPSEEK: OpenInferenceLLMProviderValues.DEEPSEEK.value,
         GenerativeProviderKey.XAI: OpenInferenceLLMProviderValues.XAI.value,
+        GenerativeProviderKey.CEREBRAS: "cerebras",
+        GenerativeProviderKey.FIREWORKS: "fireworks",
+        GenerativeProviderKey.GROQ: "groq",
+        GenerativeProviderKey.MOONSHOT: "moonshot",
     }
 )
 
@@ -112,6 +136,10 @@ class GenerativeProvider:
         GenerativeProviderKey.XAI: ["grok"],
         GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
         GenerativeProviderKey.AWS: ["nova", "titan"],
+        GenerativeProviderKey.CEREBRAS: [],
+        GenerativeProviderKey.FIREWORKS: ["accounts/fireworks"],
+        GenerativeProviderKey.GROQ: [],
+        GenerativeProviderKey.MOONSHOT: ["moonshot", "kimi"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -156,6 +184,18 @@ class GenerativeProvider:
             GenerativeProviderCredentialConfig(env_var_name="XAI_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.OLLAMA: [],
+        GenerativeProviderKey.CEREBRAS: [
+            GenerativeProviderCredentialConfig(env_var_name="CEREBRAS_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.FIREWORKS: [
+            GenerativeProviderCredentialConfig(env_var_name="FIREWORKS_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.GROQ: [
+            GenerativeProviderCredentialConfig(env_var_name="GROQ_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.MOONSHOT: [
+            GenerativeProviderCredentialConfig(env_var_name="MOONSHOT_API_KEY", is_required=True)
+        ],
         GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),
             GenerativeProviderCredentialConfig(

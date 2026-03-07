@@ -14,7 +14,11 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "DEEPSEEK" ||
     provider === "XAI" ||
     provider === "OLLAMA" ||
-    provider === "AWS"
+    provider === "AWS" ||
+    provider === "CEREBRAS" ||
+    provider === "FIREWORKS" ||
+    provider === "GROQ" ||
+    provider === "MOONSHOT"
   );
 }
 
@@ -36,6 +40,14 @@ export function getProviderName(provider: ModelProvider): string {
       return "Ollama";
     case "AWS":
       return "AWS";
+    case "CEREBRAS":
+      return "Cerebras";
+    case "FIREWORKS":
+      return "Fireworks";
+    case "GROQ":
+      return "Groq";
+    case "MOONSHOT":
+      return "Moonshot";
     default:
       assertUnreachable(provider);
   }
@@ -64,6 +76,14 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "xai"; // TODO: Add support for XAI to semantic conventions
     case "OLLAMA":
       throw new Error(`Ollama is not supported`);
+    case "CEREBRAS":
+      return "cerebras"; // TODO: Add support for Cerebras to semantic conventions
+    case "FIREWORKS":
+      return "fireworks"; // TODO: Add support for Fireworks to semantic conventions
+    case "GROQ":
+      return "groq"; // TODO: Add support for Groq to semantic conventions
+    case "MOONSHOT":
+      return "moonshot"; // TODO: Add support for Moonshot to semantic conventions
     default:
       assertUnreachable(provider);
   }
