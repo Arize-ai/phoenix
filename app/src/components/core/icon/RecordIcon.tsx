@@ -12,6 +12,15 @@ const recordingPulse = keyframes`
   }
 `;
 
+const recordIconCSS = css`
+  &[data-active] {
+    color: var(--global-color-red-600);
+    svg circle:last-child {
+      animation: ${recordingPulse} 1.5s ease-in-out infinite;
+    }
+  }
+`;
+
 export interface RecordIconProps {
   isActive?: boolean;
 }
@@ -20,16 +29,8 @@ export const RecordIcon = ({ isActive = false }: RecordIconProps) => {
   return (
     <Icon
       svg={<RecordOutline />}
-      css={
-        isActive
-          ? css`
-              color: var(--global-color-red-600);
-              svg circle:last-child {
-                animation: ${recordingPulse} 1.5s ease-in-out infinite;
-              }
-            `
-          : undefined
-      }
+      css={recordIconCSS}
+      data-active={isActive || undefined}
     />
   );
 };
