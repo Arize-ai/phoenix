@@ -48,7 +48,7 @@ const switchCSS = css`
     }
   }
 
-  &:hover .indicator {
+  &:not([data-disabled]):hover .indicator {
     opacity: 0.85;
   }
 
@@ -57,12 +57,17 @@ const switchCSS = css`
       background: var(--switch-track-bg-selected);
 
       &:before {
-        transform: translateX(var(--switch-thumb-size));
+        transform: translateX(
+          calc(
+            var(--switch-track-width) - var(--switch-thumb-size) - 2 *
+              var(--switch-thumb-inset)
+          )
+        );
         background: var(--switch-thumb-bg-selected);
       }
     }
 
-    &:hover .indicator {
+    &:not([data-disabled]):hover .indicator {
       opacity: 0.9;
     }
   }
