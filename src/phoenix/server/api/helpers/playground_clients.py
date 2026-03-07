@@ -1105,8 +1105,6 @@ class CerebrasStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.FIREWORKS,
     model_names=[
         PROVIDER_DEFAULT,
-        "accounts/fireworks/models/llama4-scout-instruct-basic",
-        "accounts/fireworks/models/llama4-maverick-instruct-basic",
     ],
 )
 class FireworksStreamingClient(OpenAIBaseStreamingClient):
