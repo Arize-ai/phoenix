@@ -4412,7 +4412,6 @@
       "name": "moonshot/kimi-k2-0711-preview",
       "name_pattern": "kimi-k2-0711-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 6e-7,
@@ -4435,7 +4434,6 @@
       "name": "moonshot/kimi-k2-0905-preview",
       "name_pattern": "kimi-k2-0905-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 6e-7,
@@ -4458,7 +4456,6 @@
       "name": "moonshot/kimi-k2-thinking",
       "name_pattern": "kimi-k2-thinking",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 6e-7,
@@ -4481,7 +4478,6 @@
       "name": "moonshot/kimi-k2-thinking-turbo",
       "name_pattern": "kimi-k2-thinking-turbo",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 1.15e-6,
@@ -4504,7 +4500,6 @@
       "name": "moonshot/kimi-k2-turbo-preview",
       "name_pattern": "kimi-k2-turbo-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 1.15e-6,
@@ -4527,7 +4522,6 @@
       "name": "moonshot/kimi-k2.5",
       "name_pattern": "kimi-k2\\.5",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 6e-7,
@@ -4550,7 +4544,6 @@
       "name": "moonshot/kimi-latest",
       "name_pattern": "kimi-latest",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-6,
@@ -4573,7 +4566,6 @@
       "name": "moonshot/kimi-latest-128k",
       "name_pattern": "kimi-latest-128k",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-6,
@@ -4596,7 +4588,6 @@
       "name": "moonshot/kimi-latest-32k",
       "name_pattern": "kimi-latest-32k",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 1e-6,
@@ -4619,7 +4610,6 @@
       "name": "moonshot/kimi-latest-8k",
       "name_pattern": "kimi-latest-8k",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-7,
@@ -4642,7 +4632,6 @@
       "name": "moonshot/kimi-thinking-preview",
       "name_pattern": "kimi-thinking-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 6e-7,
@@ -4665,7 +4654,6 @@
       "name": "moonshot/moonshot-v1-128k",
       "name_pattern": "moonshot-v1-128k",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-6,
@@ -4683,7 +4671,6 @@
       "name": "moonshot/moonshot-v1-128k-0430",
       "name_pattern": "moonshot-v1-128k-0430",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-6,
@@ -4701,7 +4688,6 @@
       "name": "moonshot/moonshot-v1-128k-vision-preview",
       "name_pattern": "moonshot-v1-128k-vision-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-6,
@@ -4719,7 +4705,6 @@
       "name": "moonshot/moonshot-v1-32k",
       "name_pattern": "moonshot-v1-32k",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 1e-6,
@@ -4737,7 +4722,6 @@
       "name": "moonshot/moonshot-v1-32k-0430",
       "name_pattern": "moonshot-v1-32k-0430",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 1e-6,
@@ -4755,7 +4739,6 @@
       "name": "moonshot/moonshot-v1-32k-vision-preview",
       "name_pattern": "moonshot-v1-32k-vision-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 1e-6,
@@ -4773,7 +4756,6 @@
       "name": "moonshot/moonshot-v1-8k",
       "name_pattern": "moonshot-v1-8k",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-7,
@@ -4791,7 +4773,6 @@
       "name": "moonshot/moonshot-v1-8k-0430",
       "name_pattern": "moonshot-v1-8k-0430",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-7,
@@ -4809,7 +4790,6 @@
       "name": "moonshot/moonshot-v1-8k-vision-preview",
       "name_pattern": "moonshot-v1-8k-vision-preview",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-7,
@@ -4827,7 +4807,6 @@
       "name": "moonshot/moonshot-v1-auto",
       "name_pattern": "moonshot-v1-auto",
       "source": "litellm",
-      "provider": "moonshot",
       "token_prices": [
         {
           "base_rate": 2e-6,

@@ -45,19 +45,19 @@ class ModelCostManifest(BaseModel):
     models: list[ModelConfig]
 
 
-PROVIDER_PREFIXES: dict[str, str] = {
+PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
-    "moonshot/": "moonshot",
+    "moonshot/": None,
 }
 
 
-def parse_provider_prefix(model_id: str) -> tuple[str | None, str]:
-    """Return (provider, stripped_name) or (None, model_id) if no prefix match."""
+def parse_provider_prefix(model_id: str) -> tuple[bool, str | None, str]:
+    """Return (matched, provider, stripped_name) or (False, None, model_id) if no prefix match."""
     for prefix, provider in PROVIDER_PREFIXES.items():
         if model_id.startswith(prefix):
-            return provider, model_id[len(prefix) :]
-    return None, model_id
+            return True, provider, model_id[len(prefix) :]
+    return False, None, model_id
 
 
 @dataclass
@@ -98,8 +98,8 @@ def filter_models(model_ids: list[str]) -> list[str]:
     filtered_models = []
     for model_id in model_ids:
         # Models with known provider prefixes bypass include/exclude filtering
-        provider, stripped_name = parse_provider_prefix(model_id)
-        if provider:
+        matched, _, stripped_name = parse_provider_prefix(model_id)
+        if matched:
             if stripped_name and not stripped_name.endswith("/"):
                 filtered_models.append(model_id)
             continue
@@ -202,7 +202,7 @@ def transform_remote_data(data: dict[str, Any]) -> list[TransformedModel]:
             )
 
         if token_prices:
-            provider, stripped_name = parse_provider_prefix(model_id)
+            _, provider, stripped_name = parse_provider_prefix(model_id)
             transformed.append(
                 TransformedModel(
                     name=model_id,
@@ -237,7 +237,7 @@ def update_manifest(
         if tm.name in model_name_to_index:
             index = model_name_to_index[tm.name]
             manifest.models[index].token_prices = tm.token_prices
-            manifest.models[index].provider = tm.provider or None
+            manifest.models[index].provider = tm.provider
             num_updated_models += 1
         else:
             escaped_name_pattern = re.escape(tm.name_pattern).replace("\\-", "-")
@@ -245,7 +245,7 @@ def update_manifest(
                 name=tm.name,
                 name_pattern=escaped_name_pattern,
                 source=ModelSource.LITELLM,
-                provider=tm.provider or None,
+                provider=tm.provider,
                 token_prices=tm.token_prices,
             )
             manifest.models.append(new_model)
