@@ -1,13 +1,9 @@
 import { css } from "@emotion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import type {
-  ColorValue,
-  TextColorValue,
-  TextSize,
-} from "@phoenix/components/core/types";
+import type { TextColorValue, TextSize } from "@phoenix/components/core/types";
 
-import { colorValue } from "../utils";
+import { getTextColor, textSizeCSS } from "../content/textUtils";
 
 export type TimerProps = {
   /**
@@ -30,42 +26,8 @@ export type TimerProps = {
 const timerCSS = css`
   font-family: "Geist Mono", monospace;
   font-variant-numeric: tabular-nums;
-  &[data-size="XS"] {
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-xs);
-  }
-  &[data-size="S"] {
-    font-size: var(--global-font-size-s);
-    line-height: var(--global-line-height-s);
-  }
-  &[data-size="M"] {
-    font-size: var(--global-font-size-m);
-    line-height: var(--global-line-height-m);
-  }
-  &[data-size="L"] {
-    font-size: var(--global-font-size-l);
-    line-height: var(--global-line-height-l);
-  }
-  &[data-size="XL"] {
-    font-size: var(--global-font-size-xl);
-    line-height: var(--global-line-height-xl);
-  }
-  &[data-size="XXL"] {
-    font-size: var(--global-font-size-xxl);
-    line-height: var(--global-line-height-xxl);
-  }
+  ${textSizeCSS};
 `;
-
-function getTextColor(color: TextColorValue): string {
-  if (color === "inherit") {
-    return "inherit";
-  }
-  if (color.startsWith("text-")) {
-    const [, num] = color.split("-");
-    return `var(--global-text-color-${num})`;
-  }
-  return colorValue(color as ColorValue);
-}
 
 function padTwo(n: number): string {
   return n.toString().padStart(2, "0");
@@ -81,22 +43,27 @@ function formatElapsed(totalSeconds: number): string {
   return `${padTwo(minutes)}:${padTwo(seconds)}`;
 }
 
-function getElapsedSeconds(startTime: Date | undefined): number {
-  if (!startTime) return 0;
+function getElapsedSeconds(startTime: Date): number {
   return Math.max(0, Math.floor((Date.now() - startTime.getTime()) / 1000));
 }
 
 export function Timer(props: TimerProps) {
   const { startTime, color = "text-900", size = "S" } = props;
-  const [elapsed, setElapsed] = useState(() => getElapsedSeconds(startTime));
+  const effectiveStartTime = useMemo(
+    () => startTime ?? new Date(),
+    [startTime]
+  );
+  const [elapsed, setElapsed] = useState(() =>
+    getElapsedSeconds(effectiveStartTime)
+  );
 
   useEffect(() => {
-    setElapsed(getElapsedSeconds(startTime));
+    setElapsed(getElapsedSeconds(effectiveStartTime));
     const interval = setInterval(() => {
-      setElapsed(getElapsedSeconds(startTime));
+      setElapsed(getElapsedSeconds(effectiveStartTime));
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime]);
+  }, [effectiveStartTime]);
 
   return (
     <time
