@@ -231,6 +231,8 @@ const PerplexitySVG = ({ height }: { height: number }) => (
 
 const TogetherSVG = ({ height }: { height: number }) => (
   <svg
+    fill="currentColor"
+    fillRule="evenodd"
     viewBox="0 0 24 24"
     width={height}
     height={height}
@@ -238,9 +240,10 @@ const TogetherSVG = ({ height }: { height: number }) => (
   >
     <title>Together</title>
     <path
-      d="M5.5 2C5.5 1.44772 5.94772 1 6.5 1H17.5C18.0523 1 18.5 1.44772 18.5 2C18.5 2.55228 18.0523 3 17.5 3H13V22C13 22.5523 12.5523 23 12 23C11.4477 23 11 22.5523 11 22V3H6.5C5.94772 3 5.5 2.55228 5.5 2Z"
-      fill="currentColor"
-    />
+      d="M17.385 11.23a4.615 4.615 0 100-9.23 4.615 4.615 0 000 9.23zm0 10.77a4.615 4.615 0 100-9.23 4.615 4.615 0 000 9.23zm-10.77 0a4.615 4.615 0 100-9.23 4.615 4.615 0 000 9.23z"
+      opacity=".2"
+    ></path>
+    <circle cx="6.615" cy="6.615" fill="#0F6FFF" r="4.615"></circle>
   </svg>
 );
 
