@@ -1,5 +1,23 @@
 # Changelog
 
+## [13.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.9.0...arize-phoenix-v13.10.0) (2026-03-08)
+
+
+### Features
+
+* add Cerebras, Fireworks, Groq, and Moonshot as first-class providers ([#11938](https://github.com/Arize-ai/phoenix/issues/11938)) ([df94203](https://github.com/Arize-ai/phoenix/commit/df94203fa621bae9928d96249382380aa4be5443))
+* add cost tracking for Cerebras, Fireworks, Groq, and Moonshot providers ([#11942](https://github.com/Arize-ai/phoenix/issues/11942)) ([ea7b2a8](https://github.com/Arize-ai/phoenix/commit/ea7b2a8c97bd50d513aa9b0a287e744b42eb000d))
+* add new OpenAI GPT models to playground ([#11943](https://github.com/Arize-ai/phoenix/issues/11943)) ([fec2083](https://github.com/Arize-ai/phoenix/commit/fec20831de11866081b9b283148015015117f06c))
+* add Timer component to core ([#11933](https://github.com/Arize-ai/phoenix/issues/11933)) ([57dab70](https://github.com/Arize-ai/phoenix/commit/57dab70f8cf7805c04a4c7012ee261114d80d71f))
+* edit project description and gradient from settings ([#11935](https://github.com/Arize-ai/phoenix/issues/11935)) ([abd0ade](https://github.com/Arize-ai/phoenix/commit/abd0adec8641ebdac4dbb2f5aa50882a5595024f))
+* replace experiment running indicator with recording icon and timer ([#11936](https://github.com/Arize-ai/phoenix/issues/11936)) ([4d1cd63](https://github.com/Arize-ai/phoenix/commit/4d1cd6368a6715c5f4b2234389de61d54df9b07f))
+* restyle Switch and Slider components ([#11930](https://github.com/Arize-ai/phoenix/issues/11930)) ([62bdc0e](https://github.com/Arize-ai/phoenix/commit/62bdc0efef34e3f321984110ae646afe06c21577))
+
+
+### Documentation
+
+* update README with latest integrations and lobe-icons ([#11937](https://github.com/Arize-ai/phoenix/issues/11937)) ([d4fb777](https://github.com/Arize-ai/phoenix/commit/d4fb777c11f02c6d4abfa8156d124f6c0a6253c0))
+
 ## [13.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.8.0...arize-phoenix-v13.9.0) (2026-03-07)
 
 
