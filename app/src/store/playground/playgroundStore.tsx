@@ -1519,9 +1519,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           const persisted = persistedState as Record<string, unknown>;
           // Handle both old format (flat record) and new format (object with stateByDatasetId)
           const stateByDatasetId = persisted?.stateByDatasetId
-            ? PlaygroundStateByDatasetIdSchema.parse(
-                persisted.stateByDatasetId
-              )
+            ? PlaygroundStateByDatasetIdSchema.parse(persisted.stateByDatasetId)
             : PlaygroundStateByDatasetIdSchema.parse(persistedState);
           const merged = {
             ...currentState,
