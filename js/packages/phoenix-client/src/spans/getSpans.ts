@@ -62,6 +62,13 @@ export type GetSpansResult = {
  * });
 
  *
+ * // Get all spans for specific traces (available since @arizeai/phoenix-client >= 6.2.0)
+ * const result = await getSpans({
+ *   client,
+ *   project: { projectName: "my-project" },
+ *   traceIds: ["trace-abc-123", "trace-def-456"],
+ * });
+ *
  * // Paginate through results
  * let cursor: string | undefined;
  * do {
