@@ -1,5 +1,17 @@
 # Changelog
 
+## [13.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.10.0...arize-phoenix-v13.11.0) (2026-03-08)
+
+
+### Features
+
+* add Perplexity and Together AI as built-in providers in the playground ([#11952](https://github.com/Arize-ai/phoenix/issues/11952)) ([aeefe19](https://github.com/Arize-ai/phoenix/commit/aeefe1970405c7fcb48254dce92dcfc1824fcaa3))
+
+
+### Documentation
+
+* add release notes for Phoenix v13.10.0 ([510db02](https://github.com/Arize-ai/phoenix/commit/510db023c9005b2a4492642de0f4b73d4ca3d77a))
+
 ## [13.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.9.0...arize-phoenix-v13.10.0) (2026-03-08)
 
 
