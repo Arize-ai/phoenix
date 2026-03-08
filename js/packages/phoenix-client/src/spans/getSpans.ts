@@ -18,6 +18,8 @@ export interface GetSpansParams extends ClientFn {
   cursor?: string | null;
   /** Maximum number of spans to return */
   limit?: number;
+  /** Filter spans by one or more trace IDs */
+  traceIds?: string[] | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -86,6 +88,7 @@ export async function getSpans({
   limit = 100,
   startTime,
   endTime,
+  traceIds,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
   const projectIdentifier = resolveProjectIdentifier(project);
@@ -105,6 +108,10 @@ export async function getSpans({
 
   if (endTime) {
     params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
+  }
+
+  if (traceIds) {
+    params.trace_id = traceIds;
   }
 
   const { data, error } = await client.GET(

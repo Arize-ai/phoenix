@@ -78,10 +78,11 @@ export const initializeSpanTools = ({
       projectName: z.string(),
       startTime: z.string().optional(),
       endTime: z.string().optional(),
+      traceIds: z.array(z.string()).optional(),
       cursor: z.string().optional(),
       limit: z.number().min(1).max(1000).default(100).optional(),
     },
-    async ({ projectName, startTime, endTime, cursor, limit = 100 }) => {
+    async ({ projectName, startTime, endTime, traceIds, cursor, limit = 100 }) => {
       const params: NonNullable<
         Types["V1"]["operations"]["getSpans"]["parameters"]["query"]
       > = {
@@ -98,6 +99,10 @@ export const initializeSpanTools = ({
 
       if (endTime) {
         params.end_time = endTime;
+      }
+
+      if (traceIds) {
+        params.trace_id = traceIds;
       }
 
       const response = await client.GET(
