@@ -240,6 +240,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    TOGETHER: [
+      [
+        "return tools as they are for together",
+        "TOGETHER",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
   };
 
   test.for(Object.values(ProviderToToolTestMap).flat())(
@@ -619,6 +627,14 @@ describe("convertMessageToolCallsToProvider", () => {
       [
         "return tools as they are for perplexity",
         "PERPLEXITY",
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+        [{ id: 1, editorType: "json", definition: { test: "test" } }],
+      ],
+    ],
+    TOGETHER: [
+      [
+        "return tools as they are for together",
+        "TOGETHER",
         [{ id: 1, editorType: "json", definition: { test: "test" } }],
         [{ id: 1, editorType: "json", definition: { test: "test" } }],
       ],

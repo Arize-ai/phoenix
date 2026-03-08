@@ -70,6 +70,7 @@ class ModelProvider(Enum):
     GROQ = "GROQ"
     MOONSHOT = "MOONSHOT"
     PERPLEXITY = "PERPLEXITY"
+    TOGETHER = "TOGETHER"
 
 
 def is_sdk_compatible_with_model_provider(
@@ -95,6 +96,7 @@ def is_sdk_compatible_with_model_provider(
             ModelProvider.GROQ,
             ModelProvider.MOONSHOT,
             ModelProvider.PERPLEXITY,
+            ModelProvider.TOGETHER,
         )
     if sdk == "anthropic":
         return model_provider is ModelProvider.ANTHROPIC

@@ -1871,6 +1871,7 @@ enum GenerativeProviderKey {
   GROQ
   MOONSHOT
   PERPLEXITY
+  TOGETHER
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2021,6 +2022,7 @@ enum ModelProvider {
   GROQ
   MOONSHOT
   PERPLEXITY
+  TOGETHER
 }
 
 input ModelsInput {

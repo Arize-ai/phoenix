@@ -229,6 +229,21 @@ const PerplexitySVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const TogetherSVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Together</title>
+    <path
+      d="M5.5 2C5.5 1.44772 5.94772 1 6.5 1H17.5C18.0523 1 18.5 1.44772 18.5 2C18.5 2.55228 18.0523 3 17.5 3H13V22C13 22.5523 12.5523 23 12 23C11.4477 23 11 22.5523 11 22V3H6.5C5.94772 3 5.5 2.55228 5.5 2Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
@@ -246,6 +261,7 @@ const PROVIDER_ICONS: Record<
   GROQ: GroqSVG,
   MOONSHOT: MoonshotSVG,
   PERPLEXITY: PerplexitySVG,
+  TOGETHER: TogetherSVG,
 };
 
 export type GenerativeProviderIconProps = {

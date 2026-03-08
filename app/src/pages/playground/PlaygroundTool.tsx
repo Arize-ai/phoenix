@@ -145,6 +145,7 @@ export function PlaygroundTool({
       case "GROQ":
       case "MOONSHOT":
       case "PERPLEXITY":
+      case "TOGETHER":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;

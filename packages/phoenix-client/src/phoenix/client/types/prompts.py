@@ -74,6 +74,7 @@ class PromptVersion:
             "GROQ",
             "MOONSHOT",
             "PERPLEXITY",
+            "TOGETHER",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -109,6 +110,7 @@ class PromptVersion:
             "GROQ",
             "MOONSHOT",
             "PERPLEXITY",
+            "TOGETHER",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -126,6 +128,7 @@ class PromptVersion:
             v1.PromptGroqInvocationParameters,
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
+            v1.PromptTogetherInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -193,6 +196,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptPerplexityInvocationParameters(
                 type="perplexity",
                 perplexity=v1.PromptPerplexityInvocationParametersContent(),
+            )
+        elif model_provider == "TOGETHER":
+            self._invocation_parameters = v1.PromptTogetherInvocationParameters(
+                type="together",
+                together=v1.PromptTogetherInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -484,6 +492,7 @@ def _to_sdk(
         "GROQ",
         "MOONSHOT",
         "PERPLEXITY",
+        "TOGETHER",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -511,5 +520,7 @@ def _to_sdk(
     if model_provider == "MOONSHOT":
         return "openai"
     if model_provider == "PERPLEXITY":
+        return "openai"
+    if model_provider == "TOGETHER":
         return "openai"
     assert_never(model_provider)
