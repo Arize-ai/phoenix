@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.2.0
+
+### Minor Changes
+
+- 6d896e3: Add `traceIds` parameter to `getSpans` and MCP `get-spans` tool for filtering spans by trace ID.
+
 ## 6.1.0
 
 ### Minor Changes
