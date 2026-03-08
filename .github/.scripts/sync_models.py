@@ -49,6 +49,8 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
     "moonshot/": None,
+    "perplexity/": None,
+    "together_ai/": "together",
 }
 
 
@@ -100,8 +102,16 @@ def filter_models(model_ids: list[str]) -> list[str]:
         # Models with known provider prefixes bypass include/exclude filtering
         matched, _, stripped_name = parse_provider_prefix(model_id)
         if matched:
-            if stripped_name and not stripped_name.endswith("/"):
-                filtered_models.append(model_id)
+            if not stripped_name or stripped_name.endswith("/"):
+                continue
+            # Perplexity: only include sonar models (skip proxied models like
+            # perplexity/openai/... and deprecated models)
+            if model_id.startswith("perplexity/") and not stripped_name.startswith("sonar"):
+                continue
+            # Together: skip embedding models
+            if model_id.startswith("together_ai/") and "bge" in stripped_name.lower():
+                continue
+            filtered_models.append(model_id)
             continue
 
         if any(regex.search(model_id) for regex in exclude_regexes):
