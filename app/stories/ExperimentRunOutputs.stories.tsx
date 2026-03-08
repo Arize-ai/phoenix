@@ -344,7 +344,7 @@ const mockReferenceOutput: ReferenceOutput = {
 };
 
 const meta: Meta<StoryArgs> = {
-  title: "Experiment/ExperimentRunOutputs",
+  title: "Experiment/Run Outputs",
   component: ExperimentRunOutputs,
   parameters: {
     layout: "fullscreen",

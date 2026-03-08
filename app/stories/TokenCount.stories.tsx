@@ -11,7 +11,7 @@ import { TokenCountDetails } from "@phoenix/components/trace/TokenCountDetails";
  * it can show detailed breakdowns of token usage.
  */
 const meta = {
-  title: "TokenCount",
+  title: "Tokens/Token Count",
   component: TokenCount,
   parameters: {
     layout: "centered",

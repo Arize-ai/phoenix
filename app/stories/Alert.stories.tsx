@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Alert, Button, Icon, Icons } from "@phoenix/components";
 
 const meta: Meta<typeof Alert> = {
-  title: "Core/Alert",
+  title: "Core/Feedback/Alert",
   component: Alert,
   parameters: {
     layout: "centered",

@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/RadioGroup",
+  title: "Core/Forms/Radio Group",
   component: RadioGroup,
   parameters: {
     layout: "centered",

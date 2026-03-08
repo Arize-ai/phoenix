@@ -5,7 +5,7 @@ import type { TimerProps } from "@phoenix/components";
 import { Timer } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Timer",
+  title: "Core/Feedback/Timer",
   component: Timer,
   parameters: {
     layout: "centered",

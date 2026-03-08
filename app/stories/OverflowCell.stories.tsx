@@ -8,7 +8,7 @@ import { JSONBlock } from "@phoenix/components/code";
 import { OverflowCell } from "../src/components/table/OverflowCell";
 
 const meta: Meta<typeof OverflowCell> = {
-  title: "Table/OverflowCell",
+  title: "Table/Overflow Cell",
   component: OverflowCell,
   parameters: {
     layout: "centered",

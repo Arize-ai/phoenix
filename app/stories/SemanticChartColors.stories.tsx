@@ -12,7 +12,7 @@ import {
 } from "@phoenix/components/core/tooltip";
 
 const meta: Meta = {
-  title: "charting/SemanticChartColors",
+  title: "Charting/Semantic Chart Colors",
 };
 
 export default meta;

@@ -3,7 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import { SpanKindIcon } from "@phoenix/components/trace";
 
 const meta: Meta = {
-  title: "SpanKindIcon",
+  title: "Trace/Span Kind Icon",
   component: SpanKindIcon,
   parameters: {
     docs: {

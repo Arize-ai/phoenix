@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Token",
+  title: "Core/Content/Token",
   component: Token,
   parameters: {
     layout: "centered",

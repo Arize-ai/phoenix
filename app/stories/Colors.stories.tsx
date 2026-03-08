@@ -10,7 +10,7 @@ import {
 import { GLOBAL_COLORS } from "./constants/colorConstants";
 
 const meta: Meta = {
-  title: "Colors",
+  title: "Reference/Colors",
 };
 
 export default meta;

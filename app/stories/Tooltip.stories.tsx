@@ -14,7 +14,7 @@ import {
  * The tooltip component wraps react-aria-components' Tooltip with Phoenix design system styling.
  */
 const meta = {
-  title: "Core/Tooltip",
+  title: "Core/Overlays/Tooltip",
   component: Tooltip,
   parameters: {
     layout: "centered",

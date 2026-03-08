@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { ProgressBar } from "@phoenix/components";
 
 const meta: Meta<typeof ProgressBar> = {
-  title: "Core/ProgressBar",
+  title: "Core/Feedback/Progress Bar",
   component: ProgressBar,
   parameters: {
     layout: "centered",

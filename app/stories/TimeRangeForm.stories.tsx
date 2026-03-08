@@ -16,7 +16,7 @@ import {
 import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 const meta: Meta = {
-  title: "Core/TimeRangeForm",
+  title: "Core/Forms/Time Range Form",
   component: TimeRangeForm,
   parameters: {
     layout: "centered",

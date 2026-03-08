@@ -4,7 +4,7 @@ import type { TagGroupProps } from "@phoenix/components";
 import { Label, Tag, TagGroup, TagList } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/TagGroup",
+  title: "Core/Forms/Tag Group",
   component: TagGroup,
   parameters: {
     controls: { expanded: true },

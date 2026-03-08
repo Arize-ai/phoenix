@@ -17,7 +17,7 @@ import {
  * It supports different sizes, is fully accessible, and follows the design system's styling.
  */
 const meta = {
-  title: "Core/Select",
+  title: "Core/Forms/Select",
   component: Select,
   parameters: {
     layout: "centered",

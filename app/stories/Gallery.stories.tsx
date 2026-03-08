@@ -36,7 +36,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Gallery",
+  title: "Reference/Gallery",
 
   parameters: {
     layout: "fullscreen",

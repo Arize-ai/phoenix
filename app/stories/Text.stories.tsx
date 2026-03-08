@@ -7,7 +7,7 @@ import { Flex, Text } from "@phoenix/components";
 import { GLOBAL_COLORS } from "./constants/colorConstants";
 
 const meta: Meta = {
-  title: "Core/Text",
+  title: "Core/Content/Text",
   component: Text,
 
   parameters: {

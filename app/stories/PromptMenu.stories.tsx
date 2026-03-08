@@ -25,7 +25,7 @@ const promptMenuContainerCSS = css`
 `;
 
 const meta: Meta = {
-  title: "PromptMenu",
+  title: "Prompt/Prompt Menu",
   parameters: {
     layout: "centered",
   },

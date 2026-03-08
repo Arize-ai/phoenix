@@ -19,7 +19,7 @@ import { KeyboardToken } from "../src/components/core/KeyboardToken";
  * - Can be used inline with text
  */
 const meta: Meta<typeof KeyboardToken> = {
-  title: "Core/Content/KeyboardToken",
+  title: "Core/Content/Keyboard Token",
   component: KeyboardToken,
   parameters: {
     layout: "centered",

@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Tabs",
+  title: "Core/Navigation/Tabs",
   component: Tabs,
   parameters: {
     layout: "centered",

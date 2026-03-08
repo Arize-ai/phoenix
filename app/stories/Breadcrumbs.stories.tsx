@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Breadcrumb, Breadcrumbs } from "@phoenix/components";
 
 const meta: Meta<typeof Breadcrumbs> = {
-  title: "Core/Breadcrumbs",
+  title: "Core/Navigation/Breadcrumbs",
   component: Breadcrumbs,
   parameters: {
     layout: "centered",

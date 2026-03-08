@@ -5,7 +5,7 @@ import { Card, Text, Token, View } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 
 const meta: Meta = {
-  title: "TitledPanel",
+  title: "Core/Layout/Titled Panel",
   component: TitledPanel,
   parameters: {
     layout: "centered",
