@@ -136,7 +136,7 @@ spans = client.spans.get_spans(
 )
 
 # Retrieve all spans belonging to specific traces
-# (available since arize-phoenix-client >= 1.32.0)
+# (requires Phoenix server >= 13.9.0)
 spans = client.spans.get_spans(
     project_identifier="my-llm-app",
     trace_ids=["trace-abc-123", "trace-def-456"],

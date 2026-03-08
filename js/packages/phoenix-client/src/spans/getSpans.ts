@@ -62,7 +62,7 @@ export type GetSpansResult = {
  * });
 
  *
- * // Get all spans for specific traces (available since @arizeai/phoenix-client >= 6.2.0)
+ * // Get all spans for specific traces (requires Phoenix server >= 13.9.0)
  * const result = await getSpans({
  *   client,
  *   project: { projectName: "my-project" },
