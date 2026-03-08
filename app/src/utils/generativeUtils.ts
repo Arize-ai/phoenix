@@ -18,7 +18,8 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "CEREBRAS" ||
     provider === "FIREWORKS" ||
     provider === "GROQ" ||
-    provider === "MOONSHOT"
+    provider === "MOONSHOT" ||
+    provider === "PERPLEXITY"
   );
 }
 
@@ -48,6 +49,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Groq";
     case "MOONSHOT":
       return "Moonshot";
+    case "PERPLEXITY":
+      return "Perplexity";
     default:
       assertUnreachable(provider);
   }
@@ -84,6 +87,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "groq"; // TODO: Add support for Groq to semantic conventions
     case "MOONSHOT":
       return "moonshot"; // TODO: Add support for Moonshot to semantic conventions
+    case "PERPLEXITY":
+      return "perplexity"; // TODO: Add support for Perplexity to semantic conventions
     default:
       assertUnreachable(provider);
   }

@@ -97,6 +97,7 @@ export function ChatMessageToolCallsEditor({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "PERPLEXITY":
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;

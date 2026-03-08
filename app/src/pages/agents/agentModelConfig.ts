@@ -18,6 +18,7 @@ const GENERATIVE_PROVIDER_KEY_SCHEMA = z.enum([
   "MOONSHOT",
   "OLLAMA",
   "OPENAI",
+  "PERPLEXITY",
   "XAI",
 ]) satisfies z.ZodType<GenerativeProviderKey>;
 

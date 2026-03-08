@@ -41,6 +41,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   FIREWORKS: ["required", "auto", "none"] as const,
   GROQ: ["required", "auto", "none"] as const,
   MOONSHOT: ["required", "auto", "none"] as const,
+  PERPLEXITY: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
   GOOGLE: ["any", "auto", "none"] as const,
@@ -70,6 +71,7 @@ export const findToolChoiceType = (
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "PERPLEXITY":
     case "OPENAI":
       if (
         isObject(choice) &&
@@ -281,6 +283,7 @@ export function ToolChoiceSelector<
             case "FIREWORKS":
             case "GROQ":
             case "MOONSHOT":
+            case "PERPLEXITY":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice({
@@ -330,6 +333,7 @@ export function ToolChoiceSelector<
             case "FIREWORKS":
             case "GROQ":
             case "MOONSHOT":
+            case "PERPLEXITY":
             case "OPENAI":
               onChange(
                 makeOpenAIToolChoice(

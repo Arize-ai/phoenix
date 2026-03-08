@@ -144,6 +144,7 @@ export function PlaygroundTool({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "PERPLEXITY":
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;

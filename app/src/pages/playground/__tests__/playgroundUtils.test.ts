@@ -832,6 +832,7 @@ describe("processAttributeToolCalls", () => {
     FIREWORKS: ["FIREWORKS", testSpanToolCall, expectedTestOpenAIToolCall],
     GROQ: ["GROQ", testSpanToolCall, expectedTestOpenAIToolCall],
     MOONSHOT: ["MOONSHOT", testSpanToolCall, expectedTestOpenAIToolCall],
+    PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",

@@ -404,6 +404,7 @@ type ProviderToToolDefinitionMap = {
   FIREWORKS: OpenAIToolDefinition;
   GROQ: OpenAIToolDefinition;
   MOONSHOT: OpenAIToolDefinition;
+  PERPLEXITY: OpenAIToolDefinition;
   AWS: AwsToolDefinition;
 };
 
@@ -452,6 +453,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "PERPLEXITY":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":
       return openAIToolToAnthropic.parse(

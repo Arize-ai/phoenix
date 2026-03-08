@@ -30,6 +30,7 @@ export const convertInstanceToolsToProvider = ({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "PERPLEXITY":
       case "AZURE_OPENAI": {
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
@@ -118,6 +119,7 @@ export const convertMessageToolCallsToProvider = ({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "PERPLEXITY":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }
