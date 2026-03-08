@@ -50,11 +50,10 @@ export function PlaygroundExperimentToolbar({
   );
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
-    return instances
-      .filter(
-        (instance) => instance.experiment && !instance.experiment.isEphemeral
-      )
-      .map((instance) => instance.experiment!.id);
+    return instances.flatMap((instance) => {
+      const exp = instance.experiment;
+      return exp && !exp.isEphemeral ? [exp.id] : [];
+    });
   }, [instances]);
   return (
     <View

@@ -862,7 +862,7 @@ export function PlaygroundDatasetExamplesTable({
   const instances = usePlaygroundContext((state) => state.instances);
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map(
-      (instance) => instance.experiment?.id ?? undefined
+      (instance) => instance.experiment?.id
     );
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
     return { baseExperimentId, compareExperimentIds };
@@ -974,9 +974,6 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.setRepetitions
   );
   const repetitions = usePlaygroundContext((state) => state.repetitions);
-  const recordExperiments = usePlaygroundContext(
-    (state) => state.recordExperiments
-  );
 
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
@@ -1039,7 +1036,7 @@ export function PlaygroundDatasetExamplesTable({
           case "ChatCompletionSubscriptionExperiment":
             setInstanceExperiment(instanceId, {
               id: chatCompletion.experiment.id,
-              isEphemeral: !recordExperiments,
+              isEphemeral: !playgroundStore.getState().recordExperiments,
             });
             break;
           case "ChatCompletionSubscriptionResult":
@@ -1133,7 +1130,7 @@ export function PlaygroundDatasetExamplesTable({
       incrementEvalsCompleted,
       incrementRunsCompleted,
       incrementRunsFailed,
-      recordExperiments,
+      playgroundStore,
       setInstanceExperiment,
       updateExampleData,
       updateInstance,
@@ -1218,7 +1215,7 @@ export function PlaygroundDatasetExamplesTable({
         }
         setInstanceExperiment(instanceId, {
           id: response.chatCompletionOverDataset.experimentId,
-          isEphemeral: !recordExperiments,
+          isEphemeral: !playgroundStore.getState().recordExperiments,
         });
         setExampleDataForInstance({
           instanceId,
@@ -1256,8 +1253,10 @@ export function PlaygroundDatasetExamplesTable({
       addRunCosts,
       markPlaygroundInstanceComplete,
       notifyError,
+      playgroundStore,
       repetitions,
       setExampleDataForInstance,
+      setInstanceExperiment,
       setRepetitions,
       updateInstance,
     ]
