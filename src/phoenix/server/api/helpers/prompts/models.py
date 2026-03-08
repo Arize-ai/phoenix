@@ -378,6 +378,14 @@ class PromptMoonshotInvocationParametersContent(PromptOpenAIInvocationParameters
     pass
 
 
+class PromptPerplexityInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
+class PromptTogetherInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
@@ -416,6 +424,16 @@ class PromptGroqInvocationParameters(DBBaseModel):
 class PromptMoonshotInvocationParameters(DBBaseModel):
     type: Literal["moonshot"]
     moonshot: PromptMoonshotInvocationParametersContent
+
+
+class PromptPerplexityInvocationParameters(DBBaseModel):
+    type: Literal["perplexity"]
+    perplexity: PromptPerplexityInvocationParametersContent
+
+
+class PromptTogetherInvocationParameters(DBBaseModel):
+    type: Literal["together"]
+    together: PromptTogetherInvocationParametersContent
 
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
@@ -491,6 +509,8 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptFireworksInvocationParameters,
         PromptGroqInvocationParameters,
         PromptMoonshotInvocationParameters,
+        PromptPerplexityInvocationParameters,
+        PromptTogetherInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -523,6 +543,10 @@ def get_raw_invocation_parameters(
         return invocation_parameters.groq.model_dump()
     if isinstance(invocation_parameters, PromptMoonshotInvocationParameters):
         return invocation_parameters.moonshot.model_dump()
+    if isinstance(invocation_parameters, PromptPerplexityInvocationParameters):
+        return invocation_parameters.perplexity.model_dump()
+    if isinstance(invocation_parameters, PromptTogetherInvocationParameters):
+        return invocation_parameters.together.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -544,6 +568,8 @@ def is_prompt_invocation_parameters(
             PromptFireworksInvocationParameters,
             PromptGroqInvocationParameters,
             PromptMoonshotInvocationParameters,
+            PromptPerplexityInvocationParameters,
+            PromptTogetherInvocationParameters,
         ),
     )
 
@@ -625,6 +651,20 @@ def validate_invocation_parameters(
         return PromptMoonshotInvocationParameters(
             type="moonshot",
             moonshot=PromptMoonshotInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.PERPLEXITY:
+        return PromptPerplexityInvocationParameters(
+            type="perplexity",
+            perplexity=PromptPerplexityInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.TOGETHER:
+        return PromptTogetherInvocationParameters(
+            type="together",
+            together=PromptTogetherInvocationParametersContent.model_validate(
                 invocation_parameters
             ),
         )

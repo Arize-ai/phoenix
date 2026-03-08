@@ -37,6 +37,8 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   FIREWORKS: [],
   GROQ: [],
   MOONSHOT: ["moonshot", "kimi"],
+  PERPLEXITY: ["sonar"],
+  TOGETHER: [],
 };
 
 export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<

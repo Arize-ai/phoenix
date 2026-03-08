@@ -12,4 +12,9 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   XAI: "xAI",
   OLLAMA: "Ollama",
   AWS: "AWS Bedrock",
+  CEREBRAS: "Cerebras",
+  FIREWORKS: "Fireworks",
+  GROQ: "Groq",
+  MOONSHOT: "Moonshot",
+  PERPLEXITY: "Perplexity",
 };

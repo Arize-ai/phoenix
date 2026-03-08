@@ -832,6 +832,8 @@ describe("processAttributeToolCalls", () => {
     FIREWORKS: ["FIREWORKS", testSpanToolCall, expectedTestOpenAIToolCall],
     GROQ: ["GROQ", testSpanToolCall, expectedTestOpenAIToolCall],
     MOONSHOT: ["MOONSHOT", testSpanToolCall, expectedTestOpenAIToolCall],
+    PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
+    TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1374,6 +1376,12 @@ describe("getToolsFromAttributes", () => {
     FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    PERPLEXITY: [
+      "PERPLEXITY",
+      testSpanOpenAITool,
+      testSpanOpenAIToolJsonSchema,
+    ],
+    TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(

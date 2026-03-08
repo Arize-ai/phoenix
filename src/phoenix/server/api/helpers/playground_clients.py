@@ -1148,6 +1148,38 @@ class MoonshotStreamingClient(OpenAIBaseStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.PERPLEXITY,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "sonar-pro",
+        "sonar-reasoning-pro",
+        "sonar",
+        "sonar-deep-research",
+    ],
+)
+class PerplexityStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.TOGETHER,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "moonshotai/Kimi-K2.5",
+        "deepseek-ai/DeepSeek-V3.1",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "zai-org/GLM-5",
+        "zai-org/GLM-4.5-Air-FP8",
+        "Qwen/Qwen3-235B-A22B-Thinking-2507",
+        "deepseek-ai/DeepSeek-R1",
+    ],
+)
+class TogetherStreamingClient(OpenAIBaseStreamingClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -3069,6 +3101,80 @@ async def _get_builtin_provider_client(
             )
 
         client_factory = create_moonshot_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.PERPLEXITY:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "PERPLEXITY_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "PERPLEXITY_API_KEY")).get(
+                "PERPLEXITY_API_KEY"
+            )
+            or getenv("PERPLEXITY_API_KEY")
+        )
+        base_url = obj.base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai"
+
+        if not api_key:
+            if base_url == "https://api.perplexity.ai":
+                raise BadRequest(
+                    "An API key is required for Perplexity models. "
+                    "Set the PERPLEXITY_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_perplexity_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_perplexity_client
+        return OpenAIStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.TOGETHER:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "TOGETHER_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "TOGETHER_API_KEY")).get(
+                "TOGETHER_API_KEY"
+            )
+            or getenv("TOGETHER_API_KEY")
+        )
+        base_url = obj.base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1"
+
+        if not api_key:
+            if base_url == "https://api.together.xyz/v1":
+                raise BadRequest(
+                    "An API key is required for Together AI models. "
+                    "Set the TOGETHER_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_together_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = create_together_client
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,

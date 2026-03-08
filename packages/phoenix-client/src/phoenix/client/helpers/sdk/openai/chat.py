@@ -202,6 +202,8 @@ class _InvocationParametersConversion:
             v1.PromptFireworksInvocationParameters,
             v1.PromptGroqInvocationParameters,
             v1.PromptMoonshotInvocationParameters,
+            v1.PromptPerplexityInvocationParameters,
+            v1.PromptTogetherInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -413,6 +415,44 @@ class _InvocationParametersConversion:
                 ans["seed"] = moonshot_params["seed"]
             if "reasoning_effort" in moonshot_params:
                 ans["reasoning_effort"] = moonshot_params["reasoning_effort"]
+        elif obj["type"] == "perplexity":
+            perplexity_params: v1.PromptPerplexityInvocationParametersContent
+            perplexity_params = obj["perplexity"]
+            if "max_completion_tokens" in perplexity_params:
+                ans["max_completion_tokens"] = perplexity_params["max_completion_tokens"]
+            if "max_tokens" in perplexity_params:
+                ans["max_tokens"] = perplexity_params["max_tokens"]
+            if "temperature" in perplexity_params:
+                ans["temperature"] = perplexity_params["temperature"]
+            if "top_p" in perplexity_params:
+                ans["top_p"] = perplexity_params["top_p"]
+            if "presence_penalty" in perplexity_params:
+                ans["presence_penalty"] = perplexity_params["presence_penalty"]
+            if "frequency_penalty" in perplexity_params:
+                ans["frequency_penalty"] = perplexity_params["frequency_penalty"]
+            if "seed" in perplexity_params:
+                ans["seed"] = perplexity_params["seed"]
+            if "reasoning_effort" in perplexity_params:
+                ans["reasoning_effort"] = perplexity_params["reasoning_effort"]
+        elif obj["type"] == "together":
+            together_params: v1.PromptTogetherInvocationParametersContent
+            together_params = obj["together"]
+            if "max_completion_tokens" in together_params:
+                ans["max_completion_tokens"] = together_params["max_completion_tokens"]
+            if "max_tokens" in together_params:
+                ans["max_tokens"] = together_params["max_tokens"]
+            if "temperature" in together_params:
+                ans["temperature"] = together_params["temperature"]
+            if "top_p" in together_params:
+                ans["top_p"] = together_params["top_p"]
+            if "presence_penalty" in together_params:
+                ans["presence_penalty"] = together_params["presence_penalty"]
+            if "frequency_penalty" in together_params:
+                ans["frequency_penalty"] = together_params["frequency_penalty"]
+            if "seed" in together_params:
+                ans["seed"] = together_params["seed"]
+            if "reasoning_effort" in together_params:
+                ans["reasoning_effort"] = together_params["reasoning_effort"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans

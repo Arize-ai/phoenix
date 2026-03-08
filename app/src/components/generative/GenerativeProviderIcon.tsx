@@ -215,6 +215,43 @@ const MoonshotSVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const PerplexitySVG = ({ height }: { height: number }) => (
+  <svg
+    fill="currentColor"
+    fillRule="evenodd"
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Perplexity</title>
+    <path d="M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z"></path>
+  </svg>
+);
+
+const TogetherSVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 484.98 452.5"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Together</title>
+    <path
+      d="M468.72,60.67C435.25,2.69,361.11-17.18,303.12,16.3c-37.3,21.54-58.82,59.62-60.52,99.69l121.15.16v10.39h-121.15c.78,18.94,6.02,37.81,16.15,55.36,33.48,57.98,107.62,77.85,165.6,44.37,57.98-33.48,77.85-107.62,44.37-165.6Z"
+      fill="#EF2CC1"
+    />
+    <path
+      d="M16.26,60.63C-17.21,118.61,2.65,192.76,60.63,226.23c37.3,21.54,81.04,21.13,116.59,2.57l-60.44-105,9-5.18,60.57,104.91c16.01-10.14,29.74-24.12,39.87-41.67,33.48-57.98,13.61-132.12-44.37-165.6C123.88-17.21,49.74,2.65,16.26,60.63Z"
+      fill="#CAAEF5"
+    />
+    <path
+      d="M242.46,452.5c66.95,0,121.23-54.27,121.23-121.23,0-43.07-22.22-80.75-56.07-102.25l-60.71,104.84-8.99-5.21,60.57-104.91c-16.79-8.79-35.75-13.7-56.02-13.7-66.95,0-121.23,54.27-121.23,121.23,0,66.95,54.27,121.23,121.23,121.23Z"
+      fill="#FC4C02"
+    />
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
@@ -231,6 +268,8 @@ const PROVIDER_ICONS: Record<
   FIREWORKS: FireworksSVG,
   GROQ: GroqSVG,
   MOONSHOT: MoonshotSVG,
+  PERPLEXITY: PerplexitySVG,
+  TOGETHER: TogetherSVG,
 };
 
 export type GenerativeProviderIconProps = {

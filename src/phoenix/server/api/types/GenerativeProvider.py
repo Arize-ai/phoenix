@@ -27,6 +27,8 @@ class GenerativeProviderKey(Enum):
     FIREWORKS = "Fireworks"
     GROQ = "Groq"
     MOONSHOT = "Moonshot"
+    PERPLEXITY = "Perplexity"
+    TOGETHER = "Together"
 
     @classmethod
     def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
@@ -56,6 +58,10 @@ class GenerativeProviderKey(Enum):
             return cls.GROQ
         elif model_provider is ModelProvider.MOONSHOT:
             return cls.MOONSHOT
+        elif model_provider is ModelProvider.PERPLEXITY:
+            return cls.PERPLEXITY
+        elif model_provider is ModelProvider.TOGETHER:
+            return cls.TOGETHER
         assert_never(model_provider)
 
     def to_model_provider(self) -> "ModelProvider":
@@ -83,6 +89,10 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.GROQ
         if self is GenerativeProviderKey.MOONSHOT:
             return ModelProvider.MOONSHOT
+        if self is GenerativeProviderKey.PERPLEXITY:
+            return ModelProvider.PERPLEXITY
+        if self is GenerativeProviderKey.TOGETHER:
+            return ModelProvider.TOGETHER
         assert_never(self)
 
 
@@ -100,6 +110,8 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         GenerativeProviderKey.FIREWORKS: "fireworks",
         GenerativeProviderKey.GROQ: "groq",
         GenerativeProviderKey.MOONSHOT: "moonshot",
+        GenerativeProviderKey.PERPLEXITY: "perplexity",
+        GenerativeProviderKey.TOGETHER: "together",
     }
 )
 
@@ -140,6 +152,8 @@ class GenerativeProvider:
         GenerativeProviderKey.FIREWORKS: ["accounts/fireworks"],
         GenerativeProviderKey.GROQ: [],
         GenerativeProviderKey.MOONSHOT: ["moonshot", "kimi"],
+        GenerativeProviderKey.PERPLEXITY: ["sonar"],
+        GenerativeProviderKey.TOGETHER: [],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -195,6 +209,12 @@ class GenerativeProvider:
         ],
         GenerativeProviderKey.MOONSHOT: [
             GenerativeProviderCredentialConfig(env_var_name="MOONSHOT_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.PERPLEXITY: [
+            GenerativeProviderCredentialConfig(env_var_name="PERPLEXITY_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.TOGETHER: [
+            GenerativeProviderCredentialConfig(env_var_name="TOGETHER_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),

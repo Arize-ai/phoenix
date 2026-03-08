@@ -14,6 +14,8 @@ export const ModelProviders: Record<ModelProvider, string> = {
   FIREWORKS: "Fireworks",
   GROQ: "Groq",
   MOONSHOT: "Moonshot",
+  PERPLEXITY: "Perplexity",
+  TOGETHER: "Together",
 };
 
 /**
@@ -66,6 +68,8 @@ export const ProviderToCredentialsConfigMap: Record<
   FIREWORKS: [{ envVarName: "FIREWORKS_API_KEY", isRequired: true }],
   GROQ: [{ envVarName: "GROQ_API_KEY", isRequired: true }],
   MOONSHOT: [{ envVarName: "MOONSHOT_API_KEY", isRequired: true }],
+  PERPLEXITY: [{ envVarName: "PERPLEXITY_API_KEY", isRequired: true }],
+  TOGETHER: [{ envVarName: "TOGETHER_API_KEY", isRequired: true }],
   AWS: [
     { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
     { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
@@ -143,6 +147,8 @@ export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
   fireworks: "FIREWORKS",
   groq: "GROQ",
   moonshot: "MOONSHOT",
+  perplexity: "PERPLEXITY",
+  together: "TOGETHER",
 } as const;
 
 /**

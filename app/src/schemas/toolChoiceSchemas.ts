@@ -238,6 +238,8 @@ type ProviderToToolChoiceMap = {
   FIREWORKS: OpenaiToolChoice;
   GROQ: OpenaiToolChoice;
   MOONSHOT: OpenaiToolChoice;
+  PERPLEXITY: OpenaiToolChoice;
+  TOGETHER: OpenaiToolChoice;
   AWS: AwsToolChoice;
 };
 
@@ -288,6 +290,8 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "PERPLEXITY":
+    case "TOGETHER":
       return toolChoice as ProviderToToolChoiceMap[T];
     case "AWS":
       return openAIToolChoiceToAwsToolChoice.parse(
