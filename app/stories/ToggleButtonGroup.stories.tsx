@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/ToggleButtonGroup",
+  title: "Core/Actions/Toggle Button Group",
   component: ToggleButtonGroup,
   parameters: {
     layout: "centered",

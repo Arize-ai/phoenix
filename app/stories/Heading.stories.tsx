@@ -3,7 +3,7 @@ import type { Meta } from "@storybook/react";
 import { Flex, Heading, View } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Heading",
+  title: "Core/Content/Heading",
   component: Heading,
 
   parameters: {

@@ -4,7 +4,7 @@ import type { LatencyThresholds } from "@phoenix/components/trace/LatencyText";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 
 const meta: Meta = {
-  title: "Trace/LatencyText",
+  title: "Trace/Latency Text",
   component: LatencyText,
   parameters: {
     layout: "centered",

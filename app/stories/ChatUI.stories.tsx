@@ -144,7 +144,7 @@ function ChatUI() {
 }
 
 const meta = {
-  title: "Chat/ChatUI",
+  title: "Chat/Chat UI",
   component: ChatUI,
   decorators: [
     (Story) => (

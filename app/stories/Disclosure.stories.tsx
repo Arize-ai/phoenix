@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Disclosure",
+  title: "Core/Layout/Disclosure",
   component: DisclosureGroup,
   parameters: {
     layout: "centered",

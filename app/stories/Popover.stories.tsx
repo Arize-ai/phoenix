@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Popover",
+  title: "Core/Overlays/Popover",
   component: Popover,
   parameters: {
     layout: "centered",

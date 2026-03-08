@@ -19,7 +19,7 @@ import type {
  * Components are wrapped in \<AnnotationFocusProvider \\> to provide focus management.
  */
 const meta = {
-  title: "AnnotationInputs",
+  title: "Annotation/Annotation Inputs",
   parameters: {
     layout: "centered",
   },

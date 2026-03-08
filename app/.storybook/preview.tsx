@@ -194,6 +194,33 @@ const preview: Preview = {
     docs: {
       container: ThemedDocsContainer,
     },
+    options: {
+      storySort: {
+        order: [
+          "Reference",
+          "Core",
+          [
+            "Content",
+            "Actions",
+            "Forms",
+            "Feedback",
+            "Overlays",
+            "Layout",
+            "Navigation",
+            "Media",
+          ],
+          "Charting",
+          "DateTime",
+          "Table",
+          "Annotation",
+          "Chat",
+          "Experiment",
+          "Prompt",
+          "Tokens",
+          "Trace",
+        ],
+      },
+    },
   },
   //👇 Enables auto-generated documentation for all stories
   tags: ["autodocs"],

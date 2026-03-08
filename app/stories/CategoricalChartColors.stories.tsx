@@ -12,7 +12,7 @@ import {
 } from "@phoenix/components/core/tooltip";
 
 const meta: Meta = {
-  title: "charting/CategoricalChartColors",
+  title: "Charting/Categorical Chart Colors",
 };
 
 export default meta;

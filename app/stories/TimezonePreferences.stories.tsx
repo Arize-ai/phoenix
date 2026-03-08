@@ -15,7 +15,7 @@ import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { ViewerPreferences } from "@phoenix/pages/profile/ViewerPreferences";
 
 const meta: Meta = {
-  title: "Timezone Preferences",
+  title: "DateTime/Timezone Preferences",
   parameters: {
     layout: "centered",
   },

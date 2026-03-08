@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { Icon, Icons } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Icons",
+  title: "Core/Content/Icons",
   component: Icon,
 };
 

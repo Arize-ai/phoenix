@@ -608,7 +608,7 @@ function PaddedCell({ children }: { children: React.ReactNode }) {
 
 // Storybook Configuration
 const meta: Meta<typeof SimpleExperimentTable> = {
-  title: "Table/ExperimentTable",
+  title: "Table/Experiment Table",
   component: SimpleExperimentTable,
   parameters: {
     docs: {

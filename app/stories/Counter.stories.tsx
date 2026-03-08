@@ -3,7 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import type { CounterProps } from "@phoenix/components";
 import { Counter } from "@phoenix/components";
 const meta: Meta = {
-  title: "Core/Counter",
+  title: "Core/Content/Counter",
   component: Counter,
   parameters: {
     layout: "centered",

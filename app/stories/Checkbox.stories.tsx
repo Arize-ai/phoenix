@@ -3,7 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import { Checkbox } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Checkbox",
+  title: "Core/Forms/Checkbox",
   component: Checkbox,
   parameters: {
     layout: "centered",

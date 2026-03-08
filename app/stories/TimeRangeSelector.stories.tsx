@@ -10,7 +10,7 @@ import { PreferencesProvider } from "@phoenix/contexts";
 import { createTimeRangeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 const meta: Meta = {
-  title: "TimeRangeSelector",
+  title: "DateTime/Time Range Selector",
   component: TimeRangeSelector,
   parameters: {
     layout: "centered",

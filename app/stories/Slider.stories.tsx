@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, Slider, SliderNumberField, View } from "@phoenix/components";
 
 const meta: Meta<typeof Slider> = {
-  title: "Core/Slider",
+  title: "Core/Forms/Slider",
   component: Slider,
   parameters: {
     layout: "centered",

@@ -121,7 +121,7 @@ const mockAnnotationSummaries: AnnotationSummaries = [
 ];
 
 const meta: Meta<StoryArgs> = {
-  title: "Experiment/ExperimentRunAnnotations",
+  title: "Experiment/Run Annotations",
   component: ExperimentRunAnnotations,
   parameters: {
     layout: "centered",

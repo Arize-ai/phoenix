@@ -31,7 +31,7 @@ import {
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 
 const meta: Meta = {
-  title: "Provider & Integration Icons",
+  title: "Reference/Provider & Integration Icons",
 };
 export default meta;
 

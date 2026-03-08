@@ -6,7 +6,7 @@ import type { RecordIconProps } from "@phoenix/components/core/icon/RecordIcon";
 import { RecordIcon } from "@phoenix/components/core/icon/RecordIcon";
 
 const meta: Meta = {
-  title: "Core/RecordIcon",
+  title: "Core/Content/Record Icon",
   component: RecordIcon,
   argTypes: {
     isActive: { control: "boolean" },

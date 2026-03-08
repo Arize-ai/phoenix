@@ -4,7 +4,7 @@ import type { ListBoxProps } from "@phoenix/components";
 import { ListBox, ListBoxItem } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/ListBox",
+  title: "Core/Navigation/List Box",
   component: ListBox,
 };
 

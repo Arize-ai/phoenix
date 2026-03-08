@@ -3,7 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import { Button, Card, Text, Token } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Core/Card",
+  title: "Core/Layout/Card",
   component: Card,
   parameters: {
     layout: "centered",

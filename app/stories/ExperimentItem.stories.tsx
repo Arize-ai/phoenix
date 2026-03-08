@@ -200,7 +200,7 @@ const mockAnnotationSummaries: AnnotationSummaries = [
 ];
 
 const meta: Meta<typeof ExperimentItem> = {
-  title: "Experiment/ExperimentItem",
+  title: "Experiment/Experiment Item",
   component: ExperimentItem,
   parameters: {
     layout: "centered",

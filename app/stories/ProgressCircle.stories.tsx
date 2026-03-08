@@ -4,7 +4,7 @@ import { ProgressCircle } from "../src/components/core/progress/ProgressCircle";
 import type { ProgressCircleProps } from "../src/components/core/progress/types";
 
 const meta: Meta<typeof ProgressCircle> = {
-  title: "Core/ProgressCircle",
+  title: "Core/Feedback/Progress Circle",
   component: ProgressCircle,
   parameters: {
     layout: "centered",

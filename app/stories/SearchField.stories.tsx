@@ -13,7 +13,7 @@ import {
 import { SearchIcon } from "@phoenix/components/core/field";
 
 const meta: Meta = {
-  title: "Core/SearchField",
+  title: "Core/Forms/Search Field",
   component: SearchField,
   parameters: {
     controls: { expanded: true },

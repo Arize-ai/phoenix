@@ -11,7 +11,7 @@ import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
  * it can show detailed breakdowns of cost usage by token type and prompt/completion.
  */
 const meta = {
-  title: "TokenCosts",
+  title: "Tokens/Token Costs",
   component: TokenCosts,
   parameters: {
     layout: "centered",

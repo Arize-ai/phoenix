@@ -270,7 +270,7 @@ function StackedBarChart({
 }
 
 const meta: Meta<typeof StackedBarChart> = {
-  title: "Charting/StackedTimeSeriesBarChart",
+  title: "Charting/Stacked Time Series Bar Chart",
   component: StackedBarChart,
   decorators: [
     (Story) => (

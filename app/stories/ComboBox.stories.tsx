@@ -8,7 +8,7 @@ import {
 } from "@phoenix/components/core/combobox/ComboBox";
 
 const meta: Meta = {
-  title: "Core/ComboBox",
+  title: "Core/Forms/Combo Box",
   component: ComboBox,
   argTypes: {
     label: {

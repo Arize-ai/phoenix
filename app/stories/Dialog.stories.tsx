@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components/core/dialog";
 
 const meta: Meta = {
-  title: "Core/Dialog",
+  title: "Core/Overlays/Dialog",
   component: Dialog,
   parameters: {
     layout: "centered",
