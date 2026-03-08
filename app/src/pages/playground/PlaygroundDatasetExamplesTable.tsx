@@ -861,7 +861,9 @@ export function PlaygroundDatasetExamplesTable({
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
-    const experimentIds = instances.map((instance) => instance.experimentId);
+    const experimentIds = instances.map(
+      (instance) => instance.experiment?.id ?? undefined
+    );
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
     return { baseExperimentId, compareExperimentIds };
   }, [instances]);
@@ -885,6 +887,9 @@ export function PlaygroundDatasetExamplesTable({
     calculateAnnotationListHeight(numEnabledEvaluators);
 
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceExperiment = usePlaygroundContext(
+    (state) => state.setInstanceExperiment
+  );
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
@@ -969,6 +974,9 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.setRepetitions
   );
   const repetitions = usePlaygroundContext((state) => state.repetitions);
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
+  );
 
   const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
@@ -1029,10 +1037,9 @@ export function PlaygroundDatasetExamplesTable({
         const chatCompletion = response.chatCompletionOverDataset;
         switch (chatCompletion.__typename) {
           case "ChatCompletionSubscriptionExperiment":
-            updateInstance({
-              instanceId,
-              patch: { experimentId: chatCompletion.experiment.id },
-              dirty: null,
+            setInstanceExperiment(instanceId, {
+              id: chatCompletion.experiment.id,
+              isEphemeral: !recordExperiments,
             });
             break;
           case "ChatCompletionSubscriptionResult":
@@ -1126,6 +1133,8 @@ export function PlaygroundDatasetExamplesTable({
       incrementEvalsCompleted,
       incrementRunsCompleted,
       incrementRunsFailed,
+      recordExperiments,
+      setInstanceExperiment,
       updateExampleData,
       updateInstance,
     ]
@@ -1207,12 +1216,9 @@ export function PlaygroundDatasetExamplesTable({
           });
           return;
         }
-        updateInstance({
-          instanceId,
-          patch: {
-            experimentId: response.chatCompletionOverDataset.experimentId,
-          },
-          dirty: null,
+        setInstanceExperiment(instanceId, {
+          id: response.chatCompletionOverDataset.experimentId,
+          isEphemeral: !recordExperiments,
         });
         setExampleDataForInstance({
           instanceId,
@@ -1273,11 +1279,7 @@ export function PlaygroundDatasetExamplesTable({
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
         const { activeRunId } = instance;
-        updateInstance({
-          instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
+        setInstanceExperiment(instance.id, null);
         if (activeRunId === null) {
           continue;
         }
@@ -1348,11 +1350,7 @@ export function PlaygroundDatasetExamplesTable({
         if (activeRunId === null) {
           continue;
         }
-        updateInstance({
-          instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
+        setInstanceExperiment(instance.id, null);
 
         // Initialize progress for this instance (non-streaming mode)
         initExperimentRunProgress(instance.id, {
@@ -1523,7 +1521,7 @@ export function PlaygroundDatasetExamplesTable({
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
       const isRunning = instance.activeRunId !== null;
-      const experimentId = instance.experimentId;
+      const experimentId = instance.experiment?.id ?? null;
       return {
         id: `instance-${instance.id}`,
         header: () => (

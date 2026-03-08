@@ -10,6 +10,8 @@ import {
   Timer,
   View,
 } from "@phoenix/components";
+import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
+import { Switch } from "@phoenix/components/core/switch";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
@@ -40,11 +42,19 @@ export function PlaygroundExperimentToolbar({
   query,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
+  );
+  const setRecordExperiments = usePlaygroundContext(
+    (state) => state.setRecordExperiments
+  );
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
     return instances
-      .map((instance) => instance.experimentId)
-      .filter((id) => id != null);
+      .filter(
+        (instance) => instance.experiment && !instance.experiment.isEphemeral
+      )
+      .map((instance) => instance.experiment!.id);
   }, [instances]);
   return (
     <View
@@ -61,12 +71,6 @@ export function PlaygroundExperimentToolbar({
           <Heading level={2} weight="heavy">
             Experiment
           </Heading>
-          {isRunning ? (
-            <Flex alignItems="center" gap="size-100">
-              <RecordIcon isActive />
-              <Timer size="S" color="text-700" />
-            </Flex>
-          ) : null}
           {experimentIds.length > 0 && !isRunning ? (
             <ExternalLinkButton
               size="S"
@@ -80,6 +84,24 @@ export function PlaygroundExperimentToolbar({
           ) : null}
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
+          {isRunning ? (
+            <Flex alignItems="center" gap="size-100">
+              {recordExperiments ? (
+                <RecordIcon isActive />
+              ) : (
+                <ProgressCircle isIndeterminate size="S" />
+              )}
+              <Timer size="S" color="text-700" />
+            </Flex>
+          ) : (
+            <Switch
+              isSelected={recordExperiments}
+              onChange={setRecordExperiments}
+              labelPlacement="start"
+            >
+              Record
+            </Switch>
+          )}
           <PlaygroundEvaluatorSelect
             evaluators={datasetEvaluators}
             selectedIds={selectedDatasetEvaluatorIds}
