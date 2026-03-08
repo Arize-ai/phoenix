@@ -884,7 +884,6 @@ export function PlaygroundDatasetExamplesTable({
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
 
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const setInstanceExperiment = usePlaygroundContext(
     (state) => state.setInstanceExperiment
   );
@@ -1131,7 +1130,6 @@ export function PlaygroundDatasetExamplesTable({
       playgroundStore,
       setInstanceExperiment,
       updateExampleData,
-      updateInstance,
     ]
   );
 
@@ -1256,7 +1254,6 @@ export function PlaygroundDatasetExamplesTable({
       setExampleDataForInstance,
       setInstanceExperiment,
       setRepetitions,
-      updateInstance,
     ]
   );
 
@@ -1264,7 +1261,7 @@ export function PlaygroundDatasetExamplesTable({
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming, updateInstance } = playgroundStore.getState();
+    const { instances, streaming } = playgroundStore.getState();
     resetPendingExperimentMetrics();
     resetData();
 
@@ -1419,6 +1416,7 @@ export function PlaygroundDatasetExamplesTable({
     playgroundStore,
     repetitions,
     resetData,
+    setInstanceExperiment,
     setRepetitions,
   ]);
 
