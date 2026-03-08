@@ -135,6 +135,12 @@ spans = client.spans.get_spans(
     end_time=datetime.now()
 )
 
+# Filter spans by trace IDs
+spans = client.spans.get_spans(
+    project_identifier="my-llm-app",
+    trace_ids=["trace-abc-123", "trace-def-456"],
+)
+
 # Get spans as pandas DataFrame for analysis
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-llm-app",
