@@ -82,7 +82,14 @@ export const initializeSpanTools = ({
       cursor: z.string().optional(),
       limit: z.number().min(1).max(1000).default(100).optional(),
     },
-    async ({ projectName, startTime, endTime, traceIds, cursor, limit = 100 }) => {
+    async ({
+      projectName,
+      startTime,
+      endTime,
+      traceIds,
+      cursor,
+      limit = 100,
+    }) => {
       const params: NonNullable<
         Types["V1"]["operations"]["getSpans"]["parameters"]["query"]
       > = {
