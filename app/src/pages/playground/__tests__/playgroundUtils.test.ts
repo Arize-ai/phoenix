@@ -1375,6 +1375,11 @@ describe("getToolsFromAttributes", () => {
     FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
     MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    PERPLEXITY: [
+      "PERPLEXITY",
+      testSpanOpenAITool,
+      testSpanOpenAIToolJsonSchema,
+    ],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(
