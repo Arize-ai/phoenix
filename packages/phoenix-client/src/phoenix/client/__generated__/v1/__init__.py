@@ -393,17 +393,6 @@ class PromptPerplexityInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
-class PromptTogetherInvocationParametersContent(TypedDict):
-    temperature: NotRequired[float]
-    max_tokens: NotRequired[int]
-    max_completion_tokens: NotRequired[int]
-    frequency_penalty: NotRequired[float]
-    presence_penalty: NotRequired[float]
-    top_p: NotRequired[float]
-    seed: NotRequired[int]
-    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
-
-
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
     name: str
     description: NotRequired[str]
@@ -414,6 +403,17 @@ class PromptResponseFormatJSONSchemaDefinition(TypedDict):
 class PromptStringTemplate(TypedDict):
     type: Literal["string"]
     template: str
+
+
+class PromptTogetherInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
 class PromptToolChoiceNone(TypedDict):
@@ -850,14 +850,14 @@ class PromptPerplexityInvocationParameters(TypedDict):
     perplexity: PromptPerplexityInvocationParametersContent
 
 
-class PromptTogetherInvocationParameters(TypedDict):
-    type: Literal["together"]
-    together: PromptTogetherInvocationParametersContent
-
-
 class PromptResponseFormatJSONSchema(TypedDict):
     type: Literal["json_schema"]
     json_schema: PromptResponseFormatJSONSchemaDefinition
+
+
+class PromptTogetherInvocationParameters(TypedDict):
+    type: Literal["together"]
+    together: PromptTogetherInvocationParametersContent
 
 
 class PromptToolFunction(TypedDict):

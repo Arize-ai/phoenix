@@ -6958,7 +6958,8 @@
           "FIREWORKS",
           "GROQ",
           "MOONSHOT",
-          "PERPLEXITY"
+          "PERPLEXITY",
+          "TOGETHER"
         ],
         "title": "ModelProvider"
       },
@@ -8672,6 +8673,72 @@
         ],
         "title": "PromptTemplateType"
       },
+      "PromptTogetherInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "together",
+            "title": "Type"
+          },
+          "together": {
+            "$ref": "#/components/schemas/PromptTogetherInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "together"
+        ],
+        "title": "PromptTogetherInvocationParameters"
+      },
+      "PromptTogetherInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptTogetherInvocationParametersContent"
+      },
       "PromptToolChoiceNone": {
         "properties": {
           "type": {
@@ -8931,6 +8998,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptPerplexityInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -8949,6 +9019,7 @@
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
+                "together": "#/components/schemas/PromptTogetherInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
@@ -9085,6 +9156,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptPerplexityInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -9103,6 +9177,7 @@
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
+                "together": "#/components/schemas/PromptTogetherInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
