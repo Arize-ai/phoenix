@@ -135,6 +135,23 @@ spans = client.spans.get_spans(
     end_time=datetime.now()
 )
 
+# Retrieve all spans belonging to specific traces
+# (requires Phoenix server >= 13.9.0)
+spans = client.spans.get_spans(
+    project_identifier="my-llm-app",
+    trace_ids=["trace-abc-123", "trace-def-456"],
+)
+
+# Pull a single trace's full span tree
+trace_id = "abc123"
+trace_spans = client.spans.get_spans(
+    project_identifier="my-llm-app",
+    trace_ids=[trace_id],
+)
+for span in trace_spans:
+    parent = span.get("parent_id", "root")
+    print(f"  {span['name']} (parent={parent}, status={span['status_code']})")
+
 # Get spans as pandas DataFrame for analysis
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-llm-app",

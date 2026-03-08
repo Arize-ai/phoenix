@@ -423,6 +423,7 @@ class Spans:
         project_identifier: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
+        trace_ids: Optional[Sequence[str]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -435,6 +436,7 @@ class Spans:
                 (inclusive lower bound).
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
+            trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -460,6 +462,8 @@ class Spans:
                 params["start_time"] = start_time.isoformat()
             if end_time:
                 params["end_time"] = end_time.isoformat()
+            if trace_ids:
+                params["trace_id"] = list(trace_ids)
             if cursor:
                 params["cursor"] = cursor
 
@@ -1648,6 +1652,7 @@ class AsyncSpans:
         project_identifier: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
+        trace_ids: Optional[Sequence[str]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1660,6 +1665,7 @@ class AsyncSpans:
                 (inclusive lower bound).
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
+            trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -1685,6 +1691,8 @@ class AsyncSpans:
                 params["start_time"] = start_time.isoformat()
             if end_time:
                 params["end_time"] = end_time.isoformat()
+            if trace_ids:
+                params["trace_id"] = list(trace_ids)
             if cursor:
                 params["cursor"] = cursor
 

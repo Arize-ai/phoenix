@@ -18,6 +18,8 @@ export interface GetSpansParams extends ClientFn {
   cursor?: string | null;
   /** Maximum number of spans to return */
   limit?: number;
+  /** Filter spans by one or more trace IDs */
+  traceIds?: string[] | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -60,6 +62,13 @@ export type GetSpansResult = {
  * });
 
  *
+ * // Get all spans for specific traces (requires Phoenix server >= 13.9.0)
+ * const result = await getSpans({
+ *   client,
+ *   project: { projectName: "my-project" },
+ *   traceIds: ["trace-abc-123", "trace-def-456"],
+ * });
+ *
  * // Paginate through results
  * let cursor: string | undefined;
  * do {
@@ -86,6 +95,7 @@ export async function getSpans({
   limit = 100,
   startTime,
   endTime,
+  traceIds,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
   const projectIdentifier = resolveProjectIdentifier(project);
@@ -105,6 +115,10 @@ export async function getSpans({
 
   if (endTime) {
     params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
+  }
+
+  if (traceIds) {
+    params.trace_id = traceIds;
   }
 
   const { data, error } = await client.GET(

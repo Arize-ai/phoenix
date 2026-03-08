@@ -38,6 +38,7 @@ async function fetchSpans(
   options: {
     startTime?: string;
     endTime?: string;
+    traceIds?: string[];
     limit?: number;
   } = {}
 ): Promise<Span[]> {
@@ -58,6 +59,7 @@ async function fetchSpans(
             limit: pageLimit,
             start_time: options.startTime,
             end_time: options.endTime,
+            trace_id: options.traceIds,
           },
         },
       }
