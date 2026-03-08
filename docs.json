@@ -1089,6 +1089,13 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "03.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/03-2026/03-08-2026-new-playground-providers-and-project-settings",
+                  "docs/phoenix/release-notes/03-2026/03-05-2026-sdk-session-retrieval"
+                ]
+              },
+              {
                 "group": "02.2026",
                 "pages": [
                   "docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api",
