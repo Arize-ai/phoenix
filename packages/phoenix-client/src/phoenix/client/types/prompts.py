@@ -73,6 +73,7 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "PERPLEXITY",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -107,6 +108,7 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "PERPLEXITY",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -123,6 +125,7 @@ class PromptVersion:
             v1.PromptFireworksInvocationParameters,
             v1.PromptGroqInvocationParameters,
             v1.PromptMoonshotInvocationParameters,
+            v1.PromptPerplexityInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -185,6 +188,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptMoonshotInvocationParameters(
                 type="moonshot",
                 moonshot=v1.PromptMoonshotInvocationParametersContent(),
+            )
+        elif model_provider == "PERPLEXITY":
+            self._invocation_parameters = v1.PromptPerplexityInvocationParameters(
+                type="perplexity",
+                perplexity=v1.PromptPerplexityInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -475,6 +483,7 @@ def _to_sdk(
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "PERPLEXITY",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -500,5 +509,7 @@ def _to_sdk(
     if model_provider == "GROQ":
         return "openai"
     if model_provider == "MOONSHOT":
+        return "openai"
+    if model_provider == "PERPLEXITY":
         return "openai"
     assert_never(model_provider)

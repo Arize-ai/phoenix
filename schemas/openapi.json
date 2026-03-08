@@ -6957,7 +6957,8 @@
           "CEREBRAS",
           "FIREWORKS",
           "GROQ",
-          "MOONSHOT"
+          "MOONSHOT",
+          "PERPLEXITY"
         ],
         "title": "ModelProvider"
       },
@@ -8522,6 +8523,72 @@
         "type": "object",
         "title": "PromptOpenAIInvocationParametersContent"
       },
+      "PromptPerplexityInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "perplexity",
+            "title": "Type"
+          },
+          "perplexity": {
+            "$ref": "#/components/schemas/PromptPerplexityInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "perplexity"
+        ],
+        "title": "PromptPerplexityInvocationParameters"
+      },
+      "PromptPerplexityInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptPerplexityInvocationParametersContent"
+      },
       "PromptResponseFormatJSONSchema": {
         "properties": {
           "type": {
@@ -8861,6 +8928,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptMoonshotInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptPerplexityInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -8878,6 +8948,7 @@
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
@@ -9011,6 +9082,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptMoonshotInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptPerplexityInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -9028,6 +9102,7 @@
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
+                "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }

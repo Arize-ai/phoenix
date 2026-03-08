@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<68243498032350da3ed991c2e1777957>>
+ * @generated SignedSource<<616eee91ae4e3a682009583629d37e02>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeModelKind = "BUILT_IN" | "CUSTOM";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "XAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 import { FragmentRefs } from "relay-runtime";
 export type ModelsTable_generativeModels$data = {

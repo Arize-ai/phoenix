@@ -11,7 +11,12 @@ export type PromptModelProvider =
   | "DEEPSEEK"
   | "XAI"
   | "OLLAMA"
-  | "AWS";
+  | "AWS"
+  | "CEREBRAS"
+  | "FIREWORKS"
+  | "GROQ"
+  | "MOONSHOT"
+  | "PERPLEXITY";
 
 /**
  * Supported prompt provider SDKs

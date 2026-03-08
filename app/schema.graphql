@@ -1870,6 +1870,7 @@ enum GenerativeProviderKey {
   FIREWORKS
   GROQ
   MOONSHOT
+  PERPLEXITY
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2019,6 +2020,7 @@ enum ModelProvider {
   FIREWORKS
   GROQ
   MOONSHOT
+  PERPLEXITY
 }
 
 input ModelsInput {
