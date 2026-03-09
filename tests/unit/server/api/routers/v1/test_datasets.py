@@ -1650,58 +1650,46 @@ async def test_upsert_on_datasets_with_single_example(
     assert len({r.dataset_example_id for r in revisions}) == expected_num_examples
 
 
-# ---------------------------------------------------------------------------
-# Deduplication: deleted examples
-# ---------------------------------------------------------------------------
-
-
-async def test_deleting_and_upserting_example_with_id_revives_it(
+@pytest.mark.parametrize(
+    "initial_example, upserted_example, expected_num_examples",
+    [
+        pytest.param(
+            ExampleContent(input={"a": 1}, output={}, external_id="e1"),
+            ExampleContent(input={"a": 1}, output={}, external_id="e1"),
+            1,
+            id="same_existing_id_reuses_example_row",
+        ),
+        pytest.param(
+            ExampleContent(input={"a": 1}, output={}),
+            ExampleContent(input={"a": 1}, output={}),
+            2,
+            id="no_ids_adds_new_example_row",
+        ),
+        pytest.param(
+            ExampleContent(input={"a": 1}, output={}, external_id="e1"),
+            ExampleContent(input={"a": 1}, output={}),
+            2,
+            id="dropping_id_adds_new_example_row",
+        ),
+        pytest.param(
+            ExampleContent(input={"a": 1}, output={}),
+            ExampleContent(input={"a": 1}, output={}, external_id="e1"),
+            2,
+            id="adding_id_adds_new_example_row",
+        ),
+    ],
+)
+async def test_deleting_and_upserting_examples(
+    initial_example: ExampleContent,
+    upserted_example: ExampleContent,
+    expected_num_examples: int,
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = "ds"
-    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    await _upsert(httpx_client, name, [])  # delete example
-    await _upsert(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-
-    async with db() as session:
-        examples = list(
-            await session.scalars(
-                select(models.DatasetExample)
-                .join(models.Dataset)
-                .where(models.Dataset.name == name)
-                .where(models.DatasetExample.external_id == "e1")
-            )
-        )
-        revisions = list(
-            await session.scalars(
-                select(models.DatasetExampleRevision)
-                .join(models.DatasetExample)
-                .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
-                .where(models.Dataset.name == name)
-                .order_by(models.DatasetExampleRevision.id)
-            )
-        )
-
-    assert len(examples) == 1
-    kinds = [r.revision_kind for r in revisions]
-    assert kinds.count("CREATE") == 2
-    assert kinds.count("DELETE") == 1
-
-
-async def test_upsert_deleted_no_ext_id_example_recreated_on_upsert(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """Deleted example (no ext_id) → upserting same content creates a new DatasetExample."""
-    name = "ds"
-    ex = ExampleContent(input={"a": 1}, output={})
-    # 1. Create example
-    await _append(httpx_client, name, [ex])
-    # 2. Upsert with different content → original gets DELETE
-    await _upsert(httpx_client, name, [ExampleContent(input={"z": 99}, output={})])
-    # 3. Upsert original content again → deleted example absent from active → CREATE new row
-    await _upsert(httpx_client, name, [ex])
+    await _append(httpx_client, name, [initial_example])
+    await _upsert(httpx_client, name, [])  # delete
+    await _upsert(httpx_client, name, [upserted_example])
 
     async with db() as session:
         all_examples = list(
@@ -1711,21 +1699,12 @@ async def test_upsert_deleted_no_ext_id_example_recreated_on_upsert(
                 .where(models.Dataset.name == name)
             )
         )
-        revisions = list(
-            await session.scalars(
-                select(models.DatasetExampleRevision)
-                .join(models.DatasetExample)
-                .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
-                .where(models.Dataset.name == name)
-                .order_by(models.DatasetExampleRevision.id)
-            )
-        )
 
-    # At least 2 DatasetExample rows (original + new)
-    assert len(all_examples) >= 2
+    revisions = await _get_revisions(db, name)
+    assert len(all_examples) == expected_num_examples
     kinds = [r.revision_kind for r in revisions]
-    assert kinds.count("CREATE") >= 2
-    assert "DELETE" in kinds
+    assert kinds.count("CREATE") == 2
+    assert kinds.count("DELETE") == 1
 
 
 # ---------------------------------------------------------------------------
