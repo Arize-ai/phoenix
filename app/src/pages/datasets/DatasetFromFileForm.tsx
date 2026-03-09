@@ -307,6 +307,17 @@ export function DatasetFromFileForm({
             setPreviewRows(result.previewRows);
             setTotalRowCount(result.totalRowCount);
             setErrorMessage(null);
+            // Auto-assign columns based on name heuristics
+            const autoAssigned = computeAutoAssignment(result.columns);
+            setValue("input_keys", autoAssigned.input, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            setValue("output_keys", autoAssigned.output, { shouldDirty: true });
+            setValue("metadata_keys", autoAssigned.metadata, {
+              shouldDirty: true,
+            });
+            setValue("split_keys", autoAssigned.split, { shouldDirty: true });
           } else if (detectedType === "jsonl") {
             // Single-pass parsing: extracts keys, preview rows, and count
             const result = await parseJSONLFile(file, PREVIEW_ROW_COUNT);
@@ -316,6 +327,19 @@ export function DatasetFromFileForm({
               setPreviewRows(result.previewRows);
               setTotalRowCount(result.totalRowCount);
               setErrorMessage(null);
+              // Auto-assign columns based on name heuristics
+              const autoAssigned = computeAutoAssignment(result.keys);
+              setValue("input_keys", autoAssigned.input, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("output_keys", autoAssigned.output, {
+                shouldDirty: true,
+              });
+              setValue("metadata_keys", autoAssigned.metadata, {
+                shouldDirty: true,
+              });
+              setValue("split_keys", autoAssigned.split, { shouldDirty: true });
             } else {
               setColumns([]);
               setPreviewRows([]);

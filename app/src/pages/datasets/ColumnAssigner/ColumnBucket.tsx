@@ -10,14 +10,13 @@ const bucketBaseCSS = css`
   display: flex;
   flex-direction: column;
   padding: var(--global-dimension-size-100);
-  border: 1px solid var(--global-color-gray-400);
+  border: 2px solid var(--global-color-gray-400);
   border-radius: var(--global-rounding-medium);
   background-color: var(--global-background-color-100);
   overflow: hidden;
 
   &[data-drop-target="true"] {
     border-color: var(--global-color-primary);
-    border-width: 2px;
     background-color: var(--global-background-color-200);
   }
 
@@ -58,6 +57,18 @@ const sourceChipsContainerCSS = css`
   flex-direction: row;
   flex-wrap: wrap;
   gap: var(--global-dimension-size-50);
+`;
+
+const emptyStateCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: var(--global-dimension-size-200);
+  color: var(--global-text-color-500);
+  font-size: var(--global-font-size-s);
+  font-style: italic;
+  text-align: center;
 `;
 
 export type ColumnBucketProps = {
@@ -195,15 +206,19 @@ export function ColumnBucket({
         css={isSource ? sourceChipsContainerCSS : chipsContainerCSS}
         ref={chipsContainerRef}
       >
-        {columns.map((column, index) => (
-          <ColumnChip
-            key={column}
-            column={column}
-            tabIndex={focusedIndex === index ? 0 : -1}
-            onFocus={() => handleChipFocus(index)}
-            isAssigned={!isSource}
-          />
-        ))}
+        {columns.length === 0 && !isSource ? (
+          <div css={emptyStateCSS}>Drag columns here</div>
+        ) : (
+          columns.map((column, index) => (
+            <ColumnChip
+              key={column}
+              column={column}
+              tabIndex={focusedIndex === index ? 0 : -1}
+              onFocus={() => handleChipFocus(index)}
+              isAssigned={!isSource}
+            />
+          ))
+        )}
       </div>
     </div>
   );
