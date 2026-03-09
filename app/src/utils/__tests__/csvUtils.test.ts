@@ -1,6 +1,6 @@
 import {
   findCompleteCSVRowEnd,
-  parseCSVColumns,
+  parseCSVFile,
   parseCSVRow,
   removeBOM,
 } from "../csvUtils";
@@ -92,40 +92,93 @@ describe("parseCSVRow", () => {
   });
 });
 
-describe("parseCSVColumns", () => {
-  it("parses header row from CSV text", async () => {
-    const file = createFile("a,b,c\n1,2,3\n4,5,6");
-    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
+describe("parseCSVFile", () => {
+  it("parses header row, preview rows, and total count", async () => {
+    const file = createFile("a,b,c\n1,2,3\n4,5,6\n7,8,9");
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["a", "b", "c"]);
+    expect(result.previewRows).toEqual([
+      ["1", "2", "3"],
+      ["4", "5", "6"],
+      ["7", "8", "9"],
+    ]);
+    expect(result.totalRowCount).toBe(3);
   });
 
   it("handles Windows line endings", async () => {
     const file = createFile("a,b,c\r\n1,2,3\r\n4,5,6");
-    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["a", "b", "c"]);
+    expect(result.previewRows).toEqual([
+      ["1", "2", "3"],
+      ["4", "5", "6"],
+    ]);
+    expect(result.totalRowCount).toBe(2);
   });
 
   it("handles BOM at start of file", async () => {
     const file = createFile("\uFEFFa,b,c\n1,2,3");
-    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["a", "b", "c"]);
+    expect(result.previewRows).toEqual([["1", "2", "3"]]);
   });
 
   it("handles quoted column names", async () => {
     const file = createFile('"Column A","Column, B"\n1,2');
-    expect(await parseCSVColumns(file)).toEqual(["Column A", "Column, B"]);
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["Column A", "Column, B"]);
   });
 
   it("handles quoted column names containing newlines", async () => {
     const file = createFile('"Column\nA","Column B"\n1,2');
-    expect(await parseCSVColumns(file)).toEqual(["Column\nA", "Column B"]);
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["Column\nA", "Column B"]);
   });
 
   it("throws for empty input", async () => {
     const file = createFile("");
-    await expect(parseCSVColumns(file)).rejects.toThrow("CSV file is empty");
+    await expect(parseCSVFile(file)).rejects.toThrow("CSV file is empty");
   });
 
   it("handles single line CSV (header only)", async () => {
     const file = createFile("a,b,c");
-    expect(await parseCSVColumns(file)).toEqual(["a", "b", "c"]);
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["a", "b", "c"]);
+    expect(result.previewRows).toEqual([]);
+    expect(result.totalRowCount).toBe(0);
+  });
+
+  it("limits preview rows to maxPreviewRows", async () => {
+    const rows = ["a,b,c"];
+    for (let i = 0; i < 20; i++) {
+      rows.push(`${i},${i + 1},${i + 2}`);
+    }
+    const file = createFile(rows.join("\n"));
+    const result = await parseCSVFile(file, 5);
+    expect(result.previewRows.length).toBe(5);
+    expect(result.totalRowCount).toBe(20);
+  });
+
+  it("counts all rows even when limiting preview", async () => {
+    const rows = ["header"];
+    for (let i = 0; i < 100; i++) {
+      rows.push(`row${i}`);
+    }
+    const file = createFile(rows.join("\n"));
+    const result = await parseCSVFile(file, 3);
+    expect(result.previewRows.length).toBe(3);
+    expect(result.totalRowCount).toBe(100);
+  });
+
+  it("handles file without trailing newline", async () => {
+    const file = createFile("a,b\n1,2\n3,4");
+    const result = await parseCSVFile(file);
+    expect(result.columns).toEqual(["a", "b"]);
+    expect(result.previewRows).toEqual([
+      ["1", "2"],
+      ["3", "4"],
+    ]);
+    expect(result.totalRowCount).toBe(2);
   });
 });
 

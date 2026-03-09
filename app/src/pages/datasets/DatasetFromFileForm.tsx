@@ -22,17 +22,8 @@ import {
   type FileWithProgress,
 } from "@phoenix/components/core/dropzone";
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
-import {
-  countCSVRows,
-  parseCSVColumns,
-  parseCSVRows,
-} from "@phoenix/utils/csvUtils";
-import {
-  countJSONLRows,
-  formatJSONLError,
-  parseJSONLKeys,
-  parseJSONLRows,
-} from "@phoenix/utils/jsonlUtils";
+import { parseCSVFile } from "@phoenix/utils/csvUtils";
+import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -110,6 +101,8 @@ function detectFileType(fileName: string): DatasetFileType {
 
 const ACCEPTED_FILE_TYPES = [".csv", ".jsonl"];
 const PREVIEW_ROW_COUNT = 10;
+/** Maximum file size: 100MB */
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 const formContainerCSS = css`
   display: flex;
@@ -120,8 +113,10 @@ const formContainerCSS = css`
 
 const emptyStateCSS = css`
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   padding: var(--global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
 `;
 
 const largeDropZoneCSS = css`
@@ -310,18 +305,14 @@ export function DatasetFromFileForm({
         setIsParsing(true);
         try {
           if (detectedType === "csv") {
-            // Parse columns, preview rows, and count total in parallel
-            const [columnNames, rows, rowCount] = await Promise.all([
-              parseCSVColumns(file),
-              parseCSVRows(file, PREVIEW_ROW_COUNT),
-              countCSVRows(file),
-            ]);
+            // Single-pass parsing: extracts columns, preview rows, and count
+            const result = await parseCSVFile(file, PREVIEW_ROW_COUNT);
             if (generation !== parseGeneration.current) return;
-            setColumns(columnNames);
-            setPreviewRows(rows);
-            setTotalRowCount(rowCount);
+            setColumns(result.columns);
+            setPreviewRows(result.previewRows);
+            setTotalRowCount(result.totalRowCount);
             // Auto-assign columns based on naming patterns
-            const autoAssigned = computeAutoAssignment(columnNames);
+            const autoAssigned = computeAutoAssignment(result.columns);
             setValue("input_keys", autoAssigned.input, {
               shouldDirty: true,
               shouldValidate: true,
@@ -333,20 +324,15 @@ export function DatasetFromFileForm({
             setValue("split_keys", autoAssigned.split, { shouldDirty: true });
             setErrorMessage(null);
           } else if (detectedType === "jsonl") {
-            // Parse keys first, then rows and count
-            const keysResult = await parseJSONLKeys(file);
+            // Single-pass parsing: extracts keys, preview rows, and count
+            const result = await parseJSONLFile(file, PREVIEW_ROW_COUNT);
             if (generation !== parseGeneration.current) return;
-            if (keysResult.success) {
-              setColumns(keysResult.keys);
-              const [rows, rowCount] = await Promise.all([
-                parseJSONLRows(file, PREVIEW_ROW_COUNT),
-                countJSONLRows(file),
-              ]);
-              if (generation !== parseGeneration.current) return;
-              setPreviewRows(rows);
-              setTotalRowCount(rowCount);
+            if (result.success) {
+              setColumns(result.keys);
+              setPreviewRows(result.previewRows);
+              setTotalRowCount(result.totalRowCount);
               // Auto-assign columns based on naming patterns
-              const autoAssigned = computeAutoAssignment(keysResult.keys);
+              const autoAssigned = computeAutoAssignment(result.keys);
               setValue("input_keys", autoAssigned.input, {
                 shouldDirty: true,
                 shouldValidate: true,
@@ -365,7 +351,7 @@ export function DatasetFromFileForm({
               setColumns([]);
               setPreviewRows([]);
               setTotalRowCount(null);
-              setErrorMessage(formatJSONLError(keysResult.error));
+              setErrorMessage(formatJSONLError(result.error));
             }
           }
         } catch (error) {
@@ -394,6 +380,15 @@ export function DatasetFromFileForm({
       }
     },
     [processFile]
+  );
+
+  const handleFileSelectRejected = useCallback(
+    (rejections: { file: File; reason: string; message: string }[]) => {
+      if (rejections.length > 0) {
+        setErrorMessage(rejections[0].message);
+      }
+    },
+    []
   );
 
   const handleFileRemove = useCallback(() => {
@@ -520,12 +515,19 @@ export function DatasetFromFileForm({
   if (!selectedFile) {
     return (
       <div css={emptyStateCSS}>
+        {errorMessage && (
+          <Alert variant="danger" banner>
+            {errorMessage}
+          </Alert>
+        )}
         <FileDropZone
           css={largeDropZoneCSS}
           acceptedFileTypes={ACCEPTED_FILE_TYPES}
+          maxFileSize={MAX_FILE_SIZE}
           onSelect={handleFileSelect}
+          onSelectRejected={handleFileSelectRejected}
           label="Drop a CSV or JSONL file here"
-          description="or click to browse"
+          description="or click to browse (max 100MB)"
         />
       </div>
     );
