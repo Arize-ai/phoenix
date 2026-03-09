@@ -1,10 +1,4 @@
-export const COLUMN_BUCKETS = [
-  "source",
-  "input",
-  "output",
-  "metadata",
-] as const;
-export type ColumnBucket = (typeof COLUMN_BUCKETS)[number];
+export type ColumnBucket = "source" | "input" | "output" | "metadata";
 
 const INPUT_NAMES = new Set(["input", "query", "question", "prompt"]);
 const OUTPUT_NAMES = new Set([
