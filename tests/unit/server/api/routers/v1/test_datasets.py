@@ -1472,90 +1472,73 @@ async def test_post_dataset_upload_append_with_splits(
 # ---------------------------------------------------------------------------
 
 
-async def test_upsert_duplicate_external_ids_in_request_returns_422(
+@pytest.mark.parametrize("sync", [True, False])
+@pytest.mark.parametrize(
+    "request_body,expected_error",
+    [
+        pytest.param(
+            {
+                "action": "upsert",
+                "name": "ds",
+                "inputs": [{"a": 1}, {"a": 2}],
+                "external_ids": ["same-id", "same-id"],
+            },
+            "Duplicate external_id in request: 'same-id'",
+            id="duplicate_external_ids",
+        ),
+        pytest.param(
+            {
+                "action": "upsert",
+                "name": "ds",
+                "inputs": [{"a": 1}, {"a": 2}],
+                "outputs": [{"b": 1}],
+            },
+            "outputs should be a list of same length as input",
+            id="outputs_length_mismatch",
+        ),
+        pytest.param(
+            {
+                "action": "upsert",
+                "name": "ds",
+                "inputs": [{"a": 1}, {"a": 2}],
+                "metadata": [{"m": 1}],
+            },
+            "metadata should be a list of same length as input",
+            id="metadata_length_mismatch",
+        ),
+        pytest.param(
+            {
+                "action": "upsert",
+                "name": "ds",
+                "inputs": [{"a": 1}, {"a": 2}],
+                "external_ids": ["e1"],
+            },
+            "external_ids must have same length as inputs",
+            id="external_ids_length_mismatch",
+        ),
+        pytest.param(
+            {"action": "upsert", "inputs": [{"a": 1}]},
+            "Dataset name is required",
+            id="missing_name",
+        ),
+        pytest.param(
+            {"action": "upsert", "name": "ds"},
+            "input is required",
+            id="missing_inputs",
+        ),
+    ],
+)
+async def test_upsert_invalid_request_returns_422(
     httpx_client: httpx.AsyncClient,
+    request_body: dict[str, Any],
+    expected_error: str,
+    sync: bool,
 ) -> None:
     response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "name": "ds",
-            "inputs": [{"a": 1}, {"a": 2}],
-            "external_ids": ["same-id", "same-id"],
-        },
+        f"v1/datasets/upload?sync={str(sync).lower()}", json=request_body
     )
     assert response.status_code == 422
-
-
-async def test_upsert_outputs_length_mismatch_with_inputs_returns_422(
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "name": "ds",
-            "inputs": [{"a": 1}, {"a": 2}],
-            "outputs": [{"b": 1}],
-        },
-    )
-    assert response.status_code == 422
-
-
-async def test_upsert_metadata_length_mismatch_with_inputs_returns_422(
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "name": "ds",
-            "inputs": [{"a": 1}, {"a": 2}],
-            "metadata": [{"m": 1}],
-        },
-    )
-    assert response.status_code == 422
-
-
-async def test_upsert_external_ids_length_mismatch_with_inputs_returns_422(
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "name": "ds",
-            "inputs": [{"a": 1}, {"a": 2}],
-            "external_ids": ["e1"],
-        },
-    )
-    assert response.status_code == 422
-
-
-async def test_upsert_missing_name_returns_422(
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "inputs": [{"a": 1}],
-        },
-    )
-    assert response.status_code == 422
-
-
-async def test_upsert_missing_inputs_returns_422(
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "name": "ds",
-        },
-    )
-    assert response.status_code == 422
+    assert expected_error in response.text
 
 
 async def test_upsert_empty_examples_list_does_not_create_new_version(
