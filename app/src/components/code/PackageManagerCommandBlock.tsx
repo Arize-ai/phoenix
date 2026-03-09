@@ -13,9 +13,28 @@ import { classNames } from "@phoenix/utils/classNames";
 import { BashBlock } from "./BashBlock";
 import { codeBlockWithCopyCSS } from "./styles";
 
-type PackageManagerCommandOption = {
-  id: string;
-  label: string;
+/**
+ * A package manager shown in the command toggle.
+ *
+ * The value is used for:
+ * - toggle identity (`id`)
+ * - visible button text
+ * - accessibility label
+ * - command generation
+ */
+type PackageManager = "npm" | "pnpm" | "bun" | "pip" | "uv";
+
+/**
+ * One selectable command preset for the package manager toggle.
+ */
+type InstallCommandOption = {
+  /**
+   * The package manager represented by this option.
+   */
+  packageManager: PackageManager;
+  /**
+   * The full command string copied/rendered when selected.
+   */
   command: string;
 };
 
@@ -27,23 +46,20 @@ function assertPackages(packages: readonly string[]) {
 
 function getTypeScriptInstallCommandOptions(
   packages: readonly string[]
-): PackageManagerCommandOption[] {
+): InstallCommandOption[] {
   assertPackages(packages);
   const dependencyList = packages.join(" ");
   return [
     {
-      id: "npm",
-      label: "npm",
+      packageManager: "npm",
       command: `npm install ${dependencyList}`,
     },
     {
-      id: "pnpm",
-      label: "pnpm",
+      packageManager: "pnpm",
       command: `pnpm add ${dependencyList}`,
     },
     {
-      id: "bun",
-      label: "bun",
+      packageManager: "bun",
       command: `bun add ${dependencyList}`,
     },
   ];
@@ -51,18 +67,16 @@ function getTypeScriptInstallCommandOptions(
 
 function getPythonInstallCommandOptions(
   packages: readonly string[]
-): PackageManagerCommandOption[] {
+): InstallCommandOption[] {
   assertPackages(packages);
   const dependencyList = packages.join(" ");
   return [
     {
-      id: "pip",
-      label: "pip",
+      packageManager: "pip",
       command: `pip install ${dependencyList}`,
     },
     {
-      id: "uv",
-      label: "uv",
+      packageManager: "uv",
       command: `uv add ${dependencyList}`,
     },
   ];
@@ -114,12 +128,12 @@ type PackageManagerCommandBlockProps = {
 };
 
 function getInitialSelectedKey(
-  options: readonly PackageManagerCommandOption[]
+  options: readonly InstallCommandOption[]
 ): string {
   if (options.length === 0) {
     throw new Error("Expected at least one package manager option");
   }
-  return options[0].id;
+  return options[0].packageManager;
 }
 
 function getSelectedKey(selection: Set<Key> | "all"): string | null {
@@ -134,7 +148,7 @@ export function PackageManagerCommandBlock({
   packages,
   className,
 }: PackageManagerCommandBlockProps) {
-  const options: readonly PackageManagerCommandOption[] =
+  const options: readonly InstallCommandOption[] =
     language === "TypeScript"
       ? getTypeScriptInstallCommandOptions(packages)
       : getPythonInstallCommandOptions(packages);
@@ -142,7 +156,7 @@ export function PackageManagerCommandBlock({
     getInitialSelectedKey(options)
   );
   const selectedCommand =
-    options.find((option) => option.id === selectedKey)?.command ??
+    options.find((option) => option.packageManager === selectedKey)?.command ??
     options[0]?.command ??
     "";
 
@@ -163,19 +177,19 @@ export function PackageManagerCommandBlock({
             if (nextKey == null) {
               return;
             }
-            if (options.some((option) => option.id === nextKey)) {
+            if (options.some((option) => option.packageManager === nextKey)) {
               setSelectedKey(nextKey);
             }
           }}
         >
           {options.map((option) => (
             <ToggleButton
-              key={option.id}
-              id={option.id}
-              aria-label={option.label}
+              key={option.packageManager}
+              id={option.packageManager}
+              aria-label={option.packageManager}
               className="package-manager-command__toggle"
             >
-              {option.label}
+              {option.packageManager}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
