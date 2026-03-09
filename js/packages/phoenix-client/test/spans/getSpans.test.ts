@@ -2,44 +2,47 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getSpans } from "../../src/spans/getSpans";
 
-// Mock the fetch module
+// Mock the fetch module with an inspectable mock
+const mockGet = vi.fn();
 vi.mock("openapi-fetch", () => ({
   default: () => ({
-    GET: vi.fn().mockResolvedValue({
-      data: {
-        next_cursor: "next-cursor-123",
-        data: [
-          {
-            id: "span-global-id-123",
-            name: "test-span",
-            context: {
-              trace_id: "trace-123",
-              span_id: "span-456",
-            },
-            span_kind: "INTERNAL",
-            parent_id: null,
-            start_time: "2022-01-01T00:00:00Z",
-            end_time: "2022-01-01T00:00:01Z",
-            status_code: "OK",
-            status_message: "",
-            attributes: {
-              "test.attribute": "test-value",
-              "http.method": "GET",
-            },
-            events: [],
-          },
-        ],
-      },
-      error: null,
-    }),
+    GET: mockGet,
     use: () => {},
   }),
 }));
 
+const defaultMockResponse = {
+  data: {
+    next_cursor: "next-cursor-123",
+    data: [
+      {
+        id: "span-global-id-123",
+        name: "test-span",
+        context: {
+          trace_id: "trace-123",
+          span_id: "span-456",
+        },
+        span_kind: "INTERNAL",
+        parent_id: null,
+        start_time: "2022-01-01T00:00:00Z",
+        end_time: "2022-01-01T00:00:01Z",
+        status_code: "OK",
+        status_message: "",
+        attributes: {
+          "test.attribute": "test-value",
+          "http.method": "GET",
+        },
+        events: [],
+      },
+    ],
+  },
+  error: null,
+};
+
 describe("getSpans", () => {
   beforeEach(() => {
-    // Clear all mocks before each test
     vi.clearAllMocks();
+    mockGet.mockResolvedValue(defaultMockResponse);
   });
 
   it("should get spans with basic parameters", async () => {
@@ -87,5 +90,62 @@ describe("getSpans", () => {
     });
 
     expect(result.spans).toHaveLength(1);
+  });
+
+  describe("parentId parameter", () => {
+    it('should send parent_id="null" to get root spans only', async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        parentId: "null",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              parent_id: "null",
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send parent_id with a span ID to get children", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        parentId: "span-abc-123",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              parent_id: "span-abc-123",
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should not send parent_id when parentId is undefined", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query).not.toHaveProperty("parent_id");
+    });
+
+    it('should send parent_id="null" when parentId is JS null (root spans)', async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        parentId: null,
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query.parent_id).toBe("null");
+    });
   });
 });
