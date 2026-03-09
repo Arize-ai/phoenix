@@ -86,8 +86,14 @@ class GetSessionsResponseBody(PaginatedResponseBody[SessionData]):
     pass
 
 
-class DeleteSessionsRequestBody(RequestBody[list[str]]):
-    pass
+class DeleteSessionsRequestBody(V1RoutesBaseModel):
+    session_identifiers: list[str] = Field(
+        description=(
+            "List of session identifiers to delete. "
+            "All identifiers must be the same type: either all GlobalIDs "
+            "or all user-provided session_id strings."
+        ),
+    )
 
 
 async def _get_session_by_identifier(
@@ -212,7 +218,8 @@ async def delete_session(
     operation_id="deleteSessions",
     summary="Bulk delete sessions",
     description=(
-        "Delete multiple sessions by their session_id strings. "
+        "Delete multiple sessions by their identifiers (GlobalIDs or session_id strings). "
+        "All identifiers in a single request must be the same type. "
         "Non-existent IDs are silently skipped. "
         "All associated traces, spans, and annotations are cascade deleted."
     ),
@@ -224,17 +231,40 @@ async def delete_sessions(
     request: Request,
     request_body: DeleteSessionsRequestBody,
 ) -> None:
-    session_ids = request_body.data
-    if not session_ids:
+    identifiers = request_body.session_identifiers
+    if not identifiers:
         raise HTTPException(
             status_code=422,
-            detail="Session ID list must not be empty.",
+            detail="Session identifier list must not be empty.",
+        )
+
+    row_ids: list[int] = []
+    session_ids: list[str] = []
+    for ident in identifiers:
+        row_id = _parse_session_global_id(ident)
+        if row_id is not None:
+            row_ids.append(row_id)
+        else:
+            session_ids.append(ident)
+
+    if row_ids and session_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "All identifiers must be the same type: "
+                "either all GlobalIDs or all session_id strings."
+            ),
         )
 
     async with request.app.state.db() as session:
+        if row_ids:
+            where_clause = models.ProjectSession.id.in_(row_ids)
+        else:
+            where_clause = models.ProjectSession.session_id.in_(session_ids)
+
         delete_stmt = (
             delete(models.ProjectSession)
-            .where(models.ProjectSession.session_id.in_(session_ids))
+            .where(where_clause)
             .returning(models.ProjectSession.project_id)
         )
         result = await session.scalars(delete_stmt)

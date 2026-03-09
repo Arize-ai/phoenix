@@ -88,7 +88,7 @@ class DatasetWithExampleCount(TypedDict):
 
 
 class DeleteSessionsRequestBody(TypedDict):
-    data: Sequence[str]
+    session_identifiers: Sequence[str]
 
 
 class Experiment(TypedDict):
