@@ -1692,7 +1692,7 @@ async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetV
         ),
     ],
 )
-async def test_upsert_dedup_matched_pair(
+async def test_upsert_on_datasets_with_single_example(
     initial: list[ExampleContent],
     upserted: list[ExampleContent],
     expected_num_versions: int,
