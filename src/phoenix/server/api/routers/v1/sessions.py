@@ -172,7 +172,7 @@ async def get_session(
     summary="Delete a session by identifier",
     description=(
         "Delete a session by its identifier. The identifier can be either:\n"
-        "1. A Relay node ID (base64-encoded)\n"
+        "1. A global ID (base64-encoded)\n"
         "2. A user-provided session_id string\n\n"
         "This will permanently remove the session and all associated traces, spans, "
         "and annotations via cascade delete."

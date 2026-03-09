@@ -4365,7 +4365,7 @@
           "sessions"
         ],
         "summary": "Delete a session by identifier",
-        "description": "Delete a session by its identifier. The identifier can be either:\n1. A Relay node ID (base64-encoded)\n2. A user-provided session_id string\n\nThis will permanently remove the session and all associated traces, spans, and annotations via cascade delete.",
+        "description": "Delete a session by its identifier. The identifier can be either:\n1. A global ID (base64-encoded)\n2. A user-provided session_id string\n\nThis will permanently remove the session and all associated traces, spans, and annotations via cascade delete.",
         "operationId": "deleteSession",
         "parameters": [
           {
