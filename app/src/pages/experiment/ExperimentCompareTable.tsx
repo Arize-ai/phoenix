@@ -217,7 +217,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           dataset: node(id: $datasetId) {
             id
             ... on Dataset {
-              experiments(filterIds: $experimentIds) {
+              experiments(filterIds: $experimentIds, includeEphemeral: true) {
                 edges {
                   experiment: node {
                     id
