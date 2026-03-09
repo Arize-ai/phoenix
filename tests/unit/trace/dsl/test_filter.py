@@ -143,6 +143,26 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             if sys.version_info >= (3, 9)
             else "and_((attributes[['attributes']].as_string() == attributes[['attributes']].as_string()), (attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string()))",
         ),
+        (
+            "metadata['is_empty'] == True",
+            "attributes[['metadata', 'is_empty']].as_boolean() == True",
+        ),
+        (
+            "metadata['is_empty'] == False",
+            "attributes[['metadata', 'is_empty']].as_boolean() == False",
+        ),
+        (
+            "True == metadata['is_empty']",
+            "True == attributes[['metadata', 'is_empty']].as_boolean()",
+        ),
+        (
+            "metadata['is_empty'] is True",
+            "attributes[['metadata', 'is_empty']].as_boolean() == True",
+        ),
+        (
+            "metadata['is_empty'] is not False",
+            "attributes[['metadata', 'is_empty']].as_boolean() != False",
+        ),
     ],
 )
 async def test_filter_translated(

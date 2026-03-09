@@ -277,7 +277,15 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
 
 
 def _is_float_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
-    return isinstance(node, ast.Constant) and isinstance(node.value, typing.SupportsFloat)
+    return (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, typing.SupportsFloat)
+        and not isinstance(node.value, bool)
+    )
+
+
+def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
+    return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
 
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
@@ -331,6 +339,24 @@ def _as_float_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call
         func=ast.Attribute(
             value=value,
             attr="as_float",
+            ctx=ast.Load(),
+        ),
+        args=[],
+        keywords=[],
+    )
+
+
+def _as_bool_attribute(node: typing.Union[ast.Subscript, ast.Call]) -> ast.Call:
+    if isinstance(node, ast.Call):
+        value = typing.cast(ast.Attribute, node.func).value
+    elif isinstance(node, ast.Subscript):
+        value = node
+    else:
+        assert_never(node)
+    return ast.Call(
+        func=ast.Attribute(
+            value=value,
+            attr="as_boolean",
             ctx=ast.Load(),
         ),
         args=[],
@@ -453,9 +479,13 @@ class _FilterTranslator(_ProjectionTranslator):
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
         if _is_subscript(left, "attributes"):
-            left = _cast_as("String", left)
+            left = (
+                _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)
+            )
         if _is_subscript(right, "attributes"):
-            right = _cast_as("String", right)
+            right = (
+                _as_bool_attribute(right) if _is_bool_constant(left) else _cast_as("String", right)
+            )
         if _is_float(left) and not _is_float(right):
             right = _cast_as("Float", right)
         elif not _is_float(left) and _is_float(right):
