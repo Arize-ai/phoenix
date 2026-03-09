@@ -1470,6 +1470,7 @@ function TableBody<T>({
                   padding:
                     "var(--global-dimension-size-175) var(--global-dimension-size-200)",
                   verticalAlign: "middle",
+                  overflowWrap: "anywhere",
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}

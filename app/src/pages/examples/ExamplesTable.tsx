@@ -431,6 +431,7 @@ export function ExamplesTable({
                         ...getCommonPinningStyles(cell.column),
                         width: `calc(var(${colSizeVar}) * 1px)`,
                         maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                        overflowWrap: "anywhere",
                         // prevent text selection on the select cell
                         userSelect:
                           cell.column.columnDef.id === "select"
