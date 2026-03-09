@@ -99,6 +99,28 @@ def _convert_output_config_inputs_to_pydantic(
     return [_output_config_input_to_pydantic(c) for c in configs]
 
 
+async def _resolve_sandbox_config(
+    session: AsyncSession,
+    backend_type: Optional[SandboxBackendType],
+) -> tuple[Optional[int], Optional[str]]:
+    """Resolve sandbox config ID and hash from backend type.
+
+    Returns (None, None) for WASM or None backend types (no DB config needed).
+    Raises BadRequest if a non-WASM backend type has no config in the DB.
+    """
+    if backend_type is None or backend_type == SandboxBackendType.WASM:
+        return None, None
+    config_row = await session.scalar(
+        select(models.SandboxConfig).where(models.SandboxConfig.backend_type == backend_type.value)
+    )
+    if config_row is None:
+        raise BadRequest(
+            f"No sandbox configuration found for backend type "
+            f"'{backend_type.value}'. Please configure it in Settings first."
+        )
+    return config_row.id, config_row.config_hash
+
+
 async def _generate_unique_evaluator_name(
     session: AsyncSession,
     base_name: str,
@@ -767,25 +789,11 @@ class EvaluatorMutationMixin:
                 raise BadRequest(str(e))
             output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 
-        sandbox_config_id = None
-        sandbox_config_hash = None
-        backend_type = input.sandbox_backend_type
-
         try:
             async with info.context.db() as session:
-                if backend_type is not None and backend_type != SandboxBackendType.WASM:
-                    config_row = await session.scalar(
-                        select(models.SandboxConfig).where(
-                            models.SandboxConfig.backend_type == backend_type.value
-                        )
-                    )
-                    if config_row is None:
-                        raise BadRequest(
-                            f"No sandbox configuration found for backend type "
-                            f"'{backend_type.value}'. Please configure it in Settings first."
-                        )
-                    sandbox_config_id = config_row.id
-                    sandbox_config_hash = config_row.config_hash
+                sandbox_config_id, sandbox_config_hash = await _resolve_sandbox_config(
+                    session, input.sandbox_backend_type
+                )
 
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
                 code_evaluator = models.CodeEvaluator(
@@ -869,23 +877,11 @@ class EvaluatorMutationMixin:
                 code_evaluator.metadata_ = input.metadata
 
             if input.sandbox_backend_type is not UNSET:
-                backend_type = input.sandbox_backend_type
-                if backend_type is None or backend_type == SandboxBackendType.WASM:
-                    code_evaluator.sandbox_config_id = None
-                    code_evaluator.sandbox_config_hash = None
-                else:
-                    config_row = await session.scalar(
-                        select(models.SandboxConfig).where(
-                            models.SandboxConfig.backend_type == backend_type.value
-                        )
-                    )
-                    if config_row is None:
-                        raise BadRequest(
-                            f"No sandbox configuration found for backend type "
-                            f"'{backend_type.value}'. Please configure it in Settings first."
-                        )
-                    code_evaluator.sandbox_config_id = config_row.id
-                    code_evaluator.sandbox_config_hash = config_row.config_hash
+                config_id, config_hash = await _resolve_sandbox_config(
+                    session, input.sandbox_backend_type
+                )
+                code_evaluator.sandbox_config_id = config_id
+                code_evaluator.sandbox_config_hash = config_hash
 
             code_evaluator.updated_at = datetime.now(timezone.utc)
             code_evaluator.user_id = user_id

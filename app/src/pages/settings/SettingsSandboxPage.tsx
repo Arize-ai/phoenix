@@ -75,7 +75,6 @@ function statusDisplay(status: string) {
 }
 
 export function SettingsSandboxPage() {
-  const [sandboxesEnabled, setSandboxesEnabled] = useState(true);
   const [fetchKey, setFetchKey] = useState(0);
   const credentials = useSandboxCredentialsStore((state) => state.credentials);
 
@@ -124,9 +123,6 @@ export function SettingsSandboxPage() {
   return (
     <CanManageSandboxConfig>
       <Flex direction="column" gap="size-200">
-        <Switch isSelected={sandboxesEnabled} onChange={setSandboxesEnabled}>
-          Enable code sandboxing
-        </Switch>
         <Card title="Python Sandbox Backends">
           <table css={tableCSS}>
             <thead>

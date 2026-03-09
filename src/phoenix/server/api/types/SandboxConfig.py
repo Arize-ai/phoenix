@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import strawberry
 from strawberry.scalars import JSON
 
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+
+if TYPE_CHECKING:
+    from phoenix.db import models
 
 
 @strawberry.enum
@@ -70,6 +75,20 @@ class SandboxConfig:
     config_hash: str
     created_at: datetime
     updated_at: datetime
+
+
+def to_gql_sandbox_config(row: "models.SandboxConfig") -> "SandboxConfig":
+    """Convert a DB SandboxConfig row to the GraphQL SandboxConfig type."""
+    return SandboxConfig(
+        id=strawberry.ID(str(row.id)),
+        backend_type=SandboxBackendType(row.backend_type),
+        config=row.config,
+        timeout=row.timeout,
+        session_mode=row.session_mode,
+        config_hash=row.config_hash,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 @strawberry.input

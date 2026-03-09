@@ -33,7 +33,7 @@ class SandboxAdapterMeta:
 
 # Static registry of all known adapter types — does NOT require optional packages to be installed.
 # All four entries are always present regardless of install state.
-_SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
+SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
     "WASM": SandboxAdapterMeta(
         key="WASM",
         label="WASM (Local)",
@@ -139,7 +139,7 @@ def _resolve_sandbox_credential(
 async def sync_sandbox_adapters(session: AsyncSession) -> None:
     """Ensure one sandbox_configs row exists per known adapter type.
 
-    Iterates _SANDBOX_ADAPTER_METADATA (all four adapters, always present)
+    Iterates SANDBOX_ADAPTER_METADATA (all four adapters, always present)
     so uninstalled adapters still get DB rows and appear in the Settings UI
     with NOT_INSTALLED status. Existing rows are not modified.
     """
@@ -148,7 +148,7 @@ async def sync_sandbox_adapters(session: AsyncSession) -> None:
     existing_result = await session.execute(select(SandboxConfig.backend_type))
     existing_types: set[str] = {row[0] for row in existing_result.fetchall()}
 
-    for key in _SANDBOX_ADAPTER_METADATA:
+    for key in SANDBOX_ADAPTER_METADATA:
         if key not in existing_types:
             session.add(SandboxConfig(backend_type=key))
             logger.info(f"Inserted default sandbox_configs row for {key}")
@@ -161,7 +161,7 @@ __all__ = [
     "SandboxAdapter",
     "SandboxAdapterMeta",
     "SandboxBackend",
-    "_SANDBOX_ADAPTER_METADATA",
+    "SANDBOX_ADAPTER_METADATA",
     "get_or_create_backend",
     "get_sandbox_adapters",
     "register_sandbox_adapter",

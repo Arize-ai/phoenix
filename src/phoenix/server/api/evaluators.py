@@ -676,6 +676,29 @@ class CodeEvaluatorRunner(BaseEvaluator):
     def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
         return self._stored_output_configs
 
+    @staticmethod
+    def _make_error_result(
+        name: str,
+        error: str,
+        trace_id: Optional[str],
+        start_time: datetime,
+        end_time: datetime,
+    ) -> list[EvaluationResult]:
+        return [
+            EvaluationResult(
+                name=name,
+                annotator_kind="CODE",
+                label=None,
+                score=None,
+                explanation=None,
+                metadata={},
+                error=error,
+                trace_id=trace_id,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        ]
+
     async def evaluate(
         self,
         *,
@@ -706,20 +729,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         f"Code evaluator '{self._name}' invoked but no sandbox backend available"
                     )
                     end_time = datetime.now(timezone.utc)
-                    return [
-                        EvaluationResult(
-                            name=name,
-                            annotator_kind="CODE",
-                            label=None,
-                            score=None,
-                            explanation=None,
-                            metadata={},
-                            error="No sandbox backend available",
-                            trace_id=trace_id,
-                            start_time=start_time,
-                            end_time=end_time,
-                        )
-                    ]
+                    return self._make_error_result(
+                        name, "No sandbox backend available", trace_id, start_time, end_time
+                    )
 
                 with tracer_.start_as_current_span(
                     "Input Mapping",
@@ -789,38 +801,14 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
                 if result.timed_out:
                     evaluator_span.set_status(Status(StatusCode.ERROR, "Execution timed out"))
-                    return [
-                        EvaluationResult(
-                            name=name,
-                            annotator_kind="CODE",
-                            label=None,
-                            score=None,
-                            explanation=None,
-                            metadata={},
-                            error="Execution timed out",
-                            trace_id=trace_id,
-                            start_time=start_time,
-                            end_time=end_time,
-                        )
-                    ]
+                    return self._make_error_result(
+                        name, "Execution timed out", trace_id, start_time, end_time
+                    )
 
                 if result.exit_code != 0:
                     error_msg = result.stderr or f"Process exited with code {result.exit_code}"
                     evaluator_span.set_status(Status(StatusCode.ERROR, error_msg))
-                    return [
-                        EvaluationResult(
-                            name=name,
-                            annotator_kind="CODE",
-                            label=None,
-                            score=None,
-                            explanation=None,
-                            metadata={},
-                            error=error_msg,
-                            trace_id=trace_id,
-                            start_time=start_time,
-                            end_time=end_time,
-                        )
-                    ]
+                    return self._make_error_result(name, error_msg, trace_id, start_time, end_time)
 
                 raw_output = json.loads(result.stdout)
 
@@ -872,20 +860,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
 
                 end_time = datetime.now(timezone.utc)
-                return [
-                    EvaluationResult(
-                        name=name,
-                        annotator_kind="CODE",
-                        label=None,
-                        score=None,
-                        explanation=None,
-                        metadata={},
-                        error=str(e),
-                        trace_id=trace_id,
-                        start_time=start_time,
-                        end_time=end_time,
-                    )
-                ]
+                return self._make_error_result(name, str(e), trace_id, start_time, end_time)
 
     @staticmethod
     def _coerce_output(

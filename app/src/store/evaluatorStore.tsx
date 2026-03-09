@@ -267,18 +267,6 @@ export const DEFAULT_CODE_SOURCE_GENERIC = `def evaluate(output, input) -> dict:
     return {"score": 0.9, "label": "correct", "explanation": "The output is correct."}
 `;
 
-/**
- * Maps each output shape to its default source code template.
- */
-export const CODE_SHAPE_TEMPLATES: Record<
-  "generic" | "score" | "category",
-  string
-> = {
-  generic: DEFAULT_CODE_SOURCE_GENERIC,
-  score: DEFAULT_CODE_SOURCE_SCORE,
-  category: DEFAULT_CODE_SOURCE_LABEL,
-};
-
 const DEFAULT_USER_CODE_SOURCE = DEFAULT_CODE_SOURCE_GENERIC;
 
 /**

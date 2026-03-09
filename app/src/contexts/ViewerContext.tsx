@@ -36,10 +36,10 @@ export function useViewerCanModify() {
 }
 
 /**
- * Returns true if the viewer can manage retention policies
- * Note: when the app is not configured with auth, we assume the user is an admin
+ * Returns true if the viewer is an admin (or auth is disabled).
+ * Use for any admin-gated feature (retention policies, sandbox config, etc.).
  */
-export function useViewerCanManageRetentionPolicy() {
+export function useViewerIsAdmin() {
   const { viewer } = useViewer();
   if (viewer && viewer?.role?.name !== "ADMIN") {
     return false;
@@ -48,16 +48,14 @@ export function useViewerCanManageRetentionPolicy() {
 }
 
 /**
- * Returns true if the viewer can manage sandbox configuration
- * Note: when the app is not configured with auth, we assume the user is an admin
+ * @deprecated Use useViewerIsAdmin instead
  */
-export function useViewerCanManageSandboxConfig() {
-  const { viewer } = useViewer();
-  if (viewer && viewer?.role?.name !== "ADMIN") {
-    return false;
-  }
-  return true;
-}
+export const useViewerCanManageRetentionPolicy = useViewerIsAdmin;
+
+/**
+ * @deprecated Use useViewerIsAdmin instead
+ */
+export const useViewerCanManageSandboxConfig = useViewerIsAdmin;
 
 export function ViewerProvider({
   query,

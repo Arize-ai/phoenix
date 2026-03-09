@@ -126,9 +126,9 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 from phoenix.server.api.types.SandboxConfig import (
     SandboxAdapterInfo,
     SandboxBackendStatusCode,
-    SandboxBackendType,
     SandboxConfigFieldSpec,
     SandboxEnvVarSpec,
+    to_gql_sandbox_config,
 )
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
@@ -142,7 +142,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.sandbox import _SANDBOX_ADAPTER_METADATA, get_sandbox_adapters
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, get_sandbox_adapters
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
@@ -1766,8 +1766,6 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[SandboxAdapterInfo]:
-        from phoenix.server.api.types.SandboxConfig import SandboxConfig as SandboxConfigGQL
-
         # Fetch all sandbox config rows from DB
         async with info.context.db() as session:
             result = await session.execute(select(models.SandboxConfig))
@@ -1777,9 +1775,9 @@ class Query:
         installed_adapters = dict(get_sandbox_adapters())
         adapter_infos: list[SandboxAdapterInfo] = []
 
-        # Iterate _SANDBOX_ADAPTER_METADATA (all four adapters, always present)
+        # Iterate SANDBOX_ADAPTER_METADATA (all four adapters, always present)
         # so uninstalled adapters appear with NOT_INSTALLED status and setup instructions.
-        for key, meta in _SANDBOX_ADAPTER_METADATA.items():
+        for key, meta in SANDBOX_ADAPTER_METADATA.items():
             if key not in installed_adapters:
                 status = SandboxBackendStatusCode.NOT_INSTALLED
             else:
@@ -1798,16 +1796,7 @@ class Query:
             current_config = None
             db_row = db_configs.get(key)
             if db_row is not None:
-                current_config = SandboxConfigGQL(
-                    id=strawberry.ID(str(db_row.id)),
-                    backend_type=SandboxBackendType(db_row.backend_type),
-                    config=db_row.config,
-                    timeout=db_row.timeout,
-                    session_mode=db_row.session_mode,
-                    config_hash=db_row.config_hash,
-                    created_at=db_row.created_at,
-                    updated_at=db_row.updated_at,
-                )
+                current_config = to_gql_sandbox_config(db_row)
 
             adapter_infos.append(
                 SandboxAdapterInfo(

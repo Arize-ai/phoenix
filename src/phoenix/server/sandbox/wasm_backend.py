@@ -31,12 +31,12 @@ logger = logging.getLogger(__name__)
 # Epoch tick interval for timeout enforcement (seconds).
 _EPOCH_TICK_INTERVAL = 0.5
 
-# Module-level cache: maps WASM binary path → (Engine, Module).
-# Avoids recompiling the large WASM binary on every WASMBackend() call.
-_wasm_module_cache: dict[Path, tuple[Engine, Module]] = {}
+# Module-level cache: maps WASM binary path → (Engine, Module, env_hash).
+# Avoids recompiling the large WASM binary and rehashing on every WASMBackend() call.
+_wasm_module_cache: dict[Path, tuple[Engine, Module, str]] = {}
 
 
-def _default_wasm_binary() -> Path:
+def _wasm_binary_path() -> Path:
     return get_working_dir() / "sandbox" / "python-3.12.0.wasm"
 
 
@@ -61,7 +61,7 @@ class WASMBackend:
         wasm_binary: Path | str | None = None,
         max_workers: int = 8,
     ) -> None:
-        wasm_path = Path(wasm_binary) if wasm_binary else _default_wasm_binary()
+        wasm_path = Path(wasm_binary) if wasm_binary else _wasm_binary_path()
         if not wasm_path.exists():
             raise FileNotFoundError(
                 f"WASM binary not found at {wasm_path}. "
@@ -70,14 +70,14 @@ class WASMBackend:
             )
 
         if wasm_path in _wasm_module_cache:
-            self._engine, self._module = _wasm_module_cache[wasm_path]
+            self._engine, self._module, self._env_hash = _wasm_module_cache[wasm_path]
         else:
             config = Config()
             config.epoch_interruption = True
             self._engine = Engine(config)
             self._module = Module.from_file(self._engine, str(wasm_path))
-            _wasm_module_cache[wasm_path] = (self._engine, self._module)
-        self._env_hash = self._compute_hash(wasm_path)
+            self._env_hash = self._compute_hash(wasm_path)
+            _wasm_module_cache[wasm_path] = (self._engine, self._module, self._env_hash)
         self._pool = ThreadPoolExecutor(max_workers=max_workers)
 
     @staticmethod
@@ -177,10 +177,6 @@ class WASMBackend:
 
     async def __aexit__(self, *_args: object) -> None:
         await self.close()
-
-
-def _wasm_binary_path() -> Path:
-    return get_working_dir() / "sandbox" / "python-3.12.0.wasm"
 
 
 class WASMAdapter(SandboxAdapter):

@@ -148,7 +148,7 @@ def _make_harness(inputs: dict[str, Any]) -> str:
         f"{_USER_SCORE_FUNCTION}\n"
         f"_inputs = json.loads({json.dumps(json.dumps(inputs))})\n"
         "try:\n"
-        "    _result = score(**_inputs)\n"
+        "    _result = evaluate(**_inputs)\n"
         "    print(json.dumps(_result))\n"
         "except Exception as _e:\n"
         "    print(str(_e), file=sys.stderr)\n"
