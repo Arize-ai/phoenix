@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo } from "react";
 
-import { Button, Text } from "@phoenix/components";
+import { Button, Flex, Text } from "@phoenix/components";
 
 import { ColumnBucket } from "./ColumnBucket";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
@@ -36,7 +36,10 @@ export type ColumnAssignerProps = {
   columns: string[];
   value: ColumnAssignerValue;
   onChange: (value: ColumnAssignerValue) => void;
-  onReset?: () => void;
+  /** Called when Clear button is pressed - should clear all assignments */
+  onClear?: () => void;
+  /** Called when Auto button is pressed - should perform auto-assignment */
+  onAuto?: () => void;
   /**
    * File type determines the label for the source bucket:
    * - "csv" -> "Columns"
@@ -51,7 +54,8 @@ export function ColumnAssigner({
   columns,
   value,
   onChange,
-  onReset,
+  onClear,
+  onAuto,
   fileType,
 }: ColumnAssignerProps) {
   // Source bucket contains only unassigned columns
@@ -125,11 +129,18 @@ export function ColumnAssigner({
         <Text size="S" color="text-700">
           Drag columns to assign them as input, output, or metadata
         </Text>
-        {onReset && (
-          <Button variant="default" size="S" onPress={onReset}>
-            Reset
-          </Button>
-        )}
+        <Flex gap="size-100">
+          {onClear && (
+            <Button variant="default" size="S" onPress={onClear}>
+              Clear
+            </Button>
+          )}
+          {onAuto && (
+            <Button variant="default" size="S" onPress={onAuto}>
+              Auto
+            </Button>
+          )}
+        </Flex>
       </div>
       <ColumnBucket
         bucket="source"

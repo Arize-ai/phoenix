@@ -64,10 +64,6 @@ function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
   return result;
 }
 
-function arraysEqual(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
 type DatasetFileType = "csv" | "jsonl" | null;
 
 type PreviewData = string[][] | Record<string, unknown>[];
@@ -222,7 +218,6 @@ export function DatasetFromFileForm({
     resetField,
     setValue,
     watch,
-    getValues,
     formState: { isValid },
   } = useForm<CreateDatasetFromFileParams>({
     mode: "onChange",
@@ -311,17 +306,6 @@ export function DatasetFromFileForm({
             setColumns(result.columns);
             setPreviewRows(result.previewRows);
             setTotalRowCount(result.totalRowCount);
-            // Auto-assign columns based on naming patterns
-            const autoAssigned = computeAutoAssignment(result.columns);
-            setValue("input_keys", autoAssigned.input, {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            setValue("output_keys", autoAssigned.output, { shouldDirty: true });
-            setValue("metadata_keys", autoAssigned.metadata, {
-              shouldDirty: true,
-            });
-            setValue("split_keys", autoAssigned.split, { shouldDirty: true });
             setErrorMessage(null);
           } else if (detectedType === "jsonl") {
             // Single-pass parsing: extracts keys, preview rows, and count
@@ -331,21 +315,6 @@ export function DatasetFromFileForm({
               setColumns(result.keys);
               setPreviewRows(result.previewRows);
               setTotalRowCount(result.totalRowCount);
-              // Auto-assign columns based on naming patterns
-              const autoAssigned = computeAutoAssignment(result.keys);
-              setValue("input_keys", autoAssigned.input, {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
-              setValue("output_keys", autoAssigned.output, {
-                shouldDirty: true,
-              });
-              setValue("metadata_keys", autoAssigned.metadata, {
-                shouldDirty: true,
-              });
-              setValue("split_keys", autoAssigned.split, {
-                shouldDirty: true,
-              });
               setErrorMessage(null);
             } else {
               setColumns([]);
@@ -411,31 +380,23 @@ export function DatasetFromFileForm({
     setPreviewTab(key as "file" | "dataset");
   }, []);
 
-  const handleColumnAssignerReset = useCallback(() => {
+  const handleColumnAssignerClear = useCallback(() => {
+    setValue("input_keys", [], { shouldDirty: true, shouldValidate: true });
+    setValue("output_keys", [], { shouldDirty: true });
+    setValue("metadata_keys", [], { shouldDirty: true });
+    setValue("split_keys", [], { shouldDirty: true });
+  }, [setValue]);
+
+  const handleColumnAssignerAuto = useCallback(() => {
     const autoAssigned = computeAutoAssignment(columns);
-    const splitKeys = getValues("split_keys");
-
-    const isAlreadyDefault =
-      arraysEqual(inputKeys, autoAssigned.input) &&
-      arraysEqual(outputKeys, autoAssigned.output) &&
-      arraysEqual(metadataKeys, autoAssigned.metadata) &&
-      arraysEqual(splitKeys, autoAssigned.split);
-
-    if (isAlreadyDefault) {
-      setValue("input_keys", [], { shouldDirty: true, shouldValidate: true });
-      setValue("output_keys", [], { shouldDirty: true });
-      setValue("metadata_keys", [], { shouldDirty: true });
-      setValue("split_keys", [], { shouldDirty: true });
-    } else {
-      setValue("input_keys", autoAssigned.input, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      setValue("output_keys", autoAssigned.output, { shouldDirty: true });
-      setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
-      setValue("split_keys", autoAssigned.split, { shouldDirty: true });
-    }
-  }, [columns, inputKeys, outputKeys, metadataKeys, setValue, getValues]);
+    setValue("input_keys", autoAssigned.input, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("output_keys", autoAssigned.output, { shouldDirty: true });
+    setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
+    setValue("split_keys", autoAssigned.split, { shouldDirty: true });
+  }, [columns, setValue]);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {
@@ -657,7 +618,8 @@ export function DatasetFromFileForm({
                     columns={columns}
                     value={columnAssignerValue}
                     onChange={handleColumnAssignerChange}
-                    onReset={handleColumnAssignerReset}
+                    onClear={handleColumnAssignerClear}
+                    onAuto={handleColumnAssignerAuto}
                     fileType={fileType}
                   />
                   {error?.message && (
