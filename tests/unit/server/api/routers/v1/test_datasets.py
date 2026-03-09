@@ -1730,11 +1730,10 @@ async def test_deleting_and_upserting_examples_with_the_same_content(
 # ---------------------------------------------------------------------------
 
 
-async def test_upsert_same_hash_prev_one_req_many_adds_create_revision(
+async def test_upserting_two_examples_that_match_content_hash_of_previous_example_adds_create_and_patch_revisions(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """1 prev, 2 req with same hash → 1 carry-over, 1 CREATE."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
     await _append(httpx_client, name, [ex])
@@ -1745,15 +1744,15 @@ async def test_upsert_same_hash_prev_one_req_many_adds_create_revision(
 
     assert len(versions) == 2
     kinds = [r.revision_kind for r in revisions]
-    assert kinds.count("CREATE") == 2  # original CREATE + new CREATE for second
-    assert "DELETE" not in kinds
+    assert len(kinds) == 3
+    assert kinds.count("CREATE") == 2
+    assert kinds.count("PATCH") == 1
 
 
-async def test_upsert_same_hash_prev_many_req_one_adds_delete_revision(
+async def test_upsert_with_removed_example_results_in_delete_revision(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """2 prev, 1 req with same hash → 1 carry-over, 1 DELETE."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
     await _append(httpx_client, name, [ex, ex])
@@ -1764,8 +1763,9 @@ async def test_upsert_same_hash_prev_many_req_one_adds_delete_revision(
 
     assert len(versions) == 2
     kinds = [r.revision_kind for r in revisions]
-    assert "DELETE" in kinds
-    assert kinds.count("CREATE") == 2  # two original CREATEs
+    assert len(kinds) == 3
+    assert kinds.count("CREATE") == 2
+    assert kinds.count("DELETE") == 1
 
 
 # ---------------------------------------------------------------------------

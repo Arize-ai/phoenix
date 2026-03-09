@@ -656,9 +656,9 @@ async def _upsert_dataset_examples(
         dq.append(example_id)
 
     consumed: set[DatasetExampleId] = set()
-    carry_over: list[tuple[ExampleContent, DatasetExampleId]] = []
-    patch: list[tuple[ExampleContent, DatasetExampleId, str]] = []
-    to_create: list[tuple[ExampleContent, str]] = []
+    carry_over: list[tuple[ExampleContent, DatasetExampleId, ContentHash]] = []
+    patch: list[tuple[ExampleContent, DatasetExampleId, ContentHash]] = []
+    to_create: list[tuple[ExampleContent, ContentHash]] = []
 
     for example, content_hash in incoming:
         matched_id: Optional[DatasetExampleId] = None
@@ -694,9 +694,18 @@ async def _upsert_dataset_examples(
         if matched_id is None:
             to_create.append((example, content_hash))
         elif content_hash == prev_hash:
-            carry_over.append((example, matched_id))
+            carry_over.append((example, matched_id, content_hash))
         else:
             patch.append((example, matched_id, content_hash))
+
+    # Promote carry_over entries to PATCH when the same content hash also appears
+    # in to_create. This happens when the request contains more copies of a hash
+    # than previously existed: the existing example is re-asserted (PATCH) and the
+    # extra copy is created (CREATE).
+    to_create_hashes: set[str] = {h for _, h in to_create}
+    for example, matched_id, ex_hash in carry_over:
+        if ex_hash in to_create_hashes:
+            patch.append((example, matched_id, ex_hash))
 
     # Previous examples not consumed → need DELETE revisions
     all_previous_ids = {ex_id for ex_id, _, _ in previous}
