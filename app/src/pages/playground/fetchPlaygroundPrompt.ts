@@ -104,18 +104,22 @@ export const objectToInvocationParameters = (
       : {};
   // now we'll map the incoming invocation parameters to the supported invocation parameters
   // we'll use the invocation name as the key
+  // we mark all parameters as dirty: true because these are explicitly saved values from the prompt
+  // that should be preserved when updateModelSupportedInvocationParameters runs
   return Object.entries(invocationParameters).map(([key, value]) => {
     const definition = invocationParameterDefinitionMap[key];
     if (!definition || !definition.invocationInputField) {
       return {
         invocationName: key,
         valueJson: value,
+        dirty: true,
       };
     }
     return {
       invocationName: key,
       canonicalName: definition.canonicalName,
       [toCamelCase(definition.invocationInputField)]: value,
+      dirty: true,
     };
   });
 };
