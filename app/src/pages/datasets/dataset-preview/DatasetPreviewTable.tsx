@@ -8,11 +8,10 @@ import {
 import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";
-import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { OverflowCell } from "@phoenix/components/table";
+import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 
-const CELL_CONTENT_HEIGHT = 120;
+const MAX_CELL_LENGTH = 200;
 
 const containerCSS = css`
   min-height: 0;
@@ -51,15 +50,13 @@ const columnHelper = createColumnHelper<DatasetPreviewRow>();
 function PreviewCell({ value }: { value: Record<string, unknown> }) {
   const isEmpty = Object.keys(value).length === 0;
   return (
-    <OverflowCell height={CELL_CONTENT_HEIGHT}>
-      <div css={contentCSS}>
-        {isEmpty ? (
-          <Text color="text-500">--</Text>
-        ) : (
-          <DynamicContent value={value} />
-        )}
-      </div>
-    </OverflowCell>
+    <div css={contentCSS}>
+      {isEmpty ? (
+        <Text color="text-500">--</Text>
+      ) : (
+        <JSONText json={value} maxLength={MAX_CELL_LENGTH} />
+      )}
+    </div>
   );
 }
 

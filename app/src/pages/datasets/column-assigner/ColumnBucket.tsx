@@ -13,7 +13,6 @@ const bucketBaseCSS = css`
   border: 2px solid var(--global-color-gray-400);
   border-radius: var(--global-rounding-medium);
   background-color: var(--global-background-color-100);
-  overflow: hidden;
 
   &[data-drop-target="true"] {
     border-color: var(--global-color-primary);
