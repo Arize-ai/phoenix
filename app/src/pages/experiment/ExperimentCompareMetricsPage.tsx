@@ -91,7 +91,7 @@ export function ExperimentCompareMetricsPage({
       ) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            experiments(filterIds: $experimentIds) {
+            experiments(filterIds: $experimentIds, includeEphemeral: true) {
               edges {
                 experiment: node {
                   id

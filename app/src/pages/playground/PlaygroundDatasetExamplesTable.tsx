@@ -793,7 +793,7 @@ export function PlaygroundDatasetExamplesTable({
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
-    const experimentIds = instances.map((instance) => instance.experimentId);
+    const experimentIds = instances.map((instance) => instance.experiment?.id);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
     return { baseExperimentId, compareExperimentIds };
   }, [instances]);
@@ -816,7 +816,9 @@ export function PlaygroundDatasetExamplesTable({
   const annotationListHeight =
     calculateAnnotationListHeight(numEnabledEvaluators);
 
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const setInstanceExperiment = usePlaygroundContext(
+    (state) => state.setInstanceExperiment
+  );
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
@@ -958,10 +960,9 @@ export function PlaygroundDatasetExamplesTable({
         const chatCompletion = response.chatCompletionOverDataset;
         switch (chatCompletion.__typename) {
           case "ChatCompletionSubscriptionExperiment":
-            updateInstance({
-              instanceId,
-              patch: { experimentId: chatCompletion.experiment.id },
-              dirty: null,
+            setInstanceExperiment(instanceId, {
+              id: chatCompletion.experiment.id,
+              isEphemeral: !playgroundStore.getState().recordExperiments,
             });
             break;
           case "ChatCompletionSubscriptionResult":
@@ -1055,8 +1056,9 @@ export function PlaygroundDatasetExamplesTable({
       incrementEvalsCompleted,
       incrementRunsCompleted,
       incrementRunsFailed,
+      playgroundStore,
+      setInstanceExperiment,
       updateExampleData,
-      updateInstance,
     ]
   );
 
@@ -1076,15 +1078,10 @@ export function PlaygroundDatasetExamplesTable({
     const subscriptions: Disposable[] = [];
     for (const instance of instances) {
       const { activeRunId } = instance;
+      setInstanceExperiment(instance.id, null);
       if (activeRunId === null) {
         continue;
       }
-
-      updateInstance({
-        instanceId: instance.id,
-        patch: { experimentId: null },
-        dirty: null,
-      });
 
       // Initialize progress for this instance
       initExperimentRunProgress(instance.id, {
@@ -1146,7 +1143,6 @@ export function PlaygroundDatasetExamplesTable({
     evaluatorMappings,
     exampleCount,
     hasSomeRunIds,
-    updateInstance,
     initExperimentRunProgress,
     markPlaygroundInstanceComplete,
     onNext,
@@ -1155,6 +1151,7 @@ export function PlaygroundDatasetExamplesTable({
     playgroundStore,
     repetitions,
     resetData,
+    setInstanceExperiment,
     setRepetitions,
   ]);
 
@@ -1254,7 +1251,7 @@ export function PlaygroundDatasetExamplesTable({
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
       const isRunning = instance.activeRunId !== null;
-      const experimentId = instance.experimentId;
+      const experimentId = instance.experiment?.id ?? null;
       return {
         id: `instance-${instance.id}`,
         header: () => (
