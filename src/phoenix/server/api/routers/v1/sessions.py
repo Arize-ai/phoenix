@@ -35,6 +35,20 @@ from .utils import RequestBody
 
 router = APIRouter(tags=["sessions"])
 
+_PROJECT_SESSION_NODE_TYPE_NAME = ProjectSessionNodeType.__name__
+
+
+def _parse_session_global_id(session_identifier: str) -> Optional[int]:
+    """
+    Attempt to parse a session identifier as a GlobalID.
+    Returns the integer row ID if valid, or None if it's not a GlobalID.
+    """
+    try:
+        global_id = GlobalID.from_id(session_identifier)
+        return from_global_id_with_expected_type(global_id, _PROJECT_SESSION_NODE_TYPE_NAME)
+    except Exception:
+        return None
+
 
 class InsertedSessionAnnotation(V1RoutesBaseModel):
     id: str = Field(description="The ID of the inserted session annotation")
@@ -80,25 +94,21 @@ async def _get_session_by_identifier(
     session: AsyncSession,
     session_identifier: str,
 ) -> models.ProjectSession:
-    try:
-        id_ = from_global_id_with_expected_type(
-            GlobalID.from_id(session_identifier),
-            ProjectSessionNodeType.__name__,
-        )
-    except Exception:
+    row_id = _parse_session_global_id(session_identifier)
+    if row_id is not None:
+        project_session = await session.get(models.ProjectSession, row_id)
+        if project_session is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session with ID {session_identifier} not found",
+            )
+    else:
         stmt = select(models.ProjectSession).filter_by(session_id=session_identifier)
         project_session = await session.scalar(stmt)
         if project_session is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Session with session_id {session_identifier} not found",
-            )
-    else:
-        project_session = await session.get(models.ProjectSession, id_)
-        if project_session is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Session with ID {session_identifier} not found",
             )
     return project_session
 
@@ -171,26 +181,20 @@ async def delete_session(
         description="The session identifier: either a GlobalID or user-provided session_id string.",
     ),
 ) -> None:
+    row_id = _parse_session_global_id(session_identifier)
     async with request.app.state.db() as session:
-        try:
-            id_ = from_global_id_with_expected_type(
-                GlobalID.from_id(session_identifier),
-                ProjectSessionNodeType.__name__,
-            )
-            delete_stmt = (
-                delete(models.ProjectSession)
-                .where(models.ProjectSession.id == id_)
-                .returning(models.ProjectSession.project_id)
-            )
+        if row_id is not None:
+            where_clause = models.ProjectSession.id == row_id
             error_detail = f"Session with ID '{session_identifier}' not found"
-        except Exception:
-            delete_stmt = (
-                delete(models.ProjectSession)
-                .where(models.ProjectSession.session_id == session_identifier)
-                .returning(models.ProjectSession.project_id)
-            )
+        else:
+            where_clause = models.ProjectSession.session_id == session_identifier
             error_detail = f"Session with session_id '{session_identifier}' not found"
 
+        delete_stmt = (
+            delete(models.ProjectSession)
+            .where(where_clause)
+            .returning(models.ProjectSession.project_id)
+        )
         project_id = await session.scalar(delete_stmt)
 
         if project_id is None:

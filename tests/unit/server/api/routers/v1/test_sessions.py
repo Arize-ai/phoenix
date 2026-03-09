@@ -8,11 +8,28 @@ import httpx
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.routers.v1.sessions import _parse_session_global_id
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.types import DbSessionFactory
+
+
+class TestParseSessionGlobalId:
+    def test_returns_row_id_for_valid_global_id(self) -> None:
+        global_id = str(GlobalID(ProjectSessionNodeType.__name__, "42"))
+        assert _parse_session_global_id(global_id) == 42
+
+    def test_returns_none_for_plain_session_id(self) -> None:
+        assert _parse_session_global_id("my-session-abc123") is None
+
+    def test_returns_none_for_wrong_type_global_id(self) -> None:
+        wrong_type_id = str(GlobalID("WrongType", "42"))
+        assert _parse_session_global_id(wrong_type_id) is None
+
+    def test_returns_none_for_empty_string(self) -> None:
+        assert _parse_session_global_id("") is None
 
 
 class TestGetSession:
