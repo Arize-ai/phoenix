@@ -14,7 +14,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
-from phoenix.utilities.content_hashing import compute_content_hash
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 # Batch size for bulk inserts - tuned for good performance across SQLite and PostgreSQL
 DEFAULT_BATCH_SIZE = 1000
@@ -224,7 +224,7 @@ async def bulk_insert_dataset_example_revisions(
                 "input": example.input,
                 "output": example.output,
                 "metadata_": example.metadata,
-                "content_hash": compute_content_hash(
+                "content_hash": compute_example_content_hash(
                     input=example.input, output=example.output, metadata=example.metadata
                 ),
                 "revision_kind": revision_kind.value,
@@ -636,7 +636,7 @@ async def _upsert_dataset_examples(
     incoming: list[tuple[ExampleContent, str]] = [
         (
             example,
-            compute_content_hash(
+            compute_example_content_hash(
                 input=example.input,
                 output=example.output,
                 metadata=example.metadata,
