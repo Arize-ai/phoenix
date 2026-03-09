@@ -1158,20 +1158,18 @@ const appGlobalStylesCSS = css`
 
 const codeMirrorOverridesCSS = css`
   .theme--light {
-    .cm-editor {
-      background-color: rgba(255, 255, 255, 0.5) !important;
-    }
-    .cm-gutters {
-      background-color: rgba(0, 0, 0, 0.05) !important;
-    }
+    --code-mirror-editor-background-color: rgba(255, 255, 255, 0.5);
+    --code-mirror-gutters-background-color: rgba(0, 0, 0, 0.05);
   }
   .theme--dark {
-    .cm-editor {
-      background-color: rgba(0, 0, 0, 0.4) !important;
-    }
-    .cm-gutters {
-      background-color: rgba(0, 0, 0, 0.2) !important;
-    }
+    --code-mirror-editor-background-color: rgba(0, 0, 0, 0.4);
+    --code-mirror-gutters-background-color: rgba(0, 0, 0, 0.2);
+  }
+  .cm-editor {
+    background-color: var(--code-mirror-editor-background-color) !important;
+  }
+  .cm-gutters {
+    background-color: var(--code-mirror-gutters-background-color) !important;
   }
 `;
 

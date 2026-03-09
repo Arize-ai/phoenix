@@ -18,6 +18,7 @@ import {
 } from "@phoenix/components/auth";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
+import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
 import { BASE_URL } from "@phoenix/config";
 
 import { TypeScriptBlockWithCopy } from "../code/TypeScriptBlockWithCopy";
@@ -113,9 +114,10 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
           that simplifies sending traces to Phoenix.
         </Text>
       </View>
-      <CodeWrap>
-        <BashBlockWithCopy value="npm install @arizeai/phoenix-otel" />
-      </CodeWrap>
+      <PackageManagerCommandBlock
+        language="TypeScript"
+        packages={["@arizeai/phoenix-otel"]}
+      />
 
       <View paddingY="size-100">
         <Text>
