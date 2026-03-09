@@ -2,7 +2,9 @@ import { css } from "@emotion/react";
 import { useRef } from "react";
 import { useDrag } from "react-aria";
 
-const chipCSS = css`
+import { Icon, Icons } from "@phoenix/components";
+
+const tagCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -43,22 +45,22 @@ const labelCSS = css`
   color: var(--global-text-color-900);
 `;
 
-export type ColumnChipProps = {
+export type ColumnTagProps = {
   column: string;
   /** Tab index for keyboard navigation (roving tabindex pattern) */
   tabIndex?: number;
-  /** Callback when chip receives focus */
+  /** Callback when tag receives focus */
   onFocus?: () => void;
-  /** Whether this chip is in an assignment bucket (shows highlighted style) */
+  /** Whether this tag is in an assignment bucket (shows highlighted style) */
   isAssigned?: boolean;
 };
 
-export function ColumnChip({
+export function ColumnTag({
   column,
   tabIndex = 0,
   onFocus,
   isAssigned = false,
-}: ColumnChipProps) {
+}: ColumnTagProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   const { dragProps, isDragging } = useDrag({
@@ -75,8 +77,8 @@ export function ColumnChip({
     <div
       ref={ref}
       {...dragProps}
-      css={chipCSS}
-      data-chip
+      css={tagCSS}
+      data-tag
       data-dragging={isDragging}
       data-assigned={isAssigned}
       onFocus={handleFocus}
@@ -85,9 +87,7 @@ export function ColumnChip({
       title={column}
     >
       <span css={handleCSS}>
-        <svg viewBox="0 0 20 20" width="12" height="12" fill="currentColor">
-          <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
-        </svg>
+        <Icon svg={<Icons.DragHandleOutline />} />
       </span>
       <span css={labelCSS}>{column}</span>
     </div>

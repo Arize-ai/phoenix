@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import type { TextDropItem } from "react-aria";
 import { useDrop } from "react-aria";
 
-import { ColumnChip } from "./ColumnChip";
+import { ColumnTag } from "./ColumnTag";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
 
 const bucketBaseCSS = css`
@@ -42,7 +42,7 @@ const titleCSS = css`
   flex-shrink: 0;
 `;
 
-const chipsContainerCSS = css`
+const tagsContainerCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);
@@ -51,7 +51,7 @@ const chipsContainerCSS = css`
   min-height: 0;
 `;
 
-const sourceChipsContainerCSS = css`
+const sourceTagsContainerCSS = css`
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -85,7 +85,7 @@ export function ColumnBucket({
   onDrop,
 }: ColumnBucketProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const chipsContainerRef = useRef<HTMLDivElement>(null);
+  const tagsContainerRef = useRef<HTMLDivElement>(null);
   const isSource = bucket === "source";
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
@@ -124,10 +124,10 @@ export function ColumnBucket({
     (e: React.KeyboardEvent) => {
       if (columns.length === 0) return;
 
-      const chips = chipsContainerRef.current?.querySelectorAll(
-        "[data-chip]"
-      ) as NodeListOf<HTMLElement> | undefined;
-      if (!chips || chips.length === 0) return;
+      const tags = tagsContainerRef.current?.querySelectorAll("[data-tag]") as
+        | NodeListOf<HTMLElement>
+        | undefined;
+      if (!tags || tags.length === 0) return;
 
       let newIndex = focusedIndex;
 
@@ -155,27 +155,27 @@ export function ColumnBucket({
       if (
         newIndex !== focusedIndex &&
         newIndex >= 0 &&
-        newIndex < chips.length
+        newIndex < tags.length
       ) {
         setFocusedIndex(newIndex);
-        chips[newIndex]?.focus();
+        tags[newIndex]?.focus();
       }
     },
     [columns.length, focusedIndex]
   );
 
   const handleFocus = useCallback(() => {
-    // When bucket receives focus, focus the first chip if none is focused
+    // When bucket receives focus, focus the first tag if none is focused
     if (focusedIndex === -1 && columns.length > 0) {
       setFocusedIndex(0);
-      const chips = chipsContainerRef.current?.querySelectorAll(
-        "[data-chip]"
-      ) as NodeListOf<HTMLElement> | undefined;
-      chips?.[0]?.focus();
+      const tags = tagsContainerRef.current?.querySelectorAll("[data-tag]") as
+        | NodeListOf<HTMLElement>
+        | undefined;
+      tags?.[0]?.focus();
     }
   }, [focusedIndex, columns.length]);
 
-  const handleChipFocus = useCallback((index: number) => {
+  const handleTagFocus = useCallback((index: number) => {
     setFocusedIndex(index);
   }, []);
 
@@ -202,18 +202,18 @@ export function ColumnBucket({
     >
       <div css={titleCSS}>{label ?? bucket.toUpperCase()}</div>
       <div
-        css={isSource ? sourceChipsContainerCSS : chipsContainerCSS}
-        ref={chipsContainerRef}
+        css={isSource ? sourceTagsContainerCSS : tagsContainerCSS}
+        ref={tagsContainerRef}
       >
         {columns.length === 0 && !isSource ? (
           <div css={emptyStateCSS}>Drag columns here</div>
         ) : (
           columns.map((column, index) => (
-            <ColumnChip
+            <ColumnTag
               key={column}
               column={column}
               tabIndex={focusedIndex === index ? 0 : -1}
-              onFocus={() => handleChipFocus(index)}
+              onFocus={() => handleTagFocus(index)}
               isAssigned={!isSource}
             />
           ))

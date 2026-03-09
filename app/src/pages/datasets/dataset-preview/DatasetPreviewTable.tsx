@@ -9,6 +9,7 @@ import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { Counter } from "@phoenix/components/core/counter";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 
 const MAX_CELL_LENGTH = 200;
@@ -132,15 +133,27 @@ export function DatasetPreviewTable({
   const tableColumns = useMemo(
     () => [
       columnHelper.accessor("input", {
-        header: `Input (${inputColumns.length})`,
+        header: () => (
+          <>
+            Input <Counter>{inputColumns.length}</Counter>
+          </>
+        ),
         cell: (info) => <PreviewCell value={info.getValue()} />,
       }),
       columnHelper.accessor("output", {
-        header: `Output (${outputColumns.length})`,
+        header: () => (
+          <>
+            Output <Counter>{outputColumns.length}</Counter>
+          </>
+        ),
         cell: (info) => <PreviewCell value={info.getValue()} />,
       }),
       columnHelper.accessor("metadata", {
-        header: `Metadata (${metadataColumns.length})`,
+        header: () => (
+          <>
+            Metadata <Counter>{metadataColumns.length}</Counter>
+          </>
+        ),
         cell: (info) => <PreviewCell value={info.getValue()} />,
       }),
     ],

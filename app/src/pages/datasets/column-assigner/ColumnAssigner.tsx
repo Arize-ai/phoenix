@@ -57,7 +57,7 @@ export type ColumnAssignerProps = {
   columns: string[];
   value: ColumnAssignerValue;
   onChange: (value: ColumnAssignerValue) => void;
-  /** Called when Clear button is pressed - should clear all assignments */
+  /** Called when Reset button is pressed - should reset all assignments */
   onClear?: () => void;
   /** Called when Auto button is pressed - should perform auto-assignment */
   onAuto?: () => void;
@@ -184,7 +184,7 @@ export function ColumnAssigner({
           )}
           {onClear && (
             <Button variant="default" size="S" onPress={onClear}>
-              Clear
+              Reset
             </Button>
           )}
         </Flex>
