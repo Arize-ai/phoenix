@@ -13,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
+import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 
@@ -27,9 +28,6 @@ const OTEL_DOC_LINK =
   "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly";
 const PHOENIX_ENVIRONMENT_VARIABLES_LINK =
   "https://arize.com/docs/phoenix/setup/configuration";
-
-const INSTALL_PHOENIX_OTEL_PYTHON = `pip install arize-phoenix-otel`;
-const INSTALL_OPENAI_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation-openai openai`;
 
 function getEnvironmentVariablesPython({
   isAuthEnabled,
@@ -115,9 +113,10 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
           configure your application to send traces to Phoenix.
         </Text>
       </View>
-      <CodeWrap>
-        <BashBlockWithCopy value={INSTALL_PHOENIX_OTEL_PYTHON} />
-      </CodeWrap>
+      <PackageManagerCommandBlock
+        language="Python"
+        packages={["arize-phoenix-otel"]}
+      />
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">
           Setup your Environment
@@ -242,11 +241,10 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
                 </ExternalLink>{" "}
                 instrumentation as well as <b>openai</b>
               </p>
-              <CodeWrap>
-                <BashBlockWithCopy
-                  value={INSTALL_OPENAI_INSTRUMENTATION_PYTHON}
-                />
-              </CodeWrap>
+              <PackageManagerCommandBlock
+                language="Python"
+                packages={["openinference-instrumentation-openai", "openai"]}
+              />
               <p>
                 Instrument <b>openai</b> at the beginning of your code
               </p>

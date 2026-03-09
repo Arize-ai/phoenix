@@ -21,13 +21,15 @@ type ShellState = {
   tokens: unknown[];
 };
 
-const shellWithPip = {
+const highlightedCommands = new Set(["pip", "uv", "pnpm", "bun"]);
+
+const shellWithCommandHighlighting = {
   ...shell,
   token(stream: StringStream, state: ShellState) {
     const token = shell.token(stream, state);
-    // The legacy shell mode doesn't mark `pip` as builtin.
-    // Re-map this token so `pip install ...` highlights like `npm install ...`.
-    if (token == null && stream.current() === "pip") {
+    // The legacy shell mode doesn't mark these commands as builtins.
+    // Re-map these tokens so package manager commands highlight like `npm install ...`.
+    if (token == null && highlightedCommands.has(stream.current())) {
       return "builtin";
     }
     return token;
@@ -53,7 +55,7 @@ export function BashBlock(props: BashBlockProps) {
   return (
     <CodeMirror
       value={props.value}
-      extensions={[StreamLanguage.define(shellWithPip)]}
+      extensions={[StreamLanguage.define(shellWithCommandHighlighting)]}
       editable={false}
       theme={codeMirrorTheme}
       {...props}

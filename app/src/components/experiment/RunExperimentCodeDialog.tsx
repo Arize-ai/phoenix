@@ -3,8 +3,8 @@ import { useCallback } from "react";
 import { Dialog, ExternalLink, Text, View } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
-import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
+import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
 import {
@@ -17,8 +17,6 @@ import {
 import { BASE_URL } from "@phoenix/config";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
-
-const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix-client`;
 
 function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   let setBaseURLPython =
@@ -140,9 +138,10 @@ function RunExperimentPythonExample({
       <View paddingBottom="size-100">
         <Text>Install the Phoenix Client</Text>
       </View>
-      <CodeWrap>
-        <BashBlockWithCopy value={INSTALL_PHOENIX_PYTHON} />
-      </CodeWrap>
+      <PackageManagerCommandBlock
+        language="Python"
+        packages={["arize-phoenix-client"]}
+      />
       <View paddingTop="size-100" paddingBottom="size-100">
         <Text>Point to a running instance of Phoenix</Text>
       </View>
@@ -202,9 +201,10 @@ function RunExperimentTypeScriptExample({
       <View paddingBottom="size-100">
         <Text>Install Phoenix Client</Text>
       </View>
-      <CodeWrap>
-        <BashBlockWithCopy value={`npm install @arizeai/phoenix-client`} />
-      </CodeWrap>
+      <PackageManagerCommandBlock
+        language="TypeScript"
+        packages={["@arizeai/phoenix-client"]}
+      />
       <View paddingTop="size-100" paddingBottom="size-100">
         <Text>Run an experiment</Text>
       </View>
