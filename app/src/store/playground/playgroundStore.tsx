@@ -535,9 +535,18 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             openaiApiType: null,
           };
 
+          // Clear the dirty flag on invocation parameters when switching providers
+          // to prevent incompatible parameters from being preserved
+          const invocationParametersWithoutDirty =
+            baseModel.invocationParameters.map((param) => ({
+              ...param,
+              dirty: undefined,
+            }));
+
           // Build final model config
           const finalModel = {
             ...baseModel,
+            invocationParameters: invocationParametersWithoutDirty,
             ...resetFields,
             ...(savedProviderConfig || {}),
             // Only override invocation parameters if we have saved config
