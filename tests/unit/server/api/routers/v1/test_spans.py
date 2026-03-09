@@ -1332,7 +1332,7 @@ async def test_otlp_span_search_filter_by_parent_id_null(
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 1
     assert spans[0].name == "root-span"
-    assert spans[0].parent_id is None
+    assert spans[0].parent_span_id is None
 
 
 async def test_otlp_span_search_filter_by_parent_id_specific(
@@ -1347,4 +1347,4 @@ async def test_otlp_span_search_filter_by_parent_id_specific(
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 1
     assert spans[0].name == "child-span"
-    assert spans[0].parent_id == "rootspan0"
+    assert spans[0].parent_span_id == "rootspan0"

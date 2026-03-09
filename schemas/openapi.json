@@ -2689,7 +2689,7 @@
             "description": "Filter by one or more trace IDs"
           },
           {
-            "name": "parent_span_id",
+            "name": "parent_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2702,7 +2702,7 @@
                 }
               ],
               "description": "Filter by parent span ID. Use \"null\" to get root spans only.",
-              "title": "Parent Span Id"
+              "title": "Parent Id"
             },
             "description": "Filter by parent span ID. Use \"null\" to get root spans only."
           }
@@ -2863,7 +2863,7 @@
             "description": "Filter by one or more trace IDs"
           },
           {
-            "name": "parent_span_id",
+            "name": "parent_id",
             "in": "query",
             "required": false,
             "schema": {
@@ -2876,7 +2876,7 @@
                 }
               ],
               "description": "Filter by parent span ID. Use \"null\" to get root spans only.",
-              "title": "Parent Span Id"
+              "title": "Parent Id"
             },
             "description": "Filter by parent span ID. Use \"null\" to get root spans only."
           }

@@ -325,7 +325,7 @@ class OtlpSpan(BaseModel):
             "This field is required."
         ),
     )
-    parent_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
+    parent_span_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
         None,
         description=(
             "The `span_id` of this span's parent span. If this is a root span, then this field "
@@ -720,7 +720,7 @@ async def span_search_otlpv1(
             OtlpSpan(
                 trace_id=span_trace_id,
                 span_id=span_orm.span_id,
-                parent_id=span_orm.parent_id,
+                parent_span_id=span_orm.parent_id,
                 name=span_orm.name,
                 start_time_unix_nano=start_ns,
                 end_time_unix_nano=end_ns,
