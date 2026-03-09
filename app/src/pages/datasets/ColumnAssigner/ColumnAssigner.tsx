@@ -151,11 +151,6 @@ export function ColumnAssigner({
           Drag columns to assign them as input, output, or metadata
         </Text>
         <Flex gap="size-100">
-          {onClear && (
-            <Button variant="default" size="S" onPress={onClear}>
-              Clear
-            </Button>
-          )}
           {onAuto && (
             <TooltipTrigger delay={300}>
               <Button variant="default" size="S" onPress={onAuto}>
@@ -186,6 +181,11 @@ export function ColumnAssigner({
                 </RichTooltipDescription>
               </RichTooltip>
             </TooltipTrigger>
+          )}
+          {onClear && (
+            <Button variant="default" size="S" onPress={onClear}>
+              Clear
+            </Button>
           )}
         </Flex>
       </div>
