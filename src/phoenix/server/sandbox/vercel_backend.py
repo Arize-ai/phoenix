@@ -2,18 +2,24 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 from uuid import uuid4
 
-import os
-
-from .types import ConfigFieldSpec, EnvVarSpec, ExecutionResult, SandboxAdapter, SandboxBackend
+from .types import (
+    BaseNoSessionBackend,
+    ConfigFieldSpec,
+    EnvVarSpec,
+    ExecutionResult,
+    SandboxAdapter,
+    SandboxBackend,
+)
 
 _HASH_LENGTH = 16
 
 logger = logging.getLogger(__name__)
 
 
-class VercelSandboxBackend:
+class VercelSandboxBackend(BaseNoSessionBackend):
     """Sandbox backend that executes Python code in Vercel microVM sandboxes.
 
     Each execute() call creates a fresh microVM sandbox, writes the code to a
@@ -36,7 +42,9 @@ class VercelSandboxBackend:
     def environment_hash(self) -> str:
         return hashlib.sha256(self._runtime.encode()).hexdigest()[:_HASH_LENGTH]
 
-    async def execute(self, code: str, timeout: float = 30.0) -> ExecutionResult:
+    async def execute(
+        self, code: str, timeout: float = 30.0, *, session_key: str | None = None
+    ) -> ExecutionResult:
         # avoids top-level import failure when vercel extra is not installed
         from vercel.sandbox import AsyncSandbox  # type: ignore[import-not-found]
         from vercel.sandbox.models import WriteFile  # type: ignore[import-not-found]
@@ -104,14 +112,21 @@ class VercelAdapter(SandboxAdapter):
     description = "Runs code evaluators in Vercel microVM sandboxes."
     python_packages = ["vercel"]
     env_vars = [
-        EnvVarSpec(name="VERCEL_OIDC_TOKEN", required=False, description="Auto-populated in Vercel deployments"),
-        EnvVarSpec(name="PHOENIX_SANDBOX_VERCEL_TOKEN", required=False, description="Manual token for non-Vercel environments"),
+        EnvVarSpec(
+            name="VERCEL_OIDC_TOKEN",
+            required=False,
+            description="Auto-populated in Vercel deployments",
+        ),
+        EnvVarSpec(
+            name="PHOENIX_SANDBOX_VERCEL_TOKEN",
+            required=False,
+            description="Manual token for non-Vercel environments",
+        ),
     ]
     config_fields = [
         ConfigFieldSpec(key="runtime", label="Runtime", placeholder="python3.13"),
     ]
     config_required = True
-    has_session_mode = False
     setup_instructions = [
         "Set VERCEL_OIDC_TOKEN (auto in Vercel deployments) or PHOENIX_SANDBOX_VERCEL_TOKEN.",
         "pip install vercel",
@@ -121,8 +136,10 @@ class VercelAdapter(SandboxAdapter):
         # Either token suffices
         return bool(os.getenv("VERCEL_OIDC_TOKEN") or os.getenv("PHOENIX_SANDBOX_VERCEL_TOKEN"))
 
-    def create_backend(self, config: dict, credentials: dict) -> SandboxBackend:
-        token = credentials.get("VERCEL_OIDC_TOKEN") or credentials.get("PHOENIX_SANDBOX_VERCEL_TOKEN")
+    def create_backend(self, config: dict, credentials: dict) -> SandboxBackend:  # type: ignore[type-arg]
+        token = credentials.get("VERCEL_OIDC_TOKEN") or credentials.get(
+            "PHOENIX_SANDBOX_VERCEL_TOKEN"
+        )
         return VercelSandboxBackend(
             token=token,
             runtime=config.get("runtime", "python3.13"),

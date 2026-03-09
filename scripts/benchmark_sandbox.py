@@ -360,7 +360,7 @@ async def run_e2b_benchmark() -> dict[str, Any] | None:
     from phoenix.server.sandbox.e2b_backend import E2BSandboxBackend
 
     print("\n### E2B backend (ephemeral mode)")
-    ephemeral = E2BSandboxBackend(api_key=api_key, session_mode=False)
+    ephemeral = E2BSandboxBackend(api_key=api_key)
 
     print("  measuring cold start (ephemeral)...")
     cold_ms = await measure_cold_start(ephemeral)
@@ -371,11 +371,15 @@ async def run_e2b_benchmark() -> dict[str, Any] | None:
     print(f"  warm (ephemeral): {[f'{v:.0f}' for v in warm_ephem]}")
 
     print("\n### E2B backend (session mode)")
-    session = E2BSandboxBackend(api_key=api_key, session_mode=True)
-    async with session:
+    session_backend = E2BSandboxBackend(api_key=api_key)
+    session_key = "benchmark_session"
+    await session_backend.start_session(session_key)
+    try:
         print("  measuring warm latency, session (10 runs)...")
-        warm_session = await measure_warm_latency(session, n=10)
+        warm_session = await measure_warm_latency(session_backend, n=10)
         print(f"  warm (session): {[f'{v:.0f}' for v in warm_session]}")
+    finally:
+        await session_backend.stop_session(session_key)
 
     ephem_p50 = statistics.median(warm_ephem[1:])
     session_p50 = statistics.median(warm_session[1:])
@@ -445,7 +449,7 @@ async def run_daytona_benchmark() -> dict[str, Any] | None:
     from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
     print("\n### Daytona backend (ephemeral mode)")
-    ephemeral = DaytonaSandboxBackend(api_key=api_key, session_mode=False)
+    ephemeral = DaytonaSandboxBackend(api_key=api_key)
 
     print("  measuring cold start (ephemeral)...")
     cold_ms = await measure_cold_start(ephemeral)
@@ -456,11 +460,15 @@ async def run_daytona_benchmark() -> dict[str, Any] | None:
     print(f"  warm (ephemeral): {[f'{v:.0f}' for v in warm_ephem]}")
 
     print("\n### Daytona backend (session mode)")
-    session = DaytonaSandboxBackend(api_key=api_key, session_mode=True)
-    async with session:
+    session_backend = DaytonaSandboxBackend(api_key=api_key)
+    session_key = "benchmark_session"
+    await session_backend.start_session(session_key)
+    try:
         print("  measuring warm latency, session (10 runs)...")
-        warm_session = await measure_warm_latency(session, n=10)
+        warm_session = await measure_warm_latency(session_backend, n=10)
         print(f"  warm (session): {[f'{v:.0f}' for v in warm_session]}")
+    finally:
+        await session_backend.stop_session(session_key)
 
     ephem_p50 = statistics.median(warm_ephem[1:])
     session_p50 = statistics.median(warm_session[1:])

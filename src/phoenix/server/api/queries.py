@@ -1820,7 +1820,6 @@ class Query:
                         for f in meta.config_fields
                     ],
                     config_required=meta.config_required,
-                    has_session_mode=meta.has_session_mode,
                     setup_instructions=meta.setup_instructions,
                     current_config=current_config,
                 )

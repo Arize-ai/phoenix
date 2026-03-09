@@ -4,7 +4,7 @@ import hashlib
 import logging
 from typing import Any
 
-from .types import EnvVarSpec, ExecutionResult, SandboxAdapter, SandboxBackend
+from .types import ConfigFieldSpec, EnvVarSpec, ExecutionResult, SandboxAdapter, SandboxBackend
 
 _HASH_LENGTH = 16
 _PROVIDER = "daytona"
@@ -17,18 +17,16 @@ class DaytonaSandboxBackend:
 
     Supports two modes:
     - **Ephemeral** (default): spins up a fresh sandbox per execute() call.
-    - **Session**: creates one sandbox in __aenter__() and reuses it across
-      execute() calls until close().
+    - **Session**: call start_session() to provision a reusable sandbox, then
+      pass the session_key to execute(). Call stop_session() to tear it down.
     """
 
     def __init__(
         self,
         api_key: str = "",
-        session_mode: bool = False,
     ) -> None:
         self._api_key = api_key
-        self._session_mode = session_mode
-        self._sandbox: Any = None
+        self._sessions: dict[str, Any] = {}
 
     def environment_hash(self) -> str:
         return hashlib.sha256(_PROVIDER.encode()).hexdigest()[:_HASH_LENGTH]
@@ -38,25 +36,31 @@ class DaytonaSandboxBackend:
 
         return AsyncDaytona(DaytonaConfig(api_key=self._api_key))
 
-    async def __aenter__(self) -> DaytonaSandboxBackend:
-        if self._session_mode:
-            self._sandbox = await self._make_client().create(timeout=60)
-        return self
+    async def start_session(self, session_key: str) -> None:
+        if session_key in self._sessions:
+            raise RuntimeError(f"Session '{session_key}' already exists")
+        client = self._make_client()
+        sandbox = await client.create(timeout=60)
+        self._sessions[session_key] = sandbox
 
-    async def __aexit__(self, *_args: object) -> None:
-        await self.close()
+    async def stop_session(self, session_key: str) -> None:
+        sandbox = self._sessions.pop(session_key, None)
+        if sandbox is not None:
+            client = self._make_client()
+            await client.delete(sandbox, timeout=60)
 
-    async def execute(self, code: str, timeout: float = 30.0) -> ExecutionResult:
+    async def execute(
+        self, code: str, timeout: float = 30.0, *, session_key: str | None = None
+    ) -> ExecutionResult:
         try:
             timeout_int = int(timeout)
-            if self._session_mode:
-                if self._sandbox is None:
+            if session_key is not None:
+                sandbox = self._sessions.get(session_key)
+                if sandbox is None:
                     raise RuntimeError(
-                        "Session-mode sandbox not initialized. "
-                        "Use `async with DaytonaSandboxBackend(...)`"
-                        " as a context manager."
+                        f"No sandbox for session '{session_key}'. Call start_session() first."
                     )
-                result = await self._sandbox.process.code_run(code, timeout=timeout_int)
+                result = await sandbox.process.code_run(code, timeout=timeout_int)
             else:
                 client = self._make_client()
                 sandbox = await client.create(timeout=60)
@@ -94,9 +98,8 @@ class DaytonaSandboxBackend:
             raise
 
     async def close(self) -> None:
-        if self._session_mode and self._sandbox is not None:
-            await self._make_client().delete(self._sandbox, timeout=60)
-            self._sandbox = None
+        for key in list(self._sessions):
+            await self.stop_session(key)
 
 
 class DaytonaAdapter(SandboxAdapter):
@@ -105,18 +108,14 @@ class DaytonaAdapter(SandboxAdapter):
     description = "Runs code evaluators in Daytona cloud sandboxes."
     python_packages = ["daytona"]
     env_vars = [EnvVarSpec(name="PHOENIX_SANDBOX_DAYTONA_API_KEY", required=True)]
-    config_fields: list = []
+    config_fields: list[ConfigFieldSpec] = []
     config_required = False
-    has_session_mode = True
     setup_instructions = [
         "Sign up at daytona.io and create an API key.",
         "Set PHOENIX_SANDBOX_DAYTONA_API_KEY or configure it below.",
         "pip install daytona",
     ]
 
-    def create_backend(self, config: dict, credentials: dict) -> SandboxBackend:
+    def create_backend(self, config: dict[str, Any], credentials: dict[str, Any]) -> SandboxBackend:
         api_key = credentials.get("PHOENIX_SANDBOX_DAYTONA_API_KEY", "")
-        return DaytonaSandboxBackend(
-            api_key=api_key,
-            session_mode=config.get("session_mode", False),
-        )
+        return DaytonaSandboxBackend(api_key=api_key)

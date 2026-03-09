@@ -22,7 +22,7 @@ from wasmtime import (
 
 from phoenix.config import get_working_dir
 
-from .types import ExecutionResult, SandboxAdapter, SandboxBackend
+from .types import BaseNoSessionBackend, ExecutionResult, SandboxAdapter, SandboxBackend
 
 _HASH_LENGTH = 16
 
@@ -35,12 +35,22 @@ _EPOCH_TICK_INTERVAL = 0.5
 # Avoids recompiling the large WASM binary and rehashing on every WASMBackend() call.
 _wasm_module_cache: dict[Path, tuple[Engine, Module, str]] = {}
 
+# Module-level thread pool singleton keyed by max_workers.
+# Shared across all WASMBackend instances to avoid creating redundant pools.
+_thread_pools: dict[int, ThreadPoolExecutor] = {}
+
+
+def _get_thread_pool(max_workers: int) -> ThreadPoolExecutor:
+    if max_workers not in _thread_pools:
+        _thread_pools[max_workers] = ThreadPoolExecutor(max_workers=max_workers)
+    return _thread_pools[max_workers]
+
 
 def _wasm_binary_path() -> Path:
     return get_working_dir() / "sandbox" / "python-3.12.0.wasm"
 
 
-class WASMBackend:
+class WASMBackend(BaseNoSessionBackend):
     """Sandbox backend that executes Python code inside a WebAssembly sandbox.
 
     Uses wasmtime to run a CPython 3.12 WASM binary with WASI deny-all
@@ -78,7 +88,7 @@ class WASMBackend:
             self._module = Module.from_file(self._engine, str(wasm_path))
             self._env_hash = self._compute_hash(wasm_path)
             _wasm_module_cache[wasm_path] = (self._engine, self._module, self._env_hash)
-        self._pool = ThreadPoolExecutor(max_workers=max_workers)
+        self._pool = _get_thread_pool(max_workers)
 
     @staticmethod
     def _compute_hash(wasm_path: Path) -> str:
@@ -165,12 +175,14 @@ class WASMBackend:
         finally:
             stop_event.set()
 
-    async def execute(self, code: str, timeout: float = 30.0) -> ExecutionResult:
+    async def execute(
+        self, code: str, timeout: float = 30.0, *, session_key: str | None = None
+    ) -> ExecutionResult:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self._pool, self._run_in_wasm, code, timeout)
 
     async def close(self) -> None:
-        self._pool.shutdown(wait=False)
+        pass
 
     async def __aenter__(self) -> "WASMBackend":
         return self
@@ -187,7 +199,6 @@ class WASMAdapter(SandboxAdapter):
     env_vars: list[Any] = []
     config_fields: list[Any] = []
     config_required = False
-    has_session_mode = False
     setup_instructions = ['pip install "arize-phoenix[sandbox]"']
 
     def is_installed(self) -> bool:

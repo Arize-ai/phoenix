@@ -60,7 +60,6 @@ class SandboxAdapterInfo:
     env_vars: list[SandboxEnvVarSpec]
     config_fields: list[SandboxConfigFieldSpec]
     config_required: bool
-    has_session_mode: bool
     setup_instructions: list[str]
     current_config: Optional["SandboxConfig"] = None
 
@@ -71,7 +70,6 @@ class SandboxConfig:
     backend_type: SandboxBackendType
     config: JSON
     timeout: int
-    session_mode: bool
     config_hash: str
     created_at: datetime
     updated_at: datetime
@@ -84,7 +82,6 @@ def to_gql_sandbox_config(row: "models.SandboxConfig") -> "SandboxConfig":
         backend_type=SandboxBackendType(row.backend_type),
         config=row.config,
         timeout=row.timeout,
-        session_mode=row.session_mode,
         config_hash=row.config_hash,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -96,7 +93,6 @@ class CreateSandboxConfigInput:
     backend_type: SandboxBackendType
     config: JSON = strawberry.field(default_factory=dict)
     timeout: int = 30
-    session_mode: bool = False
     credentials: Optional[list[GenerativeCredentialInput]] = strawberry.UNSET
 
 
@@ -105,5 +101,4 @@ class UpdateSandboxConfigInput:
     id: strawberry.ID
     config: Optional[JSON] = None
     timeout: Optional[int] = None
-    session_mode: Optional[bool] = None
     credentials: Optional[list[GenerativeCredentialInput]] = strawberry.UNSET

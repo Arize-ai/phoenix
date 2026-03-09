@@ -27,7 +27,6 @@ class SandboxAdapterMeta:
     env_vars: list[EnvVarSpec]
     config_fields: list[ConfigFieldSpec]
     config_required: bool
-    has_session_mode: bool
     setup_instructions: list[str]
 
 
@@ -42,7 +41,6 @@ SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
         env_vars=[],
         config_fields=[],
         config_required=False,
-        has_session_mode=False,
         setup_instructions=['pip install "arize-phoenix[sandbox]"'],
     ),
     "E2B": SandboxAdapterMeta(
@@ -53,7 +51,6 @@ SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
         env_vars=[EnvVarSpec(name="PHOENIX_SANDBOX_E2B_API_KEY", required=True)],
         config_fields=[ConfigFieldSpec(key="template", label="Template", placeholder="base")],
         config_required=True,
-        has_session_mode=True,
         setup_instructions=[
             "Sign up at e2b.dev and create an API key.",
             "Set PHOENIX_SANDBOX_E2B_API_KEY or configure it below.",
@@ -81,7 +78,6 @@ SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
             ConfigFieldSpec(key="runtime", label="Runtime", placeholder="python3.13"),
         ],
         config_required=True,
-        has_session_mode=False,
         setup_instructions=[
             "Set VERCEL_OIDC_TOKEN (auto in Vercel deployments) or PHOENIX_SANDBOX_VERCEL_TOKEN.",
             "pip install vercel",
@@ -95,7 +91,6 @@ SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
         env_vars=[EnvVarSpec(name="PHOENIX_SANDBOX_DAYTONA_API_KEY", required=True)],
         config_fields=[],
         config_required=False,
-        has_session_mode=True,
         setup_instructions=[
             "Sign up at daytona.io and create an API key.",
             "Set PHOENIX_SANDBOX_DAYTONA_API_KEY or configure it below.",

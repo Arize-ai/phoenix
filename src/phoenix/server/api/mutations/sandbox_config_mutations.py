@@ -51,7 +51,6 @@ class SandboxConfigMutationMixin:
                 backend_type=backend_type,
                 config=config,
                 timeout=input.timeout,
-                session_mode=input.session_mode,
                 config_hash=compute_sandbox_config_hash(backend_type, input.timeout, config),
             )
             session.add(row)
@@ -78,8 +77,6 @@ class SandboxConfigMutationMixin:
                 row.config = input.config
             if input.timeout is not None:
                 row.timeout = input.timeout
-            if input.session_mode is not None:
-                row.session_mode = input.session_mode
 
             row.config_hash = compute_sandbox_config_hash(row.backend_type, row.timeout, row.config)
 

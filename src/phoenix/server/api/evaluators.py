@@ -707,6 +707,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         name: str,
         output_configs: Sequence[EvaluatorOutputConfig],
         tracer: Optional[Tracer] = None,
+        session_key: str | None = None,
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
         tracer_ = tracer or NoOpTracer()
@@ -784,7 +785,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     },
                 ) as execution_span:
                     result: ExecutionResult = await self._sandbox_backend.execute(
-                        harness, timeout=30.0
+                        harness, timeout=30.0, session_key=session_key
                     )
                     execution_span.set_attributes(
                         oi.get_output_attributes(

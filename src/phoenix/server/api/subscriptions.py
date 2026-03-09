@@ -34,6 +34,7 @@ from phoenix.db.helpers import (
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
+    CodeEvaluatorRunner,
     EvaluationResult,
     evaluation_result_to_model,
     get_evaluator_project_ids,
@@ -277,6 +278,18 @@ async def _cleanup_chat_completion_resources(
     logger.info("Resource cleanup complete")
 
 
+async def _cleanup_sandbox_sessions(
+    code_backends: list[Any],
+    session_key: str,
+) -> None:
+    """Stop all sandbox sessions, suppressing errors so cleanup always completes."""
+    for backend in code_backends:
+        try:
+            await backend.stop_session(session_key)
+        except Exception:
+            logger.debug("Failed to stop sandbox session %s", session_key, exc_info=True)
+
+
 async def _cleanup_chat_completion_over_dataset_resources(
     in_progress: list[
         tuple[
@@ -290,6 +303,8 @@ async def _cleanup_chat_completion_over_dataset_resources(
     db: DbSessionFactory,
     project_id: int,
     experiment_id: int,
+    code_backends: Optional[list[Any]] = None,
+    session_key: Optional[str] = None,
 ) -> None:
     """
     Cleanup all resources on cancellation or error. MUST be called in a finally block.
@@ -355,6 +370,10 @@ async def _cleanup_chat_completion_over_dataset_resources(
                     pass
             except Exception as e:
                 logger.error(f"Error flushing results: {e}")
+
+    # 6. Stop sandbox sessions (belt-and-suspenders for cancellation)
+    if code_backends and session_key:
+        await _cleanup_sandbox_sessions(code_backends, session_key)
 
     logger.info("Resource cleanup complete")
 
@@ -719,84 +738,112 @@ class Subscription:
                 experiment_id=experiment.id,
             )
 
+        # Track sandbox sessions at outer scope so cleanup can reach them
+        # on cancellation even if the evaluator loop never completes.
+        session_key: str | None = None
+        code_backends: list[Any] = []
+
         if input.evaluators:
-            # Process revisions in reverse order to match the order in which chat completions
-            # were executed, since not_started pops from the right
-            for revision in reversed(revisions):
-                example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-                for repetition_number in range(1, input.repetitions + 1):
-                    async with info.context.db() as session:
-                        run = await session.scalar(  # pyright: ignore
-                            select(models.ExperimentRun).where(
-                                models.ExperimentRun.experiment_id == experiment.id,
-                                models.ExperimentRun.dataset_example_id
-                                == revision.dataset_example_id,
-                                models.ExperimentRun.repetition_number == repetition_number,
-                            )
-                        )
-                    if run is None or run.error is not None:
-                        continue
-                    context_dict: dict[str, Any] = {
-                        "input": revision.input,
-                        "reference": revision.output,
-                        "output": run.output.get("task_output", run.output),
-                        "metadata": revision.metadata_,
-                    }
-                    for evaluator, evaluator_input, project_id in zip(
-                        evaluators, input.evaluators, project_ids
-                    ):
-                        name = str(evaluator_input.name)
-                        configs = get_evaluator_output_configs(evaluator_input, evaluator)
-                        tracer: Tracer | None = None
-                        if input.tracing_enabled:
-                            tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+            # Start sandbox sessions for code evaluators so they reuse the same
+            # sandbox across all rows in this experiment run.
+            session_key = f"experiment_{experiment.id}"
+            for evaluator in evaluators:
+                if (
+                    isinstance(evaluator, CodeEvaluatorRunner)
+                    and evaluator._sandbox_backend is not None
+                    and evaluator._sandbox_backend not in code_backends
+                ):
+                    code_backends.append(evaluator._sandbox_backend)
+                    await evaluator._sandbox_backend.start_session(session_key)
 
-                        eval_results: list[EvaluationResult] = await evaluator.evaluate(
-                            context=context_dict,
-                            input_mapping=evaluator_input.input_mapping,
-                            name=name,
-                            output_configs=configs,
-                            tracer=tracer,
-                        )
-
-                        trace: Trace | None = None
-                        if tracer is not None:
-                            async with info.context.db() as session:
-                                db_traces = await tracer.save_db_traces(
-                                    session=session, project_id=project_id
+            try:
+                # Process revisions in reverse order to match the order in which chat
+                # completions were executed, since not_started pops from the right
+                for revision in reversed(revisions):
+                    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
+                    for repetition_number in range(1, input.repetitions + 1):
+                        async with info.context.db() as session:
+                            run = await session.scalar(  # pyright: ignore
+                                select(models.ExperimentRun).where(
+                                    models.ExperimentRun.experiment_id == experiment.id,
+                                    models.ExperimentRun.dataset_example_id
+                                    == revision.dataset_example_id,
+                                    models.ExperimentRun.repetition_number == repetition_number,
                                 )
-                            if db_traces:
-                                db_trace = db_traces[0]
-                                trace = Trace(id=db_trace.id, db_record=db_trace)
+                            )
+                        if run is None or run.error is not None:
+                            continue
+                        context_dict: dict[str, Any] = {
+                            "input": revision.input,
+                            "reference": revision.output,
+                            "output": run.output.get("task_output", run.output),
+                            "metadata": revision.metadata_,
+                        }
+                        for evaluator, evaluator_input, project_id in zip(
+                            evaluators, input.evaluators, project_ids
+                        ):
+                            name = str(evaluator_input.name)
+                            configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                            tracer: Tracer | None = None
+                            if input.tracing_enabled:
+                                tracer = Tracer(
+                                    span_cost_calculator=info.context.span_cost_calculator
+                                )
 
-                        for result in eval_results:
-                            if result["error"] is not None:
-                                yield EvaluationChunk(
+                            eval_kwargs: dict[str, Any] = dict(
+                                context=context_dict,
+                                input_mapping=evaluator_input.input_mapping,
+                                name=name,
+                                output_configs=configs,
+                                tracer=tracer,
+                            )
+                            if isinstance(evaluator, CodeEvaluatorRunner):
+                                eval_kwargs["session_key"] = session_key
+
+                            eval_results: list[EvaluationResult] = await evaluator.evaluate(
+                                **eval_kwargs,
+                            )
+
+                            trace: Trace | None = None
+                            if tracer is not None:
+                                async with info.context.db() as session:
+                                    db_traces = await tracer.save_db_traces(
+                                        session=session, project_id=project_id
+                                    )
+                                if db_traces:
+                                    db_trace = db_traces[0]
+                                    trace = Trace(id=db_trace.id, db_record=db_trace)
+
+                            for result in eval_results:
+                                if result["error"] is not None:
+                                    yield EvaluationChunk(
+                                        evaluator_name=name,
+                                        error=result["error"],
+                                        trace=trace,
+                                        dataset_example_id=example_id,
+                                        repetition_number=repetition_number,
+                                    )
+                                    continue
+                                annotation_model = evaluation_result_to_model(
+                                    result,
+                                    experiment_run_id=run.id,
+                                )
+                                async with info.context.db() as session:
+                                    session.add(annotation_model)
+                                    await session.flush()
+                                evaluation_chunk = EvaluationChunk(
                                     evaluator_name=name,
-                                    error=result["error"],
+                                    experiment_run_evaluation=ExperimentRunAnnotation(
+                                        id=annotation_model.id,
+                                        db_record=annotation_model,
+                                    ),
                                     trace=trace,
                                     dataset_example_id=example_id,
                                     repetition_number=repetition_number,
                                 )
-                                continue
-                            annotation_model = evaluation_result_to_model(
-                                result,
-                                experiment_run_id=run.id,
-                            )
-                            async with info.context.db() as session:
-                                session.add(annotation_model)
-                                await session.flush()
-                            evaluation_chunk = EvaluationChunk(
-                                evaluator_name=name,
-                                experiment_run_evaluation=ExperimentRunAnnotation(
-                                    id=annotation_model.id,
-                                    db_record=annotation_model,
-                                ),
-                                trace=trace,
-                                dataset_example_id=example_id,
-                                repetition_number=repetition_number,
-                            )
-                            yield evaluation_chunk
+                                yield evaluation_chunk
+            finally:
+                await _cleanup_sandbox_sessions(code_backends, session_key)
 
 
 async def _stream_chat_completion_over_dataset_example(

@@ -17,9 +17,23 @@ class ExecutionResult:
 
 
 class SandboxBackend(Protocol):
-    async def execute(self, code: str, timeout: float = 30.0) -> ExecutionResult: ...
+    async def execute(
+        self, code: str, timeout: float = 30.0, *, session_key: str | None = None
+    ) -> ExecutionResult: ...
+    async def start_session(self, session_key: str) -> None: ...
+    async def stop_session(self, session_key: str) -> None: ...
     async def close(self) -> None: ...
     def environment_hash(self) -> str: ...
+
+
+class BaseNoSessionBackend:
+    """Mixin providing no-op start_session/stop_session for stateless backends."""
+
+    async def start_session(self, session_key: str) -> None:
+        pass
+
+    async def stop_session(self, session_key: str) -> None:
+        pass
 
 
 @dataclass(frozen=True)
@@ -55,22 +69,17 @@ class SandboxAdapter(ABC):
     env_vars: list[EnvVarSpec] = []
     config_fields: list[ConfigFieldSpec] = []
     config_required: bool = False
-    has_session_mode: bool = False
     setup_instructions: list[str] = []
 
     def is_installed(self) -> bool:
         """Check if this adapter's dependencies are available."""
-        return all(
-            importlib.util.find_spec(pkg) is not None for pkg in self.python_packages
-        )
+        return all(importlib.util.find_spec(pkg) is not None for pkg in self.python_packages)
 
     def has_credentials(self) -> bool:
         """Check if all required environment variables are set."""
-        return all(
-            os.getenv(var.name) for var in self.env_vars if var.required
-        )
+        return all(os.getenv(var.name) for var in self.env_vars if var.required)
 
     @abstractmethod
-    def create_backend(self, config: dict, credentials: dict) -> SandboxBackend:
+    def create_backend(self, config: dict[str, str], credentials: dict[str, str]) -> SandboxBackend:
         """Create and return a configured SandboxBackend instance."""
         ...

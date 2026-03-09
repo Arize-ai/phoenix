@@ -14,52 +14,52 @@ logger = logging.getLogger(__name__)
 class E2BSandboxBackend:
     """Sandbox backend that executes Python code in E2B cloud sandboxes.
 
-    Supports two modes:
-    - **Ephemeral** (default): spins up a fresh sandbox per execute() call.
-    - **Session**: creates one sandbox in __aenter__() and reuses it across
-      execute() calls until close().
+    Supports named sessions via start_session/stop_session for sandbox reuse
+    across multiple execute() calls, or ephemeral execution (default) which
+    spins up a fresh sandbox per call.
     """
 
     def __init__(
         self,
         api_key: str,
         template: str = "base",
-        session_mode: bool = False,
     ) -> None:
         self._api_key = api_key
         self._template = template
-        self._session_mode = session_mode
-        self._sandbox: Any = None
+        self._sessions: dict[str, Any] = {}
 
     def environment_hash(self) -> str:
         return hashlib.sha256(self._template.encode()).hexdigest()[:_HASH_LENGTH]
 
-    async def __aenter__(self) -> E2BSandboxBackend:
-        if self._session_mode:
-            from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-not-found]
+    async def start_session(self, session_key: str) -> None:
+        if session_key in self._sessions:
+            raise RuntimeError(f"Session '{session_key}' already exists")
+        # avoids top-level import failure when e2b extra is not installed
+        from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-not-found]
 
-            self._sandbox = await AsyncSandbox.create(
-                api_key=self._api_key, template=self._template
-            )
-        return self
+        sandbox = await AsyncSandbox.create(api_key=self._api_key, template=self._template)
+        self._sessions[session_key] = sandbox
 
-    async def __aexit__(self, *_args: object) -> None:
-        await self.close()
+    async def stop_session(self, session_key: str) -> None:
+        sandbox = self._sessions.pop(session_key, None)
+        if sandbox is not None:
+            await sandbox.close()
 
-    async def execute(self, code: str, timeout: float = 30.0) -> ExecutionResult:
+    async def execute(
+        self, code: str, timeout: float = 30.0, *, session_key: str | None = None
+    ) -> ExecutionResult:
         from e2b_code_interpreter import (
             AsyncSandbox,  # type: ignore[import-not-found,unused-ignore]
         )
 
         try:
-            if self._session_mode:
-                if self._sandbox is None:
+            if session_key is not None:
+                sandbox = self._sessions.get(session_key)
+                if sandbox is None:
                     raise RuntimeError(
-                        "Session-mode sandbox not initialized. "
-                        "Use `async with E2BSandboxBackend(...)`"
-                        " as a context manager."
+                        f"No session found for key '{session_key}'. Call start_session() first."
                     )
-                execution = await self._sandbox.run_code(code, timeout=timeout)
+                execution = await sandbox.run_code(code, timeout=timeout)
             else:
                 async with await AsyncSandbox.create(
                     api_key=self._api_key, template=self._template
@@ -97,9 +97,8 @@ class E2BSandboxBackend:
             raise
 
     async def close(self) -> None:
-        if self._session_mode and self._sandbox is not None:
-            await self._sandbox.close()
-            self._sandbox = None
+        for key in list(self._sessions):
+            await self.stop_session(key)
 
 
 class E2BAdapter(SandboxAdapter):
@@ -110,17 +109,15 @@ class E2BAdapter(SandboxAdapter):
     env_vars = [EnvVarSpec(name="PHOENIX_SANDBOX_E2B_API_KEY", required=True)]
     config_fields = [ConfigFieldSpec(key="template", label="Template", placeholder="base")]
     config_required = True
-    has_session_mode = True
     setup_instructions = [
         "Sign up at e2b.dev and create an API key.",
         "Set PHOENIX_SANDBOX_E2B_API_KEY or configure it below.",
         "pip install e2b-code-interpreter",
     ]
 
-    def create_backend(self, config: dict, credentials: dict) -> SandboxBackend:
+    def create_backend(self, config: dict[str, str], credentials: dict[str, str]) -> SandboxBackend:
         api_key = credentials.get("PHOENIX_SANDBOX_E2B_API_KEY", "")
         return E2BSandboxBackend(
             api_key=api_key,
             template=config.get("template", "base"),
-            session_mode=config.get("session_mode", False),
         )
