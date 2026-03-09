@@ -15,11 +15,7 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.insertion.dataset import (
-    DatasetAction,
-    ExampleContent,
-    add_dataset_examples,
-)
+from phoenix.db.insertion.dataset import ExampleContent
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.types import DbSessionFactory
@@ -1594,32 +1590,37 @@ async def test_upsert_empty_examples_list_does_not_create_new_version(
 # ---------------------------------------------------------------------------
 
 
+def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
+    body: dict[str, Any] = {"action": action, "name": name, "inputs": [e.input for e in examples]}
+    if any(e.output for e in examples):
+        body["outputs"] = [e.output for e in examples]
+    if any(e.external_id is not None for e in examples):
+        body["external_ids"] = [e.external_id for e in examples]
+    return body
+
+
 async def _upsert(
-    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
     name: str,
     examples: list[ExampleContent],
 ) -> None:
-    async with db() as session:
-        await add_dataset_examples(
-            session=session,
-            name=name,
-            examples=examples,
-            action=DatasetAction.UPSERT,
-        )
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json=_examples_to_body("upsert", name, examples),
+    )
+    response.raise_for_status()
 
 
 async def _append(
-    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
     name: str,
     examples: list[ExampleContent],
 ) -> None:
-    async with db() as session:
-        await add_dataset_examples(
-            session=session,
-            name=name,
-            examples=examples,
-            action=DatasetAction.APPEND,
-        )
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json=_examples_to_body("append", name, examples),
+    )
+    response.raise_for_status()
 
 
 async def _get_revisions(db: DbSessionFactory, name: str) -> list[models.DatasetExampleRevision]:
@@ -1651,15 +1652,16 @@ async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetV
 
 
 async def test_upsert_ext_id_ext_id_matching_hash_carries_over(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has ext_id, incoming has same ext_id, same hash → carry-over (no new version)."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={"b": 2}, external_id="e1")
-    await _append(db, name, [ex])
+    await _append(httpx_client, name, [ex])
 
     versions_before = await _get_versions(db, name)
-    await _upsert(db, name, [ex])
+    await _upsert(httpx_client, name, [ex])
 
     versions_after = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -1672,12 +1674,13 @@ async def test_upsert_ext_id_ext_id_matching_hash_carries_over(
 
 
 async def test_upsert_ext_id_ext_id_differing_hash_adds_patch_revision(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has ext_id, incoming has same ext_id, different hash → PATCH revision on same example."""
     name = "ds"
-    await _append(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1692,17 +1695,18 @@ async def test_upsert_ext_id_ext_id_differing_hash_adds_patch_revision(
 
 
 async def test_upsert_ext_id_no_ext_id_matching_hash_carries_over(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has ext_id, incoming has no ext_id, same hash → carry-over via hash fallback."""
     name = "ds"
     inp = {"a": 1}
     # Set up prev with external_id
-    await _append(db, name, [ExampleContent(input=inp, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input=inp, output={}, external_id="e1")])
 
     versions_before = await _get_versions(db, name)
     # Upsert with same content but no external_id
-    await _upsert(db, name, [ExampleContent(input=inp, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input=inp, output={})])
 
     versions_after = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -1713,12 +1717,13 @@ async def test_upsert_ext_id_no_ext_id_matching_hash_carries_over(
 
 
 async def test_upsert_ext_id_no_ext_id_differing_hash_adds_delete_revision(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has ext_id, incoming has no ext_id, different hash → DELETE old + CREATE new."""
     name = "ds"
-    await _append(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={})])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1730,15 +1735,16 @@ async def test_upsert_ext_id_no_ext_id_differing_hash_adds_delete_revision(
 
 
 async def test_upsert_no_ext_id_ext_id_matching_hash_carries_over(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has no ext_id, incoming has ext_id, same hash → carry-over; no external_id written."""
     name = "ds"
     inp = {"a": 1}
-    await _append(db, name, [ExampleContent(input=inp, output={})])
+    await _append(httpx_client, name, [ExampleContent(input=inp, output={})])
 
     versions_before = await _get_versions(db, name)
-    await _upsert(db, name, [ExampleContent(input=inp, output={}, external_id="new-id")])
+    await _upsert(httpx_client, name, [ExampleContent(input=inp, output={}, external_id="new-id")])
 
     versions_after = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -1757,12 +1763,13 @@ async def test_upsert_no_ext_id_ext_id_matching_hash_carries_over(
 
 
 async def test_upsert_no_ext_id_ext_id_differing_hash_creates_and_deletes(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has no ext_id, incoming has ext_id, different hash → CREATE new + DELETE old."""
     name = "ds"
-    await _append(db, name, [ExampleContent(input={"a": 1}, output={})])
-    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1774,15 +1781,16 @@ async def test_upsert_no_ext_id_ext_id_differing_hash_creates_and_deletes(
 
 
 async def test_upsert_no_ext_id_no_ext_id_matching_hash_carries_over(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has no ext_id, incoming has no ext_id, same hash → carry-over."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
-    await _append(db, name, [ex])
+    await _append(httpx_client, name, [ex])
 
     versions_before = await _get_versions(db, name)
-    await _upsert(db, name, [ex])
+    await _upsert(httpx_client, name, [ex])
 
     versions_after = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -1792,12 +1800,13 @@ async def test_upsert_no_ext_id_no_ext_id_matching_hash_carries_over(
 
 
 async def test_upsert_no_ext_id_no_ext_id_differing_hash_creates_and_deletes(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """prev has no ext_id, incoming has no ext_id, different hash → CREATE new + DELETE old."""
     name = "ds"
-    await _append(db, name, [ExampleContent(input={"a": 1}, output={})])
-    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={})])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1814,16 +1823,17 @@ async def test_upsert_no_ext_id_no_ext_id_differing_hash_creates_and_deletes(
 
 
 async def test_upsert_deleted_ext_id_example_recreated_on_upsert(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Deleted example with external_id → upserting same ext_id revives it (same row, new CREATE)."""
     name = "ds"
     # 1. Create example with ext_id="e1"
-    await _append(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
     # 2. Upsert with a different example → "e1" gets DELETE
-    await _upsert(db, name, [ExampleContent(input={"z": 99}, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input={"z": 99}, output={})])
     # 3. Upsert "e1" again → deleted "e1" revived with new CREATE revision on same row
-    await _upsert(db, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _upsert(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
 
     async with db() as session:
         examples = list(
@@ -1853,17 +1863,18 @@ async def test_upsert_deleted_ext_id_example_recreated_on_upsert(
 
 
 async def test_upsert_deleted_no_ext_id_example_recreated_on_upsert(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Deleted example (no ext_id) → upserting same content creates a new DatasetExample."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
     # 1. Create example
-    await _append(db, name, [ex])
+    await _append(httpx_client, name, [ex])
     # 2. Upsert with different content → original gets DELETE
-    await _upsert(db, name, [ExampleContent(input={"z": 99}, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input={"z": 99}, output={})])
     # 3. Upsert original content again → deleted example absent from active → CREATE new row
-    await _upsert(db, name, [ex])
+    await _upsert(httpx_client, name, [ex])
 
     async with db() as session:
         all_examples = list(
@@ -1896,13 +1907,14 @@ async def test_upsert_deleted_no_ext_id_example_recreated_on_upsert(
 
 
 async def test_upsert_same_hash_prev_one_req_many_adds_create_revision(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """1 prev, 2 req with same hash → 1 carry-over, 1 CREATE."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
-    await _append(db, name, [ex])
-    await _upsert(db, name, [ex, ex])
+    await _append(httpx_client, name, [ex])
+    await _upsert(httpx_client, name, [ex, ex])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1914,13 +1926,14 @@ async def test_upsert_same_hash_prev_one_req_many_adds_create_revision(
 
 
 async def test_upsert_same_hash_prev_many_req_one_adds_delete_revision(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """2 prev, 1 req with same hash → 1 carry-over, 1 DELETE."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
-    await _append(db, name, [ex, ex])
-    await _upsert(db, name, [ex])
+    await _append(httpx_client, name, [ex, ex])
+    await _upsert(httpx_client, name, [ex])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1937,6 +1950,7 @@ async def test_upsert_same_hash_prev_many_req_one_adds_delete_revision(
 
 
 async def test_upsert_batch_with_mix_of_new_unchanged_and_changed_examples(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """3 examples: unchanged (carry-over), changed (patch), new (create)."""
@@ -1946,8 +1960,8 @@ async def test_upsert_batch_with_mix_of_new_unchanged_and_changed_examples(
     e_changed_new = ExampleContent(input={"b": 2}, output={}, external_id="changed")
     e_new = ExampleContent(input={"c": 1}, output={}, external_id="new")
 
-    await _append(db, name, [e_unchanged, e_changed_old])
-    await _upsert(db, name, [e_unchanged, e_changed_new, e_new])
+    await _append(httpx_client, name, [e_unchanged, e_changed_old])
+    await _upsert(httpx_client, name, [e_unchanged, e_changed_new, e_new])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -1962,6 +1976,7 @@ async def test_upsert_batch_with_mix_of_new_unchanged_and_changed_examples(
 
 
 async def test_upsert_batch_with_mix_of_examples_with_and_without_external_ids(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Mixed batch: examples with and without external_ids."""
@@ -1969,9 +1984,9 @@ async def test_upsert_batch_with_mix_of_examples_with_and_without_external_ids(
     e_with_id = ExampleContent(input={"a": 1}, output={}, external_id="e1")
     e_no_id = ExampleContent(input={"b": 1}, output={})
 
-    await _append(db, name, [e_with_id, e_no_id])
+    await _append(httpx_client, name, [e_with_id, e_no_id])
     # Upsert same examples
-    await _upsert(db, name, [e_with_id, e_no_id])
+    await _upsert(httpx_client, name, [e_with_id, e_no_id])
 
     versions = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -1987,11 +2002,12 @@ async def test_upsert_batch_with_mix_of_examples_with_and_without_external_ids(
 
 
 async def test_upsert_creates_new_dataset_when_name_does_not_exist(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Upsert on non-existent dataset creates Dataset + DatasetVersion + CREATE revisions."""
     name = "brand-new"
-    await _upsert(db, name, [ExampleContent(input={"x": 1}, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input={"x": 1}, output={})])
 
     async with db() as session:
         dataset = await session.scalar(select(models.Dataset).where(models.Dataset.name == name))
@@ -2006,43 +2022,48 @@ async def test_upsert_creates_new_dataset_when_name_does_not_exist(
 
 
 async def test_upsert_creates_new_version_on_existing_dataset(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Upsert with changes creates a second DatasetVersion."""
     name = "ds"
-    await _append(db, name, [ExampleContent(input={"a": 1}, output={})])
-    await _upsert(db, name, [ExampleContent(input={"a": 2}, output={})])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
+    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
 
     versions = await _get_versions(db, name)
     assert len(versions) == 2
 
 
 async def test_upsert_does_not_create_new_version_for_unchanged_examples(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """All carry-over → no new version, returns existing version_id."""
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
-    await _append(db, name, [ex])
+    await _append(httpx_client, name, [ex])
 
     versions_before = await _get_versions(db, name)
-    prior_version_id = versions_before[0].id
+    append_version_id = versions_before[0].id
 
-    async with db() as session:
-        event = await add_dataset_examples(
-            session=session,
-            name=name,
-            examples=[ex],
-            action=DatasetAction.UPSERT,
-        )
+    upsert_response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={"action": "upsert", "name": name, "inputs": [ex.input]},
+    )
+    upsert_response.raise_for_status()
 
     versions_after = await _get_versions(db, name)
     assert len(versions_after) == len(versions_before)
-    assert event is not None
-    assert event.dataset_version_id == prior_version_id
+    from strawberry.relay import GlobalID
+
+    from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionType
+
+    expected_version_id = str(GlobalID(DatasetVersionType.__name__, str(append_version_id)))
+    assert upsert_response.json()["data"]["version_id"] == expected_version_id
 
 
 async def test_upsert_with_no_prior_version_creates_all_examples(
+    httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Dataset exists but has no versions → all examples are new → CREATE all."""
@@ -2052,7 +2073,7 @@ async def test_upsert_with_no_prior_version_creates_all_examples(
         await session.execute(insert(models.Dataset).values(name=name, metadata_={}))
 
     await _upsert(
-        db,
+        httpx_client,
         name,
         [
             ExampleContent(input={"a": 1}, output={}),
