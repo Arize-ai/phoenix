@@ -37,11 +37,13 @@ describe("objectToInvocationParameters", () => {
         invocationName: "temperature",
         canonicalName: "TEMPERATURE",
         valueFloat: 0.7,
+        dirty: true,
       },
       {
         invocationName: "max_tokens",
         canonicalName: "MAX_COMPLETION_TOKENS",
         valueInt: 100,
+        dirty: true,
       },
     ]);
   });
@@ -60,12 +62,43 @@ describe("objectToInvocationParameters", () => {
       {
         invocationName: "unknownParam",
         valueJson: "test",
+        dirty: true,
       },
       {
         invocationName: "maxTokens",
         valueJson: 100,
+        dirty: true,
       },
     ]);
+  });
+
+  it("should mark all parameters as dirty to preserve them during model updates", () => {
+    // This test verifies that prompt invocation parameters are marked as dirty
+    // so they are preserved when updateModelSupportedInvocationParameters runs
+    const params = {
+      temperature: 0,
+      max_tokens: 4096,
+    };
+
+    const supportedParams = [
+      {
+        __typename: "FloatInvocationParameter",
+        invocationName: "temperature",
+        canonicalName: "TEMPERATURE",
+        invocationInputField: "value_float",
+      },
+      {
+        __typename: "IntInvocationParameter",
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        invocationInputField: "value_int",
+      },
+    ] satisfies SupportedParamsType;
+
+    const result = objectToInvocationParameters(params, supportedParams);
+
+    // All parameters should have dirty: true so they are preserved
+    expect(result.every((param) => param.dirty === true)).toBe(true);
   });
 });
 
