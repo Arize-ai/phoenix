@@ -210,6 +210,16 @@ export type ExperimentRunProgress = {
 };
 
 /**
+ * Experiment metadata associated with a playground instance.
+ * Couples the experiment ID with whether it is ephemeral so they
+ * are always set and cleared together.
+ */
+export type PlaygroundInstanceExperiment = {
+  id: string;
+  isEphemeral: boolean;
+};
+
+/**
  * A single instance of the playground that has
  * - a template
  * - tools
@@ -231,9 +241,12 @@ export interface PlaygroundInstance {
   repetitions: Record<number, PlaygroundRepetition | undefined>;
   activeRunId: number | null;
   /**
-   * The id of the experiment associated with the last playground run on the instance if any
+   * The experiment associated with the last playground run on this instance, if any.
+   * Contains both the experiment ID and whether it is ephemeral (temporary).
+   * Ephemeral experiments are created when recording is off and will be cleaned up
+   * by the server — they should not be surfaced in the UI (e.g. "View Experiment" links).
    */
-  experimentId?: string | null;
+  experiment?: PlaygroundInstanceExperiment | null;
   /**
    * Details about the prompt hub prompt associated with the instance, if any
    */
@@ -293,6 +306,11 @@ export interface PlaygroundProps {
    * @default 1
    */
   repetitions: number;
+  /**
+   * Whether to record (persist) experiments or create ephemeral ones
+   * @default true
+   */
+  recordExperiments: boolean;
 }
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
@@ -528,6 +546,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setRepetitions: (repetitions: number) => void;
   /**
+   * set whether to record experiments
+   */
+  setRecordExperiments: (recordExperiments: boolean) => void;
+  /**
    * Set the appended messages path
    */
   setAppendedMessagesPath: ({
@@ -650,4 +672,11 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Clear experiment run progress for an instance
    */
   clearExperimentRunProgress: (instanceId: number) => void;
+  /**
+   * Set the experiment for an instance. Pass null to clear.
+   */
+  setInstanceExperiment: (
+    instanceId: number,
+    experiment: PlaygroundInstanceExperiment | null
+  ) => void;
 }

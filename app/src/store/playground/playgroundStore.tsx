@@ -231,6 +231,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   > = (set, get) => ({
     streaming: true,
     repetitions: 1,
+    recordExperiments: true,
     operationType: "chat",
     inputMode: "manual",
     dirtyInstances: {},
@@ -362,7 +363,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 : {}),
               id: generateInstanceId(),
               activeRunId: null,
-              experimentId: null,
+              experiment: null,
               repetitions: {},
             },
           ],
@@ -832,6 +833,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions }, false, { type: "setRepetitions" });
+    },
+    setRecordExperiments: (recordExperiments: boolean) => {
+      set({ recordExperiments }, false, { type: "setRecordExperiments" });
     },
     setAppendedMessagesPath: ({
       path,
@@ -1426,6 +1430,23 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "clearExperimentRunProgress" }
       );
     },
+    setInstanceExperiment: (instanceId, experiment) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            return {
+              ...instance,
+              experiment,
+            };
+          }),
+        },
+        false,
+        { type: "setInstanceExperiment" }
+      );
+    },
   });
 
   return create(
@@ -1440,18 +1461,27 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           const { availablePaths: _, ...rest } = datasetState;
           filteredState[datasetId] = rest;
         }
-        return filteredState;
+        return {
+          stateByDatasetId: filteredState,
+          recordExperiments: state.recordExperiments,
+        };
       },
       merge: (persistedState, currentState) => {
         try {
-          const parsedPersistedState =
-            PlaygroundStateByDatasetIdSchema.parse(persistedState);
+          const persisted = persistedState as Record<string, unknown>;
+          // Handle both old format (flat record) and new format (object with stateByDatasetId)
+          const stateByDatasetId = persisted?.stateByDatasetId
+            ? PlaygroundStateByDatasetIdSchema.parse(persisted.stateByDatasetId)
+            : PlaygroundStateByDatasetIdSchema.parse(persistedState);
           const merged = {
             ...currentState,
             stateByDatasetId: {
               ...currentState.stateByDatasetId,
-              ...parsedPersistedState,
+              ...stateByDatasetId,
             },
+            recordExperiments:
+              (persisted?.recordExperiments as boolean) ??
+              currentState.recordExperiments,
           };
 
           return merged;

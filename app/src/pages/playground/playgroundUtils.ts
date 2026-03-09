@@ -2108,6 +2108,7 @@ export const getChatCompletionOverDatasetInput = ({
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
     streaming,
+    recordExperiments,
   } = playgroundStore.getState();
 
   const instance = instances.find((i) => i.id === instanceId);
@@ -2176,6 +2177,7 @@ export const getChatCompletionOverDatasetInput = ({
     templateVariablesPath: templateVariablesPath ?? "",
     promptName: instance.prompt?.name,
     streamModelOutput: streaming,
+    createEphemeralExperiment: !recordExperiments,
   };
 };
 
