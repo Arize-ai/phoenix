@@ -325,7 +325,7 @@ class OtlpSpan(BaseModel):
             "This field is required."
         ),
     )
-    parent_span_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
+    parent_id: Optional[Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]*={0,2}$")]] = Field(
         None,
         description=(
             "The `span_id` of this span's parent span. If this is a root span, then this field "
@@ -607,7 +607,7 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by one or more trace IDs",
     ),
-    parent_span_id: Optional[str] = Query(
+    parent_id: Optional[str] = Query(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
     ),
@@ -636,11 +636,11 @@ async def span_search_otlpv1(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
-    if parent_span_id is not None:
-        if parent_span_id == "null":
+    if parent_id is not None:
+        if parent_id == "null":
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
-            stmt = stmt.where(models.Span.parent_id == parent_span_id)
+            stmt = stmt.where(models.Span.parent_id == parent_id)
 
     if cursor:
         try:
@@ -720,7 +720,7 @@ async def span_search_otlpv1(
             OtlpSpan(
                 trace_id=span_trace_id,
                 span_id=span_orm.span_id,
-                parent_span_id=span_orm.parent_id,
+                parent_id=span_orm.parent_id,
                 name=span_orm.name,
                 start_time_unix_nano=start_ns,
                 end_time_unix_nano=end_ns,
@@ -759,7 +759,7 @@ async def span_search(
         default=None,
         description="Filter by one or more trace IDs",
     ),
-    parent_span_id: Optional[str] = Query(
+    parent_id: Optional[str] = Query(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
     ),
@@ -786,11 +786,11 @@ async def span_search(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
-    if parent_span_id is not None:
-        if parent_span_id == "null":
+    if parent_id is not None:
+        if parent_id == "null":
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
-            stmt = stmt.where(models.Span.parent_id == parent_span_id)
+            stmt = stmt.where(models.Span.parent_id == parent_id)
 
     if cursor:
         try:

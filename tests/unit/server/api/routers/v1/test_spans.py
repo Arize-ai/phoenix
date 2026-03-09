@@ -1280,13 +1280,13 @@ async def project_with_parent_spans(db: DbSessionFactory) -> None:
         await session.flush()
 
 
-async def test_span_search_filter_by_parent_span_id_null(
+async def test_span_search_filter_by_parent_id_null(
     httpx_client: httpx.AsyncClient, project_with_parent_spans: None
 ) -> None:
-    """parent_span_id=null returns only root spans."""
+    """parent_id=null returns only root spans."""
     resp = await httpx_client.get(
         "v1/projects/parent-spans/spans",
-        params={"parent_span_id": "null"},
+        params={"parent_id": "null"},
     )
     assert resp.is_success
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
@@ -1295,13 +1295,13 @@ async def test_span_search_filter_by_parent_span_id_null(
     assert spans[0].parent_id is None
 
 
-async def test_span_search_filter_by_parent_span_id_specific(
+async def test_span_search_filter_by_parent_id_specific(
     httpx_client: httpx.AsyncClient, project_with_parent_spans: None
 ) -> None:
-    """parent_span_id=<id> returns children of that span."""
+    """parent_id=<id> returns children of that span."""
     resp = await httpx_client.get(
         "v1/projects/parent-spans/spans",
-        params={"parent_span_id": "rootspan0"},
+        params={"parent_id": "rootspan0"},
     )
     assert resp.is_success
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
@@ -1310,41 +1310,41 @@ async def test_span_search_filter_by_parent_span_id_specific(
     assert spans[0].parent_id == "rootspan0"
 
 
-async def test_span_search_no_parent_span_id_filter(
+async def test_span_search_no_parent_id_filter(
     httpx_client: httpx.AsyncClient, project_with_parent_spans: None
 ) -> None:
-    """No parent_span_id param returns all spans."""
+    """No parent_id param returns all spans."""
     resp = await httpx_client.get("v1/projects/parent-spans/spans")
     assert resp.is_success
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 2
 
 
-async def test_otlp_span_search_filter_by_parent_span_id_null(
+async def test_otlp_span_search_filter_by_parent_id_null(
     httpx_client: httpx.AsyncClient, project_with_parent_spans: None
 ) -> None:
-    """parent_span_id=null returns only root spans (OTLP endpoint)."""
+    """parent_id=null returns only root spans (OTLP endpoint)."""
     resp = await httpx_client.get(
         "v1/projects/parent-spans/spans/otlpv1",
-        params={"parent_span_id": "null"},
+        params={"parent_id": "null"},
     )
     assert resp.is_success
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 1
     assert spans[0].name == "root-span"
-    assert spans[0].parent_span_id is None
+    assert spans[0].parent_id is None
 
 
-async def test_otlp_span_search_filter_by_parent_span_id_specific(
+async def test_otlp_span_search_filter_by_parent_id_specific(
     httpx_client: httpx.AsyncClient, project_with_parent_spans: None
 ) -> None:
-    """parent_span_id=<id> returns children (OTLP endpoint)."""
+    """parent_id=<id> returns children (OTLP endpoint)."""
     resp = await httpx_client.get(
         "v1/projects/parent-spans/spans/otlpv1",
-        params={"parent_span_id": "rootspan0"},
+        params={"parent_id": "rootspan0"},
     )
     assert resp.is_success
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 1
     assert spans[0].name == "child-span"
-    assert spans[0].parent_span_id == "rootspan0"
+    assert spans[0].parent_id == "rootspan0"
