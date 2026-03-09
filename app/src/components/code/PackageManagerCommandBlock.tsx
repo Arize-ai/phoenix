@@ -8,7 +8,7 @@ import {
   ToggleButtonGroup,
 } from "@phoenix/components";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
-import { classNames } from "@phoenix/utils";
+import { classNames } from "@phoenix/utils/classNames";
 
 import { BashBlock } from "./BashBlock";
 import { codeBlockWithCopyCSS } from "./styles";
