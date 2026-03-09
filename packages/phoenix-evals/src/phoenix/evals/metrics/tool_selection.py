@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+from typing import Union
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
     TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM
+from ..llm import LLM, PromptLike, Template
 from ..llm.prompts import PromptTemplate
 
 
@@ -61,11 +65,12 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        prompt_template: Union[PromptLike, PromptTemplate, Template, None] = None,
     ):
         super().__init__(
             name=self.NAME,
             llm=llm,
-            prompt_template=self.PROMPT.template,
+            prompt_template=prompt_template if prompt_template is not None else self.PROMPT.template,
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.ToolSelectionInputSchema,
