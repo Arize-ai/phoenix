@@ -41,7 +41,7 @@ export function ProjectPageHeader(props: {
     graphql`
       fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
-        traceCount(timeRange: $timeRange)
+        timeRangeTraceCount: traceCount(timeRange: $timeRange)
         costSummary(timeRange: $timeRange) {
           total {
             cost
@@ -132,7 +132,7 @@ export function ProjectPageHeader(props: {
                 Total Traces
               </Text>
               <Text size="L" fontFamily="mono">
-                {intFormatter(data?.traceCount)}
+                {intFormatter(data?.timeRangeTraceCount)}
               </Text>
             </Flex>
             <Flex direction="column" flex="none">

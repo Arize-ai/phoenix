@@ -21,15 +21,21 @@ import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
-import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
+import {
+  StreamStateProvider,
+  useStreamState,
+} from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
+import type { ProjectPageOnboardingCountsQuery as ProjectPageOnboardingCountsQueryType } from "./__generated__/ProjectPageOnboardingCountsQuery.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
+import { ProjectOnboardingWaitingForTraces } from "./ProjectOnboardingWaitingForTraces";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import {
   ProjectPageQueriesProjectConfigQuery,
@@ -105,6 +111,22 @@ export function ProjectPageContent({
   projectId: string;
   timeRange: OpenTimeRange;
 }) {
+  return (
+    <StreamStateProvider>
+      <ProjectPageContentBody projectId={projectId} timeRange={timeRange} />
+    </StreamStateProvider>
+  );
+}
+
+function ProjectPageContentBody({
+  projectId,
+  timeRange,
+}: {
+  projectId: string;
+  timeRange: OpenTimeRange;
+}) {
+  const isTracingOnboardingEnabled = useFeatureFlag("tracing-onboarding");
+  const { fetchKey } = useStreamState();
   const treatOrphansAsRoots = useProjectContext(
     (state) => state.treatOrphansAsRoots
   );
@@ -116,12 +138,33 @@ export function ProjectPageContent({
   }, [timeRange]);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
+  const countsData = useLazyLoadQuery<ProjectPageOnboardingCountsQueryType>(
+    graphql`
+      query ProjectPageOnboardingCountsQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            totalTraceCount: traceCount
+            totalSpanCount: recordCount
+          }
+        }
+      }
+    `,
+    {
+      id: projectId as string,
+    },
+    {
+      fetchPolicy: "store-and-network",
+      fetchKey: `${projectId}-${fetchKey}`,
+    }
+  );
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
-          ...ProjectPageHeader_stats
-          ...StreamToggle_data
+          ... on Project {
+            ...ProjectPageHeader_stats
+            ...StreamToggle_data
+          }
         }
       }
     `,
@@ -150,6 +193,10 @@ export function ProjectPageContent({
     ProjectPageQueriesProjectConfigQuery
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  const hasNoTracesOrSpans =
+    countsData.project.totalTraceCount === 0 &&
+    countsData.project.totalSpanCount === 0;
+  const isOnboardingActive = isTracingOnboardingEnabled && hasNoTracesOrSpans;
   useEffect(() => {
     if (tabIndex === TAB_INDEX_MAP.spans) {
       loadSpansQuery({
@@ -218,59 +265,61 @@ export function ProjectPageContent({
     [navigate, rootPath]
   );
 
-  return (
-    <StreamStateProvider>
-      <main css={mainCSS}>
-        <ProjectPageHeader
-          project={data.project}
-          extra={
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <StreamToggle project={data.project} />
-              <ConnectedTimeRangeSelector />
-            </Flex>
-          }
-        />
-        <ProjectPageQueryReferenceContext.Provider
-          value={{
-            spansQueryReference: spansQueryReference ?? null,
-            sessionsQueryReference: sessionsQueryReference ?? null,
-            tracesQueryReference: tracesQueryReference ?? null,
-            projectConfigQueryReference: projectConfigQueryReference ?? null,
+  return isOnboardingActive ? (
+    <main css={mainCSS}>
+      <ProjectOnboardingWaitingForTraces project={data.project} />
+    </main>
+  ) : (
+    <main css={mainCSS}>
+      <ProjectPageHeader
+        project={data.project}
+        extra={
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <StreamToggle project={data.project} />
+            <ConnectedTimeRangeSelector />
+          </Flex>
+        }
+      />
+      <ProjectPageQueryReferenceContext.Provider
+        value={{
+          spansQueryReference: spansQueryReference ?? null,
+          sessionsQueryReference: sessionsQueryReference ?? null,
+          tracesQueryReference: tracesQueryReference ?? null,
+          projectConfigQueryReference: projectConfigQueryReference ?? null,
+        }}
+      >
+        <Tabs
+          onSelectionChange={(key) => {
+            if (typeof key === "string" && isTab(key)) {
+              onTabChange(TAB_INDEX_MAP[key]);
+            }
           }}
+          selectedKey={tab}
         >
-          <Tabs
-            onSelectionChange={(key) => {
-              if (typeof key === "string" && isTab(key)) {
-                onTabChange(TAB_INDEX_MAP[key]);
-              }
-            }}
-            selectedKey={tab}
-          >
-            <TabList>
-              <Tab id="spans">Spans</Tab>
-              <Tab id="traces">Traces</Tab>
-              <Tab id="sessions">Sessions</Tab>
-              <Tab id="metrics">Metrics</Tab>
-              <Tab id="config">Config</Tab>
-            </TabList>
-            <LazyTabPanel padded={false} id="spans">
-              <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="traces">
-              <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="sessions">
-              <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="metrics">
-              <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="config">
-              <Outlet />
-            </LazyTabPanel>
-          </Tabs>
-        </ProjectPageQueryReferenceContext.Provider>
-      </main>
-    </StreamStateProvider>
+          <TabList>
+            <Tab id="spans">Spans</Tab>
+            <Tab id="traces">Traces</Tab>
+            <Tab id="sessions">Sessions</Tab>
+            <Tab id="metrics">Metrics</Tab>
+            <Tab id="config">Config</Tab>
+          </TabList>
+          <LazyTabPanel padded={false} id="spans">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="traces">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="sessions">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="metrics">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="config">
+            <Outlet />
+          </LazyTabPanel>
+        </Tabs>
+      </ProjectPageQueryReferenceContext.Provider>
+    </main>
   );
 }
