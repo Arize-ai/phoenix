@@ -1,5 +1,21 @@
 # Changelog
 
+## [13.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.11.0...arize-phoenix-v13.12.0) (2026-03-09)
+
+
+### Features
+
+* Add feature-flagged tracing onboarding empty state ([#11853](https://github.com/Arize-ai/phoenix/issues/11853)) ([6e17c3b](https://github.com/Arize-ai/phoenix/commit/6e17c3be18f541a7f1ed92a20782b98578f7aa20))
+* add PackageManagerCommandBlock component ([#11968](https://github.com/Arize-ai/phoenix/issues/11968)) ([9e980de](https://github.com/Arize-ai/phoenix/commit/9e980de3de43191069dc449b8ca380a4d4909399))
+* **server:** add parent_id filter to GET spans endpoints ([#11973](https://github.com/Arize-ai/phoenix/issues/11973)) ([65507da](https://github.com/Arize-ai/phoenix/commit/65507dab63794276c483d15c632a8d722fcbf6e0))
+
+
+### Bug Fixes
+
+* **playground:** preserve prompt invocation parameters when loading ([#11958](https://github.com/Arize-ai/phoenix/issues/11958)) ([5107699](https://github.com/Arize-ai/phoenix/commit/51076996797de48915858cd0d872ab371f432c2d)), closes [#11925](https://github.com/Arize-ai/phoenix/issues/11925)
+* **server:** cast JSON attributes to boolean when compared against True/False literals ([#11805](https://github.com/Arize-ai/phoenix/issues/11805)) ([deb84a6](https://github.com/Arize-ai/phoenix/commit/deb84a63340f5ddb6ec0d7d0c6750e13cf55578d))
+* **ui:** force text/csv MIME type on CSV upload to handle Windows browser behavior ([#11956](https://github.com/Arize-ai/phoenix/issues/11956)) ([d0d23ef](https://github.com/Arize-ai/phoenix/commit/d0d23efb76d0814817b028c86d8e87665ae1d9aa))
+
 ## [13.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.10.0...arize-phoenix-v13.11.0) (2026-03-08)
 
 
