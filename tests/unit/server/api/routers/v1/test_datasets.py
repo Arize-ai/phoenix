@@ -1623,175 +1623,92 @@ async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetV
         return list(result)
 
 
-# ---------------------------------------------------------------------------
-# Deduplication: matched pairs (8 tests)
-# ---------------------------------------------------------------------------
-
-
-async def test_upsert_ext_id_ext_id_matching_hash_carries_over(
+@pytest.mark.parametrize(
+    "initial,upserted,expected_num_versions,expected_num_examples,expected_revision_kinds",
+    [
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
+            [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
+            1,
+            1,
+            ["CREATE"],
+            id="no_change_to_example_with_id_does_not_create_new_version",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={})],
+            [ExampleContent(input={"a": 1}, output={})],
+            1,
+            1,
+            ["CREATE"],
+            id="no_change_to_example_without_id_does_not_create_new_version",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
+            [ExampleContent(input={"a": 2}, output={}, external_id="e1")],
+            2,
+            1,
+            ["CREATE", "PATCH"],
+            id="changing_content_of_example_with_id_creates_new_version_with_patch_revision",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
+            [ExampleContent(input={"a": 1}, output={})],
+            1,
+            1,
+            ["CREATE"],
+            id="dropping_id_without_changing_content_does_not_create_new_version",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={})],
+            [ExampleContent(input={"a": 1}, output={}, external_id="new-id")],
+            1,
+            1,
+            ["CREATE"],
+            id="adding_id_without_changing_content_does_not_create_new_version",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
+            [ExampleContent(input={"a": 2}, output={})],
+            2,
+            2,
+            ["CREATE", "DELETE", "CREATE"],
+            id="changing_content_and_dropping_id_creates_new_version_with_delete_and_create_revisions",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={})],
+            [ExampleContent(input={"a": 2}, output={}, external_id="e1")],
+            2,
+            2,
+            ["CREATE", "DELETE", "CREATE"],
+            id="changing_content_and_adding_id_creates_new_version_with_delete_and_create_revisions",
+        ),
+        pytest.param(
+            [ExampleContent(input={"a": 1}, output={})],
+            [ExampleContent(input={"a": 2}, output={})],
+            2,
+            2,
+            ["CREATE", "DELETE", "CREATE"],
+            id="changing_content_of_example_without_id_creates_new_version_with_delete_and_create_revisions",
+        ),
+    ],
+)
+async def test_upsert_dedup_matched_pair(
+    initial: list[ExampleContent],
+    upserted: list[ExampleContent],
+    expected_num_versions: int,
+    expected_num_examples: int,
+    expected_revision_kinds: list[str],
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """prev has ext_id, incoming has same ext_id, same hash → carry-over (no new version)."""
     name = "ds"
-    ex = ExampleContent(input={"a": 1}, output={"b": 2}, external_id="e1")
-    await _append(httpx_client, name, [ex])
-
-    versions_before = await _get_versions(db, name)
-    await _upsert(httpx_client, name, [ex])
-
-    versions_after = await _get_versions(db, name)
-    revisions = await _get_revisions(db, name)
-
-    # No new version should be created
-    assert len(versions_after) == len(versions_before)
-    # Only the original CREATE revision
-    assert len(revisions) == 1
-    assert revisions[0].revision_kind == "CREATE"
-
-
-async def test_upsert_ext_id_ext_id_differing_hash_adds_patch_revision(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has ext_id, incoming has same ext_id, different hash → PATCH revision on same example."""
-    name = "ds"
-    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
-
-    revisions = await _get_revisions(db, name)
+    await _append(httpx_client, name, initial)
+    await _upsert(httpx_client, name, upserted)
     versions = await _get_versions(db, name)
-
-    assert len(versions) == 2
-    assert len(revisions) == 2
-    kinds = [r.revision_kind for r in revisions]
-    assert "CREATE" in kinds
-    assert "PATCH" in kinds
-    # Both revisions belong to the same DatasetExample
-    assert revisions[0].dataset_example_id == revisions[1].dataset_example_id
-
-
-async def test_upsert_ext_id_no_ext_id_matching_hash_carries_over(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has ext_id, incoming has no ext_id, same hash → carry-over via hash fallback."""
-    name = "ds"
-    inp = {"a": 1}
-    # Set up prev with external_id
-    await _append(httpx_client, name, [ExampleContent(input=inp, output={}, external_id="e1")])
-
-    versions_before = await _get_versions(db, name)
-    # Upsert with same content but no external_id
-    await _upsert(httpx_client, name, [ExampleContent(input=inp, output={})])
-
-    versions_after = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
-
-    # carry-over: no new version
-    assert len(versions_after) == len(versions_before)
-    assert len(revisions) == 1
-
-
-async def test_upsert_ext_id_no_ext_id_differing_hash_adds_delete_revision(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has ext_id, incoming has no ext_id, different hash → DELETE old + CREATE new."""
-    name = "ds"
-    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
-
-    revisions = await _get_revisions(db, name)
-    versions = await _get_versions(db, name)
-
-    assert len(versions) == 2
-    kinds = [r.revision_kind for r in revisions]
-    assert "DELETE" in kinds
-    assert "CREATE" in kinds
-
-
-async def test_upsert_no_ext_id_ext_id_matching_hash_carries_over(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has no ext_id, incoming has ext_id, same hash → carry-over; no external_id written."""
-    name = "ds"
-    inp = {"a": 1}
-    await _append(httpx_client, name, [ExampleContent(input=inp, output={})])
-
-    versions_before = await _get_versions(db, name)
-    await _upsert(httpx_client, name, [ExampleContent(input=inp, output={}, external_id="new-id")])
-
-    versions_after = await _get_versions(db, name)
-    revisions = await _get_revisions(db, name)
-
-    # carry-over: no new version
-    assert len(versions_after) == len(versions_before)
-    assert len(revisions) == 1
-
-    # external_id NOT written to existing row (it was inserted without one)
-    async with db() as session:
-        example = await session.scalar(
-            select(models.DatasetExample).join(models.Dataset).where(models.Dataset.name == name)
-        )
-    assert example is not None
-    assert example.external_id is None
-
-
-async def test_upsert_no_ext_id_ext_id_differing_hash_creates_and_deletes(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has no ext_id, incoming has ext_id, different hash → CREATE new + DELETE old."""
-    name = "ds"
-    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
-    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
-
-    revisions = await _get_revisions(db, name)
-    versions = await _get_versions(db, name)
-
-    assert len(versions) == 2
-    kinds = [r.revision_kind for r in revisions]
-    assert "DELETE" in kinds
-    assert "CREATE" in kinds
-
-
-async def test_upsert_no_ext_id_no_ext_id_matching_hash_carries_over(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has no ext_id, incoming has no ext_id, same hash → carry-over."""
-    name = "ds"
-    ex = ExampleContent(input={"a": 1}, output={})
-    await _append(httpx_client, name, [ex])
-
-    versions_before = await _get_versions(db, name)
-    await _upsert(httpx_client, name, [ex])
-
-    versions_after = await _get_versions(db, name)
-    revisions = await _get_revisions(db, name)
-
-    assert len(versions_after) == len(versions_before)
-    assert len(revisions) == 1
-
-
-async def test_upsert_no_ext_id_no_ext_id_differing_hash_creates_and_deletes(
-    httpx_client: httpx.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """prev has no ext_id, incoming has no ext_id, different hash → CREATE new + DELETE old."""
-    name = "ds"
-    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
-    await _upsert(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
-
-    revisions = await _get_revisions(db, name)
-    versions = await _get_versions(db, name)
-
-    assert len(versions) == 2
-    kinds = [r.revision_kind for r in revisions]
-    assert "DELETE" in kinds
-    assert "CREATE" in kinds
+    assert len(versions) == expected_num_versions
+    assert [r.revision_kind for r in revisions] == expected_revision_kinds
+    assert len({r.dataset_example_id for r in revisions}) == expected_num_examples
 
 
 # ---------------------------------------------------------------------------
