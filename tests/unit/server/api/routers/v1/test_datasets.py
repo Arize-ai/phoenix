@@ -1562,67 +1562,6 @@ async def test_upsert_empty_examples_list_does_not_create_new_version(
     assert version_count == 0
 
 
-# ---------------------------------------------------------------------------
-# Upsert helpers
-# ---------------------------------------------------------------------------
-
-
-def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
-    body: dict[str, Any] = {"action": action, "name": name, "inputs": [e.input for e in examples]}
-    if any(e.output for e in examples):
-        body["outputs"] = [e.output for e in examples]
-    if any(e.external_id is not None for e in examples):
-        body["external_ids"] = [e.external_id for e in examples]
-    return body
-
-
-async def _upsert(
-    httpx_client: httpx.AsyncClient,
-    name: str,
-    examples: list[ExampleContent],
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json=_examples_to_body("upsert", name, examples),
-    )
-    response.raise_for_status()
-
-
-async def _append(
-    httpx_client: httpx.AsyncClient,
-    name: str,
-    examples: list[ExampleContent],
-) -> None:
-    response = await httpx_client.post(
-        "v1/datasets/upload?sync=true",
-        json=_examples_to_body("append", name, examples),
-    )
-    response.raise_for_status()
-
-
-async def _get_revisions(db: DbSessionFactory, name: str) -> list[models.DatasetExampleRevision]:
-    async with db() as session:
-        result = await session.scalars(
-            select(models.DatasetExampleRevision)
-            .join(models.DatasetExample)
-            .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
-            .where(models.Dataset.name == name)
-            .order_by(models.DatasetExampleRevision.id)
-        )
-        return list(result)
-
-
-async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetVersion]:
-    async with db() as session:
-        result = await session.scalars(
-            select(models.DatasetVersion)
-            .join(models.Dataset)
-            .where(models.Dataset.name == name)
-            .order_by(models.DatasetVersion.id)
-        )
-        return list(result)
-
-
 @pytest.mark.parametrize(
     "initial,upserted,expected_num_versions,expected_num_examples,expected_revision_kinds",
     [
@@ -1981,3 +1920,59 @@ async def test_upsert_with_no_prior_version_creates_all_examples(
     assert len(versions) == 1
     assert len(revisions) == 2
     assert all(r.revision_kind == "CREATE" for r in revisions)
+
+
+def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
+    body: dict[str, Any] = {"action": action, "name": name, "inputs": [e.input for e in examples]}
+    if any(e.output for e in examples):
+        body["outputs"] = [e.output for e in examples]
+    if any(e.external_id is not None for e in examples):
+        body["external_ids"] = [e.external_id for e in examples]
+    return body
+
+
+async def _upsert(
+    httpx_client: httpx.AsyncClient,
+    name: str,
+    examples: list[ExampleContent],
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json=_examples_to_body("upsert", name, examples),
+    )
+    response.raise_for_status()
+
+
+async def _append(
+    httpx_client: httpx.AsyncClient,
+    name: str,
+    examples: list[ExampleContent],
+) -> None:
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json=_examples_to_body("append", name, examples),
+    )
+    response.raise_for_status()
+
+
+async def _get_revisions(db: DbSessionFactory, name: str) -> list[models.DatasetExampleRevision]:
+    async with db() as session:
+        result = await session.scalars(
+            select(models.DatasetExampleRevision)
+            .join(models.DatasetExample)
+            .join(models.Dataset, models.DatasetExample.dataset_id == models.Dataset.id)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetExampleRevision.id)
+        )
+        return list(result)
+
+
+async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetVersion]:
+    async with db() as session:
+        result = await session.scalars(
+            select(models.DatasetVersion)
+            .join(models.Dataset)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetVersion.id)
+        )
+        return list(result)
