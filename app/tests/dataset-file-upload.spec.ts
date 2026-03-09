@@ -63,7 +63,15 @@ test.describe("Dataset File Upload", () => {
       await expect(getBucket(page, "METADATA")).toBeVisible();
 
       // The simple.csv has columns: input, output, metadata
-      // Based on auto-assignment rules:
+      // Initially all columns are in the source bucket (no auto-assignment on load)
+      await expectColumnInBucket(page, "input", "COLUMNS");
+      await expectColumnInBucket(page, "output", "COLUMNS");
+      await expectColumnInBucket(page, "metadata", "COLUMNS");
+
+      // Click Auto button to trigger auto-assignment
+      await dialog.getByRole("button", { name: "Auto" }).click();
+
+      // Now based on auto-assignment rules:
       // - "input" -> INPUT bucket
       // - "output" -> OUTPUT bucket
       // - "metadata" -> METADATA bucket
@@ -142,7 +150,15 @@ test.describe("Dataset File Upload", () => {
       await expect(sourceBucket).toBeVisible();
 
       // The simple.jsonl has keys: input, output, metadata
-      // Based on auto-assignment rules, they should be in their respective buckets
+      // Initially all keys are in the source bucket (no auto-assignment on load)
+      await expectColumnInBucket(page, "input", "KEYS");
+      await expectColumnInBucket(page, "output", "KEYS");
+      await expectColumnInBucket(page, "metadata", "KEYS");
+
+      // Click Auto button to trigger auto-assignment
+      await dialog.getByRole("button", { name: "Auto" }).click();
+
+      // Now based on auto-assignment rules, they should be in their respective buckets
       await expectColumnInBucket(page, "input", "INPUT");
       await expectColumnInBucket(page, "output", "OUTPUT");
       await expectColumnInBucket(page, "metadata", "METADATA");
@@ -173,14 +189,21 @@ test.describe("Dataset File Upload", () => {
       const sourceBucket = getBucket(page, "KEYS");
       await expect(sourceBucket).toBeVisible();
 
-      // Should see all unique keys from all rows
+      // Should see all unique keys from all rows in the source bucket
+      // (no auto-assignment on load)
+      await expectColumnInBucket(page, "question", "KEYS");
+      await expectColumnInBucket(page, "answer", "KEYS");
+      await expectColumnInBucket(page, "category", "KEYS");
+      await expectColumnInBucket(page, "language", "KEYS");
+
+      // Click Auto button to trigger auto-assignment
+      await dialog.getByRole("button", { name: "Auto" }).click();
+
       // "question" matches INPUT_NAMES, so it's auto-assigned to INPUT
       await expectColumnInBucket(page, "question", "INPUT");
-      // "answer" doesn't match any auto-assignment rule, stays in source
+      // Others don't match any auto-assignment rule, stay in source
       await expectColumnInBucket(page, "answer", "KEYS");
-      // "category" doesn't match, stays in source
       await expectColumnInBucket(page, "category", "KEYS");
-      // "language" doesn't match, stays in source
       await expectColumnInBucket(page, "language", "KEYS");
     });
   });
@@ -214,9 +237,7 @@ test.describe("Dataset File Upload", () => {
       await expect(getBucket(page, "METADATA")).toBeVisible();
     });
 
-    test("reset button toggles between auto-assigned and cleared state", async ({
-      page,
-    }) => {
+    test("Clear and Auto buttons work independently", async ({ page }) => {
       await page.goto("/datasets");
       await page.waitForURL("**/datasets");
 
@@ -229,21 +250,29 @@ test.describe("Dataset File Upload", () => {
       const dialog = page.getByTestId("dialog");
       await expect(dialog.getByText("simple.csv")).toBeVisible();
 
-      // Initially columns are auto-assigned
-      await expectColumnInBucket(page, "input", "INPUT");
-      await expectColumnInBucket(page, "output", "OUTPUT");
-      await expectColumnInBucket(page, "metadata", "METADATA");
-
-      // Click Reset button - should clear all assignments
-      await dialog.getByRole("button", { name: "Reset" }).click();
-
-      // Now all columns should be in the source bucket
+      // Initially all columns are in source bucket (no auto-assignment on load)
       await expectColumnInBucket(page, "input", "COLUMNS");
       await expectColumnInBucket(page, "output", "COLUMNS");
       await expectColumnInBucket(page, "metadata", "COLUMNS");
 
-      // Click Reset again - should restore auto-assignments
-      await dialog.getByRole("button", { name: "Reset" }).click();
+      // Click Auto button - should auto-assign columns
+      await dialog.getByRole("button", { name: "Auto" }).click();
+
+      // Columns should be in their auto-assigned buckets
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
+
+      // Click Clear button - should clear all assignments
+      await dialog.getByRole("button", { name: "Clear" }).click();
+
+      // Now all columns should be back in the source bucket
+      await expectColumnInBucket(page, "input", "COLUMNS");
+      await expectColumnInBucket(page, "output", "COLUMNS");
+      await expectColumnInBucket(page, "metadata", "COLUMNS");
+
+      // Click Auto again - should restore auto-assignments
+      await dialog.getByRole("button", { name: "Auto" }).click();
 
       // Columns should be back in their auto-assigned buckets
       await expectColumnInBucket(page, "input", "INPUT");
@@ -273,8 +302,10 @@ test.describe("Dataset File Upload", () => {
       await dialog.getByLabel("Name").clear();
       await dialog.getByLabel("Name").fill(datasetName);
 
-      // The simple.csv columns are auto-assigned based on their names:
+      // Click Auto to auto-assign columns based on their names:
       // "input" -> INPUT, "output" -> OUTPUT, "metadata" -> METADATA
+      await dialog.getByRole("button", { name: "Auto" }).click();
+
       // Verify they're in the right buckets
       await expectColumnInBucket(page, "input", "INPUT");
       await expectColumnInBucket(page, "output", "OUTPUT");
@@ -314,6 +345,9 @@ test.describe("Dataset File Upload", () => {
       // Change dataset name
       await dialog.getByLabel("Name").clear();
       await dialog.getByLabel("Name").fill(datasetName);
+
+      // Click Auto to auto-assign keys for JSONL
+      await dialog.getByRole("button", { name: "Auto" }).click();
 
       // Verify auto-assignment for JSONL
       await expectColumnInBucket(page, "input", "INPUT");
@@ -462,6 +496,16 @@ test.describe("Dataset File Upload", () => {
       await expect(getBucket(page, "KEYS")).toBeVisible({
         timeout: 5000,
       });
+
+      // Initially all keys are in the source bucket (no auto-assignment on load)
+      await expectColumnInBucket(page, "question", "KEYS");
+      await expectColumnInBucket(page, "metadata", "KEYS");
+      await expectColumnInBucket(page, "id", "KEYS");
+      await expectColumnInBucket(page, "answer", "KEYS");
+      await expectColumnInBucket(page, "context", "KEYS");
+
+      // Click Auto button to trigger auto-assignment
+      await dialog.getByRole("button", { name: "Auto" }).click();
 
       // "question" matches INPUT_NAMES so it's auto-assigned to INPUT
       await expectColumnInBucket(page, "question", "INPUT");
