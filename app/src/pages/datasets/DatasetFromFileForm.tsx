@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { useCallback, useRef, useState } from "react";
 import type { DropItem, FileDropItem } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
+import invariant from "tiny-invariant";
 
 import {
   Button,
@@ -221,13 +222,23 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       setIsSubmitting(true);
       const formData = new FormData();
 
-      if (fileType === "jsonl") {
-        const jsonlFile = new File([data.file], data.file.name, {
-          type: "application/jsonl",
-        });
-        formData.append("file", jsonlFile);
-      } else {
-        formData.append("file", data.file);
+      switch (fileType) {
+        case "jsonl": {
+          const jsonlFile = new File([data.file], data.file.name, {
+            type: "application/jsonl",
+          });
+          formData.append("file", jsonlFile);
+          break;
+        }
+        case "csv": {
+          const csvFile = new File([data.file], data.file.name, {
+            type: "text/csv",
+          });
+          formData.append("file", csvFile);
+          break;
+        }
+        default:
+          invariant(false, `Invalid file type: ${fileType}`);
       }
 
       formData.append("name", data.name);
