@@ -347,7 +347,9 @@ class PromptAzureOpenAIInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -359,7 +361,9 @@ class PromptCerebrasInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -379,7 +383,9 @@ class PromptDeepSeekInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -391,7 +397,9 @@ class PromptFireworksInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -414,7 +422,9 @@ class PromptGroqInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -426,7 +436,9 @@ class PromptMoonshotInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -438,7 +450,9 @@ class PromptOllamaInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -450,7 +464,9 @@ class PromptOpenAIInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -462,7 +478,9 @@ class PromptPerplexityInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -488,7 +506,9 @@ class PromptTogetherInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -542,7 +562,9 @@ class PromptXAIInvocationParametersContent:
     presence_penalty: Optional[float] = None
     top_p: Optional[float] = None
     seed: Optional[int] = None
-    reasoning_effort: Optional[Literal["none", "minimal", "low", "medium", "high", "xhigh"]] = None
+    reasoning_effort: Optional[
+        Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+    ] = None
 
 
 @dataclass
@@ -959,7 +981,9 @@ class PromptAnthropicInvocationParametersContent:
     top_p: Optional[float] = None
     stop_sequences: Optional[Sequence[str]] = None
     thinking: Optional[
-        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled]
+        Union[
+            PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled
+        ]
     ] = None
 
 
@@ -1271,7 +1295,9 @@ class OtlpAnyValue:
     array_value: Optional[OtlpArrayValue] = None
     bool_value: Optional[bool] = None
     bytes_value: Optional[str] = None
-    double_value: Optional[Union[float, str, Literal["Infinity", "-Infinity", "NaN"]]] = None
+    double_value: Optional[
+        Union[float, str, Literal["Infinity", "-Infinity", "NaN"]]
+    ] = None
     int_value: Optional[Union[int, str]] = None
     kvlist_value: None = None
     string_value: Optional[str] = None

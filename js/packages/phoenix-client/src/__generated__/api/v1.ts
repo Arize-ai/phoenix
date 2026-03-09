@@ -812,7 +812,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk delete sessions
-         * @description Delete multiple sessions by their session_id strings. Non-existent IDs are silently skipped. All associated traces, spans, and annotations are cascade deleted.
+         * @description Delete multiple sessions by their identifiers (GlobalIDs or session_id strings). All identifiers in a single request must be the same type. Non-existent IDs are silently skipped. All associated traces, spans, and annotations are cascade deleted.
          */
         post: operations["deleteSessions"];
         delete?: never;
@@ -1314,8 +1314,11 @@ export interface components {
         };
         /** DeleteSessionsRequestBody */
         DeleteSessionsRequestBody: {
-            /** Data */
-            data: string[];
+            /**
+             * Session Identifiers
+             * @description List of session identifiers to delete. All identifiers must be the same type: either all GlobalIDs or all user-provided session_id strings.
+             */
+            session_identifiers: string[];
         };
         /** Experiment */
         Experiment: {

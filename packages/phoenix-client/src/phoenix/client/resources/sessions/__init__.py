@@ -116,6 +116,28 @@ class Sessions:
         response = self._client.delete(url, timeout=timeout)
         response.raise_for_status()
 
+    def bulk_delete(
+        self,
+        *,
+        session_ids: List[str],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """Delete multiple sessions by their identifiers.
+
+        All identifiers must be the same type: either all GlobalIDs or all
+        user-provided session_id strings. Non-existent IDs are silently skipped.
+        All associated traces, spans, and annotations are cascade deleted.
+
+        Args:
+            session_ids: List of session identifiers (GlobalIDs or session_id strings).
+            timeout: Optional timeout in seconds for the request.
+        """
+        if not session_ids:
+            raise ValueError("session_ids must not be empty")
+        json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
+        response = self._client.post("v1/sessions/delete", json=json_, timeout=timeout)
+        response.raise_for_status()
+
     def get_sessions_dataframe(
         self,
         *,
@@ -555,6 +577,28 @@ class AsyncSessions:
         """
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.delete(url, timeout=timeout)
+        response.raise_for_status()
+
+    async def bulk_delete(
+        self,
+        *,
+        session_ids: List[str],
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """Delete multiple sessions by their identifiers.
+
+        All identifiers must be the same type: either all GlobalIDs or all
+        user-provided session_id strings. Non-existent IDs are silently skipped.
+        All associated traces, spans, and annotations are cascade deleted.
+
+        Args:
+            session_ids: List of session identifiers (GlobalIDs or session_id strings).
+            timeout: Optional timeout in seconds for the request.
+        """
+        if not session_ids:
+            raise ValueError("session_ids must not be empty")
+        json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
+        response = await self._client.post("v1/sessions/delete", json=json_, timeout=timeout)
         response.raise_for_status()
 
     async def get_sessions_dataframe(
