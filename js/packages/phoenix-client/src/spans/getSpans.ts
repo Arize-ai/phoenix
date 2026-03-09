@@ -20,8 +20,8 @@ export interface GetSpansParams extends ClientFn {
   limit?: number;
   /** Filter spans by one or more trace IDs */
   traceIds?: string[] | null;
-  /** Filter by parent span ID. Use "null" to get root spans only. */
-  parentId?: string;
+  /** Filter by parent span ID. Use the string "null" to get root spans only. */
+  parentId?: string | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
