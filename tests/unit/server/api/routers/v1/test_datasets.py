@@ -1467,18 +1467,13 @@ async def test_post_dataset_upload_append_with_splits(
         assert ex3_splits[0].name == "test"
 
 
-# ---------------------------------------------------------------------------
-# Upsert REST API tests
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("sync", [True, False])
+@pytest.mark.parametrize("action", ["create", "append", "upsert"])
 @pytest.mark.parametrize(
     "request_body,expected_error",
     [
         pytest.param(
             {
-                "action": "upsert",
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
                 "external_ids": ["same-id", "same-id"],
@@ -1488,7 +1483,6 @@ async def test_post_dataset_upload_append_with_splits(
         ),
         pytest.param(
             {
-                "action": "upsert",
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
                 "outputs": [{"b": 1}],
@@ -1498,7 +1492,6 @@ async def test_post_dataset_upload_append_with_splits(
         ),
         pytest.param(
             {
-                "action": "upsert",
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
                 "metadata": [{"m": 1}],
@@ -1508,7 +1501,6 @@ async def test_post_dataset_upload_append_with_splits(
         ),
         pytest.param(
             {
-                "action": "upsert",
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
                 "external_ids": ["e1"],
@@ -1517,25 +1509,27 @@ async def test_post_dataset_upload_append_with_splits(
             id="external_ids_length_mismatch",
         ),
         pytest.param(
-            {"action": "upsert", "inputs": [{"a": 1}]},
+            {"inputs": [{"a": 1}]},
             "Dataset name is required",
             id="missing_name",
         ),
         pytest.param(
-            {"action": "upsert", "name": "ds"},
+            {"name": "ds"},
             "input is required",
             id="missing_inputs",
         ),
     ],
 )
-async def test_upsert_invalid_request_returns_422(
+async def test_invalid_dataset_upload_request_returns_422(
     httpx_client: httpx.AsyncClient,
     request_body: dict[str, Any],
     expected_error: str,
+    action: str,
     sync: bool,
 ) -> None:
     response = await httpx_client.post(
-        f"v1/datasets/upload?sync={str(sync).lower()}", json=request_body
+        f"v1/datasets/upload?sync={str(sync).lower()}",
+        json={**request_body, "action": action},
     )
     assert response.status_code == 422
     assert expected_error in response.text
