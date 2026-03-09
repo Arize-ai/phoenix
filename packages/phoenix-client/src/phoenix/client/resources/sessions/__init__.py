@@ -1,8 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, List, Literal, Optional, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    cast,
+    overload,
+)
 
 import httpx
+from typing_extensions import NotRequired, TypedDict
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.annotation_helpers import (
@@ -13,9 +23,31 @@ from phoenix.client.utils.annotation_helpers import (
 from phoenix.client.utils.encode_path_param import encode_path_param
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
+_MAX_TRACE_IDS_PER_BATCH = 50
+
+
+class ConversationTurnIO(TypedDict):
+    """**Experimental** - Input or output extracted from a root span's attributes."""
+
+    value: str
+    mime_type: NotRequired[Optional[str]]
+
+
+class ConversationTurn(TypedDict):
+    """**Experimental** - A single turn in a session conversation."""
+
+    trace_id: str
+    start_time: str
+    end_time: str
+    input: NotRequired[Optional[ConversationTurnIO]]
+    output: NotRequired[Optional[ConversationTurnIO]]
+    root_span: NotRequired[v1.Span]
+
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from phoenix.client.resources.spans import AsyncSpans, Spans
 
 # Re-export generated types
 InsertedSessionAnnotation = v1.InsertedSessionAnnotation
@@ -29,8 +61,9 @@ GetSessionsResponseBody = v1.GetSessionsResponseBody
 
 
 class Sessions:
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(self, client: httpx.Client, spans: "Spans") -> None:
         self._client = client
+        self._spans = spans
 
     def get(
         self,
@@ -174,6 +207,53 @@ class Sessions:
             for s in sessions
         ]
         return pd.DataFrame(rows)
+
+    def get_session_conversation(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> List[ConversationTurn]:
+        """**Experimental** - Get a conversation view of a session.
+
+        Returns input/output extracted from root spans for each trace, along with
+        the full root span. Turns are ordered by trace start_time.
+
+        Args:
+            session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for each request.
+
+        Returns:
+            A list of ConversationTurn dicts ordered by start_time.
+        """
+        session_data = self.get(session_id=session_id, timeout=timeout)
+        traces = session_data["traces"]
+        if not traces:
+            return []
+
+        project_id = session_data["project_id"]
+        all_trace_ids = [t["trace_id"] for t in traces]
+
+        # Build trace_id -> trace info lookup
+        trace_info: dict[str, v1.SessionTraceData] = {t["trace_id"]: t for t in traces}
+
+        # Fetch root spans in batches
+        root_spans_by_trace: dict[str, v1.Span] = {}
+        for i in range(0, len(all_trace_ids), _MAX_TRACE_IDS_PER_BATCH):
+            batch = all_trace_ids[i : i + _MAX_TRACE_IDS_PER_BATCH]
+            spans = self._spans.get_spans(
+                project_identifier=project_id,
+                trace_ids=batch,
+                parent_id="null",
+                limit=len(batch),
+                timeout=timeout,
+            )
+            for span in spans:
+                tid = span["context"]["trace_id"]
+                if tid not in root_spans_by_trace:
+                    root_spans_by_trace[tid] = span
+
+        return _build_conversation_turns(all_trace_ids, trace_info, root_spans_by_trace)
 
     @overload
     def add_session_annotation(
@@ -492,8 +572,9 @@ class Sessions:
 
 
 class AsyncSessions:
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(self, client: httpx.AsyncClient, spans: "AsyncSpans") -> None:
         self._client = client
+        self._spans = spans
 
     async def get(
         self,
@@ -637,6 +718,53 @@ class AsyncSessions:
             for s in sessions
         ]
         return pd.DataFrame(rows)
+
+    async def get_session_conversation(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> List[ConversationTurn]:
+        """**Experimental** - Get a conversation view of a session.
+
+        Returns input/output extracted from root spans for each trace, along with
+        the full root span. Turns are ordered by trace start_time.
+
+        Args:
+            session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for each request.
+
+        Returns:
+            A list of ConversationTurn dicts ordered by start_time.
+        """
+        session_data = await self.get(session_id=session_id, timeout=timeout)
+        traces = session_data["traces"]
+        if not traces:
+            return []
+
+        project_id = session_data["project_id"]
+        all_trace_ids = [t["trace_id"] for t in traces]
+
+        # Build trace_id -> trace info lookup
+        trace_info: dict[str, v1.SessionTraceData] = {t["trace_id"]: t for t in traces}
+
+        # Fetch root spans in batches
+        root_spans_by_trace: dict[str, v1.Span] = {}
+        for i in range(0, len(all_trace_ids), _MAX_TRACE_IDS_PER_BATCH):
+            batch = all_trace_ids[i : i + _MAX_TRACE_IDS_PER_BATCH]
+            spans = await self._spans.get_spans(
+                project_identifier=project_id,
+                trace_ids=batch,
+                parent_id="null",
+                limit=len(batch),
+                timeout=timeout,
+            )
+            for span in spans:
+                tid = span["context"]["trace_id"]
+                if tid not in root_spans_by_trace:
+                    root_spans_by_trace[tid] = span
+
+        return _build_conversation_turns(all_trace_ids, trace_info, root_spans_by_trace)
 
     @overload
     async def add_session_annotation(
@@ -952,3 +1080,41 @@ class AsyncSessions:
                 all_responses.extend(response)
 
         return all_responses if sync else None
+
+
+
+def _build_conversation_turns(
+    all_trace_ids: List[str],
+    trace_info: dict[str, v1.SessionTraceData],
+    root_spans_by_trace: dict[str, v1.Span],
+) -> List[ConversationTurn]:
+    """Build conversation turns from trace info and root spans, ordered by start_time."""
+    turns: List[ConversationTurn] = []
+    for trace_id in all_trace_ids:
+        info = trace_info[trace_id]
+        turn = ConversationTurn(
+            trace_id=trace_id,
+            start_time=info["start_time"],
+            end_time=info["end_time"],
+        )
+        root_span = root_spans_by_trace.get(trace_id)
+        if root_span:
+            turn["root_span"] = root_span
+            attrs = root_span.get("attributes", {})
+            input_value = attrs.get("input.value")
+            output_value = attrs.get("output.value")
+            input_mime = attrs.get("input.mime_type")
+            output_mime = attrs.get("output.mime_type")
+            if input_value is not None:
+                input_io = ConversationTurnIO(value=str(input_value))
+                if input_mime is not None:
+                    input_io["mime_type"] = str(input_mime)
+                turn["input"] = input_io
+            if output_value is not None:
+                output_io = ConversationTurnIO(value=str(output_value))
+                if output_mime is not None:
+                    output_io["mime_type"] = str(output_mime)
+                turn["output"] = output_io
+        turns.append(turn)
+    turns.sort(key=lambda t: t["start_time"])
+    return turns
