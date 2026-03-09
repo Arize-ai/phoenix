@@ -790,7 +790,7 @@ export interface paths {
         /**
          * Delete a session by identifier
          * @description Delete a session by its identifier. The identifier can be either:
-         *     1. A Relay node ID (base64-encoded)
+         *     1. A global ID (base64-encoded)
          *     2. A user-provided session_id string
          *
          *     This will permanently remove the session and all associated traces, spans, and annotations via cascade delete.
