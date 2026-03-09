@@ -1355,7 +1355,7 @@ export const getChatCompletionOverDatasetInput = ({
     credentials,
   });
 
-  const { templateFormat, repetitions, stateByDatasetId } =
+  const { templateFormat, repetitions, stateByDatasetId, recordExperiments } =
     playgroundStore.getState();
 
   const playgroundDatasetState = stateByDatasetId[datasetId];
@@ -1377,6 +1377,7 @@ export const getChatCompletionOverDatasetInput = ({
     ),
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
+    createEphemeralExperiment: !recordExperiments,
   };
 };
 

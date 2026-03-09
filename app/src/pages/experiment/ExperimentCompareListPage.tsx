@@ -172,7 +172,7 @@ export function ExperimentCompareListPage({
                 minScore
                 maxScore
               }
-              experiments(filterIds: $experimentIds) {
+              experiments(filterIds: $experimentIds, includeEphemeral: true) {
                 edges {
                   experiment: node {
                     id

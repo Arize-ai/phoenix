@@ -49,7 +49,7 @@ export const makeLLMEvaluatorInstance = ({
       supportedInvocationParameters: [],
     },
     toolChoice: "required",
-    experimentId: null,
+    experiment: null,
     prompt: null,
     repetitions: DEFAULT_INSTANCE_PARAMS().repetitions,
     selectedRepetitionNumber: 1,
