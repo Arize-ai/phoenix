@@ -1,7 +1,12 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo } from "react";
 
-import { Button, Flex, Text } from "@phoenix/components";
+import { Button, Flex, Text, TooltipTrigger } from "@phoenix/components";
+import {
+  RichTooltip,
+  RichTooltipDescription,
+  RichTooltipTitle,
+} from "@phoenix/components/core/tooltip";
 
 import { ColumnBucket } from "./ColumnBucket";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
@@ -24,6 +29,22 @@ const assignmentBucketsCSS = css`
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
   gap: var(--global-dimension-size-100);
+`;
+
+const tooltipListCSS = css`
+  margin: 0;
+  padding-left: var(--global-dimension-size-200);
+
+  li {
+    margin-bottom: var(--global-dimension-size-50);
+  }
+
+  code {
+    font-family: monospace;
+    background: var(--global-background-color-300);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
 `;
 
 export type ColumnAssignerValue = {
@@ -136,9 +157,35 @@ export function ColumnAssigner({
             </Button>
           )}
           {onAuto && (
-            <Button variant="default" size="S" onPress={onAuto}>
-              Auto
-            </Button>
+            <TooltipTrigger delay={300}>
+              <Button variant="default" size="S" onPress={onAuto}>
+                Auto
+              </Button>
+              <RichTooltip placement="bottom end">
+                <RichTooltipTitle>Auto-Assignment Rules</RichTooltipTitle>
+                <RichTooltipDescription>
+                  <ul css={tooltipListCSS}>
+                    <li>
+                      <strong>Input:</strong> <code>input</code>,{" "}
+                      <code>query</code>, <code>question</code>,{" "}
+                      <code>prompt</code>
+                    </li>
+                    <li>
+                      <strong>Output:</strong> <code>output</code>,{" "}
+                      <code>reference</code>, <code>response</code>,{" "}
+                      <code>expected</code>, <code>original</code>
+                    </li>
+                    <li>
+                      <strong>Metadata:</strong> <code>metadata</code>
+                    </li>
+                    <li>
+                      <strong>Split:</strong> <code>split</code>,{" "}
+                      <code>splits</code>, <code>group</code>
+                    </li>
+                  </ul>
+                </RichTooltipDescription>
+              </RichTooltip>
+            </TooltipTrigger>
           )}
         </Flex>
       </div>
