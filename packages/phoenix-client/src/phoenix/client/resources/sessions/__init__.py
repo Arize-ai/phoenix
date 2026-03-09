@@ -97,6 +97,25 @@ class Sessions:
                 break
         return all_sessions
 
+    def delete(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """Delete a session by ID or session_id string.
+
+        This will permanently remove the session and all associated traces, spans,
+        and annotations via cascade delete.
+
+        Args:
+            session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for the request.
+        """
+        url = f"v1/sessions/{encode_path_param(session_id)}"
+        response = self._client.delete(url, timeout=timeout)
+        response.raise_for_status()
+
     def get_sessions_dataframe(
         self,
         *,
@@ -518,6 +537,25 @@ class AsyncSessions:
             if not (next_cursor := data.get("next_cursor")):
                 break
         return all_sessions
+
+    async def delete(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> None:
+        """Delete a session by ID or session_id string.
+
+        This will permanently remove the session and all associated traces, spans,
+        and annotations via cascade delete.
+
+        Args:
+            session_id: The session identifier (GlobalID or user-provided session_id).
+            timeout: Optional timeout in seconds for the request.
+        """
+        url = f"v1/sessions/{encode_path_param(session_id)}"
+        response = await self._client.delete(url, timeout=timeout)
+        response.raise_for_status()
 
     async def get_sessions_dataframe(
         self,

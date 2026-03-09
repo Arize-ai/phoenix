@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -28,6 +28,7 @@ from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSes
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.dml_event import SpanDeleteEvent
 
 from .annotations import SessionAnnotationData
 from .utils import RequestBody
@@ -68,6 +69,10 @@ class GetSessionResponseBody(ResponseBody[SessionData]):
 
 
 class GetSessionsResponseBody(PaginatedResponseBody[SessionData]):
+    pass
+
+
+class DeleteSessionsRequestBody(RequestBody[list[str]]):
     pass
 
 
@@ -143,6 +148,97 @@ async def get_session(
         traces = list((await db_session.scalars(traces_stmt)).all())
     data = _to_session_data(project_session, traces)
     return GetSessionResponseBody(data=data)
+
+
+@router.delete(
+    "/sessions/{session_identifier}",
+    operation_id="deleteSession",
+    summary="Delete a session by identifier",
+    description=(
+        "Delete a session by its identifier. The identifier can be either:\n"
+        "1. A Relay node ID (base64-encoded)\n"
+        "2. A user-provided session_id string\n\n"
+        "This will permanently remove the session and all associated traces, spans, "
+        "and annotations via cascade delete."
+    ),
+    dependencies=[Depends(is_not_locked)],
+    responses=add_errors_to_responses([404]),
+    status_code=204,
+)
+async def delete_session(
+    request: Request,
+    session_identifier: str = Path(
+        description="The session identifier: either a GlobalID or user-provided session_id string.",
+    ),
+) -> None:
+    async with request.app.state.db() as session:
+        try:
+            id_ = from_global_id_with_expected_type(
+                GlobalID.from_id(session_identifier),
+                ProjectSessionNodeType.__name__,
+            )
+            delete_stmt = (
+                delete(models.ProjectSession)
+                .where(models.ProjectSession.id == id_)
+                .returning(models.ProjectSession.project_id)
+            )
+            error_detail = f"Session with ID '{session_identifier}' not found"
+        except Exception:
+            delete_stmt = (
+                delete(models.ProjectSession)
+                .where(models.ProjectSession.session_id == session_identifier)
+                .returning(models.ProjectSession.project_id)
+            )
+            error_detail = f"Session with session_id '{session_identifier}' not found"
+
+        project_id = await session.scalar(delete_stmt)
+
+        if project_id is None:
+            raise HTTPException(
+                status_code=404,
+                detail=error_detail,
+            )
+
+    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+    return None
+
+
+@router.post(
+    "/sessions/delete",
+    operation_id="deleteSessions",
+    summary="Bulk delete sessions",
+    description=(
+        "Delete multiple sessions by their session_id strings. "
+        "Non-existent IDs are silently skipped. "
+        "All associated traces, spans, and annotations are cascade deleted."
+    ),
+    dependencies=[Depends(is_not_locked)],
+    responses=add_errors_to_responses([422]),
+    status_code=204,
+)
+async def delete_sessions(
+    request: Request,
+    request_body: DeleteSessionsRequestBody,
+) -> None:
+    session_ids = request_body.data
+    if not session_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="Session ID list must not be empty.",
+        )
+
+    async with request.app.state.db() as session:
+        delete_stmt = (
+            delete(models.ProjectSession)
+            .where(models.ProjectSession.session_id.in_(session_ids))
+            .returning(models.ProjectSession.project_id)
+        )
+        result = await session.scalars(delete_stmt)
+        project_ids = tuple(set(result.all()))
+
+    if project_ids:
+        request.state.event_queue.put(SpanDeleteEvent(project_ids))
+    return None
 
 
 @router.get(

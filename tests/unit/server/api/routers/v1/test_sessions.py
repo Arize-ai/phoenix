@@ -87,6 +87,108 @@ class TestGetSession:
         assert response.status_code == 404
 
 
+class TestDeleteSession:
+    async def test_delete_session_by_session_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, traces = await _insert_session_with_traces(db)
+
+        response = await httpx_client.delete(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 204
+
+        # Verify session is deleted
+        response = await httpx_client.get(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 404
+
+    async def test_delete_session_by_global_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, traces = await _insert_session_with_traces(db)
+        session_global_id = str(GlobalID(ProjectSessionNodeType.__name__, str(session_model.id)))
+
+        response = await httpx_client.delete(f"v1/sessions/{session_global_id}")
+        assert response.status_code == 204
+
+        # Verify session is deleted
+        response = await httpx_client.get(f"v1/sessions/{session_global_id}")
+        assert response.status_code == 404
+
+    async def test_delete_session_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.delete(f"v1/sessions/{token_hex(16)}")
+        assert response.status_code == 404
+
+    async def test_delete_session_cascades_traces(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, traces = await _insert_session_with_traces(db, num_traces=3)
+        trace_ids = [t.trace_id for t in traces]
+
+        response = await httpx_client.delete(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 204
+
+        # Verify traces are also deleted via cascade
+        async with db() as session:
+            from sqlalchemy import select as sa_select
+
+            remaining = (
+                await session.scalars(
+                    sa_select(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
+                )
+            ).all()
+            assert len(remaining) == 0
+
+
+class TestDeleteSessions:
+    async def test_bulk_delete_sessions(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=3)
+        session_ids = [s.session_id for s, _ in sessions_with_traces]
+
+        response = await httpx_client.post("v1/sessions/delete", json={"data": session_ids})
+        assert response.status_code == 204
+
+        # Verify all sessions are deleted
+        response = await httpx_client.get(f"v1/projects/{project.name}/sessions")
+        assert response.status_code == 200
+        assert len(response.json()["data"]) == 0
+
+    async def test_bulk_delete_partial_match(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=2)
+        real_id = sessions_with_traces[0][0].session_id
+        fake_id = token_hex(16)
+
+        response = await httpx_client.post("v1/sessions/delete", json={"data": [real_id, fake_id]})
+        assert response.status_code == 204
+
+        # Only one session should remain
+        response = await httpx_client.get(f"v1/projects/{project.name}/sessions")
+        assert response.status_code == 200
+        assert len(response.json()["data"]) == 1
+
+    async def test_bulk_delete_empty_list(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post("v1/sessions/delete", json={"data": []})
+        assert response.status_code == 422
+
+
 class TestListProjectSessions:
     async def test_list_sessions_for_project_by_name(
         self,

@@ -4359,6 +4359,107 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Delete a session by identifier",
+        "description": "Delete a session by its identifier. The identifier can be either:\n1. A Relay node ID (base64-encoded)\n2. A user-provided session_id string\n\nThis will permanently remove the session and all associated traces, spans, and annotations via cascade delete.",
+        "operationId": "deleteSession",
+        "parameters": [
+          {
+            "name": "session_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The session identifier: either a GlobalID or user-provided session_id string.",
+              "title": "Session Identifier"
+            },
+            "description": "The session identifier: either a GlobalID or user-provided session_id string."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/delete": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Bulk delete sessions",
+        "description": "Delete multiple sessions by their session_id strings. Non-existent IDs are silently skipped. All associated traces, spans, and annotations are cascade deleted.",
+        "operationId": "deleteSessions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteSessionsRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/sessions": {
@@ -5856,6 +5957,22 @@
           "data"
         ],
         "title": "DeleteAnnotationConfigResponseBody"
+      },
+      "DeleteSessionsRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DeleteSessionsRequestBody"
       },
       "Experiment": {
         "properties": {
