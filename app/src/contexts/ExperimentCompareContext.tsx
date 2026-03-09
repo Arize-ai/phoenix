@@ -278,6 +278,7 @@ function initializeSelectionState(
 ): ExperimentRepetitionSelectionState[] {
   return experimentIds.flatMap((experimentId) => {
     const experiment = experimentsById[experimentId];
+    if (!experiment) return [];
     return range(experiment.repetitions).map((repetitionIndex) => {
       const repetitionNumber = repetitionIndex + 1;
       return {
