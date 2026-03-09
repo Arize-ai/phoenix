@@ -146,9 +146,9 @@ llm = LLM(model="gpt-4o", provider="openai")
 Now we can combine the prompt and model into an evaluator.
 
 ```python
-from phoenix.evals import create_classifier
+from phoenix.evals import ClassificationEvaluator
 
-completeness_evaluator = create_classifier(
+completeness_evaluator = ClassificationEvaluator(
     name="completeness",
     prompt_template=financial_completeness_template,
     llm=llm,
