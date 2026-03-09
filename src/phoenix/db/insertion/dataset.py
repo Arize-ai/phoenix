@@ -609,8 +609,6 @@ async def _upsert_dataset_examples(
     created_at: Optional[datetime] = None,
 ) -> Optional[DatasetExampleAdditionEvent]:
     examples_ = list(examples)
-    if not examples_:
-        return None
     if created_at is None:
         created_at = datetime.now(timezone.utc)
 
@@ -618,6 +616,8 @@ async def _upsert_dataset_examples(
         select(models.Dataset.id).where(models.Dataset.name == name)
     )
     if dataset_id is None:
+        if not examples_:
+            return None  # No dataset and no examples means nothing to do
         dataset_id = await insert_dataset(
             session=session,
             name=name,

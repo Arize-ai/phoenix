@@ -1655,17 +1655,13 @@ async def test_upsert_on_datasets_with_single_example(
 # ---------------------------------------------------------------------------
 
 
-async def test_upsert_deleted_ext_id_example_recreated_on_upsert(
+async def test_deleting_and_upserting_example_with_id_revives_it(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """Deleted example with external_id → upserting same ext_id revives it (same row, new CREATE)."""
     name = "ds"
-    # 1. Create example with ext_id="e1"
     await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    # 2. Upsert with a different example → "e1" gets DELETE
-    await _upsert(httpx_client, name, [ExampleContent(input={"z": 99}, output={})])
-    # 3. Upsert "e1" again → deleted "e1" revived with new CREATE revision on same row
+    await _upsert(httpx_client, name, [])  # delete example
     await _upsert(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
 
     async with db() as session:
@@ -1687,12 +1683,10 @@ async def test_upsert_deleted_ext_id_example_recreated_on_upsert(
             )
         )
 
-    # Only 1 DatasetExample row with ext_id="e1" (unique constraint; row revived)
     assert len(examples) == 1
     kinds = [r.revision_kind for r in revisions]
-    # original CREATE, DELETE, revival CREATE (plus CREATE/DELETE for the {"z":99} example)
-    assert kinds.count("CREATE") >= 2
-    assert "DELETE" in kinds
+    assert kinds.count("CREATE") == 2
+    assert kinds.count("DELETE") == 1
 
 
 async def test_upsert_deleted_no_ext_id_example_recreated_on_upsert(
