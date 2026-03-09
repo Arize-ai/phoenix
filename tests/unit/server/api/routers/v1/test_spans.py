@@ -7,12 +7,12 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from phoenix.client import Client
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
+from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
@@ -1219,3 +1219,132 @@ async def test_otlp_span_search_filter_by_multiple_trace_ids(
     assert resp.is_success
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 4
+
+
+@pytest.fixture
+async def project_with_parent_spans(db: DbSessionFactory) -> None:
+    """Insert a project with a root span and a child span."""
+    async with db() as session:
+        project = models.Project(name="parent-spans")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="traceparenttest0",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=2),
+        )
+        session.add(trace)
+        await session.flush()
+
+        # Root span (no parent)
+        session.add(
+            models.Span(
+                trace_rowid=trace.id,
+                span_id="rootspan0",
+                parent_id=None,
+                name="root-span",
+                span_kind="CHAIN",
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=1),
+                attributes={"input": {"value": "hello"}},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+        # Child span
+        session.add(
+            models.Span(
+                trace_rowid=trace.id,
+                span_id="childspan",
+                parent_id="rootspan0",
+                name="child-span",
+                span_kind="LLM",
+                start_time=base_time + timedelta(seconds=10),
+                end_time=base_time + timedelta(seconds=50),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+        await session.flush()
+
+
+async def test_span_search_filter_by_parent_span_id_null(
+    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+) -> None:
+    """parent_span_id=null returns only root spans."""
+    resp = await httpx_client.get(
+        "v1/projects/parent-spans/spans",
+        params={"parent_span_id": "null"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "root-span"
+    assert spans[0].parent_id is None
+
+
+async def test_span_search_filter_by_parent_span_id_specific(
+    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+) -> None:
+    """parent_span_id=<id> returns children of that span."""
+    resp = await httpx_client.get(
+        "v1/projects/parent-spans/spans",
+        params={"parent_span_id": "rootspan0"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "child-span"
+    assert spans[0].parent_id == "rootspan0"
+
+
+async def test_span_search_no_parent_span_id_filter(
+    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+) -> None:
+    """No parent_span_id param returns all spans."""
+    resp = await httpx_client.get("v1/projects/parent-spans/spans")
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2
+
+
+async def test_otlp_span_search_filter_by_parent_span_id_null(
+    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+) -> None:
+    """parent_span_id=null returns only root spans (OTLP endpoint)."""
+    resp = await httpx_client.get(
+        "v1/projects/parent-spans/spans/otlpv1",
+        params={"parent_span_id": "null"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "root-span"
+    assert spans[0].parent_span_id is None
+
+
+async def test_otlp_span_search_filter_by_parent_span_id_specific(
+    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+) -> None:
+    """parent_span_id=<id> returns children (OTLP endpoint)."""
+    resp = await httpx_client.get(
+        "v1/projects/parent-spans/spans/otlpv1",
+        params={"parent_span_id": "rootspan0"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "child-span"
+    assert spans[0].parent_span_id == "rootspan0"

@@ -607,6 +607,10 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by one or more trace IDs",
     ),
+    parent_span_id: Optional[str] = Query(
+        default=None,
+        description='Filter by parent span ID. Use "null" to get root spans only.',
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -632,6 +636,11 @@ async def span_search_otlpv1(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+    if parent_span_id is not None:
+        if parent_span_id == "null":
+            stmt = stmt.where(models.Span.parent_id.is_(None))
+        else:
+            stmt = stmt.where(models.Span.parent_id == parent_span_id)
 
     if cursor:
         try:
@@ -750,6 +759,10 @@ async def span_search(
         default=None,
         description="Filter by one or more trace IDs",
     ),
+    parent_span_id: Optional[str] = Query(
+        default=None,
+        description='Filter by parent span ID. Use "null" to get root spans only.',
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -773,6 +786,11 @@ async def span_search(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+    if parent_span_id is not None:
+        if parent_span_id == "null":
+            stmt = stmt.where(models.Span.parent_id.is_(None))
+        else:
+            stmt = stmt.where(models.Span.parent_id == parent_span_id)
 
     if cursor:
         try:
