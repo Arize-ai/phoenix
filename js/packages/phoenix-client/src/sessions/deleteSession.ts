@@ -6,15 +6,15 @@ import type { ClientFn } from "../types/core";
  */
 export interface DeleteSessionParams extends ClientFn {
   /**
-   * The session identifier. Can be either:
-   * - A user-provided session_id string
+   * The session ID. Can be either:
+   * - A user-provided session ID string
    * - A Phoenix Global ID (base64-encoded)
    */
-  sessionIdentifier: string;
+  sessionId: string;
 }
 
 /**
- * Delete a single session by identifier.
+ * Delete a single session by ID.
  *
  * This will permanently remove the session and all associated traces, spans,
  * and annotations via cascade delete.
@@ -27,29 +27,29 @@ export interface DeleteSessionParams extends ClientFn {
  *
  * @example
  * ```ts
- * // Delete by user-provided session_id
+ * // Delete by user-provided session ID
  * await deleteSession({
  *   client,
- *   sessionIdentifier: "my-session-id"
+ *   sessionId: "my-session-id"
  * });
  *
  * // Delete by Phoenix Global ID
  * await deleteSession({
  *   client,
- *   sessionIdentifier: "UHJvamVjdFNlc3Npb246MTIz"
+ *   sessionId: "UHJvamVjdFNlc3Npb246MTIz"
  * });
  * ```
  */
 export async function deleteSession({
   client: _client,
-  sessionIdentifier,
+  sessionId,
 }: DeleteSessionParams): Promise<void> {
   const client = _client ?? createClient();
 
   const { error } = await client.DELETE("/v1/sessions/{session_identifier}", {
     params: {
       path: {
-        session_identifier: sessionIdentifier,
+        session_identifier: sessionId,
       },
     },
   });
@@ -61,7 +61,7 @@ export async function deleteSession({
       "status" in error &&
       error.status === 404;
     if (isNotFound) {
-      throw new Error(`Session not found: ${sessionIdentifier}`);
+      throw new Error(`Session not found: ${sessionId}`);
     }
 
     const errorMessage =
