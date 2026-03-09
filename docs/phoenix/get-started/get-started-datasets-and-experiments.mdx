@@ -111,11 +111,14 @@ completeness_evaluator = ClassificationEvaluator(
     choices={"complete": 1.0, "incomplete": 0.0},
 )
 
-def completeness(input, output):
-    results = completeness_evaluator.evaluate({"attributes.input.value": input, "attributes.output.value": output})
-    return results[0].label
+completeness_evaluator.bind(
+    {
+        "attributes.input.value": "input",
+        "attributes.output.value": "output",
+    }
+)
 
-evaluators = [completeness]
+evaluators = [completeness_evaluator]
 ```
 
 ## **Step 3: Run the Experiment on the Dataset**
@@ -125,15 +128,14 @@ Next, we’ll pull down the dataset we created earlier and run the experiment on
 This ensures we’re testing the new version of the agent on the exact same inputs that previously failed.
 
 ```python
-dataset = Client().datasets.get_dataset(dataset="python quickstart fails")
+client = Client()
+dataset = client.datasets.get_dataset(dataset="python quickstart fails")
 ```
 
 Now we can run our experiment!
 
 ```python
-from phoenix.experiments import run_experiment
-
-experiment = run_experiment(dataset, my_task, evaluators)
+experiment = client.experiments.run_experiment(dataset, my_task, evaluators=evaluators)
 ```
 
 Once this completes, Phoenix logs the experiment results automatically.
