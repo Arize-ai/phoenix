@@ -1535,31 +1535,49 @@ async def test_invalid_dataset_upload_request_returns_422(
     assert expected_error in response.text
 
 
-async def test_upsert_empty_examples_list_does_not_create_new_version(
+async def test_upsert_empty_examples_list_creates_empty_version(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={
-            "action": "upsert",
-            "name": "empty-upsert-ds",
-            "inputs": [],
-        },
+        json={"action": "upsert", "name": "empty-upsert-ds", "inputs": []},
     )
     assert response.status_code == 200
 
     async with db() as session:
-        version_count = len(
-            list(
-                await session.scalars(
-                    select(models.DatasetVersion)
-                    .join(models.Dataset)
-                    .where(models.Dataset.name == "empty-upsert-ds")
-                )
+        versions = list(
+            await session.scalars(
+                select(models.DatasetVersion)
+                .join(models.Dataset)
+                .where(models.Dataset.name == "empty-upsert-ds")
             )
         )
-    assert version_count == 0
+        assert len(versions) == 1
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == "empty-upsert-ds")
+            )
+        )
+        assert len(examples) == 0
+
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={"action": "upsert", "name": "empty-upsert-ds", "inputs": []},
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        versions = list(
+            await session.scalars(
+                select(models.DatasetVersion)
+                .join(models.Dataset)
+                .where(models.Dataset.name == "empty-upsert-ds")
+            )
+        )
+        assert len(versions) == 1  # no new version
 
 
 @pytest.mark.parametrize(
@@ -1679,7 +1697,7 @@ async def test_upsert_on_datasets_with_single_example(
         ),
     ],
 )
-async def test_deleting_and_upserting_examples(
+async def test_deleting_and_upserting_examples_with_the_same_content(
     initial_example: ExampleContent,
     upserted_example: ExampleContent,
     expected_num_examples: int,

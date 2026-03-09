@@ -616,8 +616,6 @@ async def _upsert_dataset_examples(
         select(models.Dataset.id).where(models.Dataset.name == name)
     )
     if dataset_id is None:
-        if not examples_:
-            return None  # No dataset and no examples means nothing to do
         dataset_id = await insert_dataset(
             session=session,
             name=name,
@@ -712,11 +710,10 @@ async def _upsert_dataset_examples(
             .order_by(models.DatasetVersion.created_at.desc())
             .limit(1)
         )
-        if latest_version_id is None:
-            return None
-        return DatasetExampleAdditionEvent(
-            dataset_id=dataset_id, dataset_version_id=latest_version_id
-        )
+        if latest_version_id is not None:
+            return DatasetExampleAdditionEvent(
+                dataset_id=dataset_id, dataset_version_id=latest_version_id
+            )
 
     # Create new dataset version
     dataset_version_id = await insert_dataset_version(
