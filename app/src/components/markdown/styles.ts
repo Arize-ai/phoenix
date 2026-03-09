@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 export const markdownCSS = css`
+  overflow-wrap: anywhere;
   a {
     color: var(--global-link-color);
     &:visited {
