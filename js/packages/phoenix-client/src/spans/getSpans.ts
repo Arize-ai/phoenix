@@ -20,7 +20,7 @@ export interface GetSpansParams extends ClientFn {
   limit?: number;
   /** Filter spans by one or more trace IDs */
   traceIds?: string[] | null;
-  /** Filter by parent span ID. Use the string "null" to get root spans only. */
+  /** Filter by parent span ID. Use `null` or the string `"null"` to get root spans only. */
   parentId?: string | null;
 }
 
@@ -124,8 +124,8 @@ export async function getSpans({
     params.trace_id = traceIds;
   }
 
-  if (parentId != null) {
-    params.parent_id = parentId;
+  if (parentId !== undefined) {
+    params.parent_id = parentId === null ? "null" : parentId;
   }
 
   const { data, error } = await client.GET(

@@ -138,14 +138,14 @@ describe("getSpans", () => {
       expect(callArgs.params.query).not.toHaveProperty("parent_id");
     });
 
-    it("should not send parent_id when parentId is null", async () => {
+    it('should send parent_id="null" when parentId is JS null (root spans)', async () => {
       await getSpans({
         project: { projectName: "test-project" },
         parentId: null,
       });
 
       const callArgs = mockGet.mock.calls[0]?.[1];
-      expect(callArgs.params.query).not.toHaveProperty("parent_id");
+      expect(callArgs.params.query.parent_id).toBe("null");
     });
   });
 });
