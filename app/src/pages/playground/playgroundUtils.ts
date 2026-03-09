@@ -2105,6 +2105,7 @@ export const getChatCompletionOverDatasetInput = ({
     repetitions,
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
+    recordExperiments,
   } = playgroundStore.getState();
 
   const instance = instances.find((i) => i.id === instanceId);
@@ -2172,6 +2173,7 @@ export const getChatCompletionOverDatasetInput = ({
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
     promptName: instance.prompt?.name,
+    createEphemeralExperiment: !recordExperiments,
   };
 };
 
