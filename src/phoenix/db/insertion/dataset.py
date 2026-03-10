@@ -6,7 +6,7 @@ from enum import Enum
 from itertools import chain
 from typing import Any, Optional, cast
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
@@ -28,6 +28,8 @@ SpanRowId: TypeAlias = int
 ExternalID: TypeAlias = str
 ContentHash: TypeAlias = str
 SplitName: TypeAlias = str
+DatasetSplitId: TypeAlias = int
+SplitAssignment: TypeAlias = tuple[DatasetExampleId, DatasetSplitId]
 
 
 @dataclass(frozen=True)
@@ -386,7 +388,7 @@ async def bulk_create_dataset_splits(
 
 async def bulk_assign_examples_to_splits(
     session: AsyncSession,
-    assignments: list[tuple[DatasetExampleId, int]],
+    assignments: list[SplitAssignment],
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> None:
     """
@@ -624,6 +626,7 @@ class UpsertDiff:
     create_examples: list[ExampleWithHash]
     patch_examples: list[ExampleWithExternalID]
     delete_example_ids: list[DatasetExampleId]
+    unchanged_examples: list[ExampleWithExternalID]
 
     @property
     def has_changes(self) -> bool:
@@ -679,6 +682,7 @@ def _diff_examples(
     matched_ids: set[DatasetExampleId] = set()
     examples_to_create: list[ExampleWithHash] = []
     examples_to_patch: list[ExampleWithExternalID] = []
+    examples_unchanged: list[ExampleWithExternalID] = []
 
     for incoming in incoming_examples:
         match = _find_match(
@@ -699,6 +703,14 @@ def _diff_examples(
                     content_hash=incoming.content_hash,
                 )
             )
+        else:
+            examples_unchanged.append(
+                ExampleWithExternalID(
+                    content=incoming.content,
+                    example_id=match.example_id,
+                    content_hash=incoming.content_hash,
+                )
+            )
 
     all_previous_ids = {example_id for example_id, _, _ in previous}
     delete_ids = [example_id for example_id in all_previous_ids if example_id not in matched_ids]
@@ -707,6 +719,7 @@ def _diff_examples(
         create_examples=examples_to_create,
         patch_examples=examples_to_patch,
         delete_example_ids=delete_ids,
+        unchanged_examples=examples_unchanged,
     )
 
 
@@ -727,6 +740,42 @@ async def _get_existing_example_ids(
         for external_id, example_id in result.all()
         if external_id is not None
     }
+
+
+async def _rebuild_dataset_splits(
+    session: AsyncSession,
+    dataset_id: DatasetId,
+    diff: UpsertDiff,
+    created_examples: list[ExampleWithExternalID],
+    user_id: Optional[int] = None,
+) -> None:
+    """Collect split assignments from unchanged, patched, and created examples,
+    then delete all existing split assignments for the dataset and reassign."""
+
+    await session.execute(
+        delete(models.DatasetSplitDatasetExample).where(
+            models.DatasetSplitDatasetExample.dataset_example_id.in_(
+                select(models.DatasetExample.id).where(
+                    models.DatasetExample.dataset_id == dataset_id
+                )
+            )
+        )
+    )
+    example_splits: list[tuple[DatasetExampleId, frozenset[SplitName]]] = [
+        (example.example_id, example.content.splits)
+        for example in diff.unchanged_examples + diff.patch_examples + created_examples
+    ]
+    example_id_split_name_pairs = [
+        (example_id, name) for example_id, splits in example_splits for name in splits
+    ]
+    all_split_names = {name for _, name in example_id_split_name_pairs}
+    split_name_to_id = await bulk_create_dataset_splits(
+        session=session, split_names=all_split_names, user_id=user_id
+    )
+    split_assignments = [
+        (example_id, split_name_to_id[name]) for example_id, name in example_id_split_name_pairs
+    ]
+    await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
 
 
 async def _upsert_dataset_examples(
@@ -775,8 +824,93 @@ async def _upsert_dataset_examples(
     # 3. Diff incoming vs previous → creates, patches, deletes
     diff = _diff_examples(incoming_examples, previous)
 
-    # 4. Short-circuit if no changes
-    if not diff.has_changes:
+    # 4. Write revisions if content changed, otherwise reuse latest version
+    created_examples: list[ExampleWithExternalID] = []
+    if diff.has_changes:
+        dataset_version_id = await insert_dataset_version(
+            session=session,
+            dataset_id=dataset_id,
+            created_at=created_at,
+            user_id=user_id,
+        )
+
+        for revision in diff.patch_examples:
+            await insert_dataset_example_revision(
+                session=session,
+                dataset_version_id=dataset_version_id,
+                dataset_example_id=revision.example_id,
+                input=revision.content.input,
+                output=revision.content.output,
+                metadata=revision.content.metadata,
+                revision_kind=RevisionKind.PATCH,
+                content_hash=revision.content_hash,
+                created_at=created_at,
+            )
+
+        for example_id in diff.delete_example_ids:
+            await insert_dataset_example_revision(
+                session=session,
+                dataset_version_id=dataset_version_id,
+                dataset_example_id=example_id,
+                input={},
+                output={},
+                metadata={},
+                revision_kind=RevisionKind.DELETE,
+                content_hash=None,
+                created_at=created_at,
+            )
+
+        if diff.create_examples:
+            create_external_ids = [
+                example.content.external_id
+                for example in diff.create_examples
+                if example.content.external_id is not None
+            ]
+            external_id_to_existing_example_id = await _get_existing_example_ids(
+                session, dataset_id, create_external_ids
+            )
+            span_ids_to_resolve = [r.content.span_id for r in diff.create_examples]
+            span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
+            for new_revision in diff.create_examples:
+                example = new_revision.content
+                span_rowid = None
+                if example.span_id:
+                    span_rowid = span_id_to_rowid.get(example.span_id)
+
+                existing_example_id = (
+                    external_id_to_existing_example_id.get(example.external_id)
+                    if example.external_id is not None
+                    else None
+                )
+                if existing_example_id is not None:
+                    example_id = existing_example_id
+                else:
+                    example_id = await insert_dataset_example(
+                        session=session,
+                        dataset_id=dataset_id,
+                        span_rowid=span_rowid,
+                        external_id=example.external_id,
+                        created_at=created_at,
+                    )
+                await insert_dataset_example_revision(
+                    session=session,
+                    dataset_version_id=dataset_version_id,
+                    dataset_example_id=example_id,
+                    input=example.input,
+                    output=example.output,
+                    metadata=example.metadata,
+                    revision_kind=RevisionKind.CREATE,
+                    content_hash=new_revision.content_hash,
+                    created_at=created_at,
+                )
+                created_examples.append(
+                    ExampleWithExternalID(
+                        content=example,
+                        example_id=example_id,
+                        content_hash=new_revision.content_hash,
+                    )
+                )
+    else:
         latest_version_id = await session.scalar(
             select(models.DatasetVersion.id)
             .where(models.DatasetVersion.dataset_id == dataset_id)
@@ -784,105 +918,23 @@ async def _upsert_dataset_examples(
             .limit(1)
         )
         if latest_version_id is not None:
-            return DatasetExampleAdditionEvent(
-                dataset_id=dataset_id, dataset_version_id=latest_version_id
+            dataset_version_id = latest_version_id
+        else:
+            dataset_version_id = await insert_dataset_version(
+                session=session,
+                dataset_id=dataset_id,
+                created_at=created_at,
+                user_id=user_id,
             )
 
-    # 5. Create new dataset version
-    dataset_version_id = await insert_dataset_version(
+    # 5. Delete all split assignments for the dataset and reassign
+    await _rebuild_dataset_splits(
         session=session,
         dataset_id=dataset_id,
-        created_at=created_at,
+        diff=diff,
+        created_examples=created_examples,
         user_id=user_id,
     )
-
-    # 6. Write PATCH revisions
-    for revision in diff.patch_examples:
-        await insert_dataset_example_revision(
-            session=session,
-            dataset_version_id=dataset_version_id,
-            dataset_example_id=revision.example_id,
-            input=revision.content.input,
-            output=revision.content.output,
-            metadata=revision.content.metadata,
-            revision_kind=RevisionKind.PATCH,
-            content_hash=revision.content_hash,
-            created_at=created_at,
-        )
-
-    # 7. Write DELETE revisions
-    for example_id in diff.delete_example_ids:
-        await insert_dataset_example_revision(
-            session=session,
-            dataset_version_id=dataset_version_id,
-            dataset_example_id=example_id,
-            input={},
-            output={},
-            metadata={},
-            revision_kind=RevisionKind.DELETE,
-            content_hash=None,
-            created_at=created_at,
-        )
-
-    # 8. Write CREATE revisions
-    split_assignments: list[tuple[DatasetExampleId, SplitName]] = []
-    if diff.create_examples:
-        create_external_ids = [
-            r.content.external_id for r in diff.create_examples if r.content.external_id is not None
-        ]
-        external_id_to_existing_example_id = await _get_existing_example_ids(
-            session, dataset_id, create_external_ids
-        )
-        span_ids_to_resolve = [r.content.span_id for r in diff.create_examples]
-        span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
-        for new_revision in diff.create_examples:
-            example = new_revision.content
-            span_rowid = None
-            if example.span_id:
-                span_rowid = span_id_to_rowid.get(example.span_id)
-
-            existing_example_id = (
-                external_id_to_existing_example_id.get(example.external_id)
-                if example.external_id is not None
-                else None
-            )
-            if existing_example_id is not None:
-                example_id = existing_example_id
-            else:
-                example_id = await insert_dataset_example(
-                    session=session,
-                    dataset_id=dataset_id,
-                    span_rowid=span_rowid,
-                    external_id=example.external_id,
-                    created_at=created_at,
-                )
-            await insert_dataset_example_revision(
-                session=session,
-                dataset_version_id=dataset_version_id,
-                dataset_example_id=example_id,
-                input=example.input,
-                output=example.output,
-                metadata=example.metadata,
-                revision_kind=RevisionKind.CREATE,
-                content_hash=new_revision.content_hash,
-                created_at=created_at,
-            )
-
-            for split_name in example.splits:
-                split_assignments.append((example_id, split_name))
-
-    if split_assignments:
-        all_split_names = {split_name for _, split_name in split_assignments}
-        split_name_to_id = await bulk_create_dataset_splits(
-            session=session,
-            split_names=all_split_names,
-            user_id=user_id,
-        )
-        id_assignments = [
-            (example_id, split_name_to_id[split_name])
-            for example_id, split_name in split_assignments
-        ]
-        await bulk_assign_examples_to_splits(session=session, assignments=id_assignments)
 
     return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
 
