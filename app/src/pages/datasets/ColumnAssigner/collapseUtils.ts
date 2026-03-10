@@ -139,25 +139,25 @@ export function computeCollapsedKeys(
 }
 
 /**
- * Result of computing bucket-aware collapse conflicts.
+ * Result of computing collapse conflicts.
  */
 export type BucketCollapseConflictsResult = {
   /**
-   * Keys that can be collapsed (no conflicts within their assigned bucket).
+   * Keys that can be collapsed.
    */
   keysToCollapse: string[];
   /**
-   * Keys that cannot be collapsed due to conflicts within their assigned bucket.
-   * Maps the parent key to the list of conflicting child keys.
+   * Keys that cannot be collapsed due to assignment-local conflicts.
+   * Maps the parent key to the conflicting emitted keys.
    */
   conflicts: Map<string, string[]>;
 };
 
 /**
- * Computes which collapsible keys can actually be collapsed based on bucket assignments.
+ * Computes which assigned parents can be flattened within their selected bucket.
  *
- * A conflict only occurs when two keys assigned to the SAME bucket would produce
- * the same child key when collapsed. Keys in different buckets don't conflict.
+ * Conflicts are only checked against other selected keys in the same bucket.
+ * Unused source keys do not block flattening.
  *
  * @param collapsibleKeys - Keys that have object values and can potentially be collapsed
  * @param bucketAssignments - Map of bucket name to assigned keys
@@ -173,82 +173,66 @@ export function computeBucketCollapseConflicts(
   },
   previewRows: Record<string, unknown>[]
 ): BucketCollapseConflictsResult {
-  // Collect all child keys for each collapsible parent
-  const childKeysByParent = new Map<string, Set<string>>();
+  const conflicts = new Map<string, string[]>();
+  const keysToCollapse: string[] = [];
+  const childKeysByParent = new Map<string, string[]>();
 
   for (const parentKey of collapsibleKeys) {
     const childKeys = new Set<string>();
     for (const row of previewRows) {
       const value = row[parentKey];
-      if (isPlainObject(value)) {
-        for (const childKey of Object.keys(value)) {
-          childKeys.add(childKey);
-        }
+      if (!isPlainObject(value)) {
+        conflicts.set(parentKey, ["non-object preview value"]);
+        childKeys.clear();
+        break;
+      }
+      for (const childKey of Object.keys(value)) {
+        childKeys.add(childKey);
       }
     }
-    childKeysByParent.set(parentKey, childKeys);
+    if (!conflicts.has(parentKey)) {
+      childKeysByParent.set(parentKey, [...childKeys]);
+    }
   }
 
-  const conflicts = new Map<string, string[]>();
-  const keysToCollapse: string[] = [];
-  const collapsibleKeysSet = new Set(collapsibleKeys);
-
-  // Check conflicts within each bucket separately
-  for (const [, bucketKeys] of Object.entries(bucketAssignments)) {
-    // Only consider collapsible keys that are assigned to this bucket
-    const collapsibleInBucket = bucketKeys.filter((k) =>
-      collapsibleKeysSet.has(k)
+  for (const bucketKeys of Object.values(bucketAssignments)) {
+    const selectedKeys = new Set(bucketKeys);
+    const selectedParents = bucketKeys.filter((key) =>
+      childKeysByParent.has(key)
     );
-    const nonCollapsibleInBucket = bucketKeys.filter(
-      (k) => !collapsibleKeysSet.has(k)
-    );
+    const emittedKeys = new Map<string, string>();
 
-    // Track child keys we've seen in this bucket
-    const seenChildKeysInBucket = new Map<string, string>(); // childKey -> parentKey
+    for (const key of bucketKeys) {
+      if (!childKeysByParent.has(key)) {
+        emittedKeys.set(key, key);
+      }
+    }
 
-    for (const parentKey of collapsibleInBucket) {
-      const childKeys = childKeysByParent.get(parentKey) || new Set();
-      const parentConflicts: string[] = [];
+    for (const parentKey of selectedParents) {
+      const childKeys = childKeysByParent.get(parentKey) ?? [];
+      const keyConflicts: string[] = [];
 
       for (const childKey of childKeys) {
-        // Check conflict with non-collapsible keys in same bucket
-        if (nonCollapsibleInBucket.includes(childKey)) {
-          parentConflicts.push(childKey);
+        const existingKey = emittedKeys.get(childKey);
+        if (existingKey && existingKey !== parentKey) {
+          keyConflicts.push(childKey);
           continue;
         }
-        // Check conflict with another collapsible key in same bucket
-        // (the parent key itself, not its children)
-        if (collapsibleInBucket.includes(childKey) && childKey !== parentKey) {
-          parentConflicts.push(childKey);
-          continue;
-        }
-        // Check conflict with another parent's children in same bucket
-        const existingParent = seenChildKeysInBucket.get(childKey);
-        if (existingParent && existingParent !== parentKey) {
-          parentConflicts.push(childKey);
-          continue;
+        if (selectedKeys.has(childKey)) {
+          keyConflicts.push(childKey);
         }
       }
 
-      if (parentConflicts.length > 0) {
-        // Merge with any existing conflicts for this key
-        const existing = conflicts.get(parentKey) || [];
-        conflicts.set(parentKey, [
-          ...new Set([...existing, ...parentConflicts]),
-        ]);
+      if (keyConflicts.length > 0) {
+        conflicts.set(parentKey, [...new Set(keyConflicts)]);
       } else {
-        // No conflicts in this bucket - register child keys
+        if (!keysToCollapse.includes(parentKey)) {
+          keysToCollapse.push(parentKey);
+        }
         for (const childKey of childKeys) {
-          seenChildKeysInBucket.set(childKey, parentKey);
+          emittedKeys.set(childKey, parentKey);
         }
       }
-    }
-  }
-
-  // Keys to collapse are collapsible keys that have no conflicts
-  for (const key of collapsibleKeys) {
-    if (!conflicts.has(key)) {
-      keysToCollapse.push(key);
     }
   }
 

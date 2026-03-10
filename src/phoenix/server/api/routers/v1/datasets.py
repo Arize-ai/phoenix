@@ -11,7 +11,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Hashable, Iterator, 
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from typing import Any, Optional, Union, cast
+from typing import Any, NamedTuple, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -609,45 +609,158 @@ DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
 
-def _expand_keys_for_flatten(
+class FlattenPlan(NamedTuple):
+    input_direct_keys: InputKeys
+    input_flatten_keys: FlattenKeys
+    input_child_keys_by_parent: Mapping[str, frozenset[str]]
+    output_direct_keys: OutputKeys
+    output_flatten_keys: FlattenKeys
+    output_child_keys_by_parent: Mapping[str, frozenset[str]]
+    metadata_direct_keys: MetadataKeys
+    metadata_flatten_keys: FlattenKeys
+    metadata_child_keys_by_parent: Mapping[str, frozenset[str]]
+
+
+def _build_bucket_projection_plan(
     keys: frozenset[str],
     flatten_keys: FlattenKeys,
-    sample_rows: list[dict[str, Any]],
-) -> frozenset[str]:
-    """
-    Expand key sets by replacing parent keys with their children when flattening.
+    child_keys_by_parent: Mapping[str, frozenset[str]],
+    top_level_keys: frozenset[str],
+) -> tuple[frozenset[str], FlattenKeys, Mapping[str, frozenset[str]]]:
+    relevant_flatten_keys = frozenset(
+        parent_key
+        for parent_key in flatten_keys
+        if parent_key in keys or not child_keys_by_parent[parent_key].isdisjoint(keys)
+    )
+    emitted_child_keys_by_parent: dict[str, frozenset[str]] = {}
+    emitted_child_keys: set[str] = set()
+    for parent_key in relevant_flatten_keys:
+        parent_child_keys = child_keys_by_parent[parent_key]
+        emitted_child_keys_for_parent = (
+            parent_child_keys if parent_key in keys else parent_child_keys.intersection(keys)
+        )
+        emitted_child_keys_by_parent[parent_key] = frozenset(emitted_child_keys_for_parent)
+        emitted_child_keys.update(emitted_child_keys_for_parent)
 
-    When a key in `keys` is also in `flatten_keys`, it is replaced with
-    the child keys found in the sample rows. Keys not in flatten_keys are kept as-is.
+    direct_keys = frozenset(
+        key
+        for key in keys
+        if key not in relevant_flatten_keys
+        and (key in top_level_keys or key not in emitted_child_keys)
+    )
+    emitted_keys: dict[str, str] = {key: key for key in direct_keys if key in top_level_keys}
+    for parent_key in sorted(relevant_flatten_keys):
+        for child_key in emitted_child_keys_by_parent[parent_key]:
+            if existing_key := emitted_keys.get(child_key):
+                raise ValueError(
+                    "Cannot flatten key "
+                    f"'{parent_key}': emitted key '{child_key}' conflicts "
+                    f"with selected key '{existing_key}'"
+                )
+        for child_key in emitted_child_keys_by_parent[parent_key]:
+            emitted_keys[child_key] = parent_key
 
-    Args:
-        keys: Original key set (e.g., input_keys containing "input")
-        flatten_keys: Keys that will be flattened
-        sample_rows: Sample data rows to extract child keys from
+    return direct_keys, relevant_flatten_keys, emitted_child_keys_by_parent
 
-    Returns:
-        Expanded key set with parent keys replaced by children
 
-    Example:
-        >>> rows = [{"input": {"question": "Hi", "context": "Test"}}]
-        >>> _expand_keys_for_flatten(frozenset(["input", "id"]), frozenset(["input"]), rows)
-        frozenset({"question", "context", "id"})
-    """
-    if not flatten_keys:
-        return keys
+def _build_flatten_plan(
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
+    flatten_keys: FlattenKeys,
+    rows: list[dict[str, Any]],
+) -> FlattenPlan:
+    selected_assignment_keys = input_keys | output_keys | metadata_keys
+    child_keys_by_parent: dict[str, frozenset[str]] = {}
+    invalid_row_by_parent: dict[str, int | None] = {}
+    for parent_key in sorted(flatten_keys):
+        child_keys: set[str] = set()
+        for row_index, row in enumerate(rows, start=1):
+            value = row.get(parent_key)
+            if isinstance(value, dict):
+                child_keys.update(value.keys())
+            elif parent_key not in invalid_row_by_parent:
+                invalid_row_by_parent[parent_key] = row_index
+        child_keys_by_parent[parent_key] = frozenset(child_keys)
+        invalid_row_by_parent.setdefault(parent_key, None)
 
-    result: set[str] = set()
-    for key in keys:
-        if key in flatten_keys:
-            # Collect child keys from all sample rows
-            for row in sample_rows:
-                value = row.get(key)
-                if isinstance(value, dict):
-                    result.update(value.keys())
-        else:
-            result.add(key)
+    requested_flatten_keys = frozenset(
+        parent_key
+        for parent_key in flatten_keys
+        if parent_key in selected_assignment_keys
+        or not child_keys_by_parent[parent_key].isdisjoint(selected_assignment_keys)
+    )
+    for parent_key in sorted(requested_flatten_keys):
+        if invalid_row_index := invalid_row_by_parent[parent_key]:
+            raise ValueError(
+                f"Cannot flatten key '{parent_key}': row {invalid_row_index} "
+                "must contain an object value"
+            )
+    top_level_keys = frozenset(key for row in rows for key in row.keys())
 
-    return frozenset(result)
+    (
+        input_direct_keys,
+        input_flatten_keys,
+        input_child_keys_by_parent,
+    ) = _build_bucket_projection_plan(
+        input_keys,
+        requested_flatten_keys,
+        child_keys_by_parent,
+        top_level_keys,
+    )
+    (
+        output_direct_keys,
+        output_flatten_keys,
+        output_child_keys_by_parent,
+    ) = _build_bucket_projection_plan(
+        output_keys,
+        requested_flatten_keys,
+        child_keys_by_parent,
+        top_level_keys,
+    )
+    (
+        metadata_direct_keys,
+        metadata_flatten_keys,
+        metadata_child_keys_by_parent,
+    ) = _build_bucket_projection_plan(
+        metadata_keys,
+        requested_flatten_keys,
+        child_keys_by_parent,
+        top_level_keys,
+    )
+
+    return FlattenPlan(
+        input_direct_keys=input_direct_keys,
+        input_flatten_keys=input_flatten_keys,
+        input_child_keys_by_parent=input_child_keys_by_parent,
+        output_direct_keys=output_direct_keys,
+        output_flatten_keys=output_flatten_keys,
+        output_child_keys_by_parent=output_child_keys_by_parent,
+        metadata_direct_keys=metadata_direct_keys,
+        metadata_flatten_keys=metadata_flatten_keys,
+        metadata_child_keys_by_parent=metadata_child_keys_by_parent,
+    )
+
+
+def _project_bucket(
+    row: Mapping[str, Any],
+    direct_keys: frozenset[str],
+    flatten_keys: FlattenKeys,
+    child_keys_by_parent: Mapping[str, frozenset[str]],
+) -> dict[str, Any]:
+    result = {key: row.get(key) for key in direct_keys}
+    for parent_key in flatten_keys:
+        child_keys = child_keys_by_parent.get(parent_key, frozenset())
+        if not child_keys:
+            continue
+        value = row.get(parent_key)
+        if not isinstance(value, Mapping):
+            raise ValueError(f"Cannot flatten key '{parent_key}': row must contain an object value")
+        for child_key in child_keys:
+            result[child_key] = value.get(child_key)
+    return result
 
 
 def _flatten_row(row: dict[str, Any], flatten_keys: FlattenKeys) -> dict[str, Any]:
@@ -834,22 +947,39 @@ async def _process_csv(
             else:
                 parsed_rows.append(dict(row))
 
-        # Expand keys to include child keys from flattened parents
-        expanded_input_keys = _expand_keys_for_flatten(input_keys, flatten_keys, parsed_rows)
-        expanded_output_keys = _expand_keys_for_flatten(output_keys, flatten_keys, parsed_rows)
-        expanded_metadata_keys = _expand_keys_for_flatten(metadata_keys, flatten_keys, parsed_rows)
+        flatten_plan = _build_flatten_plan(
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            split_keys=split_keys,
+            span_id_key=span_id_key,
+            flatten_keys=flatten_keys,
+            rows=parsed_rows,
+        )
 
         # Second pass: flatten rows and create examples
         examples = []
         for row in parsed_rows:
-            if flatten_keys:
-                row = _flatten_row(row, flatten_keys)
-
             examples.append(
                 ExampleContent(
-                    input={k: row.get(k) for k in expanded_input_keys},
-                    output={k: row.get(k) for k in expanded_output_keys},
-                    metadata={k: row.get(k) for k in expanded_metadata_keys},
+                    input=_project_bucket(
+                        row,
+                        flatten_plan.input_direct_keys,
+                        flatten_plan.input_flatten_keys,
+                        flatten_plan.input_child_keys_by_parent,
+                    ),
+                    output=_project_bucket(
+                        row,
+                        flatten_plan.output_direct_keys,
+                        flatten_plan.output_flatten_keys,
+                        flatten_plan.output_child_keys_by_parent,
+                    ),
+                    metadata=_project_bucket(
+                        row,
+                        flatten_plan.metadata_direct_keys,
+                        flatten_plan.metadata_flatten_keys,
+                        flatten_plan.metadata_child_keys_by_parent,
+                    ),
                     splits=frozenset(
                         str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
                     ),
@@ -914,20 +1044,37 @@ async def _process_jsonl(
     def parse_and_process(c: bytes) -> list[ExampleContent]:
         rows = [json.loads(line) for line in c.decode().splitlines()]
 
-        # Expand keys to include child keys from flattened parents
-        expanded_input_keys = _expand_keys_for_flatten(input_keys, flatten_keys, rows)
-        expanded_output_keys = _expand_keys_for_flatten(output_keys, flatten_keys, rows)
-        expanded_metadata_keys = _expand_keys_for_flatten(metadata_keys, flatten_keys, rows)
+        flatten_plan = _build_flatten_plan(
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            split_keys=split_keys,
+            span_id_key=span_id_key,
+            flatten_keys=flatten_keys,
+            rows=rows,
+        )
 
         examples: list[ExampleContent] = []
         for obj in rows:
-            # Apply flattening if specified
-            if flatten_keys:
-                obj = _flatten_row(obj, flatten_keys)
             example = ExampleContent(
-                input={k: obj.get(k) for k in expanded_input_keys},
-                output={k: obj.get(k) for k in expanded_output_keys},
-                metadata={k: obj.get(k) for k in expanded_metadata_keys},
+                input=_project_bucket(
+                    obj,
+                    flatten_plan.input_direct_keys,
+                    flatten_plan.input_flatten_keys,
+                    flatten_plan.input_child_keys_by_parent,
+                ),
+                output=_project_bucket(
+                    obj,
+                    flatten_plan.output_direct_keys,
+                    flatten_plan.output_flatten_keys,
+                    flatten_plan.output_child_keys_by_parent,
+                ),
+                metadata=_project_bucket(
+                    obj,
+                    flatten_plan.metadata_direct_keys,
+                    flatten_plan.metadata_flatten_keys,
+                    flatten_plan.metadata_child_keys_by_parent,
+                ),
                 splits=frozenset(
                     str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
                 ),

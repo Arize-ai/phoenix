@@ -118,9 +118,8 @@ describe("computeCollapsedKeys", () => {
 });
 
 describe("computeBucketCollapseConflicts", () => {
-  describe("bucket-aware conflict detection", () => {
+  describe("assignment-first flattening", () => {
     it("allows same child keys in different buckets", () => {
-      // "question" in input bucket, "question" in output bucket -> no conflict
       const result = computeBucketCollapseConflicts(
         ["input", "output"],
         {
@@ -130,14 +129,26 @@ describe("computeBucketCollapseConflicts", () => {
         },
         [{ input: { question: "Hi" }, output: { question: "Hello" } }]
       );
-      // Both can collapse because they're in different buckets
       expect(result.keysToCollapse).toContain("input");
       expect(result.keysToCollapse).toContain("output");
       expect(result.conflicts.size).toBe(0);
     });
 
+    it("ignores unused top-level keys outside the assigned bucket", () => {
+      const result = computeBucketCollapseConflicts(
+        ["input"],
+        {
+          input: ["input"],
+          output: [],
+          metadata: [],
+        },
+        [{ input: { text: "Hi" }, text: "plain" }]
+      );
+      expect(result.keysToCollapse).toContain("input");
+      expect(result.conflicts.size).toBe(0);
+    });
+
     it("detects conflict within same bucket", () => {
-      // Both input and output assigned to INPUT bucket, both have "text" child
       const result = computeBucketCollapseConflicts(
         ["input", "output"],
         {
@@ -147,24 +158,21 @@ describe("computeBucketCollapseConflicts", () => {
         },
         [{ input: { text: "Hi" }, output: { text: "Hello" } }]
       );
-      // First one succeeds, second has conflict
       expect(result.keysToCollapse).toContain("input");
       expect(result.keysToCollapse).not.toContain("output");
       expect(result.conflicts.get("output")).toEqual(["text"]);
     });
 
-    it("detects conflict with non-collapsible key in same bucket", () => {
-      // "text" is a non-collapsible key in the same bucket as "input"
+    it("detects conflict with a selected sibling key in the same bucket", () => {
       const result = computeBucketCollapseConflicts(
-        ["input"], // Only input is collapsible
+        ["input"],
         {
-          input: ["input", "text"], // Both assigned to input bucket
+          input: ["input", "text"],
           output: [],
           metadata: [],
         },
         [{ input: { text: "Hi" }, text: "plain" }]
       );
-      // "input" cannot collapse because child "text" conflicts with bucket sibling "text"
       expect(result.keysToCollapse).not.toContain("input");
       expect(result.conflicts.get("input")).toEqual(["text"]);
     });
@@ -181,15 +189,14 @@ describe("computeBucketCollapseConflicts", () => {
       expect(result.conflicts.size).toBe(0);
     });
 
-    it("handles keys not assigned to any bucket", () => {
-      // Collapsible key not in any bucket assignment
+    it("does not collapse keys not assigned to input, output, or metadata", () => {
       const result = computeBucketCollapseConflicts(
         ["orphan"],
         { input: ["input"], output: [], metadata: [] },
         [{ orphan: { child: "value" }, input: { question: "Hi" } }]
       );
-      // "orphan" can collapse (no bucket conflicts possible)
-      expect(result.keysToCollapse).toContain("orphan");
+      expect(result.keysToCollapse).toEqual([]);
+      expect(result.conflicts.size).toBe(0);
     });
   });
 });

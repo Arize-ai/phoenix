@@ -114,8 +114,8 @@ export type ColumnAssignerProps = {
    */
   onCollapseKeysChange?: (collapse: boolean) => void;
   /**
-   * Map of keys that couldn't be collapsed due to conflicts.
-   * Key is the parent key, value is the list of conflicting child keys.
+   * Map of keys that couldn't be collapsed due to assignment-local conflicts.
+   * Key is the parent key, value is the list of conflicting emitted keys.
    */
   collapseConflicts?: Map<string, string[]>;
 };
@@ -281,8 +281,7 @@ export function ColumnAssigner({
                 </RichTooltipTitle>
                 <RichTooltipDescription>
                   <Text size="S">
-                    The following keys have conflicting child keys and will not
-                    be collapsed:
+                    The following keys could not be collapsed:
                   </Text>
                   <ul css={conflictListCSS}>
                     {Array.from(collapseConflicts.entries()).map(

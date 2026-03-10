@@ -1550,6 +1550,127 @@ class TestFlattenRow:
             _flatten_row(row, frozenset(["input"]))
 
 
+class TestBuildFlattenPlan:
+    def test_ignores_unselected_flatten_keys(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
+
+        rows = [
+            {
+                "input": {"question": "Hi"},
+                "output": {"answer": "Hello"},
+                "id": 1,
+            }
+        ]
+
+        plan = _build_flatten_plan(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(),
+            metadata_keys=frozenset(),
+            split_keys=frozenset(),
+            span_id_key=None,
+            flatten_keys=frozenset(["input", "output"]),
+            rows=rows,
+        )
+
+        assert plan.input_flatten_keys == frozenset(["input"])
+        assert plan.output_flatten_keys == frozenset()
+        assert plan.input_child_keys_by_parent == {"input": frozenset(["question"])}
+
+    def test_allows_duplicate_children_across_different_buckets(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
+
+        rows = [{"input": {"text": "Hi"}, "output": {"text": "Hello"}}]
+
+        plan = _build_flatten_plan(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(["output"]),
+            metadata_keys=frozenset(),
+            split_keys=frozenset(),
+            span_id_key=None,
+            flatten_keys=frozenset(["input", "output"]),
+            rows=rows,
+        )
+
+        assert plan.input_flatten_keys == frozenset(["input"])
+        assert plan.output_flatten_keys == frozenset(["output"])
+        assert plan.input_child_keys_by_parent == {"input": frozenset(["text"])}
+        assert plan.output_child_keys_by_parent == {"output": frozenset(["text"])}
+
+    def test_rejects_duplicate_children_within_same_bucket(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
+
+        rows = [{"input": {"text": "Hi"}, "output": {"text": "Hello"}}]
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot flatten key 'output': emitted key 'text' conflicts with selected key 'input'",
+        ):
+            _build_flatten_plan(
+                input_keys=frozenset(["input", "output"]),
+                output_keys=frozenset(),
+                metadata_keys=frozenset(),
+                split_keys=frozenset(),
+                span_id_key=None,
+                flatten_keys=frozenset(["input", "output"]),
+                rows=rows,
+            )
+
+    def test_allows_flatten_keys_used_for_split_selection(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
+
+        rows = [{"input": {"text": "Hi"}, "split": "train"}]
+
+        plan = _build_flatten_plan(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(),
+            metadata_keys=frozenset(),
+            split_keys=frozenset(["input"]),
+            span_id_key=None,
+            flatten_keys=frozenset(["input"]),
+            rows=rows,
+        )
+
+        assert plan.input_flatten_keys == frozenset(["input"])
+
+    def test_rejects_conflict_with_selected_sibling_key_in_same_bucket(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
+
+        rows = [{"input": {"text": "Hi"}, "text": "plain"}]
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot flatten key 'input': emitted key 'text' conflicts with selected key 'text'",
+        ):
+            _build_flatten_plan(
+                input_keys=frozenset(["input", "text"]),
+                output_keys=frozenset(),
+                metadata_keys=frozenset(),
+                split_keys=frozenset(),
+                span_id_key=None,
+                flatten_keys=frozenset(["input"]),
+                rows=rows,
+            )
+
+    def test_rejects_rows_with_non_object_flatten_values(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
+
+        rows = [{"input": {"text": "Hi"}}, {"input": "plain text"}]
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot flatten key 'input': row 2 must contain an object value",
+        ):
+            _build_flatten_plan(
+                input_keys=frozenset(["input"]),
+                output_keys=frozenset(),
+                metadata_keys=frozenset(),
+                split_keys=frozenset(),
+                span_id_key=None,
+                flatten_keys=frozenset(["input"]),
+                rows=rows,
+            )
+
+
 async def test_post_dataset_upload_csv_with_flatten_keys(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

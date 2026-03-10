@@ -242,8 +242,7 @@ export function DatasetFromFileForm({
   const outputKeys = watch("output_keys");
   const metadataKeys = watch("metadata_keys");
 
-  // Compute the keys that will be collapsed (for sending to backend) and any conflicts
-  // Conflicts are only detected within the same bucket (input, output, metadata)
+  // Compute the keys that can be flattened within their assigned bucket.
   const { keysToCollapse, collapseConflicts } = useMemo(() => {
     if (!collapseKeys || collapsibleKeys.length === 0) {
       return {
@@ -284,7 +283,7 @@ export function DatasetFromFileForm({
       };
     }
 
-    // Compute bucket-aware conflicts based on current assignments
+    // Compute assignment-local flatten conflicts for the current assignments
     const result = computeBucketCollapseConflicts(
       collapsibleKeys,
       { input: inputKeys, output: outputKeys, metadata: metadataKeys },
@@ -558,7 +557,20 @@ export function DatasetFromFileForm({
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error(response.statusText || "Failed to create dataset");
+            return response
+              .json()
+              .catch(() => null)
+              .then((body) => {
+                const detail =
+                  body && typeof body === "object" && "detail" in body
+                    ? body.detail
+                    : null;
+                throw new Error(
+                  typeof detail === "string"
+                    ? detail
+                    : response.statusText || "Failed to create dataset"
+                );
+              });
           }
           return response.json();
         })
