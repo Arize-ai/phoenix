@@ -631,9 +631,10 @@ class UpsertDiff:
 
 
 def _find_match(
+    *,
     incoming: ExampleWithHash,
-    by_external_id: dict[ExternalID, ExistingExampleInfo],
-    by_content_hash: dict[ContentHash, list[DatasetExampleId]],
+    example_info_by_external_id: dict[ExternalID, ExistingExampleInfo],
+    example_ids_by_content_hash: dict[ContentHash, list[DatasetExampleId]],
     already_matched: set[DatasetExampleId],
 ) -> Optional[ExistingExampleInfo]:
     """Find an existing example that matches this incoming example.
@@ -643,9 +644,9 @@ def _find_match(
     or None if no match found.
     """
     ext_id = incoming.content.external_id
-    if ext_id is not None and ext_id in by_external_id:
-        return by_external_id[ext_id]
-    for candidate_id in by_content_hash.get(incoming.content_hash, []):
+    if ext_id is not None and ext_id in example_info_by_external_id:
+        return example_info_by_external_id[ext_id]
+    for candidate_id in example_ids_by_content_hash.get(incoming.content_hash, []):
         if candidate_id not in already_matched:
             return ExistingExampleInfo(candidate_id, incoming.content_hash)
     return None
@@ -663,7 +664,7 @@ def _diff_examples(
       3. If no match is found, the incoming example is a CREATE.
 
     After matching:
-      - Matched + same content_hash  → UNCHANGED (no revision needed, usually)
+      - Matched + same content_hash  → UNCHANGED (no revision needed)
       - Matched + different hash     → PATCH
       - Unmatched incoming           → CREATE
       - Unmatched previous           → DELETE
@@ -673,42 +674,53 @@ def _diff_examples(
     a hash than previously existed — the existing row is re-asserted so the extra copy
     gets its own CREATE.
     """
-    # Build read-only lookup maps from previous examples
-    by_external_id: dict[ExternalID, ExistingExampleInfo] = {}
-    by_content_hash: dict[ContentHash, list[DatasetExampleId]] = {}
+    example_info_by_external_id: dict[ExternalID, ExistingExampleInfo] = {}
+    example_ids_by_content_hash: dict[ContentHash, list[DatasetExampleId]] = {}
     for example_id, external_id, content_hash in previous:
         if external_id is not None:
-            by_external_id[external_id] = ExistingExampleInfo(example_id, content_hash)
-        by_content_hash.setdefault(content_hash, []).append(example_id)
+            example_info_by_external_id[external_id] = ExistingExampleInfo(example_id, content_hash)
+        example_ids_by_content_hash.setdefault(content_hash, []).append(example_id)
 
-    # Match each incoming example to an existing one
     matched_ids: set[DatasetExampleId] = set()
-    creates: list[ExampleWithHash] = []
-    patches: list[ExampleWithExternalID] = []
-    unchanged: list[ExampleWithExternalID] = []
+    examples_to_create: list[ExampleWithHash] = []
+    examples_to_patch: list[ExampleWithExternalID] = []
+    unchanged_examples: list[ExampleWithExternalID] = []
 
     for incoming in incoming_examples:
-        match = _find_match(incoming, by_external_id, by_content_hash, matched_ids)
+        match = _find_match(
+            incoming=incoming,
+            example_info_by_external_id=example_info_by_external_id,
+            example_ids_by_content_hash=example_ids_by_content_hash,
+            already_matched=matched_ids,
+        )
         if match is None:
-            creates.append(incoming)
+            examples_to_create.append(incoming)
             continue
         matched_ids.add(match.example_id)
-        matched = ExampleWithExternalID(incoming.content, match.example_id, incoming.content_hash)
+        matched = ExampleWithExternalID(
+            content=incoming.content,
+            example_id=match.example_id,
+            content_hash=incoming.content_hash,
+        )
         if incoming.content_hash == match.content_hash:
-            unchanged.append(matched)
+            unchanged_examples.append(matched)
         else:
-            patches.append(matched)
+            examples_to_patch.append(matched)
 
     # Promote unchanged → PATCH when a CREATE shares their content hash
-    create_hashes: set[ContentHash] = {c.content_hash for c in creates}
-    patches.extend(entry for entry in unchanged if entry.content_hash in create_hashes)
+    create_hashes: set[ContentHash] = {example.content_hash for example in examples_to_create}
+    examples_to_patch.extend(
+        entry for entry in unchanged_examples if entry.content_hash in create_hashes
+    )
 
     # Any unmatched previous example → DELETE
     all_previous_ids = {ex_id for ex_id, _, _ in previous}
     delete_ids = [eid for eid in all_previous_ids if eid not in matched_ids]
 
     return UpsertDiff(
-        create_examples=creates, patch_examples=patches, delete_example_ids=delete_ids
+        create_examples=examples_to_create,
+        patch_examples=examples_to_patch,
+        delete_example_ids=delete_ids,
     )
 
 
