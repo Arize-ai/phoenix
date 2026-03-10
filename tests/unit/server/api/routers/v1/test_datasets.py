@@ -13,6 +13,7 @@ import pytest
 from httpx import HTTPStatusError
 from pandas.testing import assert_frame_equal
 from sqlalchemy import insert, select
+from sqlalchemy.orm import joinedload
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -1999,6 +2000,117 @@ async def test_upsert_with_splits_on_created_examples_after_delete(
             )
         )
         assert {s.name for s in splits} == {"train"}
+
+
+async def test_upsert_replaces_split_assignments(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Upsert replaces split assignments for patched, unchanged, and new examples."""
+    name = "ds"
+    # Initial upsert: e1 -> train, e2 -> train, e3 -> train (new in next upsert)
+    await _upsert(
+        httpx_client,
+        name,
+        [
+            ExampleContent(
+                input={"q": "Q1"}, output={"a": "A1"}, splits=frozenset({"train"}), external_id="e1"
+            ),
+            ExampleContent(
+                input={"q": "Q2"}, output={"a": "A2"}, splits=frozenset({"train"}), external_id="e2"
+            ),
+        ],
+    )
+
+    # Second upsert:
+    #   e1: content changed (PATCH) — split train -> test
+    #   e2: content unchanged — split train -> val
+    #   e3: new example (CREATE) — split test
+    await _upsert(
+        httpx_client,
+        name,
+        [
+            ExampleContent(
+                input={"q": "Q1"},
+                output={"a": "A1-v2"},
+                splits=frozenset({"test"}),
+                external_id="e1",
+            ),
+            ExampleContent(
+                input={"q": "Q2"}, output={"a": "A2"}, splits=frozenset({"val"}), external_id="e2"
+            ),
+            ExampleContent(
+                input={"q": "Q3"}, output={"a": "A3"}, splits=frozenset({"test"}), external_id="e3"
+            ),
+        ],
+    )
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name)
+                .options(
+                    joinedload(models.DatasetExample.dataset_splits_dataset_examples).joinedload(
+                        models.DatasetSplitDatasetExample.dataset_split
+                    )
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        by_ext = {e.external_id: e for e in examples}
+        assert {j.dataset_split.name for j in by_ext["e1"].dataset_splits_dataset_examples} == {
+            "test"
+        }  # patched: train -> test
+        assert {j.dataset_split.name for j in by_ext["e2"].dataset_splits_dataset_examples} == {
+            "val"
+        }  # unchanged: train -> val
+        assert {j.dataset_split.name for j in by_ext["e3"].dataset_splits_dataset_examples} == {
+            "test"
+        }  # created
+
+
+async def test_upsert_removes_split_assignments_when_splits_empty(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Upsert with empty splits removes previous split assignments."""
+    name = "ds"
+    await _upsert(
+        httpx_client,
+        name,
+        [
+            ExampleContent(
+                input={"q": "Q1"}, output={"a": "A1"}, splits=frozenset({"train"}), external_id="e1"
+            ),
+        ],
+    )
+
+    # Re-upsert with no splits — old "train" assignment should be removed
+    await _upsert(
+        httpx_client,
+        name,
+        [
+            ExampleContent(
+                input={"q": "Q1"}, output={"a": "A1"}, splits=frozenset(), external_id="e1"
+            ),
+        ],
+    )
+
+    async with db() as session:
+        example = await session.scalar(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == name)
+            .options(
+                joinedload(models.DatasetExample.dataset_splits_dataset_examples).joinedload(
+                    models.DatasetSplitDatasetExample.dataset_split
+                )
+            )
+        )
+        assert example is not None
+        assert example.dataset_splits_dataset_examples == []
 
 
 def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
