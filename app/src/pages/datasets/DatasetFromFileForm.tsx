@@ -215,8 +215,6 @@ export function DatasetFromFileForm({
   const parseGeneration = useRef(0);
   const [previewTab, setPreviewTab] = useState<"file" | "dataset">("file");
   const hasAutoSwitched = useRef(false);
-
-  // Collapse feature state
   const [collapsibleKeys, setCollapsibleKeys] = useState<string[]>([]);
   const [collapseKeys, setCollapseKeys] = useState(false);
 
@@ -348,10 +346,9 @@ export function DatasetFromFileForm({
       setPreviewRows([]);
       setTotalRowCount(null);
       setPreviewTab("file");
-      hasAutoSwitched.current = false;
-      // Reset collapse state
       setCollapsibleKeys([]);
       setCollapseKeys(false);
+      hasAutoSwitched.current = false;
 
       const detectedType = detectFileType(file.name);
       setFileType(detectedType);
@@ -476,10 +473,9 @@ export function DatasetFromFileForm({
     resetField("name");
     setErrorMessage(null);
     setPreviewTab("file");
-    hasAutoSwitched.current = false;
-    // Reset collapse state
     setCollapsibleKeys([]);
     setCollapseKeys(false);
+    hasAutoSwitched.current = false;
   }, [setValue, resetField]);
 
   const handlePreviewTabChange = useCallback((key: React.Key) => {
