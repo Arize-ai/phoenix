@@ -4,10 +4,12 @@ import { useState } from "react";
 import {
   Flex,
   Heading,
+  ProgressCircle,
   Tab,
   TabList,
   TabPanel,
   Tabs,
+  Text,
   View,
 } from "@phoenix/components";
 import { IsAuthenticated } from "@phoenix/components/auth";
@@ -25,6 +27,7 @@ import {
   PYTHON_PACKAGES,
   TYPESCRIPT_PACKAGES,
 } from "@phoenix/components/project/integrationSnippets";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
 import type { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql";
@@ -45,6 +48,15 @@ const onboardingPageInnerCSS = css`
   margin-right: auto;
 `;
 
+const awaitingTracesCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  background-color: var(--global-color-gray-100);
+  border-radius: var(--global-rounding-medium);
+`;
+
 export function ProjectOnboardingWaitingForTraces({
   project,
   projectName,
@@ -53,20 +65,29 @@ export function ProjectOnboardingWaitingForTraces({
   projectName: string;
 }) {
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
+  const { isStreaming } = useStreamState();
 
   return (
     <div css={onboardingPageCSS}>
       <div css={onboardingPageInnerCSS}>
         <Flex direction="column" width="100%" gap="size-200">
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-          >
-            <Heading level={2}>Project setup</Heading>
-            <StreamToggle project={project} />
-          </Flex>
+          <div css={awaitingTracesCSS}>
+            {isStreaming ? (
+              <ProgressCircle isIndeterminate size="S" aria-label="loading" />
+            ) : null}
+            <Text>
+              {isStreaming
+                ? "Awaiting traces"
+                : "Enable streaming to see traces arrive in real time"}
+            </Text>
+            <div
+              css={css`
+                margin-left: auto;
+              `}
+            >
+              <StreamToggle project={project} />
+            </div>
+          </div>
           <Tabs>
             <TabList>
               <Tab id="python">Python</Tab>
