@@ -74,13 +74,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           prompt: |
             Read and implement GitHub issue #${{ github.event.issue.number }}.
-
-            ${{ github.event.issue.body }}
-
+            Use `gh issue view ${{ github.event.issue.number }}` to read the issue details.
             Create commits referencing #${{ github.event.issue.number }}, then push and open a PR with `gh pr create`.
-          claude_args: '--max-turns 30'
+          claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(make:*)","Bash(gh:*)","Bash(uv:*)","Bash(pnpm:*)"'
 
       - name: Cleanup
         if: always() && env.READY == 'true'
