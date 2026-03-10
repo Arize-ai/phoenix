@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -132,6 +132,14 @@ async def list_project_traces(
             "for individual traces when possible."
         ),
     ),
+    session_identifier: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "List of session identifiers to filter traces by. Each value can be "
+            "either a session_id string or a relay GlobalID. Only traces belonging "
+            "to the specified sessions will be returned."
+        ),
+    ),
 ) -> GetTracesResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -143,6 +151,36 @@ async def list_project_traces(
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
         order_fn = "asc" if order == "asc" else "desc"
         stmt = stmt.order_by(getattr(sort_col, order_fn)(), getattr(models.Trace.id, order_fn)())
+
+        if session_identifier:
+            session_rowids_from_global_ids = []
+            session_id_strings = []
+            for sid in session_identifier:
+                try:
+                    row_id = from_global_id_with_expected_type(
+                        GlobalID.from_id(sid), "ProjectSession"
+                    )
+                    session_rowids_from_global_ids.append(row_id)
+                except Exception:
+                    session_id_strings.append(sid)
+
+            conditions = []
+            if session_rowids_from_global_ids:
+                conditions.append(
+                    models.Trace.project_session_rowid.in_(session_rowids_from_global_ids)
+                )
+            if session_id_strings:
+                session_subq = (
+                    select(models.ProjectSession.id)
+                    .where(models.ProjectSession.session_id.in_(session_id_strings))
+                    .where(models.ProjectSession.project_id == project_rowid)
+                )
+                conditions.append(models.Trace.project_session_rowid.in_(session_subq))
+
+            if conditions:
+                stmt = stmt.where(or_(*conditions))
+            else:
+                return GetTracesResponseBody(next_cursor=None, data=[])
 
         if start_time:
             stmt = stmt.where(

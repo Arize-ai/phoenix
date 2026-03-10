@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from typing import Optional
 
 import httpx
 from sqlalchemy import insert
@@ -10,6 +11,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.types import DbSessionFactory
@@ -19,12 +21,33 @@ async def _insert_project_with_traces(
     db: DbSessionFactory,
     num_traces: int = 3,
     num_spans_per_trace: int = 2,
-) -> tuple[models.Project, list[models.Trace], list[models.Span]]:
+    session_identifiers: Optional[list[str]] = None,
+) -> tuple[models.Project, list[models.Trace], list[models.Span], list[models.ProjectSession]]:
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
         )
         assert project_row_id is not None
+
+        # Create sessions if requested
+        all_sessions: list[models.ProjectSession] = []
+        if session_identifiers:
+            base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+            for s_id in session_identifiers:
+                session_row_id = await session.scalar(
+                    insert(models.ProjectSession)
+                    .values(
+                        session_id=s_id,
+                        project_id=project_row_id,
+                        start_time=base_time,
+                        end_time=base_time + timedelta(hours=10),
+                    )
+                    .returning(models.ProjectSession.id)
+                )
+                assert session_row_id is not None
+                ps = await session.get(models.ProjectSession, session_row_id)
+                assert ps is not None
+                all_sessions.append(ps)
 
         base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
         all_traces: list[models.Trace] = []
@@ -33,11 +56,18 @@ async def _insert_project_with_traces(
         for t_idx in range(num_traces):
             trace_start = base_time + timedelta(hours=t_idx)
             trace_end = trace_start + timedelta(minutes=30 + t_idx * 10)
+
+            # Assign sessions round-robin if available
+            project_session_rowid = None
+            if all_sessions:
+                project_session_rowid = all_sessions[t_idx % len(all_sessions)].id
+
             trace_row_id = await session.scalar(
                 insert(models.Trace)
                 .values(
                     trace_id=token_hex(16),
                     project_rowid=project_row_id,
+                    project_session_rowid=project_session_rowid,
                     start_time=trace_start,
                     end_time=trace_end,
                 )
@@ -49,6 +79,7 @@ async def _insert_project_with_traces(
                 id=trace_row_id,
                 trace_id=(await session.get(models.Trace, trace_row_id)).trace_id,  # type: ignore[union-attr]
                 project_rowid=project_row_id,
+                project_session_rowid=project_session_rowid,
                 start_time=trace_start,
                 end_time=trace_end,
             )
@@ -91,7 +122,7 @@ async def _insert_project_with_traces(
 
         project = await session.get(models.Project, project_row_id)
         assert project is not None
-    return project, all_traces, all_spans
+    return project, all_traces, all_spans, all_sessions
 
 
 class TestListProjectTraces:
@@ -100,7 +131,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=3)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
         response = await httpx_client.get(f"v1/projects/{project.name}/traces")
         assert response.status_code == 200
 
@@ -113,7 +144,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=2)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=2)
         project_global_id = str(GlobalID(ProjectNodeType.__name__, str(project.id)))
 
         response = await httpx_client.get(f"v1/projects/{project_global_id}/traces")
@@ -127,7 +158,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=1)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=1)
         response = await httpx_client.get(f"v1/projects/{project.name}/traces")
         assert response.status_code == 200
 
@@ -153,7 +184,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=3)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
 
         response = await httpx_client.get(f"v1/projects/{project.name}/traces")
         assert response.status_code == 200
@@ -170,7 +201,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=3)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
 
         response = await httpx_client.get(
             f"v1/projects/{project.name}/traces", params={"order": "asc"}
@@ -186,7 +217,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=3)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
 
         response = await httpx_client.get(
             f"v1/projects/{project.name}/traces",
@@ -202,7 +233,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=5)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=5)
 
         # First page
         response = await httpx_client.get(f"v1/projects/{project.name}/traces", params={"limit": 2})
@@ -236,7 +267,7 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, traces, _ = await _insert_project_with_traces(db, num_traces=5)
+        project, traces, _, _ = await _insert_project_with_traces(db, num_traces=5)
 
         # Filter to only include the second and third traces (hours 1 and 2)
         start = "2024-01-01T01:00:00Z"
@@ -300,8 +331,8 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project_a, _, _ = await _insert_project_with_traces(db, num_traces=2)
-        project_b, _, _ = await _insert_project_with_traces(db, num_traces=3)
+        project_a, _, _, _ = await _insert_project_with_traces(db, num_traces=2)
+        project_b, _, _, _ = await _insert_project_with_traces(db, num_traces=3)
 
         response_a = await httpx_client.get(f"v1/projects/{project_a.name}/traces")
         assert response_a.status_code == 200
@@ -316,7 +347,9 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, _, _ = await _insert_project_with_traces(db, num_traces=1, num_spans_per_trace=3)
+        project, _, _, _ = await _insert_project_with_traces(
+            db, num_traces=1, num_spans_per_trace=3
+        )
 
         response = await httpx_client.get(f"v1/projects/{project.name}/traces")
         assert response.status_code == 200
@@ -329,7 +362,9 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, _, _ = await _insert_project_with_traces(db, num_traces=2, num_spans_per_trace=3)
+        project, _, _, _ = await _insert_project_with_traces(
+            db, num_traces=2, num_spans_per_trace=3
+        )
 
         response = await httpx_client.get(
             f"v1/projects/{project.name}/traces", params={"include_spans": True}
@@ -349,7 +384,9 @@ class TestListProjectTraces:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        project, _, _ = await _insert_project_with_traces(db, num_traces=1, num_spans_per_trace=1)
+        project, _, _, _ = await _insert_project_with_traces(
+            db, num_traces=1, num_spans_per_trace=1
+        )
 
         response = await httpx_client.get(
             f"v1/projects/{project.name}/traces", params={"include_spans": True}
@@ -371,3 +408,118 @@ class TestListProjectTraces:
             GlobalID.from_id(span_data["id"]), SpanNodeType.__name__
         )
         assert span_rowid > 0
+
+    async def test_list_traces_filter_by_session_id_string(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        # 4 traces, 2 sessions: traces 0,2 -> sess-a, traces 1,3 -> sess-b
+        project, traces, _, sessions = await _insert_project_with_traces(
+            db, num_traces=4, session_identifiers=["sess-a", "sess-b"]
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"session_identifier": "sess-a"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 2
+        returned_trace_ids = {t["trace_id"] for t in data["data"]}
+        expected_trace_ids = {traces[0].trace_id, traces[2].trace_id}
+        assert returned_trace_ids == expected_trace_ids
+
+    async def test_list_traces_filter_by_session_global_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, traces, _, sessions = await _insert_project_with_traces(
+            db, num_traces=4, session_identifiers=["sess-a", "sess-b"]
+        )
+
+        # Use GlobalID for sess-b (sessions[1])
+        session_global_id = str(GlobalID(ProjectSessionNodeType.__name__, str(sessions[1].id)))
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"session_identifier": session_global_id},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 2
+        returned_trace_ids = {t["trace_id"] for t in data["data"]}
+        expected_trace_ids = {traces[1].trace_id, traces[3].trace_id}
+        assert returned_trace_ids == expected_trace_ids
+
+    async def test_list_traces_filter_by_multiple_session_identifier(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        # 6 traces, 3 sessions: traces round-robin across sess-x, sess-y, sess-z
+        project, traces, _, sessions = await _insert_project_with_traces(
+            db, num_traces=6, session_identifiers=["sess-x", "sess-y", "sess-z"]
+        )
+
+        # Mix: string for sess-x, GlobalID for sess-z
+        session_z_gid = str(GlobalID(ProjectSessionNodeType.__name__, str(sessions[2].id)))
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"session_identifier": ["sess-x", session_z_gid]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # sess-x -> traces 0,3; sess-z -> traces 2,5
+        assert len(data["data"]) == 4
+        returned_trace_ids = {t["trace_id"] for t in data["data"]}
+        expected_trace_ids = {
+            traces[0].trace_id,
+            traces[3].trace_id,
+            traces[2].trace_id,
+            traces[5].trace_id,
+        }
+        assert returned_trace_ids == expected_trace_ids
+
+    async def test_list_traces_filter_by_nonexistent_session_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _, _, _ = await _insert_project_with_traces(
+            db, num_traces=3, session_identifiers=["real-session"]
+        )
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"session_identifier": "nonexistent-session"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"] == []
+        assert data["next_cursor"] is None
+
+    async def test_list_traces_session_filter_combined_with_time_range(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        # 4 traces with sess-a: traces at hours 0,2 and sess-b: traces at hours 1,3
+        project, traces, _, sessions = await _insert_project_with_traces(
+            db, num_traces=4, session_identifiers=["sess-a", "sess-b"]
+        )
+
+        # Filter by sess-a AND time range that only includes hours 2-4
+        # sess-a traces are at hours 0 and 2; only hour 2 is in range
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={
+                "session_identifier": "sess-a",
+                "start_time": "2024-01-01T02:00:00Z",
+                "end_time": "2024-01-01T04:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 1
+        assert data["data"][0]["trace_id"] == traces[2].trace_id

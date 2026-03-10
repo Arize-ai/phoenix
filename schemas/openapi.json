@@ -2564,6 +2564,39 @@
               "title": "Cursor"
             },
             "description": "Pagination cursor (Trace GlobalID)"
+          },
+          {
+            "name": "include_spans",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible.",
+              "default": false,
+              "title": "Include Spans"
+            },
+            "description": "If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible."
+          },
+          {
+            "name": "session_identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a relay GlobalID. Only traces belonging to the specified sessions will be returned.",
+              "title": "Session Identifier"
+            },
+            "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a relay GlobalID. Only traces belonging to the specified sessions will be returned."
           }
         ],
         "responses": {
@@ -10728,10 +10761,17 @@
             "title": "End Time"
           },
           "spans": {
-            "items": {
-              "$ref": "#/components/schemas/TraceSpanData"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TraceSpanData"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Spans"
           }
         },
@@ -10741,8 +10781,7 @@
           "trace_id",
           "project_id",
           "start_time",
-          "end_time",
-          "spans"
+          "end_time"
         ],
         "title": "TraceData"
       },
