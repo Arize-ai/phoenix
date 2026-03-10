@@ -8,11 +8,28 @@ import httpx
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.routers.v1.sessions import _parse_session_global_id
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.types import DbSessionFactory
+
+
+class TestParseSessionGlobalId:
+    def test_returns_row_id_for_valid_global_id(self) -> None:
+        global_id = str(GlobalID(ProjectSessionNodeType.__name__, "42"))
+        assert _parse_session_global_id(global_id) == 42
+
+    def test_returns_none_for_plain_session_id(self) -> None:
+        assert _parse_session_global_id("my-session-abc123") is None
+
+    def test_returns_none_for_wrong_type_global_id(self) -> None:
+        wrong_type_id = str(GlobalID("WrongType", "42"))
+        assert _parse_session_global_id(wrong_type_id) is None
+
+    def test_returns_none_for_empty_string(self) -> None:
+        assert _parse_session_global_id("") is None
 
 
 class TestGetSession:
@@ -85,6 +102,150 @@ class TestGetSession:
     ) -> None:
         response = await httpx_client.get(f"v1/sessions/{token_hex(16)}")
         assert response.status_code == 404
+
+
+class TestDeleteSession:
+    async def test_delete_session_by_session_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, traces = await _insert_session_with_traces(db)
+
+        response = await httpx_client.delete(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 204
+
+        # Verify session is deleted
+        response = await httpx_client.get(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 404
+
+    async def test_delete_session_by_global_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, traces = await _insert_session_with_traces(db)
+        session_global_id = str(GlobalID(ProjectSessionNodeType.__name__, str(session_model.id)))
+
+        response = await httpx_client.delete(f"v1/sessions/{session_global_id}")
+        assert response.status_code == 204
+
+        # Verify session is deleted
+        response = await httpx_client.get(f"v1/sessions/{session_global_id}")
+        assert response.status_code == 404
+
+    async def test_delete_session_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.delete(f"v1/sessions/{token_hex(16)}")
+        assert response.status_code == 404
+
+    async def test_delete_session_cascades_traces(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, traces = await _insert_session_with_traces(db, num_traces=3)
+        trace_ids = [t.trace_id for t in traces]
+
+        response = await httpx_client.delete(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 204
+
+        # Verify traces are also deleted via cascade
+        async with db() as session:
+            from sqlalchemy import select as sa_select
+
+            remaining = (
+                await session.scalars(
+                    sa_select(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
+                )
+            ).all()
+            assert len(remaining) == 0
+
+
+class TestDeleteSessions:
+    async def test_bulk_delete_sessions(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=3)
+        session_ids = [s.session_id for s, _ in sessions_with_traces]
+
+        response = await httpx_client.post(
+            "v1/sessions/delete", json={"session_identifiers": session_ids}
+        )
+        assert response.status_code == 204
+
+        # Verify all sessions are deleted
+        response = await httpx_client.get(f"v1/projects/{project.name}/sessions")
+        assert response.status_code == 200
+        assert len(response.json()["data"]) == 0
+
+    async def test_bulk_delete_partial_match(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=2)
+        real_id = sessions_with_traces[0][0].session_id
+        fake_id = token_hex(16)
+
+        response = await httpx_client.post(
+            "v1/sessions/delete", json={"session_identifiers": [real_id, fake_id]}
+        )
+        assert response.status_code == 204
+
+        # Only one session should remain
+        response = await httpx_client.get(f"v1/projects/{project.name}/sessions")
+        assert response.status_code == 200
+        assert len(response.json()["data"]) == 1
+
+    async def test_bulk_delete_by_global_ids(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=3)
+        global_ids = [
+            str(GlobalID(ProjectSessionNodeType.__name__, str(s.id)))
+            for s, _ in sessions_with_traces
+        ]
+
+        response = await httpx_client.post(
+            "v1/sessions/delete", json={"session_identifiers": global_ids}
+        )
+        assert response.status_code == 204
+
+        # Verify all sessions are deleted
+        response = await httpx_client.get(f"v1/projects/{project.name}/sessions")
+        assert response.status_code == 200
+        assert len(response.json()["data"]) == 0
+
+    async def test_bulk_delete_mixed_identifiers_returns_422(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=2)
+        global_id = str(
+            GlobalID(ProjectSessionNodeType.__name__, str(sessions_with_traces[0][0].id))
+        )
+        session_id = sessions_with_traces[1][0].session_id
+
+        response = await httpx_client.post(
+            "v1/sessions/delete", json={"session_identifiers": [global_id, session_id]}
+        )
+        assert response.status_code == 422
+        assert "same type" in response.text
+
+    async def test_bulk_delete_empty_list(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post("v1/sessions/delete", json={"session_identifiers": []})
+        assert response.status_code == 422
 
 
 class TestListProjectSessions:

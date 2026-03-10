@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -28,11 +28,26 @@ from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSes
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.dml_event import SpanDeleteEvent
 
 from .annotations import SessionAnnotationData
 from .utils import RequestBody
 
 router = APIRouter(tags=["sessions"])
+
+_PROJECT_SESSION_NODE_TYPE_NAME = ProjectSessionNodeType.__name__
+
+
+def _parse_session_global_id(session_identifier: str) -> Optional[int]:
+    """
+    Attempt to parse a session identifier as a GlobalID.
+    Returns the integer row ID if valid, or None if it's not a GlobalID.
+    """
+    try:
+        global_id = GlobalID.from_id(session_identifier)
+        return from_global_id_with_expected_type(global_id, _PROJECT_SESSION_NODE_TYPE_NAME)
+    except Exception:
+        return None
 
 
 class InsertedSessionAnnotation(V1RoutesBaseModel):
@@ -71,29 +86,35 @@ class GetSessionsResponseBody(PaginatedResponseBody[SessionData]):
     pass
 
 
+class DeleteSessionsRequestBody(V1RoutesBaseModel):
+    session_identifiers: list[str] = Field(
+        description=(
+            "List of session identifiers to delete. "
+            "All identifiers must be the same type: either all GlobalIDs "
+            "or all user-provided session_id strings."
+        ),
+    )
+
+
 async def _get_session_by_identifier(
     session: AsyncSession,
     session_identifier: str,
 ) -> models.ProjectSession:
-    try:
-        id_ = from_global_id_with_expected_type(
-            GlobalID.from_id(session_identifier),
-            ProjectSessionNodeType.__name__,
-        )
-    except Exception:
+    row_id = _parse_session_global_id(session_identifier)
+    if row_id is not None:
+        project_session = await session.get(models.ProjectSession, row_id)
+        if project_session is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session with ID {session_identifier} not found",
+            )
+    else:
         stmt = select(models.ProjectSession).filter_by(session_id=session_identifier)
         project_session = await session.scalar(stmt)
         if project_session is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Session with session_id {session_identifier} not found",
-            )
-    else:
-        project_session = await session.get(models.ProjectSession, id_)
-        if project_session is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Session with ID {session_identifier} not found",
             )
     return project_session
 
@@ -143,6 +164,115 @@ async def get_session(
         traces = list((await db_session.scalars(traces_stmt)).all())
     data = _to_session_data(project_session, traces)
     return GetSessionResponseBody(data=data)
+
+
+@router.delete(
+    "/sessions/{session_identifier}",
+    operation_id="deleteSession",
+    summary="Delete a session by identifier",
+    description=(
+        "Delete a session by its identifier. The identifier can be either:\n"
+        "1. A global ID (base64-encoded)\n"
+        "2. A user-provided session_id string\n\n"
+        "This will permanently remove the session and all associated traces, spans, "
+        "and annotations via cascade delete."
+    ),
+    dependencies=[Depends(is_not_locked)],
+    responses=add_errors_to_responses([404]),
+    status_code=204,
+)
+async def delete_session(
+    request: Request,
+    session_identifier: str = Path(
+        description="The session identifier: either a GlobalID or user-provided session_id string.",
+    ),
+) -> None:
+    row_id = _parse_session_global_id(session_identifier)
+    async with request.app.state.db() as session:
+        if row_id is not None:
+            where_clause = models.ProjectSession.id == row_id
+            error_detail = f"Session with ID '{session_identifier}' not found"
+        else:
+            where_clause = models.ProjectSession.session_id == session_identifier
+            error_detail = f"Session with session_id '{session_identifier}' not found"
+
+        delete_stmt = (
+            delete(models.ProjectSession)
+            .where(where_clause)
+            .returning(models.ProjectSession.project_id)
+        )
+        project_id = await session.scalar(delete_stmt)
+
+        if project_id is None:
+            raise HTTPException(
+                status_code=404,
+                detail=error_detail,
+            )
+
+    request.state.event_queue.put(SpanDeleteEvent((project_id,)))
+    return None
+
+
+@router.post(
+    "/sessions/delete",
+    operation_id="deleteSessions",
+    summary="Bulk delete sessions",
+    description=(
+        "Delete multiple sessions by their identifiers (GlobalIDs or session_id strings). "
+        "All identifiers in a single request must be the same type. "
+        "Non-existent IDs are silently skipped. "
+        "All associated traces, spans, and annotations are cascade deleted."
+    ),
+    dependencies=[Depends(is_not_locked)],
+    responses=add_errors_to_responses([422]),
+    status_code=204,
+)
+async def delete_sessions(
+    request: Request,
+    request_body: DeleteSessionsRequestBody,
+) -> None:
+    identifiers = request_body.session_identifiers
+    if not identifiers:
+        raise HTTPException(
+            status_code=422,
+            detail="Session identifier list must not be empty.",
+        )
+
+    row_ids: list[int] = []
+    session_ids: list[str] = []
+    for ident in identifiers:
+        row_id = _parse_session_global_id(ident)
+        if row_id is not None:
+            row_ids.append(row_id)
+        else:
+            session_ids.append(ident)
+
+    if row_ids and session_ids:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "All identifiers must be the same type: "
+                "either all GlobalIDs or all session_id strings."
+            ),
+        )
+
+    async with request.app.state.db() as session:
+        if row_ids:
+            where_clause = models.ProjectSession.id.in_(row_ids)
+        else:
+            where_clause = models.ProjectSession.session_id.in_(session_ids)
+
+        delete_stmt = (
+            delete(models.ProjectSession)
+            .where(where_clause)
+            .returning(models.ProjectSession.project_id)
+        )
+        result = await session.scalars(delete_stmt)
+        project_ids = tuple(set(result.all()))
+
+    if project_ids:
+        request.state.event_queue.put(SpanDeleteEvent(project_ids))
+    return None
 
 
 @router.get(
