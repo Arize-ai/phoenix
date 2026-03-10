@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -63,17 +63,32 @@ class TraceData(V1RoutesBaseModel):
     project_id: str
     start_time: datetime
     end_time: datetime
-    spans: list[TraceSpanData]
+    span_count: int
+    spans: Optional[list[TraceSpanData]] = None
 
 
 class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
     pass
 
 
+def _to_trace_span_data(span: models.Span) -> TraceSpanData:
+    return TraceSpanData(
+        id=str(GlobalID(SpanNodeType.__name__, str(span.id))),
+        span_id=span.span_id,
+        parent_id=span.parent_id,
+        name=span.name,
+        span_kind=span.span_kind,
+        status_code=span.status_code,
+        start_time=span.start_time,
+        end_time=span.end_time,
+    )
+
+
 def _to_trace_data(
     trace: models.Trace,
-    spans: list[TraceSpanData],
+    span_count: int,
     project_id: int,
+    spans: Optional[list[models.Span]] = None,
 ) -> TraceData:
     return TraceData(
         id=str(GlobalID(TraceNodeType.__name__, str(trace.id))),
@@ -81,7 +96,8 @@ def _to_trace_data(
         project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
         start_time=trace.start_time,
         end_time=trace.end_time,
-        spans=spans,
+        span_count=span_count,
+        spans=[_to_trace_span_data(s) for s in spans] if spans is not None else None,
     )
 
 
@@ -110,6 +126,13 @@ async def list_project_traces(
         default=100, gt=0, le=1000, description="Maximum number of traces to return"
     ),
     cursor: Optional[str] = Query(default=None, description="Pagination cursor (Trace GlobalID)"),
+    include_spans: bool = Query(
+        default=False,
+        description=(
+            "If true, include full span details for each trace. "
+            "This may significantly increase response size."
+        ),
+    ),
 ) -> GetTracesResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -151,41 +174,41 @@ async def list_project_traces(
             next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
             traces = traces[:-1]
 
-        # Batch-fetch only the span columns needed for the response
         trace_ids = [t.id for t in traces]
-        spans_stmt = (
+
+        # Batch-fetch span counts per trace
+        count_stmt = (
             select(
-                models.Span.id,
                 models.Span.trace_rowid,
-                models.Span.span_id,
-                models.Span.parent_id,
-                models.Span.name,
-                models.Span.span_kind,
-                models.Span.status_code,
-                models.Span.start_time,
-                models.Span.end_time,
+                func.count(models.Span.id).label("span_count"),
             )
             .filter(models.Span.trace_rowid.in_(trace_ids))
-            .order_by(models.Span.start_time.asc())
+            .group_by(models.Span.trace_rowid)
         )
-        span_rows = (await session.execute(spans_stmt)).all()
+        count_rows = (await session.execute(count_stmt)).all()
+        span_counts: dict[int, int] = {row.trace_rowid: row.span_count for row in count_rows}
 
-        spans_by_trace: dict[int, list[TraceSpanData]] = defaultdict(list)
-        for row in span_rows:
-            spans_by_trace[row.trace_rowid].append(
-                TraceSpanData(
-                    id=str(GlobalID(SpanNodeType.__name__, str(row.id))),
-                    span_id=row.span_id,
-                    parent_id=row.parent_id,
-                    name=row.name,
-                    span_kind=row.span_kind,
-                    status_code=row.status_code,
-                    start_time=row.start_time,
-                    end_time=row.end_time,
-                )
+        # Optionally batch-fetch full span details
+        spans_by_trace: Optional[dict[int, list[models.Span]]] = None
+        if include_spans:
+            spans_by_trace = defaultdict(list)
+            spans_stmt = (
+                select(models.Span)
+                .filter(models.Span.trace_rowid.in_(trace_ids))
+                .order_by(models.Span.start_time.asc())
             )
+            for span in (await session.scalars(spans_stmt)).all():
+                spans_by_trace[span.trace_rowid].append(span)
 
-        data = [_to_trace_data(t, spans_by_trace.get(t.id, []), project_rowid) for t in traces]
+        data = [
+            _to_trace_data(
+                t,
+                span_counts.get(t.id, 0),
+                project_rowid,
+                spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
+            )
+            for t in traces
+        ]
     return GetTracesResponseBody(next_cursor=next_cursor, data=data)
 
 

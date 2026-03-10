@@ -122,7 +122,7 @@ class TestListProjectTraces:
         data = response.json()
         assert len(data["data"]) == 2
 
-    async def test_list_traces_includes_spans(
+    async def test_list_traces_returns_span_count(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -136,39 +136,8 @@ class TestListProjectTraces:
 
         data = response.json()
         for trace_data in data["data"]:
-            assert len(trace_data["spans"]) == 3
-            # Spans should be ordered by start_time ASC
-            start_times = [s["start_time"] for s in trace_data["spans"]]
-            assert start_times == sorted(start_times)
-
-    async def test_list_traces_span_fields(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        project, traces, _ = await _insert_project_with_traces(
-            db, num_traces=1, num_spans_per_trace=1
-        )
-
-        response = await httpx_client.get(f"v1/projects/{project.name}/traces")
-        assert response.status_code == 200
-
-        span_data = response.json()["data"][0]["spans"][0]
-        # Verify all expected fields are present
-        assert "id" in span_data
-        assert "span_id" in span_data
-        assert "parent_id" in span_data
-        assert "name" in span_data
-        assert "span_kind" in span_data
-        assert "status_code" in span_data
-        assert "start_time" in span_data
-        assert "end_time" in span_data
-
-        # Verify the span GlobalID is valid
-        span_rowid = from_global_id_with_expected_type(
-            GlobalID.from_id(span_data["id"]), SpanNodeType.__name__
-        )
-        assert span_rowid > 0
+            assert trace_data["span_count"] == 3
+            assert trace_data["spans"] is None
 
     async def test_list_traces_response_fields(
         self,
@@ -195,6 +164,7 @@ class TestListProjectTraces:
         assert "trace_id" in trace_data
         assert "start_time" in trace_data
         assert "end_time" in trace_data
+        assert "span_count" in trace_data
 
     async def test_list_traces_default_order_is_desc(
         self,
@@ -358,3 +328,65 @@ class TestListProjectTraces:
         response_b = await httpx_client.get(f"v1/projects/{project_b.name}/traces")
         assert response_b.status_code == 200
         assert len(response_b.json()["data"]) == 3
+
+    async def test_list_traces_spans_excluded_by_default(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _, _ = await _insert_project_with_traces(db, num_traces=1, num_spans_per_trace=3)
+
+        response = await httpx_client.get(f"v1/projects/{project.name}/traces")
+        assert response.status_code == 200
+
+        trace_data = response.json()["data"][0]
+        assert trace_data["spans"] is None
+        assert trace_data["span_count"] == 3
+
+    async def test_list_traces_include_spans(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _, _ = await _insert_project_with_traces(db, num_traces=2, num_spans_per_trace=3)
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"include_spans": True}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        for trace_data in data["data"]:
+            assert trace_data["span_count"] == 3
+            assert len(trace_data["spans"]) == 3
+            # Spans should be ordered by start_time ASC
+            start_times = [s["start_time"] for s in trace_data["spans"]]
+            assert start_times == sorted(start_times)
+
+    async def test_list_traces_include_spans_fields(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _, _ = await _insert_project_with_traces(db, num_traces=1, num_spans_per_trace=1)
+
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"include_spans": True}
+        )
+        assert response.status_code == 200
+
+        span_data = response.json()["data"][0]["spans"][0]
+        assert "id" in span_data
+        assert "span_id" in span_data
+        assert "parent_id" in span_data
+        assert "name" in span_data
+        assert "span_kind" in span_data
+        assert "status_code" in span_data
+        assert "start_time" in span_data
+        assert "end_time" in span_data
+
+        # Verify the span GlobalID is valid
+        span_rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(span_data["id"]), SpanNodeType.__name__
+        )
+        assert span_rowid > 0
