@@ -297,6 +297,17 @@ ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 Forbid login via password and disable the creation of local users, which log in via passwords.
 This can be helpful in setups where authentication is handled entirely through OAUTH2.
 """
+ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
+"""
+Comma-separated list of provider names to show in the UI.
+Provider names should match GenerativeProviderKey enum names:
+OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+Case-insensitive. When unset, all providers are shown.
+Set to NONE to hide all providers.
+Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
+"""
+
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION = "PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION"
 ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS = (
@@ -1098,6 +1109,21 @@ def get_env_disable_rate_limit() -> bool:
     Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
     """
     return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
+
+
+def get_env_allowed_providers() -> Optional[set[str]]:
+    """Return set of uppercase provider names to show, parsed from PHOENIX_ALLOWED_PROVIDERS.
+
+    Returns None when unset (all providers shown), or a set of names to allow.
+    Set to NONE to hide all providers (returns empty set).
+    """
+    raw = getenv(ENV_PHOENIX_ALLOWED_PROVIDERS)
+    if not raw:
+        return None
+    names = {name.strip().upper() for name in raw.split(",") if name.strip()}
+    if names == {"NONE"}:
+        return set()
+    return names
 
 
 def get_env_disable_brute_force_login_protection() -> bool:

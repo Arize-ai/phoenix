@@ -60,6 +60,7 @@ from phoenix.config import (
     SERVER_DIR,
     OAuth2ClientConfig,
     get_env_allow_external_resources,
+    get_env_allowed_providers,
     get_env_csrf_trusted_origins,
     get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
@@ -717,9 +718,26 @@ def create_graphql_router(
         GraphQLRouter: The router mounted at /graphql
     """
 
+    allowed_provider_names_set = get_env_allowed_providers()
+    allowed_provider_names: Optional[frozenset[str]] = None
+    if allowed_provider_names_set is not None:
+        from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+        valid_names = {key.name for key in GenerativeProviderKey}
+        invalid = allowed_provider_names_set - valid_names
+        if invalid:
+            logger.warning(
+                f"PHOENIX_ALLOWED_PROVIDERS contains unrecognized provider names: "
+                f"{', '.join(sorted(invalid))}. "
+                f"Valid names are: {', '.join(sorted(valid_names))}"
+            )
+            allowed_provider_names_set = allowed_provider_names_set - invalid
+        allowed_provider_names = frozenset(allowed_provider_names_set)
+
     def get_context() -> Context:
         return Context(
             db=db,
+            allowed_provider_names=allowed_provider_names,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
             data_loaders=DataLoaders(
