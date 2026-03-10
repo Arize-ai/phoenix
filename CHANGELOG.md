@@ -1,5 +1,29 @@
 # Changelog
 
+## [13.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.12.0...arize-phoenix-v13.13.0) (2026-03-10)
+
+
+### Features
+
+* add PHOENIX_ALLOWED_PROVIDERS env var to filter model providers in UI ([#12056](https://github.com/Arize-ai/phoenix/issues/12056)) ([ba97d59](https://github.com/Arize-ai/phoenix/commit/ba97d59204a8f523eeb28558feea8a855ee91b7c))
+* add PHOENIX_HIDDEN_PROVIDERS env var to hide model providers from UI ([#11986](https://github.com/Arize-ai/phoenix/issues/11986)) ([0e7616d](https://github.com/Arize-ai/phoenix/commit/0e7616da3ee914f5490d4c4d0a0cb9a9494e4639))
+* **client:** remove deprecated `client.annotations` module ([#11983](https://github.com/Arize-ai/phoenix/issues/11983)) ([6203c31](https://github.com/Arize-ai/phoenix/commit/6203c31fc59579dfbe927d47ca0d03d162d7fb77))
+* Dataset column drag drop UI ([#11960](https://github.com/Arize-ai/phoenix/issues/11960)) ([95f8a3d](https://github.com/Arize-ai/phoenix/commit/95f8a3d572837eddf796316d7c4ea022be501c04))
+* **server:** add DELETE session API  ([#11976](https://github.com/Arize-ai/phoenix/issues/11976)) ([d4a865a](https://github.com/Arize-ai/phoenix/commit/d4a865ae6bc1511b2b433b408de2f75bf71abc7b))
+* **ui:** split side nav APIs into REST API and GraphQL ([#11987](https://github.com/Arize-ai/phoenix/issues/11987)) ([43979de](https://github.com/Arize-ai/phoenix/commit/43979defee172e9ed891bfdc68efd92fbe29500c))
+
+
+### Bug Fixes
+
+* correct langchain and openAI integration icons ([#11865](https://github.com/Arize-ai/phoenix/issues/11865)) ([e63d3d1](https://github.com/Arize-ai/phoenix/commit/e63d3d117af8787e90cd580b90b2c2ff20664f92))
+* **playground:** prevent OTel context leak causing duplicate trace_id in dataset runs ([#12062](https://github.com/Arize-ai/phoenix/issues/12062)) ([2a24625](https://github.com/Arize-ai/phoenix/commit/2a24625c5b390332a059266e9f05a972550c9cdc))
+* prevent text overflow in table columns with long unbroken strings ([#11923](https://github.com/Arize-ai/phoenix/issues/11923)) ([#11961](https://github.com/Arize-ai/phoenix/issues/11961)) ([829b447](https://github.com/Arize-ai/phoenix/commit/829b447f10b1405ffe094ec9fe2187419c7aefdf))
+
+
+### Miscellaneous Chores
+
+* release 13.13.0 ([#12065](https://github.com/Arize-ai/phoenix/issues/12065)) ([33fc75c](https://github.com/Arize-ai/phoenix/commit/33fc75c03891902b3e90cb287d34b77c33a66b1e))
+
 ## [13.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.11.0...arize-phoenix-v13.12.0) (2026-03-09)
 
 
