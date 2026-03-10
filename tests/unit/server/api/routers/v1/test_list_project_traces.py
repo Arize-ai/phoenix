@@ -374,7 +374,6 @@ class TestListProjectTraces:
         data = response.json()
         for trace_data in data["data"]:
             assert len(trace_data["spans"]) == 3
-            assert len(trace_data["spans"]) == 3
             # Spans should be ordered by start_time ASC
             start_times = [s["start_time"] for s in trace_data["spans"]]
             assert start_times == sorted(start_times)

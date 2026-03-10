@@ -25,6 +25,7 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.authorization import is_not_locked
@@ -44,6 +45,8 @@ from .utils import (
 )
 
 router = APIRouter(tags=["traces"])
+
+_PROJECT_SESSION_NODE_TYPE_NAME = ProjectSessionNodeType.__name__
 
 
 class TraceSpanData(V1RoutesBaseModel):
@@ -149,8 +152,10 @@ async def list_project_traces(
         stmt = select(models.Trace).filter(models.Trace.project_rowid == project_rowid)
 
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
-        order_fn = "asc" if order == "asc" else "desc"
-        stmt = stmt.order_by(getattr(sort_col, order_fn)(), getattr(models.Trace.id, order_fn)())
+        if order == "asc":
+            stmt = stmt.order_by(sort_col.asc(), models.Trace.id.asc())
+        else:
+            stmt = stmt.order_by(sort_col.desc(), models.Trace.id.desc())
 
         if session_identifier:
             session_rowids_from_global_ids = []
@@ -158,7 +163,7 @@ async def list_project_traces(
             for sid in session_identifier:
                 try:
                     row_id = from_global_id_with_expected_type(
-                        GlobalID.from_id(sid), "ProjectSession"
+                        GlobalID.from_id(sid), _PROJECT_SESSION_NODE_TYPE_NAME
                     )
                     session_rowids_from_global_ids.append(row_id)
                 except Exception:
@@ -211,11 +216,10 @@ async def list_project_traces(
             next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
             traces = traces[:-1]
 
-        trace_ids = [t.id for t in traces]
-
         # Optionally batch-fetch full span details
         spans_by_trace: Optional[dict[int, list[models.Span]]] = None
         if include_spans:
+            trace_ids = [t.id for t in traces]
             spans_by_trace = defaultdict(list)
             spans_stmt = (
                 select(models.Span)
