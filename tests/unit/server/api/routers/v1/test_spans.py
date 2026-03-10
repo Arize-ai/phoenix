@@ -7,12 +7,12 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from phoenix.client import Client
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
+from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
@@ -1348,3 +1348,165 @@ async def test_otlp_span_search_filter_by_parent_id_specific(
     assert len(spans) == 1
     assert spans[0].name == "child-span"
     assert spans[0].parent_span_id == "rootspan0"
+
+
+@pytest.fixture
+async def project_with_varied_spans(db: DbSessionFactory) -> None:
+    """Insert a project with spans of different names, kinds, and statuses."""
+    async with db() as session:
+        project = models.Project(name="varied-spans")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracevaried00000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        spans_data = [
+            ("llm-call", "LLM", "OK"),
+            ("tool-call", "TOOL", "OK"),
+            ("chain-run", "CHAIN", "ERROR"),
+            ("embed-call", "EMBEDDING", "UNSET"),
+            ("llm-retry", "LLM", "ERROR"),
+        ]
+        for i, (name, kind, status) in enumerate(spans_data):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"varied{i:04d}",
+                    parent_id=None,
+                    name=name,
+                    span_kind=kind,
+                    start_time=base_time + timedelta(minutes=i),
+                    end_time=base_time + timedelta(minutes=i, seconds=30),
+                    attributes={},
+                    events=[],
+                    status_code=status,
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_span_search_filter_by_name(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params={"name": "llm-call"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "llm-call"
+
+
+async def test_span_search_filter_by_multiple_span_kinds(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params=[("span_kind", "LLM"), ("span_kind", "TOOL")],
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 3
+    names = {s.name for s in spans}
+    assert names == {"llm-call", "tool-call", "llm-retry"}
+
+
+async def test_span_search_filter_by_status_code(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params={"status_code": "ERROR"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2
+    assert all(s.status_code == "ERROR" for s in spans)
+
+
+async def test_span_search_filter_combined(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    """Combined filters: span_kind=LLM AND status_code=ERROR."""
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params={"span_kind": "LLM", "status_code": "ERROR"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "llm-retry"
+
+
+async def test_span_search_invalid_span_kind_returns_422(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params={"span_kind": "INVALID"},
+    )
+    assert resp.status_code == 422
+    assert "Invalid span_kind" in resp.text
+
+
+async def test_span_search_invalid_status_code_returns_422(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params={"status_code": "BADVALUE"},
+    )
+    assert resp.status_code == 422
+    assert "Invalid status_code" in resp.text
+
+
+async def test_span_search_case_insensitive_filters(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    """Filters should be case-insensitive."""
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans",
+        params={"span_kind": "llm", "status_code": "ok"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "llm-call"
+
+
+async def test_otlp_span_search_filter_by_name(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans/otlpv1",
+        params={"name": "tool-call"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "tool-call"
+
+
+async def test_otlp_span_search_filter_by_status_code(
+    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/varied-spans/spans/otlpv1",
+        params={"status_code": "OK"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 2

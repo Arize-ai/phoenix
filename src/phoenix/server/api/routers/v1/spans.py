@@ -611,6 +611,14 @@ async def span_search_otlpv1(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
     ),
+    name: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by span name(s)",
+    ),
+    status_code: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by status code(s). Values: OK, ERROR, UNSET",
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -641,6 +649,18 @@ async def span_search_otlpv1(
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
             stmt = stmt.where(models.Span.parent_id == parent_id)
+    if name:
+        stmt = stmt.where(models.Span.name.in_(name))
+    if status_code:
+        _valid_status = {e.value for e in StatusCode}
+        _upper = [v.upper() for v in status_code]
+        _invalid = [v for v in _upper if v not in _valid_status]
+        if _invalid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid status_code values: {_invalid}",
+            )
+        stmt = stmt.where(models.Span.status_code.in_(_upper))
 
     if cursor:
         try:
@@ -763,6 +783,21 @@ async def span_search(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
     ),
+    name: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by span name(s)",
+    ),
+    span_kind: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, "
+            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+        ),
+    ),
+    status_code: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by status code(s). Values: OK, ERROR, UNSET",
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -791,6 +826,28 @@ async def span_search(
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
             stmt = stmt.where(models.Span.parent_id == parent_id)
+    if name:
+        stmt = stmt.where(models.Span.name.in_(name))
+    if span_kind:
+        _valid_kinds = {e.value for e in SpanKind}
+        _upper = [v.upper() for v in span_kind]
+        _invalid = [v for v in _upper if v not in _valid_kinds]
+        if _invalid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid span_kind values: {_invalid}",
+            )
+        stmt = stmt.where(models.Span.span_kind.in_(_upper))
+    if status_code:
+        _valid_status = {e.value for e in StatusCode}
+        _upper = [v.upper() for v in status_code]
+        _invalid = [v for v in _upper if v not in _valid_status]
+        if _invalid:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid status_code values: {_invalid}",
+            )
+        stmt = stmt.where(models.Span.status_code.in_(_upper))
 
     if cursor:
         try:
