@@ -207,3 +207,57 @@ describe("findCompleteCSVRowEnd", () => {
     expect(findCompleteCSVRowEnd('"unclosed,field')).toBe(-1);
   });
 });
+
+describe("parseCSVFile collapsibleColumns", () => {
+  it("identifies columns with JSON object values as collapsible", async () => {
+    // All preview rows have valid JSON object in the "input" column
+    const file = createFile(
+      'id,input,output\n1,"{""question"": ""Hi""}",answer1\n2,"{""question"": ""Bye""}",answer2'
+    );
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).toContain("input");
+    expect(result.collapsibleColumns).not.toContain("id");
+    expect(result.collapsibleColumns).not.toContain("output");
+  });
+
+  it("does not mark column as collapsible if any row has non-JSON value", async () => {
+    // Second row has plain string instead of JSON object
+    const file = createFile(
+      'id,input,output\n1,"{""question"": ""Hi""}",answer1\n2,plain text,answer2'
+    );
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).not.toContain("input");
+  });
+
+  it("does not mark column as collapsible if JSON is array", async () => {
+    // JSON array is not a plain object
+    const file = createFile('id,data\n1,"[1, 2, 3]"\n2,"[4, 5, 6]"');
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).not.toContain("data");
+  });
+
+  it("does not mark column as collapsible if JSON is primitive", async () => {
+    // JSON number is not a plain object
+    const file = createFile("id,count\n1,42\n2,100");
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).not.toContain("count");
+  });
+
+  it("does not mark column as collapsible if any cell is empty", async () => {
+    const file = createFile('id,input\n1,"{""question"": ""Hi""}"\n2,');
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).not.toContain("input");
+  });
+
+  it("returns empty collapsibleColumns when no columns have JSON objects", async () => {
+    const file = createFile("a,b,c\n1,2,3\n4,5,6");
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).toEqual([]);
+  });
+
+  it("returns empty collapsibleColumns for header-only file", async () => {
+    const file = createFile("a,b,c");
+    const result = await parseCSVFile(file);
+    expect(result.collapsibleColumns).toEqual([]);
+  });
+});
