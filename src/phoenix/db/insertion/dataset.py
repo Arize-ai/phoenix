@@ -49,6 +49,18 @@ class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_version_id: DatasetVersionId
 
 
+class RevisionKind(Enum):
+    CREATE = "CREATE"
+    PATCH = "PATCH"
+    DELETE = "DELETE"
+
+    @classmethod
+    def _missing_(cls, v: Any) -> "RevisionKind":
+        if isinstance(v, str) and v and v.isascii() and not v.isupper():
+            return cls(v.upper())
+        raise ValueError(f"Invalid revision kind: {v}")
+
+
 async def insert_dataset(
     session: AsyncSession,
     name: str,
@@ -113,16 +125,32 @@ async def insert_dataset_example(
     return cast(DatasetExampleId, id_)
 
 
-class RevisionKind(Enum):
-    CREATE = "CREATE"
-    PATCH = "PATCH"
-    DELETE = "DELETE"
-
-    @classmethod
-    def _missing_(cls, v: Any) -> "RevisionKind":
-        if isinstance(v, str) and v and v.isascii() and not v.isupper():
-            return cls(v.upper())
-        raise ValueError(f"Invalid revision kind: {v}")
+async def insert_dataset_example_revision(
+    session: AsyncSession,
+    dataset_version_id: DatasetVersionId,
+    dataset_example_id: DatasetExampleId,
+    input: dict[str, Any],
+    output: dict[str, Any],
+    metadata: dict[str, Any],
+    revision_kind: RevisionKind = RevisionKind.CREATE,
+    content_hash: Optional[str] = None,
+    created_at: Optional[datetime] = None,
+) -> DatasetExampleRevisionId:
+    id_ = await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .values(
+            dataset_version_id=dataset_version_id,
+            dataset_example_id=dataset_example_id,
+            input=input,
+            output=output,
+            metadata_=metadata,
+            revision_kind=revision_kind.value,
+            content_hash=content_hash,
+            created_at=created_at,
+        )
+        .returning(models.DatasetExampleRevision.id)
+    )
+    return cast(DatasetExampleRevisionId, id_)
 
 
 async def bulk_insert_dataset_examples(
@@ -242,34 +270,6 @@ async def bulk_insert_dataset_example_revisions(
         all_ids.extend(batch_ids)
 
     return all_ids
-
-
-async def insert_dataset_example_revision(
-    session: AsyncSession,
-    dataset_version_id: DatasetVersionId,
-    dataset_example_id: DatasetExampleId,
-    input: dict[str, Any],
-    output: dict[str, Any],
-    metadata: dict[str, Any],
-    revision_kind: RevisionKind = RevisionKind.CREATE,
-    content_hash: Optional[str] = None,
-    created_at: Optional[datetime] = None,
-) -> DatasetExampleRevisionId:
-    id_ = await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .values(
-            dataset_version_id=dataset_version_id,
-            dataset_example_id=dataset_example_id,
-            input=input,
-            output=output,
-            metadata_=metadata,
-            revision_kind=revision_kind.value,
-            content_hash=content_hash,
-            created_at=created_at,
-        )
-        .returning(models.DatasetExampleRevision.id)
-    )
-    return cast(DatasetExampleRevisionId, id_)
 
 
 async def resolve_span_ids_to_rowids(
@@ -436,7 +436,6 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
     session: AsyncSession,
     dataset_id: DatasetId,
 ) -> list[tuple[DatasetExampleId, ExternalID, ContentHash]]:
-    """Return (example_id, external_id, content_hash) for all active (non-deleted) examples."""
     latest_version_id = await session.scalar(
         select(func.max(models.DatasetVersion.id)).where(
             models.DatasetVersion.dataset_id == dataset_id

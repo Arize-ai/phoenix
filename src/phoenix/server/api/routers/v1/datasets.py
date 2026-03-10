@@ -664,14 +664,14 @@ def _process_json(
                 f"({len(external_ids)} != {len(inputs)})"
             )
         seen: set[str] = set()
-        for eid in external_ids:
-            if eid is None:
+        for external_id in external_ids:
+            if external_id is None:
                 continue
-            if not isinstance(eid, str):
+            if not isinstance(external_id, str):
                 raise ValueError("external_ids must contain only strings or None")
-            if eid in seen:
-                raise ValueError(f"Duplicate external_id in request: {eid!r}")
-            seen.add(eid)
+            if external_id in seen:
+                raise ValueError(f"Duplicate external_id in request: {external_id!r}")
+            seen.add(external_id)
 
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
@@ -716,11 +716,11 @@ def _process_json(
                     span_id = span_id_value.strip()
 
         # Extract external_id for this example
-        external_id: Optional[str] = None
+        external_id = None
         if external_ids is not None:
-            eid_value = external_ids[i]
-            if eid_value is not None:
-                external_id = str(eid_value)
+            external_id_value = external_ids[i]
+            if external_id_value is not None:
+                external_id = str(external_id_value)
 
         example = ExampleContent(
             input=obj,
