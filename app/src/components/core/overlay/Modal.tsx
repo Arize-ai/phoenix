@@ -48,10 +48,6 @@ const modalCSS = css`
     --modal-width: var(--global-modal-width-L);
   }
 
-  &[data-size="XL"] {
-    --modal-width: var(--global-modal-width-XL);
-  }
-
   &[data-size="fullscreen"] {
     --modal-width: var(--global-modal-width-FULLSCREEN);
   }
@@ -135,7 +131,7 @@ const modalCSS = css`
   }
 `;
 
-export type ModalSize = "S" | "M" | "L" | "XL" | "fullscreen";
+export type ModalSize = "S" | "M" | "L" | "fullscreen";
 
 export interface ModalProps extends AriaModalOverlayProps {
   variant?: "default" | "slideover";

@@ -75,7 +75,7 @@ export function CreateDatasetButton({
         New Dataset
       </Button>
       <ModalOverlay isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Modal variant="slideover" size="XL">
+        <Modal variant="slideover" size="fullscreen">
           <Dialog css={dialogCSS}>
             <DialogHeader>
               <DialogTitle>Create Dataset</DialogTitle>
