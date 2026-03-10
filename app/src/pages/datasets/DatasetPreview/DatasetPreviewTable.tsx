@@ -4,15 +4,14 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  type CellContext,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";
-import { JSONText } from "@phoenix/components/code/JSONText";
 import { Counter } from "@phoenix/components/core/counter";
+import { CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
-
-const MAX_CELL_LENGTH = 200;
 
 const containerCSS = css`
   min-height: 0;
@@ -48,14 +47,18 @@ type DatasetPreviewRow = {
 // Hoisted outside component - createColumnHelper returns a stateless factory
 const columnHelper = createColumnHelper<DatasetPreviewRow>();
 
-function PreviewCell({ value }: { value: Record<string, unknown> }) {
+function PreviewCell(
+  row: CellContext<DatasetPreviewRow, Record<string, unknown>>
+) {
+  const { getValue } = row;
+  const value = getValue();
   const isEmpty = Object.keys(value).length === 0;
   return (
     <div css={contentCSS}>
       {isEmpty ? (
         <Text color="text-500">--</Text>
       ) : (
-        <JSONText json={value} maxLength={MAX_CELL_LENGTH} />
+        <CompactJSONCell {...row} />
       )}
     </div>
   );
@@ -72,6 +75,10 @@ export type DatasetPreviewTableProps = {
   outputColumns: string[];
   /** Columns assigned to metadata */
   metadataColumns: string[];
+  /** Whether collapsing is enabled */
+  collapseKeys?: boolean;
+  /** Keys that will be collapsed (their children promoted to top-level) */
+  keysToCollapse?: string[];
 };
 
 /**
@@ -84,10 +91,42 @@ export function DatasetPreviewTable({
   inputColumns,
   outputColumns,
   metadataColumns,
+  collapseKeys = false,
+  keysToCollapse = [],
 }: DatasetPreviewTableProps) {
   "use no memo";
+  const keysToCollapseSet = useMemo(
+    () => new Set(keysToCollapse),
+    [keysToCollapse]
+  );
+
   // Transform raw rows into dataset preview format
   const previewData = useMemo(() => {
+    /**
+     * Adds a value to the target bucket, handling collapse logic.
+     * If the column is in keysToCollapse and the value is an object,
+     * spread its children into the target instead of nesting under the column name.
+     */
+    const addToBucket = (
+      bucket: Record<string, unknown>,
+      col: string,
+      value: unknown
+    ) => {
+      if (
+        collapseKeys &&
+        keysToCollapseSet.has(col) &&
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        // Collapse: spread children into the bucket
+        Object.assign(bucket, value);
+      } else {
+        // Normal: add under the column name
+        bucket[col] = value;
+      }
+    };
+
     return rows.map((row): DatasetPreviewRow => {
       const input: Record<string, unknown> = {};
       const output: Record<string, unknown> = {};
@@ -96,39 +135,66 @@ export function DatasetPreviewTable({
       if (Array.isArray(row)) {
         // CSV row - array of strings
         columns.forEach((col, idx) => {
-          const value = row[idx] ?? "";
+          let value: unknown = row[idx] ?? "";
+          // For CSV, try to parse JSON if this is a collapsible column
+          if (
+            collapseKeys &&
+            keysToCollapseSet.has(col) &&
+            typeof value === "string"
+          ) {
+            try {
+              const parsed = JSON.parse(value);
+              if (
+                typeof parsed === "object" &&
+                parsed !== null &&
+                !Array.isArray(parsed)
+              ) {
+                value = parsed;
+              }
+            } catch {
+              // Keep as string if not valid JSON
+            }
+          }
           if (inputColumns.includes(col)) {
-            input[col] = value;
+            addToBucket(input, col, value);
           }
           if (outputColumns.includes(col)) {
-            output[col] = value;
+            addToBucket(output, col, value);
           }
           if (metadataColumns.includes(col)) {
-            metadata[col] = value;
+            addToBucket(metadata, col, value);
           }
         });
       } else {
         // JSONL row - object
         for (const col of inputColumns) {
           if (col in row) {
-            input[col] = row[col];
+            addToBucket(input, col, row[col]);
           }
         }
         for (const col of outputColumns) {
           if (col in row) {
-            output[col] = row[col];
+            addToBucket(output, col, row[col]);
           }
         }
         for (const col of metadataColumns) {
           if (col in row) {
-            metadata[col] = row[col];
+            addToBucket(metadata, col, row[col]);
           }
         }
       }
 
       return { input, output, metadata };
     });
-  }, [rows, columns, inputColumns, outputColumns, metadataColumns]);
+  }, [
+    rows,
+    columns,
+    inputColumns,
+    outputColumns,
+    metadataColumns,
+    collapseKeys,
+    keysToCollapseSet,
+  ]);
 
   const tableColumns = useMemo(
     () => [
@@ -138,7 +204,7 @@ export function DatasetPreviewTable({
             Input <Counter>{inputColumns.length}</Counter>
           </>
         ),
-        cell: (info) => <PreviewCell value={info.getValue()} />,
+        cell: (row) => <PreviewCell {...row} />,
       }),
       columnHelper.accessor("output", {
         header: () => (
@@ -146,7 +212,7 @@ export function DatasetPreviewTable({
             Output <Counter>{outputColumns.length}</Counter>
           </>
         ),
-        cell: (info) => <PreviewCell value={info.getValue()} />,
+        cell: (row) => <PreviewCell {...row} />,
       }),
       columnHelper.accessor("metadata", {
         header: () => (
@@ -154,7 +220,7 @@ export function DatasetPreviewTable({
             Metadata <Counter>{metadataColumns.length}</Counter>
           </>
         ),
-        cell: (info) => <PreviewCell value={info.getValue()} />,
+        cell: (row) => <PreviewCell {...row} />,
       }),
     ],
     [inputColumns.length, outputColumns.length, metadataColumns.length]

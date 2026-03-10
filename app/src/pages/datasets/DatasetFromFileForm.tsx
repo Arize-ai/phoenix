@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
@@ -24,6 +24,7 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
+import { computeCollapsedKeys } from "@phoenix/utils/jsonUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -212,6 +213,10 @@ export function DatasetFromFileForm({
   const [previewTab, setPreviewTab] = useState<"file" | "dataset">("file");
   const hasAutoSwitched = useRef(false);
 
+  // Collapse feature state
+  const [collapsibleKeys, setCollapsibleKeys] = useState<string[]>([]);
+  const [collapseKeys, setCollapseKeys] = useState(false);
+
   const {
     control,
     handleSubmit,
@@ -237,6 +242,64 @@ export function DatasetFromFileForm({
   const inputKeys = watch("input_keys");
   const outputKeys = watch("output_keys");
   const metadataKeys = watch("metadata_keys");
+
+  // Compute the keys that will be collapsed (for sending to backend) and any conflicts
+  // This uses conflict detection to determine which keys can actually be collapsed
+  const { keysToCollapse, collapseConflicts } = useMemo(() => {
+    if (!collapseKeys || collapsibleKeys.length === 0) {
+      return {
+        keysToCollapse: [],
+        collapseConflicts: new Map<string, string[]>(),
+      };
+    }
+
+    if (fileType === "jsonl") {
+      // For JSONL, previewRows are already Record<string, unknown>[]
+      const jsonlRows = previewRows as Record<string, unknown>[];
+      const result = computeCollapsedKeys(columns, collapsibleKeys, jsonlRows);
+      return {
+        keysToCollapse: result.keysToCollapse,
+        collapseConflicts: result.excludedDueToConflicts,
+      };
+    } else if (fileType === "csv") {
+      // For CSV, we need to parse JSON to detect conflicts
+      // First, convert CSV rows to objects with parsed JSON for collapsible columns
+      const csvRows = previewRows as string[][];
+      const objectRows: Record<string, unknown>[] = csvRows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        columns.forEach((col, idx) => {
+          const value = row[idx] ?? "";
+          if (collapsibleKeys.includes(col)) {
+            try {
+              const parsed = JSON.parse(value);
+              if (
+                typeof parsed === "object" &&
+                parsed !== null &&
+                !Array.isArray(parsed)
+              ) {
+                obj[col] = parsed;
+                return;
+              }
+            } catch {
+              // Keep as string
+            }
+          }
+          obj[col] = value;
+        });
+        return obj;
+      });
+      const result = computeCollapsedKeys(columns, collapsibleKeys, objectRows);
+      return {
+        keysToCollapse: result.keysToCollapse,
+        collapseConflicts: result.excludedDueToConflicts,
+      };
+    }
+
+    return {
+      keysToCollapse: [],
+      collapseConflicts: new Map<string, string[]>(),
+    };
+  }, [collapseKeys, collapsibleKeys, columns, previewRows, fileType]);
 
   // Create controlled value for ColumnAssigner
   const columnAssignerValue: ColumnAssignerValue = {
@@ -277,6 +340,9 @@ export function DatasetFromFileForm({
       setTotalRowCount(null);
       setPreviewTab("file");
       hasAutoSwitched.current = false;
+      // Reset collapse state
+      setCollapsibleKeys([]);
+      setCollapseKeys(false);
 
       const detectedType = detectFileType(file.name);
       setFileType(detectedType);
@@ -307,6 +373,8 @@ export function DatasetFromFileForm({
             setPreviewRows(result.previewRows);
             setTotalRowCount(result.totalRowCount);
             setErrorMessage(null);
+            // Store collapsible columns for collapse feature
+            setCollapsibleKeys(result.collapsibleColumns);
             // Auto-assign columns based on name heuristics
             const autoAssigned = computeAutoAssignment(result.columns);
             setValue("input_keys", autoAssigned.input, {
@@ -327,6 +395,8 @@ export function DatasetFromFileForm({
               setPreviewRows(result.previewRows);
               setTotalRowCount(result.totalRowCount);
               setErrorMessage(null);
+              // Store collapsible keys for collapse feature
+              setCollapsibleKeys(result.collapsibleKeys);
               // Auto-assign columns based on name heuristics
               const autoAssigned = computeAutoAssignment(result.keys);
               setValue("input_keys", autoAssigned.input, {
@@ -398,6 +468,9 @@ export function DatasetFromFileForm({
     setErrorMessage(null);
     setPreviewTab("file");
     hasAutoSwitched.current = false;
+    // Reset collapse state
+    setCollapsibleKeys([]);
+    setCollapseKeys(false);
   }, [setValue, resetField]);
 
   const handlePreviewTabChange = useCallback((key: React.Key) => {
@@ -421,6 +494,10 @@ export function DatasetFromFileForm({
     setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
     setValue("split_keys", autoAssigned.split, { shouldDirty: true });
   }, [columns, setValue]);
+
+  const handleCollapseKeysChange = useCallback((collapse: boolean) => {
+    setCollapseKeys(collapse);
+  }, []);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {
@@ -465,6 +542,12 @@ export function DatasetFromFileForm({
       data.split_keys.forEach((key) => {
         formData.append("split_keys[]", key);
       });
+      // Send flatten_keys if collapse is enabled
+      if (collapseKeys && keysToCollapse.length > 0) {
+        keysToCollapse.forEach((key) => {
+          formData.append("flatten_keys[]", key);
+        });
+      }
 
       return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
@@ -491,7 +574,7 @@ export function DatasetFromFileForm({
           setIsSubmitting(false);
         });
     },
-    [fileType, onDatasetCreated]
+    [fileType, onDatasetCreated, collapseKeys, keysToCollapse]
   );
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
@@ -620,6 +703,8 @@ export function DatasetFromFileForm({
                     inputColumns={inputKeys}
                     outputColumns={outputKeys}
                     metadataColumns={metadataKeys}
+                    collapseKeys={collapseKeys}
+                    keysToCollapse={keysToCollapse}
                   />
                 </div>
               </TabPanel>
@@ -645,6 +730,10 @@ export function DatasetFromFileForm({
                     onClear={handleColumnAssignerClear}
                     onAuto={handleColumnAssignerAuto}
                     fileType={fileType}
+                    hasCollapsibleKeys={collapsibleKeys.length > 0}
+                    collapseKeys={collapseKeys}
+                    onCollapseKeysChange={handleCollapseKeysChange}
+                    collapseConflicts={collapseConflicts}
                   />
                   {error?.message && (
                     <Text color="danger" size="S">
