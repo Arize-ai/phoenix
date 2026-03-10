@@ -44,6 +44,25 @@ Examples: TypeAlias = Iterable[ExampleContent]
 
 
 @dataclass(frozen=True)
+class HashedExample:
+    content: ExampleContent
+    content_hash: ContentHash
+
+
+@dataclass(frozen=True)
+class MatchedExample:
+    content: ExampleContent
+    example_id: DatasetExampleId
+    content_hash: ContentHash
+
+
+@dataclass(frozen=True)
+class ExistingExample:
+    example_id: DatasetExampleId
+    content_hash: ContentHash
+
+
+@dataclass(frozen=True)
 class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
@@ -630,10 +649,10 @@ async def _upsert_dataset_examples(
     )
 
     # Compute content hash for each incoming example
-    incoming: list[tuple[ExampleContent, str]] = [
-        (
-            example,
-            compute_example_content_hash(
+    incoming_examples = [
+        HashedExample(
+            content=example,
+            content_hash=compute_example_content_hash(
                 input=example.input,
                 output=example.output,
                 metadata=example.metadata,
@@ -642,76 +661,92 @@ async def _upsert_dataset_examples(
         for example in examples_
     ]
 
-    # Build lookup maps
-    # ext_id_map: external_id → (example_id, prev_content_hash)  [only entries with external_id]
-    # hash_map: content_hash → deque of example_ids              [ALL previous examples]
-    ext_id_map: dict[ExternalID, tuple[DatasetExampleId, ContentHash]] = {}
-    hash_map: dict[ContentHash, deque[DatasetExampleId]] = {}
+    # Build lookup maps for previous examples
+    existing_examples_by_external_id: dict[ExternalID, ExistingExample] = {}
+    existing_example_ids_by_content_hash: dict[ContentHash, deque[DatasetExampleId]] = {}
 
     for example_id, external_id, content_hash in previous:
         if external_id is not None:
-            ext_id_map[external_id] = (example_id, content_hash)
-        dq = hash_map.setdefault(content_hash, deque())
+            existing_examples_by_external_id[external_id] = ExistingExample(
+                example_id, content_hash
+            )
+        dq = existing_example_ids_by_content_hash.setdefault(content_hash, deque())
         dq.append(example_id)
 
-    consumed: set[DatasetExampleId] = set()
-    carry_over: list[tuple[ExampleContent, DatasetExampleId, ContentHash]] = []
-    patch: list[tuple[ExampleContent, DatasetExampleId, ContentHash]] = []
-    to_create: list[tuple[ExampleContent, ContentHash]] = []
+    matched_ids: set[DatasetExampleId] = set()
+    unchanged_revisions: list[MatchedExample] = []
+    patch_revisions: list[MatchedExample] = []
+    create_revisions: list[HashedExample] = []
 
-    for example, content_hash in incoming:
-        matched_id: Optional[DatasetExampleId] = None
-        prev_hash: Optional[str] = None
+    for incoming_example in incoming_examples:
+        matched_example_id: Optional[DatasetExampleId] = None
+        prev_content_hash: Optional[str] = None
 
-        if example.external_id is not None and example.external_id in ext_id_map:
-            # Priority: match by external_id
-            matched_id, prev_hash = ext_id_map[example.external_id]
-            consumed.add(matched_id)
-            # Remove from hash_map to prevent double-consumption
-            if prev_hash in hash_map:
-                dq = hash_map[prev_hash]
+        has_matching_external_id = (
+            incoming_example.content.external_id in existing_examples_by_external_id
+        )
+        if has_matching_external_id:
+            matched_external_id = incoming_example.content.external_id
+            assert matched_external_id is not None
+            existing_example = existing_examples_by_external_id[matched_external_id]
+            matched_example_id, prev_content_hash = (
+                existing_example.example_id,
+                existing_example.content_hash,
+            )
+            matched_ids.add(matched_example_id)
+            # Remove from content hash map to prevent double-consumption
+            if prev_content_hash in existing_example_ids_by_content_hash:
+                dq = existing_example_ids_by_content_hash[prev_content_hash]
                 try:
-                    dq.remove(matched_id)
+                    dq.remove(matched_example_id)
                 except ValueError:
                     pass
                 if not dq:
-                    del hash_map[prev_hash]
+                    del existing_example_ids_by_content_hash[prev_content_hash]
         else:
             # Fallback: match by content hash
-            if content_hash in hash_map:
-                dq = hash_map[content_hash]
-                # Skip already-consumed IDs
-                while dq and dq[0] in consumed:
+            if incoming_example.content_hash in existing_example_ids_by_content_hash:
+                dq = existing_example_ids_by_content_hash[incoming_example.content_hash]
+                # Skip already-matched IDs
+                while dq and dq[0] in matched_ids:
                     dq.popleft()
                 if dq:
-                    matched_id = dq.popleft()
-                    prev_hash = content_hash
-                    consumed.add(matched_id)
+                    matched_example_id = dq.popleft()
+                    prev_content_hash = incoming_example.content_hash
+                    matched_ids.add(matched_example_id)
                     if not dq:
-                        del hash_map[content_hash]
+                        del existing_example_ids_by_content_hash[incoming_example.content_hash]
 
-        if matched_id is None:
-            to_create.append((example, content_hash))
-        elif content_hash == prev_hash:
-            carry_over.append((example, matched_id, content_hash))
+        if matched_example_id is None:
+            create_revisions.append(incoming_example)
+        elif incoming_example.content_hash == prev_content_hash:
+            unchanged_revisions.append(
+                MatchedExample(
+                    incoming_example.content, matched_example_id, incoming_example.content_hash
+                )
+            )
         else:
-            patch.append((example, matched_id, content_hash))
+            patch_revisions.append(
+                MatchedExample(
+                    incoming_example.content, matched_example_id, incoming_example.content_hash
+                )
+            )
 
-    # Promote carry_over entries to PATCH when the same content hash also appears
-    # in to_create. This happens when the request contains more copies of a hash
+    # Promote unchanged entries to PATCH when the same content hash also appears
+    # in create_revisions. This happens when the request contains more copies of a hash
     # than previously existed: the existing example is re-asserted (PATCH) and the
     # extra copy is created (CREATE).
-    to_create_hashes: set[str] = {h for _, h in to_create}
-    for example, matched_id, ex_hash in carry_over:
-        if ex_hash in to_create_hashes:
-            patch.append((example, matched_id, ex_hash))
+    create_hashes: set[ContentHash] = {h.content_hash for h in create_revisions}
+    for entry in unchanged_revisions:
+        if entry.content_hash in create_hashes:
+            patch_revisions.append(entry)
 
-    # Previous examples not consumed → need DELETE revisions
+    # Previous examples not matched → need DELETE revisions
     all_previous_ids = {ex_id for ex_id, _, _ in previous}
-    to_delete = [ex_id for ex_id in all_previous_ids if ex_id not in consumed]
+    delete_ids = [ex_id for ex_id in all_previous_ids if ex_id not in matched_ids]
 
     # No changes → return event with existing latest version (no new version created)
-    if not patch and not to_create and not to_delete:
+    if not patch_revisions and not create_revisions and not delete_ids:
         latest_version_id = await session.scalar(
             select(models.DatasetVersion.id)
             .where(models.DatasetVersion.dataset_id == dataset_id)
@@ -732,21 +767,21 @@ async def _upsert_dataset_examples(
     )
 
     # Apply PATCH revisions (existing examples with changed content)
-    for example, example_id, new_hash in patch:
+    for revision in patch_revisions:
         await insert_dataset_example_revision(
             session=session,
             dataset_version_id=dataset_version_id,
-            dataset_example_id=example_id,
-            input=example.input,
-            output=example.output,
-            metadata=example.metadata,
+            dataset_example_id=revision.example_id,
+            input=revision.content.input,
+            output=revision.content.output,
+            metadata=revision.content.metadata,
             revision_kind=RevisionKind.PATCH,
-            content_hash=new_hash,
+            content_hash=revision.content_hash,
             created_at=created_at,
         )
 
     # Apply DELETE revisions (previous examples not present in new upsert)
-    for example_id in to_delete:
+    for example_id in delete_ids:
         await insert_dataset_example_revision(
             session=session,
             dataset_version_id=dataset_version_id,
@@ -760,11 +795,13 @@ async def _upsert_dataset_examples(
         )
 
     # Create new examples and their CREATE revisions
-    if to_create:
+    if create_revisions:
         # Check for deleted examples with matching external_ids (revival case).
         # The (dataset_id, external_id) unique constraint prevents creating a new row
         # if one already exists for that external_id, so we revive the existing row.
-        create_ext_ids = [ex.external_id for ex, _ in to_create if ex.external_id is not None]
+        create_ext_ids = [
+            r.content.external_id for r in create_revisions if r.content.external_id is not None
+        ]
         deleted_ext_id_to_example_id: dict[str, DatasetExampleId] = {}
         if create_ext_ids:
             revivable = await session.execute(
@@ -776,11 +813,12 @@ async def _upsert_dataset_examples(
                 if eid is not None:
                     deleted_ext_id_to_example_id[eid] = ex_id
 
-        span_ids_to_resolve = [ex.span_id for ex, _ in to_create]
+        span_ids_to_resolve = [r.content.span_id for r in create_revisions]
         span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
         split_assignments: list[tuple[DatasetExampleId, str]] = []
 
-        for example, content_hash in to_create:
+        for new_revision in create_revisions:
+            example = new_revision.content
             span_rowid = None
             if example.span_id:
                 span_rowid = span_id_to_rowid.get(example.span_id)
@@ -807,7 +845,7 @@ async def _upsert_dataset_examples(
                 output=example.output,
                 metadata=example.metadata,
                 revision_kind=RevisionKind.CREATE,
-                content_hash=content_hash,
+                content_hash=new_revision.content_hash,
                 created_at=created_at,
             )
 
