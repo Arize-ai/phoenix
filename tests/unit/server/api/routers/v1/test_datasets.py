@@ -1740,7 +1740,7 @@ async def test_deleting_and_upserting_examples_with_the_same_content(
 # ---------------------------------------------------------------------------
 
 
-async def test_upserting_two_examples_that_match_content_hash_of_previous_example_adds_create_and_patch_revisions(
+async def test_upserting_two_examples_that_match_content_hash_of_previous_example_adds_one_create_revision(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -1752,11 +1752,12 @@ async def test_upserting_two_examples_that_match_content_hash_of_previous_exampl
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
 
+    # First copy matches existing example (unchanged, carried forward implicitly).
+    # Second copy has no match → CREATE.
     assert len(versions) == 2
     kinds = [r.revision_kind for r in revisions]
-    assert len(kinds) == 3
+    assert len(kinds) == 2
     assert kinds.count("CREATE") == 2
-    assert kinds.count("PATCH") == 1
 
 
 async def test_upsert_with_removed_example_results_in_delete_revision(
