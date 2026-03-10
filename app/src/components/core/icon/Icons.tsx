@@ -1386,6 +1386,22 @@ export const GridOutline = () => (
   </svg>
 );
 
+export const GraphQL = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 1.657L20.958 6.828V17.172L12 22.343L3.042 17.172V6.828L12 1.657ZM4.048 7.409V15.006L10.629 3.61L4.048 7.409ZM12 3.242L4.415 16.379H19.585L12 3.242ZM18.58 17.384H5.42L12 21.183L18.58 17.384ZM19.952 15.006L13.373 3.61L19.952 7.409V15.006Z"
+    />
+    <circle cx="12" cy="2.237" r="2.117" />
+    <circle cx="20.455" cy="7.119" r="2.117" />
+    <circle cx="20.455" cy="16.882" r="2.117" />
+    <circle cx="12" cy="21.763" r="2.117" />
+    <circle cx="3.544" cy="16.882" r="2.117" />
+    <circle cx="3.544" cy="7.119" r="2.117" />
+  </svg>
+);
+
 export const HalfMoonHalfSunOutline = () => (
   <svg
     width="24"
