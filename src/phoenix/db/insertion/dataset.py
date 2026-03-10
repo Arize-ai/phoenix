@@ -664,15 +664,10 @@ def _diff_examples(
       3. If no match is found, the incoming example is a CREATE.
 
     After matching:
-      - Matched + same content_hash  → UNCHANGED (no revision needed)
+      - Matched + same content_hash  → unchanged (carried forward implicitly, no revision needed)
       - Matched + different hash     → PATCH
       - Unmatched incoming           → CREATE
       - Unmatched previous           → DELETE
-
-    Promotion rule: if an UNCHANGED example's content_hash also appears among CREATEs,
-    it is promoted to PATCH. This handles the case where incoming has *more* copies of
-    a hash than previously existed — the existing row is re-asserted so the extra copy
-    gets its own CREATE.
     """
     example_info_by_external_id: dict[ExternalID, ExistingExampleInfo] = {}
     example_ids_by_content_hash: dict[ContentHash, list[DatasetExampleId]] = {}
@@ -684,7 +679,6 @@ def _diff_examples(
     matched_ids: set[DatasetExampleId] = set()
     examples_to_create: list[ExampleWithHash] = []
     examples_to_patch: list[ExampleWithExternalID] = []
-    unchanged_examples: list[ExampleWithExternalID] = []
 
     for incoming in incoming_examples:
         match = _find_match(
@@ -697,25 +691,18 @@ def _diff_examples(
             examples_to_create.append(incoming)
             continue
         matched_ids.add(match.example_id)
-        matched = ExampleWithExternalID(
-            content=incoming.content,
-            example_id=match.example_id,
-            content_hash=incoming.content_hash,
-        )
-        if incoming.content_hash == match.content_hash:
-            unchanged_examples.append(matched)
-        else:
-            examples_to_patch.append(matched)
-
-    # Promote unchanged → PATCH when a CREATE shares their content hash
-    create_hashes: set[ContentHash] = {example.content_hash for example in examples_to_create}
-    examples_to_patch.extend(
-        entry for entry in unchanged_examples if entry.content_hash in create_hashes
-    )
+        if incoming.content_hash != match.content_hash:
+            examples_to_patch.append(
+                ExampleWithExternalID(
+                    content=incoming.content,
+                    example_id=match.example_id,
+                    content_hash=incoming.content_hash,
+                )
+            )
 
     # Any unmatched previous example → DELETE
-    all_previous_ids = {ex_id for ex_id, _, _ in previous}
-    delete_ids = [eid for eid in all_previous_ids if eid not in matched_ids]
+    all_previous_ids = {example_id for example_id, _, _ in previous}
+    delete_ids = [example_id for example_id in all_previous_ids if example_id not in matched_ids]
 
     return UpsertDiff(
         create_examples=examples_to_create,
