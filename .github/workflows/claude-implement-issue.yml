@@ -1,0 +1,95 @@
+name: Claude Implement Issue
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement:
+    # Only run when good-agent-issue label is added
+    if: github.event.label.name == 'good-agent-issue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+
+    steps:
+      - name: Check if already in progress
+        id: guard
+        run: |
+          # Skip if already assigned
+          ASSIGNEES=$(gh issue view "$ISSUE_NUMBER" --json assignees -q '.assignees | length')
+          if [ "$ASSIGNEES" -gt 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Issue already assigned, skipping"
+            exit 0
+          fi
+
+          # Skip if there's already a PR for this issue
+          LINKED_PRS=$(gh pr list --search "issue:$ISSUE_NUMBER" --json number -q 'length')
+          if [ "$LINKED_PRS" -gt 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "PR already exists, skipping"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Claim issue
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "github-actions[bot]" --add-label "agent-in-progress"
+
+      - name: Checkout repository
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Create branch
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          BRANCH="claude/issue-$ISSUE_NUMBER"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Run Claude Code
+        if: steps.guard.outputs.skip != 'true'
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Implement GitHub issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+
+            ## Issue Description
+            ${{ github.event.issue.body }}
+
+            ## Instructions
+            - Read the issue thoroughly — it contains data model details, permission requirements, and key file references
+            - Follow existing patterns in src/phoenix/server/api/routers/v1/
+            - Follow the conventions in CLAUDE.md (use Makefile targets)
+            - Write tests following existing test patterns in the tests/ directory
+            - Run `make lint-python` and `make typecheck-python` before finishing
+            - Create commits with clear messages referencing #${{ github.event.issue.number }}
+            - Push your branch and open a PR with `gh pr create` linking to #${{ github.event.issue.number }}
+          claude_args: '--max-turns 30 --allowedTools Read,Write,Edit,Bash,Glob,Grep'
+
+      - name: Cleanup on success
+        if: success() && steps.guard.outputs.skip != 'true'
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-assignee "github-actions[bot]" --remove-label "agent-in-progress"
+
+      - name: Cleanup on failure
+        if: failure() && steps.guard.outputs.skip != 'true'
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-assignee "github-actions[bot]" --remove-label "agent-in-progress"
+          gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
