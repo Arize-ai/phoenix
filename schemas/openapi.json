@@ -2593,10 +2593,10 @@
                   "type": "null"
                 }
               ],
-              "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a relay GlobalID. Only traces belonging to the specified sessions will be returned.",
+              "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned.",
               "title": "Session Identifier"
             },
-            "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a relay GlobalID. Only traces belonging to the specified sessions will be returned."
+            "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned."
           }
         ],
         "responses": {

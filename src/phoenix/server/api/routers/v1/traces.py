@@ -136,7 +136,7 @@ async def list_project_traces(
         default=None,
         description=(
             "List of session identifiers to filter traces by. Each value can be "
-            "either a session_id string or a relay GlobalID. Only traces belonging "
+            "either a session_id string or a session GlobalID. Only traces belonging "
             "to the specified sessions will be returned."
         ),
     ),
