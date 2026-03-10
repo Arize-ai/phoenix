@@ -2203,6 +2203,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Sessions
     (404, "GET", "v1/projects/fake-id-{}/sessions"),
     (404, "GET", "v1/sessions/fake-id-{}"),
+    # Traces (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/traces"),
 )
 
 # Admin-only endpoints (user management, project CRUD)
