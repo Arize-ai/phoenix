@@ -108,12 +108,6 @@ client = px.Client()  # Should use Client()
 px_client = AsyncClient()
 px_client.spans.get_spans_dataframe()  # Missing await
 
-# DON'T use wrong resource path for annotations
-px_client.annotations.log_span_annotations_dataframe(  # Wrong! Should be spans.log_span_annotations_dataframe
-    dataframe=df,
-    annotation_name="test"
-)
-
 # DON'T forget required annotator_kind
 px_client.spans.log_span_annotations_dataframe(
     dataframe=df,
@@ -340,19 +334,19 @@ hallucination_df = pd.DataFrame({"score": [0.1, 0.2], "label": ["low", "low"]})
 
 # New single evaluation
 px_client = Client()
-px_client.annotations.log_span_annotations_dataframe(
+px_client.spans.log_span_annotations_dataframe(
     dataframe=relevance_df,
     annotation_name="Recommendation Relevance",
     annotator_kind="LLM",
 )
 
 # New multiple evaluations (separate calls)
-px_client.annotations.log_span_annotations_dataframe(
+px_client.spans.log_span_annotations_dataframe(
     dataframe=hallucination_df,
     annotation_name="Hallucination",
     annotator_kind="LLM",
 )
-px_client.annotations.log_span_annotations_dataframe(
+px_client.spans.log_span_annotations_dataframe(
     dataframe=qa_correctness_df,
     annotation_name="QA Correctness",
     annotator_kind="LLM",
@@ -372,19 +366,19 @@ hallucination_df = pd.DataFrame({"score": [0.1, 0.2], "label": ["low", "low"]})
 
 # New async single evaluation
 px_client = AsyncClient()
-await px_client.annotations.log_span_annotations_dataframe(
+await px_client.spans.log_span_annotations_dataframe(
     dataframe=relevance_df,
     annotation_name="Recommendation Relevance",
     annotator_kind="LLM",
 )
 
 # New async multiple evaluations (separate calls with await)
-await px_client.annotations.log_span_annotations_dataframe(
+await px_client.spans.log_span_annotations_dataframe(
     dataframe=hallucination_df,
     annotation_name="Hallucination",
     annotator_kind="LLM",
 )
-await px_client.annotations.log_span_annotations_dataframe(
+await px_client.spans.log_span_annotations_dataframe(
     dataframe=qa_correctness_df,
     annotation_name="QA Correctness",
     annotator_kind="LLM",

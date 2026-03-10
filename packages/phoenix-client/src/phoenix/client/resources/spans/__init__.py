@@ -2384,7 +2384,7 @@ class AsyncSpans:
         Example::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.resources.annotations import SpanDocumentAnnotationData
+            from phoenix.client.resources.spans import SpanDocumentAnnotationData
             async_client = AsyncClient()
 
             # Log multiple document annotations
