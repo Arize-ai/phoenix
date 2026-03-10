@@ -805,11 +805,12 @@ def _prompt_to_openai_tool(
 def _bedrock_to_prompt_tool(
     tool: BedrockToolDefinition,
 ) -> PromptToolFunction:
+    description = tool.toolSpec.get("description")
     return PromptToolFunction(
         type="function",
         function=PromptToolFunctionDefinition(
             name=tool.toolSpec["name"],
-            description=tool.toolSpec["description"],
+            description=description if isinstance(description, str) else UNDEFINED,
             parameters=tool.toolSpec["inputSchema"]["json"],
         ),
     )
@@ -843,15 +844,15 @@ def _prompt_to_bedrock_tool(
     tool: PromptToolFunction,
 ) -> BedrockToolDefinition:
     function = tool.function
-    return BedrockToolDefinition(
-        toolSpec={
-            "name": function.name,
-            "description": function.description,
-            "inputSchema": {
-                "json": function.parameters,
-            },
-        }
-    )
+    tool_spec: dict[str, Any] = {
+        "name": function.name,
+        "inputSchema": {
+            "json": function.parameters,
+        },
+    }
+    if isinstance(function.description, str):
+        tool_spec["description"] = function.description
+    return BedrockToolDefinition(toolSpec=tool_spec)
 
 
 def _gemini_to_prompt_tool(
