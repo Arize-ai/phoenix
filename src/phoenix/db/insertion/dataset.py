@@ -490,7 +490,7 @@ async def add_dataset_examples(
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
-) -> Optional[DatasetExampleAdditionEvent]:
+) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
     if action is DatasetAction.UPSERT:
@@ -737,7 +737,7 @@ async def _upsert_dataset_examples(
     metadata: Optional[Mapping[str, Any]] = None,
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
-) -> Optional[DatasetExampleAdditionEvent]:
+) -> DatasetExampleAdditionEvent:
     examples_ = list(examples)
     if created_at is None:
         created_at = datetime.now(timezone.utc)
