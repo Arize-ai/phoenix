@@ -730,6 +730,7 @@ def create_graphql_router(
                 f"{', '.join(sorted(invalid))}. "
                 f"Valid names are: {', '.join(sorted(valid_names))}"
             )
+            hidden_provider_names = hidden_provider_names - invalid
 
     def get_context() -> Context:
         return Context(
