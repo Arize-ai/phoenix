@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.3.0
+
+### Minor Changes
+
+- d951320: Add `parentId` parameter to `getSpans` for filtering spans by parent span ID
+
 ## 6.2.0
 
 ### Minor Changes
