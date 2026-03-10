@@ -3,10 +3,6 @@
 ## [13.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.12.0...arize-phoenix-v13.13.0) (2026-03-10)
 
 
-### ⚠ BREAKING CHANGES
-
-* **client:** `client.annotations` has been removed. Use `client.spans` instead.
-
 ### Features
 
 * add PHOENIX_ALLOWED_PROVIDERS env var to filter model providers in UI ([#12056](https://github.com/Arize-ai/phoenix/issues/12056)) ([ba97d59](https://github.com/Arize-ai/phoenix/commit/ba97d59204a8f523eeb28558feea8a855ee91b7c))
