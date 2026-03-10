@@ -1,4 +1,4 @@
-"""add source_code, language, input_mapping, output_configs, and input_schema to code_evaluators
+"""add sandbox and code evaluator support
 
 Revision ID: 0ff41b5b118f
 Revises: f1a6b2f0c9d5
@@ -77,6 +77,39 @@ def upgrade() -> None:
         ),
     )
 
+    op.create_table(
+        "sandbox_config_instances",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "backend_type",
+            sa.String,
+            nullable=False,
+        ),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("description", sa.String, nullable=True),
+        sa.Column("config", JSON_, nullable=False, server_default="{}"),
+        sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
+        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("backend_type", "name"),
+        sa.CheckConstraint(
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            name="valid_sandbox_instance_backend_type",
+        ),
+    )
+
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -122,7 +155,7 @@ def upgrade() -> None:
             sa.Column(
                 "sandbox_config_id",
                 sa.Integer,
-                sa.ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
+                sa.ForeignKey("sandbox_config_instances.id", ondelete="SET NULL"),
                 nullable=True,
             ),
         )
@@ -173,4 +206,5 @@ def downgrade() -> None:
         batch_op.drop_column("language")
         batch_op.drop_column("source_code")
 
+    op.drop_table("sandbox_config_instances")
     op.drop_table("sandbox_configs")
