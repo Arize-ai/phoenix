@@ -36,7 +36,6 @@ export const CategoricalChoiceToolTypeSchema =
           ])
         ),
         required: z.array(z.string()),
-        additionalProperties: z.boolean().optional(),
       }),
     }),
   });
