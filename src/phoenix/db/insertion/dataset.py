@@ -492,6 +492,7 @@ async def add_dataset_examples(
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
+    splits_provided: bool = True,
 ) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
@@ -504,6 +505,7 @@ async def add_dataset_examples(
             metadata=metadata,
             user_id=user_id,
             created_at=created_at,
+            splits_provided=splits_provided,
         )
 
     dataset_id: Optional[DatasetId] = None
@@ -747,10 +749,24 @@ async def _rebuild_dataset_splits(
     dataset_id: DatasetId,
     diff: UpsertDiff,
     created_examples: list[ExampleWithExternalID],
+    splits_provided: bool = True,
     user_id: Optional[int] = None,
 ) -> None:
     """Collect split assignments from unchanged, patched, and created examples,
-    then delete all existing split assignments for the dataset and reassign."""
+    then delete all existing split assignments for the dataset and reassign.
+
+    When *splits_provided* is False the caller did not supply a ``splits``
+    parameter at all, so existing split assignments are preserved for surviving
+    examples and only deleted examples lose their assignments.
+    """
+
+    if not splits_provided and diff.delete_example_ids:
+        await session.execute(
+            delete(models.DatasetSplitDatasetExample).where(
+                models.DatasetSplitDatasetExample.dataset_example_id.in_(diff.delete_example_ids)
+            )
+        )
+        return
 
     await session.execute(
         delete(models.DatasetSplitDatasetExample).where(
@@ -786,6 +802,7 @@ async def _upsert_dataset_examples(
     metadata: Optional[Mapping[str, Any]] = None,
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
+    splits_provided: bool = True,
 ) -> DatasetExampleAdditionEvent:
     examples_ = list(examples)
     if created_at is None:
@@ -933,6 +950,7 @@ async def _upsert_dataset_examples(
         dataset_id=dataset_id,
         diff=diff,
         created_examples=created_examples,
+        splits_provided=splits_provided,
         user_id=user_id,
     )
 
