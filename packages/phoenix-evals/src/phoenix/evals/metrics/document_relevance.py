@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -15,6 +17,13 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        prompt_template (optional): Custom prompt template to override the built-in prompt.
+            When provided, ``input_schema`` is not applied — template variables are inferred
+            automatically from the template. Accepts the same formats as
+            :class:`ClassificationEvaluator` (string, message list, or
+            :class:`~phoenix.evals.llm.prompts.PromptTemplate`).
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether a document contains information relevant to
@@ -29,7 +38,17 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
         from phoenix.evals import LLM
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        relevance_eval = DocumentRelevanceEvaluator(llm=llm, temperature=0.0)
+
+        # With a custom prompt template (input_schema is inferred from template variables)
+        custom_template = "Is this document relevant?\\nQuery: {input}\\nDocument: {document_text}"
+        relevance_eval = DocumentRelevanceEvaluator(llm=llm, prompt_template=custom_template)
+
         eval_input = {
             "input": "What is the capital of France?",
             "document_text": "Paris is the capital and largest city of France"
@@ -54,12 +73,25 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        prompt_template: Optional[Any] = None,
+        **kwargs: Any,
     ):
-        super().__init__(
-            name=self.NAME,
-            llm=llm,
-            prompt_template=self.PROMPT.template,
-            choices=self.CHOICES,
-            direction=self.DIRECTION,
-            input_schema=self.DocumentRelevanceInputSchema,
-        )
+        if prompt_template is None:
+            super().__init__(
+                name=self.NAME,
+                llm=llm,
+                prompt_template=self.PROMPT.template,
+                choices=self.CHOICES,
+                direction=self.DIRECTION,
+                input_schema=self.DocumentRelevanceInputSchema,
+                **kwargs,
+            )
+        else:
+            super().__init__(
+                name=self.NAME,
+                llm=llm,
+                prompt_template=prompt_template,
+                choices=self.CHOICES,
+                direction=self.DIRECTION,
+                **kwargs,
+            )

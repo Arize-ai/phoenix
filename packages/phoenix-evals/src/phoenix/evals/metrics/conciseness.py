@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -14,6 +16,13 @@ class ConcisenessEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        prompt_template (optional): Custom prompt template to override the built-in prompt.
+            When provided, ``input_schema`` is not applied — template variables are inferred
+            automatically from the template. Accepts the same formats as
+            :class:`ClassificationEvaluator` (string, message list, or
+            :class:`~phoenix.evals.llm.prompts.PromptTemplate`).
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether the output to an input is concise or verbose.
@@ -26,7 +35,17 @@ class ConcisenessEvaluator(ClassificationEvaluator):
         from phoenix.evals.metrics.conciseness import ConcisenessEvaluator
         from phoenix.evals import LLM
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         conciseness_eval = ConcisenessEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        conciseness_eval = ConcisenessEvaluator(llm=llm, temperature=0.0)
+
+        # With a custom prompt template (input_schema is inferred from template variables)
+        custom_template = "Is this concise?\\nQuestion: {input}\\nAnswer: {output}"
+        conciseness_eval = ConcisenessEvaluator(llm=llm, prompt_template=custom_template)
+
         eval_input = {
             "input": "What is the capital of France?",
             "output": "Paris.",
@@ -54,12 +73,25 @@ class ConcisenessEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        prompt_template: Optional[Any] = None,
+        **kwargs: Any,
     ):
-        super().__init__(
-            name=self.NAME,
-            llm=llm,
-            prompt_template=self.PROMPT.template,
-            choices=self.CHOICES,
-            direction=self.DIRECTION,
-            input_schema=self.ConcisenessInputSchema,
-        )
+        if prompt_template is None:
+            super().__init__(
+                name=self.NAME,
+                llm=llm,
+                prompt_template=self.PROMPT.template,
+                choices=self.CHOICES,
+                direction=self.DIRECTION,
+                input_schema=self.ConcisenessInputSchema,
+                **kwargs,
+            )
+        else:
+            super().__init__(
+                name=self.NAME,
+                llm=llm,
+                prompt_template=prompt_template,
+                choices=self.CHOICES,
+                direction=self.DIRECTION,
+                **kwargs,
+            )
