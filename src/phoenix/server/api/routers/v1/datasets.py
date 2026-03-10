@@ -478,6 +478,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
+                    flatten_keys,
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
@@ -505,6 +506,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
+                    flatten_keys,
                 )
             elif file_content_type is FileContentType.PYARROW:
                 examples = await _process_pyarrow(
@@ -520,6 +522,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
+                    flatten_keys,
                 )
             else:
                 assert_never(file_content_type)
@@ -601,8 +604,41 @@ OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
 SplitKeys: TypeAlias = frozenset[str]
 SpanIdKey: TypeAlias = Optional[str]
+FlattenKeys: TypeAlias = frozenset[str]
 DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
+
+
+def _flatten_row(row: dict[str, Any], flatten_keys: FlattenKeys) -> dict[str, Any]:
+    """
+    Flatten a row by promoting children of specified keys to the top level.
+
+    For each key in flatten_keys that exists in the row and has a dict value,
+    the dict's contents are spread into the result and the parent key is removed.
+
+    Args:
+        row: The original row data
+        flatten_keys: Keys whose dict values should be flattened
+
+    Returns:
+        A new dict with flattened structure
+
+    Example:
+        >>> _flatten_row({"input": {"question": "Hi"}, "id": 1}, frozenset(["input"]))
+        {"question": "Hi", "id": 1}
+    """
+    if not flatten_keys:
+        return row
+
+    result: dict[str, Any] = {}
+    for key, value in row.items():
+        if key in flatten_keys and isinstance(value, dict):
+            # Promote children to top level
+            result.update(value)
+        else:
+            # Keep the key as-is
+            result[key] = value
+    return result
 
 
 def _process_json(
@@ -705,6 +741,7 @@ async def _process_csv(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
+    flatten_keys: FlattenKeys = frozenset(),
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -723,19 +760,39 @@ async def _process_csv(
         column_headers, input_keys, output_keys, metadata_keys, split_keys, span_id_key
     )
 
-    rows = list(reader)
-    return (
-        ExampleContent(
-            input={k: row.get(k) for k in input_keys},
-            output={k: row.get(k) for k in output_keys},
-            metadata={k: row.get(k) for k in metadata_keys},
-            splits=frozenset(
-                str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
-            ),  # Only include non-empty, non-whitespace split values
-            span_id=_get_span_id(row, span_id_key),
-        )
-        for row in rows
-    )
+    def process_rows() -> list[ExampleContent]:
+        examples = []
+        for row in reader:
+            # For CSV with flatten_keys, parse JSON from string cells before flattening
+            if flatten_keys:
+                parsed_row: dict[str, Any] = {}
+                for k, v in row.items():
+                    if k in flatten_keys and v:
+                        try:
+                            parsed = json.loads(v)
+                            if isinstance(parsed, dict):
+                                parsed_row[k] = parsed
+                                continue
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    parsed_row[k] = v
+                row = _flatten_row(parsed_row, flatten_keys)
+
+            examples.append(
+                ExampleContent(
+                    input={k: row.get(k) for k in input_keys},
+                    output={k: row.get(k) for k in output_keys},
+                    metadata={k: row.get(k) for k in metadata_keys},
+                    splits=frozenset(
+                        str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                    ),
+                    span_id=_get_span_id(row, span_id_key),
+                )
+            )
+        return examples
+
+    rows = await run_in_threadpool(process_rows)
+    return iter(rows)
 
 
 async def _process_pyarrow(
@@ -778,6 +835,7 @@ async def _process_jsonl(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
+    flatten_keys: FlattenKeys = frozenset(),
 ) -> Examples:
     if encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -785,24 +843,27 @@ async def _process_jsonl(
         content = await run_in_threadpool(zlib.decompress, content)
     elif encoding is not FileContentEncoding.NONE:
         assert_never(encoding)
-    # content is a newline delimited list of JSON objects
-    # parse within a threadpool
-    reader = await run_in_threadpool(
-        lambda c: [json.loads(line) for line in c.decode().splitlines()], content
-    )
 
-    examples: list[ExampleContent] = []
-    for obj in reader:
-        example = ExampleContent(
-            input={k: obj.get(k) for k in input_keys},
-            output={k: obj.get(k) for k in output_keys},
-            metadata={k: obj.get(k) for k in metadata_keys},
-            splits=frozenset(
-                str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
-            ),  # Only include non-empty, non-whitespace split values
-            span_id=_get_span_id(obj, span_id_key),
-        )
-        examples.append(example)
+    def parse_and_process(c: bytes) -> list[ExampleContent]:
+        rows = [json.loads(line) for line in c.decode().splitlines()]
+        examples: list[ExampleContent] = []
+        for obj in rows:
+            # Apply flattening if specified
+            if flatten_keys:
+                obj = _flatten_row(obj, flatten_keys)
+            example = ExampleContent(
+                input={k: obj.get(k) for k in input_keys},
+                output={k: obj.get(k) for k in output_keys},
+                metadata={k: obj.get(k) for k in metadata_keys},
+                splits=frozenset(
+                    str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
+                ),
+                span_id=_get_span_id(obj, span_id_key),
+            )
+            examples.append(example)
+        return examples
+
+    examples = await run_in_threadpool(parse_and_process, content)
     return iter(examples)
 
 
@@ -858,6 +919,7 @@ async def _parse_form_data(
     MetadataKeys,
     SplitKeys,
     SpanIdKey,
+    FlattenKeys,
     UploadFile,
 ]:
     name = cast(Optional[str], form.get("name"))
@@ -873,6 +935,7 @@ async def _parse_form_data(
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
     split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
     span_id_key = cast(Optional[str], form.get("span_id_key")) or None
+    flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
     return (
         action,
         name,
@@ -882,6 +945,7 @@ async def _parse_form_data(
         metadata_keys,
         split_keys,
         span_id_key,
+        flatten_keys,
         file,
     )
 
