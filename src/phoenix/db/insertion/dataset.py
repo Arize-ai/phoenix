@@ -834,7 +834,7 @@ async def _upsert_dataset_examples(
         create_external_ids = [
             r.content.external_id for r in diff.create_examples if r.content.external_id is not None
         ]
-        deleted_external_id_to_example_id = await _get_existing_example_ids(
+        external_id_to_existing_example_id = await _get_existing_example_ids(
             session, dataset_id, create_external_ids
         )
         span_ids_to_resolve = [r.content.span_id for r in diff.create_examples]
@@ -846,7 +846,7 @@ async def _upsert_dataset_examples(
                 span_rowid = span_id_to_rowid.get(example.span_id)
 
             existing_example_id = (
-                deleted_external_id_to_example_id.get(example.external_id)
+                external_id_to_existing_example_id.get(example.external_id)
                 if example.external_id is not None
                 else None
             )
