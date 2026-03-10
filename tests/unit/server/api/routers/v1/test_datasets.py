@@ -1527,6 +1527,28 @@ class TestFlattenRow:
         result = _flatten_row(row, frozenset(["input"]))
         assert result == {"id": 1}
 
+    def test_flatten_row_conflict_between_flattened_keys(self) -> None:
+        """Raise error when two flattened keys have children with the same name."""
+        from phoenix.server.api.routers.v1.datasets import _flatten_row
+
+        row = {
+            "input": {"text": "Hello"},
+            "output": {"text": "World"},  # Conflict: "text" already exists
+        }
+        with pytest.raises(ValueError, match="Flatten conflict.*text.*output"):
+            _flatten_row(row, frozenset(["input", "output"]))
+
+    def test_flatten_row_conflict_with_existing_key(self) -> None:
+        """Raise error when a flattened child key conflicts with an existing top-level key."""
+        from phoenix.server.api.routers.v1.datasets import _flatten_row
+
+        row = {
+            "input": {"id": "from-input"},  # Conflict: "id" already exists at top level
+            "id": 1,
+        }
+        with pytest.raises(ValueError, match="Flatten conflict.*id"):
+            _flatten_row(row, frozenset(["input"]))
+
 
 async def test_post_dataset_upload_csv_with_flatten_keys(
     httpx_client: httpx.AsyncClient,

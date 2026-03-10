@@ -623,6 +623,9 @@ def _flatten_row(row: dict[str, Any], flatten_keys: FlattenKeys) -> dict[str, An
     Returns:
         A new dict with flattened structure
 
+    Raises:
+        ValueError: If flattening would cause key conflicts
+
     Example:
         >>> _flatten_row({"input": {"question": "Hi"}, "id": 1}, frozenset(["input"]))
         {"question": "Hi", "id": 1}
@@ -633,10 +636,20 @@ def _flatten_row(row: dict[str, Any], flatten_keys: FlattenKeys) -> dict[str, An
     result: dict[str, Any] = {}
     for key, value in row.items():
         if key in flatten_keys and isinstance(value, dict):
-            # Promote children to top level
+            # Check for conflicts before promoting children
+            for child_key in value:
+                if child_key in result:
+                    raise ValueError(
+                        f"Flatten conflict: key '{child_key}' from '{key}' "
+                        f"would overwrite an existing key"
+                    )
             result.update(value)
         else:
-            # Keep the key as-is
+            # Check for conflicts with already-flattened keys
+            if key in result:
+                raise ValueError(
+                    f"Flatten conflict: key '{key}' would overwrite a key promoted from flattening"
+                )
             result[key] = value
     return result
 
