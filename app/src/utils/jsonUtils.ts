@@ -453,18 +453,3 @@ export function unnestSingleStringValue(value: unknown): UnnestResult {
 
   return { value: singleValue, wasUnnested: true };
 }
-
-// ============================================================================
-// Collapse Utilities
-// Re-exported from ColumnAssigner/collapseUtils.ts for backwards compatibility
-// ============================================================================
-
-export {
-  collapseCSVData,
-  collapseRow,
-  collapseRows,
-  computeBucketCollapseConflicts,
-  computeCollapsedKeys,
-  type BucketCollapseConflictsResult,
-  type CollapseKeysResult,
-} from "@phoenix/pages/datasets/ColumnAssigner/collapseUtils";
