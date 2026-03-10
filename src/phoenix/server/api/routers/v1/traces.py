@@ -130,7 +130,9 @@ async def list_project_traces(
         default=False,
         description=(
             "If true, include full span details for each trace. "
-            "This may significantly increase response size."
+            "This significantly increases response size and query latency, "
+            "especially with large page sizes. Prefer fetching spans lazily "
+            "for individual traces when possible."
         ),
     ),
 ) -> GetTracesResponseBody:
