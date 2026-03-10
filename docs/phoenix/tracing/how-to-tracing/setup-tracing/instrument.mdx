@@ -1116,9 +1116,8 @@ with suppress_tracing():
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { suppressTracing } from "@opentelemetry/core";
 import { withSpan } from "@arizeai/openinference-core";
-import { trace, context } from "@arizeai/phoenix-otel";
+import { trace, context, suppressTracing } from "@arizeai/phoenix-otel";
 
 await context.with(suppressTracing(context.active()), async () => {
   // this trace will not be recorded

@@ -1,8 +1,9 @@
 import { context } from "@opentelemetry/api";
+import { suppressTracing as originalSuppressTracing } from "@opentelemetry/core";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { describe, expect, test } from "vitest";
 
-import { DiagLogLevel } from "../src";
+import { DiagLogLevel, suppressTracing } from "../src";
 import { ensureCollectorEndpoint, register } from "../src/register";
 
 describe("register", () => {
@@ -43,6 +44,11 @@ describe("register", () => {
 test("should export DiagLogLevel as a runtime value", () => {
   expect(DiagLogLevel.DEBUG).toBeDefined();
   expect(typeof DiagLogLevel.DEBUG).toBe("number");
+});
+
+test("should re-export suppressTracing from @opentelemetry/core", () => {
+  expect(suppressTracing).toBe(originalSuppressTracing);
+  expect(typeof suppressTracing).toBe("function");
 });
 
 test.each([
