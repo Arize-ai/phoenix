@@ -19,6 +19,9 @@ export type DialogProps = AriaDialogProps;
 
 const dialogCSS = css`
   overscroll-behavior: none !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 `;
 
 export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
