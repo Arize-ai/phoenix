@@ -4861,6 +4861,10 @@ export interface operations {
                 trace_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
+                /** @description Filter by span name(s) */
+                name?: string[] | null;
+                /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
+                status_code?: string[] | null;
             };
             header?: never;
             path: {
@@ -4924,6 +4928,12 @@ export interface operations {
                 trace_id?: string[] | null;
                 /** @description Filter by parent span ID. Use "null" to get root spans only. */
                 parent_id?: string | null;
+                /** @description Filter by span name(s) */
+                name?: string[] | null;
+                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */
+                span_kind?: string[] | null;
+                /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
+                status_code?: string[] | null;
             };
             header?: never;
             path: {
