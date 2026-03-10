@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48e215b062d95afee99cf2320db26e01>>
+ * @generated SignedSource<<048919b5bb6b177eaa2228130c450799>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,26 +21,31 @@ export type SettingsSandboxPageQuery$data = {
       readonly placeholder: string;
     }>;
     readonly configRequired: boolean;
-    readonly currentConfig: {
+    readonly configs: ReadonlyArray<{
       readonly backendType: SandboxBackendType;
       readonly config: any;
       readonly configHash: string;
+      readonly createdAt: string;
+      readonly description: string | null;
+      readonly enabled: boolean;
       readonly id: string;
-      readonly sessionMode: boolean;
+      readonly name: string;
       readonly timeout: number;
-    } | null;
+      readonly updatedAt: string;
+    }>;
     readonly description: string;
+    readonly enabled: boolean;
     readonly envVars: ReadonlyArray<{
       readonly description: string;
       readonly name: string;
       readonly required: boolean;
     }>;
-    readonly hasSessionMode: boolean;
     readonly key: string;
     readonly label: string;
     readonly setupInstructions: ReadonlyArray<string>;
     readonly status: SandboxBackendStatusCode;
   }>;
+  readonly sandboxEnabled: boolean;
 };
 export type SettingsSandboxPageQuery = {
   response: SettingsSandboxPageQuery$data;
@@ -69,7 +74,28 @@ v2 = {
   "name": "description",
   "storageKey": null
 },
-v3 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "enabled",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "sandboxEnabled",
+    "storageKey": null
+  },
   {
     "alias": null,
     "args": null,
@@ -88,6 +114,7 @@ v3 = [
         "name": "status",
         "storageKey": null
       },
+      (v3/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -96,13 +123,7 @@ v3 = [
         "name": "envVars",
         "plural": true,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -146,23 +167,16 @@ v3 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "hasSessionMode",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
         "name": "setupInstructions",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
-        "concreteType": "SandboxConfig",
+        "concreteType": "SandboxConfigInstance",
         "kind": "LinkedField",
-        "name": "currentConfig",
-        "plural": false,
+        "name": "configs",
+        "plural": true,
         "selections": [
           {
             "alias": null,
@@ -178,6 +192,8 @@ v3 = [
             "name": "backendType",
             "storageKey": null
           },
+          (v4/*: any*/),
+          (v2/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -192,18 +208,26 @@ v3 = [
             "name": "timeout",
             "storageKey": null
           },
+          (v3/*: any*/),
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "sessionMode",
+            "name": "configHash",
             "storageKey": null
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "configHash",
+            "name": "createdAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "updatedAt",
             "storageKey": null
           }
         ],
@@ -219,7 +243,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsSandboxPageQuery",
-    "selections": (v3/*: any*/),
+    "selections": (v5/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -228,19 +252,19 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "SettingsSandboxPageQuery",
-    "selections": (v3/*: any*/)
+    "selections": (v5/*: any*/)
   },
   "params": {
-    "cacheID": "ad2175ed1264dd2312d738d88ce9349a",
+    "cacheID": "760049ed44227f24191a04da0a583691",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxPageQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxPageQuery {\n  sandboxBackends {\n    key\n    label\n    description\n    status\n    envVars {\n      name\n      required\n      description\n    }\n    configFields {\n      key\n      label\n      placeholder\n      description\n    }\n    configRequired\n    hasSessionMode\n    setupInstructions\n    currentConfig {\n      id\n      backendType\n      config\n      timeout\n      sessionMode\n      configHash\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxPageQuery {\n  sandboxEnabled\n  sandboxBackends {\n    key\n    label\n    description\n    status\n    enabled\n    envVars {\n      name\n      required\n      description\n    }\n    configFields {\n      key\n      label\n      placeholder\n      description\n    }\n    configRequired\n    setupInstructions\n    configs {\n      id\n      backendType\n      name\n      description\n      config\n      timeout\n      enabled\n      configHash\n      createdAt\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "10e3f6d5512fa0f07c6f62d369d91231";
+(node as any).hash = "b851ca0cf3c803dbc95ed999d7309b0e";
 
 export default node;

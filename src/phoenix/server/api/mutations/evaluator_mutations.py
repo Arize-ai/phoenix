@@ -103,22 +103,24 @@ async def _resolve_sandbox_config(
     session: AsyncSession,
     backend_type: Optional[SandboxBackendType],
 ) -> tuple[Optional[int], Optional[str]]:
-    """Resolve sandbox config ID and hash from backend type.
+    """Resolve sandbox config instance ID and hash from backend type.
 
     Returns (None, None) for WASM or None backend types (no DB config needed).
-    Raises BadRequest if a non-WASM backend type has no config in the DB.
+    Raises BadRequest if a non-WASM backend type has no config instance in the DB.
     """
     if backend_type is None or backend_type == SandboxBackendType.WASM:
         return None, None
-    config_row = await session.scalar(
-        select(models.SandboxConfig).where(models.SandboxConfig.backend_type == backend_type.value)
+    instance = await session.scalar(
+        select(models.SandboxConfigInstance).where(
+            models.SandboxConfigInstance.backend_type == backend_type.value
+        )
     )
-    if config_row is None:
+    if instance is None:
         raise BadRequest(
             f"No sandbox configuration found for backend type "
             f"'{backend_type.value}'. Please configure it in Settings first."
         )
-    return config_row.id, config_row.config_hash
+    return instance.id, instance.config_hash
 
 
 async def _generate_unique_evaluator_name(
@@ -291,6 +293,7 @@ class CreateDatasetCodeEvaluatorInput:
     description: Optional[str] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: list[AnnotationConfigInput] = strawberry.field(default_factory=list)
+    sandbox_backend_type: Optional[SandboxBackendType] = None
 
 
 @strawberry.input
@@ -532,6 +535,10 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
+                sandbox_config_id, sandbox_config_hash = await _resolve_sandbox_config(
+                    session, input.sandbox_backend_type
+                )
+
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
 
                 dataset_name = await session.scalar(
@@ -570,6 +577,8 @@ class EvaluatorMutationMixin:
                     input_schema=derive_input_schema(input.source_code, "evaluate"),
                     user_id=user_id,
                     dataset_evaluators=[dataset_evaluator_record],
+                    sandbox_config_id=sandbox_config_id,
+                    sandbox_config_hash=sandbox_config_hash,
                 )
                 code_evaluator.updated_at = datetime.now(timezone.utc)
                 session.add(code_evaluator)

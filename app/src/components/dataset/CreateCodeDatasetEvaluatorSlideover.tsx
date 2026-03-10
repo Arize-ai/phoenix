@@ -117,6 +117,7 @@ function CreateCodeDatasetEvaluatorSlideoverContent({
       sourceCode,
       language,
       outputConfigs,
+      sandboxBackendType,
     } = store.getState();
 
     const normalizedDescription = description.trim() || null;
@@ -131,6 +132,8 @@ function CreateCodeDatasetEvaluatorSlideoverContent({
           inputMapping,
           outputConfigs: buildOutputConfigsInput(outputConfigs),
           description: normalizedDescription,
+          sandboxBackendType:
+            sandboxBackendType as CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation["variables"]["input"]["sandboxBackendType"],
         },
         connectionIds: updateConnectionIds ?? [],
       },

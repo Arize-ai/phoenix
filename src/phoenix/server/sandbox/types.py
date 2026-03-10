@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol
@@ -23,7 +22,6 @@ class SandboxBackend(Protocol):
     async def start_session(self, session_key: str) -> None: ...
     async def stop_session(self, session_key: str) -> None: ...
     async def close(self) -> None: ...
-    def environment_hash(self) -> str: ...
 
 
 class BaseNoSessionBackend:
@@ -74,10 +72,6 @@ class SandboxAdapter(ABC):
     def is_installed(self) -> bool:
         """Check if this adapter's dependencies are available."""
         return all(importlib.util.find_spec(pkg) is not None for pkg in self.python_packages)
-
-    def has_credentials(self) -> bool:
-        """Check if all required environment variables are set."""
-        return all(os.getenv(var.name) for var in self.env_vars if var.required)
 
     @abstractmethod
     def create_backend(self, config: dict[str, str], credentials: dict[str, str]) -> SandboxBackend:

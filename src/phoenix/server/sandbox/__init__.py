@@ -3,17 +3,16 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .types import ConfigFieldSpec, EnvVarSpec, ExecutionResult, SandboxAdapter, SandboxBackend
 
-if TYPE_CHECKING:
-    from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-
 logger = logging.getLogger(__name__)
+
+Decrypt = Callable[[bytes], bytes]
 
 
 @dataclass(frozen=True)
@@ -114,21 +113,37 @@ def get_sandbox_adapters() -> list[tuple[str, type[SandboxAdapter]]]:
     return list(_SANDBOX_ADAPTERS.items())
 
 
-def _resolve_sandbox_credential(
+async def _resolve_sandbox_credential(
     env_var_name: str,
-    credentials: list[GenerativeCredentialInput] | None = None,
+    session: AsyncSession,
+    decrypt: Decrypt,
 ) -> str | None:
-    """Resolve a sandbox backend credential from input or environment variable.
+    """Resolve a sandbox backend credential from DB secret or environment variable.
 
     Two-tier resolution chain:
-    1. Explicit input credentials (if provided and matching env_var_name)
+    1. DB Secret table (encrypted) — looked up by env_var_name as key
     2. Environment variable fallback
     """
-    if credentials:
-        for credential in credentials:
-            if credential.env_var_name == env_var_name:
-                return str(credential.value)
+    from phoenix.db.models import Secret
+
+    secret = await session.scalar(select(Secret).where(Secret.key == env_var_name))
+    if secret is not None:
+        return decrypt(secret.value).decode("utf-8")
     return os.getenv(env_var_name)
+
+
+async def has_credentials(
+    adapter_cls: type[SandboxAdapter],
+    session: AsyncSession,
+    decrypt: Decrypt,
+) -> bool:
+    """Check if all required credentials are available (DB secrets or env vars)."""
+    for var in adapter_cls.env_vars:
+        if var.required:
+            value = await _resolve_sandbox_credential(var.name, session, decrypt)
+            if not value:
+                return False
+    return True
 
 
 async def sync_sandbox_adapters(session: AsyncSession) -> None:
@@ -151,7 +166,19 @@ async def sync_sandbox_adapters(session: AsyncSession) -> None:
     await session.flush()
 
 
+async def sync_sandbox_settings(session: AsyncSession) -> None:
+    """Ensure the singleton SandboxSettings row (id=1) exists."""
+    from phoenix.db.models import SandboxSettings
+
+    existing = await session.get(SandboxSettings, 1)
+    if existing is None:
+        session.add(SandboxSettings(id=1))
+        logger.info("Inserted default sandbox_settings singleton row")
+        await session.flush()
+
+
 __all__ = [
+    "Decrypt",
     "ExecutionResult",
     "SandboxAdapter",
     "SandboxAdapterMeta",
@@ -159,8 +186,10 @@ __all__ = [
     "SANDBOX_ADAPTER_METADATA",
     "get_or_create_backend",
     "get_sandbox_adapters",
+    "has_credentials",
     "register_sandbox_adapter",
     "sync_sandbox_adapters",
+    "sync_sandbox_settings",
 ]
 
 try:
@@ -198,19 +227,17 @@ except ImportError:
 
 async def get_or_create_backend(
     backend_type: str,
+    config: dict[str, Any],
     session: AsyncSession,
-    credentials: list[GenerativeCredentialInput] | None = None,
+    decrypt: Decrypt,
 ) -> SandboxBackend | None:
-    """Create a sandbox backend on demand from adapter registry + DB config.
+    """Create a sandbox backend on demand from adapter registry + caller-supplied config.
 
     Resolution steps:
     1. Look up adapter class from registry (requires package to be installed)
-    2. Fetch DB config row; return None if config_required but absent
-    3. Resolve credential env vars via two-tier chain (explicit input, then env var)
-    4. Call adapter.create_backend(config, resolved_credentials)
+    2. Resolve credential env vars via two-tier chain (DB secret, then env var)
+    3. Call adapter.create_backend(config, resolved_credentials)
     """
-    from phoenix.db.models import SandboxConfig
-
     adapter_cls = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter_cls is None:
         logger.debug(f"No adapter registered for backend type '{backend_type}'")
@@ -221,17 +248,9 @@ async def get_or_create_backend(
         logger.debug(f"Adapter '{backend_type}' package not installed")
         return None
 
-    config_row = await session.scalar(
-        select(SandboxConfig).where(SandboxConfig.backend_type == backend_type)
-    )
-    if adapter_cls.config_required and config_row is None:
-        logger.debug(f"Backend '{backend_type}' requires config but none found in DB")
-        return None
-
-    config: dict[str, Any] = (config_row.config or {}) if config_row else {}
     resolved_credentials: dict[str, str] = {}
     for var_spec in adapter_cls.env_vars:
-        value = _resolve_sandbox_credential(var_spec.name, credentials)
+        value = await _resolve_sandbox_credential(var_spec.name, session, decrypt)
         if value is not None:
             resolved_credentials[var_spec.name] = value
 

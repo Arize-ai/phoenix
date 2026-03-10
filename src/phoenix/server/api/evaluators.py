@@ -1254,11 +1254,15 @@ async def get_evaluators(
             from phoenix.server.sandbox import get_or_create_backend
 
             backend_type = "WASM"
+            sandbox_config: dict[str, Any] = {}
             if code_eval.sandbox_config_id is not None:
-                sandbox_cfg = await session.get(models.SandboxConfig, code_eval.sandbox_config_id)
-                if sandbox_cfg is not None:
-                    backend_type = sandbox_cfg.backend_type
-            backend = await get_or_create_backend(backend_type, session, credentials)
+                sandbox_instance = await session.get(
+                    models.SandboxConfigInstance, code_eval.sandbox_config_id
+                )
+                if sandbox_instance is not None:
+                    backend_type = sandbox_instance.backend_type
+                    sandbox_config = sandbox_instance.config or {}
+            backend = await get_or_create_backend(backend_type, sandbox_config, session, decrypt)
             evaluators.append(
                 CodeEvaluatorRunner(
                     name=str(code_eval.name),

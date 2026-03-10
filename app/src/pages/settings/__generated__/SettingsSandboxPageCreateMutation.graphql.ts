@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d51d37509c56c7bb0709d3119707e8b1>>
+ * @generated SignedSource<<b8bfd0922bad223926ed8b5316b3423a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,13 +13,7 @@ export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
 export type CreateSandboxConfigInput = {
   backendType: SandboxBackendType;
   config?: any;
-  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
-  sessionMode?: boolean;
   timeout?: number;
-};
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
 };
 export type SettingsSandboxPageCreateMutation$variables = {
   input: CreateSandboxConfigInput;
@@ -30,7 +24,6 @@ export type SettingsSandboxPageCreateMutation$data = {
     readonly config: any;
     readonly configHash: string;
     readonly id: string;
-    readonly sessionMode: boolean;
     readonly timeout: number;
   };
 };
@@ -94,13 +87,6 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "sessionMode",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
         "name": "configHash",
         "storageKey": null
       }
@@ -126,16 +112,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "23b3f62f5d767c185453dc8ee4109018",
+    "cacheID": "7fe7e61681df825cb308be10d2fdafab",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxPageCreateMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageCreateMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    id\n    backendType\n    config\n    timeout\n    sessionMode\n    configHash\n  }\n}\n"
+    "text": "mutation SettingsSandboxPageCreateMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    id\n    backendType\n    config\n    timeout\n    configHash\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0a3b472ba8fa072045c020f936d5008a";
+(node as any).hash = "339a60c524e4501c007b46549528f5d2";
 
 export default node;

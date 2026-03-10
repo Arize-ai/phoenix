@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 from typing import Any
 
 from .types import ConfigFieldSpec, EnvVarSpec, ExecutionResult, SandboxAdapter, SandboxBackend
-
-_HASH_LENGTH = 16
-_PROVIDER = "daytona"
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +23,6 @@ class DaytonaSandboxBackend:
     ) -> None:
         self._api_key = api_key
         self._sessions: dict[str, Any] = {}
-
-    def environment_hash(self) -> str:
-        return hashlib.sha256(_PROVIDER.encode()).hexdigest()[:_HASH_LENGTH]
 
     def _make_client(self) -> Any:
         from daytona import AsyncDaytona, DaytonaConfig

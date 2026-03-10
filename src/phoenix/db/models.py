@@ -2332,12 +2332,45 @@ class SandboxConfig(HasId):
     )
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
     config_hash: Mapped[str] = mapped_column(String(16), nullable=False, server_default="")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     __table_args__ = (UniqueConstraint("backend_type"),)
+
+
+class SandboxConfigInstance(HasId):
+    __tablename__ = "sandbox_config_instances"
+    backend_type: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            name="valid_sandbox_instance_backend_type",
+        ),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(nullable=True)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
+    config_hash: Mapped[str] = mapped_column(String(16), nullable=False, server_default="")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    __table_args__ = (UniqueConstraint("backend_type", "name"),)
+
+
+class SandboxSettings(HasId):
+    __tablename__ = "sandbox_settings"
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    __table_args__ = (CheckConstraint("id = 1", name="sandbox_settings_singleton"),)
 
 
 class CodeEvaluator(Evaluator):
@@ -2362,7 +2395,7 @@ class CodeEvaluator(Evaluator):
     )
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     sandbox_config_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
+        ForeignKey("sandbox_config_instances.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -2371,7 +2404,9 @@ class CodeEvaluator(Evaluator):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship("SandboxConfig")
+    sandbox_config: Mapped[Optional["SandboxConfigInstance"]] = relationship(
+        "SandboxConfigInstance"
+    )
 
     __mapper_args__ = {
         "polymorphic_identity": "CODE",

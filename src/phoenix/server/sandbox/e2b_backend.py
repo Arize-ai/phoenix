@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 from typing import Any
 
@@ -27,9 +26,6 @@ class E2BSandboxBackend:
         self._api_key = api_key
         self._template = template
         self._sessions: dict[str, Any] = {}
-
-    def environment_hash(self) -> str:
-        return hashlib.sha256(self._template.encode()).hexdigest()[:_HASH_LENGTH]
 
     async def start_session(self, session_key: str) -> None:
         if session_key in self._sessions:

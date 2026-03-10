@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import hashlib
 import logging
-import os
 from uuid import uuid4
 
 from .types import (
@@ -38,9 +36,6 @@ class VercelSandboxBackend(BaseNoSessionBackend):
     ) -> None:
         self._token = token
         self._runtime = runtime
-
-    def environment_hash(self) -> str:
-        return hashlib.sha256(self._runtime.encode()).hexdigest()[:_HASH_LENGTH]
 
     async def execute(
         self, code: str, timeout: float = 30.0, *, session_key: str | None = None
@@ -131,10 +126,6 @@ class VercelAdapter(SandboxAdapter):
         "Set VERCEL_OIDC_TOKEN (auto in Vercel deployments) or PHOENIX_SANDBOX_VERCEL_TOKEN.",
         "pip install vercel",
     ]
-
-    def has_credentials(self) -> bool:
-        # Either token suffices
-        return bool(os.getenv("VERCEL_OIDC_TOKEN") or os.getenv("PHOENIX_SANDBOX_VERCEL_TOKEN"))
 
     def create_backend(self, config: dict, credentials: dict) -> SandboxBackend:  # type: ignore[type-arg]
         token = credentials.get("VERCEL_OIDC_TOKEN") or credentials.get(

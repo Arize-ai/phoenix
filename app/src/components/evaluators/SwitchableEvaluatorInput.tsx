@@ -244,7 +244,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
                     field.onChange(value);
                     onPathInputChange?.(value);
                   }}
-                  inputValue={pathInputValue ?? (field.value as string) ?? ""}
+                  inputValue={pathInputValue || (field.value as string) || ""}
                 >
                   {(item) =>
                     item.id !== "__unset__" ? (

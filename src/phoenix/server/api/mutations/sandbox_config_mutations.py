@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -13,9 +13,14 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.types.SandboxConfig import (
     CreateSandboxConfigInput,
+    CreateSandboxConfigInstanceInput,
+    SandboxBackendType,
     SandboxConfig,
+    SandboxConfigInstance,
     UpdateSandboxConfigInput,
+    UpdateSandboxConfigInstanceInput,
     to_gql_sandbox_config,
+    to_gql_sandbox_config_instance,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,6 +103,188 @@ class SandboxConfigMutationMixin:
             if row is None:
                 raise NotFound(f"Sandbox config with ID '{config_id}' not found")
             result = to_gql_sandbox_config(row)
+            await session.delete(row)
+            await session.commit()
+        return result
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def set_sandbox_credential(
+        self,
+        info: Info[Context, None],
+        env_var_name: str,
+        value: str,
+    ) -> bool:
+        """Upsert an encrypted credential into the Secret table keyed by env_var_name."""
+        from phoenix.db.helpers import SupportedSQLDialect
+        from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+
+        dialect = SupportedSQLDialect(info.context.db.dialect.name)
+        encrypted = info.context.encrypt(value.encode("utf-8"))
+        async with info.context.db() as session:
+            await session.execute(
+                insert_on_conflict(
+                    dict(key=env_var_name, value=encrypted),
+                    dialect=dialect,
+                    table=models.Secret,
+                    unique_by=("key",),
+                    constraint_name="pk_secrets",
+                    on_conflict=OnConflict.DO_UPDATE,
+                )
+            )
+        return True
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def delete_sandbox_credential(
+        self,
+        info: Info[Context, None],
+        env_var_name: str,
+    ) -> bool:
+        """Delete a credential from the Secret table by env_var_name."""
+        import sqlalchemy as sa
+
+        async with info.context.db() as session:
+            await session.execute(sa.delete(models.Secret).where(models.Secret.key == env_var_name))
+        return True
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def set_sandbox_backend_enabled(
+        self,
+        info: Info[Context, None],
+        backend_type: SandboxBackendType,
+        enabled: bool,
+    ) -> SandboxConfig:
+        """Enable or disable a specific sandbox backend."""
+        async with info.context.db() as session:
+            row = await session.scalar(
+                select(models.SandboxConfig).where(
+                    models.SandboxConfig.backend_type == backend_type.value
+                )
+            )
+            if row is None:
+                raise NotFound(f"Sandbox config for backend type '{backend_type.value}' not found")
+            row.enabled = enabled
+            await session.flush()
+            await session.refresh(row)
+            result = to_gql_sandbox_config(row)
+            await session.commit()
+        return result
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def set_sandbox_enabled(
+        self,
+        info: Info[Context, None],
+        enabled: bool,
+    ) -> bool:
+        """Set the global sandbox enabled/disabled toggle."""
+        async with info.context.db() as session:
+            settings = await session.get(models.SandboxSettings, 1)
+            if settings is None:
+                settings = models.SandboxSettings(id=1, enabled=enabled)
+                session.add(settings)
+            else:
+                settings.enabled = enabled
+            await session.flush()
+        return enabled
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def create_sandbox_config_instance(
+        self,
+        info: Info[Context, None],
+        input: CreateSandboxConfigInstanceInput,
+    ) -> SandboxConfigInstance:
+        backend_type = input.backend_type.value
+        name = input.name
+        config = input.config or {}
+        timeout = input.timeout if input.timeout is not None else 30
+
+        async with info.context.db() as session:
+            existing = await session.scalar(
+                select(models.SandboxConfigInstance).where(
+                    and_(
+                        models.SandboxConfigInstance.backend_type == backend_type,
+                        models.SandboxConfigInstance.name == name,
+                    )
+                )
+            )
+            if existing is not None:
+                raise BadRequest(
+                    f"Sandbox config instance '{name}' for backend '{backend_type}' already exists"
+                )
+
+            row = models.SandboxConfigInstance(
+                backend_type=backend_type,
+                name=name,
+                description=input.description,
+                config=config,
+                timeout=timeout,
+                config_hash=compute_sandbox_config_hash(backend_type, timeout, config),
+            )
+            session.add(row)
+            await session.flush()
+            await session.refresh(row)
+            result = to_gql_sandbox_config_instance(row)
+            await session.commit()
+        return result
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def update_sandbox_config_instance(
+        self,
+        info: Info[Context, None],
+        input: UpdateSandboxConfigInstanceInput,
+    ) -> SandboxConfigInstance:
+        instance_id = int(input.id)
+
+        async with info.context.db() as session:
+            row = await session.get(models.SandboxConfigInstance, instance_id)
+            if row is None:
+                raise NotFound(f"Sandbox config instance with ID '{instance_id}' not found")
+
+            if input.name is not None:
+                # Check for name uniqueness within the same backend_type
+                existing = await session.scalar(
+                    select(models.SandboxConfigInstance).where(
+                        and_(
+                            models.SandboxConfigInstance.backend_type == row.backend_type,
+                            models.SandboxConfigInstance.name == input.name,
+                            models.SandboxConfigInstance.id != instance_id,
+                        )
+                    )
+                )
+                if existing is not None:
+                    raise BadRequest(
+                        f"Sandbox config instance '{input.name}' for backend "
+                        f"'{row.backend_type}' already exists"
+                    )
+                row.name = input.name
+            if input.description is not None:
+                row.description = input.description
+            if input.config is not None:
+                row.config = input.config
+            if input.timeout is not None:
+                row.timeout = input.timeout
+            if input.enabled is not None:
+                row.enabled = input.enabled
+
+            row.config_hash = compute_sandbox_config_hash(row.backend_type, row.timeout, row.config)
+
+            await session.flush()
+            await session.refresh(row)
+            result = to_gql_sandbox_config_instance(row)
+            await session.commit()
+        return result
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    async def delete_sandbox_config_instance(
+        self,
+        info: Info[Context, None],
+        id: strawberry.ID,
+    ) -> SandboxConfigInstance:
+        instance_id = int(id)
+        async with info.context.db() as session:
+            row = await session.get(models.SandboxConfigInstance, instance_id)
+            if row is None:
+                raise NotFound(f"Sandbox config instance with ID '{instance_id}' not found")
+            result = to_gql_sandbox_config_instance(row)
             await session.delete(row)
             await session.commit()
         return result

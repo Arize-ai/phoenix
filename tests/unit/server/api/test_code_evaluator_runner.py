@@ -195,6 +195,121 @@ class TestCodeEvaluatorRunnerExecutionErrors:
         assert result["score"] is None
 
 
+class TestCodeEvaluatorRunnerHarness:
+    """Tests that verify the harness string passed to the sandbox backend."""
+
+    async def test_harness_contains_source_code(self) -> None:
+        source = "def evaluate(text):\n    return {'label': 'good'}"
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"label": "good"}))
+        runner = _make_runner(source_code=source, sandbox_backend=sandbox)
+        await runner.evaluate(
+            context={"text": "hello"},
+            input_mapping=_make_input_mapping(literal_mapping={"text": "hello"}),
+            name="test_eval",
+            output_configs=[],
+        )
+        call_args = sandbox.execute.call_args
+        harness: str = call_args[0][0]
+        assert source in harness
+
+    async def test_harness_encodes_string_input(self) -> None:
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"score": 1.0}))
+        runner = _make_runner(
+            source_code="def evaluate(text): return {'score': 1.0}",
+            sandbox_backend=sandbox,
+        )
+        await runner.evaluate(
+            context={"text": "hello world"},
+            input_mapping=_make_input_mapping(literal_mapping={"text": "hello world"}),
+            name="test_eval",
+            output_configs=[],
+        )
+        harness: str = sandbox.execute.call_args[0][0]
+        # Inputs must be embedded as a JSON-decoded dict
+        assert "hello world" in harness
+        assert "_inputs" in harness
+        assert "evaluate(**_inputs)" in harness
+
+    async def test_harness_encodes_numeric_input(self) -> None:
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"score": 0.5}))
+        runner = _make_runner(
+            source_code="def evaluate(score): return {'score': score}",
+            input_schema={
+                "type": "object",
+                "properties": {"score": {"type": "number"}},
+                "required": ["score"],
+            },
+            sandbox_backend=sandbox,
+        )
+        await runner.evaluate(
+            context={"score": 0.5},
+            input_mapping=_make_input_mapping(literal_mapping={"score": 0.5}),
+            name="test_eval",
+            output_configs=[],
+        )
+        harness: str = sandbox.execute.call_args[0][0]
+        assert "0.5" in harness
+
+    async def test_harness_includes_json_import(self) -> None:
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"label": "ok"}))
+        runner = _make_runner(sandbox_backend=sandbox)
+        await runner.evaluate(
+            context={"text": "hello"},
+            input_mapping=_make_input_mapping(literal_mapping={"text": "hello"}),
+            name="test_eval",
+            output_configs=[],
+        )
+        harness: str = sandbox.execute.call_args[0][0]
+        assert "import json" in harness
+
+    async def test_harness_special_characters_in_input(self) -> None:
+        special = 'hello "world" \\n test'
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"label": "ok"}))
+        runner = _make_runner(sandbox_backend=sandbox)
+        await runner.evaluate(
+            context={"text": special},
+            input_mapping=_make_input_mapping(literal_mapping={"text": special}),
+            name="test_eval",
+            output_configs=[],
+        )
+        harness: str = sandbox.execute.call_args[0][0]
+        # The harness must be valid Python — verify input round-trips correctly
+        # by checking the raw string contains the double-encoded form
+        assert "_inputs = json.loads(" in harness
+
+
+class TestCodeEvaluatorRunnerSessionKey:
+    """Tests that session_key is forwarded to the sandbox backend."""
+
+    async def test_session_key_passed_to_execute(self) -> None:
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"label": "good"}))
+        runner = _make_runner(sandbox_backend=sandbox)
+        await runner.evaluate(
+            context={"text": "hello"},
+            input_mapping=_make_input_mapping(literal_mapping={"text": "hello"}),
+            name="test_eval",
+            output_configs=[],
+            session_key="my-session",
+        )
+        sandbox.execute.assert_called_once()
+        call_kwargs = sandbox.execute.call_args[1]
+        assert call_kwargs.get("session_key") == "my-session"
+
+    async def test_none_session_key_passed_through(self) -> None:
+        sandbox = _make_sandbox_mock(stdout=json.dumps({"label": "good"}))
+        runner = _make_runner(sandbox_backend=sandbox)
+        await runner.evaluate(
+            context={"text": "hello"},
+            input_mapping=_make_input_mapping(literal_mapping={"text": "hello"}),
+            name="test_eval",
+            output_configs=[],
+            session_key=None,
+        )
+        sandbox.execute.assert_called_once()
+        call_kwargs = sandbox.execute.call_args[1]
+        assert call_kwargs.get("session_key") is None
+
+
 class TestCodeEvaluatorRunnerGuards:
     async def test_sandbox_backend_none(self) -> None:
         runner = _make_runner(sandbox_backend=None)

@@ -128,7 +128,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatusCode,
     SandboxConfigFieldSpec,
     SandboxEnvVarSpec,
-    to_gql_sandbox_config,
+    to_gql_sandbox_config_instance,
 )
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
@@ -142,7 +142,13 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, get_sandbox_adapters
+from phoenix.server.sandbox import (
+    SANDBOX_ADAPTER_METADATA,
+    get_sandbox_adapters,
+)
+from phoenix.server.sandbox import (
+    has_credentials as has_sandbox_credentials,
+)
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
@@ -1762,68 +1768,83 @@ class Query:
             return await session.scalar(stmt) or 0
 
     @strawberry.field
+    async def sandbox_enabled(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        async with info.context.db() as session:
+            settings = await session.get(models.SandboxSettings, 1)
+            return settings.enabled if settings is not None else True
+
+    @strawberry.field
     async def sandbox_backends(
         self,
         info: Info[Context, None],
     ) -> list[SandboxAdapterInfo]:
-        # Fetch all sandbox config rows from DB
         async with info.context.db() as session:
-            result = await session.execute(select(models.SandboxConfig))
-            db_configs = {row.backend_type: row for row in result.scalars().all()}
+            # Fetch parent sandbox_configs (per-backend-type enabled flag)
+            parent_result = await session.execute(select(models.SandboxConfig))
+            db_parents = {row.backend_type: row for row in parent_result.scalars().all()}
 
-        # installed_adapters maps key → adapter_cls for packages that are importable
-        installed_adapters = dict(get_sandbox_adapters())
-        adapter_infos: list[SandboxAdapterInfo] = []
+            # Fetch all config instances grouped by backend_type
+            instance_result = await session.execute(select(models.SandboxConfigInstance))
+            instances_by_type: dict[str, list[models.SandboxConfigInstance]] = {}
+            for inst in instance_result.scalars().all():
+                instances_by_type.setdefault(inst.backend_type, []).append(inst)
 
-        # Iterate SANDBOX_ADAPTER_METADATA (all four adapters, always present)
-        # so uninstalled adapters appear with NOT_INSTALLED status and setup instructions.
-        for key, meta in SANDBOX_ADAPTER_METADATA.items():
-            if key not in installed_adapters:
-                status = SandboxBackendStatusCode.NOT_INSTALLED
-            else:
-                adapter_cls = installed_adapters[key]
-                adapter_instance = adapter_cls()
-                if not adapter_instance.is_installed():
+            installed_adapters = dict(get_sandbox_adapters())
+            adapter_infos: list[SandboxAdapterInfo] = []
+
+            for key, meta in SANDBOX_ADAPTER_METADATA.items():
+                instances = instances_by_type.get(key, [])
+                if key not in installed_adapters:
                     status = SandboxBackendStatusCode.NOT_INSTALLED
-                elif not adapter_instance.has_credentials():
-                    status = SandboxBackendStatusCode.NEEDS_CREDENTIALS
-                elif adapter_cls.config_required and not db_configs.get(key):
-                    status = SandboxBackendStatusCode.NEEDS_CONFIG
                 else:
-                    status = SandboxBackendStatusCode.AVAILABLE
+                    adapter_cls = installed_adapters[key]
+                    adapter_instance = adapter_cls()
+                    if not adapter_instance.is_installed():
+                        status = SandboxBackendStatusCode.NOT_INSTALLED
+                    elif not await has_sandbox_credentials(
+                        adapter_cls, session, info.context.decrypt
+                    ):
+                        status = SandboxBackendStatusCode.NEEDS_CREDENTIALS
+                    elif adapter_cls.config_required and not instances:
+                        status = SandboxBackendStatusCode.NEEDS_CONFIG
+                    else:
+                        status = SandboxBackendStatusCode.AVAILABLE
 
-            # Build current_config from DB row if present
-            current_config = None
-            db_row = db_configs.get(key)
-            if db_row is not None:
-                current_config = to_gql_sandbox_config(db_row)
+                parent_row = db_parents.get(key)
+                enabled = parent_row.enabled if parent_row is not None else True
 
-            adapter_infos.append(
-                SandboxAdapterInfo(
-                    key=key,
-                    label=meta.label,
-                    description=meta.description,
-                    status=status,
-                    env_vars=[
-                        SandboxEnvVarSpec(
-                            name=v.name, required=v.required, description=v.description
-                        )
-                        for v in meta.env_vars
-                    ],
-                    config_fields=[
-                        SandboxConfigFieldSpec(
-                            key=f.key,
-                            label=f.label,
-                            placeholder=f.placeholder,
-                            description=f.description,
-                        )
-                        for f in meta.config_fields
-                    ],
-                    config_required=meta.config_required,
-                    setup_instructions=meta.setup_instructions,
-                    current_config=current_config,
+                adapter_infos.append(
+                    SandboxAdapterInfo(
+                        key=key,
+                        label=meta.label,
+                        description=meta.description,
+                        status=status,
+                        enabled=enabled,
+                        env_vars=[
+                            SandboxEnvVarSpec(
+                                name=v.name,
+                                required=v.required,
+                                description=v.description,
+                            )
+                            for v in meta.env_vars
+                        ],
+                        config_fields=[
+                            SandboxConfigFieldSpec(
+                                key=f.key,
+                                label=f.label,
+                                placeholder=f.placeholder,
+                                description=f.description,
+                            )
+                            for f in meta.config_fields
+                        ],
+                        config_required=meta.config_required,
+                        setup_instructions=meta.setup_instructions,
+                        configs=[to_gql_sandbox_config_instance(inst) for inst in instances],
+                    )
                 )
-            )
 
         return adapter_infos
 

@@ -56,7 +56,7 @@ def upgrade() -> None:
         ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
-        sa.Column("session_mode", sa.Boolean, nullable=False, server_default=sa.text("0")),
+        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("1")),
         sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
         sa.Column(
             "created_at",
@@ -139,8 +139,29 @@ def upgrade() -> None:
         )
         batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
 
+    op.create_table(
+        "sandbox_settings",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.CheckConstraint("id = 1", name="sandbox_settings_singleton"),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("sandbox_settings")
+
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.drop_index("ix_code_evaluators_sandbox_config_id")
         batch_op.drop_constraint("valid_code_evaluator_language", type_="check")

@@ -100,7 +100,8 @@ const useEvaluatorInputMappingControlsForm = () => {
 };
 
 const EvaluatorInputMappingControls = () => {
-  const { control, setValue } = useEvaluatorInputMappingControlsForm();
+  const { control, setValue, getValues } =
+    useEvaluatorInputMappingControlsForm();
   const variables = useEvaluatorInputVariables();
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
@@ -137,7 +138,11 @@ const EvaluatorInputMappingControls = () => {
             fieldName={escapedVariable}
             label={name}
             size="M"
-            defaultMode="path"
+            defaultMode={
+              getValues(`literalMapping.${escapedVariable}`) != null
+                ? "literal"
+                : "path"
+            }
             control={control}
             pathOptions={allExampleKeys}
             pathPlaceholder={name}

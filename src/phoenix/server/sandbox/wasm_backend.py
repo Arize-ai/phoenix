@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -24,20 +23,47 @@ from phoenix.config import get_working_dir
 
 from .types import BaseNoSessionBackend, ExecutionResult, SandboxAdapter, SandboxBackend
 
-_HASH_LENGTH = 16
-
 logger = logging.getLogger(__name__)
 
 # Epoch tick interval for timeout enforcement (seconds).
+# A single background thread increments the shared engine epoch at this rate.
+# Per-execution Store deadlines are set as current_epoch + (timeout / tick_interval),
+# so timeouts remain accurate under concurrent executions sharing the same engine.
 _EPOCH_TICK_INTERVAL = 0.5
 
-# Module-level cache: maps WASM binary path → (Engine, Module, env_hash).
-# Avoids recompiling the large WASM binary and rehashing on every WASMBackend() call.
-_wasm_module_cache: dict[Path, tuple[Engine, Module, str]] = {}
+# Module-level cache: maps WASM binary path → (Engine, Module).
+# Avoids recompiling the large WASM binary on every WASMBackend() call.
+_wasm_module_cache: dict[Path, tuple[Engine, Module]] = {}
 
 # Module-level thread pool singleton keyed by max_workers.
 # Shared across all WASMBackend instances to avoid creating redundant pools.
 _thread_pools: dict[int, ThreadPoolExecutor] = {}
+
+# Per-engine singleton epoch ticker threads.
+# wasmtime's epoch-based timeout design expects one background ticker per engine
+# that monotonically increments at a fixed rate. Each Store's deadline is set as
+# current_epoch + delta so concurrent executions each have their own absolute
+# deadline against the shared monotonic counter — no cross-execution interference.
+_epoch_tickers: dict[int, threading.Thread] = {}
+_epoch_tickers_lock = threading.Lock()
+
+
+def _start_epoch_ticker(engine: Engine) -> None:
+    """Ensure a daemon ticker thread is running for *engine*."""
+    engine_id = id(engine)
+    with _epoch_tickers_lock:
+        existing = _epoch_tickers.get(engine_id)
+        if existing is not None and existing.is_alive():
+            return
+
+        def _tick() -> None:
+            while True:
+                threading.Event().wait(_EPOCH_TICK_INTERVAL)
+                engine.increment_epoch()
+
+        t = threading.Thread(target=_tick, daemon=True, name=f"wasm-epoch-ticker-{engine_id}")
+        t.start()
+        _epoch_tickers[engine_id] = t
 
 
 def _get_thread_pool(max_workers: int) -> ThreadPoolExecutor:
@@ -62,6 +88,12 @@ class WASMBackend(BaseNoSessionBackend):
     isolation. A ThreadPoolExecutor is used because wasmtime-py has no native
     async API.
 
+    Timeout enforcement uses wasmtime's epoch-based interruption. A single
+    daemon thread per engine increments the epoch at _EPOCH_TICK_INTERVAL.
+    Each Store sets its deadline as current_epoch + ticks, giving it an
+    independent absolute deadline — concurrent executions on the same engine
+    do not interfere with each other's timeouts.
+
     The WASM binary must be present at the given path before instantiation.
     Call ensure_wasm_binary() during server startup to download it if needed.
     """
@@ -80,23 +112,16 @@ class WASMBackend(BaseNoSessionBackend):
             )
 
         if wasm_path in _wasm_module_cache:
-            self._engine, self._module, self._env_hash = _wasm_module_cache[wasm_path]
+            self._engine, self._module = _wasm_module_cache[wasm_path]
         else:
             config = Config()
             config.epoch_interruption = True
             self._engine = Engine(config)
             self._module = Module.from_file(self._engine, str(wasm_path))
-            self._env_hash = self._compute_hash(wasm_path)
-            _wasm_module_cache[wasm_path] = (self._engine, self._module, self._env_hash)
+            _wasm_module_cache[wasm_path] = (self._engine, self._module)
+
+        _start_epoch_ticker(self._engine)
         self._pool = _get_thread_pool(max_workers)
-
-    @staticmethod
-    def _compute_hash(wasm_path: Path) -> str:
-        h = hashlib.sha256(wasm_path.read_bytes())
-        return h.hexdigest()[:_HASH_LENGTH]
-
-    def environment_hash(self) -> str:
-        return self._env_hash
 
     def _run_in_wasm(self, code: str, timeout: float) -> ExecutionResult:
         """Synchronous WASM execution — called inside a thread pool worker."""
@@ -111,21 +136,11 @@ class WASMBackend(BaseNoSessionBackend):
         store = Store(self._engine)
         store.set_wasi(wasi_config)
 
-        # Epoch-based timeout: compute ticks from timeout and tick interval.
+        # set_epoch_deadline(delta) adds delta to the engine's *current* epoch,
+        # giving this Store an absolute deadline independent of other concurrent
+        # executions. The shared ticker increments the engine epoch at a fixed rate.
         epoch_ticks = max(1, int(timeout / _EPOCH_TICK_INTERVAL))
         store.set_epoch_deadline(epoch_ticks)
-
-        # Background thread to increment epoch at fixed intervals.
-        stop_event = threading.Event()
-
-        def _epoch_timer() -> None:
-            for _ in range(epoch_ticks):
-                if stop_event.wait(_EPOCH_TICK_INTERVAL):
-                    return
-                self._engine.increment_epoch()
-
-        timer = threading.Thread(target=_epoch_timer, daemon=True)
-        timer.start()
 
         linker = Linker(self._engine)
         linker.define_wasi()
@@ -157,7 +172,6 @@ class WASMBackend(BaseNoSessionBackend):
                     stderr=f"Execution timed out after {timeout}s",
                     exit_code=-1,
                     timed_out=True,
-                    error=TimeoutError(f"WASM execution timed out after {timeout}s"),
                 )
             return ExecutionResult(
                 stdout=stdout_buf.decode("utf-8", errors="replace"),
@@ -172,8 +186,6 @@ class WASMBackend(BaseNoSessionBackend):
                 exit_code=1,
                 error=exc,
             )
-        finally:
-            stop_event.set()
 
     async def execute(
         self, code: str, timeout: float = 30.0, *, session_key: str | None = None
@@ -183,12 +195,6 @@ class WASMBackend(BaseNoSessionBackend):
 
     async def close(self) -> None:
         pass
-
-    async def __aenter__(self) -> "WASMBackend":
-        return self
-
-    async def __aexit__(self, *_args: object) -> None:
-        await self.close()
 
 
 class WASMAdapter(SandboxAdapter):

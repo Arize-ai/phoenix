@@ -731,7 +731,7 @@ class ChatCompletionMutationMixin:
                 )
                 async with info.context.db() as _sandbox_session:
                     sandbox_backend = await get_or_create_backend(
-                        backend_type_str, _sandbox_session, input.credentials
+                        backend_type_str, {}, _sandbox_session, info.context.decrypt
                     )
                 code_evaluator = CodeEvaluatorRunner(
                     name=inline_code_evaluator.name,

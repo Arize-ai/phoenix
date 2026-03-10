@@ -636,6 +636,7 @@ input CreateDatasetCodeEvaluatorInput {
   description: String
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigs: [AnnotationConfigInput!]! = []
+  sandboxBackendType: SandboxBackendType = null
 }
 
 input CreateDatasetInput {
@@ -760,8 +761,14 @@ input CreateSandboxConfigInput {
   backendType: SandboxBackendType!
   config: JSON! = {}
   timeout: Int! = 30
-  sessionMode: Boolean! = false
-  credentials: [GenerativeCredentialInput!]
+}
+
+input CreateSandboxConfigInstanceInput {
+  backendType: SandboxBackendType!
+  name: String!
+  description: String = null
+  config: JSON = null
+  timeout: Int = null
 }
 
 input CreateSpanAnnotationInput {
@@ -2123,6 +2130,13 @@ type Mutation {
   createSandboxConfig(input: CreateSandboxConfigInput!): SandboxConfig!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): SandboxConfig!
   deleteSandboxConfig(id: ID!): SandboxConfig!
+  setSandboxCredential(envVarName: String!, value: String!): Boolean!
+  deleteSandboxCredential(envVarName: String!): Boolean!
+  setSandboxBackendEnabled(backendType: SandboxBackendType!, enabled: Boolean!): SandboxConfig!
+  setSandboxEnabled(enabled: Boolean!): Boolean!
+  createSandboxConfigInstance(input: CreateSandboxConfigInstanceInput!): SandboxConfigInstance!
+  updateSandboxConfigInstance(input: UpdateSandboxConfigInstanceInput!): SandboxConfigInstance!
+  deleteSandboxConfigInstance(id: ID!): SandboxConfigInstance!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
@@ -2819,6 +2833,7 @@ type Query {
   datasetCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
+  sandboxEnabled: Boolean!
   sandboxBackends: [SandboxAdapterInfo!]!
 }
 
@@ -2853,12 +2868,12 @@ type SandboxAdapterInfo {
   label: String!
   description: String!
   status: SandboxBackendStatusCode!
+  enabled: Boolean!
   envVars: [SandboxEnvVarSpec!]!
   configFields: [SandboxConfigFieldSpec!]!
   configRequired: Boolean!
-  hasSessionMode: Boolean!
   setupInstructions: [String!]!
-  currentConfig: SandboxConfig
+  configs: [SandboxConfigInstance!]!
 }
 
 enum SandboxBackendStatusCode {
@@ -2880,8 +2895,8 @@ type SandboxConfig {
   backendType: SandboxBackendType!
   config: JSON!
   timeout: Int!
-  sessionMode: Boolean!
   configHash: String!
+  enabled: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -2891,6 +2906,19 @@ type SandboxConfigFieldSpec {
   label: String!
   placeholder: String!
   description: String!
+}
+
+type SandboxConfigInstance {
+  id: ID!
+  backendType: SandboxBackendType!
+  name: String!
+  description: String
+  config: JSON!
+  timeout: Int!
+  enabled: Boolean!
+  configHash: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 type SandboxEnvVarSpec {
@@ -3691,8 +3719,15 @@ input UpdateSandboxConfigInput {
   id: ID!
   config: JSON = null
   timeout: Int = null
-  sessionMode: Boolean = null
-  credentials: [GenerativeCredentialInput!]
+}
+
+input UpdateSandboxConfigInstanceInput {
+  id: ID!
+  name: String = null
+  description: String = null
+  config: JSON = null
+  timeout: Int = null
+  enabled: Boolean = null
 }
 
 input UpsertOrDeleteSecretsMutationInput {

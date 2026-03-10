@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92ba8b9076b9eb90d90605420f98ccff>>
+ * @generated SignedSource<<4c250ad541aa4035ee7679299f3b4f17>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,26 +10,32 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
-export type UpdateSandboxConfigInput = {
+export type UpdateSandboxConfigInstanceInput = {
   config?: any | null;
+  description?: string | null;
+  enabled?: boolean | null;
   id: string;
+  name?: string | null;
   timeout?: number | null;
 };
-export type SettingsSandboxPageUpdateMutation$variables = {
-  input: UpdateSandboxConfigInput;
+export type SettingsSandboxPageUpdateInstanceMutation$variables = {
+  input: UpdateSandboxConfigInstanceInput;
 };
-export type SettingsSandboxPageUpdateMutation$data = {
-  readonly updateSandboxConfig: {
+export type SettingsSandboxPageUpdateInstanceMutation$data = {
+  readonly updateSandboxConfigInstance: {
     readonly backendType: SandboxBackendType;
     readonly config: any;
     readonly configHash: string;
+    readonly description: string | null;
+    readonly enabled: boolean;
     readonly id: string;
+    readonly name: string;
     readonly timeout: number;
   };
 };
-export type SettingsSandboxPageUpdateMutation = {
-  response: SettingsSandboxPageUpdateMutation$data;
-  variables: SettingsSandboxPageUpdateMutation$variables;
+export type SettingsSandboxPageUpdateInstanceMutation = {
+  response: SettingsSandboxPageUpdateInstanceMutation$data;
+  variables: SettingsSandboxPageUpdateInstanceMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -50,9 +56,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "SandboxConfig",
+    "concreteType": "SandboxConfigInstance",
     "kind": "LinkedField",
-    "name": "updateSandboxConfig",
+    "name": "updateSandboxConfigInstance",
     "plural": false,
     "selections": [
       {
@@ -73,6 +79,20 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
+        "name": "name",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "description",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
         "name": "config",
         "storageKey": null
       },
@@ -81,6 +101,13 @@ v1 = [
         "args": null,
         "kind": "ScalarField",
         "name": "timeout",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "enabled",
         "storageKey": null
       },
       {
@@ -99,7 +126,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageUpdateMutation",
+    "name": "SettingsSandboxPageUpdateInstanceMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -108,20 +135,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageUpdateMutation",
+    "name": "SettingsSandboxPageUpdateInstanceMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "42268ee1bdb9faaf9e00e82bef7cef6b",
+    "cacheID": "fa863fcaec4670cebe86c0b8f596c7f8",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageUpdateMutation",
+    "name": "SettingsSandboxPageUpdateInstanceMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageUpdateMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    id\n    backendType\n    config\n    timeout\n    configHash\n  }\n}\n"
+    "text": "mutation SettingsSandboxPageUpdateInstanceMutation(\n  $input: UpdateSandboxConfigInstanceInput!\n) {\n  updateSandboxConfigInstance(input: $input) {\n    id\n    backendType\n    name\n    description\n    config\n    timeout\n    enabled\n    configHash\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "08dd44fbb530443a77972a61ea14f2ef";
+(node as any).hash = "326cd099a45c24a75634006c26b3b7c0";
 
 export default node;
