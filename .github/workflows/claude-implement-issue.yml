@@ -17,18 +17,26 @@ jobs:
       id-token: write
       actions: read
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
       GH_REPO: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
 
     steps:
+      - name: Check sender permissions
+        run: |
+          PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission" -q '.permission')
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
+            echo "Sender ${{ github.event.sender.login }} has '$PERMISSION' permission, skipping"
+            exit 0
+          fi
+          echo "AUTHORIZED=true" >> "$GITHUB_ENV"
+
       - name: Check if already in progress
-        id: guard
+        if: env.AUTHORIZED == 'true'
         run: |
           # Skip if already assigned
           ASSIGNEES=$(gh issue view "$ISSUE_NUMBER" --json assignees -q '.assignees | length')
           if [ "$ASSIGNEES" -gt 0 ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Issue already assigned, skipping"
             exit 0
           fi
@@ -36,60 +44,48 @@ jobs:
           # Skip if there's already a PR for this issue
           LINKED_PRS=$(gh pr list --search "issue:$ISSUE_NUMBER" --json number -q 'length')
           if [ "$LINKED_PRS" -gt 0 ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "PR already exists, skipping"
             exit 0
           fi
 
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "READY=true" >> "$GITHUB_ENV"
 
       - name: Claim issue
-        if: steps.guard.outputs.skip != 'true'
+        if: env.READY == 'true'
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-assignee "github-actions[bot]" --add-label "agent-in-progress"
 
       - name: Checkout repository
-        if: steps.guard.outputs.skip != 'true'
+        if: env.READY == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Create branch
-        if: steps.guard.outputs.skip != 'true'
+        if: env.READY == 'true'
         run: |
           BRANCH="claude/issue-$ISSUE_NUMBER"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
       - name: Run Claude Code
-        if: steps.guard.outputs.skip != 'true'
+        if: env.READY == 'true'
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            Implement GitHub issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+            Read and implement GitHub issue #${{ github.event.issue.number }}.
 
-            ## Issue Description
             ${{ github.event.issue.body }}
 
-            ## Instructions
-            - Read the issue thoroughly — it contains data model details, permission requirements, and key file references
-            - Follow existing patterns in src/phoenix/server/api/routers/v1/
-            - Follow the conventions in CLAUDE.md (use Makefile targets)
-            - Write tests following existing test patterns in the tests/ directory
-            - Run `make lint-python` and `make typecheck-python` before finishing
-            - Create commits with clear messages referencing #${{ github.event.issue.number }}
-            - Push your branch and open a PR with `gh pr create` linking to #${{ github.event.issue.number }}
-          claude_args: '--max-turns 30 --allowedTools Read,Write,Edit,Bash,Glob,Grep'
+            Create commits referencing #${{ github.event.issue.number }}, then push and open a PR with `gh pr create`.
+          claude_args: '--max-turns 30'
 
-      - name: Cleanup on success
-        if: success() && steps.guard.outputs.skip != 'true'
+      - name: Cleanup
+        if: always() && env.READY == 'true'
         run: |
           gh issue edit "$ISSUE_NUMBER" --remove-assignee "github-actions[bot]" --remove-label "agent-in-progress"
-
-      - name: Cleanup on failure
-        if: failure() && steps.guard.outputs.skip != 'true'
-        run: |
-          gh issue edit "$ISSUE_NUMBER" --remove-assignee "github-actions[bot]" --remove-label "agent-in-progress"
-          gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+          if [ "${{ job.status }}" = "failure" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+          fi
