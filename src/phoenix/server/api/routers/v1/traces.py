@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -63,7 +63,6 @@ class TraceData(V1RoutesBaseModel):
     project_id: str
     start_time: datetime
     end_time: datetime
-    span_count: int
     spans: Optional[list[TraceSpanData]] = None
 
 
@@ -86,7 +85,6 @@ def _to_trace_span_data(span: models.Span) -> TraceSpanData:
 
 def _to_trace_data(
     trace: models.Trace,
-    span_count: int,
     project_id: int,
     spans: Optional[list[models.Span]] = None,
 ) -> TraceData:
@@ -96,7 +94,6 @@ def _to_trace_data(
         project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
         start_time=trace.start_time,
         end_time=trace.end_time,
-        span_count=span_count,
         spans=[_to_trace_span_data(s) for s in spans] if spans is not None else None,
     )
 
@@ -178,18 +175,6 @@ async def list_project_traces(
 
         trace_ids = [t.id for t in traces]
 
-        # Batch-fetch span counts per trace
-        count_stmt = (
-            select(
-                models.Span.trace_rowid,
-                func.count(models.Span.id).label("span_count"),
-            )
-            .filter(models.Span.trace_rowid.in_(trace_ids))
-            .group_by(models.Span.trace_rowid)
-        )
-        count_rows = (await session.execute(count_stmt)).all()
-        span_counts: dict[int, int] = {row.trace_rowid: row.span_count for row in count_rows}
-
         # Optionally batch-fetch full span details
         spans_by_trace: Optional[dict[int, list[models.Span]]] = None
         if include_spans:
@@ -205,7 +190,6 @@ async def list_project_traces(
         data = [
             _to_trace_data(
                 t,
-                span_counts.get(t.id, 0),
                 project_rowid,
                 spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
             )

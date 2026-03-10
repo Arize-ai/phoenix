@@ -122,23 +122,6 @@ class TestListProjectTraces:
         data = response.json()
         assert len(data["data"]) == 2
 
-    async def test_list_traces_returns_span_count(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        project, traces, spans = await _insert_project_with_traces(
-            db, num_traces=2, num_spans_per_trace=3
-        )
-
-        response = await httpx_client.get(f"v1/projects/{project.name}/traces")
-        assert response.status_code == 200
-
-        data = response.json()
-        for trace_data in data["data"]:
-            assert trace_data["span_count"] == 3
-            assert trace_data["spans"] is None
-
     async def test_list_traces_response_fields(
         self,
         httpx_client: httpx.AsyncClient,
@@ -164,7 +147,6 @@ class TestListProjectTraces:
         assert "trace_id" in trace_data
         assert "start_time" in trace_data
         assert "end_time" in trace_data
-        assert "span_count" in trace_data
 
     async def test_list_traces_default_order_is_desc(
         self,
@@ -341,7 +323,6 @@ class TestListProjectTraces:
 
         trace_data = response.json()["data"][0]
         assert trace_data["spans"] is None
-        assert trace_data["span_count"] == 3
 
     async def test_list_traces_include_spans(
         self,
@@ -357,7 +338,7 @@ class TestListProjectTraces:
 
         data = response.json()
         for trace_data in data["data"]:
-            assert trace_data["span_count"] == 3
+            assert len(trace_data["spans"]) == 3
             assert len(trace_data["spans"]) == 3
             # Spans should be ordered by start_time ASC
             start_times = [s["start_time"] for s in trace_data["spans"]]
