@@ -718,10 +718,7 @@ def create_graphql_router(
         GraphQLRouter: The router mounted at /graphql
     """
 
-    allowed_provider_names_set = get_env_allowed_providers()
-    allowed_provider_names: Optional[frozenset[str]] = (
-        frozenset(allowed_provider_names_set) if allowed_provider_names_set is not None else None
-    )
+    allowed_provider_names = get_env_allowed_providers()
 
     def get_context() -> Context:
         return Context(

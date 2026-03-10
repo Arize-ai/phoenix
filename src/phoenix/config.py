@@ -1111,18 +1111,18 @@ def get_env_disable_rate_limit() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
 
 
-def get_env_allowed_providers() -> Optional[set[str]]:
-    """Return set of uppercase provider names to show, parsed from PHOENIX_ALLOWED_PROVIDERS.
+def get_env_allowed_providers() -> Optional[frozenset[str]]:
+    """Return frozenset of uppercase provider names to show, parsed from PHOENIX_ALLOWED_PROVIDERS.
 
-    Returns None when unset (all providers shown), or a set of names to allow.
-    Set to NONE to hide all providers (returns empty set).
+    Returns None when unset (all providers shown), or a frozenset of names to allow.
+    Set to NONE to hide all providers (returns empty frozenset).
     """
     raw = getenv(ENV_PHOENIX_ALLOWED_PROVIDERS)
     if not raw:
         return None
-    names = {name.strip().upper() for name in raw.split(",") if name.strip()}
-    if names == {"NONE"}:
-        return set()
+    names = frozenset(name.strip().upper() for name in raw.split(",") if name.strip())
+    if names == frozenset({"NONE"}):
+        return frozenset()
     return names
 
 
