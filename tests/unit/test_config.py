@@ -2110,3 +2110,35 @@ class TestLDAPConfigFromEnv:
         assert config is not None
         assert config.tls_client_cert_file == str(client_cert_file)
         assert config.tls_client_key_file == str(client_key_file)
+
+
+class TestGetEnvHiddenProviders:
+    def test_unset_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_HIDDEN_PROVIDERS", raising=False)
+        from phoenix.config import get_env_hidden_providers
+
+        assert get_env_hidden_providers() == set()
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_HIDDEN_PROVIDERS", "OPENAI,ANTHROPIC")
+        from phoenix.config import get_env_hidden_providers
+
+        assert get_env_hidden_providers() == {"OPENAI", "ANTHROPIC"}
+
+    def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_HIDDEN_PROVIDERS", "openai,Anthropic")
+        from phoenix.config import get_env_hidden_providers
+
+        assert get_env_hidden_providers() == {"OPENAI", "ANTHROPIC"}
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_HIDDEN_PROVIDERS", " OPENAI , ANTHROPIC ")
+        from phoenix.config import get_env_hidden_providers
+
+        assert get_env_hidden_providers() == {"OPENAI", "ANTHROPIC"}
+
+    def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_HIDDEN_PROVIDERS", "OPENAI,,ANTHROPIC,")
+        from phoenix.config import get_env_hidden_providers
+
+        assert get_env_hidden_providers() == {"OPENAI", "ANTHROPIC"}
