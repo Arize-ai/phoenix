@@ -365,7 +365,7 @@ class LLMEvaluator(BaseEvaluator):
                     messages=messages,
                     tools=denormalized_tools,
                     tracer=tracer_,
-                    **invocation_parameters,
+                    invocation_parameters=invocation_parameters,
                 ):
                     if isinstance(chunk, ToolCallChunk):
                         if chunk.id not in tool_call_by_id:

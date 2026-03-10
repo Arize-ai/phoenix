@@ -12,6 +12,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from functools import wraps
 from itertools import chain
 from secrets import token_hex
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -50,6 +51,7 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
+from opentelemetry.context import Context as OtelContext
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.trace import Span as OTelSpan
@@ -391,10 +393,12 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
 
     async def chat_completion_create(
         self,
+        *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         tracer: Tracer | None = None,
-        **invocation_parameters: Any,
+        otel_context: OtelContext | None = None,
     ) -> AsyncIterator[ChatCompletionChunk]:
         tracer_ = tracer or NoOpTracer()
         attributes = dict(
@@ -423,8 +427,11 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         # Use start_span (not start_as_current_span) and span.end() in finally so we never
         # attach contextvars in the generator. Avoids "Failed to detach context" /
         # "Token was created in a different Context" when the generator is closed in another task.
+        # otel_context can be passed as OtelContext() by callers that want to prevent the
+        # ambient OTel context from leaking its trace_id into the playground span.
         span = tracer_.start_span(
             "ChatCompletion",
+            context=otel_context,
             attributes=attributes,
             set_status_on_exception=False,  # we set status manually
         )
@@ -433,7 +440,10 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         auto_accumulating = self.response_attributes_are_auto_accumulating
         try:
             async for chunk in self._chat_completion_create(
-                messages=messages, tools=tools, span=span, **invocation_parameters
+                messages=messages,
+                tools=tools,
+                invocation_parameters=invocation_parameters,
+                span=span,
             ):
                 if isinstance(chunk, TextChunk):
                     if not auto_accumulating:
@@ -462,8 +472,8 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
 
     @classmethod
@@ -594,8 +604,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
         from openai.types import chat
@@ -724,8 +734,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
         OpenAI Responses API (responses.create) streaming. Yields TextChunk and
@@ -1275,8 +1285,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._handle_converse_api(
             messages=messages,
@@ -1291,8 +1301,8 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any],
         span: OTelSpan,
-        invocation_parameters: dict[str, Any],
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
         Handle the converse API.
@@ -1646,14 +1656,14 @@ class OpenAIResponsesAPIStreamingClient(
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._responses_create(
             messages=messages,
             tools=tools,
+            invocation_parameters=invocation_parameters,
             span=span,
-            **invocation_parameters,
         ):
             yield chunk
 
@@ -1759,14 +1769,14 @@ class AzureOpenAIResponsesAPIStreamingClient(
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._responses_create(
             messages=messages,
             tools=tools,
+            invocation_parameters=invocation_parameters,
             span=span,
-            **invocation_parameters,
         ):
             yield chunk
 
@@ -1785,8 +1795,8 @@ class AzureOpenAIReasoningNonStreamingClient(
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import omit
         from openai.types import chat
@@ -1965,8 +1975,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
@@ -2220,14 +2230,14 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from google.genai import types
 
         contents, system_prompt = self._build_google_messages(messages)
 
-        config_dict = invocation_parameters.copy()
+        config_dict = dict(invocation_parameters)
 
         if system_prompt:
             config_dict["system_instruction"] = system_prompt
@@ -2421,13 +2431,16 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
 
     async def chat_completion_create(
         self,
+        *,
         messages: list[PlaygroundMessage],
         tools: list[JSONScalarType],
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         tracer: Tracer | None = None,
-        **invocation_parameters: Any,
+        otel_context: OtelContext | None = None,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
-        thinking_level = invocation_parameters.pop("thinking_level", None)
+        parameters = dict(invocation_parameters)
+        thinking_level = parameters.pop("thinking_level", None)
 
         if thinking_level:
             try:
@@ -2446,13 +2459,17 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             # but will eventually be added in a future version
             # we are purposefully allowing users to select medium knowing
             # it does not work.
-            invocation_parameters["thinking_config"] = {
+            parameters["thinking_config"] = {
                 "include_thoughts": True,
                 "thinking_level": thinking_level.upper(),
             }
 
         async for chunk in super().chat_completion_create(
-            messages, tools, tracer=tracer, **invocation_parameters
+            messages=messages,
+            tools=tools,
+            invocation_parameters=parameters,
+            tracer=tracer,
+            otel_context=otel_context,
         ):
             yield chunk
 
