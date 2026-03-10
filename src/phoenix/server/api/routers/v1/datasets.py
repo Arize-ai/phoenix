@@ -663,13 +663,15 @@ def _process_json(
                 f"external_ids must have same length as inputs "
                 f"({len(external_ids)} != {len(inputs)})"
             )
-        # Validate no duplicate non-None external_ids
         seen: set[str] = set()
         for eid in external_ids:
-            if eid is not None:
-                if eid in seen:
-                    raise ValueError(f"Duplicate external_id in request: {eid!r}")
-                seen.add(eid)
+            if eid is None:
+                continue
+            if not isinstance(eid, str):
+                raise ValueError("external_ids must contain only strings or None")
+            if eid in seen:
+                raise ValueError(f"Duplicate external_id in request: {eid!r}")
+            seen.add(eid)
 
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):

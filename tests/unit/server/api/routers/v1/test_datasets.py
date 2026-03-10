@@ -1509,6 +1509,15 @@ async def test_post_dataset_upload_append_with_splits(
             id="external_ids_length_mismatch",
         ),
         pytest.param(
+            {
+                "name": "ds",
+                "inputs": [{"a": 1}, {"a": 2}],
+                "external_ids": [123, "e2"],
+            },
+            "external_ids must contain only strings or None",
+            id="external_ids_non_string",
+        ),
+        pytest.param(
             {"inputs": [{"a": 1}]},
             "Dataset name is required",
             id="missing_name",
