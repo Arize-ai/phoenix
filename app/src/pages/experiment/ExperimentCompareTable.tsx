@@ -784,6 +784,7 @@ function TableBody<T>({
                     width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                     maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
                     padding: 0,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
