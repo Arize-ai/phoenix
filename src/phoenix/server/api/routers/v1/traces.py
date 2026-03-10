@@ -70,22 +70,9 @@ class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
     pass
 
 
-def _to_trace_span_data(span: models.Span) -> TraceSpanData:
-    return TraceSpanData(
-        id=str(GlobalID(SpanNodeType.__name__, str(span.id))),
-        span_id=span.span_id,
-        parent_id=span.parent_id,
-        name=span.name,
-        span_kind=span.span_kind,
-        status_code=span.status_code,
-        start_time=span.start_time,
-        end_time=span.end_time,
-    )
-
-
 def _to_trace_data(
     trace: models.Trace,
-    spans: list[models.Span],
+    spans: list[TraceSpanData],
     project_id: int,
 ) -> TraceData:
     return TraceData(
@@ -94,7 +81,7 @@ def _to_trace_data(
         project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
         start_time=trace.start_time,
         end_time=trace.end_time,
-        spans=[_to_trace_span_data(s) for s in spans],
+        spans=spans,
     )
 
 
@@ -131,16 +118,9 @@ async def list_project_traces(
         # Build query with sort order
         stmt = select(models.Trace).filter(models.Trace.project_rowid == project_rowid)
 
-        if sort == "latency_ms":
-            if order == "asc":
-                stmt = stmt.order_by(models.Trace.latency_ms.asc(), models.Trace.id.asc())
-            else:
-                stmt = stmt.order_by(models.Trace.latency_ms.desc(), models.Trace.id.desc())
-        else:
-            if order == "asc":
-                stmt = stmt.order_by(models.Trace.start_time.asc(), models.Trace.id.asc())
-            else:
-                stmt = stmt.order_by(models.Trace.start_time.desc(), models.Trace.id.desc())
+        sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
+        order_fn = "asc" if order == "asc" else "desc"
+        stmt = stmt.order_by(getattr(sort_col, order_fn)(), getattr(models.Trace.id, order_fn)())
 
         if start_time:
             stmt = stmt.where(
@@ -156,11 +136,11 @@ async def list_project_traces(
                     stmt = stmt.where(models.Trace.id <= cursor_rowid)
                 else:
                     stmt = stmt.where(models.Trace.id >= cursor_rowid)
-            except Exception:
+            except (ValueError, TypeError):
                 raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
 
         stmt = stmt.limit(limit + 1)
-        traces = list((await session.scalars(stmt)).all())
+        traces = (await session.scalars(stmt)).all()
 
         if not traces:
             return GetTracesResponseBody(next_cursor=None, data=[])
@@ -171,18 +151,39 @@ async def list_project_traces(
             next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
             traces = traces[:-1]
 
-        # Batch-fetch spans for all traces in a single query
+        # Batch-fetch only the span columns needed for the response
         trace_ids = [t.id for t in traces]
         spans_stmt = (
-            select(models.Span)
+            select(
+                models.Span.id,
+                models.Span.trace_rowid,
+                models.Span.span_id,
+                models.Span.parent_id,
+                models.Span.name,
+                models.Span.span_kind,
+                models.Span.status_code,
+                models.Span.start_time,
+                models.Span.end_time,
+            )
             .filter(models.Span.trace_rowid.in_(trace_ids))
             .order_by(models.Span.start_time.asc())
         )
-        spans = (await session.scalars(spans_stmt)).all()
+        span_rows = (await session.execute(spans_stmt)).all()
 
-        spans_by_trace: dict[int, list[models.Span]] = defaultdict(list)
-        for span in spans:
-            spans_by_trace[span.trace_rowid].append(span)
+        spans_by_trace: dict[int, list[TraceSpanData]] = defaultdict(list)
+        for row in span_rows:
+            spans_by_trace[row.trace_rowid].append(
+                TraceSpanData(
+                    id=str(GlobalID(SpanNodeType.__name__, str(row.id))),
+                    span_id=row.span_id,
+                    parent_id=row.parent_id,
+                    name=row.name,
+                    span_kind=row.span_kind,
+                    status_code=row.status_code,
+                    start_time=row.start_time,
+                    end_time=row.end_time,
+                )
+            )
 
         data = [_to_trace_data(t, spans_by_trace.get(t.id, []), project_rowid) for t in traces]
     return GetTracesResponseBody(next_cursor=next_cursor, data=data)
