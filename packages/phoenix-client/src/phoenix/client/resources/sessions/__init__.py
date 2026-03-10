@@ -1082,7 +1082,6 @@ class AsyncSessions:
         return all_responses if sync else None
 
 
-
 def _build_conversation_turns(
     all_trace_ids: List[str],
     trace_info: dict[str, v1.SessionTraceData],

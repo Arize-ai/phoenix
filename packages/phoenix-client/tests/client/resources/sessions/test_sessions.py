@@ -275,7 +275,9 @@ class TestAsyncGetSessionsDataframe:
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        df = await AsyncSessions(client, AsyncSpans(client)).get_sessions_dataframe(project_name="proj")
+        df = await AsyncSessions(client, AsyncSpans(client)).get_sessions_dataframe(
+            project_name="proj"
+        )
 
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 1
@@ -406,8 +408,8 @@ class TestGetSessionConversation:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         turns = Sessions(client, Spans(client)).get_session_conversation(session_id="s1")
-        assert turns[0]["input"] == {"value": "first"}
-        assert turns[1]["input"] == {"value": "second"}
+        assert turns[0].get("input") == {"value": "first"}
+        assert turns[1].get("input") == {"value": "second"}
 
 
 class TestAsyncGetSessionConversation:
@@ -430,7 +432,9 @@ class TestAsyncGetSessionConversation:
             return httpx.Response(404)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        turns = await AsyncSessions(client, AsyncSpans(client)).get_session_conversation(session_id="s1")
+        turns = await AsyncSessions(client, AsyncSpans(client)).get_session_conversation(
+            session_id="s1"
+        )
         assert len(turns) == 1
         assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}
         assert turns[0].get("output") == {"value": "bye", "mime_type": "text/plain"}

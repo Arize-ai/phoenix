@@ -92,7 +92,11 @@ export async function getSessionConversation({
   const rootSpansByTrace = new Map<string, Span>();
   for (let i = 0; i < allTraceIds.length; i += MAX_TRACE_IDS_PER_BATCH) {
     const traceIdBatch = allTraceIds.slice(i, i + MAX_TRACE_IDS_PER_BATCH);
-    const spans = await getAllRootSpansForBatch({ client, projectId, traceIdBatch });
+    const spans = await getAllRootSpansForBatch({
+      client,
+      projectId,
+      traceIdBatch,
+    });
     for (const span of spans) {
       const traceId = span.context.trace_id;
       if (!rootSpansByTrace.has(traceId)) {
