@@ -460,9 +460,10 @@ async def upload_dataset(
         )
     examples: Examples
     if request_content_type.startswith("application/json"):
-        json_data = await request.json()
         try:
-            examples, action, name, description = await run_in_threadpool(_process_json, json_data)
+            examples, action, name, description = await run_in_threadpool(
+                _process_json, await request.json()
+            )
         except ValueError as e:
             raise HTTPException(
                 detail=str(e),
@@ -559,10 +560,8 @@ async def upload_dataset(
     if sync:
         async with request.app.state.db() as session:
             event = await operation(session)
-        if event is None:
-            return UploadDatasetResponseBody(data=UploadDatasetData(dataset_id="", version_id=""))
-        dataset_id = event.dataset_id
-        version_id = event.dataset_version_id
+            dataset_id = event.dataset_id
+            version_id = event.dataset_version_id
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
             data=UploadDatasetData(
