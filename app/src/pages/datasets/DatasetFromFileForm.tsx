@@ -31,10 +31,10 @@ import {
   type ColumnAssignerValue,
   getAutoAssignment,
   isAutoSplitColumn,
-} from "./column-assigner";
+} from "./ColumnAssigner";
 import { ColumnMultiSelector } from "./ColumnMultiSelector";
-import { DatasetPreviewTable } from "./dataset-preview";
-import { RowPreviewTable } from "./row-preview";
+import { DatasetPreviewTable } from "./DatasetPreview";
+import { RowPreviewTable } from "./RowPreview";
 
 type AutoAssignmentResult = ColumnAssignerValue & { split: string[] };
 
