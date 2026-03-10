@@ -24,6 +24,7 @@ from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
+from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -163,18 +164,6 @@ class StatusCode(str, Enum):
 
 _VALID_STATUS_CODES = frozenset(e.value for e in StatusCode)
 _VALID_SPAN_KINDS = frozenset(e.value for e in SpanKind)
-
-
-def _validate_enum_filter(values: list[str], valid: frozenset[str], param_name: str) -> list[str]:
-    """Validate and uppercase a list of enum filter values, raising 422 for invalid ones."""
-    upper = [v.upper() for v in values]
-    invalid = [v for v in upper if v not in valid]
-    if invalid:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Invalid {param_name} values: {invalid}",
-        )
-    return upper
 
 
 class OtlpStatus(BaseModel):
@@ -670,7 +659,9 @@ async def span_search_otlpv1(
     if status_code:
         stmt = stmt.where(
             models.Span.status_code.in_(
-                _validate_enum_filter(status_code, _VALID_STATUS_CODES, "status_code")
+                validate_enum_filter(
+                    values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+                )
             )
         )
 
@@ -843,13 +834,17 @@ async def span_search(
     if span_kind:
         stmt = stmt.where(
             models.Span.span_kind.in_(
-                _validate_enum_filter(span_kind, _VALID_SPAN_KINDS, "span_kind")
+                validate_enum_filter(
+                    values=span_kind, valid=_VALID_SPAN_KINDS, param_name="span_kind"
+                )
             )
         )
     if status_code:
         stmt = stmt.where(
             models.Span.status_code.in_(
-                _validate_enum_filter(status_code, _VALID_STATUS_CODES, "status_code")
+                validate_enum_filter(
+                    values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+                )
             )
         )
 
