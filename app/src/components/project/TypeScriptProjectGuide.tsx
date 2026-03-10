@@ -19,13 +19,17 @@ import {
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
-import { BASE_URL } from "@phoenix/config";
 
 import { TypeScriptBlockWithCopy } from "../code/TypeScriptBlockWithCopy";
+import { IS_HOSTED_DEPLOYMENT } from "./hosting";
 import {
   TypeScriptIntegrations,
   TypeScriptPlatformIntegrations,
 } from "./Integrations";
+import {
+  getEnvironmentVariables,
+  getOtelInitCodeTypescript,
+} from "./integrationSnippets";
 
 type PythonProjectGuideProps = {
   /**
@@ -36,16 +40,6 @@ type PythonProjectGuideProps = {
 
 const PHOENIX_OTEL_DOC_LINK =
   "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
-
-const getProductionSetupCode = (projectName: string) => {
-  return `import { register } from '@arizeai/phoenix-otel';
-
-register({
-  projectName: '${projectName}',
-  url: '${BASE_URL}',
-  apiKey: process.env.PHOENIX_API_KEY,
-});`;
-};
 
 const getAutoInstrumentationCode = (projectName: string) => {
   return `import { register } from '@arizeai/phoenix-otel';
@@ -78,22 +72,17 @@ registerInstrumentations({
 });`;
 };
 
-const getPhoenixOtelEnvVars = (apiKey?: string) => {
-  const apiKeyValue = apiKey || "your-api-key";
-  return [
-    `export PHOENIX_COLLECTOR_ENDPOINT="${BASE_URL}"`,
-    `export PHOENIX_API_KEY="${apiKeyValue}"`,
-  ].join("\n");
-};
-
 export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
   const existingProjectName = props.projectName;
   const projectName = existingProjectName || "your-next-llm-project";
   const isAuthEnabled = window.Config.authenticationEnabled;
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
-  const phoenixOtelEnvVars = getPhoenixOtelEnvVars(
-    generatedApiKey ?? undefined
-  );
+  const isHosted = IS_HOSTED_DEPLOYMENT;
+  const phoenixOtelEnvVars = getEnvironmentVariables({
+    isAuthEnabled,
+    isHosted,
+    apiKey: generatedApiKey ?? undefined,
+  });
   return (
     <div>
       <View paddingTop="size-200" paddingBottom="size-100">
@@ -138,7 +127,9 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
         <Text>Use the register function to set up tracing</Text>
       </View>
       <CodeWrap>
-        <TypeScriptBlockWithCopy value={getProductionSetupCode(projectName)} />
+        <TypeScriptBlockWithCopy
+          value={getOtelInitCodeTypescript(projectName)}
+        />
       </CodeWrap>
       <IsAuthenticated>
         <View paddingBottom="size-100" paddingTop="size-100">

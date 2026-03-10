@@ -138,25 +138,27 @@ function ProjectPageContentBody({
   }, [timeRange]);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
-  const countsData = useLazyLoadQuery<ProjectPageOnboardingCountsQueryType>(
-    graphql`
-      query ProjectPageOnboardingCountsQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            totalTraceCount: traceCount
-            totalSpanCount: recordCount
+  const projectOnboardingData =
+    useLazyLoadQuery<ProjectPageOnboardingCountsQueryType>(
+      graphql`
+        query ProjectPageOnboardingCountsQuery($id: ID!) {
+          project: node(id: $id) {
+            ... on Project {
+              name
+              totalTraceCount: traceCount
+              totalSpanCount: recordCount
+            }
           }
         }
+      `,
+      {
+        id: projectId as string,
+      },
+      {
+        fetchPolicy: "store-and-network",
+        fetchKey: `${projectId}-${fetchKey}`,
       }
-    `,
-    {
-      id: projectId as string,
-    },
-    {
-      fetchPolicy: "store-and-network",
-      fetchKey: `${projectId}-${fetchKey}`,
-    }
-  );
+    );
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
@@ -194,8 +196,8 @@ function ProjectPageContentBody({
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const hasNoTracesOrSpans =
-    countsData.project.totalTraceCount === 0 &&
-    countsData.project.totalSpanCount === 0;
+    projectOnboardingData.project.totalTraceCount === 0 &&
+    projectOnboardingData.project.totalSpanCount === 0;
   const isOnboardingActive = isTracingOnboardingEnabled && hasNoTracesOrSpans;
   useEffect(() => {
     if (tabIndex === TAB_INDEX_MAP.spans) {
@@ -267,7 +269,10 @@ function ProjectPageContentBody({
 
   return isOnboardingActive ? (
     <main css={mainCSS}>
-      <ProjectOnboardingWaitingForTraces project={data.project} />
+      <ProjectOnboardingWaitingForTraces
+        project={data.project}
+        projectName={projectOnboardingData.project.name ?? "my-project"}
+      />
     </main>
   ) : (
     <main css={mainCSS}>
