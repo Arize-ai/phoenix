@@ -240,7 +240,7 @@ from phoenix.client import Client
 client = Client()
 
 # Add a single annotation with human feedback
-client.annotations.add_span_annotation(
+client.spans.add_span_annotation(
     span_id="span-123",
     annotation_name="helpfulness",
     annotator_kind="HUMAN",
@@ -264,7 +264,7 @@ annotations = [
         "result": {"label": "accurate", "score": 0.95}
     },
 ]
-client.annotations.log_span_annotations(span_annotations=annotations)
+client.spans.log_span_annotations(span_annotations=annotations)
 ```
 
 ### Projects

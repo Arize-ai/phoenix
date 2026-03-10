@@ -5,8 +5,7 @@ Welcome to the Phoenix Client documentation. This lightweight Python client prov
 - **[Datasets](api/datasets)** - Create and manage datasets for experimentation
 - **[Experiments](api/experiments)** - Run experiments and evaluate model performance
 - **[Prompts](api/prompts)** - Manage prompt templates and versions
-- **[Spans](api/spans)** - Access and analyze traces and spans
-- **[Annotations](api/annotations)** - Add annotations, evals, and feedback to spans
+- **[Spans](api/spans)** - Access and analyze traces, spans, and annotations
 - **[Sessions](api/sessions)** - Retrieve sessions, list sessions for a project, and annotate multi-turn conversations
 - **[Projects](api/projects)** - Organize your work with project management
 
@@ -191,7 +190,7 @@ Add annotations to spans for evaluation, user feedback, and custom annotation wo
 
 ```python
 # Add a single annotation with human feedback
-client.annotations.add_span_annotation(
+client.spans.add_span_annotation(
     span_id="span-123",
     annotation_name="helpfulness",
     annotator_kind="HUMAN",
@@ -201,7 +200,7 @@ client.annotations.add_span_annotation(
 )
 
 # Add automated evaluation annotations
-client.annotations.add_span_annotation(
+client.spans.add_span_annotation(
     span_id="span-123",
     annotation_name="toxicity",
     annotator_kind="LLM",
@@ -674,7 +673,6 @@ api/datasets
 api/experiments
 api/prompts
 api/spans
-api/annotations
 api/sessions
 api/projects
 api/helpers

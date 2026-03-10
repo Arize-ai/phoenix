@@ -4,7 +4,6 @@ from typing import Mapping, Optional
 
 import httpx
 
-from phoenix.client.resources.annotations import Annotations, AsyncAnnotations
 from phoenix.client.resources.datasets import AsyncDatasets, Datasets
 from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
@@ -62,7 +61,6 @@ class Client:
         self._spans = Spans(value)
         self._traces = Traces(value)
         self._sessions = Sessions(value)
-        self._annotations = Annotations(self._spans)  # deprecated
         self._datasets = Datasets(value)
         self._experiments = Experiments(value)
 
@@ -110,15 +108,6 @@ class Client:
             Sessions: An instance of the Sessions class.
         """  # noqa: E501
         return self._sessions
-
-    @property
-    def annotations(self) -> Annotations:
-        """Returns an instance of the Annotations class for interacting with annotation-related API endpoints.
-
-        Returns:
-            Annotations: An instance of the Annotations class.
-        """  # noqa: E501
-        return self._annotations
 
     @property
     def datasets(self) -> Datasets:
@@ -184,7 +173,6 @@ class AsyncClient:
         self._spans = AsyncSpans(value)
         self._traces = AsyncTraces(value)
         self._sessions = AsyncSessions(value)
-        self._annotations = AsyncAnnotations(self._spans)  # deprecated
         self._datasets = AsyncDatasets(value)
         self._experiments = AsyncExperiments(value)
 
@@ -233,15 +221,6 @@ class AsyncClient:
             AsyncSessions: An instance of the AsyncSessions class.
         """  # noqa: E501
         return self._sessions
-
-    @property
-    def annotations(self) -> AsyncAnnotations:
-        """Returns an instance of the AsyncAnnotations class for interacting with annotation-related API endpoints.
-
-        Returns:
-            AsyncAnnotations: An instance of the AsyncAnnotations class.
-        """  # noqa: E501
-        return self._annotations
 
     @property
     def datasets(self) -> AsyncDatasets:

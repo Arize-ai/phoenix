@@ -88,7 +88,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
     from phoenix.client import Client
 
     client = Client()
-    annotation = client.annotations.add_span_annotation(
+    annotation = client.spans.add_span_annotation(
         annotation_name="user feedback",
         annotator_kind="HUMAN",
         span_id=span_id,
