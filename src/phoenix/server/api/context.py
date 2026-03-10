@@ -230,7 +230,6 @@ class Context(BaseContext):
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
-    hidden_provider_names: frozenset[str] = frozenset()
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False
