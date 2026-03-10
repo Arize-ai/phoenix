@@ -62,15 +62,16 @@ export const openAIToolDefinitionSchema = z.looseObject({
         .string()
         .optional()
         .describe("A description of the function"),
-      strict: z
-        .boolean()
-        .optional()
-        .describe(
-          "Whether or not the arguments should exactly match the function definition"
-        ),
-      parameters: jsonSchemaZodSchema.describe(
-        "The parameters that the function accepts"
-      ),
+      parameters: jsonSchemaZodSchema
+        .extend({
+          strict: z
+            .boolean()
+            .optional()
+            .describe(
+              "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
+            ),
+        })
+        .describe("The parameters that the function accepts"),
     })
     .describe("The function definition"),
 });
@@ -134,7 +135,6 @@ export type OpenAIResponsesToolDefinition = z.infer<
 export const anthropicToolDefinitionSchema = z.object({
   name: z.string(),
   description: z.string(),
-  strict: z.boolean().optional(),
   input_schema: jsonSchemaZodSchema,
 });
 
@@ -156,7 +156,6 @@ export const awsToolDefinitionSchema = z.object({
   toolSpec: z.object({
     name: z.string(),
     description: z.string().min(1),
-    strict: z.boolean().optional(),
     inputSchema: z.object({
       json: jsonSchemaZodSchema,
     }),
@@ -205,7 +204,6 @@ export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
     function: {
       name: aws.toolSpec.name,
       description: aws.toolSpec.description,
-      ...(aws.toolSpec.strict != null && { strict: aws.toolSpec.strict }),
       parameters: aws.toolSpec.inputSchema.json,
     },
   })
@@ -216,7 +214,6 @@ export const openAIToolToAws = openAIToolDefinitionSchema.transform(
     toolSpec: {
       name: openai.function.name,
       description: openai.function.description ?? openai.function.name,
-      ...(openai.function.strict != null && { strict: openai.function.strict }),
       inputSchema: {
         json: openai.function.parameters,
       },
@@ -233,7 +230,6 @@ export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
     function: {
       name: anthropic.name,
       description: anthropic.description,
-      ...(anthropic.strict != null && { strict: anthropic.strict }),
       parameters: anthropic.input_schema,
     },
   })
@@ -246,7 +242,6 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
   (openai): AnthropicToolDefinition => ({
     name: openai.function.name,
     description: openai.function.description ?? "",
-    ...(openai.function.strict != null && { strict: openai.function.strict }),
     input_schema: openai.function.parameters,
   })
 );

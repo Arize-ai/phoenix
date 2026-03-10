@@ -310,7 +310,6 @@ class AnthropicToolDefinition(DBBaseModel):
     name: str
     cache_control: Optional[AnthropicCacheControlParam] = UNDEFINED
     description: str = UNDEFINED
-    strict: Optional[bool] = UNDEFINED
 
 
 class BedrockToolDefinition(DBBaseModel):
@@ -806,14 +805,12 @@ def _prompt_to_openai_tool(
 def _bedrock_to_prompt_tool(
     tool: BedrockToolDefinition,
 ) -> PromptToolFunction:
-    strict = tool.toolSpec.get("strict")
     return PromptToolFunction(
         type="function",
         function=PromptToolFunctionDefinition(
             name=tool.toolSpec["name"],
             description=tool.toolSpec["description"],
             parameters=tool.toolSpec["inputSchema"]["json"],
-            strict=strict if isinstance(strict, bool) else UNDEFINED,
         ),
     )
 
@@ -827,7 +824,6 @@ def _anthropic_to_prompt_tool(
             name=tool.name,
             description=tool.description,
             parameters=tool.input_schema,
-            strict=tool.strict if isinstance(tool.strict, bool) else UNDEFINED,
         ),
     )
 
@@ -840,7 +836,6 @@ def _prompt_to_anthropic_tool(
         input_schema=function.parameters if function.parameters is not UNDEFINED else {},
         name=function.name,
         description=function.description,
-        strict=function.strict if isinstance(function.strict, bool) else UNDEFINED,
     )
 
 
@@ -848,16 +843,15 @@ def _prompt_to_bedrock_tool(
     tool: PromptToolFunction,
 ) -> BedrockToolDefinition:
     function = tool.function
-    tool_spec: dict[str, Any] = {
-        "name": function.name,
-        "description": function.description,
-        "inputSchema": {
-            "json": function.parameters,
-        },
-    }
-    if isinstance(function.strict, bool):
-        tool_spec["strict"] = function.strict
-    return BedrockToolDefinition(toolSpec=tool_spec)
+    return BedrockToolDefinition(
+        toolSpec={
+            "name": function.name,
+            "description": function.description,
+            "inputSchema": {
+                "json": function.parameters,
+            },
+        }
+    )
 
 
 def _gemini_to_prompt_tool(

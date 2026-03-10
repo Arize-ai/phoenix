@@ -65,7 +65,6 @@ const createPromptVersionInput = ({
         function: {
           name: config.name,
           description,
-          strict: true,
           parameters: {
             type: "object",
             properties: {
@@ -83,7 +82,6 @@ const createPromptVersionInput = ({
                   }
                 : {}),
             },
-            additionalProperties: false,
             required: ["label", ...(includeExplanation ? ["explanation"] : [])],
           },
         },
