@@ -17,6 +17,7 @@ from typing import (
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry.context import Context as OtelContext
 from sqlalchemy import and_, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -137,7 +138,7 @@ async def _stream_single_chat_completion(
             messages=messages,
             tools=input.tools or [],
             tracer=tracer,
-            **invocation_parameters,
+            invocation_parameters=invocation_parameters,
         ):
             chunk.repetition_number = repetition_number
             yield chunk
@@ -646,7 +647,15 @@ async def _stream_chat_completion_over_dataset_example(
             messages=messages,
             tools=input.tools or [],
             tracer=tracer,
-            **invocation_parameters,
+            # Pass an empty OTel context so the LLM span starts as a fresh root
+            # span and does not inherit the ambient context from server-side
+            # instrumentation (e.g. Strawberry's OpenTelemetryExtension).
+            # Without this, every dataset-example call within the same
+            # subscription would share the subscription span's trace_id, causing
+            # a duplicate-key violation on uq_traces_trace_id when more than one
+            # example is flushed.
+            otel_context=OtelContext(),
+            invocation_parameters=invocation_parameters,
         ):
             chunk.dataset_example_id = example_id
             chunk.repetition_number = repetition_number

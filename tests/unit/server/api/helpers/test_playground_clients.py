@@ -1,4 +1,5 @@
 import json
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -68,7 +69,7 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters = {"temperature": 0.1}
+        invocation_parameters: Mapping[str, Any] = {"temperature": 0.1}
 
         with custom_vcr.use_cassette():
             text_chunks = []
@@ -76,7 +77,7 @@ class TestOpenAIBaseStreamingClient:
                 messages=messages,
                 tools=[],
                 tracer=tracer,
-                **invocation_parameters,
+                invocation_parameters=invocation_parameters,
             ):
                 if isinstance(chunk, TextChunk):
                     text_chunks.append(chunk.content)
@@ -194,7 +195,7 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters = {"tool_choice": "auto"}
+        invocation_parameters: Mapping[str, Any] = {"tool_choice": "auto"}
 
         with custom_vcr.use_cassette():
             tool_call_chunks = []
@@ -202,7 +203,7 @@ class TestOpenAIBaseStreamingClient:
                 messages=messages,
                 tools=[get_current_weather_tool_schema],
                 tracer=tracer,
-                **invocation_parameters,
+                invocation_parameters=invocation_parameters,
             ):
                 tool_call_chunks.append(chunk)
 
@@ -317,7 +318,7 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters = {"temperature": 0.1}
+        invocation_parameters: Mapping[str, Any] = {"temperature": 0.1}
 
         with custom_vcr.use_cassette():
             with pytest.raises(AuthenticationError) as exc_info:
@@ -325,7 +326,7 @@ class TestOpenAIBaseStreamingClient:
                     messages=messages,
                     tools=[],
                     tracer=tracer,
-                    **invocation_parameters,
+                    invocation_parameters=invocation_parameters,
                 ):
                     pass
 

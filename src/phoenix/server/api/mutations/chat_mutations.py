@@ -750,7 +750,7 @@ class ChatCompletionMutationMixin:
                 messages=messages,
                 tools=input.tools or [],
                 tracer=tracer,
-                **invocation_parameters,
+                invocation_parameters=invocation_parameters,
             ):
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
