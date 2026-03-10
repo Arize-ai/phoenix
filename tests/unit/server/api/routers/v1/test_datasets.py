@@ -17,7 +17,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.dataset import ExampleContent
 from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionType
 from phoenix.server.types import DbSessionFactory
 
 
@@ -387,7 +387,7 @@ async def test_get_dataset_jsonl_openai_ft(
 ) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
-    dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
+    dataset_version_global_id = GlobalID(DatasetVersionType.__name__, str(dataset_version_id))
     response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_ft?version_id={dataset_version_global_id}"
     )
@@ -418,7 +418,7 @@ async def test_get_dataset_jsonl_openai_evals(
 ) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
-    dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
+    dataset_version_global_id = GlobalID(DatasetVersionType.__name__, str(dataset_version_id))
     response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_evals?version_id={dataset_version_global_id}"
     )
@@ -1792,11 +1792,9 @@ async def test_upsert_batch_with_mix_of_new_unchanged_and_changed_examples(
 
     assert len(versions) == 2
     kinds = [r.revision_kind for r in revisions]
-    assert "PATCH" in kinds
-    assert "CREATE" in kinds
-    assert "DELETE" not in kinds
-    # 2 original CREATEs + 1 PATCH + 1 new CREATE
-    assert len(revisions) == 4
+    assert kinds.count("CREATE") == 3
+    assert kinds.count("PATCH") == 1
+    assert kinds.count("DELETE") == 0
 
 
 async def test_upsert_batch_with_mix_of_examples_with_and_without_external_ids(
@@ -1878,10 +1876,6 @@ async def test_upsert_does_not_create_new_version_for_unchanged_examples(
 
     versions_after = await _get_versions(db, name)
     assert len(versions_after) == len(versions_before)
-    from strawberry.relay import GlobalID
-
-    from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionType
-
     expected_version_id = str(GlobalID(DatasetVersionType.__name__, str(append_version_id)))
     assert upsert_response.json()["data"]["version_id"] == expected_version_id
 
