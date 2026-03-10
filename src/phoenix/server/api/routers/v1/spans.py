@@ -161,6 +161,22 @@ class StatusCode(str, Enum):
         }[self.value]
 
 
+_VALID_STATUS_CODES = frozenset(e.value for e in StatusCode)
+_VALID_SPAN_KINDS = frozenset(e.value for e in SpanKind)
+
+
+def _validate_enum_filter(values: list[str], valid: frozenset[str], param_name: str) -> list[str]:
+    """Validate and uppercase a list of enum filter values, raising 422 for invalid ones."""
+    upper = [v.upper() for v in values]
+    invalid = [v for v in upper if v not in valid]
+    if invalid:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid {param_name} values: {invalid}",
+        )
+    return upper
+
+
 class OtlpStatus(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -652,15 +668,11 @@ async def span_search_otlpv1(
     if name:
         stmt = stmt.where(models.Span.name.in_(name))
     if status_code:
-        _valid_status = {e.value for e in StatusCode}
-        _upper = [v.upper() for v in status_code]
-        _invalid = [v for v in _upper if v not in _valid_status]
-        if _invalid:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid status_code values: {_invalid}",
+        stmt = stmt.where(
+            models.Span.status_code.in_(
+                _validate_enum_filter(status_code, _VALID_STATUS_CODES, "status_code")
             )
-        stmt = stmt.where(models.Span.status_code.in_(_upper))
+        )
 
     if cursor:
         try:
@@ -829,25 +841,17 @@ async def span_search(
     if name:
         stmt = stmt.where(models.Span.name.in_(name))
     if span_kind:
-        _valid_kinds = {e.value for e in SpanKind}
-        _upper = [v.upper() for v in span_kind]
-        _invalid = [v for v in _upper if v not in _valid_kinds]
-        if _invalid:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid span_kind values: {_invalid}",
+        stmt = stmt.where(
+            models.Span.span_kind.in_(
+                _validate_enum_filter(span_kind, _VALID_SPAN_KINDS, "span_kind")
             )
-        stmt = stmt.where(models.Span.span_kind.in_(_upper))
+        )
     if status_code:
-        _valid_status = {e.value for e in StatusCode}
-        _upper = [v.upper() for v in status_code]
-        _invalid = [v for v in _upper if v not in _valid_status]
-        if _invalid:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid status_code values: {_invalid}",
+        stmt = stmt.where(
+            models.Span.status_code.in_(
+                _validate_enum_filter(status_code, _VALID_STATUS_CODES, "status_code")
             )
-        stmt = stmt.where(models.Span.status_code.in_(_upper))
+        )
 
     if cursor:
         try:
