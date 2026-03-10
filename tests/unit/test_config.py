@@ -2123,31 +2123,31 @@ class TestGetEnvAllowedProviders:
         monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "NONE")
         from phoenix.config import get_env_allowed_providers
 
-        assert get_env_allowed_providers() == set()
+        assert get_env_allowed_providers() == frozenset()
 
     def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,ANTHROPIC")
         from phoenix.config import get_env_allowed_providers
 
-        assert get_env_allowed_providers() == {"OPENAI", "ANTHROPIC"}
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
 
     def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "openai,Anthropic")
         from phoenix.config import get_env_allowed_providers
 
-        assert get_env_allowed_providers() == {"OPENAI", "ANTHROPIC"}
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
 
     def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", " OPENAI , ANTHROPIC ")
         from phoenix.config import get_env_allowed_providers
 
-        assert get_env_allowed_providers() == {"OPENAI", "ANTHROPIC"}
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
 
     def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,,ANTHROPIC,")
         from phoenix.config import get_env_allowed_providers
 
-        assert get_env_allowed_providers() == {"OPENAI", "ANTHROPIC"}
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
 
 
 class TestValidateEnvAllowedProviders:
