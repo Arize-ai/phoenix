@@ -715,10 +715,8 @@ def _diff_examples(
 async def _get_existing_example_ids(
     session: AsyncSession,
     dataset_id: DatasetId,
-    external_ids: list[str],
-) -> dict[str, DatasetExampleId]:
-    """Find existing dataset examples (including soft-deleted)
-    that can be revived by external_id."""
+    external_ids: list[ExternalID],
+) -> dict[ExternalID, DatasetExampleId]:
     if not external_ids:
         return {}
     result = await session.execute(
