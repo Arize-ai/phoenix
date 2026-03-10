@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useState } from "react";
 
 import {
@@ -29,6 +30,21 @@ import type { ProgrammingLanguage } from "@phoenix/types/code";
 import type { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql";
 import { StreamToggle } from "./StreamToggle";
 
+const onboardingPageCSS = css`
+  overflow-y: auto;
+  height: 100%;
+`;
+
+const onboardingPageInnerCSS = css`
+  padding: var(--global-dimension-size-400);
+  max-width: 800px;
+  min-width: 500px;
+  box-sizing: border-box;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
 export function ProjectOnboardingWaitingForTraces({
   project,
   projectName,
@@ -39,41 +55,43 @@ export function ProjectOnboardingWaitingForTraces({
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
 
   return (
-    <View padding="size-200" height="100%" overflow="auto">
-      <Flex direction="column" height="100%" width="100%" gap="size-200">
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          width="100%"
-        >
-          <Heading level={2}>Project setup</Heading>
-          <StreamToggle project={project} />
+    <div css={onboardingPageCSS}>
+      <div css={onboardingPageInnerCSS}>
+        <Flex direction="column" width="100%" gap="size-200">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            width="100%"
+          >
+            <Heading level={2}>Project setup</Heading>
+            <StreamToggle project={project} />
+          </Flex>
+          <Tabs>
+            <TabList>
+              <Tab id="python">Python</Tab>
+              <Tab id="typescript">Typescript</Tab>
+            </TabList>
+            <TabPanel id="python">
+              <OnboardingSteps
+                language="Python"
+                projectName={projectName}
+                generatedApiKey={generatedApiKey}
+                onApiKeyGenerated={setGeneratedApiKey}
+              />
+            </TabPanel>
+            <TabPanel id="typescript">
+              <OnboardingSteps
+                language="TypeScript"
+                projectName={projectName}
+                generatedApiKey={generatedApiKey}
+                onApiKeyGenerated={setGeneratedApiKey}
+              />
+            </TabPanel>
+          </Tabs>
         </Flex>
-        <Tabs>
-          <TabList>
-            <Tab id="python">Python</Tab>
-            <Tab id="typescript">Typescript</Tab>
-          </TabList>
-          <TabPanel id="python">
-            <OnboardingSteps
-              language="Python"
-              projectName={projectName}
-              generatedApiKey={generatedApiKey}
-              onApiKeyGenerated={setGeneratedApiKey}
-            />
-          </TabPanel>
-          <TabPanel id="typescript">
-            <OnboardingSteps
-              language="TypeScript"
-              projectName={projectName}
-              generatedApiKey={generatedApiKey}
-              onApiKeyGenerated={setGeneratedApiKey}
-            />
-          </TabPanel>
-        </Tabs>
-      </Flex>
-    </View>
+      </div>
+    </div>
   );
 }
 
