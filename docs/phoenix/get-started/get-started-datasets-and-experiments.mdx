@@ -135,7 +135,7 @@ dataset = client.datasets.get_dataset(dataset="python quickstart fails")
 Now we can run our experiment!
 
 ```python
-experiment = client.experiments.run_experiment(dataset, my_task, evaluators=evaluators)
+experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
 ```
 
 Once this completes, Phoenix logs the experiment results automatically.
