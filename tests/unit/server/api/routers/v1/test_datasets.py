@@ -1654,7 +1654,7 @@ class TestBuildFlattenPlan:
     def test_rejects_rows_with_non_object_flatten_values(self) -> None:
         from phoenix.server.api.routers.v1.datasets import _build_flatten_plan
 
-        rows = [{"input": {"text": "Hi"}}, {"input": "plain text"}]
+        rows: list[dict[str, Any]] = [{"input": {"text": "Hi"}}, {"input": "plain text"}]
 
         with pytest.raises(
             ValueError,
