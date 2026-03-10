@@ -2046,19 +2046,18 @@ async def test_upsert_replaces_split_assignments(
     )
 
     async with db() as session:
-        examples = list(
-            await session.scalars(
-                select(models.DatasetExample)
-                .join(models.Dataset)
-                .where(models.Dataset.name == name)
-                .options(
-                    joinedload(models.DatasetExample.dataset_splits_dataset_examples).joinedload(
-                        models.DatasetSplitDatasetExample.dataset_split
-                    )
+        result = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == name)
+            .options(
+                joinedload(models.DatasetExample.dataset_splits_dataset_examples).joinedload(
+                    models.DatasetSplitDatasetExample.dataset_split
                 )
-                .order_by(models.DatasetExample.id)
             )
+            .order_by(models.DatasetExample.id)
         )
+        examples = list(result.unique())
         by_ext = {e.external_id: e for e in examples}
         assert {j.dataset_split.name for j in by_ext["e1"].dataset_splits_dataset_examples} == {
             "test"
@@ -2111,6 +2110,72 @@ async def test_upsert_removes_split_assignments_when_splits_empty(
         )
         assert example is not None
         assert example.dataset_splits_dataset_examples == []
+
+
+async def test_upsert_preserves_split_assignments_when_splits_not_provided(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Upsert without splits parameter preserves existing splits; deleted examples cascade."""
+    name = "ds"
+    # Initial upsert: e1 -> train, e2 -> test, e3 -> val
+    await _upsert(
+        httpx_client,
+        name,
+        [
+            ExampleContent(
+                input={"q": "Q1"}, output={"a": "A1"}, splits=frozenset({"train"}), external_id="e1"
+            ),
+            ExampleContent(
+                input={"q": "Q2"}, output={"a": "A2"}, splits=frozenset({"test"}), external_id="e2"
+            ),
+            ExampleContent(
+                input={"q": "Q3"}, output={"a": "A3"}, splits=frozenset({"val"}), external_id="e3"
+            ),
+        ],
+    )
+
+    # Second upsert: no splits parameter provided.
+    #   e1: content changed (PATCH) — splits should remain {train}
+    #   e2: content unchanged — splits should remain {test}
+    #   e3: omitted (DELETE) — cascade deletes its split assignments
+    #   e4: new example (CREATE) — no splits
+    await _upsert(
+        httpx_client,
+        name,
+        [
+            ExampleContent(input={"q": "Q1"}, output={"a": "A1-v2"}, external_id="e1"),
+            ExampleContent(input={"q": "Q2"}, output={"a": "A2"}, external_id="e2"),
+            ExampleContent(input={"q": "Q4"}, output={"a": "A4"}, external_id="e4"),
+        ],
+    )
+
+    async with db() as session:
+        result = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == name)
+            .options(
+                joinedload(models.DatasetExample.dataset_splits_dataset_examples).joinedload(
+                    models.DatasetSplitDatasetExample.dataset_split
+                )
+            )
+            .order_by(models.DatasetExample.id)
+        )
+        examples = list(result.unique())
+        by_ext = {e.external_id: e for e in examples}
+        # e1 patched: splits preserved
+        assert {j.dataset_split.name for j in by_ext["e1"].dataset_splits_dataset_examples} == {
+            "train"
+        }
+        # e2 unchanged: splits preserved
+        assert {j.dataset_split.name for j in by_ext["e2"].dataset_splits_dataset_examples} == {
+            "test"
+        }
+        # e3 deleted (soft): split assignments removed
+        assert by_ext["e3"].dataset_splits_dataset_examples == []
+        # e4 created with no splits
+        assert by_ext["e4"].dataset_splits_dataset_examples == []
 
 
 def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
