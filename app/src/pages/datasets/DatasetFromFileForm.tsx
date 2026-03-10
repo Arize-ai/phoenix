@@ -24,7 +24,7 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
-import { isPlainObject } from "@phoenix/utils/jsonUtils";
+import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -262,14 +262,10 @@ export function DatasetFromFileForm({
         columns.forEach((col, idx) => {
           const value = row[idx] ?? "";
           if (collapsibleKeys.includes(col)) {
-            try {
-              const parsed = JSON.parse(value);
-              if (isPlainObject(parsed)) {
-                obj[col] = parsed;
-                return;
-              }
-            } catch {
-              // Keep as string
+            const parsed = safelyParseJSONString(value);
+            if (isPlainObject(parsed)) {
+              obj[col] = parsed;
+              return;
             }
           }
           obj[col] = value;
@@ -496,10 +492,6 @@ export function DatasetFromFileForm({
     setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
     setValue("split_keys", autoAssigned.split, { shouldDirty: true });
   }, [columns, setValue]);
-
-  const handleCollapseKeysChange = useCallback((collapse: boolean) => {
-    setCollapseKeys(collapse);
-  }, []);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {
@@ -747,7 +739,7 @@ export function DatasetFromFileForm({
                     fileType={fileType}
                     hasCollapsibleKeys={collapsibleKeys.length > 0}
                     collapseKeys={collapseKeys}
-                    onCollapseKeysChange={handleCollapseKeysChange}
+                    onCollapseKeysChange={setCollapseKeys}
                     collapseConflicts={collapseConflicts}
                   />
                   {error?.message && (

@@ -12,6 +12,7 @@ import { Text } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
 
 const containerCSS = css`
   min-height: 0;
@@ -142,17 +143,9 @@ export function DatasetPreviewTable({
             keysToCollapseSet.has(col) &&
             typeof value === "string"
           ) {
-            try {
-              const parsed = JSON.parse(value);
-              if (
-                typeof parsed === "object" &&
-                parsed !== null &&
-                !Array.isArray(parsed)
-              ) {
-                value = parsed;
-              }
-            } catch {
-              // Keep as string if not valid JSON
+            const parsed = safelyParseJSONString(value);
+            if (isPlainObject(parsed)) {
+              value = parsed;
             }
           }
           if (inputColumns.includes(col)) {

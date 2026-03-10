@@ -423,6 +423,15 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "uniqueItems": True,
                                 "description": "Column names for auto-assigning examples to splits",
                             },
+                            "flatten_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                                "description": (
+                                    "Column names whose object values should be "
+                                    "flattened into their selected bucket"
+                                ),
+                            },
                             "span_id_key": {
                                 "type": "string",
                                 "description": "Column name for span IDs to link examples back to spans",  # noqa: E501
@@ -760,51 +769,6 @@ def _project_bucket(
             raise ValueError(f"Cannot flatten key '{parent_key}': row must contain an object value")
         for child_key in child_keys:
             result[child_key] = value.get(child_key)
-    return result
-
-
-def _flatten_row(row: dict[str, Any], flatten_keys: FlattenKeys) -> dict[str, Any]:
-    """
-    Flatten a row by promoting children of specified keys to the top level.
-
-    For each key in flatten_keys that exists in the row and has a dict value,
-    the dict's contents are spread into the result and the parent key is removed.
-
-    Args:
-        row: The original row data
-        flatten_keys: Keys whose dict values should be flattened
-
-    Returns:
-        A new dict with flattened structure
-
-    Raises:
-        ValueError: If flattening would cause key conflicts
-
-    Example:
-        >>> _flatten_row({"input": {"question": "Hi"}, "id": 1}, frozenset(["input"]))
-        {"question": "Hi", "id": 1}
-    """
-    if not flatten_keys:
-        return row
-
-    result: dict[str, Any] = {}
-    for key, value in row.items():
-        if key in flatten_keys and isinstance(value, dict):
-            # Check for conflicts before promoting children
-            for child_key in value:
-                if child_key in result:
-                    raise ValueError(
-                        f"Flatten conflict: key '{child_key}' from '{key}' "
-                        f"would overwrite an existing key"
-                    )
-            result.update(value)
-        else:
-            # Check for conflicts with already-flattened keys
-            if key in result:
-                raise ValueError(
-                    f"Flatten conflict: key '{key}' would overwrite a key promoted from flattening"
-                )
-            result[key] = value
     return result
 
 
