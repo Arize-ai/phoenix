@@ -1126,6 +1126,26 @@ def get_env_allowed_providers() -> Optional[set[str]]:
     return names
 
 
+def validate_env_allowed_providers() -> None:
+    """Validate PHOENIX_ALLOWED_PROVIDERS contains only recognized provider names.
+
+    Raises ValueError if any unrecognized provider names are found.
+    """
+    names = get_env_allowed_providers()
+    if names is None or not names:
+        return
+    from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+    valid_names = {key.name for key in GenerativeProviderKey}
+    invalid = names - valid_names
+    if invalid:
+        raise ValueError(
+            f"PHOENIX_ALLOWED_PROVIDERS contains unrecognized provider names: "
+            f"{', '.join(sorted(invalid))}. "
+            f"Valid names are: {', '.join(sorted(valid_names))}"
+        )
+
+
 def get_env_disable_brute_force_login_protection() -> bool:
     """
     Gets the value of the PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION environment variable.
@@ -3237,6 +3257,7 @@ def verify_server_environment_variables() -> None:
     get_env_max_spans_queue_size()
     validate_env_support_email()
     _validate_iam_auth_config()
+    validate_env_allowed_providers()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

@@ -719,20 +719,9 @@ def create_graphql_router(
     """
 
     allowed_provider_names_set = get_env_allowed_providers()
-    allowed_provider_names: Optional[frozenset[str]] = None
-    if allowed_provider_names_set is not None:
-        from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-
-        valid_names = {key.name for key in GenerativeProviderKey}
-        invalid = allowed_provider_names_set - valid_names
-        if invalid:
-            logger.warning(
-                f"PHOENIX_ALLOWED_PROVIDERS contains unrecognized provider names: "
-                f"{', '.join(sorted(invalid))}. "
-                f"Valid names are: {', '.join(sorted(valid_names))}"
-            )
-            allowed_provider_names_set = allowed_provider_names_set - invalid
-        allowed_provider_names = frozenset(allowed_provider_names_set)
+    allowed_provider_names: Optional[frozenset[str]] = (
+        frozenset(allowed_provider_names_set) if allowed_provider_names_set is not None else None
+    )
 
     def get_context() -> Context:
         return Context(

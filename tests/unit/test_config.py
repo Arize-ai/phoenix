@@ -2148,3 +2148,30 @@ class TestGetEnvAllowedProviders:
         from phoenix.config import get_env_allowed_providers
 
         assert get_env_allowed_providers() == {"OPENAI", "ANTHROPIC"}
+
+
+class TestValidateEnvAllowedProviders:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_PROVIDERS", raising=False)
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "NONE")
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_valid_providers_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,ANTHROPIC")
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_invalid_provider_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,INVALID_PROVIDER")
+        from phoenix.config import validate_env_allowed_providers
+
+        with pytest.raises(ValueError, match="INVALID_PROVIDER"):
+            validate_env_allowed_providers()
