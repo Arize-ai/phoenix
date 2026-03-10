@@ -2,6 +2,7 @@ import gzip
 import inspect
 import io
 import json
+from datetime import datetime, timezone
 from io import BytesIO, StringIO
 from typing import Any
 
@@ -1916,12 +1917,99 @@ async def test_upsert_with_no_prior_version_creates_all_examples(
     assert all(r.revision_kind == "CREATE" for r in revisions)
 
 
+async def test_upsert_with_splits_assigns_splits_to_new_examples(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Upsert on a fresh dataset with splits assigns them to the created examples."""
+    name = "ds"
+    examples = [
+        ExampleContent(input={"q": "Q1"}, output={}, splits=frozenset({"train"}), external_id="e1"),
+        ExampleContent(
+            input={"q": "Q2"}, output={}, splits=frozenset({"test", "hard"}), external_id="e2"
+        ),
+        ExampleContent(input={"q": "Q3"}, output={}, external_id="e3"),  # no splits
+    ]
+    await _upsert(httpx_client, name, examples)
+
+    async with db() as session:
+        ds_examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(ds_examples) == 3
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(ds_examples[0].id) == {"train"}
+        assert await get_example_splits(ds_examples[1].id) == {"test", "hard"}
+        assert await get_example_splits(ds_examples[2].id) == set()
+
+
+async def test_upsert_with_splits_on_created_examples_after_delete(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """When upsert deletes old examples and creates new ones with splits, splits are assigned."""
+    name = "ds"
+    await _append(
+        httpx_client,
+        name,
+        [ExampleContent(input={"old": 1}, output={}, external_id="e1")],
+    )
+
+    # Upsert replaces the old example (delete e1) and creates a new one with splits
+    new_examples = [
+        ExampleContent(input={"new": 1}, output={}, splits=frozenset({"train"}), external_id="e2"),
+    ]
+    await _upsert(httpx_client, name, new_examples)
+
+    revisions = await _get_revisions(db, name)
+    kinds = [r.revision_kind for r in revisions]
+    assert "DELETE" in kinds
+    assert kinds.count("CREATE") == 2  # initial + new
+
+    async with db() as session:
+        ds_examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        # Find the new example (e2)
+        new_example = next(e for e in ds_examples if e.external_id == "e2")
+        splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == new_example.id)
+            )
+        )
+        assert {s.name for s in splits} == {"train"}
+
+
 def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
     body: dict[str, Any] = {"action": action, "name": name, "inputs": [e.input for e in examples]}
     if any(e.output for e in examples):
         body["outputs"] = [e.output for e in examples]
     if any(e.external_id is not None for e in examples):
         body["external_ids"] = [e.external_id for e in examples]
+    if any(e.splits for e in examples):
+        body["splits"] = [sorted(e.splits) if e.splits else None for e in examples]
+    if any(e.span_id is not None for e in examples):
+        body["span_ids"] = [e.span_id for e in examples]
     return body
 
 
@@ -1970,3 +2058,184 @@ async def _get_versions(db: DbSessionFactory, name: str) -> list[models.DatasetV
             .order_by(models.DatasetVersion.id)
         )
         return list(result)
+
+
+async def _get_examples(db: DbSessionFactory, name: str) -> list[models.DatasetExample]:
+    async with db() as session:
+        result = await session.scalars(
+            select(models.DatasetExample)
+            .join(models.Dataset)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetExample.id)
+        )
+        return list(result)
+
+
+async def _create_span_in_db(
+    db: DbSessionFactory,
+    span_id_str: str,
+    project_name: str = "test-project",
+    trace_id_str: str = "test-trace",
+) -> int:
+    """Create a project/trace/span in the DB, returning the span's row ID."""
+    async with db() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == project_name)
+        )
+        if project_id is None:
+            project_id = await session.scalar(
+                insert(models.Project).values(name=project_name).returning(models.Project.id)
+            )
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == trace_id_str)
+        )
+        if trace_rowid is None:
+            trace_rowid = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    project_rowid=project_id,
+                    trace_id=trace_id_str,
+                    start_time=datetime.now(timezone.utc),
+                    end_time=datetime.now(timezone.utc),
+                )
+                .returning(models.Trace.id)
+            )
+        span_rowid = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id=span_id_str,
+                name=f"span_{span_id_str}",
+                span_kind="INTERNAL",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        assert span_rowid is not None
+        return span_rowid
+
+
+# ---------------------------------------------------------------------------
+# Span ID tests
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_create_resolves_span_ids(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Upsert CREATE revisions resolve span_ids and link them to DatasetExamples."""
+    span_rowid_1 = await _create_span_in_db(db, "span-1")
+    span_rowid_2 = await _create_span_in_db(db, "span-2")
+
+    await _upsert(
+        httpx_client,
+        "span-create-ds",
+        [
+            ExampleContent(input={"a": 1}, output={}, external_id="e1", span_id="span-1"),
+            ExampleContent(input={"a": 2}, output={}, external_id="e2", span_id="span-2"),
+            ExampleContent(input={"a": 3}, output={}, external_id="e3", span_id=None),
+        ],
+    )
+
+    examples = await _get_examples(db, "span-create-ds")
+    assert len(examples) == 3
+    assert examples[0].span_rowid == span_rowid_1
+    assert examples[1].span_rowid == span_rowid_2
+    assert examples[2].span_rowid is None
+
+
+async def test_upsert_create_with_nonexistent_span_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Upsert with a span_id that doesn't exist in the DB still creates the example."""
+    await _upsert(
+        httpx_client,
+        "span-missing-ds",
+        [
+            ExampleContent(input={"a": 1}, output={}, external_id="e1", span_id="no-such-span"),
+        ],
+    )
+
+    examples = await _get_examples(db, "span-missing-ds")
+    assert len(examples) == 1
+    assert examples[0].span_rowid is None
+
+
+async def test_upsert_patch_preserves_span_rowid(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """PATCH revisions don't alter span_rowid, even when a different span_id is provided."""
+    span_rowid_1 = await _create_span_in_db(db, "span-orig")
+    await _create_span_in_db(db, "span-new")
+
+    # First upsert: create with span-orig
+    await _upsert(
+        httpx_client,
+        "span-patch-ds",
+        [ExampleContent(input={"x": 1}, output={}, external_id="e1", span_id="span-orig")],
+    )
+
+    # Second upsert: same external_id, different content and different span_id → PATCH
+    await _upsert(
+        httpx_client,
+        "span-patch-ds",
+        [ExampleContent(input={"x": 100}, output={}, external_id="e1", span_id="span-new")],
+    )
+
+    examples = await _get_examples(db, "span-patch-ds")
+    assert len(examples) == 1
+    # PATCH only writes a revision — span_rowid on the example row is unchanged
+    assert examples[0].span_rowid == span_rowid_1
+
+    revisions = await _get_revisions(db, "span-patch-ds")
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "PATCH"]
+
+
+async def test_upsert_revived_example_preserves_old_span_rowid(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Reviving a deleted example reuses the old row, keeping the original span_rowid."""
+    span_rowid_1 = await _create_span_in_db(db, "span-old")
+    await _create_span_in_db(db, "span-revived")
+
+    # Create with span-old
+    await _upsert(
+        httpx_client,
+        "span-revive-ds",
+        [ExampleContent(input={"v": 1}, output={}, external_id="e1", span_id="span-old")],
+    )
+
+    # Delete e1 by omitting it
+    await _upsert(
+        httpx_client,
+        "span-revive-ds",
+        [ExampleContent(input={"v": 99}, output={}, external_id="other")],
+    )
+
+    # Re-create with same external_id but different span_id → revive
+    await _upsert(
+        httpx_client,
+        "span-revive-ds",
+        [
+            ExampleContent(input={"v": 10}, output={}, external_id="e1", span_id="span-revived"),
+            ExampleContent(input={"v": 99}, output={}, external_id="other"),
+        ],
+    )
+
+    examples = await _get_examples(db, "span-revive-ds")
+    revived = next(e for e in examples if e.external_id == "e1")
+    # Old DatasetExample row is reused — span_rowid is the original value
+    assert revived.span_rowid == span_rowid_1
