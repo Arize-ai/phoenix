@@ -700,7 +700,6 @@ def _diff_examples(
                 )
             )
 
-    # Any unmatched previous example → DELETE
     all_previous_ids = {example_id for example_id, _, _ in previous}
     delete_ids = [example_id for example_id in all_previous_ids if example_id not in matched_ids]
 
