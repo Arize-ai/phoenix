@@ -68,10 +68,8 @@ const assignmentBucketsCSS = css`
 
 const tooltipListCSS = css`
   margin: 0;
-  padding-left: var(--global-dimension-size-200);
 
   li {
-    margin-bottom: var(--global-dimension-size-50);
   }
 
   code {

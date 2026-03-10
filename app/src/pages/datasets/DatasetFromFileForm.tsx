@@ -24,7 +24,10 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
-import { computeCollapsedKeys } from "@phoenix/utils/jsonUtils";
+import {
+  computeBucketCollapseConflicts,
+  isPlainObject,
+} from "@phoenix/utils/jsonUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -244,7 +247,7 @@ export function DatasetFromFileForm({
   const metadataKeys = watch("metadata_keys");
 
   // Compute the keys that will be collapsed (for sending to backend) and any conflicts
-  // This uses conflict detection to determine which keys can actually be collapsed
+  // Conflicts are only detected within the same bucket (input, output, metadata)
   const { keysToCollapse, collapseConflicts } = useMemo(() => {
     if (!collapseKeys || collapsibleKeys.length === 0) {
       return {
@@ -253,30 +256,20 @@ export function DatasetFromFileForm({
       };
     }
 
+    // Get preview rows as objects (parse JSON for CSV if needed)
+    let objectRows: Record<string, unknown>[];
     if (fileType === "jsonl") {
-      // For JSONL, previewRows are already Record<string, unknown>[]
-      const jsonlRows = previewRows as Record<string, unknown>[];
-      const result = computeCollapsedKeys(columns, collapsibleKeys, jsonlRows);
-      return {
-        keysToCollapse: result.keysToCollapse,
-        collapseConflicts: result.excludedDueToConflicts,
-      };
+      objectRows = previewRows as Record<string, unknown>[];
     } else if (fileType === "csv") {
-      // For CSV, we need to parse JSON to detect conflicts
-      // First, convert CSV rows to objects with parsed JSON for collapsible columns
       const csvRows = previewRows as string[][];
-      const objectRows: Record<string, unknown>[] = csvRows.map((row) => {
+      objectRows = csvRows.map((row) => {
         const obj: Record<string, unknown> = {};
         columns.forEach((col, idx) => {
           const value = row[idx] ?? "";
           if (collapsibleKeys.includes(col)) {
             try {
               const parsed = JSON.parse(value);
-              if (
-                typeof parsed === "object" &&
-                parsed !== null &&
-                !Array.isArray(parsed)
-              ) {
+              if (isPlainObject(parsed)) {
                 obj[col] = parsed;
                 return;
               }
@@ -288,18 +281,34 @@ export function DatasetFromFileForm({
         });
         return obj;
       });
-      const result = computeCollapsedKeys(columns, collapsibleKeys, objectRows);
+    } else {
       return {
-        keysToCollapse: result.keysToCollapse,
-        collapseConflicts: result.excludedDueToConflicts,
+        keysToCollapse: [],
+        collapseConflicts: new Map<string, string[]>(),
       };
     }
 
+    // Compute bucket-aware conflicts based on current assignments
+    const result = computeBucketCollapseConflicts(
+      collapsibleKeys,
+      { input: inputKeys, output: outputKeys, metadata: metadataKeys },
+      objectRows
+    );
+
     return {
-      keysToCollapse: [],
-      collapseConflicts: new Map<string, string[]>(),
+      keysToCollapse: result.keysToCollapse,
+      collapseConflicts: result.conflicts,
     };
-  }, [collapseKeys, collapsibleKeys, columns, previewRows, fileType]);
+  }, [
+    collapseKeys,
+    collapsibleKeys,
+    columns,
+    previewRows,
+    fileType,
+    inputKeys,
+    outputKeys,
+    metadataKeys,
+  ]);
 
   // Create controlled value for ColumnAssigner
   const columnAssignerValue: ColumnAssignerValue = {
