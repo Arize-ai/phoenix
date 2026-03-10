@@ -51,7 +51,7 @@ test = [
   "boto3",
   "litellm>=1.28.9",
   "openai>=1.0.0",
-  "mistralai>=1.0.0",
+  "mistralai>=1.0.0,<2",
   "vertexai",
   "respx",
   "nest_asyncio",
