@@ -24,10 +24,7 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
-import {
-  computeBucketCollapseConflicts,
-  isPlainObject,
-} from "@phoenix/utils/jsonUtils";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -36,6 +33,7 @@ import {
   getAutoAssignment,
   isAutoSplitColumn,
 } from "./ColumnAssigner";
+import { computeBucketCollapseConflicts } from "./ColumnAssigner/collapseUtils";
 import { ColumnMultiSelector } from "./ColumnMultiSelector";
 import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
