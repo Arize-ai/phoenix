@@ -1,5 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
+
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type {
   CreateDatasetFormMutation,
@@ -12,12 +14,16 @@ export type CreateDatasetFormProps = {
   onDatasetCreated: (
     dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
   ) => void;
-  onDatasetCreateError: (error: Error) => void;
+  onDatasetCreateError?: (error: Error) => void;
+  onCancel?: () => void;
 };
 
-export function CreateDatasetForm(props: CreateDatasetFormProps) {
-  const { onDatasetCreated, onDatasetCreateError } = props;
-
+export function CreateDatasetForm({
+  onDatasetCreated,
+  onDatasetCreateError,
+  onCancel,
+}: CreateDatasetFormProps) {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
     mutation CreateDatasetFormMutation(
       $name: String!
@@ -62,18 +68,23 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
           }
         },
         onError: (error) => {
-          onDatasetCreateError(error);
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          setErrorMessage(formattedError?.[0] ?? error.message);
+          onDatasetCreateError?.(error);
         },
       });
     },
     [commit, onDatasetCreated, onDatasetCreateError]
   );
+
   return (
     <DatasetForm
       isSubmitting={isCommitting}
       onSubmit={onSubmit}
       submitButtonText={isCommitting ? "Creating..." : "Create Dataset"}
       formMode="create"
+      errorMessage={errorMessage}
+      onCancel={onCancel}
     />
   );
 }

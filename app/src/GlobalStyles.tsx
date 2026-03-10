@@ -1131,6 +1131,7 @@ const appGlobalStylesCSS = css`
     --global-modal-width-S: 500px;
     --global-modal-width-M: 750px;
     --global-modal-width-L: 1000px;
+    --global-modal-width-XL: 1200px;
     --global-modal-width-FULLSCREEN: calc(
       100vw - var(--global-dimension-static-size-1700)
     );

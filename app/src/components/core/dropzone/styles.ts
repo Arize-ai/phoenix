@@ -93,7 +93,6 @@ export const fileListCSS = css`
   flex-direction: column;
   gap: var(--global-dimension-size-100);
   width: 100%;
-  margin-top: var(--global-dimension-size-200);
 
   .file-list__item {
     display: flex;
@@ -175,8 +174,7 @@ export const fileInputCSS = css`
     border: var(--global-border-size-thin) solid
       var(--global-input-field-border-color);
     border-radius: var(--global-rounding-small);
-    padding: var(--global-dimension-size-50) var(--global-dimension-size-50)
-      var(--global-dimension-size-50) var(--global-dimension-size-125);
+    padding: 0 var(--global-dimension-size-25) 0 var(--global-dimension-size-100);
     min-height: var(--global-input-height-m);
     box-sizing: border-box;
     transition: border-color 0.2s ease-in-out;

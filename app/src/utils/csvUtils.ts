@@ -106,16 +106,38 @@ export function findCompleteCSVRowEnd(buffer: string): number {
 }
 
 /**
- * Parses CSV column names from a file using streaming.
- * Only reads enough of the file to extract the header row.
- * Handles arbitrarily large files efficiently.
+ * Result of parsing a CSV file in a single pass.
  */
-export async function parseCSVColumns(file: File): Promise<string[]> {
+export type CSVParseResult = {
+  /** Column names from the header row */
+  columns: string[];
+  /** Preview rows (up to maxPreviewRows) */
+  previewRows: string[][];
+  /** Total number of data rows (excluding header) */
+  totalRowCount: number;
+};
+
+/**
+ * Parses a CSV file in a single streaming pass, extracting:
+ * - Column names from the header row
+ * - Preview rows (up to maxPreviewRows)
+ * - Total row count
+ *
+ * This is more efficient than calling parseCSVColumns, parseCSVRows,
+ * and countCSVRows separately, as it only reads the file once.
+ */
+export async function parseCSVFile(
+  file: File,
+  maxPreviewRows: number = 10
+): Promise<CSVParseResult> {
   const stream = file.stream();
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let bomChecked = false;
+  let columns: string[] | null = null;
+  const previewRows: string[][] = [];
+  let totalRowCount = 0;
 
   try {
     while (true) {
@@ -130,21 +152,49 @@ export async function parseCSVColumns(file: File): Promise<string[]> {
         bomChecked = true;
       }
 
-      // Try to find a complete first row
-      const rowEnd = findCompleteCSVRowEnd(buffer);
-      if (rowEnd !== -1) {
-        const firstRow = buffer.slice(0, rowEnd);
-        return parseCSVRow(firstRow);
+      // Process complete rows from buffer
+      while (true) {
+        const rowEnd = findCompleteCSVRowEnd(buffer);
+        if (rowEnd === -1) break;
+
+        const row = buffer.slice(0, rowEnd);
+        // Advance buffer past the row and newline character(s)
+        const newlineLength = buffer[rowEnd] === "\r" ? 2 : 1;
+        buffer = buffer.slice(rowEnd + newlineLength);
+
+        if (columns === null) {
+          // First row is the header
+          columns = parseCSVRow(row);
+          continue;
+        }
+
+        // Data row
+        totalRowCount++;
+        if (previewRows.length < maxPreviewRows) {
+          previewRows.push(parseCSVRow(row));
+        }
       }
     }
 
-    // File ended without newline, parse whatever we have
-    // This handles single-line CSVs or files without trailing newline
+    // Handle remaining buffer (file ended without trailing newline)
     if (buffer.length > 0) {
-      return parseCSVRow(buffer);
+      if (columns === null) {
+        // File only has header row (no trailing newline)
+        columns = parseCSVRow(buffer);
+      } else if (buffer.trim().length > 0) {
+        // Remaining data row
+        totalRowCount++;
+        if (previewRows.length < maxPreviewRows) {
+          previewRows.push(parseCSVRow(buffer));
+        }
+      }
     }
 
-    throw new Error("CSV file is empty");
+    if (columns === null) {
+      throw new Error("CSV file is empty");
+    }
+
+    return { columns, previewRows, totalRowCount };
   } finally {
     reader.cancel();
   }

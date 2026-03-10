@@ -47,7 +47,7 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
       <Modal variant="slideover" size="fullscreen">
         <Dialog aria-label="Add evaluator to dataset">
           {({ close }) => (
-            <DialogContent minHeight="300px">
+            <DialogContent style={{ minHeight: "300px" }}>
               <Suspense
                 fallback={
                   <Flex flex={1} alignItems="center">

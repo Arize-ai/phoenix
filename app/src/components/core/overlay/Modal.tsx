@@ -9,8 +9,6 @@ import {
 
 import { classNames } from "@phoenix/utils/classNames";
 
-import type { SizingProps } from "../types";
-
 const modalSlideover = keyframes`
   from {
     transform: translateX(100%);
@@ -133,9 +131,11 @@ const modalCSS = css`
   }
 `;
 
+export type ModalSize = "S" | "M" | "L" | "fullscreen";
+
 export interface ModalProps extends AriaModalOverlayProps {
   variant?: "default" | "slideover";
-  size?: SizingProps["size"] | "fullscreen";
+  size?: ModalSize;
 }
 
 function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {

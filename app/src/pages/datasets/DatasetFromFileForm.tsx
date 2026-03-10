@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
-import { useCallback, useRef, useState } from "react";
-import type { DropItem, FileDropItem } from "react-aria-components";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
 import {
+  Alert,
   Button,
+  DialogFooter,
   FieldError,
-  Flex,
   Form,
   Icon,
   Icons,
@@ -15,19 +15,58 @@ import {
   Label,
   Text,
   TextField,
-  View,
 } from "@phoenix/components";
 import {
-  DropOverlay,
-  FileInput,
-  DropZone,
+  FileDropZone,
+  FileList,
+  type FileWithProgress,
 } from "@phoenix/components/core/dropzone";
-import { ColumnMultiSelector } from "@phoenix/pages/datasets/ColumnMultiSelector";
-import { parseCSVColumns } from "@phoenix/utils/csvUtils";
-import { formatJSONLError, parseJSONLKeys } from "@phoenix/utils/jsonlUtils";
+import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
+import { parseCSVFile } from "@phoenix/utils/csvUtils";
+import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
+import {
+  ColumnAssigner,
+  type ColumnAssignerValue,
+  getAutoAssignment,
+  isAutoSplitColumn,
+} from "./ColumnAssigner";
+import { ColumnMultiSelector } from "./ColumnMultiSelector";
+import { DatasetPreviewTable } from "./DatasetPreview";
+import { RowPreviewTable } from "./RowPreview";
+
+type AutoAssignmentResult = ColumnAssignerValue & { split: string[] };
+
+/**
+ * Auto-assign columns based on name matching heuristics.
+ */
+function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
+  const result: AutoAssignmentResult = {
+    input: [],
+    output: [],
+    metadata: [],
+    split: [],
+  };
+  for (const column of columns) {
+    if (isAutoSplitColumn(column)) {
+      result.split.push(column);
+    }
+    const bucket = getAutoAssignment(column);
+    if (bucket === "input") {
+      result.input.push(column);
+    } else if (bucket === "output") {
+      result.output.push(column);
+    } else if (bucket === "metadata") {
+      result.metadata.push(column);
+    }
+  }
+  return result;
+}
+
 type DatasetFileType = "csv" | "jsonl" | null;
+
+type PreviewData = string[][] | Record<string, unknown>[];
 
 type CreateDatasetFromFileParams = {
   file: File | null;
@@ -42,8 +81,7 @@ type CreateDatasetFromFileParams = {
 
 export type DatasetFromFileFormProps = {
   onDatasetCreated: (dataset: { id: string; name: string }) => void;
-  onDatasetCreateError: (error: Error) => void;
-  onErrorClear?: () => void;
+  onCancel: () => void;
 };
 
 function detectFileType(fileName: string): DatasetFileType {
@@ -58,10 +96,55 @@ function detectFileType(fileName: string): DatasetFileType {
 }
 
 const ACCEPTED_FILE_TYPES = [".csv", ".jsonl"];
+const PREVIEW_ROW_COUNT = 10;
+/** Maximum file size: 100MB */
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
+
+const formContainerCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+`;
+
+const emptyStateCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  padding: var(--global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
+`;
+
+const largeDropZoneCSS = css`
+  flex: 1 1 auto;
+  min-height: 300px;
+
+  .file-drop-zone__icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .file-drop-zone__icon svg {
+    width: 64px;
+    height: 64px;
+  }
+
+  .file-drop-zone__label {
+    font-size: var(--global-font-size-l);
+    margin-top: var(--global-dimension-size-200);
+  }
+
+  .file-drop-zone__description {
+    font-size: var(--global-font-size-m);
+  }
+`;
 
 const formBodyCSS = css`
-  max-height: calc(100vh - 280px);
+  flex: 1;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
   padding: var(--global-dimension-size-200);
   .dropdown__button {
     width: 100%;
@@ -71,22 +154,63 @@ const formBodyCSS = css`
 const formGridCSS = css`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 var(--global-dimension-size-200);
-  margin-bottom: var(--global-dimension-size-200);
+  gap: var(--global-dimension-size-200);
+`;
+
+const sectionCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+`;
+
+const previewTableContainerCSS = css`
+  border: 1px solid var(--global-color-gray-200);
+  height: 300px;
+  overflow: auto;
+  overscroll-behavior: none;
+`;
+
+const previewTabsCSS = css`
+  height: auto;
+`;
+
+const previewTabHeaderCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const previewTabPanelCSS = css`
+  height: auto;
+  overflow: visible;
+  margin-top: -1px;
+`;
+
+const rowCountCSS = css`
+  font-size: var(--global-font-size-s);
+  color: var(--global-text-color-700);
+  padding-right: var(--global-dimension-size-100);
 `;
 
 /**
  * Form for creating a dataset from a CSV or JSONL file.
- * The entire form is a drop target -- users can drop a file anywhere
- * or use the FileInput browse button.
+ * Shows a large dropzone when no file is selected, then reveals
+ * the full form with file preview and column assignment.
  */
-export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
-  const { onDatasetCreated, onDatasetCreateError, onErrorClear } = props;
+export function DatasetFromFileForm({
+  onDatasetCreated,
+  onCancel,
+}: DatasetFromFileFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
+  const [previewRows, setPreviewRows] = useState<PreviewData>([]);
+  const [totalRowCount, setTotalRowCount] = useState<number | null>(null);
   const [fileType, setFileType] = useState<DatasetFileType>(null);
   const [isParsing, setIsParsing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const parseGeneration = useRef(0);
+  const [previewTab, setPreviewTab] = useState<"file" | "dataset">("file");
+  const hasAutoSwitched = useRef(false);
 
   const {
     control,
@@ -94,8 +218,9 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     resetField,
     setValue,
     watch,
-    formState: { isDirty, isValid },
+    formState: { isValid },
   } = useForm<CreateDatasetFromFileParams>({
+    mode: "onChange",
     defaultValues: {
       file: null,
       name: "",
@@ -109,6 +234,37 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   });
 
   const selectedFile = watch("file");
+  const inputKeys = watch("input_keys");
+  const outputKeys = watch("output_keys");
+  const metadataKeys = watch("metadata_keys");
+
+  // Create controlled value for ColumnAssigner
+  const columnAssignerValue: ColumnAssignerValue = {
+    input: inputKeys,
+    output: outputKeys,
+    metadata: metadataKeys,
+  };
+
+  const hasAssignments =
+    inputKeys.length + outputKeys.length + metadataKeys.length > 0;
+  useEffect(() => {
+    if (hasAssignments && !hasAutoSwitched.current) {
+      setPreviewTab("dataset");
+      hasAutoSwitched.current = true;
+    }
+  }, [hasAssignments]);
+
+  const handleColumnAssignerChange = useCallback(
+    (value: ColumnAssignerValue) => {
+      setValue("input_keys", value.input, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("output_keys", value.output, { shouldDirty: true });
+      setValue("metadata_keys", value.metadata, { shouldDirty: true });
+    },
+    [setValue]
+  );
 
   const processFile = useCallback(
     (file: File) => {
@@ -117,6 +273,10 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       resetField("metadata_keys");
       resetField("split_keys");
       setColumns([]);
+      setPreviewRows([]);
+      setTotalRowCount(null);
+      setPreviewTab("file");
+      hasAutoSwitched.current = false;
 
       const detectedType = detectFileType(file.name);
       setFileType(detectedType);
@@ -124,8 +284,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       if (!detectedType) {
         setValue("file", null, { shouldValidate: true });
         resetField("name");
-        onDatasetCreateError(
-          new Error("Unsupported file type. Please upload a CSV or JSONL file.")
+        setErrorMessage(
+          "Unsupported file type. Please upload a CSV or JSONL file."
         );
         return;
       }
@@ -133,33 +293,67 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       setValue("file", file, { shouldValidate: true, shouldDirty: true });
 
       const name = file.name.replace(/\.(csv|jsonl)$/i, "");
-      setValue("name", name);
+      setValue("name", name, { shouldValidate: true });
 
       const generation = ++parseGeneration.current;
       const parseFile = async () => {
         setIsParsing(true);
         try {
           if (detectedType === "csv") {
-            const columnNames = await parseCSVColumns(file);
+            // Single-pass parsing: extracts columns, preview rows, and count
+            const result = await parseCSVFile(file, PREVIEW_ROW_COUNT);
             if (generation !== parseGeneration.current) return;
-            setColumns(columnNames);
-            onErrorClear?.();
+            setColumns(result.columns);
+            setPreviewRows(result.previewRows);
+            setTotalRowCount(result.totalRowCount);
+            setErrorMessage(null);
+            // Auto-assign columns based on name heuristics
+            const autoAssigned = computeAutoAssignment(result.columns);
+            setValue("input_keys", autoAssigned.input, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            setValue("output_keys", autoAssigned.output, { shouldDirty: true });
+            setValue("metadata_keys", autoAssigned.metadata, {
+              shouldDirty: true,
+            });
+            setValue("split_keys", autoAssigned.split, { shouldDirty: true });
           } else if (detectedType === "jsonl") {
-            const result = await parseJSONLKeys(file);
+            // Single-pass parsing: extracts keys, preview rows, and count
+            const result = await parseJSONLFile(file, PREVIEW_ROW_COUNT);
             if (generation !== parseGeneration.current) return;
             if (result.success) {
               setColumns(result.keys);
-              onErrorClear?.();
+              setPreviewRows(result.previewRows);
+              setTotalRowCount(result.totalRowCount);
+              setErrorMessage(null);
+              // Auto-assign columns based on name heuristics
+              const autoAssigned = computeAutoAssignment(result.keys);
+              setValue("input_keys", autoAssigned.input, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("output_keys", autoAssigned.output, {
+                shouldDirty: true,
+              });
+              setValue("metadata_keys", autoAssigned.metadata, {
+                shouldDirty: true,
+              });
+              setValue("split_keys", autoAssigned.split, { shouldDirty: true });
             } else {
               setColumns([]);
-              onDatasetCreateError(new Error(formatJSONLError(result.error)));
+              setPreviewRows([]);
+              setTotalRowCount(null);
+              setErrorMessage(formatJSONLError(result.error));
             }
           }
         } catch (error) {
           if (generation !== parseGeneration.current) return;
           setColumns([]);
-          onDatasetCreateError(
-            error instanceof Error ? error : new Error("Failed to parse file")
+          setPreviewRows([]);
+          setTotalRowCount(null);
+          setErrorMessage(
+            error instanceof Error ? error.message : "Failed to parse file"
           );
         } finally {
           if (generation === parseGeneration.current) {
@@ -169,7 +363,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       };
       parseFile();
     },
-    [resetField, setValue, onDatasetCreateError, onErrorClear]
+    [resetField, setValue]
   );
 
   const handleFileSelect = useCallback(
@@ -181,37 +375,52 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     [processFile]
   );
 
-  const handleFileDrop = useCallback(
-    async (e: { items: DropItem[] }) => {
-      const fileItems = e.items.filter(
-        (item): item is FileDropItem => item.kind === "file"
-      );
-      const results = await Promise.allSettled(
-        fileItems.map((item) => item.getFile())
-      );
-      const files = results
-        .filter(
-          (r): r is PromiseFulfilledResult<File> => r.status === "fulfilled"
-        )
-        .map((r) => r.value);
-      if (files.length > 0) {
-        processFile(files[0]);
+  const handleFileSelectRejected = useCallback(
+    (rejections: { file: File; reason: string; message: string }[]) => {
+      if (rejections.length > 0) {
+        setErrorMessage(rejections[0].message);
       }
     },
-    [processFile]
+    []
   );
 
   const handleFileRemove = useCallback(() => {
     setValue("file", null, { shouldValidate: true });
     setColumns([]);
+    setPreviewRows([]);
+    setTotalRowCount(null);
     setFileType(null);
     resetField("input_keys");
     resetField("output_keys");
     resetField("metadata_keys");
     resetField("split_keys");
     resetField("name");
-    onErrorClear?.();
-  }, [setValue, resetField, onErrorClear]);
+    setErrorMessage(null);
+    setPreviewTab("file");
+    hasAutoSwitched.current = false;
+  }, [setValue, resetField]);
+
+  const handlePreviewTabChange = useCallback((key: React.Key) => {
+    setPreviewTab(key as "file" | "dataset");
+  }, []);
+
+  const handleColumnAssignerClear = useCallback(() => {
+    setValue("input_keys", [], { shouldDirty: true, shouldValidate: true });
+    setValue("output_keys", [], { shouldDirty: true });
+    setValue("metadata_keys", [], { shouldDirty: true });
+    setValue("split_keys", [], { shouldDirty: true });
+  }, [setValue]);
+
+  const handleColumnAssignerAuto = useCallback(() => {
+    const autoAssigned = computeAutoAssignment(columns);
+    setValue("input_keys", autoAssigned.input, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("output_keys", autoAssigned.output, { shouldDirty: true });
+    setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
+    setValue("split_keys", autoAssigned.split, { shouldDirty: true });
+  }, [columns, setValue]);
 
   const onSubmit = useCallback(
     (data: CreateDatasetFromFileParams) => {
@@ -274,120 +483,177 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           });
         })
         .catch((error) => {
-          onDatasetCreateError(error);
+          setErrorMessage(
+            error instanceof Error ? error.message : "Failed to create dataset"
+          );
         })
         .finally(() => {
           setIsSubmitting(false);
         });
     },
-    [fileType, onDatasetCreated, onDatasetCreateError]
+    [fileType, onDatasetCreated]
   );
 
-  const shouldDisableFields = isSubmitting || isParsing || !selectedFile;
+  const hasPreviewData = columns.length > 0 && previewRows.length > 0;
 
-  const fileDescription = isParsing ? (
-    <Text slot="description" color="text-700">
-      Parsing...
-    </Text>
-  ) : columns.length > 0 ? (
-    <Text slot="description" color="success">
-      <Flex direction="row" gap="size-50" alignItems="center">
-        <Icon svg={<Icons.CheckmarkOutline />} color="success" />
-        <span>
-          {columns.length} {fileType === "csv" ? "column" : "key"}
-          {columns.length !== 1 ? "s" : ""} detected
-        </span>
-      </Flex>
-    </Text>
-  ) : (
-    <Text slot="description">&nbsp;</Text>
-  );
+  // Show large dropzone empty state when no file is selected
+  if (!selectedFile) {
+    return (
+      <div css={emptyStateCSS}>
+        {errorMessage && (
+          <Alert variant="danger" banner>
+            {errorMessage}
+          </Alert>
+        )}
+        <FileDropZone
+          css={largeDropZoneCSS}
+          acceptedFileTypes={ACCEPTED_FILE_TYPES}
+          maxFileSize={MAX_FILE_SIZE}
+          onSelect={handleFileSelect}
+          onSelectRejected={handleFileSelectRejected}
+          label="Drop a CSV or JSONL file here"
+          description="or click to browse (max 100MB)"
+        />
+      </div>
+    );
+  }
+
+  const fileListItem: FileWithProgress = {
+    file: selectedFile,
+    status: isParsing
+      ? "parsing"
+      : totalRowCount !== null
+        ? "complete"
+        : undefined,
+  };
 
   return (
-    <DropZone
-      onDrop={handleFileDrop}
-      getDropOperation={() => (isSubmitting ? "cancel" : "copy")}
-    >
-      <DropOverlay>
-        {selectedFile ? "Drop file to replace current" : "Drop file"}
-      </DropOverlay>
-      <Form onSubmit={handleSubmit(onSubmit)}>
-        <div css={formBodyCSS}>
-          <div css={formGridCSS}>
+    <Form css={formContainerCSS} onSubmit={handleSubmit(onSubmit)}>
+      <div css={formBodyCSS}>
+        {errorMessage && (
+          <Alert variant="danger" banner>
+            {errorMessage}
+          </Alert>
+        )}
+        <FileList
+          files={[fileListItem]}
+          onRemove={handleFileRemove}
+          isDisabled={isSubmitting}
+        />
+
+        <div css={formGridCSS}>
+          <Controller
+            name="name"
+            control={control}
+            rules={{
+              required: "Dataset name is required",
+            }}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                isInvalid={invalid}
+                onChange={onChange}
+                onBlur={onBlur}
+                value={value.toString()}
+                isDisabled={isSubmitting || isParsing}
+              >
+                <Label>Name</Label>
+                <Input placeholder="e.g. Golden Dataset" />
+                {error?.message && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="description"
+            control={control}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                isInvalid={invalid}
+                onChange={onChange}
+                onBlur={onBlur}
+                isDisabled={isSubmitting || isParsing}
+                value={value.toString()}
+              >
+                <Label>Description (optional)</Label>
+                <Input placeholder="e.g. For sentiment analysis" />
+                {error?.message ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : null}
+              </TextField>
+            )}
+          />
+        </div>
+
+        {hasPreviewData && (
+          <div css={sectionCSS}>
+            <Tabs
+              css={previewTabsCSS}
+              selectedKey={previewTab}
+              onSelectionChange={handlePreviewTabChange}
+            >
+              <div css={previewTabHeaderCSS}>
+                <TabList>
+                  <Tab id="file">File Preview</Tab>
+                  <Tab id="dataset">Dataset Preview</Tab>
+                </TabList>
+                <span css={rowCountCSS}>
+                  {totalRowCount !== null && totalRowCount > previewRows.length
+                    ? `showing ${previewRows.length} of ${totalRowCount} rows`
+                    : `${previewRows.length} row${previewRows.length === 1 ? "" : "s"}`}
+                </span>
+              </div>
+              <TabPanel css={previewTabPanelCSS} id="file">
+                <div css={previewTableContainerCSS}>
+                  <RowPreviewTable columns={columns} rows={previewRows} />
+                </div>
+              </TabPanel>
+              <TabPanel css={previewTabPanelCSS} id="dataset">
+                <div css={previewTableContainerCSS}>
+                  <DatasetPreviewTable
+                    columns={columns}
+                    rows={previewRows}
+                    inputColumns={inputKeys}
+                    outputColumns={outputKeys}
+                    metadataColumns={metadataKeys}
+                  />
+                </div>
+              </TabPanel>
+            </Tabs>
+          </div>
+        )}
+
+        {columns.length > 0 && (
+          <div css={sectionCSS}>
             <Controller
-              name="name"
+              name="input_keys"
               control={control}
               rules={{
-                required: "Dataset name is required",
-              }}
-              render={({
-                field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  value={value.toString()}
-                  isDisabled={shouldDisableFields}
-                >
-                  <Label>Name</Label>
-                  <Input placeholder="e.g. Golden Dataset" />
-                  {error?.message && <FieldError>{error.message}</FieldError>}
-                </TextField>
-              )}
-            />
-
-            <Controller
-              name="description"
-              control={control}
-              render={({
-                field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  isDisabled={shouldDisableFields}
-                  value={value.toString()}
-                >
-                  <Label>Description (optional)</Label>
-                  <Input placeholder="e.g. For sentiment analysis" />
-                  {error?.message ? (
-                    <FieldError>{error.message}</FieldError>
-                  ) : null}
-                </TextField>
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="file"
-              rules={{
-                required: "Drop or select a CSV or JSONL file",
+                validate: (value) =>
+                  value.length > 0 || "At least one input column is required",
               }}
               render={({ fieldState: { error } }) => (
-                <div>
-                  <FileInput
-                    file={selectedFile}
-                    acceptedFileTypes={ACCEPTED_FILE_TYPES}
-                    onSelect={handleFileSelect}
-                    onClear={handleFileRemove}
-                    isDisabled={isSubmitting}
-                  >
-                    {error?.message ? (
-                      <Text slot="description" color="danger">
-                        {error.message}
-                      </Text>
-                    ) : (
-                      fileDescription
-                    )}
-                  </FileInput>
-                </div>
+                <>
+                  <ColumnAssigner
+                    columns={columns}
+                    value={columnAssignerValue}
+                    onChange={handleColumnAssignerChange}
+                    onClear={handleColumnAssignerClear}
+                    onAuto={handleColumnAssignerAuto}
+                    fileType={fileType}
+                  />
+                  {error?.message && (
+                    <Text color="danger" size="S">
+                      {error.message}
+                    </Text>
+                  )}
+                </>
               )}
             />
-
             <Controller
               name="split_keys"
               control={control}
@@ -396,94 +662,40 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 fieldState: { error },
               }) => (
                 <ColumnMultiSelector
-                  label="Split"
-                  description={`The ${fileType === "csv" ? "columns" : "keys"} to use for automatically assigning examples to splits`}
+                  label="Split Column (optional)"
+                  description={`Select one or more ${fileType === "csv" ? "column" : "key"}s to automatically assign examples to splits`}
                   columns={columns}
                   selectedColumns={value}
                   onChange={onChange}
                   errorMessage={error?.message}
-                  isDisabled={shouldDisableFields}
+                  isDisabled={isSubmitting || isParsing}
                 />
               )}
             />
           </div>
-
-          <Controller
-            name="input_keys"
-            control={control}
-            rules={{
-              required: "At least one input key is required",
-            }}
-            render={({ field: { value, onChange }, fieldState: { error } }) => (
-              <ColumnMultiSelector
-                label="Input keys"
-                description={`The ${fileType === "csv" ? "columns" : "keys"} to use as input`}
-                columns={columns}
-                selectedColumns={value}
-                onChange={onChange}
-                errorMessage={error?.message}
-                isDisabled={shouldDisableFields}
-              />
-            )}
-          />
-
-          <Controller
-            name="output_keys"
-            control={control}
-            render={({ field: { value, onChange }, fieldState: { error } }) => (
-              <ColumnMultiSelector
-                label="Output keys"
-                description={`The ${fileType === "csv" ? "columns" : "keys"} to use as output`}
-                columns={columns}
-                selectedColumns={value}
-                onChange={onChange}
-                errorMessage={error?.message}
-                isDisabled={shouldDisableFields}
-              />
-            )}
-          />
-
-          <Controller
-            name="metadata_keys"
-            control={control}
-            render={({ field: { value, onChange }, fieldState: { error } }) => (
-              <ColumnMultiSelector
-                label="Metadata keys"
-                description={`The ${fileType === "csv" ? "columns" : "keys"} to use as metadata`}
-                columns={columns}
-                selectedColumns={value}
-                onChange={onChange}
-                errorMessage={error?.message}
-                isDisabled={shouldDisableFields}
-              />
-            )}
-          />
-        </div>
-
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
+        )}
+      </div>
+      <DialogFooter>
+        <Button
+          variant="default"
+          size="S"
+          onPress={onCancel}
+          isDisabled={isSubmitting}
         >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              type="submit"
-              isDisabled={!isValid || isSubmitting || isParsing}
-              variant={isDirty ? "primary" : "default"}
-              size="S"
-              leadingVisual={
-                isSubmitting ? (
-                  <Icon svg={<Icons.LoadingOutline />} />
-                ) : undefined
-              }
-            >
-              {isSubmitting ? "Creating..." : "Create Dataset"}
-            </Button>
-          </Flex>
-        </View>
-      </Form>
-    </DropZone>
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          size="S"
+          type="submit"
+          isDisabled={!isValid || isSubmitting || isParsing}
+          leadingVisual={
+            isSubmitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+          }
+        >
+          {isSubmitting ? "Creating..." : "Create Dataset"}
+        </Button>
+      </DialogFooter>
+    </Form>
   );
 }

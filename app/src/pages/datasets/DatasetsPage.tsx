@@ -6,8 +6,8 @@ import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
 
 import type { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import { CreateDatasetButton } from "./CreateDatasetButton";
 import { DatasetsTable } from "./DatasetsTable";
-import { NewDatasetActionMenu } from "./NewDatasetActionMenu";
 export function DatasetsPage() {
   return (
     <Suspense fallback={<Loading />}>
@@ -64,7 +64,7 @@ export function DatasetsPageContent() {
               onSelectionChange={setSelectedLabelIds}
             />
             <CanModify>
-              <NewDatasetActionMenu onDatasetCreated={onDatasetCreated} />
+              <CreateDatasetButton onDatasetCreated={onDatasetCreated} />
             </CanModify>
           </Flex>
         </Flex>

@@ -1,33 +1,29 @@
 import { randomUUID } from "crypto";
 import path from "path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 // Playwright runs from the app directory, so we can use a relative path
 const FIXTURES_DIR = path.join(process.cwd(), "tests", "fixtures");
 
 /**
- * Helper to click a select dropdown by its label text and return the open popover.
- * The Select component renders a Label followed by a Button trigger.
- * We find the label and then navigate to its sibling button.
+ * Helper to get a bucket in the ColumnAssigner by its label.
+ * Buckets are listboxes with aria-label matching the bucket name.
  */
-async function openSelectByLabel(page: Page, labelText: string) {
-  // Find the label and click the adjacent button in the same field container
-  const label = page.getByText(labelText, { exact: true });
-  // The button is a sibling following the label in the DOM
-  const fieldContainer = label.locator("xpath=..");
-  const button = fieldContainer.getByRole("button");
-  await button.click();
+function getBucket(page: Page, bucketLabel: string): Locator {
+  return page.getByRole("listbox", { name: bucketLabel });
+}
 
-  // React Aria Select opens a popover with role="listbox"
-  // Return the visible listbox so callers can select options within it
-  // Wait for the listbox associated with this button (aria-controls)
-  const listboxId = await button.getAttribute("aria-controls");
-  if (listboxId) {
-    return page.locator(`#${listboxId}`);
-  }
-  // Fallback: return the first visible listbox
-  return page.getByRole("listbox").first();
+/**
+ * Helper to verify a column exists in a specific bucket.
+ */
+async function expectColumnInBucket(
+  page: Page,
+  columnName: string,
+  bucketLabel: string
+) {
+  const bucket = getBucket(page, bucketLabel);
+  await expect(bucket.getByRole("option", { name: columnName })).toBeVisible();
 }
 
 test.describe("Dataset File Upload", () => {
@@ -57,26 +53,23 @@ test.describe("Dataset File Upload", () => {
       // Wait for file to be processed - the file name should appear in the dialog
       await expect(dialog.getByText("simple.csv")).toBeVisible();
 
-      // Verify the CSV columns are detected and shown in the input keys selector
-      // The column selectors should now be visible
-      await expect(dialog.getByText("Input keys")).toBeVisible();
+      // Verify the ColumnAssigner appears with the source bucket labeled "COLUMNS" for CSV
+      const sourceBucket = getBucket(page, "COLUMNS");
+      await expect(sourceBucket).toBeVisible();
 
-      // Open the input keys dropdown and verify columns are available
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "input" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "output" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "metadata" })
-      ).toBeVisible();
+      // Verify the assignment buckets are visible
+      await expect(getBucket(page, "INPUT")).toBeVisible();
+      await expect(getBucket(page, "OUTPUT")).toBeVisible();
+      await expect(getBucket(page, "METADATA")).toBeVisible();
 
-      // Select input column
-      await inputKeysListbox.getByRole("option", { name: "input" }).click();
-      // Close dropdown by pressing Escape
-      await page.keyboard.press("Escape");
+      // The simple.csv has columns: input, output, metadata
+      // Columns are auto-assigned on file load based on name heuristics:
+      // - "input" -> INPUT bucket
+      // - "output" -> OUTPUT bucket
+      // - "metadata" -> METADATA bucket
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
 
       // Verify the dataset name was auto-populated from filename
       await expect(dialog.getByLabel("Name")).toHaveValue("simple");
@@ -114,19 +107,15 @@ test.describe("Dataset File Upload", () => {
       // Wait for processing
       await expect(dialog.getByText("quoted-headers.csv")).toBeVisible();
 
-      // Open input keys dropdown and verify quoted column names are parsed correctly
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
+      // Verify the source bucket shows columns (these won't be auto-assigned)
+      const sourceBucket = getBucket(page, "COLUMNS");
+      await expect(sourceBucket).toBeVisible();
 
       // The column "Question, Full" should be parsed as a single column (not split on comma)
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "Question, Full" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "Answer" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "Category, Type" })
-      ).toBeVisible();
+      // These columns don't match auto-assignment rules, so they stay in source
+      await expectColumnInBucket(page, "Question, Full", "COLUMNS");
+      await expectColumnInBucket(page, "Answer", "COLUMNS");
+      await expectColumnInBucket(page, "Category, Type", "COLUMNS");
     });
   });
 
@@ -148,20 +137,15 @@ test.describe("Dataset File Upload", () => {
       // Wait for file to be processed
       await expect(dialog.getByText("simple.jsonl")).toBeVisible();
 
-      // Verify the keys are detected
-      await expect(dialog.getByText("Input keys")).toBeVisible();
+      // For JSONL, the source bucket is labeled "KEYS"
+      const sourceBucket = getBucket(page, "KEYS");
+      await expect(sourceBucket).toBeVisible();
 
-      // Open the input keys dropdown and verify keys are available
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "input" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "output" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "metadata" })
-      ).toBeVisible();
+      // The simple.jsonl has keys: input, output, metadata
+      // Columns are auto-assigned on file load based on name heuristics
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
     });
 
     test("collects keys from multiple JSONL rows with different keys", async ({
@@ -185,29 +169,22 @@ test.describe("Dataset File Upload", () => {
       // Wait for processing
       await expect(dialog.getByText("varied-keys.jsonl")).toBeVisible();
 
-      // Open input keys dropdown
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
+      // For JSONL, the source bucket is labeled "KEYS"
+      const sourceBucket = getBucket(page, "KEYS");
+      await expect(sourceBucket).toBeVisible();
 
-      // Should see all unique keys from all rows
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "question" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "answer" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "category" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "language" })
-      ).toBeVisible();
+      // Should see all unique keys from all rows, auto-assigned on file load
+      // "question" matches INPUT_NAMES, so it's auto-assigned to INPUT
+      await expectColumnInBucket(page, "question", "INPUT");
+      // Others don't match any auto-assignment rule, stay in source
+      await expectColumnInBucket(page, "answer", "KEYS");
+      await expectColumnInBucket(page, "category", "KEYS");
+      await expectColumnInBucket(page, "language", "KEYS");
     });
   });
 
-  test.describe("Column Selectors", () => {
-    test("column selectors are disabled until file is uploaded", async ({
-      page,
-    }) => {
+  test.describe("Column Assigner", () => {
+    test("column assigner appears after file is uploaded", async ({ page }) => {
       await page.goto("/datasets");
       await page.waitForURL("**/datasets");
 
@@ -216,32 +193,63 @@ test.describe("Dataset File Upload", () => {
         page.getByRole("heading", { name: "Create Dataset" })
       ).toBeVisible();
 
-      // Column selectors should be visible but disabled before file upload
-      await expect(page.getByText("Input keys")).toBeVisible();
-      await expect(page.getByText("Output keys")).toBeVisible();
-
-      // The select buttons should be disabled
-      const dialog = page.getByTestId("dialog");
-      const inputKeysButton = dialog
-        .locator("label", { hasText: "Input keys" })
-        .locator("xpath=..")
-        .getByRole("button");
-      await expect(inputKeysButton).toBeDisabled();
+      // Before file upload, there should be no column assigner buckets
+      await expect(getBucket(page, "COLUMNS")).not.toBeVisible();
+      await expect(getBucket(page, "INPUT")).not.toBeVisible();
 
       // Upload a file
       const fileInput = page.locator('input[type="file"]');
       await fileInput.setInputFiles(path.join(FIXTURES_DIR, "simple.csv"));
 
       // Wait for file to be processed
+      const dialog = page.getByTestId("dialog");
       await expect(dialog.getByText("simple.csv")).toBeVisible();
 
-      // Now column selectors should be enabled
-      await expect(inputKeysButton).toBeEnabled();
+      // Now column assigner should be visible
+      await expect(getBucket(page, "COLUMNS")).toBeVisible();
+      await expect(getBucket(page, "INPUT")).toBeVisible();
+      await expect(getBucket(page, "OUTPUT")).toBeVisible();
+      await expect(getBucket(page, "METADATA")).toBeVisible();
+    });
+
+    test("Reset and Auto buttons work independently", async ({ page }) => {
+      await page.goto("/datasets");
+      await page.waitForURL("**/datasets");
+
+      await page.getByRole("button", { name: "New Dataset" }).click();
+
+      // Upload CSV - simple.csv has input, output, metadata columns
+      const fileInput = page.locator('input[type="file"]');
+      await fileInput.setInputFiles(path.join(FIXTURES_DIR, "simple.csv"));
+
+      const dialog = page.getByTestId("dialog");
+      await expect(dialog.getByText("simple.csv")).toBeVisible();
+
+      // Columns are auto-assigned on file load
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
+
+      // Click Reset button - should clear all assignments
+      await dialog.getByRole("button", { name: "Reset" }).click();
+
+      // Now all columns should be back in the source bucket
+      await expectColumnInBucket(page, "input", "COLUMNS");
+      await expectColumnInBucket(page, "output", "COLUMNS");
+      await expectColumnInBucket(page, "metadata", "COLUMNS");
+
+      // Click Auto again - should restore auto-assignments
+      await dialog.getByRole("button", { name: "Auto" }).click();
+
+      // Columns should be back in their auto-assigned buckets
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
     });
   });
 
   test.describe("Full Upload Flow", () => {
-    test("can upload CSV, configure keys, and create dataset", async ({
+    test("can upload CSV, configure columns, and create dataset", async ({
       page,
     }) => {
       const datasetName = `csv-upload-${randomUUID().slice(0, 8)}`;
@@ -261,15 +269,14 @@ test.describe("Dataset File Upload", () => {
       await dialog.getByLabel("Name").clear();
       await dialog.getByLabel("Name").fill(datasetName);
 
-      // Select input key
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
-      await inputKeysListbox.getByRole("option", { name: "input" }).click();
-      await page.keyboard.press("Escape");
+      // Click Auto to auto-assign columns based on their names:
+      // "input" -> INPUT, "output" -> OUTPUT, "metadata" -> METADATA
+      await dialog.getByRole("button", { name: "Auto" }).click();
 
-      // Select output key
-      const outputKeysListbox = await openSelectByLabel(page, "Output keys");
-      await outputKeysListbox.getByRole("option", { name: "output" }).click();
-      await page.keyboard.press("Escape");
+      // Verify they're in the right buckets
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
 
       // Create dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
@@ -306,15 +313,13 @@ test.describe("Dataset File Upload", () => {
       await dialog.getByLabel("Name").clear();
       await dialog.getByLabel("Name").fill(datasetName);
 
-      // Select input key
-      const inputKeysListbox2 = await openSelectByLabel(page, "Input keys");
-      await inputKeysListbox2.getByRole("option", { name: "input" }).click();
-      await page.keyboard.press("Escape");
+      // Click Auto to auto-assign keys for JSONL
+      await dialog.getByRole("button", { name: "Auto" }).click();
 
-      // Select output key
-      const outputKeysListbox2 = await openSelectByLabel(page, "Output keys");
-      await outputKeysListbox2.getByRole("option", { name: "output" }).click();
-      await page.keyboard.press("Escape");
+      // Verify auto-assignment for JSONL
+      await expectColumnInBucket(page, "input", "INPUT");
+      await expectColumnInBucket(page, "output", "OUTPUT");
+      await expectColumnInBucket(page, "metadata", "METADATA");
 
       // Create dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
@@ -388,27 +393,17 @@ test.describe("Dataset File Upload", () => {
         timeout: 5000,
       });
 
-      // Verify columns were extracted correctly
-      await expect(dialog.getByText("Input keys")).toBeVisible({
+      // Verify columns were extracted correctly - source bucket should show columns
+      await expect(getBucket(page, "COLUMNS")).toBeVisible({
         timeout: 5000,
       });
 
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "id" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "name" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "email" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "description" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "created_at" })
-      ).toBeVisible();
+      // Verify specific columns are in the source bucket (none match auto-assign rules)
+      await expectColumnInBucket(page, "id", "COLUMNS");
+      await expectColumnInBucket(page, "name", "COLUMNS");
+      await expectColumnInBucket(page, "email", "COLUMNS");
+      await expectColumnInBucket(page, "description", "COLUMNS");
+      await expectColumnInBucket(page, "created_at", "COLUMNS");
     });
 
     test("can parse keys from a large JSONL without freezing", async ({
@@ -464,27 +459,20 @@ test.describe("Dataset File Upload", () => {
         timeout: 5000,
       });
 
-      // Verify keys were extracted correctly
-      await expect(dialog.getByText("Input keys")).toBeVisible({
+      // Verify keys were extracted - source bucket for JSONL is labeled "KEYS"
+      await expect(getBucket(page, "KEYS")).toBeVisible({
         timeout: 5000,
       });
 
-      const inputKeysListbox = await openSelectByLabel(page, "Input keys");
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "id" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "question" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "answer" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "context" })
-      ).toBeVisible();
-      await expect(
-        inputKeysListbox.getByRole("option", { name: "metadata" })
-      ).toBeVisible();
+      // Columns are auto-assigned on file load
+      // "question" matches INPUT_NAMES so it's auto-assigned to INPUT
+      await expectColumnInBucket(page, "question", "INPUT");
+      // "metadata" matches exact name so it's auto-assigned to METADATA
+      await expectColumnInBucket(page, "metadata", "METADATA");
+      // Others stay in source
+      await expectColumnInBucket(page, "id", "KEYS");
+      await expectColumnInBucket(page, "answer", "KEYS");
+      await expectColumnInBucket(page, "context", "KEYS");
     });
   });
 });

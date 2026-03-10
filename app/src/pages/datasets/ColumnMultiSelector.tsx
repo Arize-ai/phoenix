@@ -11,7 +11,6 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
-import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 
 export function ColumnMultiSelector(props: {
   description?: string;
@@ -37,33 +36,28 @@ export function ColumnMultiSelector(props: {
   }, [columns]);
 
   return (
-    <div css={fieldBaseCSS}>
-      <Label>{label}</Label>
-      <Select
-        isDisabled={noColumns || isDisabled}
-        placeholder="Select columns"
-        selectionMode="multiple"
-        onChange={(keys) => {
-          if (keys === "all") {
-            return onChange(columns);
-          }
-          return onChange(Array.from(keys as string[]));
-        }}
-        value={selectedColumns}
-      >
-        <Button>
-          <SelectValue />
-          <SelectChevronUpDownIcon />
-        </Button>
-        <Popover>
-          <ListBox
-            renderEmptyState={() => "No columns to select"}
-            items={items}
-          >
-            {(item) => <ListBoxItem id={item.id}>{item.value}</ListBoxItem>}
-          </ListBox>
-        </Popover>
-      </Select>
+    <Select
+      isDisabled={noColumns || isDisabled}
+      placeholder="Select columns"
+      selectionMode="multiple"
+      onChange={(keys) => {
+        if (keys === "all") {
+          return onChange(columns);
+        }
+        return onChange(Array.from(keys as string[]));
+      }}
+      value={selectedColumns}
+    >
+      {label && <Label>{label}</Label>}
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox renderEmptyState={() => "No columns to select"} items={items}>
+          {(item) => <ListBoxItem id={item.id}>{item.value}</ListBoxItem>}
+        </ListBox>
+      </Popover>
       {errorMessage ? (
         <Text slot="errorMessage" color="danger">
           {errorMessage}
@@ -72,6 +66,6 @@ export function ColumnMultiSelector(props: {
       {description && !errorMessage ? (
         <Text slot="description">{description}</Text>
       ) : null}
-    </div>
+    </Select>
   );
 }

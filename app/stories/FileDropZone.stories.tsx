@@ -210,10 +210,10 @@ export const WithFileList: StoryFn<FileDropZoneProps> = (args) => {
   }, []);
 
   return (
-    <View width="size-6000">
+    <Flex direction="column" gap="size-200" width="size-6000">
       <FileDropZone {...args} onSelect={handleSelect} />
       <FileList files={files} onRemove={handleRemove} />
-    </View>
+    </Flex>
   );
 };
 
@@ -270,10 +270,10 @@ export const WithUploadProgress: StoryFn<FileDropZoneProps> = (args) => {
   }, []);
 
   return (
-    <View width="size-6000">
+    <Flex direction="column" gap="size-200" width="size-6000">
       <FileDropZone {...args} onSelect={handleSelect} />
       <FileList files={files} onRemove={handleRemove} />
-    </View>
+    </Flex>
   );
 };
 
@@ -312,7 +312,7 @@ export const FileListWithRenderFunction: StoryFn<FileDropZoneProps> = (
   }, []);
 
   return (
-    <View width="size-6000">
+    <Flex direction="column" gap="size-200" width="size-6000">
       <FileDropZone {...args} onSelect={handleSelect} />
       <FileList files={files} onRemove={handleRemove}>
         {(fileWithProgress) => (
@@ -328,7 +328,7 @@ export const FileListWithRenderFunction: StoryFn<FileDropZoneProps> = (
           </li>
         )}
       </FileList>
-    </View>
+    </Flex>
   );
 };
 
