@@ -203,8 +203,6 @@ container = [
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
 ]
-test = [
-]
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"

@@ -619,7 +619,7 @@ requires-dist = [
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
     { name = "wrapt", specifier = ">=1.17.2,<2" },
 ]
-provides-extras = ["aws", "container", "evals", "experimental", "pg", "test"]
+provides-extras = ["aws", "container", "evals", "experimental", "pg"]
 
 [package.metadata.requires-dev]
 dev = [
