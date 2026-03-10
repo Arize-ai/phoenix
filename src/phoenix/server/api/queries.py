@@ -209,22 +209,10 @@ class TestGenerativeModelCustomProviderCredentialsResult:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(self) -> list[GenerativeProvider]:
-        import logging
-
-        from phoenix.config import get_env_hidden_providers
-
+    async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
         available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-        hidden = get_env_hidden_providers()
+        hidden = info.context.hidden_provider_names
         if hidden:
-            valid_names = {key.name for key in GenerativeProviderKey}
-            invalid = hidden - valid_names
-            if invalid:
-                logging.getLogger(__name__).warning(
-                    f"PHOENIX_HIDDEN_PROVIDERS contains unrecognized provider names: "
-                    f"{', '.join(sorted(invalid))}. "
-                    f"Valid names are: {', '.join(sorted(valid_names))}"
-                )
             available_providers = [p for p in available_providers if p.name not in hidden]
         return [
             GenerativeProvider(
