@@ -609,6 +609,47 @@ DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
 
+def _expand_keys_for_flatten(
+    keys: frozenset[str],
+    flatten_keys: FlattenKeys,
+    sample_rows: list[dict[str, Any]],
+) -> frozenset[str]:
+    """
+    Expand key sets by replacing parent keys with their children when flattening.
+
+    When a key in `keys` is also in `flatten_keys`, it is replaced with
+    the child keys found in the sample rows. Keys not in flatten_keys are kept as-is.
+
+    Args:
+        keys: Original key set (e.g., input_keys containing "input")
+        flatten_keys: Keys that will be flattened
+        sample_rows: Sample data rows to extract child keys from
+
+    Returns:
+        Expanded key set with parent keys replaced by children
+
+    Example:
+        >>> rows = [{"input": {"question": "Hi", "context": "Test"}}]
+        >>> _expand_keys_for_flatten(frozenset(["input", "id"]), frozenset(["input"]), rows)
+        frozenset({"question", "context", "id"})
+    """
+    if not flatten_keys:
+        return keys
+
+    result: set[str] = set()
+    for key in keys:
+        if key in flatten_keys:
+            # Collect child keys from all sample rows
+            for row in sample_rows:
+                value = row.get(key)
+                if isinstance(value, dict):
+                    result.update(value.keys())
+        else:
+            result.add(key)
+
+    return frozenset(result)
+
+
 def _flatten_row(row: dict[str, Any], flatten_keys: FlattenKeys) -> dict[str, Any]:
     """
     Flatten a row by promoting children of specified keys to the top level.
@@ -774,9 +815,9 @@ async def _process_csv(
     )
 
     def process_rows() -> list[ExampleContent]:
-        examples = []
+        # First pass: read all rows and parse JSON for flatten keys
+        parsed_rows: list[dict[str, Any]] = []
         for row in reader:
-            # For CSV with flatten_keys, parse JSON from string cells before flattening
             if flatten_keys:
                 parsed_row: dict[str, Any] = {}
                 for k, v in row.items():
@@ -789,13 +830,26 @@ async def _process_csv(
                         except (json.JSONDecodeError, TypeError):
                             pass
                     parsed_row[k] = v
-                row = _flatten_row(parsed_row, flatten_keys)
+                parsed_rows.append(parsed_row)
+            else:
+                parsed_rows.append(dict(row))
+
+        # Expand keys to include child keys from flattened parents
+        expanded_input_keys = _expand_keys_for_flatten(input_keys, flatten_keys, parsed_rows)
+        expanded_output_keys = _expand_keys_for_flatten(output_keys, flatten_keys, parsed_rows)
+        expanded_metadata_keys = _expand_keys_for_flatten(metadata_keys, flatten_keys, parsed_rows)
+
+        # Second pass: flatten rows and create examples
+        examples = []
+        for row in parsed_rows:
+            if flatten_keys:
+                row = _flatten_row(row, flatten_keys)
 
             examples.append(
                 ExampleContent(
-                    input={k: row.get(k) for k in input_keys},
-                    output={k: row.get(k) for k in output_keys},
-                    metadata={k: row.get(k) for k in metadata_keys},
+                    input={k: row.get(k) for k in expanded_input_keys},
+                    output={k: row.get(k) for k in expanded_output_keys},
+                    metadata={k: row.get(k) for k in expanded_metadata_keys},
                     splits=frozenset(
                         str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
                     ),
@@ -859,15 +913,21 @@ async def _process_jsonl(
 
     def parse_and_process(c: bytes) -> list[ExampleContent]:
         rows = [json.loads(line) for line in c.decode().splitlines()]
+
+        # Expand keys to include child keys from flattened parents
+        expanded_input_keys = _expand_keys_for_flatten(input_keys, flatten_keys, rows)
+        expanded_output_keys = _expand_keys_for_flatten(output_keys, flatten_keys, rows)
+        expanded_metadata_keys = _expand_keys_for_flatten(metadata_keys, flatten_keys, rows)
+
         examples: list[ExampleContent] = []
         for obj in rows:
             # Apply flattening if specified
             if flatten_keys:
                 obj = _flatten_row(obj, flatten_keys)
             example = ExampleContent(
-                input={k: obj.get(k) for k in input_keys},
-                output={k: obj.get(k) for k in output_keys},
-                metadata={k: obj.get(k) for k in metadata_keys},
+                input={k: obj.get(k) for k in expanded_input_keys},
+                output={k: obj.get(k) for k in expanded_output_keys},
+                metadata={k: obj.get(k) for k in expanded_metadata_keys},
                 splits=frozenset(
                     str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
                 ),

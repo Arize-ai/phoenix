@@ -1579,7 +1579,7 @@ async def test_post_dataset_upload_csv_with_flatten_keys(
         data={
             "action": "create",
             "name": name,
-            # Use original column names - validation happens before flatten
+            # Use original column names - the backend expands them to child keys
             "input_keys[]": ["question", "details"],
             "output_keys[]": [],
             "flatten_keys[]": ["details"],
@@ -1601,24 +1601,20 @@ async def test_post_dataset_upload_csv_with_flatten_keys(
         )
     assert len(revisions) == 2
 
-    # After flattening "details", the row has:
-    # - question: "What is 2+2?"
-    # - context: "math"        (promoted from details)
-    # - difficulty: "easy"     (promoted from details)
-    # - details: None          (no longer exists, key removed)
-    #
-    # Since input_keys=["question", "details"], we get:
-    # - question: value from row
-    # - details: None (key was flattened away)
+    # After flattening "details", the backend automatically expands input_keys
+    # from ["question", "details"] to ["question", "context", "difficulty"]
+    # (replacing "details" with its child keys)
     assert revisions[0].input == {
         "question": "What is 2+2?",
-        "details": None,  # Flattened away, so row.get("details") returns None
+        "context": "math",
+        "difficulty": "easy",
     }
     assert revisions[0].output == {}
 
     assert revisions[1].input == {
         "question": "Capital of France?",
-        "details": None,
+        "context": "geography",
+        "difficulty": "medium",
     }
     assert revisions[1].output == {}
 
@@ -1629,9 +1625,9 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
 ) -> None:
     """Test JSONL upload with flatten_keys to collapse nested objects.
 
-    When flatten_keys is used, the parent keys (input, output) are replaced by their
-    child keys (context, difficulty, answer). The input/output_keys should reference
-    the flattened child keys, not the original parent keys.
+    When flatten_keys is used, the backend automatically expands keys that are
+    being flattened to include their child keys. The API user can pass the original
+    parent keys (input, output) and the backend replaces them with their children.
     """
     name = inspect.stack()[0][3]
     # JSONL with nested objects that should be flattened
@@ -1648,9 +1644,9 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
         data={
             "action": "create",
             "name": name,
-            # After flattening, use the child keys (context, difficulty, answer)
-            "input_keys[]": ["question", "context", "difficulty"],
-            "output_keys[]": ["answer"],
+            # Use original parent keys - the backend expands them to child keys
+            "input_keys[]": ["question", "input"],
+            "output_keys[]": ["output"],
             "flatten_keys[]": ["input", "output"],
         },
     )
@@ -1670,7 +1666,8 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
         )
     assert len(revisions) == 2
 
-    # First row: "input" was flattened, so "context" and "difficulty" are promoted to input
+    # Backend expands input_keys ["question", "input"] -> ["question", "context", "difficulty"]
+    # and output_keys ["output"] -> ["answer"]
     assert revisions[0].input == {
         "question": "What is 2+2?",
         "context": "math",
@@ -1678,7 +1675,7 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
     }
     assert revisions[0].output == {"answer": "4"}
 
-    # Second row: difficulty is missing, so it will be None
+    # Second row: difficulty is missing from input, so it will be None
     assert revisions[1].input == {
         "question": "Capital of France?",
         "context": "geography",
