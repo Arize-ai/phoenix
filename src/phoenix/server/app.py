@@ -68,6 +68,7 @@ from phoenix.config import (
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
+    get_env_hidden_providers,
     get_env_host,
     get_env_log_sql,
     get_env_max_spans_queue_size,
@@ -717,9 +718,24 @@ def create_graphql_router(
         GraphQLRouter: The router mounted at /graphql
     """
 
+    hidden_provider_names = frozenset(get_env_hidden_providers())
+    if hidden_provider_names:
+        from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+        valid_names = {key.name for key in GenerativeProviderKey}
+        invalid = hidden_provider_names - valid_names
+        if invalid:
+            logger.warning(
+                f"PHOENIX_HIDDEN_PROVIDERS contains unrecognized provider names: "
+                f"{', '.join(sorted(invalid))}. "
+                f"Valid names are: {', '.join(sorted(valid_names))}"
+            )
+            hidden_provider_names = hidden_provider_names - invalid
+
     def get_context() -> Context:
         return Context(
             db=db,
+            hidden_provider_names=hidden_provider_names,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
             data_loaders=DataLoaders(
