@@ -60,6 +60,7 @@ from phoenix.config import (
     SERVER_DIR,
     OAuth2ClientConfig,
     get_env_allow_external_resources,
+    get_env_allowed_providers,
     get_env_csrf_trusted_origins,
     get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
@@ -717,9 +718,12 @@ def create_graphql_router(
         GraphQLRouter: The router mounted at /graphql
     """
 
+    allowed_provider_names = get_env_allowed_providers()
+
     def get_context() -> Context:
         return Context(
             db=db,
+            allowed_provider_names=allowed_provider_names,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
             data_loaders=DataLoaders(

@@ -173,6 +173,12 @@ server:
   # Memory usage: ~50KiB per span means 20,000 spans = ~1GiB. Adjust based on available memory and database throughput.
   maxSpansQueueSize: 20000
 
+  # -- Comma-separated list of model provider names to display in the playground UI (PHOENIX_ALLOWED_PROVIDERS)
+  # When unset, all providers are shown. Set to "NONE" to hide all providers.
+  # Supported values: OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA, AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  # Example: "OPENAI,ANTHROPIC"
+  allowedProviders: ""
+
 # Service configuration
 service:
   # -- Service type for Phoenix service (ClusterIP, NodePort, LoadBalancer, or ExternalName)

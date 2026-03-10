@@ -297,6 +297,17 @@ ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 Forbid login via password and disable the creation of local users, which log in via passwords.
 This can be helpful in setups where authentication is handled entirely through OAUTH2.
 """
+ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
+"""
+Comma-separated list of provider names to show in the UI.
+Provider names should match GenerativeProviderKey enum names:
+OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+Case-insensitive. When unset, all providers are shown.
+Set to NONE to hide all providers.
+Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
+"""
+
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION = "PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION"
 ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS = (
@@ -1098,6 +1109,41 @@ def get_env_disable_rate_limit() -> bool:
     Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
     """
     return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
+
+
+def get_env_allowed_providers() -> Optional[frozenset[str]]:
+    """Return frozenset of uppercase provider names to show, parsed from PHOENIX_ALLOWED_PROVIDERS.
+
+    Returns None when unset (all providers shown), or a frozenset of names to allow.
+    Set to NONE to hide all providers (returns empty frozenset).
+    """
+    raw = getenv(ENV_PHOENIX_ALLOWED_PROVIDERS)
+    if not raw:
+        return None
+    names = frozenset(name.strip().upper() for name in raw.split(",") if name.strip())
+    if names == frozenset({"NONE"}):
+        return frozenset()
+    return names
+
+
+def validate_env_allowed_providers() -> None:
+    """Validate PHOENIX_ALLOWED_PROVIDERS contains only recognized provider names.
+
+    Raises ValueError if any unrecognized provider names are found.
+    """
+    names = get_env_allowed_providers()
+    if names is None or not names:
+        return
+    from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+    valid_names = {key.name for key in GenerativeProviderKey}
+    invalid = names - valid_names
+    if invalid:
+        raise ValueError(
+            f"PHOENIX_ALLOWED_PROVIDERS contains unrecognized provider names: "
+            f"{', '.join(sorted(invalid))}. "
+            f"Valid names are: {', '.join(sorted(valid_names))}"
+        )
 
 
 def get_env_disable_brute_force_login_protection() -> bool:
@@ -3211,6 +3257,7 @@ def verify_server_environment_variables() -> None:
     get_env_max_spans_queue_size()
     validate_env_support_email()
     _validate_iam_auth_config()
+    validate_env_allowed_providers()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

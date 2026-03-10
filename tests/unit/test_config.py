@@ -2110,3 +2110,68 @@ class TestLDAPConfigFromEnv:
         assert config is not None
         assert config.tls_client_cert_file == str(client_cert_file)
         assert config.tls_client_key_file == str(client_key_file)
+
+
+class TestGetEnvAllowedProviders:
+    def test_unset_returns_none(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_PROVIDERS", raising=False)
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() is None
+
+    def test_none_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "NONE")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset()
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,ANTHROPIC")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+    def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "openai,Anthropic")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", " OPENAI , ANTHROPIC ")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+    def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,,ANTHROPIC,")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+
+class TestValidateEnvAllowedProviders:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_PROVIDERS", raising=False)
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "NONE")
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_valid_providers_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,ANTHROPIC")
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_invalid_provider_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,INVALID_PROVIDER")
+        from phoenix.config import validate_env_allowed_providers
+
+        with pytest.raises(ValueError, match="INVALID_PROVIDER"):
+            validate_env_allowed_providers()

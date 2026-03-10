@@ -126,6 +126,9 @@ data:
   PHOENIX_ALLOW_EXTERNAL_RESOURCES: {{ .Values.server.allowExternalResources | quote }}
   PHOENIX_TELEMETRY_ENABLED: {{ .Values.server.telemetryEnabled | quote }}
   PHOENIX_MAX_SPANS_QUEUE_SIZE: {{ .Values.server.maxSpansQueueSize | default 20000 | quote }}
+  {{- if .Values.server.allowedProviders }}
+  PHOENIX_ALLOWED_PROVIDERS: {{ .Values.server.allowedProviders | quote }}
+  {{- end }}
 
   # Database configuration
   {{- if .Values.database.url }}
