@@ -171,11 +171,19 @@ function SideNav() {
               />
             </li>
           )}
-          <li key="apis">
+          <li key="rest-api">
             <NavLink
-              to="/apis"
-              text="APIs"
+              to="/apis/rest"
+              text="REST API"
               leadingVisual={<Icon svg={<Icons.Code />} />}
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
+          <li key="graphql">
+            <NavLink
+              to="/apis/graphql"
+              text="GraphQL"
+              leadingVisual={<Icon svg={<Icons.GraphQL />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>

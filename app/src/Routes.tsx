@@ -36,7 +36,6 @@ import type {
   SpanPlaygroundPageLoaderData,
 } from "./pages";
 import {
-  APIsPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
   datasetLoader,
@@ -83,6 +82,8 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
+import { GraphQLPage } from "./pages/apis/GraphQLPage";
+import { RestAPIPage } from "./pages/apis/RestAPIPage";
 import { Layout } from "./pages/Layout";
 import { layoutLoader } from "./pages/layoutLoader";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
@@ -294,10 +295,17 @@ const router = createBrowserRouter(
             </Route>
           </Route>
           <Route
-            path="/apis"
-            element={<APIsPage />}
+            path="/apis/rest"
+            element={<RestAPIPage />}
             handle={{
-              crumb: () => "APIs", // TODO: add API name
+              crumb: () => "REST API",
+            }}
+          />
+          <Route
+            path="/apis/graphql"
+            element={<GraphQLPage />}
+            handle={{
+              crumb: () => "GraphQL",
             }}
           />
           <Route

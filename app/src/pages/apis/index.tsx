@@ -1,1 +1,2 @@
-export * from "./APIsPage";
+export * from "./RestAPIPage";
+export * from "./GraphQLPage";
