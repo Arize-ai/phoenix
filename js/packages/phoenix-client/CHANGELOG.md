@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.4.0
+
+### Minor Changes
+
+- 83b7f68: Add `getSessionTurns` function to retrieve ordered conversation turns (root span I/O) from a session
+
 ## 6.3.0
 
 ### Minor Changes
