@@ -83,13 +83,25 @@ export function CreateDatasetButton({
                 <DialogCloseButton slot="close" />
               </DialogTitleExtra>
             </DialogHeader>
-            <DialogContent>
+            <DialogContent
+              css={css`
+                height: auto;
+                flex: 1 1 auto;
+                min-height: 0;
+              `}
+            >
               <Tabs>
                 <TabList>
                   <Tab id="fromFile">From file</Tab>
                   <Tab id="fromScratch">From scratch</Tab>
                 </TabList>
-                <TabPanel id="fromFile">
+                <TabPanel
+                  id="fromFile"
+                  css={css`
+                    flex: 1;
+                    min-height: 0;
+                  `}
+                >
                   <DatasetFromFileForm
                     onDatasetCreated={handleCreated}
                     onCancel={handleCancel}
