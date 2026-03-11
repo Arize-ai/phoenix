@@ -15,11 +15,14 @@ import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
-import { BASE_URL } from "@phoenix/config";
 
 import { GenerateAPIKeyButton, IsAdmin, IsAuthenticated } from "../auth";
-import { HOSTED_PHOENIX_URL, IS_HOSTED_DEPLOYMENT } from "./hosting";
+import { IS_HOSTED_DEPLOYMENT } from "./hosting";
 import { PythonIntegrations } from "./Integrations";
+import {
+  getEnvironmentVariables,
+  getOtelInitCodePython,
+} from "./integrationSnippets";
 
 const PHOENIX_OTEL_DOC_LINK =
   "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
@@ -28,24 +31,6 @@ const OTEL_DOC_LINK =
   "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly";
 const PHOENIX_ENVIRONMENT_VARIABLES_LINK =
   "https://arize.com/docs/phoenix/setup/configuration";
-
-function getEnvironmentVariablesPython({
-  isAuthEnabled,
-  isHosted,
-  apiKey,
-}: {
-  isAuthEnabled: boolean;
-  isHosted: boolean;
-  apiKey?: string;
-}): string {
-  const apiKeyValue = apiKey || "<your-api-key>";
-  if (isHosted) {
-    return `PHOENIX_CLIENT_HEADERS='api_key=${apiKeyValue}'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
-  } else if (isAuthEnabled) {
-    return `PHOENIX_API_KEY='${apiKeyValue}'\nPHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
-  }
-  return `PHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
-}
 
 const INSTRUMENT_OPENAI_PYTHON = `from openinference.instrumentation.openai import OpenAIInstrumentor
 
@@ -67,20 +52,6 @@ chat_completion = client.chat.completions.create(
     ],
     model="gpt-3.5-turbo",
 )`;
-const getOtelInitCodePython = ({
-  isHosted,
-  projectName,
-}: {
-  isHosted: boolean;
-  projectName: string;
-}) => {
-  return `from phoenix.otel import register\n
-tracer_provider = register(
-  project_name="${projectName}",
-  endpoint="${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
-  auto_instrument=True
-)`;
-};
 
 type PythonProjectGuideProps = {
   /**
@@ -92,7 +63,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
   const isHosted = IS_HOSTED_DEPLOYMENT;
   const isAuthEnabled = window.Config.authenticationEnabled;
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
-  const environmentVariablesPython = getEnvironmentVariablesPython({
+  const environmentVariablesPython = getEnvironmentVariables({
     isAuthEnabled,
     isHosted,
     apiKey: generatedApiKey ?? undefined,

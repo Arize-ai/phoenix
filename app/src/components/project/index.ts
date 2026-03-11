@@ -16,3 +16,4 @@ export * from "./IntegrationIcons";
 export { PythonProjectGuide } from "./PythonProjectGuide";
 export { TypeScriptProjectGuide } from "./TypeScriptProjectGuide";
 export * from "./hosting";
+export * from "./integrationSnippets";

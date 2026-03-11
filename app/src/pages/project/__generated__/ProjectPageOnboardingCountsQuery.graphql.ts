@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a4c171657bc5502b5dc81fa47465354>>
+ * @generated SignedSource<<b0ea34a90a4ccaf2525c007c5a34a829>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type ProjectPageOnboardingCountsQuery$variables = {
 };
 export type ProjectPageOnboardingCountsQuery$data = {
   readonly project: {
+    readonly name?: string;
     readonly totalSpanCount?: number;
     readonly totalTraceCount?: number;
   };
@@ -41,6 +42,13 @@ v1 = [
 v2 = {
   "kind": "InlineFragment",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    },
     {
       "alias": "totalTraceCount",
       "args": null,
@@ -117,16 +125,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "956a1e019c47caf28335bd5200c58211",
+    "cacheID": "aaad147b033dc28cc357733ee2ab8c03",
     "id": null,
     "metadata": {},
     "name": "ProjectPageOnboardingCountsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageOnboardingCountsQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      totalTraceCount: traceCount\n      totalSpanCount: recordCount\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectPageOnboardingCountsQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      totalTraceCount: traceCount\n      totalSpanCount: recordCount\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "13e620e3c862a6b5a2d520f37b117338";
+(node as any).hash = "7a3f00e6ed5e48eabf4414e4bab25133";
 
 export default node;
