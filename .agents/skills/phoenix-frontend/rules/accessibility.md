@@ -4,12 +4,6 @@
 
 - Interactive actions MUST use buttons, not clickable divs
 - Lists MUST use `<ul>`/`<ol>`
-- `elementType` props SHOULD be used to avoid unnecessary div nesting
-
-## Interaction patterns
-
-- Overlays MUST open on click/keyboard activation — hover triggers MUST NOT be used. Hover is unreliable on touch and adds steps.
-- Focus management SHOULD be left to the component library on dialog open/close — manual `focus()` calls SHOULD NOT be used unless necessary.
 
 ## WCAG 2.1 AA baseline
 

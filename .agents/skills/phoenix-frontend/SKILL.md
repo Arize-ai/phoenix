@@ -8,8 +8,6 @@ internal: true
 
 Composable rules for building UI in the Phoenix app. Before starting work, explore `app/src/components/` and `app/package.json` to understand existing patterns, packages, and conventions — then follow these rules.
 
-The keywords "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in rule files are interpreted per [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
-
 ## Rule Files
 
 Read the relevant file(s) based on the task:

@@ -2,7 +2,7 @@
 
 ## Naming
 
-- Variables MUST NOT use single letters (except short lambdas like `.map(x => x.id)`)
+- Variables MUST NOT use single letters
 - Complex conditions SHOULD be extracted into named booleans so code reads as prose
 - Booleans MUST use verb prefixes: `isAllowed`, `hasError`, `canSubmit` — not `allowed`, `error`
 
