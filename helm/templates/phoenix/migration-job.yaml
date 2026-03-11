@@ -1,0 +1,78 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "phoenix.fullname" . }}-migrate
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    app: {{ include "phoenix.fullname" . }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,post-install
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      labels:
+        app: {{ include "phoenix.fullname" . }}-migrate
+    spec:
+      restartPolicy: OnFailure
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "phoenix.fullname" .) }}
+      {{- end }}
+      {{- if .Values.securityContext.pod.enabled }}
+      securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ .Values.image.registry }}/{{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          command: ["phoenix", "db", "migrate"]
+          {{- if .Values.securityContext.container.enabled }}
+          securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.migrations.resources }}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "phoenix.fullname" . }}-configmap
+          {{- if or .Values.auth.secret .Values.migrations.migrateIndexConcurrently (and .Values.additionalEnv (gt (len .Values.additionalEnv) 0)) }}
+          env:
+          {{- if .Values.auth.secret }}
+          {{- range $authSecrets := .Values.auth.secret }}
+            - name: {{ $authSecrets.key }}
+              valueFrom:
+              {{- if $authSecrets.valueFrom }}
+                {{- $authSecrets.valueFrom | toYaml | nindent 16 }}
+              {{- else }}
+                secretKeyRef:
+                  name: {{ $.Values.auth.name }}
+                  key: {{ $authSecrets.key }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.migrations.migrateIndexConcurrently }}
+            - name: PHOENIX_MIGRATE_INDEX_CONCURRENTLY
+              value: "true"
+          {{- end }}
+          {{- if and .Values.additionalEnv (gt (len .Values.additionalEnv) 0) }}
+          {{- .Values.additionalEnv | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
+      {{- if .Values.serviceAccount.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.serviceAccount.imagePullSecrets }}
+        - name: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

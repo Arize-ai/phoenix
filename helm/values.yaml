@@ -21,6 +21,30 @@ deployment:
   nodeSelector: {}
   affinity: {}
 
+# Migration Job configuration
+migrations:
+  # -- Run database migrations as a Helm hook Job before the Deployment rollout.
+  # When enabled, a Kubernetes Job runs `phoenix db migrate` as a pre-upgrade and
+  # post-install hook, guaranteeing the database schema is up to date before any
+  # server pod starts. Recommended for multi-replica deployments with large PostgreSQL
+  # databases where migrations can take long enough to trigger liveness probe failures.
+  enabled: false
+
+  # -- Use CREATE INDEX CONCURRENTLY for index-creation migrations on PostgreSQL.
+  # Avoids acquiring a write lock on the table during the index build, so an existing
+  # Phoenix instance can continue ingesting traces while the migration runs.
+  # Note: CONCURRENTLY is roughly 2-3x slower than the default. Ignored for SQLite.
+  migrateIndexConcurrently: false
+
+  # -- Resource requests and limits for the migration Job container.
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+
 # -- Additional environment variables to add to the deployments pod spec
 # For supported environment variables see https://arize.com/docs/phoenix/self-hosting/configuration#environment-variables
 # Should only be used for capabilities not exposed via the helm chart directly
