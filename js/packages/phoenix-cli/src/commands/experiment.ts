@@ -9,6 +9,7 @@ import {
   formatExperimentJsonOutput,
   type OutputFormat,
 } from "./formatExperiment";
+import { createExperimentExportCommand } from "./experimentExport";
 
 interface ExperimentOptions {
   endpoint?: string;
@@ -139,6 +140,8 @@ export function createExperimentCommand(): Command {
     .option("--no-progress", "Disable progress indicators")
     .option("--file <path>", "Save experiment to file instead of stdout")
     .action(experimentHandler);
+
+  command.addCommand(createExperimentExportCommand());
 
   return command;
 }

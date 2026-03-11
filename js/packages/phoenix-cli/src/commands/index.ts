@@ -6,6 +6,7 @@ export * from "./datasets";
 export * from "./dataset";
 export * from "./experiments";
 export * from "./experiment";
+export * from "./experimentExport";
 export * from "./sessions";
 export * from "./session";
 export * from "./prompts";
