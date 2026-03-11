@@ -618,24 +618,90 @@ DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
 
-class FlattenPlan(NamedTuple):
-    input_direct_keys: InputKeys
-    input_flatten_keys: FlattenKeys
-    input_child_keys_by_parent: Mapping[str, frozenset[str]]
-    output_direct_keys: OutputKeys
-    output_flatten_keys: FlattenKeys
-    output_child_keys_by_parent: Mapping[str, frozenset[str]]
-    metadata_direct_keys: MetadataKeys
-    metadata_flatten_keys: FlattenKeys
-    metadata_child_keys_by_parent: Mapping[str, frozenset[str]]
+class BucketPlan(NamedTuple):
+    """
+    Projection plan for flattening nested objects into a single bucket.
+
+    When uploading datasets, users can specify columns containing JSON objects that should
+    be "flattened" - their child keys extracted and merged into the target bucket. This
+    plan captures which keys to copy directly vs. which to extract from nested objects.
+
+    Attributes:
+        direct_keys: Top-level columns to copy as-is into the bucket.
+        flatten_keys: Parent columns whose child keys should be extracted.
+        child_keys_by_parent: For each flatten key, which child keys to extract.
+
+    Example:
+        Given a row {"context": {"documents": [...], "query": "..."}, "answer": "..."}
+        with keys={"context"} and flatten_keys={"context"}:
+        - direct_keys = frozenset()  # "context" is flattened, not copied directly
+        - flatten_keys = frozenset({"context"})
+        - child_keys_by_parent = {"context": frozenset({"documents", "query"})}
+
+        Calling project() on this row yields: {"documents": [...], "query": "..."}
+    """
+
+    direct_keys: frozenset[str]
+    flatten_keys: FlattenKeys
+    child_keys_by_parent: Mapping[str, frozenset[str]]
+
+    def project(self, row: Mapping[str, Any]) -> dict[str, Any]:
+        """
+        Project a row into this bucket by applying the flatten plan.
+
+        Copies direct keys from the row and extracts child keys from flattened objects,
+        merging them into a single flat dictionary.
+
+        Args:
+            row: The source row containing all column values.
+
+        Returns:
+            A dictionary containing the projected bucket values.
+
+        Raises:
+            ValueError: If a flatten key does not contain an object (dict) value.
+        """
+        result = {key: row.get(key) for key in self.direct_keys}
+        for parent_key in self.flatten_keys:
+            child_keys = self.child_keys_by_parent.get(parent_key, frozenset())
+            if not child_keys:
+                continue
+            value = row.get(parent_key)
+            if not isinstance(value, Mapping):
+                raise ValueError(
+                    f"Cannot flatten key '{parent_key}': row must contain an object value"
+                )
+            for child_key in child_keys:
+                result[child_key] = value.get(child_key)
+        return result
 
 
-def _build_bucket_projection_plan(
+def _build_bucket_plan(
     keys: frozenset[str],
     flatten_keys: FlattenKeys,
     child_keys_by_parent: Mapping[str, frozenset[str]],
     top_level_keys: frozenset[str],
-) -> tuple[frozenset[str], FlattenKeys, Mapping[str, frozenset[str]]]:
+) -> BucketPlan:
+    """
+    Build the projection plan for a single bucket (input, output, or metadata).
+
+    Determines which keys should be copied directly from the row and which should be
+    extracted from nested objects (flattened). Validates that flattening won't cause
+    key collisions.
+
+    Args:
+        keys: The set of keys assigned to this bucket by the user.
+        flatten_keys: All parent keys marked for flattening across all buckets.
+        child_keys_by_parent: Mapping of each flatten key to its discovered child keys.
+        top_level_keys: All top-level column names in the dataset.
+
+    Returns:
+        A BucketPlan containing direct_keys, flatten_keys, and child_keys_by_parent.
+
+    Raises:
+        ValueError: If flattening would produce duplicate keys (e.g., a child key from
+            one flattened object conflicts with another selected key).
+    """
     relevant_flatten_keys = frozenset(
         parent_key
         for parent_key in flatten_keys
@@ -666,21 +732,44 @@ def _build_bucket_projection_plan(
                     f"'{parent_key}': emitted key '{child_key}' conflicts "
                     f"with selected key '{existing_key}'"
                 )
-        for child_key in emitted_child_keys_by_parent[parent_key]:
             emitted_keys[child_key] = parent_key
 
-    return direct_keys, relevant_flatten_keys, emitted_child_keys_by_parent
+    return BucketPlan(
+        direct_keys=direct_keys,
+        flatten_keys=relevant_flatten_keys,
+        child_keys_by_parent=emitted_child_keys_by_parent,
+    )
 
 
-def _build_flatten_plan(
+def _build_flatten_plans(
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
-    split_keys: SplitKeys,
-    span_id_key: SpanIdKey,
     flatten_keys: FlattenKeys,
     rows: list[dict[str, Any]],
-) -> FlattenPlan:
+) -> tuple[BucketPlan, BucketPlan, BucketPlan]:
+    """
+    Build projection plans for flattening nested objects into dataset buckets.
+
+    This function performs two passes:
+    1. Scans all rows to discover child keys for each flatten key and validate
+       that flatten keys contain object values (dicts).
+    2. Builds projection plans for each bucket (input, output, metadata).
+
+    Args:
+        input_keys: Column names assigned to the input bucket.
+        output_keys: Column names assigned to the output bucket.
+        metadata_keys: Column names assigned to the metadata bucket.
+        flatten_keys: Column names whose object values should be flattened.
+        rows: All parsed rows from the dataset file.
+
+    Returns:
+        A tuple of (input_plan, output_plan, metadata_plan) BucketPlans.
+
+    Raises:
+        ValueError: If a flatten key contains a non-object value in any row, or if
+            flattening would cause key collisions within a bucket.
+    """
     selected_assignment_keys = input_keys | output_keys | metadata_keys
     child_keys_by_parent: dict[str, frozenset[str]] = {}
     invalid_row_by_parent: dict[str, int | None] = {}
@@ -709,67 +798,17 @@ def _build_flatten_plan(
             )
     top_level_keys = frozenset(key for row in rows for key in row.keys())
 
-    (
-        input_direct_keys,
-        input_flatten_keys,
-        input_child_keys_by_parent,
-    ) = _build_bucket_projection_plan(
-        input_keys,
-        requested_flatten_keys,
-        child_keys_by_parent,
-        top_level_keys,
+    return (
+        _build_bucket_plan(
+            input_keys, requested_flatten_keys, child_keys_by_parent, top_level_keys
+        ),
+        _build_bucket_plan(
+            output_keys, requested_flatten_keys, child_keys_by_parent, top_level_keys
+        ),
+        _build_bucket_plan(
+            metadata_keys, requested_flatten_keys, child_keys_by_parent, top_level_keys
+        ),
     )
-    (
-        output_direct_keys,
-        output_flatten_keys,
-        output_child_keys_by_parent,
-    ) = _build_bucket_projection_plan(
-        output_keys,
-        requested_flatten_keys,
-        child_keys_by_parent,
-        top_level_keys,
-    )
-    (
-        metadata_direct_keys,
-        metadata_flatten_keys,
-        metadata_child_keys_by_parent,
-    ) = _build_bucket_projection_plan(
-        metadata_keys,
-        requested_flatten_keys,
-        child_keys_by_parent,
-        top_level_keys,
-    )
-
-    return FlattenPlan(
-        input_direct_keys=input_direct_keys,
-        input_flatten_keys=input_flatten_keys,
-        input_child_keys_by_parent=input_child_keys_by_parent,
-        output_direct_keys=output_direct_keys,
-        output_flatten_keys=output_flatten_keys,
-        output_child_keys_by_parent=output_child_keys_by_parent,
-        metadata_direct_keys=metadata_direct_keys,
-        metadata_flatten_keys=metadata_flatten_keys,
-        metadata_child_keys_by_parent=metadata_child_keys_by_parent,
-    )
-
-
-def _project_bucket(
-    row: Mapping[str, Any],
-    direct_keys: frozenset[str],
-    flatten_keys: FlattenKeys,
-    child_keys_by_parent: Mapping[str, frozenset[str]],
-) -> dict[str, Any]:
-    result = {key: row.get(key) for key in direct_keys}
-    for parent_key in flatten_keys:
-        child_keys = child_keys_by_parent.get(parent_key, frozenset())
-        if not child_keys:
-            continue
-        value = row.get(parent_key)
-        if not isinstance(value, Mapping):
-            raise ValueError(f"Cannot flatten key '{parent_key}': row must contain an object value")
-        for child_key in child_keys:
-            result[child_key] = value.get(child_key)
-    return result
 
 
 def _process_json(
@@ -911,12 +950,10 @@ async def _process_csv(
             else:
                 parsed_rows.append(dict(row))
 
-        flatten_plan = _build_flatten_plan(
+        input_plan, output_plan, metadata_plan = _build_flatten_plans(
             input_keys=input_keys,
             output_keys=output_keys,
             metadata_keys=metadata_keys,
-            split_keys=split_keys,
-            span_id_key=span_id_key,
             flatten_keys=flatten_keys,
             rows=parsed_rows,
         )
@@ -926,24 +963,9 @@ async def _process_csv(
         for row in parsed_rows:
             examples.append(
                 ExampleContent(
-                    input=_project_bucket(
-                        row,
-                        flatten_plan.input_direct_keys,
-                        flatten_plan.input_flatten_keys,
-                        flatten_plan.input_child_keys_by_parent,
-                    ),
-                    output=_project_bucket(
-                        row,
-                        flatten_plan.output_direct_keys,
-                        flatten_plan.output_flatten_keys,
-                        flatten_plan.output_child_keys_by_parent,
-                    ),
-                    metadata=_project_bucket(
-                        row,
-                        flatten_plan.metadata_direct_keys,
-                        flatten_plan.metadata_flatten_keys,
-                        flatten_plan.metadata_child_keys_by_parent,
-                    ),
+                    input=input_plan.project(row),
+                    output=output_plan.project(row),
+                    metadata=metadata_plan.project(row),
                     splits=frozenset(
                         str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
                     ),
@@ -1008,12 +1030,10 @@ async def _process_jsonl(
     def parse_and_process(c: bytes) -> list[ExampleContent]:
         rows = [json.loads(line) for line in c.decode().splitlines()]
 
-        flatten_plan = _build_flatten_plan(
+        input_plan, output_plan, metadata_plan = _build_flatten_plans(
             input_keys=input_keys,
             output_keys=output_keys,
             metadata_keys=metadata_keys,
-            split_keys=split_keys,
-            span_id_key=span_id_key,
             flatten_keys=flatten_keys,
             rows=rows,
         )
@@ -1021,24 +1041,9 @@ async def _process_jsonl(
         examples: list[ExampleContent] = []
         for obj in rows:
             example = ExampleContent(
-                input=_project_bucket(
-                    obj,
-                    flatten_plan.input_direct_keys,
-                    flatten_plan.input_flatten_keys,
-                    flatten_plan.input_child_keys_by_parent,
-                ),
-                output=_project_bucket(
-                    obj,
-                    flatten_plan.output_direct_keys,
-                    flatten_plan.output_flatten_keys,
-                    flatten_plan.output_child_keys_by_parent,
-                ),
-                metadata=_project_bucket(
-                    obj,
-                    flatten_plan.metadata_direct_keys,
-                    flatten_plan.metadata_flatten_keys,
-                    flatten_plan.metadata_child_keys_by_parent,
-                ),
+                input=input_plan.project(obj),
+                output=output_plan.project(obj),
+                metadata=metadata_plan.project(obj),
                 splits=frozenset(
                     str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
                 ),
