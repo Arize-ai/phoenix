@@ -1491,9 +1491,8 @@ class TestBuildFlattenPlan:
             rows=rows,
         )
 
-        assert input_plan.flatten_keys == frozenset(["input"])
-        assert output_plan.flatten_keys == frozenset()
-        assert input_plan.child_keys_by_parent == {"input": frozenset(["question"])}
+        assert input_plan.flatten_map == {"input": frozenset(["question"])}
+        assert output_plan.flatten_map == {}
 
     def test_allows_duplicate_children_across_different_buckets(self) -> None:
         from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
@@ -1508,10 +1507,8 @@ class TestBuildFlattenPlan:
             rows=rows,
         )
 
-        assert input_plan.flatten_keys == frozenset(["input"])
-        assert output_plan.flatten_keys == frozenset(["output"])
-        assert input_plan.child_keys_by_parent == {"input": frozenset(["text"])}
-        assert output_plan.child_keys_by_parent == {"output": frozenset(["text"])}
+        assert input_plan.flatten_map == {"input": frozenset(["text"])}
+        assert output_plan.flatten_map == {"output": frozenset(["text"])}
 
     def test_rejects_duplicate_children_within_same_bucket(self) -> None:
         from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
@@ -1520,7 +1517,7 @@ class TestBuildFlattenPlan:
 
         with pytest.raises(
             ValueError,
-            match="Cannot flatten key 'output': emitted key 'text' conflicts with selected key 'input'",
+            match=r"Cannot flatten 'output': keys \{'text'\} already emitted",
         ):
             _build_flatten_plans(
                 input_keys=frozenset(["input", "output"]),
@@ -1543,7 +1540,7 @@ class TestBuildFlattenPlan:
             rows=rows,
         )
 
-        assert input_plan.flatten_keys == frozenset(["input"])
+        assert input_plan.flatten_map == {"input": frozenset(["text"])}
 
     def test_rejects_conflict_with_selected_sibling_key_in_same_bucket(self) -> None:
         from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
@@ -1552,7 +1549,7 @@ class TestBuildFlattenPlan:
 
         with pytest.raises(
             ValueError,
-            match="Cannot flatten key 'input': emitted key 'text' conflicts with selected key 'text'",
+            match=r"Keys \{'text'\} conflict with flattened children",
         ):
             _build_flatten_plans(
                 input_keys=frozenset(["input", "text"]),
@@ -1569,7 +1566,7 @@ class TestBuildFlattenPlan:
 
         with pytest.raises(
             ValueError,
-            match="Cannot flatten key 'input': row 2 must contain an object value",
+            match="Cannot flatten 'input': expected object values",
         ):
             _build_flatten_plans(
                 input_keys=frozenset(["input"]),
@@ -1773,8 +1770,8 @@ async def test_post_dataset_upload_flatten_keys_partial(
         data={
             "action": "create",
             "name": name,
-            # After flattening "input", use its child key "question"
-            "input_keys[]": ["question"],
+            # Select "input" to trigger flattening - children are promoted to top-level
+            "input_keys[]": ["input"],
             # "output" and "metadata" are not flattened, so we use them directly
             "output_keys[]": ["output"],
             "metadata_keys[]": ["metadata"],
