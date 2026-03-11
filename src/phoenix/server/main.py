@@ -231,6 +231,8 @@ def main() -> None:
         ),
     )
 
+    subparsers.add_parser("migrate")
+
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
@@ -244,7 +246,11 @@ def main() -> None:
     force_fixture_ingestion = False
     scaffold_datasets = False
     tracing_fixture_names = set()
-    if args.command == "trace-fixture":
+    if args.command == "migrate":
+        engine = create_engine_and_run_migrations(db_connection_str)
+        engine.sync_engine.dispose()
+        return
+    elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
     elif args.command == "serve":
         if args.with_trace_fixtures:
