@@ -47,7 +47,10 @@ from phoenix.server.api.helpers.experiment_run_filters import (
     compile_sqlalchemy_filter_condition,
     update_examples_query_with_filter_condition,
 )
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.helpers.playground_clients import (
+    get_openai_client_class,
+    initialize_playground_clients,
+)
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
@@ -58,6 +61,7 @@ from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
     GenerativeModelCustomerProviderConfigInput,
 )
+from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
@@ -144,6 +148,7 @@ initialize_playground_clients()
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
     model_name: Optional[str] = None
+    openai_api_type: Optional[OpenAIApiType] = None
 
 
 @strawberry.type
@@ -465,14 +470,17 @@ class Query:
             return []
         provider_key = input.provider_key
         model_name = input.model_name
-        if provider_key is not None:
-            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
-            if client is None:
-                return []
-            invocation_parameters = client.supported_invocation_parameters()
-            return invocation_parameters
-        else:
+        if provider_key is None:
             return []
+        # For OpenAI/Azure, use openai_api_type to determine the correct client class
+        client = get_openai_client_class(provider_key, model_name or "", input.openai_api_type)
+        # Fall back to registry for non-OpenAI providers or when openai_api_type is None
+        if client is None:
+            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+        if client is None:
+            return []
+        invocation_parameters = client.supported_invocation_parameters()
+        return invocation_parameters
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(

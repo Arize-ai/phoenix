@@ -2028,6 +2028,7 @@ enum ModelProvider {
 input ModelsInput {
   providerKey: GenerativeProviderKey
   modelName: String = null
+  openaiApiType: OpenAIApiType = null
 }
 
 type Mutation {

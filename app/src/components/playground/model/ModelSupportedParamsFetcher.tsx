@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
+import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import type { Mutable } from "@phoenix/typeUtils";
@@ -23,6 +24,12 @@ export const ModelSupportedParamsFetcher = ({
   }
   const modelProvider = instance.model.provider;
   const modelName = instance.model.modelName;
+  // Only apply default openaiApiType for OpenAI/Azure providers
+  const isOpenAIProvider =
+    modelProvider === "OPENAI" || modelProvider === "AZURE_OPENAI";
+  const openaiApiType = isOpenAIProvider
+    ? (instance.model.openaiApiType ?? DEFAULT_OPENAI_API_TYPE)
+    : null;
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -82,6 +89,7 @@ export const ModelSupportedParamsFetcher = ({
         input: {
           providerKey: modelProvider,
           modelName,
+          openaiApiType,
         },
       }
     );
