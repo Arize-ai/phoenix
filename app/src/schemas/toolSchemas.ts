@@ -134,7 +134,7 @@ export type OpenAIResponsesToolDefinition = z.infer<
  */
 export const anthropicToolDefinitionSchema = z.object({
   name: z.string(),
-  description: z.string(),
+  description: z.string().optional(),
   input_schema: jsonSchemaZodSchema,
 });
 
@@ -155,7 +155,7 @@ export const anthropicToolDefinitionJSONSchema = z.toJSONSchema(
 export const awsToolDefinitionSchema = z.object({
   toolSpec: z.object({
     name: z.string(),
-    description: z.string().min(1),
+    description: z.string().min(1).optional(),
     inputSchema: z.object({
       json: jsonSchemaZodSchema,
     }),
@@ -203,7 +203,9 @@ export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
     type: "function",
     function: {
       name: aws.toolSpec.name,
-      description: aws.toolSpec.description,
+      ...(aws.toolSpec.description != null && {
+        description: aws.toolSpec.description,
+      }),
       parameters: aws.toolSpec.inputSchema.json,
     },
   })
@@ -213,7 +215,9 @@ export const openAIToolToAws = openAIToolDefinitionSchema.transform(
   (openai): AwsToolDefinition => ({
     toolSpec: {
       name: openai.function.name,
-      description: openai.function.description ?? openai.function.name,
+      ...(openai.function.description != null && {
+        description: openai.function.description,
+      }),
       inputSchema: {
         json: openai.function.parameters,
       },
@@ -229,7 +233,9 @@ export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
     type: "function",
     function: {
       name: anthropic.name,
-      description: anthropic.description,
+      ...(anthropic.description != null && {
+        description: anthropic.description,
+      }),
       parameters: anthropic.input_schema,
     },
   })
@@ -241,7 +247,9 @@ export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
 export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
   (openai): AnthropicToolDefinition => ({
     name: openai.function.name,
-    description: openai.function.description ?? "",
+    ...(openai.function.description != null && {
+      description: openai.function.description,
+    }),
     input_schema: openai.function.parameters,
   })
 );
