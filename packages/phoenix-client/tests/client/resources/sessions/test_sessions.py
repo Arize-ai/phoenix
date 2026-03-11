@@ -4,6 +4,7 @@ import pytest
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
+from phoenix.client.resources.spans import AsyncSpans, Spans
 
 
 def _make_session_data(
@@ -41,7 +42,7 @@ class TestSessionsGet:
             return httpx.Response(200, json={"data": session})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = Sessions(client).get(session_id="my-session")
+        result = Sessions(client, Spans(client)).get(session_id="my-session")
         assert result["session_id"] == "my-session"
         assert len(result["traces"]) == 2
 
@@ -51,7 +52,7 @@ class TestSessionsGet:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
-            Sessions(client).get(session_id="nonexistent")
+            Sessions(client, Spans(client)).get(session_id="nonexistent")
 
 
 class TestSessionsList:
@@ -60,14 +61,14 @@ class TestSessionsList:
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="Either project_id or project_name"):
-            Sessions(client).list()
+            Sessions(client, Spans(client)).list()
 
     def test_list_rejects_both_identifiers(self) -> None:
         client = httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="Only one of"):
-            Sessions(client).list(project_id="p1", project_name="p1")
+            Sessions(client, Spans(client)).list(project_id="p1", project_name="p1")
 
     def test_list_single_page(self) -> None:
         sessions = [_make_session_data(id=f"id{i}", session_id=f"s{i}") for i in range(3)]
@@ -77,7 +78,7 @@ class TestSessionsList:
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = Sessions(client).list(project_name="my-project")
+        result = Sessions(client, Spans(client)).list(project_name="my-project")
         assert len(result) == 3
 
     def test_list_paginates(self) -> None:
@@ -97,7 +98,7 @@ class TestSessionsList:
                 return httpx.Response(200, json={"data": page2, "next_cursor": None})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = Sessions(client).list(project_name="proj")
+        result = Sessions(client, Spans(client)).list(project_name="proj")
         assert len(result) == 2
         assert result[0]["session_id"] == "s1"
         assert result[1]["session_id"] == "s2"
@@ -109,7 +110,7 @@ class TestSessionsList:
             return httpx.Response(200, json={"data": sessions, "next_cursor": "more"})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = Sessions(client).list(project_name="proj", limit=3)
+        result = Sessions(client, Spans(client)).list(project_name="proj", limit=3)
         assert len(result) == 3
 
     def test_list_by_project_id(self) -> None:
@@ -118,7 +119,7 @@ class TestSessionsList:
             return httpx.Response(200, json={"data": [], "next_cursor": None})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = Sessions(client).list(project_id="proj-id-123")
+        result = Sessions(client, Spans(client)).list(project_id="proj-id-123")
         assert result == []
 
 
@@ -133,7 +134,7 @@ class TestGetSessionsDataframe:
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        df = Sessions(client).get_sessions_dataframe(project_name="proj")
+        df = Sessions(client, Spans(client)).get_sessions_dataframe(project_name="proj")
 
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 2
@@ -153,7 +154,7 @@ class TestGetSessionsDataframe:
             return httpx.Response(200, json={"data": [], "next_cursor": None})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        df = Sessions(client).get_sessions_dataframe(project_name="proj")
+        df = Sessions(client, Spans(client)).get_sessions_dataframe(project_name="proj")
 
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
@@ -167,7 +168,7 @@ class TestSessionsDelete:
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        Sessions(client).delete(session_id="my-session")
+        Sessions(client, Spans(client)).delete(session_id="my-session")
 
     def test_delete_raises_on_404(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
@@ -175,7 +176,7 @@ class TestSessionsDelete:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
-            Sessions(client).delete(session_id="nonexistent")
+            Sessions(client, Spans(client)).delete(session_id="nonexistent")
 
 
 class TestSessionsBulkDelete:
@@ -189,14 +190,14 @@ class TestSessionsBulkDelete:
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        Sessions(client).bulk_delete(session_ids=["s1", "s2", "s3"])
+        Sessions(client, Spans(client)).bulk_delete(session_ids=["s1", "s2", "s3"])
 
     def test_bulk_delete_raises_on_empty_list(self) -> None:
         client = httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="must not be empty"):
-            Sessions(client).bulk_delete(session_ids=[])
+            Sessions(client, Spans(client)).bulk_delete(session_ids=[])
 
     def test_bulk_delete_raises_on_422(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
@@ -204,7 +205,7 @@ class TestSessionsBulkDelete:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
-            Sessions(client).bulk_delete(session_ids=["s1"])
+            Sessions(client, Spans(client)).bulk_delete(session_ids=["s1"])
 
 
 class TestAsyncSessionsBulkDelete:
@@ -219,7 +220,7 @@ class TestAsyncSessionsBulkDelete:
             return httpx.Response(204)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        await AsyncSessions(client).bulk_delete(session_ids=["s1", "s2"])
+        await AsyncSessions(client, AsyncSpans(client)).bulk_delete(session_ids=["s1", "s2"])
 
     @pytest.mark.anyio
     async def test_bulk_delete_raises_on_empty_list(self) -> None:
@@ -227,7 +228,7 @@ class TestAsyncSessionsBulkDelete:
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="must not be empty"):
-            await AsyncSessions(client).bulk_delete(session_ids=[])
+            await AsyncSessions(client, AsyncSpans(client)).bulk_delete(session_ids=[])
 
 
 class TestAsyncSessionsGet:
@@ -240,7 +241,7 @@ class TestAsyncSessionsGet:
             return httpx.Response(200, json={"data": session})
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = await AsyncSessions(client).get(session_id="my-session")
+        result = await AsyncSessions(client, AsyncSpans(client)).get(session_id="my-session")
         assert result["session_id"] == "my-session"
 
 
@@ -261,7 +262,7 @@ class TestAsyncSessionsList:
                 return httpx.Response(200, json={"data": page2, "next_cursor": None})
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = await AsyncSessions(client).list(project_name="proj")
+        result = await AsyncSessions(client, AsyncSpans(client)).list(project_name="proj")
         assert len(result) == 2
 
 
@@ -274,8 +275,165 @@ class TestAsyncGetSessionsDataframe:
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        df = await AsyncSessions(client).get_sessions_dataframe(project_name="proj")
+        df = await AsyncSessions(client, AsyncSpans(client)).get_sessions_dataframe(
+            project_name="proj"
+        )
 
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 1
         assert df.iloc[0]["num_traces"] == 2
+
+
+def _make_span(
+    *,
+    trace_id: str,
+    span_id: str = "span1",
+    input_value: str | None = None,
+    output_value: str | None = None,
+    input_mime_type: str | None = None,
+    output_mime_type: str | None = None,
+) -> v1.Span:
+    attrs: dict[str, object] = {}
+    if input_value is not None:
+        attrs["input.value"] = input_value
+    if output_value is not None:
+        attrs["output.value"] = output_value
+    if input_mime_type is not None:
+        attrs["input.mime_type"] = input_mime_type
+    if output_mime_type is not None:
+        attrs["output.mime_type"] = output_mime_type
+    return v1.Span(
+        name="root",
+        context=v1.SpanContext(trace_id=trace_id, span_id=span_id),
+        span_kind="CHAIN",
+        start_time="2024-01-01T00:00:00Z",
+        end_time="2024-01-01T00:01:00Z",
+        status_code="OK",
+        attributes=attrs,
+    )
+
+
+class TestGetSessionTurns:
+    def test_returns_conversation_turns_with_io(self) -> None:
+        session = _make_session_data(session_id="s1", num_traces=2, project_id="proj1")
+
+        span0 = _make_span(
+            trace_id="tid-0", span_id="sp0", input_value="hello", output_value="world"
+        )
+        span1 = _make_span(trace_id="tid-1", span_id="sp1", input_value="foo", output_value="bar")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "/sessions/" in request.url.path:
+                return httpx.Response(200, json={"data": session})
+            if "/spans" in request.url.path:
+                assert request.url.params.get("parent_id") == "null"
+                return httpx.Response(200, json={"data": [span0, span1], "next_cursor": None})
+            return httpx.Response(404)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
+
+        assert len(turns) == 2
+        assert turns[0]["trace_id"] == "tid-0"
+        assert turns[0].get("input") == {"value": "hello"}
+        assert turns[0].get("output") == {"value": "world"}
+        assert turns[0].get("root_span") == span0
+        assert turns[1]["trace_id"] == "tid-1"
+        assert turns[1].get("input") == {"value": "foo"}
+        assert turns[1].get("output") == {"value": "bar"}
+        assert turns[1].get("root_span") == span1
+
+    def test_empty_session_returns_empty_list(self) -> None:
+        session = _make_session_data(session_id="s1", num_traces=0)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"data": session})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
+        assert turns == []
+
+    def test_missing_root_span_still_returns_turn(self) -> None:
+        session = _make_session_data(session_id="s1", num_traces=1)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "/sessions/" in request.url.path:
+                return httpx.Response(200, json={"data": session})
+            if "/spans" in request.url.path:
+                return httpx.Response(200, json={"data": [], "next_cursor": None})
+            return httpx.Response(404)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
+        assert len(turns) == 1
+        assert turns[0]["trace_id"] == "tid-0"
+        assert "input" not in turns[0]
+        assert "output" not in turns[0]
+        assert "root_span" not in turns[0]
+
+    def test_turns_ordered_by_start_time(self) -> None:
+        traces = [
+            v1.SessionTraceData(
+                id="t1",
+                trace_id="late",
+                start_time="2024-01-01T01:00:00Z",
+                end_time="2024-01-01T01:01:00Z",
+            ),
+            v1.SessionTraceData(
+                id="t0",
+                trace_id="early",
+                start_time="2024-01-01T00:00:00Z",
+                end_time="2024-01-01T00:01:00Z",
+            ),
+        ]
+        session = v1.SessionData(
+            id="id1",
+            session_id="s1",
+            project_id="proj1",
+            start_time="2024-01-01T00:00:00Z",
+            end_time="2024-01-01T02:00:00Z",
+            traces=traces,
+        )
+        span_late = _make_span(trace_id="late", span_id="sp1", input_value="second")
+        span_early = _make_span(trace_id="early", span_id="sp0", input_value="first")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "/sessions/" in request.url.path:
+                return httpx.Response(200, json={"data": session})
+            if "/spans" in request.url.path:
+                return httpx.Response(
+                    200, json={"data": [span_late, span_early], "next_cursor": None}
+                )
+            return httpx.Response(404)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
+        assert turns[0].get("input") == {"value": "first"}
+        assert turns[1].get("input") == {"value": "second"}
+
+
+class TestAsyncGetSessionTurns:
+    @pytest.mark.anyio
+    async def test_returns_conversation_turns(self) -> None:
+        session = _make_session_data(session_id="s1", num_traces=1, project_id="proj1")
+        span = _make_span(
+            trace_id="tid-0",
+            input_value="hi",
+            output_value="bye",
+            input_mime_type="text/plain",
+            output_mime_type="text/plain",
+        )
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            if "/sessions/" in request.url.path:
+                return httpx.Response(200, json={"data": session})
+            if "/spans" in request.url.path:
+                return httpx.Response(200, json={"data": [span], "next_cursor": None})
+            return httpx.Response(404)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        turns = await AsyncSessions(client, AsyncSpans(client)).get_session_turns(session_id="s1")
+        assert len(turns) == 1
+        assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}
+        assert turns[0].get("output") == {"value": "bye", "mime_type": "text/plain"}
+        assert turns[0].get("root_span") == span

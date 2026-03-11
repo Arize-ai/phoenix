@@ -1,8 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, List, Literal, Optional, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    cast,
+    overload,
+)
 
 import httpx
+from openinference.semconv.trace import SpanAttributes
+from typing_extensions import NotRequired, TypedDict
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.annotation_helpers import (
@@ -13,9 +25,56 @@ from phoenix.client.utils.annotation_helpers import (
 from phoenix.client.utils.encode_path_param import encode_path_param
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
+_MAX_TRACE_IDS_PER_BATCH = 50
+
+
+class SessionTurnIO(TypedDict):
+    """**Experimental** - The input or output payload of a single session turn.
+
+    Extracted from a root span's ``input.value`` / ``output.value`` attributes
+    (OpenInference semantic conventions).
+
+    Attributes:
+        value: The string content of the input or output.
+        mime_type: Optional MIME type such as ``"text/plain"`` or
+            ``"application/json"``.  Present only when the span carries the
+            corresponding ``input.mime_type`` / ``output.mime_type`` attribute.
+    """
+
+    value: str
+    mime_type: NotRequired[Optional[str]]
+
+
+class SessionTurn(TypedDict):
+    """**Experimental** - One conversational turn inside a session.
+
+    Each turn corresponds to a single trace.  The ``input`` and ``output``
+    fields are extracted from the trace's **root span** attributes
+    (``input.value`` / ``output.value`` per OpenInference semantic conventions).
+    If the root span is missing or lacks those attributes, the fields will be
+    absent.
+
+    Attributes:
+        trace_id: The trace ID that produced this turn.
+        start_time: ISO-8601 timestamp when the trace started.
+        end_time: ISO-8601 timestamp when the trace ended.
+        input: The user-facing input for this turn, if available.
+        output: The assistant/model output for this turn, if available.
+        root_span: The full root span object, if one was found for the trace.
+    """
+
+    trace_id: str
+    start_time: str
+    end_time: str
+    input: NotRequired[Optional[SessionTurnIO]]
+    output: NotRequired[Optional[SessionTurnIO]]
+    root_span: NotRequired[v1.Span]
+
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from phoenix.client.resources.spans import AsyncSpans, Spans
 
 # Re-export generated types
 InsertedSessionAnnotation = v1.InsertedSessionAnnotation
@@ -29,8 +88,9 @@ GetSessionsResponseBody = v1.GetSessionsResponseBody
 
 
 class Sessions:
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(self, client: httpx.Client, spans: "Spans") -> None:
         self._client = client
+        self._spans = spans
 
     def get(
         self,
@@ -174,6 +234,72 @@ class Sessions:
             for s in sessions
         ]
         return pd.DataFrame(rows)
+
+    def get_session_turns(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> List[SessionTurn]:
+        """**Experimental** - Retrieve the ordered conversation turns for a session.
+
+        Fetches every trace in the session, locates each trace's root span, and
+        extracts the ``input.value`` / ``output.value`` attributes to build a
+        chronological list of turns.
+
+        Args:
+            session_id: The session to look up.  Accepts either a Phoenix
+                GlobalID (e.g. ``"U2Vzc2lvbjox"``) or the user-provided
+                ``session_id`` string that was set at trace time.
+            timeout: Per-request timeout in seconds.  Applied independently to
+                the session fetch and to each batch of span fetches.
+                Defaults to ``DEFAULT_TIMEOUT_IN_SECONDS``.
+
+        Returns:
+            A list of :class:`SessionTurn` dicts sorted by ``start_time``
+            (ascending).  Each entry contains ``trace_id``, ``start_time``,
+            ``end_time``, and optionally ``input``, ``output``, and
+            ``root_span``.
+
+        Example::
+
+            client = Client()
+            turns = client.sessions.get_session_turns(session_id="my-session")
+            for turn in turns:
+                print(turn.get("input", {}).get("value", "<no input>"))
+        """
+        session_data = self.get(session_id=session_id, timeout=timeout)
+        traces = session_data["traces"]
+        if not traces:
+            return []
+
+        project_id = session_data["project_id"]
+        all_trace_ids = [t["trace_id"] for t in traces]
+
+        # Build trace_id -> trace info lookup
+        trace_info: dict[str, v1.SessionTraceData] = {t["trace_id"]: t for t in traces}
+
+        # Fetch root spans in batches
+        root_spans_by_trace: dict[str, v1.Span] = {}
+        for i in range(0, len(all_trace_ids), _MAX_TRACE_IDS_PER_BATCH):
+            batch = all_trace_ids[i : i + _MAX_TRACE_IDS_PER_BATCH]
+            spans = self._spans.get_spans(
+                project_identifier=project_id,
+                trace_ids=batch,
+                parent_id="null",
+                limit=len(batch),
+                timeout=timeout,
+            )
+            for span in spans:
+                tid = span["context"]["trace_id"]
+                if tid not in root_spans_by_trace:
+                    root_spans_by_trace[tid] = span
+
+        return _build_session_turns(
+            all_trace_ids=all_trace_ids,
+            trace_info=trace_info,
+            root_spans_by_trace=root_spans_by_trace,
+        )
 
     @overload
     def add_session_annotation(
@@ -492,8 +618,9 @@ class Sessions:
 
 
 class AsyncSessions:
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(self, client: httpx.AsyncClient, spans: "AsyncSpans") -> None:
         self._client = client
+        self._spans = spans
 
     async def get(
         self,
@@ -637,6 +764,75 @@ class AsyncSessions:
             for s in sessions
         ]
         return pd.DataFrame(rows)
+
+    async def get_session_turns(
+        self,
+        *,
+        session_id: str,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> List[SessionTurn]:
+        """**Experimental** - Retrieve the ordered conversation turns for a session.
+
+        Async version of :meth:`Sessions.get_session_turns`.  Fetches every
+        trace in the session, locates each trace's root span, and extracts the
+        ``input.value`` / ``output.value`` attributes to build a chronological
+        list of turns.
+
+        Args:
+            session_id: The session to look up.  Accepts either a Phoenix
+                GlobalID (e.g. ``"U2Vzc2lvbjox"``) or the user-provided
+                ``session_id`` string that was set at trace time.
+            timeout: Per-request timeout in seconds.  Applied independently to
+                the session fetch and to each batch of span fetches.
+                Defaults to ``DEFAULT_TIMEOUT_IN_SECONDS``.
+
+        Returns:
+            A list of :class:`SessionTurn` dicts sorted by ``start_time``
+            (ascending).  Each entry contains ``trace_id``, ``start_time``,
+            ``end_time``, and optionally ``input``, ``output``, and
+            ``root_span``.
+
+        Example::
+
+            async_client = AsyncClient()
+            turns = await async_client.sessions.get_session_turns(
+                session_id="my-session",
+            )
+            for turn in turns:
+                print(turn.get("input", {}).get("value", "<no input>"))
+        """
+        session_data = await self.get(session_id=session_id, timeout=timeout)
+        traces = session_data["traces"]
+        if not traces:
+            return []
+
+        project_id = session_data["project_id"]
+        all_trace_ids = [t["trace_id"] for t in traces]
+
+        # Build trace_id -> trace info lookup
+        trace_info: dict[str, v1.SessionTraceData] = {t["trace_id"]: t for t in traces}
+
+        # Fetch root spans in batches
+        root_spans_by_trace: dict[str, v1.Span] = {}
+        for i in range(0, len(all_trace_ids), _MAX_TRACE_IDS_PER_BATCH):
+            batch = all_trace_ids[i : i + _MAX_TRACE_IDS_PER_BATCH]
+            spans = await self._spans.get_spans(
+                project_identifier=project_id,
+                trace_ids=batch,
+                parent_id="null",
+                limit=len(batch),
+                timeout=timeout,
+            )
+            for span in spans:
+                tid = span["context"]["trace_id"]
+                if tid not in root_spans_by_trace:
+                    root_spans_by_trace[tid] = span
+
+        return _build_session_turns(
+            all_trace_ids=all_trace_ids,
+            trace_info=trace_info,
+            root_spans_by_trace=root_spans_by_trace,
+        )
 
     @overload
     async def add_session_annotation(
@@ -952,3 +1148,90 @@ class AsyncSessions:
                 all_responses.extend(response)
 
         return all_responses if sync else None
+
+
+def _extract_io(
+    *,
+    attrs: Mapping[str, Any],
+    value_key: str,
+    mime_type_key: str,
+) -> Optional[SessionTurnIO]:
+    """Extract a :class:`SessionTurnIO` from a span's attribute dict.
+
+    Looks up ``value_key`` in *attrs*.  If present, wraps it in a
+    ``SessionTurnIO`` and optionally attaches the MIME type found at
+    ``mime_type_key``.
+
+    Args:
+        attrs: The ``attributes`` dict from a span (string keys, arbitrary
+            values).
+        value_key: Attribute key for the payload value
+            (e.g. ``SpanAttributes.INPUT_VALUE``).
+        mime_type_key: Attribute key for the MIME type
+            (e.g. ``SpanAttributes.INPUT_MIME_TYPE``).
+
+    Returns:
+        A ``SessionTurnIO`` dict if the value attribute is present, otherwise
+        ``None``.
+    """
+    value = attrs.get(value_key)
+    if value is None:
+        return None
+    io = SessionTurnIO(value=str(value))
+    mime_type = attrs.get(mime_type_key)
+    if mime_type is not None:
+        io["mime_type"] = str(mime_type)
+    return io
+
+
+def _build_session_turns(
+    *,
+    all_trace_ids: List[str],
+    trace_info: dict[str, v1.SessionTraceData],
+    root_spans_by_trace: dict[str, v1.Span],
+) -> List[SessionTurn]:
+    """Assemble :class:`SessionTurn` dicts from raw trace and span data.
+
+    Iterates over *all_trace_ids*, pairs each with its root span (if found),
+    extracts input/output IO, and returns the turns sorted by ``start_time``.
+
+    Args:
+        all_trace_ids: Ordered list of trace IDs belonging to the session.
+        trace_info: Mapping from trace ID to the session's trace metadata
+            (contains ``start_time``, ``end_time``, etc.).
+        root_spans_by_trace: Mapping from trace ID to its root span.  Traces
+            without a root span will still produce a turn, but ``input``,
+            ``output``, and ``root_span`` will be absent.
+
+    Returns:
+        A list of ``SessionTurn`` dicts sorted by ``start_time`` ascending.
+    """
+    turns: List[SessionTurn] = []
+    for trace_id in all_trace_ids:
+        info = trace_info[trace_id]
+        turn = SessionTurn(
+            trace_id=trace_id,
+            start_time=info["start_time"],
+            end_time=info["end_time"],
+        )
+        root_span = root_spans_by_trace.get(trace_id)
+        if root_span:
+            turn["root_span"] = root_span
+            attrs = root_span.get("attributes", {})
+            input_io = _extract_io(
+                attrs=attrs,
+                value_key=SpanAttributes.INPUT_VALUE,
+                mime_type_key=SpanAttributes.INPUT_MIME_TYPE,
+            )
+            if input_io is not None:
+                turn["input"] = input_io
+            output_io = _extract_io(
+                attrs=attrs,
+                value_key=SpanAttributes.OUTPUT_VALUE,
+                mime_type_key=SpanAttributes.OUTPUT_MIME_TYPE,
+            )
+            if output_io is not None:
+                turn["output"] = output_io
+        turns.append(turn)
+    turns.sort(key=lambda t: t["start_time"])
+    return turns

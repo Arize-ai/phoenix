@@ -60,7 +60,7 @@ class Client:
         self._projects = Projects(value)
         self._spans = Spans(value)
         self._traces = Traces(value)
-        self._sessions = Sessions(value)
+        self._sessions = Sessions(value, self._spans)
         self._datasets = Datasets(value)
         self._experiments = Experiments(value)
 
@@ -172,7 +172,7 @@ class AsyncClient:
         self._projects = AsyncProjects(value)
         self._spans = AsyncSpans(value)
         self._traces = AsyncTraces(value)
-        self._sessions = AsyncSessions(value)
+        self._sessions = AsyncSessions(value, self._spans)
         self._datasets = AsyncDatasets(value)
         self._experiments = AsyncExperiments(value)
 
