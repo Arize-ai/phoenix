@@ -27,6 +27,7 @@ import {
   PYTHON_PACKAGES,
   TYPESCRIPT_PACKAGES,
 } from "@phoenix/components/project/integrationSnippets";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
@@ -57,6 +58,11 @@ const awaitingTracesCSS = css`
 export function ProjectOnboarding({ projectName }: { projectName: string }) {
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
   const { isStreaming } = useStreamState();
+  const programmingLanguage = usePreferencesContext(
+    (state) => state.programmingLanguage
+  );
+  const defaultTab =
+    programmingLanguage === "TypeScript" ? "typescript" : "python";
 
   return (
     <div css={onboardingCSS}>
@@ -72,7 +78,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                 : "Follow the steps below to start sending traces"}
             </Text>
           </div>
-          <Tabs>
+          <Tabs defaultSelectedKey={defaultTab}>
             <TabList>
               <Tab id="python">Python</Tab>
               <Tab id="typescript">Typescript</Tab>
