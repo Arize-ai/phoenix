@@ -4,7 +4,10 @@ import type {
   GenerativeProviderKey,
   OpenAIApiType,
 } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
+import {
+  DEFAULT_MODEL_NAME,
+  DEFAULT_OPENAI_API_TYPE,
+} from "@phoenix/constants/generativeConstants";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
@@ -720,7 +723,7 @@ export const fetchPlaygroundPromptAsInstance = async ({
       await fetchSupportedInvocationParameters({
         modelName: latestPromptVersion.modelName,
         providerKey: latestPromptVersion.modelProvider,
-        openaiApiType: isOpenAIProvider ? "CHAT_COMPLETIONS" : null,
+        openaiApiType: isOpenAIProvider ? DEFAULT_OPENAI_API_TYPE : null,
       });
     const promptName = response?.prompt?.name;
     if (!promptName) {
