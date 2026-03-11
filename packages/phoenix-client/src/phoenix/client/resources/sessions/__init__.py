@@ -6,6 +6,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    Mapping,
     Optional,
     cast,
     overload,
@@ -1151,7 +1152,7 @@ class AsyncSessions:
 
 def _extract_io(
     *,
-    attrs: dict[str, object],
+    attrs: Mapping[str, Any],
     value_key: str,
     mime_type_key: str,
 ) -> Optional[SessionTurnIO]:
