@@ -1,5 +1,26 @@
 # Changelog
 
+## [13.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.13.0...arize-phoenix-v13.14.0) (2026-03-11)
+
+
+### Features
+
+* add phoenix-pr-screenshot slash command skill ([#12051](https://github.com/Arize-ai/phoenix/issues/12051)) ([4c4c6c7](https://github.com/Arize-ai/phoenix/commit/4c4c6c70054c96e659ec7eecf69768dea73d6623))
+* **client:** add session conversation API to Python and TypeScript clients ([#11974](https://github.com/Arize-ai/phoenix/issues/11974)) ([83b7f68](https://github.com/Arize-ai/phoenix/commit/83b7f68782b4994a741244c478d5d561e4817bcb))
+* **evaluators:** add strict mode support to evaluator tool definitions ([#12068](https://github.com/Arize-ai/phoenix/issues/12068)) ([37b2567](https://github.com/Arize-ai/phoenix/commit/37b2567fd04ab9826610cb6549f0ebebfd1f1b60))
+* tracing onboarding page layout ([#12061](https://github.com/Arize-ai/phoenix/issues/12061)) ([9feb4f1](https://github.com/Arize-ai/phoenix/commit/9feb4f1a82ce45e00512dce8a321190bd3157cb7))
+
+
+### Bug Fixes
+
+* restore height: 100% on DialogContent to re-enable scrolling ([#12074](https://github.com/Arize-ai/phoenix/issues/12074)) ([d179e2d](https://github.com/Arize-ai/phoenix/commit/d179e2d5faedcecdccfb1da8923dc62eb8ee0262))
+* Revert global dialog overflow changes ([#12078](https://github.com/Arize-ai/phoenix/issues/12078)) ([a194936](https://github.com/Arize-ai/phoenix/commit/a194936d74e9f3227e70b2816aabea9eacdc1c5c))
+
+
+### Reverts
+
+* "feat(evaluators): add strict mode support to evaluator tool definitio…" ([#12069](https://github.com/Arize-ai/phoenix/issues/12069)) ([f955de0](https://github.com/Arize-ai/phoenix/commit/f955de0bc5a97d87d595c5a8ea559a43cea3bcc9))
+
 ## [13.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.12.0...arize-phoenix-v13.13.0) (2026-03-10)
 
 
