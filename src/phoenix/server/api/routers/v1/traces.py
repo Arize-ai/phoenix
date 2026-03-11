@@ -73,23 +73,10 @@ class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
     pass
 
 
-def _to_trace_span_data(span: models.Span) -> TraceSpanData:
-    return TraceSpanData(
-        id=str(GlobalID(SpanNodeType.__name__, str(span.id))),
-        span_id=span.span_id,
-        parent_id=span.parent_id,
-        name=span.name,
-        span_kind=span.span_kind,
-        status_code=span.status_code,
-        start_time=span.start_time,
-        end_time=span.end_time,
-    )
-
-
 def _to_trace_data(
     trace: models.Trace,
     project_id: int,
-    spans: Optional[list[models.Span]] = None,
+    spans: Optional[list[TraceSpanData]] = None,
 ) -> TraceData:
     return TraceData(
         id=str(GlobalID(TraceNodeType.__name__, str(trace.id))),
@@ -97,7 +84,7 @@ def _to_trace_data(
         project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
         start_time=trace.start_time,
         end_time=trace.end_time,
-        spans=[_to_trace_span_data(s) for s in spans] if spans is not None else None,
+        spans=spans,
     )
 
 
@@ -216,18 +203,40 @@ async def list_project_traces(
             next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
             traces = traces[:-1]
 
-        # Optionally batch-fetch full span details
-        spans_by_trace: Optional[dict[int, list[models.Span]]] = None
+        # Optionally batch-fetch full span details (column projection to avoid
+        # loading heavy attributes/events JSON blobs that aren't in the response)
+        spans_by_trace: Optional[dict[int, list[TraceSpanData]]] = None
         if include_spans:
             trace_ids = [t.id for t in traces]
             spans_by_trace = defaultdict(list)
             spans_stmt = (
-                select(models.Span)
+                select(
+                    models.Span.id,
+                    models.Span.trace_rowid,
+                    models.Span.span_id,
+                    models.Span.parent_id,
+                    models.Span.name,
+                    models.Span.span_kind,
+                    models.Span.status_code,
+                    models.Span.start_time,
+                    models.Span.end_time,
+                )
                 .filter(models.Span.trace_rowid.in_(trace_ids))
                 .order_by(models.Span.start_time.asc())
             )
-            for span in (await session.scalars(spans_stmt)).all():
-                spans_by_trace[span.trace_rowid].append(span)
+            for row in (await session.execute(spans_stmt)).all():
+                spans_by_trace[row.trace_rowid].append(
+                    TraceSpanData(
+                        id=str(GlobalID(SpanNodeType.__name__, str(row.id))),
+                        span_id=row.span_id,
+                        parent_id=row.parent_id,
+                        name=row.name,
+                        span_kind=row.span_kind,
+                        status_code=row.status_code,
+                        start_time=row.start_time,
+                        end_time=row.end_time,
+                    )
+                )
 
         data = [
             _to_trace_data(
