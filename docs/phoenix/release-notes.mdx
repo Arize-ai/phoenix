@@ -9,6 +9,139 @@ GitHub
 
 
 
+
+<Update label="03.11.2026">
+## [03.11.2026: Session Conversation API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in arize-phoenix 1.0.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
+
+Phoenix now provides dedicated session conversation APIs that reconstruct complete conversational threads with structured input/output pairs. The new `get_conversation()` methods automatically fetch all traces within a session, extract root span input/output attributes, and return ordered conversation turns with support for various MIME types.
+
+- **Automatic conversation reconstruction** from session traces with proper time ordering
+- **Support for text, JSON, and image MIME types** in conversation turns
+- **Built-in batching and pagination** for sessions with large numbers of traces
+- **Async variants available** in both Python and TypeScript clients
+</Update>
+
+<Update label="03.10.2026">
+## [03.10.2026: Session Management APIs](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in arize-phoenix 1.0.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
+
+Phoenix now offers comprehensive session management capabilities through both REST APIs and client SDKs. Retrieve individual sessions, list sessions with filtering and pagination, and delete sessions programmatically—all with cascading cleanup of associated traces, spans, and annotations.
+
+- **Single session retrieval** by ID or GlobalID with optional project filtering
+- **Bulk session listing** with pagination, project filtering, and sorting
+- **Session deletion** with automatic cascade through traces and spans
+- **DataFrame export** in Python for sessions data analysis
+- **Configurable timeouts** for all session operations
+</Update>
+
+<Update label="03.09.2026">
+## [03.09.2026: Filter Spans by Trace ID and Parent Relationships](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in arize-phoenix 1.0.0+ (Python) and @arizeai/phoenix-client 2.0.0+ (TypeScript)**
+
+Span queries now support filtering by trace ID and parent relationships, enabling precise navigation of trace hierarchies. Query for root spans using `parent_id=null` or retrieve all children of a specific parent span to reconstruct execution trees programmatically.
+
+- **Trace ID filtering** to retrieve spans from specific traces
+- **Parent ID filtering** to query root spans or span children
+- **Multi-trace queries** via repeated trace ID parameters
+- **Composable with existing filters** like time ranges and limits
+</Update>
+
+<Update label="03.04.2026">
+## [03.04.2026: Incremental Evaluation Metrics in Playground](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+The Playground now displays evaluation metrics, cost, and latency aggregates in real-time as dataset experiments run. Metrics update incrementally every ~2 seconds, providing immediate feedback on experiment performance without waiting for completion.
+</Update>
+
+<Update label="03.05.2026">
+## [03.05.2026: Unified Dataset Upload with Drag-and-Drop](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Dataset creation from files is now streamlined with automatic file type detection and a unified upload experience. Drag-and-drop CSV or JSONL files anywhere in the upload form, and Phoenix automatically parses headers and previews data without loading entire files into memory.
+
+- **Automatic format detection** for CSV and JSONL files
+- **Drag-and-drop file selection** with visual feedback
+- **Streaming parser** that handles large files efficiently
+- **RFC 4180 CSV support** including quoted fields, escaped quotes, and BOM handling
+- **Detailed error messages** for parsing issues with line-by-line feedback
+</Update>
+
+<Update label="03.10.2026">
+## [03.10.2026: Drag-and-Drop Column Assignment for Datasets](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Dataset creation now features an intuitive drag-and-drop column assignment interface. Assign columns to input, output, or metadata buckets with automatic suggestions based on common naming conventions, and preview exactly how your data will appear in the final dataset.
+
+- **Visual column assignment** with draggable chips and drop targets
+- **Smart auto-assignment** based on column names like "input", "output", "reference"
+- **Live dataset preview** showing the final structure as you make changes
+- **Keyboard navigation support** for accessibility
+- **Raw data preview** in tabular format alongside final dataset view
+</Update>
+
+<Update label="03.08.2026">
+## [03.08.2026: Extended Model Provider Support](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Phoenix Playground now supports six additional OpenAI-compatible model providers: Perplexity AI, Together AI, Cerebras, Fireworks AI, Groq, and Moonshot (Kimi). Access hundreds of new models including specialized reasoning models and fine-tuned variants through familiar OpenAI-compatible APIs.
+
+- **Perplexity AI** for research and web-grounded responses
+- **Together AI** with models from Moonshot, DeepSeek, Qwen, and GLM
+- **Cerebras** for ultra-fast inference with Llama models
+- **Fireworks AI** with Llama 4 Scout and Maverick variants
+- **Groq** for low-latency Llama and Qwen deployments
+- **Moonshot (Kimi)** with extended 128k and 32k context models
+- **Cost tracking enabled** for Cerebras, Fireworks, Groq, and Moonshot
+</Update>
+
+<Update label="03.10.2026">
+## [03.10.2026: Provider Visibility Controls](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Configure which model providers appear in the Phoenix UI using new environment variables. Hide providers you don't use with `PHOENIX_HIDDEN_PROVIDERS` or explicitly allow only specific providers with `PHOENIX_ALLOWED_PROVIDERS` for cleaner, more focused interfaces.
+
+- **Hide unwanted providers** with comma-separated lists
+- **Allow-list mode** to show only specified providers
+- **Case-insensitive configuration** with typo detection warnings
+- **Set to NONE** to hide all providers from the UI
+</Update>
+
+<Update label="03.08.2026">
+## [03.08.2026: Latest OpenAI GPT Models](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Phoenix Playground now includes the latest OpenAI models: GPT-5.4 family, GPT-5.3-chat-latest, GPT-5.2-pro variants, and o3-pro-2025-06-10. All models include cost tracking and are ready to use in experiments and prompt testing.
+</Update>
+
+<Update label="03.07.2026">
+## [03.07.2026: Project Editing from Settings](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Edit project descriptions and customize gradient colors directly from the Project Settings page. Click the edit button to update project metadata inline, with changes persisting immediately across the Phoenix UI.
+</Update>
+
+<Update label="03.07.2026">
+## [03.07.2026: Improved Component Design System](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+**
+
+Phoenix UI components have been refreshed with improved accessibility and visual consistency. Switch and Slider components now feature better dark mode contrast, smoother animations, and refined sizing tokens throughout the interface.
+</Update>
+
+<Update label="03.11.2026">
+## [03.11.2026: Tracing Onboarding Experience](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Available in Phoenix 1.0.0+ (feature-flagged)**
+
+New projects now display a streamlined onboarding view when no traces have been received yet. The "waiting for traces" experience replaces the full project UI until the first data arrives, making it clearer when Phoenix is ready to receive instrumentation.
+</Update>
+
+<Update label="03.10.2026">
+## [03.10.2026: Breaking Change: Removed Deprecated Annotations API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+**Breaking change in arize-phoenix-client 1.17.0+**
+
+The deprecated `client.annotations` module has been removed. All annotation methods remain available on `client.spans`. Update your code to use `client.spans.add_span_annotation()` and `client.spans.log_span_annotations()` instead of the `client.annotations` variants.
+</Update>
+
 <Update label="03.05.2026">
 ## [03.05.2026: SDK Session Retrieval](/docs/phoenix/release-notes/03-2026/03-05-2026-sdk-session-retrieval)
 Session retrieval is now available in the Python client (`client.sessions.get()`, `client.sessions.list()`, `get_sessions_dataframe()`) and the TypeScript client (`getSession()`, `listSessions()`). Both SDKs support automatic pagination and async usage for working with multi-turn conversation data.
@@ -68,7 +201,6 @@ To get started, open the Playground model configuration panel and select an **Op
 
 To get started, open a dataset, navigate to the **Evaluators** tab, click **Add evaluator**, configure your input mapping, and run an experiment from the Playground to see server-side scores and traces.
 </Update>
-
 
 <Update label="02.11.2026">
 ## [02.11.2026: Custom Providers for Playground and Prompts](/docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers)
@@ -702,119 +834,6 @@ We’ve added support for labeling prompts so you can categorize them by use-cas
 </Frame>
 
 We’ve added paging functionality to the Experiment Compare details slide-over view, allowing users to navigate between individual examples using arrow buttons or keyboard shortcuts (`J` / `K`). Pagination
-
-</Update>
-
-<Update label="09.08.2025">
-## [09.08.2025: Experiment Annotation Popover in Detail View 🔍](/docs/phoenix/release-notes/09-2025/09-08-2025-experiment-annotation-popover-in-detail-view)
-
-**Available in Phoenix 11.33+**
-
-<Frame>
-<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/annotation-popover-releasenotes.png" alt="" />
-</Frame>
-
-Added an annotation popover in the experiment detail view to reveal full annotation content without leaving the page.
-
-</Update>
-
-<Update label="09.04.2025">
-## [09.04.2025: Experiment Lists Page Frontend Enhancements 💻](/docs/phoenix/release-notes/09-2025/09-04-2025-experiment-lists-page-frontend-enhancements)
-
-**Available in Phoenix 11.32+**
-
-<Frame>
-<iframe src="https://cdn.iframe.ly/V5RZhXO1" className="aspect-video" allowfullscreen="" allow="encrypted-media *;"></iframe>
-</Frame>
-
-In this update, the Experiment Lists page has received several user-facing enhancements to improve usability and responsiveness.
-
-</Update>
-
-<Update label="09.03.2025">
-## [09.03.2025: Add Methods to Log Document Annotations 📜](/docs/phoenix/release-notes/09-2025/09-03-2025-add-methods-to-log-document-annotations)
-
-**Available in Phoenix 11.31+**
-
-Added client-side support for logging document annotations with a new `log_document_annotations(...)` method, supporting both sync and async API calls.
-
-</Update>
-
-<Update label="08.28.2025">
-## [08.28.2025: New arize-phoenix-client Package 📦](/docs/phoenix/release-notes/08-2025/08-28-2025-new-arize-phoenix-client-package)
-
-<Frame>
-<iframe src="https://cdn.iframe.ly/WV8gKiCy?app=1" allowfullscreen="" style={{ width: '100%', height: '700px' }}></iframe>
-</Frame>
-
-**`arize-phoenix-client`** is a lightweight, fully-featured package for interacting with Phoenix. It lets you manage datasets, experiments, prompts, spans, annotations, and projects - without needing a local Phoenix installation.&#x20;
-
-</Update>
-
-<Update label="08.22.2025">
-## [08.22.2025: New Trace Timeline View 🔭](/docs/phoenix/release-notes/08-2025/08-22-2025-new-trace-timeline-view)
-
-**Available in Phoenix 11.26+**
-
-<Frame>
-<iframe src="https://cdn.iframe.ly/LncZbISK" className="aspect-video" autoplay allowfullscreen="" allow="encrypted-media *;"></iframe>
-</Frame>
-
-
-Easily spot timing bottlenecks with the new trace timeline visualization.
-
-</Update>
-
-<Update label="08.20.2025">
-## [08.20.2025: New Experiment and Annotation Quick Filters 🏎️](/docs/phoenix/release-notes/08-2025/08-20-2025-new-experiment-and-annotation-quick-filters)
-
-**Available in Phoenix 11.25+**
-
-<Frame>
-<iframe src="https://cdn.iframe.ly/Af9ZAMJh" className="aspect-video" allowfullscreen="" allow="encrypted-media *;"></iframe>
-</Frame>
-
-Quick filters in experiment views let you drill down by eval scores and labels to quickly spot regressions and outliers.
-
-</Update>
-
-<Update label="08.15.2025">
-## [08.15.2025: Enhance Experiment Comparison Views 🧪](/docs/phoenix/release-notes/08-2025/08-15-2025-enhance-experiment-comparison-views)
-
-**Available in Phoenix 11.24+**
-
-<Frame>
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/enhance_experiment_compare_page.png)
-</Frame>
-
-
-</Update>
-
-<Update label="08.14.2025">
-## [08.14.2025: Trace Transfer for Long-Term Storage 📦](/docs/phoenix/release-notes/08-2025/08-14-2025-trace-transfer-for-long-term-storage)
-
-**Available in Phoenix 11.23+**
-
-<Frame>
-<iframe src="https://cdn.iframe.ly/Xr1GsClM" className="aspect-video" allowfullscreen="" allow="encrypted-media *;"></iframe>
-</Frame>
-
-
-&#x20;Transfer traces across projects for long-term storage while preserving annotations, dataset links, and full context.
-
-</Update>
-
-<Update label="08.12.2025">
-## [08.12.2025: UI Design Overhauls 🎨](/docs/phoenix/release-notes/08-2025/08-12-2025-ui-design-overhauls)
-
-**Available in Phoenix 11.22+**
-
-<Frame>
-<iframe src="https://cdn.iframe.ly/dEjnFGBs" className="aspect-video" allowfullscreen="" allow="encrypted-media *;"></iframe>
-</Frame>
-
-
-The platform now features refreshed design elements including expandable navigation, an “Action” bar, and dynamic color contrast for clearer and more intuitive workflows.
 
 </Update>
 
