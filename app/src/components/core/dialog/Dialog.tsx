@@ -47,6 +47,7 @@ const dialogContentCSS = css`
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  height: 100%;
 `;
 
 export const DialogContent = ({ children, ...props }: DialogContentProps) => {
