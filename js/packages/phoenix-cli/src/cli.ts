@@ -24,7 +24,14 @@ export function main() {
 
   program
     .name("px")
-    .description("Phoenix CLI - AI observability from the command line")
+    .description(
+      "Phoenix CLI - AI observability from the command line\n\n" +
+        "Exit codes:\n" +
+        "  0  Success\n" +
+        "  1  General failure (configuration error, API error, unexpected condition)\n" +
+        "  2  Cancelled (user declined a confirmation prompt)\n" +
+        "  4  Authentication required or insufficient permissions (HTTP 401/403)"
+    )
     .version("0.0.4");
 
   // Register commands

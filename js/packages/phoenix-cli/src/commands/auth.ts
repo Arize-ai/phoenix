@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import { resolveConfig } from "../config";
+import { EXIT_CODES } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 
 interface AuthStatusOptions {
@@ -36,7 +37,7 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     writeError({
       message: "Configuration Error:\n  - Phoenix endpoint not configured",
     });
-    process.exit(1);
+    process.exit(EXIT_CODES.FAILURE);
   }
 
   const lines: string[] = [];

@@ -7,6 +7,8 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { AuthRequiredError, throwIfAuthError } from "../errors";
+import { EXIT_CODES } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatSessionsOutput, type OutputFormat } from "./formatSessions";
 
@@ -52,6 +54,7 @@ async function fetchSessions(
     );
 
     if (response.error || !response.data) {
+      throwIfAuthError(response.response);
       throw new Error(`Failed to fetch sessions: ${response.error}`);
     }
 
@@ -86,7 +89,7 @@ async function sessionsHandler(options: SessionsOptions): Promise<void> {
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
       });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // Create client
@@ -96,7 +99,7 @@ async function sessionsHandler(options: SessionsOptions): Promise<void> {
     const projectIdentifier = config.project;
     if (!projectIdentifier) {
       writeError({ message: "Project not configured" });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     writeProgress({
@@ -142,10 +145,14 @@ async function sessionsHandler(options: SessionsOptions): Promise<void> {
     });
     writeOutput({ message: output });
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      writeError({ message: error.message });
+      process.exit(EXIT_CODES.AUTH_REQUIRED);
+    }
     writeError({
       message: `Error fetching sessions: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(EXIT_CODES.FAILURE);
   }
 }
 

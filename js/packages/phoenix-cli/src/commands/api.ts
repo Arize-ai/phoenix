@@ -1,6 +1,8 @@
 import { Command } from "commander";
 
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { AuthRequiredError } from "../errors";
+import { EXIT_CODES } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 
 /**
@@ -28,7 +30,7 @@ async function apiGraphqlHandler(
         message:
           "Error: Only queries are permitted. Mutations and subscriptions are not allowed.",
       });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // 2. Resolve config (endpoint only — no project required)
@@ -44,7 +46,7 @@ async function apiGraphqlHandler(
           ],
         }),
       });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // 3. Build URL and auth headers
@@ -65,10 +67,16 @@ async function apiGraphqlHandler(
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        writeError({
+          message: `Authentication required (HTTP ${response.status}). Configure PHOENIX_API_KEY or use --api-key.`,
+        });
+        process.exit(EXIT_CODES.AUTH_REQUIRED);
+      }
       writeError({
         message: `Error: HTTP ${response.status} ${response.statusText} from ${graphqlUrl}`,
       });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // 5. Parse and output response
@@ -86,13 +94,17 @@ async function apiGraphqlHandler(
     writeOutput({ message: JSON.stringify(json, null, 2) });
 
     if (json.errors && json.errors.length > 0 && json.data == null) {
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      writeError({ message: error.message });
+      process.exit(EXIT_CODES.AUTH_REQUIRED);
+    }
     writeError({
       message: `Error: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(EXIT_CODES.FAILURE);
   }
 }
 

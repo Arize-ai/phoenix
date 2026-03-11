@@ -1,5 +1,7 @@
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
 
+import { throwIfAuthError } from "../errors";
+
 export type SpanAnnotation = componentsV1["schemas"]["SpanAnnotation"];
 
 const DEFAULT_PAGE_LIMIT = 1000;
@@ -62,6 +64,7 @@ async function fetchSpanAnnotationsForChunk({
     );
 
     if (response.error || !response.data) {
+      throwIfAuthError(response.response);
       throw new Error(
         `Failed to fetch span annotations: ${String(response.error)}`
       );

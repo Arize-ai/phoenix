@@ -4,6 +4,8 @@ import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { AuthRequiredError, throwIfAuthError } from "../errors";
+import { EXIT_CODES } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
   formatExperimentJsonOutput,
@@ -35,6 +37,7 @@ async function downloadExperimentJson(
   });
 
   if (response.error || response.data === undefined) {
+    throwIfAuthError(response.response);
     throw new Error(`Failed to download experiment: ${response.error}`);
   }
 
@@ -67,7 +70,7 @@ async function experimentHandler(
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
       ];
       writeError({ message: getConfigErrorMessage({ errors }) });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // Create client
@@ -113,10 +116,14 @@ async function experimentHandler(
       writeOutput({ message: output });
     }
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      writeError({ message: error.message });
+      process.exit(EXIT_CODES.AUTH_REQUIRED);
+    }
     writeError({
       message: `Error fetching experiment: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(EXIT_CODES.FAILURE);
   }
 }
 

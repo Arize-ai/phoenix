@@ -9,6 +9,8 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { AuthRequiredError, throwIfAuthError } from "../errors";
+import { EXIT_CODES } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
 import { formatTracesOutput, type OutputFormat } from "./formatTraces";
@@ -66,6 +68,7 @@ async function fetchSpans(
     );
 
     if (response.error || !response.data) {
+      throwIfAuthError(response.response);
       throw new Error(`Failed to fetch spans: ${response.error}`);
     }
 
@@ -217,7 +220,7 @@ async function tracesHandler(
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
       });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // Create client
@@ -227,7 +230,7 @@ async function tracesHandler(
     const projectIdentifier = config.project;
     if (!projectIdentifier) {
       writeError({ message: "Project not configured" });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     writeProgress({
@@ -336,10 +339,14 @@ async function tracesHandler(
       writeOutput({ message: output });
     }
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      writeError({ message: error.message });
+      process.exit(EXIT_CODES.AUTH_REQUIRED);
+    }
     writeError({
       message: `Error fetching traces: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(EXIT_CODES.FAILURE);
   }
 }
 

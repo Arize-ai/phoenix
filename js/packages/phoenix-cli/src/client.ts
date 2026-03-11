@@ -1,6 +1,7 @@
 import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
 import type { PhoenixConfig } from "./config";
+import { AuthRequiredError, throwIfAuthError } from "./errors";
 
 export interface CreatePhoenixClientOptions {
   /**
@@ -83,6 +84,7 @@ export async function resolveProjectId({
     });
 
     if (response.error || !response.data) {
+      throwIfAuthError(response.response);
       throw new Error(
         `Failed to resolve project "${projectIdentifier}": ${response.error}`
       );
@@ -90,6 +92,9 @@ export async function resolveProjectId({
 
     return response.data.data.id;
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      throw error;
+    }
     throw new Error(
       `Failed to resolve project "${projectIdentifier}": ${error instanceof Error ? error.message : String(error)}`
     );
@@ -143,6 +148,7 @@ export async function resolveDatasetId({
     });
 
     if (response.error || !response.data) {
+      throwIfAuthError(response.response);
       throw new Error(
         `Failed to resolve dataset "${datasetIdentifier}": ${response.error}`
       );
@@ -155,6 +161,9 @@ export async function resolveDatasetId({
 
     return datasets[0].id;
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      throw error;
+    }
     throw new Error(
       `Failed to resolve dataset "${datasetIdentifier}": ${error instanceof Error ? error.message : String(error)}`
     );

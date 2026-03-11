@@ -4,6 +4,8 @@ import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { AuthRequiredError, throwIfAuthError } from "../errors";
+import { EXIT_CODES } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatSessionOutput, type OutputFormat } from "./formatSessions";
 
@@ -36,6 +38,7 @@ async function fetchSession(
   });
 
   if (response.error || !response.data) {
+    throwIfAuthError(response.response);
     throw new Error(`Failed to fetch session: ${response.error}`);
   }
 
@@ -71,6 +74,7 @@ async function fetchSessionAnnotations(
     );
 
     if (response.error || !response.data) {
+      throwIfAuthError(response.response);
       throw new Error(`Failed to fetch session annotations: ${response.error}`);
     }
 
@@ -108,7 +112,7 @@ async function sessionHandler(
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
       ];
       writeError({ message: getConfigErrorMessage({ errors }) });
-      process.exit(1);
+      process.exit(EXIT_CODES.FAILURE);
     }
 
     // Create client
@@ -175,10 +179,14 @@ async function sessionHandler(
       writeOutput({ message: output });
     }
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      writeError({ message: error.message });
+      process.exit(EXIT_CODES.AUTH_REQUIRED);
+    }
     writeError({
       message: `Error fetching session: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(EXIT_CODES.FAILURE);
   }
 }
 
