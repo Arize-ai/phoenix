@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 from datetime import datetime, timezone
 from itertools import chain
 from secrets import token_hex
@@ -66,6 +69,61 @@ def _no_auth_app(
 ) -> Iterator[_AppInfo]:
     with _server(_AppInfo(_env)) as app:
         yield app
+
+
+class TestDbMigrate:
+    def test_db_migrate(self, _env_sql_database: dict[str, str]) -> None:
+        from pathlib import Path
+
+        import sqlalchemy
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+
+        import phoenix.db as _phoenix_db
+
+        raw_url = _env_sql_database["PHOENIX_SQL_DATABASE_URL"]
+        schema = _env_sql_database.get("PHOENIX_SQL_DATABASE_SCHEMA") or None
+        url = sqlalchemy.make_url(raw_url)
+        if url.get_backend_name() == "postgresql":
+            url = url.set(drivername="postgresql+psycopg")
+
+        engine = sqlalchemy.create_engine(url)
+        try:
+            # Verify the database is fresh: alembic_version must not exist yet.
+            inspector = sqlalchemy.inspect(engine)
+            assert "alembic_version" not in inspector.get_table_names(schema=schema), (
+                "alembic_version already exists before migration ran"
+            )
+        finally:
+            engine.dispose()
+
+        command = [sys.executable, "-m", "phoenix.server.main", "db", "migrate"]
+        env = (
+            {**os.environ, **_env_sql_database}
+            if sys.platform == "win32"
+            else dict(_env_sql_database)
+        )
+        result = subprocess.run(command, env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+
+        # Confirm alembic_version now matches the current head revision.
+        engine = sqlalchemy.create_engine(url)
+        try:
+            with engine.connect() as conn:
+                if schema:
+                    conn.execute(sqlalchemy.text(f'SET search_path TO "{schema}"'))
+                actual = conn.execute(
+                    sqlalchemy.text("SELECT version_num FROM alembic_version")
+                ).scalar()
+        finally:
+            engine.dispose()
+
+        scripts_dir = str(Path(_phoenix_db.__file__).parent / "migrations")
+        cfg = Config()
+        cfg.set_main_option("script_location", scripts_dir)
+        expected = ScriptDirectory.from_config(cfg).get_current_head()
+
+        assert actual == expected, f"DB is at {actual!r}, expected head {expected!r}"
 
 
 class TestLaunchApp:

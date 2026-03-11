@@ -1,3 +1,4 @@
+import asyncio
 import atexit
 import codecs
 import os
@@ -174,7 +175,7 @@ def _run_db_migrate(db_connection_str: str) -> None:
             migrate=True,
             log_to_stdout=False,
         )
-        engine.dispose()
+        asyncio.run(engine.dispose())
         sys.exit(0)
     except PhoenixMigrationError as e:
         print(str(e), file=sys.stderr)
