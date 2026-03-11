@@ -21,21 +21,15 @@ import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
-import {
-  StreamStateProvider,
-  useStreamState,
-} from "@phoenix/contexts/StreamStateContext";
+import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
-import type { ProjectPageOnboardingCountsQuery as ProjectPageOnboardingCountsQueryType } from "./__generated__/ProjectPageOnboardingCountsQuery.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
-import { ProjectOnboardingWaitingForTraces } from "./ProjectOnboardingWaitingForTraces";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import {
   ProjectPageQueriesProjectConfigQuery,
@@ -125,8 +119,6 @@ function ProjectPageContentBody({
   projectId: string;
   timeRange: OpenTimeRange;
 }) {
-  const isTracingOnboardingEnabled = useFeatureFlag("tracing-onboarding");
-  const { fetchKey } = useStreamState();
   const treatOrphansAsRoots = useProjectContext(
     (state) => state.treatOrphansAsRoots
   );
@@ -138,27 +130,6 @@ function ProjectPageContentBody({
   }, [timeRange]);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
-  const projectOnboardingData =
-    useLazyLoadQuery<ProjectPageOnboardingCountsQueryType>(
-      graphql`
-        query ProjectPageOnboardingCountsQuery($id: ID!) {
-          project: node(id: $id) {
-            ... on Project {
-              name
-              totalTraceCount: traceCount
-              totalSpanCount: recordCount
-            }
-          }
-        }
-      `,
-      {
-        id: projectId as string,
-      },
-      {
-        fetchPolicy: "store-and-network",
-        fetchKey: `${projectId}-${fetchKey}`,
-      }
-    );
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
@@ -195,10 +166,6 @@ function ProjectPageContentBody({
     ProjectPageQueriesProjectConfigQuery
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
-  const hasNoTracesOrSpans =
-    projectOnboardingData.project.totalTraceCount === 0 &&
-    projectOnboardingData.project.totalSpanCount === 0;
-  const isOnboardingActive = isTracingOnboardingEnabled && hasNoTracesOrSpans;
   useEffect(() => {
     if (tabIndex === TAB_INDEX_MAP.spans) {
       loadSpansQuery({
@@ -267,14 +234,7 @@ function ProjectPageContentBody({
     [navigate, rootPath]
   );
 
-  return isOnboardingActive ? (
-    <main css={mainCSS}>
-      <ProjectOnboardingWaitingForTraces
-        project={data.project}
-        projectName={projectOnboardingData.project.name ?? "my-project"}
-      />
-    </main>
-  ) : (
+  return (
     <main css={mainCSS}>
       <ProjectPageHeader
         project={data.project}

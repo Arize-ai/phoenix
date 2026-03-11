@@ -9,6 +9,10 @@ import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from
 export const ProjectPageQueriesTracesQuery = graphql`
   query ProjectPageQueriesTracesQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
+      ... on Project {
+        name
+        traceCount
+      }
       ...TracesTable_spans
     }
   }
@@ -21,6 +25,10 @@ export const ProjectPageQueriesSpansQuery = graphql`
     $orphanSpanAsRootSpan: Boolean!
   ) {
     project: node(id: $id) {
+      ... on Project {
+        name
+        spanCount: recordCount
+      }
       ...SpansTable_spans
     }
   }

@@ -30,15 +30,12 @@ import {
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
-import type { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql";
-import { StreamToggle } from "./StreamToggle";
-
-const onboardingPageCSS = css`
+const onboardingCSS = css`
   overflow-y: auto;
   height: 100%;
 `;
 
-const onboardingPageInnerCSS = css`
+const onboardingInnerCSS = css`
   padding: var(--global-dimension-size-400);
   max-width: 800px;
   min-width: 500px;
@@ -57,36 +54,23 @@ const awaitingTracesCSS = css`
   border-radius: var(--global-rounding-medium);
 `;
 
-export function ProjectOnboardingWaitingForTraces({
-  project,
-  projectName,
-}: {
-  project: StreamToggle_data$key;
-  projectName: string;
-}) {
+export function ProjectOnboarding({ projectName }: { projectName: string }) {
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
   const { isStreaming } = useStreamState();
 
   return (
-    <div css={onboardingPageCSS}>
-      <div css={onboardingPageInnerCSS}>
-        <Flex direction="column" width="100%" gap="size-200">
+    <div css={onboardingCSS}>
+      <div css={onboardingInnerCSS}>
+        <Flex direction="column" gap="size-200">
           <div css={awaitingTracesCSS}>
             {isStreaming ? (
               <ProgressCircle isIndeterminate size="S" aria-label="loading" />
             ) : null}
             <Text>
               {isStreaming
-                ? "Awaiting traces"
-                : "Enable streaming to see traces arrive in real time"}
+                ? "Waiting for traces to arrive..."
+                : "Follow the steps below to start sending traces"}
             </Text>
-            <div
-              css={css`
-                margin-left: auto;
-              `}
-            >
-              <StreamToggle project={project} />
-            </div>
           </div>
           <Tabs>
             <TabList>
