@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 5.0.13](https://img.shields.io/badge/Version-5.0.13-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 13.12.0](https://img.shields.io/badge/AppVersion-13.12.0-informational?style=flat-square)
+![Version: 5.0.14](https://img.shields.io/badge/Version-5.0.14-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 13.14.0](https://img.shields.io/badge/AppVersion-13.14.0-informational?style=flat-square)
 
 <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=helm/README.md" />
 
@@ -124,7 +124,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-13.12.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-13.14.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -168,6 +168,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":false,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"windowsOptions":{}}` | Container-level security context settings |
 | securityContext.pod | object | `{"enabled":false,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings |
 | server.allowExternalResources | bool | `true` | Allows calls to external resources, like Google Fonts in the web interface (PHOENIX_ALLOW_EXTERNAL_RESOURCES) Set to false in air-gapped environments to prevent external requests that can cause UI loading delays |
+| server.allowedProviders | string | `""` | Comma-separated list of model provider names to display in the playground UI (PHOENIX_ALLOWED_PROVIDERS) When unset, all providers are shown. Set to "NONE" to hide all providers. Supported values: OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA, AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER Example: "OPENAI,ANTHROPIC" |
 | server.annotations | object | `{}` | Annotations to add to the Phoenix service |
 | server.enablePrometheus | bool | `false` | Enable Prometheus metrics endpoint on port 9090 |
 | server.grpcPort | int | `4317` | Port for OpenTelemetry gRPC collector (PHOENIX_GRPC_PORT) |
