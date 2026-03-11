@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92ba8b9076b9eb90d90605420f98ccff>>
+ * @generated SignedSource<<24bb106469107ae1950e05f501d0a471>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,27 +9,26 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
 export type UpdateSandboxConfigInput = {
   config?: any | null;
+  description?: string | null;
+  enabled?: boolean | null;
   id: string;
+  name?: string | null;
   timeout?: number | null;
 };
-export type SettingsSandboxPageUpdateMutation$variables = {
+export type EditTimeoutDialogMutation$variables = {
   input: UpdateSandboxConfigInput;
 };
-export type SettingsSandboxPageUpdateMutation$data = {
+export type EditTimeoutDialogMutation$data = {
   readonly updateSandboxConfig: {
-    readonly backendType: SandboxBackendType;
-    readonly config: any;
-    readonly configHash: string;
     readonly id: string;
     readonly timeout: number;
   };
 };
-export type SettingsSandboxPageUpdateMutation = {
-  response: SettingsSandboxPageUpdateMutation$data;
-  variables: SettingsSandboxPageUpdateMutation$variables;
+export type EditTimeoutDialogMutation = {
+  response: EditTimeoutDialogMutation$data;
+  variables: EditTimeoutDialogMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -66,28 +65,7 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "backendType",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "config",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
         "name": "timeout",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "configHash",
         "storageKey": null
       }
     ],
@@ -99,7 +77,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageUpdateMutation",
+    "name": "EditTimeoutDialogMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -108,20 +86,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageUpdateMutation",
+    "name": "EditTimeoutDialogMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "42268ee1bdb9faaf9e00e82bef7cef6b",
+    "cacheID": "d30b570bb2233b554b94837e6359f3ee",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageUpdateMutation",
+    "name": "EditTimeoutDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageUpdateMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    id\n    backendType\n    config\n    timeout\n    configHash\n  }\n}\n"
+    "text": "mutation EditTimeoutDialogMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    id\n    timeout\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "08dd44fbb530443a77972a61ea14f2ef";
+(node as any).hash = "1d35656a17f12756d9cdc7b50f65cf7c";
 
 export default node;

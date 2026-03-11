@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<048919b5bb6b177eaa2228130c450799>>
+ * @generated SignedSource<<e9b832c7d205e3e343a2371802618af5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type SandboxBackendStatusCode = "AVAILABLE" | "NEEDS_CONFIG" | "NEEDS_CREDENTIALS" | "NOT_INSTALLED";
 export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
+export type SandboxLanguage = "PYTHON" | "TYPESCRIPT";
 export type SettingsSandboxPageQuery$variables = Record<PropertyKey, never>;
 export type SettingsSandboxPageQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
@@ -44,6 +45,7 @@ export type SettingsSandboxPageQuery$data = {
     readonly label: string;
     readonly setupInstructions: ReadonlyArray<string>;
     readonly status: SandboxBackendStatusCode;
+    readonly supportedLanguages: ReadonlyArray<SandboxLanguage>;
   }>;
   readonly sandboxEnabled: boolean;
 };
@@ -173,7 +175,14 @@ v5 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "SandboxConfigInstance",
+        "kind": "ScalarField",
+        "name": "supportedLanguages",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "SandboxConfig",
         "kind": "LinkedField",
         "name": "configs",
         "plural": true,
@@ -255,16 +264,16 @@ return {
     "selections": (v5/*: any*/)
   },
   "params": {
-    "cacheID": "760049ed44227f24191a04da0a583691",
+    "cacheID": "83d45f329c63dab9342c2e14e66dea0e",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxPageQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxPageQuery {\n  sandboxEnabled\n  sandboxBackends {\n    key\n    label\n    description\n    status\n    enabled\n    envVars {\n      name\n      required\n      description\n    }\n    configFields {\n      key\n      label\n      placeholder\n      description\n    }\n    configRequired\n    setupInstructions\n    configs {\n      id\n      backendType\n      name\n      description\n      config\n      timeout\n      enabled\n      configHash\n      createdAt\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxPageQuery {\n  sandboxEnabled\n  sandboxBackends {\n    key\n    label\n    description\n    status\n    enabled\n    envVars {\n      name\n      required\n      description\n    }\n    configFields {\n      key\n      label\n      placeholder\n      description\n    }\n    configRequired\n    setupInstructions\n    supportedLanguages\n    configs {\n      id\n      backendType\n      name\n      description\n      config\n      timeout\n      enabled\n      configHash\n      createdAt\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b851ca0cf3c803dbc95ed999d7309b0e";
+(node as any).hash = "8c6c9f1670f16efef93a3be32bef6a37";
 
 export default node;

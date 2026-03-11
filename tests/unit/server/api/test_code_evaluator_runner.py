@@ -351,3 +351,56 @@ class TestCodeEvaluatorRunnerGuards:
         assert result["score"] is None
         # Sandbox should not have been called
         sandbox.execute.assert_not_called()
+
+
+class TestCodeEvaluatorRunnerLanguageDispatch:
+    """Tests for language-aware harness dispatch."""
+
+    async def test_python_language_executes_successfully(self) -> None:
+        sandbox = _make_sandbox_mock(stdout='{"label": "good"}')
+        runner = CodeEvaluatorRunner(
+            name="test",
+            description=None,
+            source_code="def evaluate(text): return {'label': 'good'}",
+            stored_input_schema={},
+            stored_output_configs=[],
+            sandbox_backend=sandbox,
+            language="PYTHON",
+        )
+        results = await runner.evaluate(
+            context={"text": "hello"},
+            input_mapping=_make_input_mapping(),
+            name="test",
+            output_configs=[],
+        )
+        assert len(results) == 1
+        assert results[0]["error"] is None
+
+    async def test_unknown_language_returns_error_result(self) -> None:
+        sandbox = _make_sandbox_mock()
+        runner = CodeEvaluatorRunner(
+            name="test",
+            description=None,
+            source_code="def evaluate(text): return {'label': 'ok'}",
+            stored_input_schema={},
+            stored_output_configs=[],
+            sandbox_backend=sandbox,
+            language="COBOL",
+        )
+        results = await runner.evaluate(
+            context={"text": "hello"},
+            input_mapping=_make_input_mapping(),
+            name="test",
+            output_configs=[],
+        )
+        assert len(results) == 1
+        assert results[0]["error"] is not None
+        assert "COBOL" in results[0]["error"]
+        sandbox.execute.assert_not_called()
+
+    def test_build_python_harness_contains_source_code(self) -> None:
+        source = "def evaluate(x): return {'score': x}"
+        harness = CodeEvaluatorRunner._build_python_harness(source, {"x": 1.0})
+        assert source in harness
+        assert "import json" in harness
+        assert "evaluate(**_inputs)" in harness

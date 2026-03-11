@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7134a5bc05be0bf93b485d6b34fc9ddd>>
+ * @generated SignedSource<<fc974294ad7d79d6fd802597a055fda3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,12 +10,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type SandboxBackendStatusCode = "AVAILABLE" | "NEEDS_CONFIG" | "NEEDS_CREDENTIALS" | "NOT_INSTALLED";
+export type SandboxLanguage = "PYTHON" | "TYPESCRIPT";
 export type SandboxTypeSelectorQuery$variables = Record<PropertyKey, never>;
 export type SandboxTypeSelectorQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
     readonly key: string;
     readonly label: string;
     readonly status: SandboxBackendStatusCode;
+    readonly supportedLanguages: ReadonlyArray<SandboxLanguage>;
   }>;
 };
 export type SandboxTypeSelectorQuery = {
@@ -53,6 +55,13 @@ var v0 = [
         "kind": "ScalarField",
         "name": "status",
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "supportedLanguages",
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -76,16 +85,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "60062a41dcb001e07a3818d601f8b3d9",
+    "cacheID": "b4661516b831fc57b4cb583da7cdbeb9",
     "id": null,
     "metadata": {},
     "name": "SandboxTypeSelectorQuery",
     "operationKind": "query",
-    "text": "query SandboxTypeSelectorQuery {\n  sandboxBackends {\n    key\n    label\n    status\n  }\n}\n"
+    "text": "query SandboxTypeSelectorQuery {\n  sandboxBackends {\n    key\n    label\n    status\n    supportedLanguages\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "14c359f1a9638244362c7179df0274c8";
+(node as any).hash = "b92b324a6f0bc5a6fe0cbec8a8279d17";
 
 export default node;

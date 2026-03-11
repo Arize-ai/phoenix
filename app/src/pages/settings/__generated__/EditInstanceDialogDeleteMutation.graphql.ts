@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<705771245f49d4032a75ea7744366f62>>
+ * @generated SignedSource<<ee9f120f6f671f36d29c72b250c3a48f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,17 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SettingsSandboxPageDeleteMutation$variables = {
+export type EditInstanceDialogDeleteMutation$variables = {
   id: string;
 };
-export type SettingsSandboxPageDeleteMutation$data = {
+export type EditInstanceDialogDeleteMutation$data = {
   readonly deleteSandboxConfig: {
     readonly id: string;
   };
 };
-export type SettingsSandboxPageDeleteMutation = {
-  response: SettingsSandboxPageDeleteMutation$data;
-  variables: SettingsSandboxPageDeleteMutation$variables;
+export type EditInstanceDialogDeleteMutation = {
+  response: EditInstanceDialogDeleteMutation$data;
+  variables: EditInstanceDialogDeleteMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -61,7 +61,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageDeleteMutation",
+    "name": "EditInstanceDialogDeleteMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -70,20 +70,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageDeleteMutation",
+    "name": "EditInstanceDialogDeleteMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "1e60bf935fcdbc096fa9697c32ca3678",
+    "cacheID": "699df9204f22aa57e6c43e6129f786fe",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageDeleteMutation",
+    "name": "EditInstanceDialogDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageDeleteMutation(\n  $id: ID!\n) {\n  deleteSandboxConfig(id: $id) {\n    id\n  }\n}\n"
+    "text": "mutation EditInstanceDialogDeleteMutation(\n  $id: ID!\n) {\n  deleteSandboxConfig(id: $id) {\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1082fd0a3ea170ba847509244a5d3d7e";
+(node as any).hash = "ee3975269d765492574c77783ae3f4ab";
 
 export default node;

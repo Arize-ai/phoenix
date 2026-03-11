@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b8d23294c26277ea1becfeed9f7e9994>>
+ * @generated SignedSource<<be321ff19fe684aac6609cdc75a6854d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,18 +10,19 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
-export type CreateSandboxConfigInstanceInput = {
-  backendType: SandboxBackendType;
+export type UpdateSandboxConfigInput = {
   config?: any | null;
   description?: string | null;
-  name: string;
+  enabled?: boolean | null;
+  id: string;
+  name?: string | null;
   timeout?: number | null;
 };
-export type SettingsSandboxPageCreateInstanceMutation$variables = {
-  input: CreateSandboxConfigInstanceInput;
+export type EditInstanceDialogUpdateMutation$variables = {
+  input: UpdateSandboxConfigInput;
 };
-export type SettingsSandboxPageCreateInstanceMutation$data = {
-  readonly createSandboxConfigInstance: {
+export type EditInstanceDialogUpdateMutation$data = {
+  readonly updateSandboxConfig: {
     readonly backendType: SandboxBackendType;
     readonly config: any;
     readonly configHash: string;
@@ -32,9 +33,9 @@ export type SettingsSandboxPageCreateInstanceMutation$data = {
     readonly timeout: number;
   };
 };
-export type SettingsSandboxPageCreateInstanceMutation = {
-  response: SettingsSandboxPageCreateInstanceMutation$data;
-  variables: SettingsSandboxPageCreateInstanceMutation$variables;
+export type EditInstanceDialogUpdateMutation = {
+  response: EditInstanceDialogUpdateMutation$data;
+  variables: EditInstanceDialogUpdateMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -55,9 +56,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "SandboxConfigInstance",
+    "concreteType": "SandboxConfig",
     "kind": "LinkedField",
-    "name": "createSandboxConfigInstance",
+    "name": "updateSandboxConfig",
     "plural": false,
     "selections": [
       {
@@ -125,7 +126,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageCreateInstanceMutation",
+    "name": "EditInstanceDialogUpdateMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -134,20 +135,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageCreateInstanceMutation",
+    "name": "EditInstanceDialogUpdateMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "53a987903bb9797c6a96286d469a3ad8",
+    "cacheID": "5708d8e74ee0a57d23b399abfe34c0bc",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageCreateInstanceMutation",
+    "name": "EditInstanceDialogUpdateMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageCreateInstanceMutation(\n  $input: CreateSandboxConfigInstanceInput!\n) {\n  createSandboxConfigInstance(input: $input) {\n    id\n    backendType\n    name\n    description\n    config\n    timeout\n    enabled\n    configHash\n  }\n}\n"
+    "text": "mutation EditInstanceDialogUpdateMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    id\n    backendType\n    name\n    description\n    config\n    timeout\n    enabled\n    configHash\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e0cdd4215c6103f177ad15b7bc2fa544";
+(node as any).hash = "4d292e99faea190f195bc6f95e4076ca";
 
 export default node;

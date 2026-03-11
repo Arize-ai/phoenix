@@ -2321,8 +2321,8 @@ class LLMEvaluator(Evaluator):
     )
 
 
-class SandboxConfig(HasId):
-    __tablename__ = "sandbox_configs"
+class SandboxAdapter(HasId):
+    __tablename__ = "sandbox_adapters"
     backend_type: Mapped[str] = mapped_column(
         CheckConstraint(
             "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
@@ -2341,8 +2341,8 @@ class SandboxConfig(HasId):
     __table_args__ = (UniqueConstraint("backend_type"),)
 
 
-class SandboxConfigInstance(HasId):
-    __tablename__ = "sandbox_config_instances"
+class SandboxConfig(HasId):
+    __tablename__ = "sandbox_configs"
     backend_type: Mapped[str] = mapped_column(
         CheckConstraint(
             "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
@@ -2383,7 +2383,9 @@ class CodeEvaluator(Evaluator):
     )
     source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
     language: Mapped[str] = mapped_column(
-        CheckConstraint("language IN ('PYTHON')", name="valid_code_evaluator_language"),
+        CheckConstraint(
+            "language IN ('PYTHON', 'TYPESCRIPT')", name="valid_code_evaluator_language"
+        ),
         nullable=False,
         server_default="PYTHON",
     )
@@ -2395,7 +2397,7 @@ class CodeEvaluator(Evaluator):
     )
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     sandbox_config_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("sandbox_config_instances.id", ondelete="SET NULL"),
+        ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -2404,9 +2406,7 @@ class CodeEvaluator(Evaluator):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    sandbox_config: Mapped[Optional["SandboxConfigInstance"]] = relationship(
-        "SandboxConfigInstance"
-    )
+    sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship("SandboxConfig")
 
     __mapper_args__ = {
         "polymorphic_identity": "CODE",

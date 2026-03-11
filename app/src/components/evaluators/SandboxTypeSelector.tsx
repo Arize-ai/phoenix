@@ -4,12 +4,12 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useShallow } from "zustand/react/shallow";
 
 import { Button, Flex, Label, Text } from "@phoenix/components";
+import { SandboxMismatchIcon } from "@phoenix/components/evaluators/SandboxMismatchBanner";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { ListBox, ListBoxItem } from "@phoenix/components/listbox";
 import { Popover } from "@phoenix/components/overlay";
 import { Select, SelectValue } from "@phoenix/components/select";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { SandboxMismatchIcon } from "@phoenix/components/evaluators/SandboxMismatchBanner";
 
 import type { SandboxTypeSelectorQuery } from "./__generated__/SandboxTypeSelectorQuery.graphql";
 
@@ -32,14 +32,19 @@ function storeBackendType(backendType: string) {
 }
 
 export const SandboxTypeSelector = () => {
-  const { sandboxBackendType, savedSandboxBackendType, setSandboxBackendType } =
-    useEvaluatorStore(
-      useShallow((state) => ({
-        sandboxBackendType: state.sandboxBackendType,
-        savedSandboxBackendType: state.savedSandboxBackendType,
-        setSandboxBackendType: state.setSandboxBackendType,
-      }))
-    );
+  const {
+    language,
+    sandboxBackendType,
+    savedSandboxBackendType,
+    setSandboxBackendType,
+  } = useEvaluatorStore(
+    useShallow((state) => ({
+      language: state.language,
+      sandboxBackendType: state.sandboxBackendType,
+      savedSandboxBackendType: state.savedSandboxBackendType,
+      setSandboxBackendType: state.setSandboxBackendType,
+    }))
+  );
 
   const data = useLazyLoadQuery<SandboxTypeSelectorQuery>(
     graphql`
@@ -48,6 +53,7 @@ export const SandboxTypeSelector = () => {
           key
           label
           status
+          supportedLanguages
         }
       }
     `,
@@ -55,7 +61,7 @@ export const SandboxTypeSelector = () => {
   );
 
   const availableBackends = data.sandboxBackends.filter(
-    (b) => b.status === "AVAILABLE"
+    (b) => b.status === "AVAILABLE" && b.supportedLanguages.includes(language)
   );
 
   // On mount, initialize from local storage if the store has the default value

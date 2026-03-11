@@ -27,6 +27,12 @@ class SandboxBackendStatusCode(Enum):
     NEEDS_CONFIG = "NEEDS_CONFIG"
 
 
+@strawberry.enum
+class SandboxLanguage(Enum):
+    PYTHON = "PYTHON"
+    TYPESCRIPT = "TYPESCRIPT"
+
+
 @strawberry.type
 class SandboxBackendStatus:
     backend_type: SandboxBackendType
@@ -60,11 +66,12 @@ class SandboxAdapterInfo:
     config_fields: list[SandboxConfigFieldSpec]
     config_required: bool
     setup_instructions: list[str]
-    configs: list["SandboxConfigInstance"] = strawberry.field(default_factory=list)
+    supported_languages: list[SandboxLanguage]
+    configs: list["SandboxConfig"] = strawberry.field(default_factory=list)
 
 
 @strawberry.type
-class SandboxConfig:
+class SandboxAdapter:
     id: strawberry.ID
     backend_type: SandboxBackendType
     config: JSON
@@ -75,9 +82,9 @@ class SandboxConfig:
     updated_at: datetime
 
 
-def to_gql_sandbox_config(row: "models.SandboxConfig") -> "SandboxConfig":
-    """Convert a DB SandboxConfig row to the GraphQL SandboxConfig type."""
-    return SandboxConfig(
+def to_gql_sandbox_adapter(row: "models.SandboxAdapter") -> "SandboxAdapter":
+    """Convert a DB SandboxAdapter row to the GraphQL SandboxAdapter type."""
+    return SandboxAdapter(
         id=strawberry.ID(str(row.id)),
         backend_type=SandboxBackendType(row.backend_type),
         config=row.config,
@@ -90,7 +97,7 @@ def to_gql_sandbox_config(row: "models.SandboxConfig") -> "SandboxConfig":
 
 
 @strawberry.type
-class SandboxConfigInstance:
+class SandboxConfig:
     id: strawberry.ID
     backend_type: SandboxBackendType
     name: str
@@ -103,11 +110,11 @@ class SandboxConfigInstance:
     updated_at: datetime
 
 
-def to_gql_sandbox_config_instance(
-    row: "models.SandboxConfigInstance",
-) -> "SandboxConfigInstance":
-    """Convert a DB SandboxConfigInstance row to the GraphQL type."""
-    return SandboxConfigInstance(
+def to_gql_sandbox_config(
+    row: "models.SandboxConfig",
+) -> "SandboxConfig":
+    """Convert a DB SandboxConfig row to the GraphQL SandboxConfig type."""
+    return SandboxConfig(
         id=strawberry.ID(str(row.id)),
         backend_type=SandboxBackendType(row.backend_type),
         name=row.name,
@@ -122,21 +129,21 @@ def to_gql_sandbox_config_instance(
 
 
 @strawberry.input
-class CreateSandboxConfigInput:
+class CreateSandboxAdapterInput:
     backend_type: SandboxBackendType
     config: JSON = strawberry.field(default_factory=dict)
     timeout: int = 30
 
 
 @strawberry.input
-class UpdateSandboxConfigInput:
+class UpdateSandboxAdapterInput:
     id: strawberry.ID
     config: Optional[JSON] = None
     timeout: Optional[int] = None
 
 
 @strawberry.input
-class CreateSandboxConfigInstanceInput:
+class CreateSandboxConfigInput:
     backend_type: SandboxBackendType
     name: str
     description: Optional[str] = None
@@ -145,7 +152,7 @@ class CreateSandboxConfigInstanceInput:
 
 
 @strawberry.input
-class UpdateSandboxConfigInstanceInput:
+class UpdateSandboxConfigInput:
     id: strawberry.ID
     name: Optional[str] = None
     description: Optional[str] = None

@@ -111,9 +111,7 @@ async def _resolve_sandbox_config(
     if backend_type is None or backend_type == SandboxBackendType.WASM:
         return None, None
     instance = await session.scalar(
-        select(models.SandboxConfigInstance).where(
-            models.SandboxConfigInstance.backend_type == backend_type.value
-        )
+        select(models.SandboxConfig).where(models.SandboxConfig.backend_type == backend_type.value)
     )
     if instance is None:
         raise BadRequest(

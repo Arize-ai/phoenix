@@ -68,6 +68,7 @@ class SandboxAdapter(ABC):
     config_fields: list[ConfigFieldSpec] = []
     config_required: bool = False
     setup_instructions: list[str] = []
+    supported_languages: list[str] = ["PYTHON"]
 
     def is_installed(self) -> bool:
         """Check if this adapter's dependencies are available."""

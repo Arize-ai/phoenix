@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44a73d4ab81d0de718c43741e9262ece>>
+ * @generated SignedSource<<a96ea4b91f990da3394b521678ad3677>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,16 +9,16 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SettingsSandboxPageSetCredentialMutation$variables = {
+export type CredentialDialogSetMutation$variables = {
   envVarName: string;
   value: string;
 };
-export type SettingsSandboxPageSetCredentialMutation$data = {
+export type CredentialDialogSetMutation$data = {
   readonly setSandboxCredential: boolean;
 };
-export type SettingsSandboxPageSetCredentialMutation = {
-  response: SettingsSandboxPageSetCredentialMutation$data;
-  variables: SettingsSandboxPageSetCredentialMutation$variables;
+export type CredentialDialogSetMutation = {
+  response: CredentialDialogSetMutation$data;
+  variables: CredentialDialogSetMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -59,7 +59,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageSetCredentialMutation",
+    "name": "CredentialDialogSetMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -68,20 +68,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageSetCredentialMutation",
+    "name": "CredentialDialogSetMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "90990ef276fdc7c0bba9754738099584",
+    "cacheID": "6cca1acbf0f85164ada8eb24bae3e667",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageSetCredentialMutation",
+    "name": "CredentialDialogSetMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageSetCredentialMutation(\n  $envVarName: String!\n  $value: String!\n) {\n  setSandboxCredential(envVarName: $envVarName, value: $value)\n}\n"
+    "text": "mutation CredentialDialogSetMutation(\n  $envVarName: String!\n  $value: String!\n) {\n  setSandboxCredential(envVarName: $envVarName, value: $value)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c066c223e67a446a4124d3b2ae5952ab";
+(node as any).hash = "b33d710695f76bc5d23d799606bdc6b3";
 
 export default node;

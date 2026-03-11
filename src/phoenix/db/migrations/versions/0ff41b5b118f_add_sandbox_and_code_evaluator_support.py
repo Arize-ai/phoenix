@@ -47,7 +47,7 @@ JSON_ = (
 
 def upgrade() -> None:
     op.create_table(
-        "sandbox_configs",
+        "sandbox_adapters",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "backend_type",
@@ -78,7 +78,7 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "sandbox_config_instances",
+        "sandbox_configs",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "backend_type",
@@ -155,7 +155,7 @@ def upgrade() -> None:
             sa.Column(
                 "sandbox_config_id",
                 sa.Integer,
-                sa.ForeignKey("sandbox_config_instances.id", ondelete="SET NULL"),
+                sa.ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
                 nullable=True,
             ),
         )
@@ -168,7 +168,7 @@ def upgrade() -> None:
         )
         batch_op.create_check_constraint(
             constraint_name="valid_code_evaluator_language",
-            condition="language IN ('PYTHON')",
+            condition="language IN ('PYTHON', 'TYPESCRIPT')",
         )
         batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
 
@@ -206,5 +206,5 @@ def downgrade() -> None:
         batch_op.drop_column("language")
         batch_op.drop_column("source_code")
 
-    op.drop_table("sandbox_config_instances")
     op.drop_table("sandbox_configs")
+    op.drop_table("sandbox_adapters")

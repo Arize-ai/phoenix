@@ -757,13 +757,13 @@ input CreatePromptVersionTagInput {
   description: String = null
 }
 
-input CreateSandboxConfigInput {
+input CreateSandboxAdapterInput {
   backendType: SandboxBackendType!
   config: JSON! = {}
   timeout: Int! = 30
 }
 
-input CreateSandboxConfigInstanceInput {
+input CreateSandboxConfigInput {
   backendType: SandboxBackendType!
   name: String!
   description: String = null
@@ -2127,16 +2127,16 @@ type Mutation {
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  createSandboxAdapter(input: CreateSandboxAdapterInput!): SandboxAdapter!
+  updateSandboxAdapter(input: UpdateSandboxAdapterInput!): SandboxAdapter!
+  deleteSandboxAdapter(id: ID!): SandboxAdapter!
+  setSandboxCredential(envVarName: String!, value: String!): Boolean!
+  deleteSandboxCredential(envVarName: String!): Boolean!
+  setSandboxBackendEnabled(backendType: SandboxBackendType!, enabled: Boolean!): SandboxAdapter!
+  setSandboxEnabled(enabled: Boolean!): Boolean!
   createSandboxConfig(input: CreateSandboxConfigInput!): SandboxConfig!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): SandboxConfig!
   deleteSandboxConfig(id: ID!): SandboxConfig!
-  setSandboxCredential(envVarName: String!, value: String!): Boolean!
-  deleteSandboxCredential(envVarName: String!): Boolean!
-  setSandboxBackendEnabled(backendType: SandboxBackendType!, enabled: Boolean!): SandboxConfig!
-  setSandboxEnabled(enabled: Boolean!): Boolean!
-  createSandboxConfigInstance(input: CreateSandboxConfigInstanceInput!): SandboxConfigInstance!
-  updateSandboxConfigInstance(input: UpdateSandboxConfigInstanceInput!): SandboxConfigInstance!
-  deleteSandboxConfigInstance(id: ID!): SandboxConfigInstance!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
@@ -2863,6 +2863,17 @@ enum RevisionKind {
   DELETE
 }
 
+type SandboxAdapter {
+  id: ID!
+  backendType: SandboxBackendType!
+  config: JSON!
+  timeout: Int!
+  configHash: String!
+  enabled: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 type SandboxAdapterInfo {
   key: String!
   label: String!
@@ -2873,7 +2884,8 @@ type SandboxAdapterInfo {
   configFields: [SandboxConfigFieldSpec!]!
   configRequired: Boolean!
   setupInstructions: [String!]!
-  configs: [SandboxConfigInstance!]!
+  supportedLanguages: [SandboxLanguage!]!
+  configs: [SandboxConfig!]!
 }
 
 enum SandboxBackendStatusCode {
@@ -2893,10 +2905,12 @@ enum SandboxBackendType {
 type SandboxConfig {
   id: ID!
   backendType: SandboxBackendType!
+  name: String!
+  description: String
   config: JSON!
   timeout: Int!
-  configHash: String!
   enabled: Boolean!
+  configHash: String!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -2908,23 +2922,15 @@ type SandboxConfigFieldSpec {
   description: String!
 }
 
-type SandboxConfigInstance {
-  id: ID!
-  backendType: SandboxBackendType!
-  name: String!
-  description: String
-  config: JSON!
-  timeout: Int!
-  enabled: Boolean!
-  configHash: String!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
 type SandboxEnvVarSpec {
   name: String!
   required: Boolean!
   description: String!
+}
+
+enum SandboxLanguage {
+  PYTHON
+  TYPESCRIPT
 }
 
 type Secret implements Node {
@@ -3715,13 +3721,13 @@ type UpdateModelMutationPayload {
   query: Query!
 }
 
-input UpdateSandboxConfigInput {
+input UpdateSandboxAdapterInput {
   id: ID!
   config: JSON = null
   timeout: Int = null
 }
 
-input UpdateSandboxConfigInstanceInput {
+input UpdateSandboxConfigInput {
   id: ID!
   name: String = null
   description: String = null

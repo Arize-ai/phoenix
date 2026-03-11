@@ -298,7 +298,7 @@ class CodeEvaluator(Evaluator, Node):
         if config_id is None:
             return SandboxBackendType.WASM
         async with info.context.db() as session:
-            config = await session.get(models.SandboxConfigInstance, config_id)
+            config = await session.get(models.SandboxConfig, config_id)
         if config is None:
             return SandboxBackendType.WASM
         return SandboxBackendType(config.backend_type)
@@ -321,10 +321,10 @@ class CodeEvaluator(Evaluator, Node):
         if evaluator_hash is None or config_id is None:
             return False
         async with info.context.db() as session:
-            config = await session.get(models.SandboxConfigInstance, config_id)
+            config = await session.get(models.SandboxConfig, config_id)
         if config is None:
             return True
-        return config.config_hash != evaluator_hash
+        return bool(config.config_hash != evaluator_hash)
 
     @strawberry.field
     async def user(

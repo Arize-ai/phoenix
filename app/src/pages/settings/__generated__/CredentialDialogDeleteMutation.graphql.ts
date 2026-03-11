@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ffd7700b81a6e97d5c3d927463cd8b79>>
+ * @generated SignedSource<<0ebe34cff6bf6a7abd58e18294d38ed5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,15 +9,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SettingsSandboxPageDeleteCredentialMutation$variables = {
+export type CredentialDialogDeleteMutation$variables = {
   envVarName: string;
 };
-export type SettingsSandboxPageDeleteCredentialMutation$data = {
+export type CredentialDialogDeleteMutation$data = {
   readonly deleteSandboxCredential: boolean;
 };
-export type SettingsSandboxPageDeleteCredentialMutation = {
-  response: SettingsSandboxPageDeleteCredentialMutation$data;
-  variables: SettingsSandboxPageDeleteCredentialMutation$variables;
+export type CredentialDialogDeleteMutation = {
+  response: CredentialDialogDeleteMutation$data;
+  variables: CredentialDialogDeleteMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -48,7 +48,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageDeleteCredentialMutation",
+    "name": "CredentialDialogDeleteMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -57,20 +57,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageDeleteCredentialMutation",
+    "name": "CredentialDialogDeleteMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "f234a6658a83765b0b1457e2568545f7",
+    "cacheID": "7fe1573a655f5085829f313ea0ba7296",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageDeleteCredentialMutation",
+    "name": "CredentialDialogDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageDeleteCredentialMutation(\n  $envVarName: String!\n) {\n  deleteSandboxCredential(envVarName: $envVarName)\n}\n"
+    "text": "mutation CredentialDialogDeleteMutation(\n  $envVarName: String!\n) {\n  deleteSandboxCredential(envVarName: $envVarName)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b97174f2641212f3120231577c67d9e2";
+(node as any).hash = "aa44a1ddca7205e696c7d660c2e03c0f";
 
 export default node;

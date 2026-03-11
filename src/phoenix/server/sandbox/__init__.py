@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, TypeVar
 
 from sqlalchemy import select
@@ -27,6 +27,7 @@ class SandboxAdapterMeta:
     config_fields: list[ConfigFieldSpec]
     config_required: bool
     setup_instructions: list[str]
+    supported_languages: list[str] = field(default_factory=lambda: ["PYTHON"])
 
 
 # Static registry of all known adapter types — does NOT require optional packages to be installed.
@@ -153,15 +154,15 @@ async def sync_sandbox_adapters(session: AsyncSession) -> None:
     so uninstalled adapters still get DB rows and appear in the Settings UI
     with NOT_INSTALLED status. Existing rows are not modified.
     """
-    from phoenix.db.models import SandboxConfig
+    from phoenix.db.models import SandboxAdapter
 
-    existing_result = await session.execute(select(SandboxConfig.backend_type))
+    existing_result = await session.execute(select(SandboxAdapter.backend_type))
     existing_types: set[str] = {row[0] for row in existing_result.fetchall()}
 
     for key in SANDBOX_ADAPTER_METADATA:
         if key not in existing_types:
-            session.add(SandboxConfig(backend_type=key))
-            logger.info(f"Inserted default sandbox_configs row for {key}")
+            session.add(SandboxAdapter(backend_type=key))
+            logger.info(f"Inserted default sandbox_adapters row for {key}")
 
     await session.flush()
 

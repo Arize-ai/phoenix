@@ -652,6 +652,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         stored_input_schema: dict[str, Any],
         stored_output_configs: list[EvaluatorOutputConfig],
         sandbox_backend: Optional[SandboxBackend] = None,
+        language: str = "PYTHON",
     ) -> None:
         self._name = name
         self._description = description
@@ -659,6 +660,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._stored_input_schema = stored_input_schema
         self._stored_output_configs = stored_output_configs
         self._sandbox_backend = sandbox_backend
+        self._language = language
 
     @property
     def name(self) -> str:
@@ -675,6 +677,20 @@ class CodeEvaluatorRunner(BaseEvaluator):
     @property
     def output_configs(self) -> Sequence[EvaluatorOutputConfig]:
         return self._stored_output_configs
+
+    @staticmethod
+    def _build_python_harness(source_code: str, inputs: dict[str, Any]) -> str:
+        return (
+            "import json, sys\n"
+            f"{source_code}\n"
+            f"_inputs = json.loads({json.dumps(json.dumps(inputs))})\n"
+            "try:\n"
+            "    _result = evaluate(**_inputs)\n"
+            "    print(json.dumps(_result))\n"
+            "except Exception as _e:\n"
+            "    print(str(_e), file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
 
     @staticmethod
     def _make_error_result(
@@ -765,17 +781,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
-                harness = (
-                    "import json, sys\n"
-                    f"{self._source_code}\n"
-                    f"_inputs = json.loads({json.dumps(json.dumps(inputs))})\n"
-                    "try:\n"
-                    "    _result = evaluate(**_inputs)\n"
-                    "    print(json.dumps(_result))\n"
-                    "except Exception as _e:\n"
-                    "    print(str(_e), file=sys.stderr)\n"
-                    "    sys.exit(1)\n"
-                )
+                if self._language == "PYTHON":
+                    harness = self._build_python_harness(self._source_code, inputs)
+                else:
+                    raise ValueError(f"Unsupported evaluator language: {self._language!r}")
 
                 with tracer_.start_as_current_span(
                     "Sandbox Execution",
@@ -1257,7 +1266,7 @@ async def get_evaluators(
             sandbox_config: dict[str, Any] = {}
             if code_eval.sandbox_config_id is not None:
                 sandbox_instance = await session.get(
-                    models.SandboxConfigInstance, code_eval.sandbox_config_id
+                    models.SandboxConfig, code_eval.sandbox_config_id
                 )
                 if sandbox_instance is not None:
                     backend_type = sandbox_instance.backend_type
@@ -1271,6 +1280,7 @@ async def get_evaluators(
                     stored_input_schema=code_eval.input_schema,
                     stored_output_configs=output_configs,
                     sandbox_backend=backend,
+                    language=code_eval.language,
                 )
             )
         else:

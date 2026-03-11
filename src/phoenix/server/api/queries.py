@@ -128,7 +128,8 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatusCode,
     SandboxConfigFieldSpec,
     SandboxEnvVarSpec,
-    to_gql_sandbox_config_instance,
+    SandboxLanguage,
+    to_gql_sandbox_config,
 )
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
@@ -1782,13 +1783,13 @@ class Query:
         info: Info[Context, None],
     ) -> list[SandboxAdapterInfo]:
         async with info.context.db() as session:
-            # Fetch parent sandbox_configs (per-backend-type enabled flag)
-            parent_result = await session.execute(select(models.SandboxConfig))
+            # Fetch parent sandbox_adapters (per-backend-type enabled flag)
+            parent_result = await session.execute(select(models.SandboxAdapter))
             db_parents = {row.backend_type: row for row in parent_result.scalars().all()}
 
-            # Fetch all config instances grouped by backend_type
-            instance_result = await session.execute(select(models.SandboxConfigInstance))
-            instances_by_type: dict[str, list[models.SandboxConfigInstance]] = {}
+            # Fetch all sandbox configs grouped by backend_type
+            instance_result = await session.execute(select(models.SandboxConfig))
+            instances_by_type: dict[str, list[models.SandboxConfig]] = {}
             for inst in instance_result.scalars().all():
                 instances_by_type.setdefault(inst.backend_type, []).append(inst)
 
@@ -1842,7 +1843,10 @@ class Query:
                         ],
                         config_required=meta.config_required,
                         setup_instructions=meta.setup_instructions,
-                        configs=[to_gql_sandbox_config_instance(inst) for inst in instances],
+                        supported_languages=[
+                            SandboxLanguage(lang) for lang in meta.supported_languages
+                        ],
+                        configs=[to_gql_sandbox_config(inst) for inst in instances],
                     )
                 )
 

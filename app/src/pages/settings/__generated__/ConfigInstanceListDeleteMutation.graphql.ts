@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f0f664473a5f40f3ee647328dbbd97fa>>
+ * @generated SignedSource<<d93dd31c8492a7919fd6c6e4a3a995f3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,17 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SettingsSandboxPageDeleteInstanceMutation$variables = {
+export type ConfigInstanceListDeleteMutation$variables = {
   id: string;
 };
-export type SettingsSandboxPageDeleteInstanceMutation$data = {
-  readonly deleteSandboxConfigInstance: {
+export type ConfigInstanceListDeleteMutation$data = {
+  readonly deleteSandboxConfig: {
     readonly id: string;
   };
 };
-export type SettingsSandboxPageDeleteInstanceMutation = {
-  response: SettingsSandboxPageDeleteInstanceMutation$data;
-  variables: SettingsSandboxPageDeleteInstanceMutation$variables;
+export type ConfigInstanceListDeleteMutation = {
+  response: ConfigInstanceListDeleteMutation$data;
+  variables: ConfigInstanceListDeleteMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -40,9 +40,9 @@ v1 = [
         "variableName": "id"
       }
     ],
-    "concreteType": "SandboxConfigInstance",
+    "concreteType": "SandboxConfig",
     "kind": "LinkedField",
-    "name": "deleteSandboxConfigInstance",
+    "name": "deleteSandboxConfig",
     "plural": false,
     "selections": [
       {
@@ -61,7 +61,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsSandboxPageDeleteInstanceMutation",
+    "name": "ConfigInstanceListDeleteMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -70,20 +70,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsSandboxPageDeleteInstanceMutation",
+    "name": "ConfigInstanceListDeleteMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "4961c305649ed3a582f2cc2373ac0a13",
+    "cacheID": "883f7a2ad0b8aff3e3e6a446333afece",
     "id": null,
     "metadata": {},
-    "name": "SettingsSandboxPageDeleteInstanceMutation",
+    "name": "ConfigInstanceListDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsSandboxPageDeleteInstanceMutation(\n  $id: ID!\n) {\n  deleteSandboxConfigInstance(id: $id) {\n    id\n  }\n}\n"
+    "text": "mutation ConfigInstanceListDeleteMutation(\n  $id: ID!\n) {\n  deleteSandboxConfig(id: $id) {\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "78793b46f865d29f65d0d74f16fb7e75";
+(node as any).hash = "54688d22f514b20939988fea8cbe9db8";
 
 export default node;
