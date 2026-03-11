@@ -11,7 +11,7 @@ GitHub
 
 
 <Update label="03.11.2026">
-## [03.11.2026: Session Turns API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.11.2026: Session Turns API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
 
 Phoenix now provides a dedicated session turns API that reconstructs the ordered input/output pairs across all traces in a session. The new `get_session_turns()` method (Python) and `getSessionTurns()` function (TypeScript) extract root span `input.value` / `output.value` attributes and return chronologically ordered `SessionTurn` objects.
@@ -23,7 +23,7 @@ Phoenix now provides a dedicated session turns API that reconstructs the ordered
 </Update>
 
 <Update label="03.10.2026">
-## [03.10.2026: Session Management REST APIs](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.10.2026: Session Management REST APIs](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.13.0+ (server), arize-phoenix-client 1.31.0+ (Python), @arizeai/phoenix-client 6.1.0+ (TypeScript)**
 
 Phoenix now exposes comprehensive session management through REST API endpoints on the server. Retrieve individual sessions, list sessions with pagination and project filtering, and delete sessions with cascading cleanup of associated traces, spans, and annotations.
@@ -36,7 +36,7 @@ Phoenix now exposes comprehensive session management through REST API endpoints 
 </Update>
 
 <Update label="03.09.2026">
-## [03.09.2026: Filter Spans by Trace ID and Parent Relationships](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.09.2026: Filter Spans by Trace ID and Parent Relationships](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.12.0+ (server), arize-phoenix-client 2.0.0+ (Python), @arizeai/phoenix-client 6.3.0+ (TypeScript)**
 
 Span queries now support filtering by trace ID and parent relationships, enabling precise navigation of trace hierarchies. Query for root spans using `parent_id=null` or retrieve all children of a specific parent span to reconstruct execution trees programmatically.
@@ -48,14 +48,14 @@ Span queries now support filtering by trace ID and parent relationships, enablin
 </Update>
 
 <Update label="03.04.2026">
-## [03.04.2026: Incremental Evaluation Metrics in Playground](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.04.2026: Incremental Evaluation Metrics in Playground](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.8.0+**
 
 The Playground now displays evaluation metrics, cost, and latency aggregates in real-time as dataset experiments run. Metrics update incrementally every ~2 seconds, providing immediate feedback on experiment performance without waiting for completion.
 </Update>
 
 <Update label="03.07.2026">
-## [03.07.2026: Unified Dataset Upload with Drag-and-Drop](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.07.2026: Unified Dataset Upload with Drag-and-Drop](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.9.0+**
 
 Dataset creation from files is now streamlined with automatic file type detection and a unified upload experience. Drag-and-drop CSV or JSONL files anywhere in the upload form, and Phoenix automatically parses headers and previews data without loading entire files into memory.
@@ -68,7 +68,7 @@ Dataset creation from files is now streamlined with automatic file type detectio
 </Update>
 
 <Update label="03.10.2026">
-## [03.10.2026: Drag-and-Drop Column Assignment for Datasets](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.10.2026: Drag-and-Drop Column Assignment for Datasets](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.13.0+**
 
 Dataset creation now features an intuitive drag-and-drop column assignment interface. Assign columns to input, output, or metadata buckets with automatic suggestions based on common naming conventions, and preview exactly how your data will appear in the final dataset.
@@ -81,7 +81,7 @@ Dataset creation now features an intuitive drag-and-drop column assignment inter
 </Update>
 
 <Update label="03.08.2026">
-## [03.08.2026: Extended Model Provider Support](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.08.2026: Extended Model Provider Support](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.10.0+ (Cerebras, Fireworks, Groq, Moonshot) and arize-phoenix 13.11.0+ (Perplexity, Together AI)**
 
 Phoenix Playground now supports six additional OpenAI-compatible model providers: Perplexity AI, Together AI, Cerebras, Fireworks AI, Groq, and Moonshot (Kimi). Access hundreds of new models including specialized reasoning models and fine-tuned variants through familiar OpenAI-compatible APIs.
@@ -96,7 +96,7 @@ Phoenix Playground now supports six additional OpenAI-compatible model providers
 </Update>
 
 <Update label="03.10.2026">
-## [03.10.2026: Provider Visibility Controls](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.10.2026: Provider Visibility Controls](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.13.0+**
 
 Configure which model providers appear in the Phoenix UI using new environment variables. Hide providers you don't use with `PHOENIX_HIDDEN_PROVIDERS` or explicitly allow only specific providers with `PHOENIX_ALLOWED_PROVIDERS` for cleaner, more focused interfaces.
@@ -108,14 +108,14 @@ Configure which model providers appear in the Phoenix UI using new environment v
 </Update>
 
 <Update label="03.08.2026">
-## [03.08.2026: Latest OpenAI GPT Models](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.08.2026: Latest OpenAI GPT Models](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.10.0+**
 
 Phoenix Playground now includes the latest OpenAI models: GPT-5.4 family, GPT-5.3-chat-latest, GPT-5.2-pro variants, and o3-pro-2025-06-10. All models include cost tracking and are ready to use in experiments and prompt testing.
 </Update>
 
 <Update label="03.08.2026">
-## [03.08.2026: Project Editing from Settings](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.08.2026: Project Editing from Settings](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.10.0+**
 
 Edit project descriptions and customize gradient colors directly from the Project Settings page. Click the edit button to update project metadata inline, with changes persisting immediately across the Phoenix UI.
@@ -123,7 +123,7 @@ Edit project descriptions and customize gradient colors directly from the Projec
 
 
 <Update label="03.11.2026">
-## [03.11.2026: Breaking Change: Removed Deprecated Annotations API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-conversation-api)
+## [03.11.2026: Breaking Change: Removed Deprecated Annotations API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Breaking change in arize-phoenix-client 2.0.0**
 
 The deprecated `client.annotations` module has been removed. All annotation methods remain available on `client.spans`. Update your code to use `client.spans.add_span_annotation()` and `client.spans.log_span_annotations()` instead of the `client.annotations` variants.
