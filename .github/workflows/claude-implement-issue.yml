@@ -53,7 +53,7 @@ jobs:
       - name: Claim issue
         if: env.READY == 'true'
         run: |
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "github-actions[bot]" --add-label "agent-in-progress"
+          gh issue edit "$ISSUE_NUMBER" --add-label "agent-in-progress"
 
       - name: Checkout repository
         if: env.READY == 'true'
