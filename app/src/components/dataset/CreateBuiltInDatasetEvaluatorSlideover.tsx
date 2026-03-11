@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
@@ -47,7 +48,11 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
       <Modal variant="slideover" size="fullscreen">
         <Dialog aria-label="Add evaluator to dataset">
           {({ close }) => (
-            <DialogContent style={{ minHeight: "300px" }}>
+            <DialogContent
+              css={css`
+                min-height: 300px;
+              `}
+            >
               <Suspense
                 fallback={
                   <Flex flex={1} alignItems="center">

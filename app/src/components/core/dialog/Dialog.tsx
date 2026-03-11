@@ -39,27 +39,19 @@ export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
 
 Dialog.displayName = "Dialog";
 
-export type DialogContentProps = HTMLAttributes<HTMLDivElement>;
-
-const dialogContentCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  height: 100%;
-`;
+export type DialogContentProps = FlexProps;
 
 export const DialogContent = ({ children, ...props }: DialogContentProps) => {
   return (
-    <div
+    <Flex
+      direction="column"
+      height="100%"
       data-testid="dialog-content"
       {...props}
-      css={dialogContentCSS}
       className={classNames(props.className, "react-aria-DialogContent")}
     >
       {children}
-    </div>
+    </Flex>
   );
 };
 
