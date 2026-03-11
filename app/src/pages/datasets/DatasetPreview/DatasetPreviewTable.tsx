@@ -59,7 +59,7 @@ function PreviewCell(
       {isEmpty ? (
         <Text color="text-500">--</Text>
       ) : (
-        <CompactJSONCell {...row} />
+        <CompactJSONCell {...row} collapseSingleKey={false} />
       )}
     </div>
   );
