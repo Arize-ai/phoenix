@@ -2,4 +2,4 @@
 "@arizeai/phoenix-client": minor
 ---
 
-Add `getSessionConversation` function to retrieve ordered conversation turns from a session
+Add `getSessionTurns` function to retrieve ordered conversation turns (root span I/O) from a session

@@ -12,6 +12,7 @@ from typing import (
 )
 
 import httpx
+from openinference.semconv.trace import SpanAttributes
 from typing_extensions import NotRequired, TypedDict
 
 from phoenix.client.__generated__ import v1
@@ -1098,6 +1099,22 @@ class AsyncSessions:
         return all_responses if sync else None
 
 
+def _extract_io(
+    attrs: dict[str, object],
+    value_key: str,
+    mime_type_key: str,
+) -> Optional[SessionTurnIO]:
+    """Extract a SessionTurnIO from span attributes for a given value/mime-type key pair."""
+    value = attrs.get(value_key)
+    if value is None:
+        return None
+    io = SessionTurnIO(value=str(value))
+    mime_type = attrs.get(mime_type_key)
+    if mime_type is not None:
+        io["mime_type"] = str(mime_type)
+    return io
+
+
 def _build_session_turns(
     all_trace_ids: List[str],
     trace_info: dict[str, v1.SessionTraceData],
@@ -1116,19 +1133,15 @@ def _build_session_turns(
         if root_span:
             turn["root_span"] = root_span
             attrs = root_span.get("attributes", {})
-            input_value = attrs.get("input.value")
-            output_value = attrs.get("output.value")
-            input_mime = attrs.get("input.mime_type")
-            output_mime = attrs.get("output.mime_type")
-            if input_value is not None:
-                input_io = SessionTurnIO(value=str(input_value))
-                if input_mime is not None:
-                    input_io["mime_type"] = str(input_mime)
+            input_io = _extract_io(
+                attrs, SpanAttributes.INPUT_VALUE, SpanAttributes.INPUT_MIME_TYPE
+            )
+            if input_io is not None:
                 turn["input"] = input_io
-            if output_value is not None:
-                output_io = SessionTurnIO(value=str(output_value))
-                if output_mime is not None:
-                    output_io["mime_type"] = str(output_mime)
+            output_io = _extract_io(
+                attrs, SpanAttributes.OUTPUT_VALUE, SpanAttributes.OUTPUT_MIME_TYPE
+            )
+            if output_io is not None:
                 turn["output"] = output_io
         turns.append(turn)
     turns.sort(key=lambda t: t["start_time"])
