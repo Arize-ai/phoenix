@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.31.0...arize-phoenix-client-v2.0.0) (2026-03-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** `client.annotations` has been removed. Use `client.spans` instead.
+
+### Features
+
+* add Cerebras, Fireworks, Groq, and Moonshot as first-class providers ([#11938](https://github.com/Arize-ai/phoenix/issues/11938)) ([df94203](https://github.com/Arize-ai/phoenix/commit/df94203fa621bae9928d96249382380aa4be5443))
+* add Perplexity and Together AI as built-in providers in the playground ([#11952](https://github.com/Arize-ai/phoenix/issues/11952)) ([aeefe19](https://github.com/Arize-ai/phoenix/commit/aeefe1970405c7fcb48254dce92dcfc1824fcaa3))
+* add trace_ids parameter to client getSpans methods ([#11945](https://github.com/Arize-ai/phoenix/issues/11945)) ([6d896e3](https://github.com/Arize-ai/phoenix/commit/6d896e32ce1d4ed2038342ae67d678de2163e8f0))
+* **client:** add session conversation API to Python and TypeScript clients ([#11974](https://github.com/Arize-ai/phoenix/issues/11974)) ([83b7f68](https://github.com/Arize-ai/phoenix/commit/83b7f68782b4994a741244c478d5d561e4817bcb))
+* **client:** propagate parent_id filter to JS and Python clients ([#11975](https://github.com/Arize-ai/phoenix/issues/11975)) ([d951320](https://github.com/Arize-ai/phoenix/commit/d951320f704545a516ccd63d2acbc88a35685491))
+* **client:** remove deprecated `client.annotations` module ([#11983](https://github.com/Arize-ai/phoenix/issues/11983)) ([6203c31](https://github.com/Arize-ai/phoenix/commit/6203c31fc59579dfbe927d47ca0d03d162d7fb77))
+* **server:** add DELETE session API  ([#11976](https://github.com/Arize-ai/phoenix/issues/11976)) ([d4a865a](https://github.com/Arize-ai/phoenix/commit/d4a865ae6bc1511b2b433b408de2f75bf71abc7b))
+
 ## [1.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.30.0...arize-phoenix-client-v1.31.0) (2026-03-06)
 
 
