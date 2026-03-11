@@ -99,9 +99,8 @@ Phoenix Playground now supports six additional OpenAI-compatible model providers
 ## [03.10.2026: Provider Visibility Controls](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.13.0+**
 
-Configure which model providers appear in the Phoenix UI using new environment variables. Hide providers you don't use with `PHOENIX_HIDDEN_PROVIDERS` or explicitly allow only specific providers with `PHOENIX_ALLOWED_PROVIDERS` for cleaner, more focused interfaces.
+Control which model providers appear in the Phoenix UI using the `PHOENIX_ALLOWED_PROVIDERS` environment variable. Set it to a comma-separated list of provider names to show only those providers, keeping your interface focused on the tools you actually use.
 
-- **Hide unwanted providers** with comma-separated lists
 - **Allow-list mode** to show only specified providers
 - **Case-insensitive configuration** with typo detection warnings
 - **Set to NONE** to hide all providers from the UI
