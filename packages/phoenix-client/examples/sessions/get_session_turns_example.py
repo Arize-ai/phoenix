@@ -1,7 +1,7 @@
 """
-[Experimental] Retrieve a conversation view of a session.
+[Experimental] Retrieve the turns (root span I/O) for a session.
 
-This example shows how to use `client.sessions.get_session_conversation()`
+This example shows how to use `client.sessions.get_session_turns()`
 to fetch the ordered input/output turns for a session, along with the full
 root span for each turn.
 
@@ -14,7 +14,7 @@ Prerequisites:
 Usage:
     # Set the session ID and project name below, then run:
     uv run --project packages/phoenix-client python \
-        packages/phoenix-client/examples/sessions/get_session_conversation_example.py
+        packages/phoenix-client/examples/sessions/get_session_turns_example.py
 """
 
 from phoenix.client import Client
@@ -41,14 +41,16 @@ session_ids = [s["session_id"] for s in sessions]
 target = SESSION_ID if SESSION_ID in session_ids else sessions[0]["session_id"]
 print(f"\nUsing session: {target}\n")
 
-# 2. [Experimental] Get the conversation turns
-turns = client.sessions.get_session_conversation(session_id=target)
+# 2. [Experimental] Get the session turns
+turns = client.sessions.get_session_turns(session_id=target)
 
-print(f"Conversation ({len(turns)} turn(s)):")
+print(f"Session ({len(turns)} turn(s)):")
 print("-" * 60)
 for i, turn in enumerate(turns, 1):
-    user_input = turn.get("input", {}).get("value", "<no input>")
-    assistant_output = turn.get("output", {}).get("value", "<no output>")
+    input_io = turn.get("input")
+    output_io = turn.get("output")
+    user_input = input_io["value"] if input_io else "<no input>"
+    assistant_output = output_io["value"] if output_io else "<no output>"
     print(f"\n--- Turn {i} (trace_id={turn['trace_id']}) ---")
     print(f"  Input:  {user_input}")
     print(f"  Output: {assistant_output}")

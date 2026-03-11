@@ -16,7 +16,7 @@ const MAX_TRACE_IDS_PER_BATCH = 50;
  *
  * @experimental this interface is experimental and may change in the future
  */
-export interface ConversationTurnIO {
+export interface SessionTurnIO {
   /** The string value of the input or output */
   value: string;
   /** Optional MIME type (e.g. "text/plain", "application/json") */
@@ -24,11 +24,16 @@ export interface ConversationTurnIO {
 }
 
 /**
- * A single turn in a session conversation, representing one trace's input/output.
+ * A single turn in a session, representing one trace's root span input/output.
+ *
+ * **Note:** A "turn" is derived from a trace's root span. For input/output to appear,
+ * the root span must have `input.value` and `output.value` attributes set
+ * (per OpenInference semantic conventions). This typically requires instrumentation
+ * that records these attributes on the top-level span.
  *
  * @experimental this interface is experimental and may change in the future
  */
-export interface ConversationTurn {
+export interface SessionTurn {
   /** The trace ID for this turn */
   traceId: string;
   /** ISO 8601 timestamp of when the trace started */
@@ -36,9 +41,9 @@ export interface ConversationTurn {
   /** ISO 8601 timestamp of when the trace ended */
   endTime: string;
   /** Input extracted from the root span's attributes */
-  input?: ConversationTurnIO;
+  input?: SessionTurnIO;
   /** Output extracted from the root span's attributes */
-  output?: ConversationTurnIO;
+  output?: SessionTurnIO;
   /** The full root span, if found */
   rootSpan?: Span;
 }
@@ -46,34 +51,39 @@ export interface ConversationTurn {
 /**
  * @experimental this interface is experimental and may change in the future
  */
-export interface GetSessionConversationParams extends ClientFn {
+export interface GetSessionTurnsParams extends ClientFn {
   /** The session identifier: either a GlobalID or user-provided session_id string. */
   sessionId: string;
 }
 
 /**
- * Get a conversation view of a session.
+ * Get the turns (root span I/O) for a session.
  *
  * Returns input/output extracted from root spans for each trace, along with
  * the full root span. Turns are ordered by trace start_time.
+ *
+ * **Note:** A "turn" is derived from a trace's root span. For input/output to appear,
+ * the root span must have `input.value` and `output.value` attributes set
+ * (per OpenInference semantic conventions). This typically requires instrumentation
+ * that records these attributes on the top-level span.
  *
  * @experimental this function is experimental and may change in the future
  *
  * @example
  * ```ts
- * import { getSessionConversation } from "@arizeai/phoenix-client/sessions";
+ * import { getSessionTurns } from "@arizeai/phoenix-client/sessions";
  *
- * const turns = await getSessionConversation({ sessionId: "my-session" });
+ * const turns = await getSessionTurns({ sessionId: "my-session" });
  * for (const turn of turns) {
  *   console.log(`[${turn.startTime}] Input: ${turn.input?.value}`);
  *   console.log(`[${turn.startTime}] Output: ${turn.output?.value}`);
  * }
  * ```
  */
-export async function getSessionConversation({
+export async function getSessionTurns({
   client: _client,
   sessionId,
-}: GetSessionConversationParams): Promise<ConversationTurn[]> {
+}: GetSessionTurnsParams): Promise<SessionTurn[]> {
   const client = _client ?? createClient();
 
   const session: Session = await getSession({ client, sessionId });
@@ -105,7 +115,7 @@ export async function getSessionConversation({
     }
   }
 
-  return buildConversationTurns({ allTraceIds, traceInfo, rootSpansByTrace });
+  return buildSessionTurns({ allTraceIds, traceInfo, rootSpansByTrace });
 }
 
 /**
@@ -140,7 +150,7 @@ async function getAllRootSpansForBatch({
 }
 
 /**
- * Extract a ConversationTurnIO from span attributes for a given prefix.
+ * Extract a SessionTurnIO from span attributes for a given prefix.
  */
 function extractIO({
   attrs,
@@ -150,10 +160,10 @@ function extractIO({
   attrs: Record<string, unknown>;
   valueKey: string;
   mimeTypeKey: string;
-}): ConversationTurnIO | undefined {
+}): SessionTurnIO | undefined {
   const value = attrs[valueKey];
   if (value == null) return undefined;
-  const io: ConversationTurnIO = { value: String(value) };
+  const io: SessionTurnIO = { value: String(value) };
   const mimeType = attrs[mimeTypeKey];
   if (mimeType != null) {
     io.mimeType = String(mimeType);
@@ -162,9 +172,9 @@ function extractIO({
 }
 
 /**
- * Build conversation turns from trace info and root spans, ordered by start_time.
+ * Build session turns from trace info and root spans, ordered by start_time.
  */
-function buildConversationTurns({
+function buildSessionTurns({
   allTraceIds,
   traceInfo,
   rootSpansByTrace,
@@ -172,14 +182,14 @@ function buildConversationTurns({
   allTraceIds: string[];
   traceInfo: Map<string, SessionTrace>;
   rootSpansByTrace: Map<string, Span>;
-}): ConversationTurn[] {
-  const turns: ConversationTurn[] = [];
+}): SessionTurn[] {
+  const turns: SessionTurn[] = [];
 
   for (const traceId of allTraceIds) {
     const info = traceInfo.get(traceId);
     if (!info) continue;
 
-    const turn: ConversationTurn = {
+    const turn: SessionTurn = {
       traceId,
       startTime: info.startTime,
       endTime: info.endTime,

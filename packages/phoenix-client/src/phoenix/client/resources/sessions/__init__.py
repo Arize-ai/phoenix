@@ -26,21 +26,27 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 _MAX_TRACE_IDS_PER_BATCH = 50
 
 
-class ConversationTurnIO(TypedDict):
+class SessionTurnIO(TypedDict):
     """**Experimental** - Input or output extracted from a root span's attributes."""
 
     value: str
     mime_type: NotRequired[Optional[str]]
 
 
-class ConversationTurn(TypedDict):
-    """**Experimental** - A single turn in a session conversation."""
+class SessionTurn(TypedDict):
+    """**Experimental** - A single turn in a session, representing one trace's root span I/O.
+
+    **Note:** A "turn" is derived from a trace's root span. For input/output to appear,
+    the root span must have ``input.value`` and ``output.value`` attributes set
+    (per OpenInference semantic conventions). This typically requires instrumentation
+    that records these attributes on the top-level span.
+    """
 
     trace_id: str
     start_time: str
     end_time: str
-    input: NotRequired[Optional[ConversationTurnIO]]
-    output: NotRequired[Optional[ConversationTurnIO]]
+    input: NotRequired[Optional[SessionTurnIO]]
+    output: NotRequired[Optional[SessionTurnIO]]
     root_span: NotRequired[v1.Span]
 
 
@@ -208,23 +214,28 @@ class Sessions:
         ]
         return pd.DataFrame(rows)
 
-    def get_session_conversation(
+    def get_session_turns(
         self,
         *,
         session_id: str,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> List[ConversationTurn]:
-        """**Experimental** - Get a conversation view of a session.
+    ) -> List[SessionTurn]:
+        """**Experimental** - Get the turns (root span I/O) for a session.
 
         Returns input/output extracted from root spans for each trace, along with
         the full root span. Turns are ordered by trace start_time.
+
+        **Note:** A "turn" is derived from a trace's root span. For input/output to appear,
+        the root span must have ``input.value`` and ``output.value`` attributes set
+        (per OpenInference semantic conventions). This typically requires instrumentation
+        that records these attributes on the top-level span.
 
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for each request.
 
         Returns:
-            A list of ConversationTurn dicts ordered by start_time.
+            A list of SessionTurn dicts ordered by start_time.
         """
         session_data = self.get(session_id=session_id, timeout=timeout)
         traces = session_data["traces"]
@@ -253,7 +264,7 @@ class Sessions:
                 if tid not in root_spans_by_trace:
                     root_spans_by_trace[tid] = span
 
-        return _build_conversation_turns(all_trace_ids, trace_info, root_spans_by_trace)
+        return _build_session_turns(all_trace_ids, trace_info, root_spans_by_trace)
 
     @overload
     def add_session_annotation(
@@ -719,23 +730,28 @@ class AsyncSessions:
         ]
         return pd.DataFrame(rows)
 
-    async def get_session_conversation(
+    async def get_session_turns(
         self,
         *,
         session_id: str,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> List[ConversationTurn]:
-        """**Experimental** - Get a conversation view of a session.
+    ) -> List[SessionTurn]:
+        """**Experimental** - Get the turns (root span I/O) for a session.
 
         Returns input/output extracted from root spans for each trace, along with
         the full root span. Turns are ordered by trace start_time.
+
+        **Note:** A "turn" is derived from a trace's root span. For input/output to appear,
+        the root span must have ``input.value`` and ``output.value`` attributes set
+        (per OpenInference semantic conventions). This typically requires instrumentation
+        that records these attributes on the top-level span.
 
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for each request.
 
         Returns:
-            A list of ConversationTurn dicts ordered by start_time.
+            A list of SessionTurn dicts ordered by start_time.
         """
         session_data = await self.get(session_id=session_id, timeout=timeout)
         traces = session_data["traces"]
@@ -764,7 +780,7 @@ class AsyncSessions:
                 if tid not in root_spans_by_trace:
                     root_spans_by_trace[tid] = span
 
-        return _build_conversation_turns(all_trace_ids, trace_info, root_spans_by_trace)
+        return _build_session_turns(all_trace_ids, trace_info, root_spans_by_trace)
 
     @overload
     async def add_session_annotation(
@@ -1082,16 +1098,16 @@ class AsyncSessions:
         return all_responses if sync else None
 
 
-def _build_conversation_turns(
+def _build_session_turns(
     all_trace_ids: List[str],
     trace_info: dict[str, v1.SessionTraceData],
     root_spans_by_trace: dict[str, v1.Span],
-) -> List[ConversationTurn]:
-    """Build conversation turns from trace info and root spans, ordered by start_time."""
-    turns: List[ConversationTurn] = []
+) -> List[SessionTurn]:
+    """Build session turns from trace info and root spans, ordered by start_time."""
+    turns: List[SessionTurn] = []
     for trace_id in all_trace_ids:
         info = trace_info[trace_id]
-        turn = ConversationTurn(
+        turn = SessionTurn(
             trace_id=trace_id,
             start_time=info["start_time"],
             end_time=info["end_time"],
@@ -1105,12 +1121,12 @@ def _build_conversation_turns(
             input_mime = attrs.get("input.mime_type")
             output_mime = attrs.get("output.mime_type")
             if input_value is not None:
-                input_io = ConversationTurnIO(value=str(input_value))
+                input_io = SessionTurnIO(value=str(input_value))
                 if input_mime is not None:
                     input_io["mime_type"] = str(input_mime)
                 turn["input"] = input_io
             if output_value is not None:
-                output_io = ConversationTurnIO(value=str(output_value))
+                output_io = SessionTurnIO(value=str(output_value))
                 if output_mime is not None:
                     output_io["mime_type"] = str(output_mime)
                 turn["output"] = output_io

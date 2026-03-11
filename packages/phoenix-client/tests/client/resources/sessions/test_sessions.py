@@ -313,7 +313,7 @@ def _make_span(
     )
 
 
-class TestGetSessionConversation:
+class TestGetSessionTurns:
     def test_returns_conversation_turns_with_io(self) -> None:
         session = _make_session_data(session_id="s1", num_traces=2, project_id="proj1")
 
@@ -331,7 +331,7 @@ class TestGetSessionConversation:
             return httpx.Response(404)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        turns = Sessions(client, Spans(client)).get_session_conversation(session_id="s1")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
 
         assert len(turns) == 2
         assert turns[0]["trace_id"] == "tid-0"
@@ -350,7 +350,7 @@ class TestGetSessionConversation:
             return httpx.Response(200, json={"data": session})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        turns = Sessions(client, Spans(client)).get_session_conversation(session_id="s1")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
         assert turns == []
 
     def test_missing_root_span_still_returns_turn(self) -> None:
@@ -364,7 +364,7 @@ class TestGetSessionConversation:
             return httpx.Response(404)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        turns = Sessions(client, Spans(client)).get_session_conversation(session_id="s1")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
         assert len(turns) == 1
         assert turns[0]["trace_id"] == "tid-0"
         assert "input" not in turns[0]
@@ -407,12 +407,12 @@ class TestGetSessionConversation:
             return httpx.Response(404)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        turns = Sessions(client, Spans(client)).get_session_conversation(session_id="s1")
+        turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
         assert turns[0].get("input") == {"value": "first"}
         assert turns[1].get("input") == {"value": "second"}
 
 
-class TestAsyncGetSessionConversation:
+class TestAsyncGetSessionTurns:
     @pytest.mark.anyio
     async def test_returns_conversation_turns(self) -> None:
         session = _make_session_data(session_id="s1", num_traces=1, project_id="proj1")
@@ -432,9 +432,7 @@ class TestAsyncGetSessionConversation:
             return httpx.Response(404)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        turns = await AsyncSessions(client, AsyncSpans(client)).get_session_conversation(
-            session_id="s1"
-        )
+        turns = await AsyncSessions(client, AsyncSpans(client)).get_session_turns(session_id="s1")
         assert len(turns) == 1
         assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}
         assert turns[0].get("output") == {"value": "bye", "mime_type": "text/plain"}

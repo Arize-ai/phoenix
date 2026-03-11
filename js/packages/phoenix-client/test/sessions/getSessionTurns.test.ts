@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
-import { getSessionConversation } from "../../src/sessions/getSessionConversation";
+import { getSessionTurns } from "../../src/sessions/getSessionTurns";
 
 const mockGet = vi.fn();
 
@@ -64,13 +64,13 @@ function mockSessionAndSpans(
   }
 }
 
-describe("getSessionConversation", () => {
+describe("getSessionTurns", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGet.mockReset();
   });
 
-  it("should return conversation turns with input/output", async () => {
+  it("should return session turns with input/output", async () => {
     const sessionData = makeSessionData([
       {
         id: "t1-global",
@@ -90,7 +90,7 @@ describe("getSessionConversation", () => {
 
     mockSessionAndSpans(sessionData, [{ spans: [span] }]);
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
 
     expect(turns).toHaveLength(1);
     expect(turns[0]).toEqual({
@@ -107,7 +107,7 @@ describe("getSessionConversation", () => {
     const sessionData = makeSessionData([]);
     mockGet.mockResolvedValueOnce({ data: { data: sessionData } });
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
     expect(turns).toEqual([]);
     // Should only call getSession, not getSpans
     expect(mockGet).toHaveBeenCalledTimes(1);
@@ -126,7 +126,7 @@ describe("getSessionConversation", () => {
     // Return no spans
     mockSessionAndSpans(sessionData, [{ spans: [] }]);
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
 
     expect(turns).toHaveLength(1);
     expect(turns[0]).toEqual({
@@ -178,7 +178,7 @@ describe("getSessionConversation", () => {
 
     mockSessionAndSpans(sessionData, [{ spans }]);
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
 
     expect(turns).toHaveLength(3);
     expect(turns[0].traceId).toBe("trace-1");
@@ -208,7 +208,7 @@ describe("getSessionConversation", () => {
 
     mockSessionAndSpans(sessionData, [{ spans: [span] }]);
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
 
     expect(turns[0].input).toEqual({
       value: '{"query": "test"}',
@@ -251,7 +251,7 @@ describe("getSessionConversation", () => {
       { spans: [span2], nextCursor: null },
     ]);
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
 
     expect(turns).toHaveLength(2);
     // 3 calls total: 1 getSession + 2 getSpans (pagination)
@@ -283,7 +283,7 @@ describe("getSessionConversation", () => {
       { spans: batch2Spans },
     ]);
 
-    const turns = await getSessionConversation({ sessionId: "my-session" });
+    const turns = await getSessionTurns({ sessionId: "my-session" });
 
     expect(turns).toHaveLength(60);
     // 3 calls: 1 getSession + 2 getSpans (2 batches)
@@ -313,7 +313,7 @@ describe("getSessionConversation", () => {
 
     mockSessionAndSpans(sessionData, [{ spans: [] }]);
 
-    await getSessionConversation({ sessionId: "my-session" });
+    await getSessionTurns({ sessionId: "my-session" });
 
     // The spans call should include parent_id: "null"
     const spansCall = mockGet.mock.calls[1];
