@@ -3,33 +3,17 @@ import { useState } from "react";
 
 import {
   Flex,
-  Heading,
   ProgressCircle,
   Tab,
   TabList,
   TabPanel,
   Tabs,
   Text,
-  View,
 } from "@phoenix/components";
-import { IsAuthenticated } from "@phoenix/components/auth";
-import { GenerateAPIKeyButton } from "@phoenix/components/auth";
-import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
-import { CodeWrap } from "@phoenix/components/code/CodeWrap";
-import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
-import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
-import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
-import { IS_HOSTED_DEPLOYMENT } from "@phoenix/components/project/hosting";
-import {
-  getEnvironmentVariables,
-  getOtelInitCodePython,
-  getOtelInitCodeTypescript,
-  PYTHON_PACKAGES,
-  TYPESCRIPT_PACKAGES,
-} from "@phoenix/components/project/integrationSnippets";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import type { ProgrammingLanguage } from "@phoenix/types/code";
+
+import { OnboardingSteps } from "./OnboardingSteps";
 
 const onboardingCSS = css`
   overflow-y: auto;
@@ -103,95 +87,5 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
         </Flex>
       </div>
     </div>
-  );
-}
-
-function ImplementationCodeBlock({
-  language,
-  projectName,
-  isHosted,
-}: {
-  language: ProgrammingLanguage;
-  projectName: string;
-  isHosted: boolean;
-}) {
-  if (language === "Python") {
-    return (
-      <PythonBlockWithCopy
-        value={getOtelInitCodePython({ isHosted, projectName })}
-      />
-    );
-  }
-  return (
-    <TypeScriptBlockWithCopy value={getOtelInitCodeTypescript(projectName)} />
-  );
-}
-
-function OnboardingSteps({
-  language,
-  projectName,
-  generatedApiKey,
-  onApiKeyGenerated,
-}: {
-  language: ProgrammingLanguage;
-  projectName: string;
-  generatedApiKey: string | null;
-  onApiKeyGenerated: (key: string) => void;
-}) {
-  const isHosted = IS_HOSTED_DEPLOYMENT;
-  const isAuthEnabled = window.Config.authenticationEnabled;
-  const packages =
-    language === "Python" ? [...PYTHON_PACKAGES] : [...TYPESCRIPT_PACKAGES];
-  const envVars = getEnvironmentVariables({
-    isAuthEnabled,
-    isHosted,
-    apiKey: generatedApiKey ?? undefined,
-  });
-
-  return (
-    <View paddingTop="size-200">
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Install dependencies
-          </Heading>
-        </View>
-        <PackageManagerCommandBlock language={language} packages={packages} />
-      </View>
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Environment variables
-          </Heading>
-        </View>
-        {isAuthEnabled ? (
-          <View paddingBottom="size-100">
-            <IsAuthenticated>
-              <GenerateAPIKeyButton
-                onApiKeyGenerated={onApiKeyGenerated}
-                keyName="project-setup-generated"
-              />
-            </IsAuthenticated>
-          </View>
-        ) : null}
-        <CodeWrap>
-          <BashBlockWithCopy value={envVars} />
-        </CodeWrap>
-      </View>
-      <View paddingBottom="size-200">
-        <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Implementation
-          </Heading>
-        </View>
-        <CodeWrap>
-          <ImplementationCodeBlock
-            language={language}
-            projectName={projectName}
-            isHosted={isHosted}
-          />
-        </CodeWrap>
-      </View>
-    </View>
   );
 }
