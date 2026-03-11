@@ -168,7 +168,7 @@ class TestSessionsDelete:
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        Sessions(client).delete(session_id="my-session")
+        Sessions(client, Spans(client)).delete(session_id="my-session")
 
     def test_delete_raises_on_404(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
@@ -176,7 +176,7 @@ class TestSessionsDelete:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
-            Sessions(client).delete(session_id="nonexistent")
+            Sessions(client, Spans(client)).delete(session_id="nonexistent")
 
 
 class TestSessionsBulkDelete:
@@ -190,14 +190,14 @@ class TestSessionsBulkDelete:
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        Sessions(client).bulk_delete(session_ids=["s1", "s2", "s3"])
+        Sessions(client, Spans(client)).bulk_delete(session_ids=["s1", "s2", "s3"])
 
     def test_bulk_delete_raises_on_empty_list(self) -> None:
         client = httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="must not be empty"):
-            Sessions(client).bulk_delete(session_ids=[])
+            Sessions(client, Spans(client)).bulk_delete(session_ids=[])
 
     def test_bulk_delete_raises_on_422(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
@@ -205,7 +205,7 @@ class TestSessionsBulkDelete:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
-            Sessions(client).bulk_delete(session_ids=["s1"])
+            Sessions(client, Spans(client)).bulk_delete(session_ids=["s1"])
 
 
 class TestAsyncSessionsBulkDelete:
@@ -220,7 +220,7 @@ class TestAsyncSessionsBulkDelete:
             return httpx.Response(204)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
-        await AsyncSessions(client).bulk_delete(session_ids=["s1", "s2"])
+        await AsyncSessions(client, AsyncSpans(client)).bulk_delete(session_ids=["s1", "s2"])
 
     @pytest.mark.anyio
     async def test_bulk_delete_raises_on_empty_list(self) -> None:
@@ -228,7 +228,7 @@ class TestAsyncSessionsBulkDelete:
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="must not be empty"):
-            await AsyncSessions(client).bulk_delete(session_ids=[])
+            await AsyncSessions(client, AsyncSpans(client)).bulk_delete(session_ids=[])
 
 
 class TestAsyncSessionsGet:
