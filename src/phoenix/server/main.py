@@ -155,6 +155,35 @@ def _resolve_grpc_port(args: Namespace) -> int:
     return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
 
 
+def _run_db_migrate(db_connection_str: str) -> None:
+    """Run database migrations as a standalone operation, then exit.
+
+    Always runs migrations regardless of PHOENIX_DISABLE_MIGRATIONS, and always
+    logs migration output so progress is visible (e.g. in a K8s initContainer).
+    Exits with code 0 on success and 1 on failure.
+    """
+    from phoenix.db.engines import create_engine as create_db_engine
+    from phoenix.exceptions import PhoenixMigrationError
+
+    Settings.disable_migrations = False
+    Settings.log_migrations = True
+
+    try:
+        engine = create_db_engine(
+            connection_str=db_connection_str,
+            migrate=True,
+            log_to_stdout=False,
+        )
+        engine.dispose()
+        sys.exit(0)
+    except PhoenixMigrationError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Migration error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     initialize_settings()
     setup_logging()
@@ -237,10 +266,23 @@ def main() -> None:
     )
     trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
+    db_parser = subparsers.add_parser("db", help=SUPPRESS)
+    db_subparsers = db_parser.add_subparsers(dest="db_command", required=True, help=SUPPRESS)
+    db_subparsers.add_parser(
+        "migrate",
+        help="Run database migrations and exit. Suitable for use as a Kubernetes initContainer.",
+    )
+
     args = parser.parse_args()
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
+
+    if args.command == "db":
+        if args.db_command == "migrate":
+            _run_db_migrate(db_connection_str)
+        return  # unreachable; subcommand handlers exit
+
     force_fixture_ingestion = False
     scaffold_datasets = False
     tracing_fixture_names = set()
