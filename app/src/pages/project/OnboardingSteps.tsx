@@ -5,30 +5,26 @@ import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
 import { IS_HOSTED_DEPLOYMENT } from "@phoenix/components/project/hosting";
-import {
-  getEnvironmentVariables,
-  PYTHON_PACKAGES,
-  TYPESCRIPT_PACKAGES,
-} from "@phoenix/components/project/integrationSnippets";
+import { getEnvironmentVariables } from "@phoenix/components/project/integrationSnippets";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
 import { ImplementationCodeBlock } from "./ImplementationCodeBlock";
 
 export function OnboardingSteps({
   language,
-  projectName,
+  packages,
+  implementationCode,
   generatedApiKey,
   onApiKeyGenerated,
 }: {
   language: ProgrammingLanguage;
-  projectName: string;
+  packages: readonly string[];
+  implementationCode: string;
   generatedApiKey: string | null;
   onApiKeyGenerated: (key: string) => void;
 }) {
   const isHosted = IS_HOSTED_DEPLOYMENT;
   const isAuthEnabled = window.Config.authenticationEnabled;
-  const packages =
-    language === "Python" ? [...PYTHON_PACKAGES] : [...TYPESCRIPT_PACKAGES];
   const envVars = getEnvironmentVariables({
     isAuthEnabled,
     isHosted,
@@ -74,8 +70,7 @@ export function OnboardingSteps({
         <CodeWrap>
           <ImplementationCodeBlock
             language={language}
-            projectName={projectName}
-            isHosted={isHosted}
+            code={implementationCode}
           />
         </CodeWrap>
       </View>
