@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { CopyId } from "@phoenix/components/core/copy";
 import { Icons } from "@phoenix/components/core/icon";
 import { Icon } from "@phoenix/components/core/icon/Icon";
 import { Flex } from "@phoenix/components/core/layout/Flex";
@@ -113,6 +114,10 @@ function SpanAnnotationsTable({
         header: "identifier",
         accessorKey: "identifier",
         size: 100,
+        cell: ({ getValue }) => {
+          const value = getValue() as string | null;
+          return value ? <CopyId id={value} /> : <>{"--"}</>;
+        },
       },
       {
         header: "metadata",

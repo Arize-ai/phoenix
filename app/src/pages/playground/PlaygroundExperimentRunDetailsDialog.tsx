@@ -18,6 +18,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
+import { CopyId } from "@phoenix/components/core/copy";
 import {
   DialogCloseButton,
   DialogContent,
@@ -81,7 +82,10 @@ export function PlaygroundExperimentRunDetailsDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Experiment Run for Example: {exampleId}</DialogTitle>
+          <DialogTitle>
+            Experiment Run for Example:{" "}
+            <CopyId id={exampleId ?? "--"} variant="title" />
+          </DialogTitle>
           <DialogTitleExtra>
             <DialogCloseButton />
           </DialogTitleExtra>

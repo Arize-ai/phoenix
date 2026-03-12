@@ -9,6 +9,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
 import { Icon, Icons } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -73,6 +74,10 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
       {
         header: "version ID",
         accessorKey: "id",
+        cell: ({ getValue }) => {
+          const value = getValue() as string | null;
+          return value ? <CopyId id={value} /> : <>{"--"}</>;
+        },
       },
       {
         header: "description",
