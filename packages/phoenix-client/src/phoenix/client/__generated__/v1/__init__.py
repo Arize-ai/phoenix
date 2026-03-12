@@ -68,6 +68,7 @@ class DatasetExample(TypedDict):
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]
     updated_at: str
+    external_id: NotRequired[str]
 
 
 class DatasetVersion(TypedDict):

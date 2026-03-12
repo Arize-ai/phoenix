@@ -48,6 +48,7 @@ class _InputDatasetExample(TypedDict, total=False):
     metadata: Mapping[str, Any]
     span_id: Optional[str]
     splits: Optional[Union[str, list[str]]]
+    external_id: Optional[str]
 
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -758,6 +759,7 @@ class Datasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        external_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -829,6 +831,7 @@ class Datasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        external_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -846,6 +849,9 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            external_ids_from_examples = [
+                example.get("external_id", None) for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -870,6 +876,7 @@ class Datasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                external_ids=external_ids_from_examples if examples is not None else external_ids,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -890,6 +897,7 @@ class Datasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        external_ids: Iterable[Optional[str]] = (),
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -913,6 +921,7 @@ class Datasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
+            external_ids: Per-example deduplication keys. Must have the same length as inputs.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -955,6 +964,7 @@ class Datasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        external_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -972,6 +982,9 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            external_ids_from_examples = [
+                example.get("external_id", None) for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -996,8 +1009,138 @@ class Datasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                external_ids=external_ids_from_examples if examples is not None else external_ids,
                 dataset_description=None,
                 action="append",
+                timeout=timeout,
+            )
+
+    def upsert_dataset(
+        self,
+        *,
+        name: str,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
+        dataframe: Optional["pd.DataFrame"] = None,
+        csv_file_path: Optional[Union[str, Path]] = None,
+        input_keys: Iterable[str] = (),
+        output_keys: Iterable[str] = (),
+        metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
+        inputs: Iterable[Mapping[str, Any]] = (),
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        external_ids: Iterable[Optional[str]] = (),
+        dataset_description: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Dataset:
+        """
+        Create or update a dataset using upsert semantics.
+
+        If the dataset does not exist it will be created. If it already exists,
+        examples are merged with the previous version: examples matching by
+        ``external_id`` (or by content hash when no ``external_id`` is given)
+        are updated if their content changed; examples absent from the batch
+        are deleted; and new examples are added.
+
+        Args:
+            name: Name of the dataset.
+            examples: Either a single dictionary with required 'input' and
+                'output' keys and optional 'metadata', 'span_id', 'splits',
+                and 'external_id' keys, or an iterable of such dictionaries.
+                When provided, inputs/outputs/metadata/external_ids are
+                extracted automatically.
+            dataframe: pandas DataFrame (requires pandas to be installed).
+            csv_file_path: Location of a CSV text file.
+            input_keys: List of column names used as input keys.
+            output_keys: List of column names used as output keys.
+            metadata_keys: List of column names used as metadata keys.
+            split_keys: List of column names used for automatically assigning
+                examples to splits.
+            span_id_key: Optional column name containing span IDs to link
+                dataset examples back to their original traces.
+            inputs: List of dictionaries each corresponding to an example.
+            outputs: List of dictionaries each corresponding to an example.
+            metadata: List of dictionaries each corresponding to an example.
+            external_ids: Per-example deduplication keys. When provided,
+                matching is done by external_id first; otherwise content-hash
+                matching is used. Must have the same length as inputs.
+            dataset_description: Description of the dataset.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A Dataset object containing the upserted dataset and examples.
+
+        Raises:
+            ValueError: If invalid parameter combinations are provided.
+            ImportError: If pandas is required but not installed.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        has_examples = examples is not None
+        has_tabular = dataframe is not None or csv_file_path is not None
+        has_json = any(inputs) or any(outputs) or any(metadata)
+
+        if sum([has_examples, has_tabular, has_json]) > 1:
+            raise ValueError(
+                "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
+                "or dictionaries (inputs/outputs/metadata)"
+            )
+
+        if dataframe is not None and csv_file_path is not None:
+            raise ValueError("Please provide either dataframe or csv_file_path, but not both")
+
+        splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
+        external_ids_from_examples: list[Optional[str]] = []
+        if examples is not None:
+            examples_list: list[_InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
+            else:
+                raise ValueError(
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
+                )
+
+            inputs = [dict(example["input"]) for example in examples_list]
+            outputs = [dict(example["output"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            external_ids_from_examples = [
+                example.get("external_id", None) for example in examples_list
+            ]
+
+        if has_tabular:
+            table = dataframe if dataframe is not None else csv_file_path
+            assert table is not None
+            return self._upload_tabular_dataset(
+                table,
+                dataset_name=name,
+                input_keys=input_keys,
+                output_keys=output_keys,
+                metadata_keys=metadata_keys,
+                split_keys=split_keys,
+                span_id_key=span_id_key,
+                dataset_description=dataset_description,
+                action="upsert",
+                timeout=timeout,
+            )
+        else:
+            return self._upload_json_dataset(
+                dataset_name=name,
+                inputs=inputs,
+                outputs=outputs,
+                metadata=metadata,
+                splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
+                external_ids=(
+                    external_ids_from_examples if examples is not None else list(external_ids)
+                ),
+                dataset_description=dataset_description,
+                action="upsert",
                 timeout=timeout,
             )
 
@@ -1048,7 +1191,7 @@ class Datasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["create", "append", "upsert"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1119,8 +1262,9 @@ class Datasets:
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
+        external_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["create", "append", "upsert"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1132,6 +1276,7 @@ class Datasets:
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
         span_ids_list = list(span_ids) if span_ids else []
+        external_ids_list = list(external_ids) if external_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1164,6 +1309,13 @@ class Datasets:
                 f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
             )
 
+        # Validate external_ids separately (can be string or None)
+        if external_ids_list and len(external_ids_list) != len(inputs_list):
+            raise ValueError(
+                f"external_ids length ({len(external_ids_list)}) != "
+                f"inputs length ({len(inputs_list)})"
+            )
+
         payload: dict[str, Any] = {
             "action": action,
             "name": dataset_name,
@@ -1178,6 +1330,8 @@ class Datasets:
             payload["splits"] = splits_list
         if span_ids_list and any(s is not None for s in span_ids_list):
             payload["span_ids"] = span_ids_list
+        if external_ids_list and any(e is not None for e in external_ids_list):
+            payload["external_ids"] = external_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -1561,6 +1715,7 @@ class AsyncDatasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        external_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -1607,6 +1762,7 @@ class AsyncDatasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        external_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1624,6 +1780,9 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            external_ids_from_examples = [
+                example.get("external_id", None) for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1648,6 +1807,7 @@ class AsyncDatasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                external_ids=external_ids_from_examples if examples is not None else external_ids,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1668,6 +1828,7 @@ class AsyncDatasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        external_ids: Iterable[Optional[str]] = (),
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1688,6 +1849,7 @@ class AsyncDatasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
+            external_ids: Per-example deduplication keys. Must have the same length as inputs.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -1730,6 +1892,7 @@ class AsyncDatasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        external_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
@@ -1747,6 +1910,9 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            external_ids_from_examples = [
+                example.get("external_id", None) for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1771,8 +1937,138 @@ class AsyncDatasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                external_ids=external_ids_from_examples if examples is not None else external_ids,
                 dataset_description=None,
                 action="append",
+                timeout=timeout,
+            )
+
+    async def upsert_dataset(
+        self,
+        *,
+        name: str,
+        examples: Optional[Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]] = None,
+        dataframe: Optional["pd.DataFrame"] = None,
+        csv_file_path: Optional[Union[str, Path]] = None,
+        input_keys: Iterable[str] = (),
+        output_keys: Iterable[str] = (),
+        metadata_keys: Iterable[str] = (),
+        split_keys: Iterable[str] = (),
+        span_id_key: Optional[str] = None,
+        inputs: Iterable[Mapping[str, Any]] = (),
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        external_ids: Iterable[Optional[str]] = (),
+        dataset_description: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> Dataset:
+        """
+        Create or update a dataset using upsert semantics.
+
+        If the dataset does not exist it will be created. If it already exists,
+        examples are merged with the previous version: examples matching by
+        ``external_id`` (or by content hash when no ``external_id`` is given)
+        are updated if their content changed; examples absent from the batch
+        are deleted; and new examples are added.
+
+        Args:
+            name: Name of the dataset.
+            examples: Either a single dictionary with required 'input' and
+                'output' keys and optional 'metadata', 'span_id', 'splits',
+                and 'external_id' keys, or an iterable of such dictionaries.
+                When provided, inputs/outputs/metadata/external_ids are
+                extracted automatically.
+            dataframe: pandas DataFrame (requires pandas to be installed).
+            csv_file_path: Location of a CSV text file.
+            input_keys: List of column names used as input keys.
+            output_keys: List of column names used as output keys.
+            metadata_keys: List of column names used as metadata keys.
+            split_keys: List of column names used for automatically assigning
+                examples to splits.
+            span_id_key: Optional column name containing span IDs to link
+                dataset examples back to their original traces.
+            inputs: List of dictionaries each corresponding to an example.
+            outputs: List of dictionaries each corresponding to an example.
+            metadata: List of dictionaries each corresponding to an example.
+            external_ids: Per-example deduplication keys. When provided,
+                matching is done by external_id first; otherwise content-hash
+                matching is used. Must have the same length as inputs.
+            dataset_description: Description of the dataset.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A Dataset object containing the upserted dataset and examples.
+
+        Raises:
+            ValueError: If invalid parameter combinations are provided.
+            ImportError: If pandas is required but not installed.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        has_examples = examples is not None
+        has_tabular = dataframe is not None or csv_file_path is not None
+        has_json = any(inputs) or any(outputs) or any(metadata)
+
+        if sum([has_examples, has_tabular, has_json]) > 1:
+            raise ValueError(
+                "Please provide only one of: examples, tabular data (dataframe/csv_file_path), "
+                "or dictionaries (inputs/outputs/metadata)"
+            )
+
+        if dataframe is not None and csv_file_path is not None:
+            raise ValueError("Please provide either dataframe or csv_file_path, but not both")
+
+        splits_from_examples: list[Any] = []
+        span_ids_from_examples: list[Optional[str]] = []
+        external_ids_from_examples: list[Optional[str]] = []
+        if examples is not None:
+            examples_list: list[_InputDatasetExample]
+            if _is_input_dataset_example(examples):
+                examples_list = [examples]
+            elif _is_iterable_of_input_dataset_examples(examples):
+                examples_list = list(examples)
+            else:
+                raise ValueError(
+                    "examples must be a single dictionary with required 'input' and 'output' keys "
+                    "and an optional 'metadata' key, or an iterable of such dictionaries"
+                )
+
+            inputs = [dict(example["input"]) for example in examples_list]
+            outputs = [dict(example["output"]) for example in examples_list]
+            metadata = [dict(example.get("metadata", {})) for example in examples_list]
+            splits_from_examples = [example.get("splits", None) for example in examples_list]
+            span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            external_ids_from_examples = [
+                example.get("external_id", None) for example in examples_list
+            ]
+
+        if has_tabular:
+            table = dataframe if dataframe is not None else csv_file_path
+            assert table is not None
+            return await self._upload_tabular_dataset(
+                table,
+                dataset_name=name,
+                input_keys=input_keys,
+                output_keys=output_keys,
+                metadata_keys=metadata_keys,
+                split_keys=split_keys,
+                span_id_key=span_id_key,
+                dataset_description=dataset_description,
+                action="upsert",
+                timeout=timeout,
+            )
+        else:
+            return await self._upload_json_dataset(
+                dataset_name=name,
+                inputs=inputs,
+                outputs=outputs,
+                metadata=metadata,
+                splits=splits_from_examples if examples is not None else [],
+                span_ids=span_ids_from_examples if examples is not None else [],
+                external_ids=(
+                    external_ids_from_examples if examples is not None else list(external_ids)
+                ),
+                dataset_description=dataset_description,
+                action="upsert",
                 timeout=timeout,
             )
 
@@ -1810,7 +2106,7 @@ class AsyncDatasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["create", "append", "upsert"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """Async version of _upload_tabular_dataset."""
@@ -1879,8 +2175,9 @@ class AsyncDatasets:
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
+        external_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["create", "append", "upsert"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """Async version of _upload_json_dataset."""
@@ -1890,6 +2187,7 @@ class AsyncDatasets:
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
         span_ids_list = list(span_ids) if span_ids else []
+        external_ids_list = list(external_ids) if external_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1922,6 +2220,13 @@ class AsyncDatasets:
                 f"span_ids length ({len(span_ids_list)}) != inputs length ({len(inputs_list)})"
             )
 
+        # Validate external_ids separately (can be string or None)
+        if external_ids_list and len(external_ids_list) != len(inputs_list):
+            raise ValueError(
+                f"external_ids length ({len(external_ids_list)}) != "
+                f"inputs length ({len(inputs_list)})"
+            )
+
         payload: dict[str, Any] = {
             "action": action,
             "name": dataset_name,
@@ -1936,6 +2241,8 @@ class AsyncDatasets:
             payload["splits"] = splits_list
         if span_ids_list and any(s is not None for s in span_ids_list):
             payload["span_ids"] = span_ids_list
+        if external_ids_list and any(e is not None for e in external_ids_list):
+            payload["external_ids"] = external_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
