@@ -6,11 +6,11 @@ import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import type { Session } from "../types/sessions";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
+import { ensureServerFeature, LIST_PROJECT_SESSIONS } from "../utils/serverVersionUtils";
 
 import { toSession } from "./sessionUtils";
 
-const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
+const ensureSessionsApi = ensureServerFeature(LIST_PROJECT_SESSIONS);
 
 export type ListSessionsParams = ClientFn & ProjectIdentifier;
 

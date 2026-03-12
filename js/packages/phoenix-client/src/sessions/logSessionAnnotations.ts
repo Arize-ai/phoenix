@@ -1,11 +1,11 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
+import { ensureServerFeature, ANNOTATE_SESSIONS } from "../utils/serverVersionUtils";
 
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
 
-const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
+const ensureSessionsApi = ensureServerFeature(ANNOTATE_SESSIONS);
 
 /**
  * Parameters to log multiple session annotations

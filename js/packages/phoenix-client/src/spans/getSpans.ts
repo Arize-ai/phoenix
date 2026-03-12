@@ -3,9 +3,9 @@ import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
-import { ensureServerFeature, TRACE_IDS_FILTER } from "../utils/serverVersionUtils";
+import { ensureServerFeature, GET_SPANS_TRACE_IDS } from "../utils/serverVersionUtils";
 
-const ensureTraceIdsFilter = ensureServerFeature(TRACE_IDS_FILTER);
+const ensureTraceIdsFilter = ensureServerFeature(GET_SPANS_TRACE_IDS);
 
 /**
  * Parameters to get spans from a project using auto-generated types

@@ -93,20 +93,11 @@ class Sessions:
         self._spans = spans
 
     def _ensure_supported(self) -> None:
-        from phoenix.client.client import _WrappedClient
-        from phoenix.client.utils.server_version_utils import SESSIONS_API
+        from phoenix.client.client import PhoenixHTTPClient
+        from phoenix.client.utils.server_version_utils import GET_SESSION, ensure_server_feature
 
-        if isinstance(self._client, _WrappedClient) and not self._client.supports_server_version(
-            SESSIONS_API.min_version
-        ):
-            from phoenix.client.exceptions import PhoenixException
-
-            v = ".".join(str(p) for p in SESSIONS_API.min_version)
-            raise PhoenixException(
-                f"{SESSIONS_API.feature} requires Phoenix >= {v}, "
-                f"but connected to server {self._client.server_version_string}. "
-                "Please upgrade your Phoenix server."
-            )
+        if isinstance(self._client, PhoenixHTTPClient):
+            ensure_server_feature(self._client, GET_SESSION)
 
     def get(
         self,
@@ -648,20 +639,14 @@ class AsyncSessions:
         self._spans = spans
 
     async def _ensure_supported(self) -> None:
-        from phoenix.client.client import _WrappedAsyncClient
-        from phoenix.client.utils.server_version_utils import SESSIONS_API
+        from phoenix.client.client import PhoenixAsyncHTTPClient
+        from phoenix.client.utils.server_version_utils import (
+            GET_SESSION,
+            async_ensure_server_feature,
+        )
 
-        if isinstance(
-            self._client, _WrappedAsyncClient
-        ) and not await self._client.supports_server_version(SESSIONS_API.min_version):
-            from phoenix.client.exceptions import PhoenixException
-
-            v = ".".join(str(p) for p in SESSIONS_API.min_version)
-            raise PhoenixException(
-                f"{SESSIONS_API.feature} requires Phoenix >= {v}, "
-                f"but connected to server {self._client.server_version_string}. "
-                "Please upgrade your Phoenix server."
-            )
+        if isinstance(self._client, PhoenixAsyncHTTPClient):
+            await async_ensure_server_feature(self._client, GET_SESSION)
 
     async def get(
         self,

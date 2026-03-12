@@ -3,11 +3,11 @@ import invariant from "tiny-invariant";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
 import type { Session } from "../types/sessions";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
+import { ensureServerFeature, GET_SESSION } from "../utils/serverVersionUtils";
 
 import { toSession } from "./sessionUtils";
 
-const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
+const ensureSessionsApi = ensureServerFeature(GET_SESSION);
 
 export type GetSessionParams = ClientFn & {
   /**

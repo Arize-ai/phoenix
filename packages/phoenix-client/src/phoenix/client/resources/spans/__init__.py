@@ -450,20 +450,14 @@ class Spans:
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if trace_ids:
-            from phoenix.client.client import _WrappedClient
-            from phoenix.client.utils.server_version_utils import TRACE_IDS_FILTER
+            from phoenix.client.client import PhoenixHTTPClient
+            from phoenix.client.utils.server_version_utils import (
+                GET_SPANS_TRACE_IDS,
+                ensure_server_feature,
+            )
 
-            if isinstance(
-                self._client, _WrappedClient
-            ) and not self._client.supports_server_version(TRACE_IDS_FILTER.min_version):
-                from phoenix.client.exceptions import PhoenixException
-
-                v = ".".join(str(p) for p in TRACE_IDS_FILTER.min_version)
-                raise PhoenixException(
-                    f"{TRACE_IDS_FILTER.feature} requires Phoenix >= {v}, "
-                    f"but connected to server {self._client.server_version_string}. "
-                    "Please upgrade your Phoenix server."
-                )
+            if isinstance(self._client, PhoenixHTTPClient):
+                ensure_server_feature(self._client, GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1699,20 +1693,14 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if trace_ids:
-            from phoenix.client.client import _WrappedAsyncClient
-            from phoenix.client.utils.server_version_utils import TRACE_IDS_FILTER
+            from phoenix.client.client import PhoenixAsyncHTTPClient
+            from phoenix.client.utils.server_version_utils import (
+                GET_SPANS_TRACE_IDS,
+                async_ensure_server_feature,
+            )
 
-            if isinstance(
-                self._client, _WrappedAsyncClient
-            ) and not await self._client.supports_server_version(TRACE_IDS_FILTER.min_version):
-                from phoenix.client.exceptions import PhoenixException
-
-                v = ".".join(str(p) for p in TRACE_IDS_FILTER.min_version)
-                raise PhoenixException(
-                    f"{TRACE_IDS_FILTER.feature} requires Phoenix >= {v}, "
-                    f"but connected to server {self._client.server_version_string}. "
-                    "Please upgrade your Phoenix server."
-                )
+            if isinstance(self._client, PhoenixAsyncHTTPClient):
+                await async_ensure_server_feature(self._client, GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)

@@ -1,8 +1,8 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
+import { ensureServerFeature, DELETE_SESSIONS } from "../utils/serverVersionUtils";
 
-const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
+const ensureSessionsApi = ensureServerFeature(DELETE_SESSIONS);
 
 /**
  * Parameters to bulk delete sessions

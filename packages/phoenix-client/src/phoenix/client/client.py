@@ -15,9 +15,7 @@ from phoenix.client.resources.traces import AsyncTraces, Traces
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 from phoenix.client.utils.semver_utils import (
     SemanticVersion,
-    format_version,
     parse_semantic_version,
-    satisfies_min_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,22 +51,22 @@ class Client:
         """
         if http_client is None:
             base_url = base_url or get_base_url()
-            self._client = _WrappedClient(
+            self._client = PhoenixHTTPClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
                 timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
             )
         else:
-            self._client = _WrappedClient(
+            self._client = PhoenixHTTPClient(
                 base_url=http_client.base_url, headers=dict(http_client.headers)
             )
 
     @property
-    def _client(self) -> _WrappedClient:
+    def _client(self) -> PhoenixHTTPClient:
         return self._http_client
 
     @_client.setter
-    def _client(self, value: _WrappedClient) -> None:
+    def _client(self, value: PhoenixHTTPClient) -> None:
         self._http_client = value
         self._prompts = Prompts(value)
         self._projects = Projects(value)
@@ -169,21 +167,21 @@ class AsyncClient:
         """
         if http_client is None:
             base_url = base_url or get_base_url()
-            self._client = _WrappedAsyncClient(
+            self._client = PhoenixAsyncHTTPClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
             )
         else:
-            self._client = _WrappedAsyncClient(
+            self._client = PhoenixAsyncHTTPClient(
                 base_url=http_client.base_url, headers=dict(http_client.headers)
             )
 
     @property
-    def _client(self) -> _WrappedAsyncClient:
+    def _client(self) -> PhoenixAsyncHTTPClient:
         return self._http_client
 
     @_client.setter
-    def _client(self, value: _WrappedAsyncClient) -> None:
+    def _client(self, value: PhoenixAsyncHTTPClient) -> None:
         self._http_client = value
         self._prompts = AsyncPrompts(value)
         self._projects = AsyncProjects(value)
@@ -274,7 +272,7 @@ def _update_headers(
     return headers
 
 
-class _WrappedClient(httpx.Client):
+class PhoenixHTTPClient(httpx.Client):
     _server_version: Optional[SemanticVersion]
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -325,31 +323,25 @@ class _WrappedClient(httpx.Client):
         # Mark as checked but unknown
         self._server_version = None
 
-    def supports_server_version(self, min_version: SemanticVersion) -> bool:
-        """Check if the connected **Phoenix server** version is ``>= min_version``.
+    @property
+    def server_version(self) -> Optional[SemanticVersion]:
+        """The cached Phoenix server version, or ``None`` if unknown.
 
-        The server version is detected from the ``x-phoenix-server-version``
-        response header.  If no response has been seen yet, this method eagerly
-        fetches the version from ``GET /arize_phoenix_version``.
-
-        Returns ``True`` if the server version cannot be determined (to avoid
-        blocking users on older servers that don't report their version).
+        The version is populated from the ``x-phoenix-server-version``
+        response header.  If no response has been seen yet, returns ``None``
+        (use :meth:`_fetch_server_version` to eagerly fetch).
         """
         if self._server_version is _VERSION_NOT_CHECKED:
-            self._fetch_server_version()
-        if self._server_version is None:
-            return True
-        return satisfies_min_version(self._server_version, min_version)
+            return None
+        return self._server_version
 
-    @property
-    def server_version_string(self) -> str:
-        """Human-readable Phoenix server version string for error messages."""
-        if self._server_version is _VERSION_NOT_CHECKED or self._server_version is None:
-            return "unknown version"
-        return format_version(self._server_version)
+    @server_version.setter
+    def server_version(self, value: Optional[SemanticVersion]) -> None:
+        """Explicitly set the server version (useful for testing)."""
+        self._server_version = value if value is not None else None
 
 
-class _WrappedAsyncClient(httpx.AsyncClient):
+class PhoenixAsyncHTTPClient(httpx.AsyncClient):
     _server_version: Optional[SemanticVersion]
 
     def __init__(self, *args: object, **kwargs: object) -> None:
@@ -375,7 +367,18 @@ class _WrappedAsyncClient(httpx.AsyncClient):
                     self._server_version = parsed
         return response
 
-    async def _fetch_server_version(self) -> None:
+    def _fetch_server_version(self) -> None:
+        """Synchronous fetch — only useful if version was already cached.
+
+        For the async client, prefer :meth:`_async_fetch_server_version`.
+        This method exists so that ``ensure_server_feature`` (sync) can call
+        it uniformly; it will only check if the version is already known.
+        """
+        # The async client cannot do synchronous HTTP, so we just mark
+        # as checked if not already done via a response header.
+        pass
+
+    async def _async_fetch_server_version(self) -> None:
         """Eagerly fetch the Phoenix server version if not yet cached.
 
         Calls ``GET /arize_phoenix_version`` and caches the result.
@@ -394,25 +397,19 @@ class _WrappedAsyncClient(httpx.AsyncClient):
         # Mark as checked but unknown
         self._server_version = None
 
-    async def supports_server_version(self, min_version: SemanticVersion) -> bool:
-        """Check if the connected **Phoenix server** version is ``>= min_version``.
-
-        The server version is detected from the ``x-phoenix-server-version``
-        response header.  If no response has been seen yet, this method eagerly
-        fetches the version from ``GET /arize_phoenix_version``.
-
-        Returns ``True`` if the server version cannot be determined (to avoid
-        blocking users on older servers that don't report their version).
-        """
-        if self._server_version is _VERSION_NOT_CHECKED:
-            await self._fetch_server_version()
-        if self._server_version is None:
-            return True
-        return satisfies_min_version(self._server_version, min_version)
-
     @property
-    def server_version_string(self) -> str:
-        """Human-readable Phoenix server version string for error messages."""
-        if self._server_version is _VERSION_NOT_CHECKED or self._server_version is None:
-            return "unknown version"
-        return format_version(self._server_version)
+    def server_version(self) -> Optional[SemanticVersion]:
+        """The cached Phoenix server version, or ``None`` if unknown."""
+        if self._server_version is _VERSION_NOT_CHECKED:
+            return None
+        return self._server_version
+
+    @server_version.setter
+    def server_version(self, value: Optional[SemanticVersion]) -> None:
+        """Explicitly set the server version (useful for testing)."""
+        self._server_version = value if value is not None else None
+
+
+# Backwards-compatible aliases
+_WrappedClient = PhoenixHTTPClient
+_WrappedAsyncClient = PhoenixAsyncHTTPClient
