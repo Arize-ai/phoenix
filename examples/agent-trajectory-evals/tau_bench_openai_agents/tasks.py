@@ -10,7 +10,7 @@ Tasks are drawn from the dev and train splits (not test, which is held out).
 - Multi-step mutations (dev 12, 14)
 - Complex multi-type operations (train 35, 351)
 
-See exploration/stage3_notes.md for the full rationale and split analysis.
+See exploration/tau_bench_notes.md for the full rationale and split analysis.
 """
 
 import os
