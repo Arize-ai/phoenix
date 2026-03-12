@@ -261,7 +261,7 @@ export function ExamplesTable({
         size: 180,
         cell: ({ row }) => {
           const exampleId = row.original.id;
-          return <CopyId id={exampleId} />;
+          return <CopyId id={exampleId} truncate={8} />;
         },
       },
       {

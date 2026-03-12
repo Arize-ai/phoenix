@@ -10,6 +10,7 @@ import {
   Flex,
   LinkButton,
 } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import { ExperimentCompareDetails } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
 
@@ -46,7 +47,9 @@ export function ExperimentCompareDetailsDialog({
               exampleIds={exampleIds}
               onExampleChange={onExampleChange}
             />
-            <DialogTitle>{`Example: ${selectedExampleId}`}</DialogTitle>
+            <DialogTitle>
+              Example: <CopyId id={selectedExampleId} variant="title" />
+            </DialogTitle>
           </Flex>
           <DialogTitleExtra>
             <LinkButton

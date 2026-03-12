@@ -74,9 +74,7 @@ export function CopyMultiButton({ items, size = "S" }: CopyMultiButtonProps) {
         <Button
           size={size}
           leadingVisual={
-            <Icon
-              svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}
-            />
+            <Icon svg={isCopied ? <Icons.Checkmark /> : <Icons.Copy />} />
           }
           trailingVisual={<Icon svg={<Icons.ChevronDown />} css={chevronCSS} />}
         >

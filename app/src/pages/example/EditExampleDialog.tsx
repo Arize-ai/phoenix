@@ -25,6 +25,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
+import { CopyId } from "@phoenix/components/core/copy";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import type { EditExampleDialogMutation } from "./__generated__/EditExampleDialogMutation.graphql";
@@ -116,7 +117,9 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
       {({ close }) => (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Example: {exampleId}</DialogTitle>
+            <DialogTitle>
+              Edit Example: <CopyId id={exampleId} variant="title" />
+            </DialogTitle>
             <DialogTitleExtra>
               <Button
                 variant="primary"
