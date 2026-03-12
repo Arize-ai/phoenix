@@ -87,11 +87,12 @@ jobs:
             - Follow existing codebase patterns and conventions.
             - Add clear docstrings to new public functions, classes, and modules.
             - Keep changes focused on the issue.
+            - If you modify any JS/TS packages under `js/`, create a changeset via `pnpm changeset`.
 
             ## 3. Validate
             - Run /simplify and fix any issues.
             - Run tests, linting, and formatting via `make` targets. Fix failures.
-            - Update docs and skills/ files if affected by your changes.
+            - Update docs and skills/ files if affected by your changes. Ground documentation in real code — verify examples and references against the actual implementation.
 
             ## 4. Ship
             - Commit referencing #${{ github.event.issue.number }}, push, and open a PR via `gh pr create`.
@@ -104,7 +105,8 @@ jobs:
             - [ ] Review the code and run /simplify
             - [ ] Make sure tests pass and validate the change
             - [ ] Add clear docstrings
-            - [ ] Update necessary documentation
+            - [ ] Update necessary documentation (grounded in real code, not hallucinated)
+            - [ ] Create a changeset (`pnpm changeset`) if JS/TS packages were modified
             - [ ] Update relevant skills under the main skills/ directory
             - [ ] Make sure linting and formatting is correct
             - [ ] Create the PR with a clear description
