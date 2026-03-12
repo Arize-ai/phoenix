@@ -76,9 +76,39 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           prompt: |
-            Read and implement GitHub issue #${{ github.event.issue.number }}.
-            Use `gh issue view ${{ github.event.issue.number }}` to read the issue details.
-            Create commits referencing #${{ github.event.issue.number }}, then push and open a PR with `gh pr create`.
+            Implement GitHub issue #${{ github.event.issue.number }} end-to-end. Deliver a complete, merge-ready PR.
+
+            ## 1. Understand
+            - Run `gh issue view ${{ github.event.issue.number }}` to read the issue and comments.
+            - Read CLAUDE.md and run `make help` to learn the project tooling.
+            - Explore relevant code, patterns, and conventions before writing anything.
+
+            ## 2. Implement
+            - Follow existing codebase patterns and conventions.
+            - Add clear docstrings to new public functions, classes, and modules.
+            - Keep changes focused on the issue.
+
+            ## 3. Validate
+            - Run /simplify and fix any issues.
+            - Run tests, linting, and formatting via `make` targets. Fix failures.
+            - Update docs and skills/ files if affected by your changes.
+
+            ## 4. Ship
+            - Commit referencing #${{ github.event.issue.number }}, push, and open a PR via `gh pr create`.
+            - Write a clear PR description covering what, why, and how to verify.
+            - Include screenshots or examples when applicable.
+
+            ## Acceptance Criteria
+            Complete every item before opening the PR:
+            - [ ] Plan out the feature end-to-end
+            - [ ] Review the code and run /simplify
+            - [ ] Make sure tests pass and validate the change
+            - [ ] Add clear docstrings
+            - [ ] Update necessary documentation
+            - [ ] Update relevant skills under the main skills/ directory
+            - [ ] Make sure linting and formatting is correct
+            - [ ] Create the PR with a clear description
+            - [ ] Provide screenshots or examples when applicable to prove that it works as expected
           claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(make:*)","Bash(gh:*)","Bash(uv:*)","Bash(pnpm:*)"'
 
       - name: Cleanup
