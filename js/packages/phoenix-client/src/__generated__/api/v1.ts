@@ -424,6 +424,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List traces for a project */
+        get: operations["listProjectTraces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/trace_annotations": {
         parameters: {
             query?: never;
@@ -1559,6 +1576,13 @@ export interface components {
         GetSessionsResponseBody: {
             /** Data */
             data: components["schemas"]["SessionData"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetTracesResponseBody */
+        GetTracesResponseBody: {
+            /** Data */
+            data: components["schemas"]["TraceData"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -3210,6 +3234,52 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** TraceData */
+        TraceData: {
+            /** Id */
+            id: string;
+            /** Trace Id */
+            trace_id: string;
+            /** Project Id */
+            project_id: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+            /** Spans */
+            spans?: components["schemas"]["TraceSpanData"][] | null;
+        };
+        /** TraceSpanData */
+        TraceSpanData: {
+            /** Id */
+            id: string;
+            /** Span Id */
+            span_id: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Name */
+            name: string;
+            /** Span Kind */
+            span_kind: string;
+            /** Status Code */
+            status_code: string;
+            /**
+             * Start Time
+             * Format: date-time
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             */
+            end_time: string;
+        };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
             /** Data */
@@ -4740,6 +4810,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listProjectTraces: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound on trace start time (ISO 8601) */
+                start_time?: string | null;
+                /** @description Exclusive upper bound on trace start time (ISO 8601) */
+                end_time?: string | null;
+                /** @description Sort field */
+                sort?: "start_time" | "latency_ms";
+                /** @description Sort direction */
+                order?: "asc" | "desc";
+                /** @description Maximum number of traces to return */
+                limit?: number;
+                /** @description Pagination cursor (Trace GlobalID) */
+                cursor?: string | null;
+                /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
+                include_spans?: boolean;
+                /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
+                session_identifier?: string[] | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetTracesResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

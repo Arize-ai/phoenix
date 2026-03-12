@@ -1,6 +1,8 @@
 import gzip
 import zlib
-from typing import Optional
+from collections import defaultdict
+from datetime import datetime, timezone
+from typing import Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -9,18 +11,23 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
 
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
+from phoenix.server.api.types.Span import Span as SpanNodeType
+from phoenix.server.api.types.Trace import Trace as TraceNodeType
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
@@ -30,12 +37,216 @@ from phoenix.utilities.project import get_project_name
 
 from .models import V1RoutesBaseModel
 from .utils import (
+    PaginatedResponseBody,
     RequestBody,
     ResponseBody,
     add_errors_to_responses,
+    get_project_by_identifier,
 )
 
 router = APIRouter(tags=["traces"])
+
+_PROJECT_SESSION_NODE_TYPE_NAME = ProjectSessionNodeType.__name__
+
+
+class TraceSpanData(V1RoutesBaseModel):
+    id: str
+    span_id: str
+    parent_id: Optional[str]
+    name: str
+    span_kind: str
+    status_code: str
+    start_time: datetime
+    end_time: datetime
+
+
+class TraceData(V1RoutesBaseModel):
+    id: str
+    trace_id: str
+    project_id: str
+    start_time: datetime
+    end_time: datetime
+    spans: Optional[list[TraceSpanData]] = None
+
+
+class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
+    pass
+
+
+def _to_trace_data(
+    trace: models.Trace,
+    project_id: int,
+    spans: Optional[list[TraceSpanData]] = None,
+) -> TraceData:
+    return TraceData(
+        id=str(GlobalID(TraceNodeType.__name__, str(trace.id))),
+        trace_id=trace.trace_id,
+        project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
+        start_time=trace.start_time,
+        end_time=trace.end_time,
+        spans=spans,
+    )
+
+
+@router.get(
+    "/projects/{project_identifier}/traces",
+    operation_id="listProjectTraces",
+    summary="List traces for a project",
+    responses=add_errors_to_responses([404, 422]),
+)
+async def list_project_traces(
+    request: Request,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name.",
+    ),
+    start_time: Optional[datetime] = Query(
+        default=None, description="Inclusive lower bound on trace start time (ISO 8601)"
+    ),
+    end_time: Optional[datetime] = Query(
+        default=None, description="Exclusive upper bound on trace start time (ISO 8601)"
+    ),
+    sort: Literal["start_time", "latency_ms"] = Query(
+        default="start_time", description="Sort field"
+    ),
+    order: Literal["asc", "desc"] = Query(default="desc", description="Sort direction"),
+    limit: int = Query(
+        default=100, gt=0, le=1000, description="Maximum number of traces to return"
+    ),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Trace GlobalID)"),
+    include_spans: bool = Query(
+        default=False,
+        description=(
+            "If true, include full span details for each trace. "
+            "This significantly increases response size and query latency, "
+            "especially with large page sizes. Prefer fetching spans lazily "
+            "for individual traces when possible."
+        ),
+    ),
+    session_identifier: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "List of session identifiers to filter traces by. Each value can be "
+            "either a session_id string or a session GlobalID. Only traces belonging "
+            "to the specified sessions will be returned."
+        ),
+    ),
+) -> GetTracesResponseBody:
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        project_rowid = project.id
+
+        # Build query with sort order
+        stmt = select(models.Trace).filter(models.Trace.project_rowid == project_rowid)
+
+        sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
+        if order == "asc":
+            stmt = stmt.order_by(sort_col.asc(), models.Trace.id.asc())
+        else:
+            stmt = stmt.order_by(sort_col.desc(), models.Trace.id.desc())
+
+        if session_identifier:
+            session_rowids_from_global_ids = []
+            session_id_strings = []
+            for sid in session_identifier:
+                try:
+                    row_id = from_global_id_with_expected_type(
+                        GlobalID.from_id(sid), _PROJECT_SESSION_NODE_TYPE_NAME
+                    )
+                    session_rowids_from_global_ids.append(row_id)
+                except Exception:
+                    session_id_strings.append(sid)
+
+            conditions = []
+            if session_rowids_from_global_ids:
+                conditions.append(
+                    models.Trace.project_session_rowid.in_(session_rowids_from_global_ids)
+                )
+            if session_id_strings:
+                session_subq = (
+                    select(models.ProjectSession.id)
+                    .where(models.ProjectSession.session_id.in_(session_id_strings))
+                    .where(models.ProjectSession.project_id == project_rowid)
+                )
+                conditions.append(models.Trace.project_session_rowid.in_(session_subq))
+
+            if conditions:
+                stmt = stmt.where(or_(*conditions))
+            else:
+                return GetTracesResponseBody(next_cursor=None, data=[])
+
+        if start_time:
+            stmt = stmt.where(
+                models.Trace.start_time >= normalize_datetime(start_time, timezone.utc)
+            )
+        if end_time:
+            stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
+
+        if cursor:
+            try:
+                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+                if order == "desc":
+                    stmt = stmt.where(models.Trace.id <= cursor_rowid)
+                else:
+                    stmt = stmt.where(models.Trace.id >= cursor_rowid)
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+
+        stmt = stmt.limit(limit + 1)
+        traces = (await session.scalars(stmt)).all()
+
+        if not traces:
+            return GetTracesResponseBody(next_cursor=None, data=[])
+
+        next_cursor: Optional[str] = None
+        if len(traces) == limit + 1:
+            last_trace = traces[-1]
+            next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
+            traces = traces[:-1]
+
+        # Optionally batch-fetch full span details (column projection to avoid
+        # loading heavy attributes/events JSON blobs that aren't in the response)
+        spans_by_trace: Optional[dict[int, list[TraceSpanData]]] = None
+        if include_spans:
+            trace_ids = [t.id for t in traces]
+            spans_by_trace = defaultdict(list)
+            spans_stmt = (
+                select(
+                    models.Span.id,
+                    models.Span.trace_rowid,
+                    models.Span.span_id,
+                    models.Span.parent_id,
+                    models.Span.name,
+                    models.Span.span_kind,
+                    models.Span.status_code,
+                    models.Span.start_time,
+                    models.Span.end_time,
+                )
+                .filter(models.Span.trace_rowid.in_(trace_ids))
+                .order_by(models.Span.start_time.asc())
+            )
+            for row in (await session.execute(spans_stmt)).all():
+                spans_by_trace[row.trace_rowid].append(
+                    TraceSpanData(
+                        id=str(GlobalID(SpanNodeType.__name__, str(row.id))),
+                        span_id=row.span_id,
+                        parent_id=row.parent_id,
+                        name=row.name,
+                        span_kind=row.span_kind,
+                        status_code=row.status_code,
+                        start_time=row.start_time,
+                        end_time=row.end_time,
+                    )
+                )
+
+        data = [
+            _to_trace_data(
+                t,
+                project_rowid,
+                spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
+            )
+            for t in traces
+        ]
+    return GetTracesResponseBody(next_cursor=next_cursor, data=data)
 
 
 def is_not_at_capacity(request: Request) -> None:
