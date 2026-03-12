@@ -1,0 +1,52 @@
+name: Weekly Release Notes
+
+on:
+  schedule:
+    # Every Wednesday at 14:00 UTC
+    - cron: "0 14 * * 3"
+  workflow_dispatch:
+
+concurrency:
+  group: release-notes
+  cancel-in-progress: true
+
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - name: Create branch
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="claude/release-notes-$DATE"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          model: claude-opus-4-6
+          prompt: |
+            /phoenix-release-notes
+
+            If there are no undocumented releases with user-facing changes, exit without making changes.
+
+            When done, commit all changes, push the branch, and open a PR via `gh pr create`.
+            Title the PR: "docs: Add Phoenix release notes for <date range covered>"
+          claude_args: '--allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
