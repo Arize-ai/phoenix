@@ -173,13 +173,15 @@ def get_input_output_context(
 
         With phoenix.evals::
 
-            from phoenix.evals import HallucinationEvaluator, QAEvaluator, run_evals
+            from phoenix.evals import ClassificationEvaluator, evaluate_dataframe
+            from phoenix.evals.llm import LLM
 
+            eval_model = LLM(provider="openai", model="gpt-4o")
             qa_df = get_input_output_context(client, project_name="my-rag-app")
             if qa_df is not None:
-                qa_correctness, hallucination = run_evals(
-                    evaluators=[QAEvaluator(eval_model), HallucinationEvaluator(eval_model)],
+                results = evaluate_dataframe(
                     dataframe=qa_df,
+                    evaluators=[my_qa_evaluator, my_hallucination_evaluator],
                 )
     """
     import pandas as pd
@@ -278,13 +280,15 @@ def get_qa_with_reference(
 
         With phoenix.evals::
 
-            from phoenix.evals import HallucinationEvaluator, QAEvaluator, run_evals
+            from phoenix.evals import ClassificationEvaluator, evaluate_dataframe
+            from phoenix.evals.llm import LLM
 
+            eval_model = LLM(provider="openai", model="gpt-4o")
             qa_df = get_input_output_context(client, project_name="my-rag-app")
             if qa_df is not None:
-                qa_correctness, hallucination = run_evals(
-                    evaluators=[QAEvaluator(eval_model), HallucinationEvaluator(eval_model)],
+                results = evaluate_dataframe(
                     dataframe=qa_df,
+                    evaluators=[my_qa_evaluator, my_hallucination_evaluator],
                 )
     """
     return get_input_output_context(
