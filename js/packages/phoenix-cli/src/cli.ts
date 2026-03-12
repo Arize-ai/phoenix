@@ -3,6 +3,7 @@
 import { Command } from "commander";
 
 import {
+  createAnnotationConfigCommand,
   createApiCommand,
   createAuthCommand,
   createDatasetCommand,
@@ -28,6 +29,7 @@ export function main() {
     .version("0.0.4");
 
   // Register commands
+  program.addCommand(createAnnotationConfigCommand());
   program.addCommand(createAuthCommand());
   program.addCommand(createProjectsCommand());
   program.addCommand(createTracesCommand());
