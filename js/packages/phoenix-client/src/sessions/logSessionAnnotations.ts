@@ -1,7 +1,11 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
+
+const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
 
 /**
  * Parameters to log multiple session annotations
@@ -60,6 +64,7 @@ export async function logSessionAnnotations({
   sync = false,
 }: LogSessionAnnotationsParams): Promise<{ id: string }[]> {
   const client = _client ?? createClient();
+  await ensureSessionsApi({ client });
 
   const { data, error } = await client.POST("/v1/session_annotations", {
     params: {

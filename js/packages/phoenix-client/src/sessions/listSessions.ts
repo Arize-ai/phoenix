@@ -6,7 +6,11 @@ import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import type { Session } from "../types/sessions";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+
 import { toSession } from "./sessionUtils";
+
+const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
 
 export type ListSessionsParams = ClientFn & ProjectIdentifier;
 
@@ -34,6 +38,7 @@ export async function listSessions(
   params: ListSessionsParams
 ): Promise<Session[]> {
   const client = params.client || createClient();
+  await ensureSessionsApi({ client });
   const projectIdentifier = resolveProjectIdentifier(params);
 
   const sessions: Session[] = [];

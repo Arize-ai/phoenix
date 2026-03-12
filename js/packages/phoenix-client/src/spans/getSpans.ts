@@ -3,6 +3,9 @@ import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
+import { ensureServerFeature, TRACE_IDS_FILTER } from "../utils/serverVersion";
+
+const ensureTraceIdsFilter = ensureServerFeature(TRACE_IDS_FILTER);
 
 /**
  * Parameters to get spans from a project using auto-generated types
@@ -101,6 +104,9 @@ export async function getSpans({
   parentId,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
+  if (traceIds) {
+    await ensureTraceIdsFilter({ client });
+  }
   const projectIdentifier = resolveProjectIdentifier(project);
 
   const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {

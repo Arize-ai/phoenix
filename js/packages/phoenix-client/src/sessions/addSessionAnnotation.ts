@@ -1,7 +1,11 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
+
+const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
 
 /**
  * Parameters to add a span annotation
@@ -48,6 +52,7 @@ export async function addSessionAnnotation({
   sync = false,
 }: AddSessionAnnotationParams): Promise<{ id: string } | null> {
   const client = _client ?? createClient();
+  await ensureSessionsApi({ client });
 
   const { data, error } = await client.POST("/v1/session_annotations", {
     params: {

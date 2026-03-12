@@ -92,6 +92,22 @@ class Sessions:
         self._client = client
         self._spans = spans
 
+    def _ensure_supported(self) -> None:
+        from phoenix.client.client import _WrappedClient
+        from phoenix.client.utils.server_version import SESSIONS_API
+
+        if isinstance(self._client, _WrappedClient) and not self._client.supports_server_version(
+            SESSIONS_API.min_version
+        ):
+            from phoenix.client.exceptions import PhoenixException
+
+            v = ".".join(str(p) for p in SESSIONS_API.min_version)
+            raise PhoenixException(
+                f"{SESSIONS_API.feature} requires Phoenix >= {v}, "
+                f"but connected to server {self._client.server_version_string}. "
+                "Please upgrade your Phoenix server."
+            )
+
     def get(
         self,
         *,
@@ -107,6 +123,7 @@ class Sessions:
         Returns:
             The session data.
         """
+        self._ensure_supported()
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -131,6 +148,7 @@ class Sessions:
         Returns:
             A list of session data.
         """
+        self._ensure_supported()
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -172,6 +190,7 @@ class Sessions:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
         """
+        self._ensure_supported()
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -192,6 +211,7 @@ class Sessions:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
             timeout: Optional timeout in seconds for the request.
         """
+        self._ensure_supported()
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -217,6 +237,7 @@ class Sessions:
         Returns:
             A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
         """
+        self._ensure_supported()
         import pandas as pd
 
         sessions = self.list(
@@ -268,6 +289,7 @@ class Sessions:
             for turn in turns:
                 print(turn.get("input", {}).get("value", "<no input>"))
         """
+        self._ensure_supported()
         session_data = self.get(session_id=session_id, timeout=timeout)
         traces = session_data["traces"]
         if not traces:
@@ -402,6 +424,7 @@ class Sessions:
                 sync=True
             )
         """  # noqa: E501
+        self._ensure_supported()
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -488,6 +511,7 @@ class Sessions:
             ]
             client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
+        self._ensure_supported()
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -599,6 +623,7 @@ class Sessions:
                 annotator_kind="HUMAN"  # applies to all rows
             )
         """  # noqa: E501
+        self._ensure_supported()
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
@@ -622,6 +647,22 @@ class AsyncSessions:
         self._client = client
         self._spans = spans
 
+    async def _ensure_supported(self) -> None:
+        from phoenix.client.client import _WrappedAsyncClient
+        from phoenix.client.utils.server_version import SESSIONS_API
+
+        if isinstance(
+            self._client, _WrappedAsyncClient
+        ) and not await self._client.supports_server_version(SESSIONS_API.min_version):
+            from phoenix.client.exceptions import PhoenixException
+
+            v = ".".join(str(p) for p in SESSIONS_API.min_version)
+            raise PhoenixException(
+                f"{SESSIONS_API.feature} requires Phoenix >= {v}, "
+                f"but connected to server {self._client.server_version_string}. "
+                "Please upgrade your Phoenix server."
+            )
+
     async def get(
         self,
         *,
@@ -637,6 +678,7 @@ class AsyncSessions:
         Returns:
             The session data.
         """
+        await self._ensure_supported()
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -661,6 +703,7 @@ class AsyncSessions:
         Returns:
             A list of session data.
         """
+        await self._ensure_supported()
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -702,6 +745,7 @@ class AsyncSessions:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
         """
+        await self._ensure_supported()
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -722,6 +766,7 @@ class AsyncSessions:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
             timeout: Optional timeout in seconds for the request.
         """
+        await self._ensure_supported()
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -747,6 +792,7 @@ class AsyncSessions:
         Returns:
             A DataFrame with columns: id, session_id, project_id, start_time, end_time, num_traces.
         """
+        await self._ensure_supported()
         import pandas as pd
 
         sessions = await self.list(
@@ -801,6 +847,7 @@ class AsyncSessions:
             for turn in turns:
                 print(turn.get("input", {}).get("value", "<no input>"))
         """
+        await self._ensure_supported()
         session_data = await self.get(session_id=session_id, timeout=timeout)
         traces = session_data["traces"]
         if not traces:
@@ -935,6 +982,7 @@ class AsyncSessions:
                 sync=True
             )
         """  # noqa: E501
+        await self._ensure_supported()
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -1021,6 +1069,7 @@ class AsyncSessions:
             ]
             await async_client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
+        await self._ensure_supported()
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -1132,6 +1181,7 @@ class AsyncSessions:
                 annotator_kind="HUMAN"  # applies to all rows
             )
         """  # noqa: E501
+        await self._ensure_supported()
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 

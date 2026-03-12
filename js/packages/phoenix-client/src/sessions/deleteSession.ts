@@ -1,5 +1,8 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+
+const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
 
 /**
  * Parameters to delete a session
@@ -45,6 +48,7 @@ export async function deleteSession({
   sessionId,
 }: DeleteSessionParams): Promise<void> {
   const client = _client ?? createClient();
+  await ensureSessionsApi({ client });
 
   const { error } = await client.DELETE("/v1/sessions/{session_identifier}", {
     params: {

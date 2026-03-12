@@ -12,6 +12,11 @@ import {
   defaultGetEnvironmentOptions,
   makeDefaultClientOptions,
 } from "./config";
+import {
+  parseSemanticVersion,
+  satisfiesMinVersion,
+} from "./utils/semver";
+import type { SemanticVersion } from "./utils/semver";
 
 export type pathsV1 = oapiPathsV1;
 export type componentsV1 = oapiComponentsV1;
@@ -98,10 +103,73 @@ export const createClient = (
 ) => {
   const mergedOptions = getMergedOptions(config);
   const openApiClient = createOpenApiClient<pathsV1>(mergedOptions);
+
+  let serverVersion: SemanticVersion | null | undefined;
+
+  const versionMiddleware: Middleware = {
+    onResponse({ response }) {
+      if (serverVersion === undefined) {
+        const header = response.headers.get("x-phoenix-server-version");
+        if (header) {
+          serverVersion = parseSemanticVersion(header);
+        }
+      }
+    },
+  };
+
+  openApiClient.use(versionMiddleware);
   openApiClient.use(middleware);
+
   return {
     ...openApiClient,
     config: mergedOptions,
+    /**
+     * Check if the connected **Phoenix server** meets a minimum version requirement.
+     *
+     * The server version is detected from the `x-phoenix-server-version` response
+     * header. If no response has been seen yet, this method eagerly fetches the
+     * version from `GET /arize_phoenix_version`.
+     *
+     * Returns `true` if the server version is unknown (e.g. the server doesn't
+     * report its version), so that older servers are not blocked by default.
+     */
+    supportsServerVersion: async (
+      minVersion: SemanticVersion
+    ): Promise<boolean> => {
+      if (serverVersion === undefined) {
+        // Eagerly fetch version
+        try {
+          let baseUrl = mergedOptions.baseUrl ?? "";
+          while (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
+          const headers = mergedOptions.headers
+            ? { ...(mergedOptions.headers as Record<string, string>) }
+            : {};
+          const resp = await fetch(`${baseUrl}/arize_phoenix_version`, {
+            headers,
+          });
+          if (resp.ok) {
+            const text = await resp.text();
+            serverVersion = parseSemanticVersion(text);
+            if (!serverVersion) {
+              serverVersion = null;
+            }
+          } else {
+            serverVersion = null;
+          }
+        } catch {
+          serverVersion = null;
+        }
+      }
+      if (serverVersion == null) return true;
+      return satisfiesMinVersion(serverVersion, minVersion);
+    },
+    /**
+     * The cached Phoenix server version, if known.
+     * Populated from the `x-phoenix-server-version` response header.
+     */
+    get serverVersion(): SemanticVersion | undefined {
+      return serverVersion ?? undefined;
+    },
   };
 };
 

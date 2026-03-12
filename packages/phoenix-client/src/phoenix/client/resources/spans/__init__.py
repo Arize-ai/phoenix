@@ -449,6 +449,21 @@ class Spans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if trace_ids:
+            from phoenix.client.client import _WrappedClient
+            from phoenix.client.utils.server_version import TRACE_IDS_FILTER
+
+            if isinstance(
+                self._client, _WrappedClient
+            ) and not self._client.supports_server_version(TRACE_IDS_FILTER.min_version):
+                from phoenix.client.exceptions import PhoenixException
+
+                v = ".".join(str(p) for p in TRACE_IDS_FILTER.min_version)
+                raise PhoenixException(
+                    f"{TRACE_IDS_FILTER.feature} requires Phoenix >= {v}, "
+                    f"but connected to server {self._client.server_version_string}. "
+                    "Please upgrade your Phoenix server."
+                )
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1683,6 +1698,21 @@ class AsyncSpans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if trace_ids:
+            from phoenix.client.client import _WrappedAsyncClient
+            from phoenix.client.utils.server_version import TRACE_IDS_FILTER
+
+            if isinstance(
+                self._client, _WrappedAsyncClient
+            ) and not await self._client.supports_server_version(TRACE_IDS_FILTER.min_version):
+                from phoenix.client.exceptions import PhoenixException
+
+                v = ".".join(str(p) for p in TRACE_IDS_FILTER.min_version)
+                raise PhoenixException(
+                    f"{TRACE_IDS_FILTER.feature} requires Phoenix >= {v}, "
+                    f"but connected to server {self._client.server_version_string}. "
+                    "Please upgrade your Phoenix server."
+                )
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
