@@ -286,21 +286,26 @@ Page paths: forward slashes, no leading slash, no `.mdx` extension.
 
 Only when explicitly requested. The default release-please changelog is acceptable.
 
+**You MUST preserve the existing release body.** First fetch it, then prepend a highlights section:
+
 ```bash
-gh release edit <TAG> --repo Arize-ai/phoenix --notes "$(cat <<'EOF'
+# 1. Fetch the existing release body
+EXISTING_BODY=$(gh release view <TAG> --repo Arize-ai/phoenix --json body --jq '.body')
+
+# 2. Prepend highlights and wrap the original body in a details block
+gh release edit <TAG> --repo Arize-ai/phoenix --notes "$(cat <<EOF
 ## Highlights
 
 ### Feature Title
 Description with user-facing framing.
 
-## Full Changelog
 See the [release notes](https://docs.arize.com/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug) for details.
 
 ---
 <details>
 <summary>Conventional commits</summary>
 
-(original release-please body)
+$EXISTING_BODY
 </details>
 EOF
 )"
