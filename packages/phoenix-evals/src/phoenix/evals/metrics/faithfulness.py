@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -16,11 +16,6 @@ class FaithfulnessEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
-        prompt_template (optional): Custom prompt template to override the built-in prompt.
-            When provided, ``input_schema`` is not applied — template variables are inferred
-            automatically from the template. Accepts the same formats as
-            :class:`ClassificationEvaluator` (string, message list, or
-            :class:`~phoenix.evals.llm.prompts.PromptTemplate`).
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -41,12 +36,6 @@ class FaithfulnessEvaluator(ClassificationEvaluator):
 
         # With custom invocation parameters
         faithfulness_eval = FaithfulnessEvaluator(llm=llm, temperature=0.0)
-
-        # With a custom prompt template (input_schema is inferred from template variables)
-        custom_template = (
-            "Is this faithful?\\nQuery: {input}\\nResponse: {output}\\nContext: {context}"
-        )
-        faithfulness_eval = FaithfulnessEvaluator(llm=llm, prompt_template=custom_template)
 
         eval_input = {
             "input": "What is the capital of France?",
@@ -78,25 +67,14 @@ class FaithfulnessEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
-        prompt_template: Optional[Any] = None,
         **kwargs: Any,
     ):
-        if prompt_template is None:
-            super().__init__(
-                name=self.NAME,
-                llm=llm,
-                prompt_template=self.PROMPT.template,
-                choices=self.CHOICES,
-                direction=self.DIRECTION,
-                input_schema=self.FaithfulnessInputSchema,
-                **kwargs,
-            )
-        else:
-            super().__init__(
-                name=self.NAME,
-                llm=llm,
-                prompt_template=prompt_template,
-                choices=self.CHOICES,
-                direction=self.DIRECTION,
-                **kwargs,
-            )
+        super().__init__(
+            name=self.NAME,
+            llm=llm,
+            prompt_template=self.PROMPT.template,
+            choices=self.CHOICES,
+            direction=self.DIRECTION,
+            input_schema=self.FaithfulnessInputSchema,
+            **kwargs,
+        )

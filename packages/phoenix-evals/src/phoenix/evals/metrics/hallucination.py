@@ -7,7 +7,7 @@ Please use FaithfulnessEvaluator instead, which uses updated terminology:
 """
 
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,11 +29,6 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
-        prompt_template (optional): Custom prompt template to override the built-in prompt.
-            When provided, ``input_schema`` is not applied — template variables are inferred
-            automatically from the template. Accepts the same formats as
-            :class:`ClassificationEvaluator` (string, message list, or
-            :class:`~phoenix.evals.llm.prompts.PromptTemplate`).
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -54,12 +49,6 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
         # With custom invocation parameters
         hallucination_eval = HallucinationEvaluator(llm=llm, temperature=0.0)
-
-        # With a custom prompt template (input_schema is inferred from template variables)
-        custom_template = (
-            "Is this hallucinated?\\nQuestion: {input}\\nAnswer: {output}\\nContext: {context}"
-        )
-        hallucination_eval = HallucinationEvaluator(llm=llm, prompt_template=custom_template)
 
         eval_input = {
             "input": "What is the capital of France?",
@@ -91,7 +80,6 @@ class HallucinationEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
-        prompt_template: Optional[Any] = None,
         **kwargs: Any,
     ):
         warnings.warn(
@@ -102,22 +90,12 @@ class HallucinationEvaluator(ClassificationEvaluator):
             DeprecationWarning,
             stacklevel=2,
         )
-        if prompt_template is None:
-            super().__init__(
-                name=self.NAME,
-                llm=llm,
-                prompt_template=self.PROMPT.template,
-                choices=self.CHOICES,
-                direction=self.DIRECTION,
-                input_schema=self.HallucinationInputSchema,
-                **kwargs,
-            )
-        else:
-            super().__init__(
-                name=self.NAME,
-                llm=llm,
-                prompt_template=prompt_template,
-                choices=self.CHOICES,
-                direction=self.DIRECTION,
-                **kwargs,
-            )
+        super().__init__(
+            name=self.NAME,
+            llm=llm,
+            prompt_template=self.PROMPT.template,
+            choices=self.CHOICES,
+            direction=self.DIRECTION,
+            input_schema=self.HallucinationInputSchema,
+            **kwargs,
+        )
