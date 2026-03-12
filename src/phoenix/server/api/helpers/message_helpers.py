@@ -6,12 +6,17 @@ users to specify a path to conversation messages within dataset examples that
 should be appended to prompt templates when running experiments.
 """
 
+import json
 from collections.abc import Sequence
-from typing import Any, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 
+from strawberry import UNSET
 from typing_extensions import Required
 
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+
+if TYPE_CHECKING:
+    from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 
 # These types are based loosely on the openinference.instrumentation.Message type.
 # This makes it easier to leverage openinference.instrumentation helpers
@@ -191,6 +196,69 @@ def extract_and_convert_example_messages(
             raise ValueError(f"Message at index {i} is not a dict (got {type(msg).__name__})")
         messages.append(convert_openai_message_to_internal(msg))
 
+    return messages
+
+
+def prompt_chat_template_to_playground_messages(
+    template: "PromptChatTemplateInput",
+) -> list[PlaygroundMessage]:
+    """
+    Convert a PromptChatTemplateInput (normalized GraphQL wire format) into
+    the list of PlaygroundMessage dicts used by LLM streaming clients.
+
+    Content part mapping:
+      - text part       → content str (joined with newline for multiple text parts)
+      - tool_call part  → tool_calls entry on the message
+      - tool_result part→ content str + tool_call_id on the message
+    """
+    messages: list[PlaygroundMessage] = []
+    for msg_input in template.messages:
+        role = _role_to_enum(msg_input.role)
+        text_parts: list[str] = []
+        tool_calls: list[PlaygroundToolCall] = []
+        tool_call_id: Optional[str] = None
+
+        for part in msg_input.content:
+            if part.text is not UNSET and part.text is not None:
+                text_parts.append(part.text.text)
+            elif part.tool_call is not UNSET and part.tool_call is not None:
+                tc = part.tool_call
+                # arguments may be a JSON string or a dict; normalise to dict
+                raw_args = tc.tool_call.arguments
+                if isinstance(raw_args, str):
+                    try:
+                        parsed_args: Any = json.loads(raw_args)
+                    except (ValueError, TypeError):
+                        parsed_args = {}
+                else:
+                    parsed_args = raw_args or {}
+                tool_calls.append(
+                    PlaygroundToolCall(
+                        id=tc.tool_call_id,
+                        function=PlaygroundToolCallFunction(
+                            name=tc.tool_call.name,
+                            arguments=parsed_args,
+                        ),
+                    )
+                )
+            elif part.tool_result is not UNSET and part.tool_result is not None:
+                tr = part.tool_result
+                tool_call_id = tr.tool_call_id
+                result = tr.result
+                if isinstance(result, str):
+                    text_parts.append(result)
+                elif result is not None:
+                    text_parts.append(json.dumps(result))
+
+        content = "\n".join(text_parts)
+        messages.append(
+            create_playground_message(
+                role=role,
+                content=content,
+                tool_call_id=tool_call_id,
+                tool_calls=tool_calls if tool_calls else None,
+            )
+        )
     return messages
 
 

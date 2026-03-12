@@ -3,12 +3,12 @@ import logging
 from dataclasses import field
 from datetime import datetime, timezone
 from itertools import islice
-from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
+from typing import Any, Iterable, Iterator, Optional, TypeVar, Union, cast
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from pydantic import ValidationError
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
@@ -16,13 +16,12 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
+    SupportedSQLDialect,
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig
-from phoenix.db.types.model_provider import (
-    is_sdk_compatible_with_model_provider,
-)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -47,6 +46,7 @@ from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     create_playground_message,
     extract_and_convert_example_messages,
+    prompt_chat_template_to_playground_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -62,10 +62,9 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,
 )
-from phoenix.server.api.input_types.GenerativeModelInput import (
-    GenerativeModelBuiltinProviderInput,
-    GenerativeModelCustomProviderInput,
-    GenerativeModelInput,
+from phoenix.server.api.input_types.ModelClientOptionsInput import (
+    BuiltinClientOptionsInput,
+    ModelClientOptionsInput,
     OpenAIApiType,
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
@@ -83,8 +82,6 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
@@ -212,10 +209,13 @@ class ChatCompletionMutationMixin:
         project_name = generate_experiment_project_name()
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model,
+                model_provider=input.prompt_version.model_provider.to_model_provider(),
+                model_name=input.prompt_version.model_name,
+                custom_provider_id=input.prompt_version.resolved_custom_provider_id(),
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+                client_options=input.client_options,
             )
             dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
             if dataset is None:
@@ -313,12 +313,11 @@ class ChatCompletionMutationMixin:
                         info,
                         llm_client,
                         ChatCompletionInput(
-                            model=input.model,
-                            messages=input.messages,
-                            tools=input.tools,
-                            invocation_parameters=input.invocation_parameters,
+                            client_options=input.client_options,
+                            prompt_version=input.prompt_version,
+                            credentials=input.credentials,
                             template=PromptTemplateOptions(
-                                format=input.template_format,
+                                format=input.prompt_version.template_format,
                                 variables=template_variables_by_revision[revision.id],
                             ),
                             prompt_name=input.prompt_name,
@@ -482,10 +481,13 @@ class ChatCompletionMutationMixin:
     ) -> ChatCompletionMutationPayload:
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model,
+                model_provider=input.prompt_version.model_provider.to_model_provider(),
+                model_name=input.prompt_version.model_name,
+                custom_provider_id=input.prompt_version.resolved_custom_provider_id(),
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+                client_options=input.client_options,
             )
         results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
         batch_size = 3
@@ -606,58 +608,24 @@ class ChatCompletionMutationMixin:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 prompt_version = inline_llm_evaluator.prompt_version
-                model_name = prompt_version.model_name
-                # Use custom provider if specified, otherwise fall back to built-in
-                if prompt_version.custom_provider_id is not None:
-                    # Validate SDK compatibility at runtime. This catches cases where someone
-                    # modified the custom provider's SDK in the database after it was attached
-                    # to a prompt.
-                    async with info.context.db() as session:
-                        custom_provider_id = from_global_id_with_expected_type(
-                            global_id=prompt_version.custom_provider_id,
-                            expected_type_name=GenerativeModelCustomProvider.__name__,
-                        )
-                        custom_provider = await session.get(
-                            models.GenerativeModelCustomProvider, custom_provider_id
-                        )
-                        if custom_provider is None:
-                            raise NotFound(
-                                f"Custom provider with ID '{custom_provider_id}' not found"
-                            )
-                        if not is_sdk_compatible_with_model_provider(
-                            custom_provider.sdk, prompt_version.model_provider
-                        ):
-                            raise BadRequest(
-                                f"Custom provider '{custom_provider.name}' has SDK "
-                                f"'{custom_provider.sdk}' which is not compatible with prompt's "
-                                f"model provider '{prompt_version.model_provider.value}'. "
-                                f"The custom provider's SDK may have been changed after it was "
-                                f"attached to this prompt."
-                            )
-
-                    model_input = GenerativeModelInput(
-                        custom=GenerativeModelCustomProviderInput(
-                            provider_id=prompt_version.custom_provider_id,
-                            model_name=model_name,
-                        )
-                    )
-                else:
-                    generative_provider_key = GenerativeProviderKey.from_model_provider(
-                        prompt_version.model_provider
-                    )
-                    model_input = GenerativeModelInput(
-                        builtin=GenerativeModelBuiltinProviderInput(
-                            provider_key=generative_provider_key,
-                            name=model_name,
+                evaluator_preview_client_options = (
+                    None
+                    if prompt_version.custom_provider_id is not None
+                    else ModelClientOptionsInput(
+                        builtin=BuiltinClientOptionsInput(
                             openai_api_type=OpenAIApiType.RESPONSES,
                         )
                     )
+                )
                 async with info.context.db() as session:
                     llm_client = await get_playground_client(
-                        model=model_input,
+                        model_provider=prompt_version.model_provider.to_model_provider(),
+                        model_name=prompt_version.model_name,
+                        custom_provider_id=prompt_version.resolved_custom_provider_id(),
                         session=session,
                         decrypt=info.context.decrypt,
                         credentials=input.credentials,
+                        client_options=evaluator_preview_client_options,
                     )
                 try:
                     prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(
@@ -721,15 +689,7 @@ class ChatCompletionMutationMixin:
         project_description: str = "Traces from prompt playground",
         appended_messages: Optional[list[PlaygroundMessage]] = None,
     ) -> tuple[ChatCompletionRepetition, models.Span]:
-        messages: list[PlaygroundMessage] = [
-            create_playground_message(
-                message.role,
-                message.content,
-                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-                message.tool_calls if isinstance(message.tool_calls, list) else None,
-            )
-            for message in input.messages
-        ]
+        messages = prompt_chat_template_to_playground_messages(input.prompt_version.template)
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
 
@@ -737,8 +697,13 @@ class ChatCompletionMutationMixin:
         if appended_messages:
             messages.extend(appended_messages)
 
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
+        invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+
+        tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+        response_format = (
+            input.prompt_version.response_format.to_orm()
+            if input.prompt_version.response_format
+            else None
         )
 
         text_content = ""
@@ -748,9 +713,10 @@ class ChatCompletionMutationMixin:
         try:
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
-                tools=input.tools or [],
-                tracer=tracer,
+                tools=tools,
+                response_format=response_format,
                 invocation_parameters=invocation_parameters,
+                tracer=tracer,
             ):
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
@@ -769,24 +735,24 @@ class ChatCompletionMutationMixin:
                     assert_never(chunk)
         except Exception as e:
             error_message = str(e)
-
+        stmt = select(models.Project.id).where(models.Project.name == project_name)
         async with info.context.db() as session:
-            if (
-                project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == project_name)
-                )
-            ) is None:
+            project_id = await session.scalar(stmt)
+            if project_id is None:
+                dialect = SupportedSQLDialect(session.bind.dialect.name)
                 project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=project_name,
-                        description=project_description,
-                    )
+                    insert_on_conflict(
+                        {"name": project_name, "description": project_description},
+                        table=models.Project,
+                        dialect=dialect,
+                        unique_by=["name"],
+                        on_conflict=OnConflict.DO_NOTHING,
+                    ).returning(models.Project.id)
                 )
+            if project_id is None:
+                project_id = await session.scalar(stmt)
             db_traces = tracer.get_db_traces(project_id=project_id)
             session.add_all(db_traces)
-            await session.flush()
 
         db_trace = db_traces[0]
         db_span = db_trace.spans[0]

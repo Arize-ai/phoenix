@@ -18,6 +18,12 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
 
+from phoenix.db.types.prompts import (
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+)
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     AzureOpenAIReasoningNonStreamingClient,
@@ -29,7 +35,7 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIStreamingClient,
     get_openai_client_class,
 )
-from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
@@ -84,9 +90,9 @@ class TestOpenAIBaseStreamingClient:
             text_chunks = []
             async for chunk in client.chat_completion_create(
                 messages=messages,
-                tools=[],
-                tracer=tracer,
+                tools=None,
                 invocation_parameters=invocation_parameters,
+                tracer=tracer,
             ):
                 if isinstance(chunk, TextChunk):
                     text_chunks.append(chunk.content)
@@ -107,7 +113,10 @@ class TestOpenAIBaseStreamingClient:
 
         invocation_params = attributes.pop(LLM_INVOCATION_PARAMETERS)
         assert isinstance(invocation_params, str)
-        assert json.loads(invocation_params) == {"temperature": 0.1}
+        assert json.loads(invocation_params) == {
+            "temperature": 0.1,
+            "stream_options": {"include_usage": True},
+        }
 
         input_messages_role = attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}")
         assert input_messages_role == "user"
@@ -179,23 +188,29 @@ class TestOpenAIBaseStreamingClient:
             provider="openai",
         )
 
-        get_current_weather_tool_schema = {
-            "type": "function",
-            "function": {
-                "name": "get_current_weather",
-                "description": "Get the current weather in a given location",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "The city name, e.g. San Francisco",
+        get_current_weather_tools = PromptTools(
+            type="tools",
+            tool_choice=PromptToolChoiceZeroOrMore(type="zero_or_more"),
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="get_current_weather",
+                        description="Get the current weather in a given location",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "location": {
+                                    "type": "string",
+                                    "description": "The city name, e.g. San Francisco",
+                                },
+                            },
+                            "required": ["location"],
                         },
-                    },
-                    "required": ["location"],
-                },
-            },
-        }
+                    ),
+                )
+            ],
+        )
 
         messages: list[PlaygroundMessage] = [
             create_playground_message(
@@ -204,13 +219,13 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters: Mapping[str, Any] = {"tool_choice": "auto"}
+        invocation_parameters: Mapping[str, Any] = {}
 
         with custom_vcr.use_cassette():
             tool_call_chunks = []
             async for chunk in client.chat_completion_create(
                 messages=messages,
-                tools=[get_current_weather_tool_schema],
+                tools=get_current_weather_tools,
                 tracer=tracer,
                 invocation_parameters=invocation_parameters,
             ):
@@ -232,7 +247,10 @@ class TestOpenAIBaseStreamingClient:
 
         invocation_params = attributes.pop(LLM_INVOCATION_PARAMETERS)
         assert isinstance(invocation_params, str)
-        assert json.loads(invocation_params) == {"tool_choice": "auto"}
+        assert json.loads(invocation_params) == {
+            "tool_choice": "auto",
+            "stream_options": {"include_usage": True},
+        }
 
         input_messages_role = attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}")
         assert input_messages_role == "user"
@@ -297,8 +315,27 @@ class TestOpenAIBaseStreamingClient:
         llm_system = attributes.pop(LLM_SYSTEM)
         assert llm_system == "openai"
 
-        llm_tool_schema = attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")
-        assert llm_tool_schema == json.dumps(get_current_weather_tool_schema)
+        assert isinstance(
+            llm_tool_schema := attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}"), str
+        )
+        assert json.loads(llm_tool_schema) == {
+            "type": "function",
+            "function": {
+                "name": "get_current_weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city name, e.g. San Francisco",
+                        }
+                    },
+                    "required": ["location"],
+                },
+                "strict": None,
+                "description": "Get the current weather in a given location",
+            },
+        }
 
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
@@ -333,7 +370,7 @@ class TestOpenAIBaseStreamingClient:
             with pytest.raises(AuthenticationError) as exc_info:
                 async for _ in client.chat_completion_create(
                     messages=messages,
-                    tools=[],
+                    tools=None,
                     tracer=tracer,
                     invocation_parameters=invocation_parameters,
                 ):
@@ -377,7 +414,10 @@ class TestOpenAIBaseStreamingClient:
 
         invocation_params = attributes.pop(LLM_INVOCATION_PARAMETERS)
         assert isinstance(invocation_params, str)
-        assert json.loads(invocation_params) == {"temperature": 0.1}
+        assert json.loads(invocation_params) == {
+            "temperature": 0.1,
+            "stream_options": {"include_usage": True},
+        }
 
         assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "user"
         assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}") == "Say hello"
@@ -395,9 +435,10 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(input_value, str)
         input_data = json.loads(input_value)
         assert input_data == {
-            "messages": [{"role": "USER", "content": "Say hello"}],
-            "tools": [],
-            "invocation_parameters": {"temperature": 0.1},
+            "messages": [{"role": "user", "content": "Say hello"}],
+            "model": "gpt-4o-mini",
+            "stream_options": {"include_usage": True},
+            "temperature": 0.1,
         }
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
 

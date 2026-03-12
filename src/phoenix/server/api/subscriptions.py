@@ -31,6 +31,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -49,6 +50,7 @@ from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     create_playground_message,
     extract_and_convert_example_messages,
+    prompt_chat_template_to_playground_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -59,7 +61,6 @@ from phoenix.server.api.helpers.playground_experiment_runs import (
     get_db_experiment_run,
 )
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -114,15 +115,7 @@ async def _stream_single_chat_completion(
     on_span_insertion: Callable[[], None],
     span_cost_calculator: SpanCostCalculator,
 ) -> ChatStream:
-    messages: list[PlaygroundMessage] = [
-        create_playground_message(
-            message.role,
-            message.content,
-            message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-            message.tool_calls if isinstance(message.tool_calls, list) else None,
-        )
-        for message in input.messages
-    ]
+    messages = prompt_chat_template_to_playground_messages(input.prompt_version.template)
     if template_options := input.template:
         messages = list(
             _formatted_messages(
@@ -131,14 +124,23 @@ async def _stream_single_chat_completion(
                 template_variables=template_options.variables,
             )
         )
-    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+
+    tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+    response_format = (
+        input.prompt_version.response_format.to_orm()
+        if input.prompt_version.response_format
+        else None
+    )
+
     tracer = Tracer(span_cost_calculator=span_cost_calculator)
     try:
         async for chunk in llm_client.chat_completion_create(
             messages=messages,
-            tools=input.tools or [],
-            tracer=tracer,
+            tools=tools,
+            response_format=response_format,
             invocation_parameters=invocation_parameters,
+            tracer=tracer,
         ):
             chunk.repetition_number = repetition_number
             yield chunk
@@ -282,10 +284,13 @@ class Subscription:
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model,
+                model_provider=input.prompt_version.model_provider.to_model_provider(),
+                model_name=input.prompt_version.model_name,
+                custom_provider_id=input.prompt_version.resolved_custom_provider_id(),
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+                client_options=input.client_options,
             )
             if (
                 playground_project_id := await session.scalar(
@@ -380,10 +385,13 @@ class Subscription:
         )
         async with info.context.db() as session:
             llm_client = await get_playground_client(
-                model=input.model,
+                model_provider=input.prompt_version.model_provider.to_model_provider(),
+                model_name=input.prompt_version.model_name,
+                custom_provider_id=input.prompt_version.resolved_custom_provider_id(),
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
+                client_options=input.client_options,
             )
             dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
             evaluators = await get_evaluators(
@@ -579,17 +587,15 @@ async def _stream_chat_completion_over_dataset_example(
     evaluator_project_ids: list[int],
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+    tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+    response_format = (
+        input.prompt_version.response_format.to_orm()
+        if input.prompt_version.response_format
+        else None
+    )
     db_run: Optional[models.ExperimentRun] = None
-    messages: list[PlaygroundMessage] = [
-        create_playground_message(
-            message.role,
-            message.content,
-            message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-            message.tool_calls if isinstance(message.tool_calls, list) else None,
-        )
-        for message in input.messages
-    ]
+    messages = prompt_chat_template_to_playground_messages(input.prompt_version.template)
     try:
         format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         # Build template variables using shared helper
@@ -602,7 +608,7 @@ async def _stream_chat_completion_over_dataset_example(
         messages = list(
             _formatted_messages(
                 messages=messages,
-                template_format=input.template_format,
+                template_format=input.prompt_version.template_format,
                 template_variables=template_variables,
             )
         )
@@ -645,7 +651,9 @@ async def _stream_chat_completion_over_dataset_example(
     try:
         async for chunk in llm_client.chat_completion_create(
             messages=messages,
-            tools=input.tools or [],
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
             tracer=tracer,
             # Pass an empty OTel context so the LLM span starts as a fresh root
             # span and does not inherit the ambient context from server-side
@@ -655,7 +663,6 @@ async def _stream_chat_completion_over_dataset_example(
             # a duplicate-key violation on uq_traces_trace_id when more than one
             # example is flushed.
             otel_context=OtelContext(),
-            invocation_parameters=invocation_parameters,
         ):
             chunk.dataset_example_id = example_id
             chunk.repetition_number = repetition_number

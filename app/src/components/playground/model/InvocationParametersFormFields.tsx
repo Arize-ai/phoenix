@@ -22,7 +22,6 @@ import { GoogleGenAIThinkingLevelConfigField } from "@phoenix/pages/playground/G
 import type { ModelInvocationParameterInput } from "@phoenix/store";
 import type { Mutable } from "@phoenix/typeUtils";
 
-import { paramsToIgnoreInInvocationParametersForm } from "../../../pages/playground/constants";
 import {
   areInvocationParamsEqual,
   toCamelCase,
@@ -338,12 +337,7 @@ export const InvocationParametersFormFields = ({
       .filter(
         (field) =>
           // remove parameters that we want to ignore in the form
-          !(
-            field.canonicalName != null &&
-            paramsToIgnoreInInvocationParametersForm.includes(
-              field.canonicalName
-            )
-          )
+          field.canonicalName != null
       )
       .reduce(
         (acc, field) => {

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Literal, Union
 from typing_extensions import NotRequired, TypedDict, assert_never
 
 if TYPE_CHECKING:
-    from phoenix.server.api.helpers.prompts.models import (
+    from phoenix.db.types.prompts import (
         PromptToolChoiceNone,
         PromptToolChoiceOneOrMore,
         PromptToolChoiceSpecificFunctionTool,
@@ -64,7 +64,7 @@ class GoogleToolChoiceConversion:
     ]:
         from google.genai.types import ToolConfig
 
-        from phoenix.server.api.helpers.prompts.models import (
+        from phoenix.db.types.prompts import (
             PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
             PromptToolChoiceSpecificFunctionTool,

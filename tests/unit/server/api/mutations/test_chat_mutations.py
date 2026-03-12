@@ -73,19 +73,31 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What is the capital of France? Answer in one word.",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What is the capital of France? Answer in one word."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "repetitions": 1,
             }
         }
@@ -131,19 +143,31 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What is 2 + 2? Answer with just the number.",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What is 2 + 2? Answer with just the number."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "repetitions": 2,
             }
         }
@@ -210,23 +234,34 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "repetitions": 1,
             }
         }
@@ -299,22 +334,33 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "splitIds": [train_split_id],  # Only train split
                 "repetitions": 1,
             }
@@ -382,22 +428,33 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "splitIds": [train_split_id, test_split_id],  # Both splits
                 "repetitions": 1,
             }
@@ -464,22 +521,33 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": dataset_version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 # No splitIds provided
                 "repetitions": 1,
             }
@@ -566,28 +634,37 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
                 "datasetId": dataset_id,
-                "messages": [
-                    {
-                        "role": "SYSTEM",
-                        "content": (
-                            "You are a helpful assistant. The expected answer is: {reference}"
-                        ),
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "SYSTEM",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "You are a helpful assistant. The expected answer is: {reference}"
+                                        }
+                                    }
+                                ],
+                            },
+                            {
+                                "role": "USER",
+                                "content": [{"text": {"text": "Question: {input}"}}],
+                            },
+                        ]
                     },
-                    {
-                        "role": "USER",
-                        "content": "Question: {input}",
-                    },
-                ],
-                "templateFormat": "F_STRING",
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 # Empty string means use the root of the example context
                 # (input, reference, metadata)
                 "templateVariablesPath": "",
@@ -661,24 +738,35 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "credentials": [{"envVarName": "OPENAI_API_KEY", "value": "sk-"}],
                 "datasetId": dataset_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        # Using {city} directly, which is only accessible when
-                        # templateVariablesPath extracts the input contents
-                        "content": "What country is {city} in? Answer in one word.",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                # Using {city} directly, which is only accessible when
+                                # templateVariablesPath extracts the input contents
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word."
+                                        }
+                                    }
+                                ],
+                            },
+                        ]
                     },
-                ],
-                "templateFormat": "F_STRING",
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 # "input" means use the contents of the input field as template variables
                 # This makes {city} available directly instead of requiring {input.city}
                 "templateVariablesPath": "input",
@@ -781,22 +869,31 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4o-mini",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What is 2 + 2? Answer with just the number.",
-                    }
-                ],
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.0},
-                ],
+                "promptVersion": {
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What is 2 + 2? Answer with just the number."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4o-mini",
+                    "invocationParameters": {"temperature": 0.0},
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -921,19 +1018,25 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-nonexistent-model",  # use a non-existent model to trigger an error
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What is 2 + 2?",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [{"text": {"text": "What is 2 + 2?"}}],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-nonexistent-model",
+                    "invocationParameters": {},
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -1044,22 +1147,33 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "repetitions": 1,
                 "tracingEnabled": True,
                 "evaluators": [
@@ -1641,22 +1755,33 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-nonexistent-model",  # triggers an error
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-nonexistent-model",
+                    "invocationParameters": {},
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -1756,22 +1881,25 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4o-mini",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "Say hello",
-                    }
-                ],
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.0},
-                ],
+                "promptVersion": {
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [{"text": {"text": "Say hello"}}],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4o-mini",
+                    "invocationParameters": {"temperature": 0.0},
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -1881,22 +2009,33 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -2031,22 +2170,25 @@ class TestChatCompletionMutationMixin:
         """
         variables = {
             "input": {
-                "model": {
+                "clientOptions": {
                     "builtin": {
-                        "providerKey": "OPENAI",
-                        "name": "gpt-4o-mini",
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "Say hello",
-                    }
-                ],
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.0},
-                ],
+                "promptVersion": {
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [{"text": {"text": "Say hello"}}],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4o-mini",
+                    "invocationParameters": {"temperature": 0.0},
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {

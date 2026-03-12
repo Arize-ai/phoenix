@@ -582,7 +582,9 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         """Read and parse JSON request body."""
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
-        return json.loads(body) if body else {}
+        parsed = json.loads(body) if body else {}
+        print(f"[MockLLMServer] {self.path} request payload: {json.dumps(parsed)}")
+        return parsed
 
     def do_POST(self) -> None:
         """Handle POST requests."""

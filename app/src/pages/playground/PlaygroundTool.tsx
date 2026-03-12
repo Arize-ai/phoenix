@@ -19,17 +19,22 @@ import {
   geminiToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
-import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import type { Tool } from "@phoenix/store";
 
-import { getToolName } from "./playgroundUtils";
+import {
+  displayToCanonicalToolDefinition,
+  getToolDefinitionDisplay,
+  getToolName,
+} from "./playgroundUtils";
 import type { PlaygroundInstanceProps } from "./types";
 
-export type UpdateToolFn = (definition: Tool["definition"]) => void;
+export type UpdateToolFn = (definition: unknown) => void;
 
 export type BaseToolEditorProps = {
   playgroundInstanceId: number;
   tool: Tool;
+  /** Canonical definition converted to the current provider's display format. */
+  displayDefinition: unknown;
   updateTool: UpdateToolFn;
   toolDefinitionJSONSchema: JSONSchema7 | null;
 };
@@ -81,7 +86,11 @@ export function PlaygroundTool({
   }, [tool]);
 
   const updateTool = useCallback(
-    (definition: Tool["definition"]) => {
+    (display: unknown) => {
+      // Convert provider-specific display value back to canonical before storing.
+      // Guard against null (invalid JSON mid-edit).
+      const canonical = displayToCanonicalToolDefinition(display);
+      if (canonical == null) return;
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -89,7 +98,7 @@ export function PlaygroundTool({
             t.id === tool.id
               ? {
                   ...t,
-                  definition,
+                  definition: canonical,
                 }
               : t
           ),
@@ -103,14 +112,14 @@ export function PlaygroundTool({
   const deleteTool = useCallback(() => {
     const newTools = instanceTools.filter((t) => t.id !== toolId);
     const deletingToolChoice =
-      typeof toolChoice === "object" &&
+      toolChoice?.type === "SPECIFIC_FUNCTION" &&
       toolName != null &&
-      findToolChoiceName(toolChoice) === toolName;
+      toolChoice.functionName === toolName;
     let newToolChoice = toolChoice;
     if (newTools.length === 0) {
       newToolChoice = undefined;
     } else if (deletingToolChoice) {
-      newToolChoice = "auto";
+      newToolChoice = { type: "ZERO_OR_MORE" };
     }
     updateInstance({
       instanceId: playgroundInstanceId,
@@ -129,9 +138,15 @@ export function PlaygroundTool({
     updateInstance,
   ]);
 
+  const toolDefinitionDisplay = useMemo(() => {
+    return toolDefinition != null
+      ? getToolDefinitionDisplay(toolDefinition, instanceProvider)
+      : toolDefinition;
+  }, [toolDefinition, instanceProvider]);
+
   const toolDefinitionString = useMemo(() => {
-    return JSON.stringify(toolDefinition, null, 2);
-  }, [toolDefinition]);
+    return JSON.stringify(toolDefinitionDisplay, null, 2);
+  }, [toolDefinitionDisplay]);
 
   const toolDefinitionJSONSchema = useMemo((): JSONSchema7 | null => {
     switch (instanceProvider) {
@@ -182,6 +197,7 @@ export function PlaygroundTool({
       <ToolEditor
         playgroundInstanceId={playgroundInstanceId}
         tool={tool}
+        displayDefinition={toolDefinitionDisplay}
         updateTool={updateTool}
         toolDefinitionJSONSchema={toolDefinitionJSONSchema}
       />

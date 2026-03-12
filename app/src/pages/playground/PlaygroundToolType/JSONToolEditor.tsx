@@ -7,6 +7,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import type { BaseToolEditorProps } from "@phoenix/pages/playground/PlaygroundTool";
+import { getToolDefinitionDisplay } from "@phoenix/pages/playground/playgroundUtils";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
@@ -20,6 +21,7 @@ type JSONToolProps = BaseToolEditorProps;
 export const JSONToolEditor = ({
   playgroundInstanceId,
   tool,
+  displayDefinition,
   updateTool,
   toolDefinitionJSONSchema,
 }: JSONToolProps) => {
@@ -34,12 +36,12 @@ export const JSONToolEditor = ({
   const toolId = tool.id;
   const instanceProvider = instance.model.provider;
   const [initialEditorValue, setInitialEditorValue] = useState(() =>
-    JSON.stringify(tool.definition, null, 2)
+    JSON.stringify(displayDefinition, null, 2)
   );
   const editorValueRef = useRef(initialEditorValue);
 
-  // when the instance provider changes, we need to update the editor value
-  // to reflect the new tool definition schema
+  // When the instance provider changes, re-derive the display value from the
+  // canonical form and reset the editor.
   useEffect(() => {
     const state = store.getState();
     const instance = state.instances.find((i) => i.id === playgroundInstanceId);
@@ -47,10 +49,14 @@ export const JSONToolEditor = ({
       return;
     }
     const tool = instance.tools.find((t) => t.id === toolId);
-    if (tool == null) {
+    if (tool == null || tool.definition == null) {
       return;
     }
-    const newDefinition = JSON.stringify(tool.definition, null, 2);
+    const displayValue = getToolDefinitionDisplay(
+      tool.definition,
+      instance.model.provider
+    );
+    const newDefinition = JSON.stringify(displayValue, null, 2);
     if (isJSONString({ str: newDefinition, excludeNull: true })) {
       // eslint-disable-next-line react-hooks-js/set-state-in-effect
       setInitialEditorValue(newDefinition);

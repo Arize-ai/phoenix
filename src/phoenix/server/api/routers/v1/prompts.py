@@ -15,7 +15,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptInvocationParameters,
     PromptResponseFormat,
     PromptTemplate,

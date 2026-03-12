@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7d4bb070030fbadaa9bc3e40fe0d38fc>>
+ * @generated SignedSource<<210a11f519486738d351868cd4154c05>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,61 +9,106 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
-export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
+  clientOptions?: ModelClientOptionsInput | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
-  invocationParameters?: ReadonlyArray<InvocationParameterInput>;
-  messages: ReadonlyArray<ChatCompletionMessageInput>;
-  model: GenerativeModelInput;
   promptName?: string | null;
+  promptVersion: ChatPromptVersionInput;
   repetitions: number;
   template?: PromptTemplateOptions | null;
-  tools?: ReadonlyArray<any> | null;
 };
-export type ChatCompletionMessageInput = {
-  content?: any;
-  role: ChatCompletionMessageRole;
-  toolCallId?: string | null;
-  toolCalls?: ReadonlyArray<any> | null;
+export type ChatPromptVersionInput = {
+  customProviderId?: string | null;
+  description?: string | null;
+  invocationParameters?: any;
+  modelName: string;
+  modelProvider: GenerativeProviderKey;
+  responseFormat?: PromptResponseFormatJSONSchemaInput | null;
+  template: PromptChatTemplateInput;
+  templateFormat: PromptTemplateFormat;
+  tools?: PromptToolsInput | null;
 };
-export type GenerativeModelInput = {
-  builtin?: GenerativeModelBuiltinProviderInput | null;
-  custom?: GenerativeModelCustomProviderInput | null;
+export type PromptChatTemplateInput = {
+  messages: ReadonlyArray<PromptMessageInput>;
 };
-export type GenerativeModelBuiltinProviderInput = {
+export type PromptMessageInput = {
+  content: ReadonlyArray<ContentPartInput>;
+  role: PromptMessageRole;
+};
+export type ContentPartInput = {
+  text?: TextContentValueInput | null;
+  toolCall?: ToolCallContentValueInput | null;
+  toolResult?: ToolResultContentValueInput | null;
+};
+export type TextContentValueInput = {
+  text: string;
+};
+export type ToolCallContentValueInput = {
+  toolCall: ToolCallFunctionInput;
+  toolCallId: string;
+};
+export type ToolCallFunctionInput = {
+  arguments: string;
+  name: string;
+  type?: string | null;
+};
+export type ToolResultContentValueInput = {
+  result: any;
+  toolCallId: string;
+};
+export type PromptToolsInput = {
+  disableParallelToolCalls?: boolean | null;
+  toolChoice?: PromptToolChoiceInput | null;
+  tools: ReadonlyArray<PromptToolFunctionInput>;
+};
+export type PromptToolFunctionInput = {
+  function: PromptToolFunctionDefinitionInput;
+};
+export type PromptToolFunctionDefinitionInput = {
+  description?: string | null;
+  name: string;
+  parameters?: any | null;
+  strict?: boolean | null;
+};
+export type PromptToolChoiceInput = {
+  functionName?: string | null;
+  none?: boolean | null;
+  oneOrMore?: boolean | null;
+  zeroOrMore?: boolean | null;
+};
+export type PromptResponseFormatJSONSchemaInput = {
+  jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput;
+  type: string;
+};
+export type PromptResponseFormatJSONSchemaDefinitionInput = {
+  description?: string | null;
+  name: string;
+  schema?: any | null;
+  strict?: boolean | null;
+};
+export type ModelClientOptionsInput = {
+  builtin?: BuiltinClientOptionsInput | null;
+  custom?: CustomClientOptionsInput | null;
+};
+export type BuiltinClientOptionsInput = {
   baseUrl?: string | null;
   customHeaders?: any | null;
   endpoint?: string | null;
-  name: string;
   openaiApiType?: OpenAIApiType | null;
-  providerKey: GenerativeProviderKey;
   region?: string | null;
 };
-export type GenerativeModelCustomProviderInput = {
+export type CustomClientOptionsInput = {
   extraHeaders?: any | null;
-  modelName: string;
-  providerId: string;
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
-};
-export type InvocationParameterInput = {
-  canonicalName?: CanonicalParameterName | null;
-  invocationName: string;
-  valueBool?: boolean | null;
-  valueBoolean?: boolean | null;
-  valueFloat?: number | null;
-  valueInt?: number | null;
-  valueJson?: any | null;
-  valueString?: string | null;
-  valueStringList?: ReadonlyArray<string> | null;
 };
 export type PromptTemplateOptions = {
   format: PromptTemplateFormat;

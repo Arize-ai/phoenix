@@ -10,12 +10,12 @@ import {
   DEFAULT_OPENAI_API_TYPE,
   ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
-import type { OpenAIToolDefinition } from "@phoenix/schemas";
 import {
-  createOpenAIToolDefinition,
-  detectToolDefinitionProvider,
-  fromOpenAIToolDefinition,
-  openAIResponsesToOpenAI,
+  anthropicToolDefinitionSchema,
+  awsToolDefinitionSchema,
+  geminiToolDefinitionSchema,
+  openAIResponsesToolDefinitionSchema,
+  openAIToolDefinitionSchema,
 } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
@@ -27,10 +27,22 @@ import type {
 import {
   createAnthropicToolCall,
   createOpenAIToolCall,
+  findToolCallArguments,
+  findToolCallId,
+  findToolCallName,
 } from "@phoenix/schemas/toolCallSchemas";
-import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import {
+  anthropicToolChoiceSchema,
+  awsToolChoiceSchema,
+  googleToolChoiceSchema,
+  openAIToolChoiceSchema,
+  rawToolChoiceFromInvocationParametersSchema,
+} from "@phoenix/schemas/toolChoiceSchemas";
 import type { CredentialsState } from "@phoenix/store/credentialsStore";
 import type {
+  CanonicalResponseFormat,
+  CanonicalToolChoice,
+  CanonicalToolDefinition,
   ChatMessage,
   ModelConfig,
   ModelInvocationParameterInput,
@@ -59,11 +71,10 @@ import type {
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   ChatCompletionInput,
-  ChatCompletionMessageInput,
-  ChatCompletionMessageRole,
   GenerativeCredentialInput,
-  InvocationParameterInput,
+  PromptMessageRole,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import type { ChatPromptVersionInput } from "./__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
@@ -73,13 +84,10 @@ import {
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR,
-  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  RESPONSE_FORMAT_PARAM_NAME,
   SPAN_ATTRIBUTES_PARSING_ERROR,
-  TOOL_CHOICE_PARAM_CANONICAL_NAME,
-  TOOL_CHOICE_PARAM_NAME,
   TOOLS_PARSING_ERROR,
 } from "./constants";
+import type { InvocationParameterInput } from "./invocationParameterUtils";
 import {
   areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
@@ -93,7 +101,10 @@ import {
   llmOutputMessageSchema,
   llmToolSchema,
   modelConfigSchema,
+  modelConfigWithAnthropicOutputConfigSchema,
+  modelConfigWithGoogleResponseFormatSchema,
   modelConfigWithInvocationParametersSchema,
+  modelConfigWithOpenAIResponsesFormatSchema,
   modelConfigWithResponseFormatSchema,
   outputSchema,
   promptTemplateSchema,
@@ -548,18 +559,313 @@ export function getModelInvocationParametersFromAttributes(
   };
 }
 
-export function getResponseFormatFromAttributes(parsedAttributes: unknown) {
-  const { success, data } =
-    modelConfigWithResponseFormatSchema.safeParse(parsedAttributes);
-  if (!success) {
+/**
+ * Converts a raw provider-specific tool_choice value (from a span's
+ * llm.invocation_parameters) directly to a CanonicalToolChoice.
+ *
+ * Each provider schema is tried in order; the first match wins.
+ * No intermediate pivot through OpenAI format — hub-and-spoke all the way.
+ */
+function rawSpanToolChoiceToCanonical(
+  raw: unknown
+): CanonicalToolChoice | null {
+  // OpenAI / OpenAI-compatible: strings or typed objects
+  const openai = openAIToolChoiceSchema.safeParse(raw);
+  if (openai.success) {
+    const c = openai.data;
+    if (c === "none") return { type: "NONE" };
+    if (c === "auto") return { type: "ZERO_OR_MORE" };
+    if (c === "required") return { type: "ONE_OR_MORE" };
+    if (c.type === "function")
+      return { type: "SPECIFIC_FUNCTION", functionName: c.function.name };
+    if (c.type === "allowed_tools")
+      return c.allowed_tools.mode === "required"
+        ? { type: "ONE_OR_MORE" }
+        : { type: "ZERO_OR_MORE" };
+    if (c.type === "custom")
+      return { type: "SPECIFIC_FUNCTION", functionName: c.custom.name };
+  }
+
+  // Anthropic: { type: "none"|"auto"|"any"|"tool", name?, disable_parallel_tool_use? }
+  const anthropic = anthropicToolChoiceSchema.safeParse(raw);
+  if (anthropic.success) {
+    const c = anthropic.data;
+    switch (c.type) {
+      case "none":
+        return { type: "NONE" };
+      case "auto":
+        return { type: "ZERO_OR_MORE" };
+      case "any":
+        return { type: "ONE_OR_MORE" };
+      case "tool":
+        return { type: "SPECIFIC_FUNCTION", functionName: c.name };
+    }
+  }
+
+  // Google: { function_calling_config: { mode, allowed_function_names? } }
+  const google = googleToolChoiceSchema.safeParse(raw);
+  if (google.success) {
+    const { mode, allowed_function_names } =
+      google.data.function_calling_config;
+    if (allowed_function_names?.length === 1)
+      return {
+        type: "SPECIFIC_FUNCTION",
+        functionName: allowed_function_names[0],
+      };
+    switch (mode) {
+      case "none":
+        return { type: "NONE" };
+      case "auto":
+      case "mode_unspecified":
+        return { type: "ZERO_OR_MORE" };
+      case "any":
+      case "validated":
+        return { type: "ONE_OR_MORE" };
+    }
+  }
+
+  // AWS Bedrock: { auto: {} } | { any: {} } | { tool: { name } }
+  const aws = awsToolChoiceSchema.safeParse(raw);
+  if (aws.success) {
+    const c = aws.data;
+    if ("tool" in c && c.tool)
+      return { type: "SPECIFIC_FUNCTION", functionName: c.tool.name };
+    if ("any" in c && c.any) return { type: "ONE_OR_MORE" };
+    if ("auto" in c && c.auto) return { type: "ZERO_OR_MORE" };
+  }
+
+  return null;
+}
+
+/**
+ * Extracts tool choice from span attributes (llm.invocation_parameters).
+ * Uses Zod schemas for provider-specific shapes: tool_choice (OpenAI/Anthropic),
+ * tool_config (Google), toolConfig.toolChoice (AWS). Returns undefined if no
+ * tool choice is present or the value is unrecognised.
+ *
+ * Handles invocation_parameters as either a JSON string (from span/API) or an
+ * already-parsed object.
+ */
+export function getToolChoiceFromAttributes(
+  parsedAttributes: unknown
+): CanonicalToolChoice | undefined {
+  const llm = (parsedAttributes as Record<string, unknown> | null)?.llm;
+  const rawInvParams =
+    llm != null && typeof llm === "object"
+      ? (llm as Record<string, unknown>).invocation_parameters
+      : undefined;
+  if (rawInvParams == null) {
+    return undefined;
+  }
+  const invParams: Record<string, unknown> | null =
+    typeof rawInvParams === "string"
+      ? (() => {
+          const { json } = safelyParseJSON(rawInvParams);
+          return isStringKeyedObject(json) ? json : null;
+        })()
+      : isStringKeyedObject(rawInvParams)
+        ? rawInvParams
+        : null;
+  if (invParams == null) {
+    return undefined;
+  }
+  const parsed =
+    rawToolChoiceFromInvocationParametersSchema.safeParse(invParams);
+  if (!parsed.success || parsed.data === undefined) {
+    return undefined;
+  }
+  return rawSpanToolChoiceToCanonical(parsed.data) ?? undefined;
+}
+
+export function getResponseFormatFromAttributes(
+  parsedAttributes: unknown,
+  provider?: ModelProvider
+): {
+  responseFormat: CanonicalResponseFormat | undefined;
+  parsingErrors: string[];
+} {
+  if (provider === "ANTHROPIC") {
+    const { success, data } =
+      modelConfigWithAnthropicOutputConfigSchema.safeParse(parsedAttributes);
+    if (!success) {
+      return { responseFormat: undefined, parsingErrors: [] };
+    }
+    const format = data.llm.invocation_parameters.output_config?.format;
+    if (!format) {
+      return { responseFormat: undefined, parsingErrors: [] };
+    }
     return {
-      responseFormat: undefined,
-      parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
+      responseFormat: {
+        type: "json_schema",
+        jsonSchema: { name: "response", schema: format.schema },
+      },
+      parsingErrors: [],
     };
   }
+
+  if (provider === "GOOGLE") {
+    const { success, data } =
+      modelConfigWithGoogleResponseFormatSchema.safeParse(parsedAttributes);
+    if (!success) {
+      return { responseFormat: undefined, parsingErrors: [] };
+    }
+    const { response_json_schema, response_schema, response_mime_type } =
+      data.llm.invocation_parameters;
+    const schema = response_json_schema ?? response_schema;
+    if (!schema || response_mime_type !== "application/json") {
+      return { responseFormat: undefined, parsingErrors: [] };
+    }
+    return {
+      responseFormat: {
+        type: "json_schema",
+        jsonSchema: { name: "response", schema },
+      },
+      parsingErrors: [],
+    };
+  }
+
+  // AWS Bedrock: outputConfig.textFormat.structure.jsonSchema with schema as JSON string
+  if (provider === "AWS") {
+    const llm = (parsedAttributes as Record<string, unknown>)?.llm;
+    const rawInv =
+      llm != null && typeof llm === "object"
+        ? (llm as Record<string, unknown>).invocation_parameters
+        : undefined;
+    const invParams: Record<string, unknown> | null =
+      rawInv == null
+        ? null
+        : typeof rawInv === "string"
+          ? (() => {
+              const { json } = safelyParseJSON(rawInv);
+              return isStringKeyedObject(json) ? json : null;
+            })()
+          : isStringKeyedObject(rawInv)
+            ? rawInv
+            : null;
+    const jsonSchema = invParams?.outputConfig as
+      | {
+          textFormat?: {
+            structure?: {
+              jsonSchema?: {
+                schema?: string | object;
+                name?: string;
+                description?: string;
+              };
+            };
+          };
+        }
+      | undefined;
+    const js = jsonSchema?.textFormat?.structure?.jsonSchema;
+    if (!js) {
+      return { responseFormat: undefined, parsingErrors: [] };
+    }
+    const rawSchema = js.schema;
+    const schemaObj: object | null =
+      rawSchema == null
+        ? null
+        : typeof rawSchema === "string"
+          ? (() => {
+              const { json } = safelyParseJSON(rawSchema);
+              return json != null &&
+                typeof json === "object" &&
+                !Array.isArray(json)
+                ? (json as object)
+                : null;
+            })()
+          : typeof rawSchema === "object" &&
+              rawSchema !== null &&
+              !Array.isArray(rawSchema)
+            ? (rawSchema as object)
+            : null;
+    if (!schemaObj) {
+      return { responseFormat: undefined, parsingErrors: [] };
+    }
+    return {
+      responseFormat: {
+        type: "json_schema",
+        jsonSchema: {
+          name: typeof js.name === "string" ? js.name : "response",
+          schema: schemaObj,
+          ...(typeof js.description === "string" && {
+            description: js.description,
+          }),
+        },
+      },
+      parsingErrors: [],
+    };
+  }
+
+  // Try Chat Completions shape: invocation_parameters.response_format.
+  // Schema SUCCESS means the format is either absent (optional) or well-formed.
+  // Schema FAILURE means the field was present but malformed.
+  const { success: ccSuccess, data: ccData } =
+    modelConfigWithResponseFormatSchema.safeParse(parsedAttributes);
+  if (ccSuccess) {
+    const rf = ccData.llm.invocation_parameters.response_format as
+      | {
+          type?: string;
+          json_schema?: {
+            name?: string;
+            schema?: unknown;
+            strict?: boolean | null;
+            description?: string | null;
+          };
+        }
+      | undefined;
+    if (rf?.json_schema) {
+      return {
+        responseFormat: {
+          type: "json_schema",
+          jsonSchema: {
+            name: rf.json_schema.name ?? "response",
+            ...(rf.json_schema.schema !== undefined && {
+              schema: rf.json_schema.schema,
+            }),
+            ...(rf.json_schema.strict !== undefined && {
+              strict: rf.json_schema.strict,
+            }),
+            ...(rf.json_schema.description !== undefined && {
+              description: rf.json_schema.description,
+            }),
+          },
+        },
+        parsingErrors: [],
+      };
+    }
+    // response_format absent — try Responses API (text.format) before giving up
+    const { success: respSuccess, data: respData } =
+      modelConfigWithOpenAIResponsesFormatSchema.safeParse(parsedAttributes);
+    if (respSuccess && respData.llm.invocation_parameters.text?.format) {
+      const fmt = respData.llm.invocation_parameters.text.format as {
+        type?: string;
+        name?: string;
+        schema?: unknown;
+        strict?: boolean;
+        description?: string;
+      };
+      return {
+        responseFormat: {
+          type: "json_schema",
+          jsonSchema: {
+            name: fmt.name ?? "response",
+            ...(fmt.schema !== undefined && { schema: fmt.schema }),
+            ...(fmt.strict !== undefined && { strict: fmt.strict }),
+            ...(fmt.description !== undefined && {
+              description: fmt.description,
+            }),
+          },
+        },
+        parsingErrors: [],
+      };
+    }
+    // Neither format present — not an error, just no response format
+    return { responseFormat: undefined, parsingErrors: [] };
+  }
+
+  // CC schema failed — response_format was present but malformed
   return {
-    responseFormat: data.llm.invocation_parameters.response_format,
-    parsingErrors: [],
+    responseFormat: undefined,
+    parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
   };
 }
 
@@ -578,11 +884,12 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
         return null;
       }
       const rawDefinition = tool.tool.json_schema;
-      // Normalize OpenAI Responses API tools to Chat Completions format,
-      // since the playground only supports Chat Completions tools for now.
-      // All other provider formats are kept as-is.
-      const definition =
-        openAIResponsesToOpenAI.safeParse(rawDefinition).data ?? rawDefinition;
+      // Normalize to canonical hub form (OpenAI Responses API → Chat Completions
+      // is handled transparently by toCanonicalToolDefinition).
+      const definition = toCanonicalToolDefinition(rawDefinition);
+      if (definition == null) {
+        return null;
+      }
       return {
         id: generateToolId(),
         editorType: "json",
@@ -715,25 +1022,48 @@ export function transformSpanAttributesToPlaygroundInstance(
   );
   const { variables, parsingErrors: promptTemplateVariablesParsingErrors } =
     getPromptTemplateVariablesFromAttributes(parsedAttributes);
-  // parse response format separately so that we can get distinct errors messages from the rest of
+  const spanProvider =
+    modelConfig?.provider ?? basePlaygroundInstance.model.provider;
+
+  // parse response format separately so that we can get distinct error messages from the rest of
   // the invocation parameters
-  const { parsingErrors: responseFormatParsingErrors } =
-    getResponseFormatFromAttributes(parsedAttributes);
+  const {
+    responseFormat: spanResponseFormat,
+    parsingErrors: responseFormatParsingErrors,
+  } = getResponseFormatFromAttributes(parsedAttributes, spanProvider);
+
+  // Extract tool choice from invocation parameters (promoted to instance.toolChoice)
+  const spanToolChoice = getToolChoiceFromAttributes(parsedAttributes);
 
   // Merge invocation parameters into model config, if model config is present
   modelConfig =
     modelConfig != null
       ? {
           ...modelConfig,
-          invocationParameters:
-            // remove response format from invocation parameters if there are parsing errors
-            responseFormatParsingErrors.length > 0
-              ? invocationParameters.filter(
-                  (param) =>
-                    param.invocationName !== RESPONSE_FORMAT_PARAM_NAME &&
-                    param.canonicalName !== RESPONSE_FORMAT_PARAM_CANONICAL_NAME
-                )
-              : invocationParameters,
+          // Store canonical response format directly on the model when present
+          ...(spanResponseFormat != null &&
+          responseFormatParsingErrors.length === 0
+            ? { responseFormat: spanResponseFormat }
+            : {}),
+          invocationParameters: invocationParameters.filter(
+            (param) =>
+              // All providers: strip tool_choice (promoted to instance.toolChoice)
+              param.invocationName !== "tool_choice" &&
+              // Anthropic: strip output_config (promoted to responseFormat)
+              (spanProvider !== "ANTHROPIC" ||
+                param.invocationName !== "output_config") &&
+              // AWS: strip outputConfig (promoted to responseFormat)
+              (spanProvider !== "AWS" ||
+                param.invocationName !== "outputConfig") &&
+              // Google: strip response_json_schema / response_schema / response_mime_type
+              (spanProvider !== "GOOGLE" ||
+                (param.invocationName !== "response_json_schema" &&
+                  param.invocationName !== "response_schema" &&
+                  param.invocationName !== "response_mime_type")) &&
+              // OpenAI Responses API: strip text (promoted via text.format)
+              ((spanProvider !== "OPENAI" && spanProvider !== "AZURE_OPENAI") ||
+                param.invocationName !== "text")
+          ),
         }
       : null;
 
@@ -777,6 +1107,7 @@ export function transformSpanAttributesToPlaygroundInstance(
         },
       },
       tools: tools ?? basePlaygroundInstance.tools,
+      ...(spanToolChoice != null ? { toolChoice: spanToolChoice } : {}),
     },
     playgroundInput:
       variables != null ? { variablesValueCache: variables } : undefined,
@@ -950,24 +1281,7 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
 export const getToolName = (tool: Tool): string | null => {
-  const { provider, validatedToolDefinition } = detectToolDefinitionProvider(
-    tool.definition
-  );
-  switch (provider) {
-    case "OPENAI":
-    case "AZURE_OPENAI":
-      return validatedToolDefinition.function.name;
-    case "ANTHROPIC":
-      return validatedToolDefinition.name;
-    case "AWS":
-      return validatedToolDefinition.toolSpec.name;
-    case "GOOGLE":
-      return validatedToolDefinition.name;
-    case "UNKNOWN":
-      return null;
-    default:
-      assertUnreachable(provider);
-  }
+  return tool.definition?.name ?? null;
 };
 
 /**
@@ -978,21 +1292,37 @@ export const getToolName = (tool: Tool): string | null => {
  * @param definition the definition of the tool. In OpenAI format, will be converted to the appropriate format for the provider.
  * @returns a tool definition for the given provider
  */
-export const createToolForProvider = ({
-  provider,
+/** Default canonical tool definition used when adding a new tool (provider-agnostic). */
+function getDefaultCanonicalToolDefinition(
+  toolNumber: number
+): CanonicalToolDefinition {
+  return {
+    name: `new_function_${toolNumber}`,
+    description: "a description",
+    parameters: {
+      type: "object",
+      properties: { new_arg: { type: "string" } },
+      required: [],
+    },
+    strict: null,
+  };
+}
+
+/**
+ * Creates a canonical tool definition (hub-and-spoke: canonical in store,
+ * provider-specific format rendered at display boundary by getToolDefinitionDisplay).
+ */
+export const createTool = ({
   toolNumber,
   type = "json",
   definition,
 }: {
-  provider: ModelProvider;
   toolNumber: number;
   type?: PhoenixToolEditorType;
-  definition?: OpenAIToolDefinition;
+  definition?: CanonicalToolDefinition;
 }): Tool => {
-  const defaultDefinition = fromOpenAIToolDefinition({
-    toolDefinition: definition ?? createOpenAIToolDefinition(toolNumber),
-    targetProvider: provider,
-  });
+  const defaultDefinition: CanonicalToolDefinition =
+    definition ?? getDefaultCanonicalToolDefinition(toolNumber);
 
   return {
     id: generateToolId(),
@@ -1034,37 +1364,6 @@ export const createToolCallForProvider = (
 };
 
 /**
- * A utility function to convert playground messages content to GQL chat completion message input
- */
-function toGqlChatCompletionMessage(
-  message: ChatMessage
-): ChatCompletionMessageInput {
-  return {
-    content: message.content,
-    role: toGqlChatCompletionRole(message.role),
-    toolCalls: message.toolCalls,
-    toolCallId: message.toolCallId,
-  };
-}
-
-function toGqlChatCompletionRole(
-  role: ChatMessageRole
-): ChatCompletionMessageRole {
-  switch (role) {
-    case "system":
-      return "SYSTEM";
-    case "user":
-      return "USER";
-    case "tool":
-      return "TOOL";
-    case "ai":
-      return "AI";
-    default:
-      assertUnreachable(role);
-  }
-}
-
-/**
  * Normalizes invocation parameters by removing unset float values or invalid float values
  * @param invocationParameters - the invocation parameters to normalize
  * @returns the normalized invocation parameters
@@ -1102,7 +1401,7 @@ const getBaseChatCompletionInput = ({
   credentials: CredentialsState;
 }) => {
   // We pull directly from the store in this function so that it always has up to date values at the time of calling
-  const { instances, allInstanceMessages } = playgroundStore.getState();
+  const { instances } = playgroundStore.getState();
   const instance = instances.find((instance) => {
     return instance.id === instanceId;
   });
@@ -1114,51 +1413,21 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
-  const instanceMessages = instance.template.messageIds
-    .map((messageId) => {
-      return allInstanceMessages[messageId];
-    })
-    .filter((message) => message != null);
-
   const supportedInvocationParameters =
     instance.model.supportedInvocationParameters;
 
   let invocationParameters: InvocationParameterInput[] =
     normalizeInvocationParameters(instance.model.invocationParameters);
-  const convertedToolChoice = safelyConvertToolChoiceToProvider({
-    toolChoice: instance.toolChoice,
-    targetProvider: instance.model.provider,
-  });
-  if (instance.tools.length > 0) {
-    // ensure a single tool choice is added to the invocation parameters
-    invocationParameters = invocationParameters.filter(
-      (param) =>
-        param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
-        param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
-    );
-    invocationParameters.push({
-      canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
-      invocationName: TOOL_CHOICE_PARAM_NAME,
-      valueJson: convertedToolChoice,
-    });
-  } else {
-    // remove tool choice if there are no tools
-    invocationParameters = invocationParameters.filter(
-      (param) =>
-        param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
-        param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
-    );
-  }
   // Filter invocation parameters to only include those that are supported by the model
   // This will remove configured values that are not supported by the newly selected model
   // If we don't have the list of supported invocation parameters in the store yet, we will just send
-  // them all
-  invocationParameters = supportedInvocationParameters.length
-    ? constrainInvocationParameterInputsToDefinition(
-        invocationParameters,
-        supportedInvocationParameters
-      )
-    : invocationParameters;
+  // them all.
+  if (supportedInvocationParameters.length) {
+    invocationParameters = constrainInvocationParameterInputsToDefinition(
+      invocationParameters,
+      supportedInvocationParameters
+    );
+  }
 
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
@@ -1186,18 +1455,14 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
-  const model = customProvider
+  const clientOptions = customProvider
     ? {
         custom: {
-          providerId: customProvider.id,
-          modelName: instance.model.modelName || "",
           extraHeaders: instance.model.customHeaders,
         },
       }
     : {
         builtin: {
-          providerKey: instance.model.provider,
-          name: instance.model.modelName || "",
           baseUrl: instance.model.baseUrl,
           customHeaders: instance.model.customHeaders,
           ...openaiApiTypeParams,
@@ -1207,20 +1472,16 @@ const getBaseChatCompletionInput = ({
       };
 
   return {
-    messages: instanceMessages.map(toGqlChatCompletionMessage),
-    model,
+    clientOptions,
     credentials: toGqlCredentials(credentials),
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
       instance.model.provider,
       instance.model.modelName
     ),
-    tools: instance.tools.length
-      ? instance.tools.map((tool) => tool.definition)
-      : undefined,
     promptName: instance.prompt?.name,
     repetitions: playgroundStore.getState().repetitions,
-  } satisfies Partial<ChatCompletionInput>;
+  };
 };
 
 /**
@@ -1280,8 +1541,397 @@ export function toGqlCredentials(
   return allCredentials;
 }
 
+/** Convert a ChatMessageRole to the uppercase PromptMessageRole expected by the API */
+function chatRoleToPromptRole(role: ChatMessageRole): PromptMessageRole {
+  const map: Record<ChatMessageRole, PromptMessageRole> = {
+    user: "USER",
+    ai: "AI",
+    system: "SYSTEM",
+    tool: "TOOL",
+  };
+  return map[role] ?? "USER";
+}
+
+/** Convert a PlaygroundMessage to a PromptMessageInput for the hub-and-spoke GraphQL wire format */
+function chatMessageToPromptMessageInput(message: ChatMessage): {
+  role: PromptMessageRole;
+  content: {
+    text?: { text: string } | null;
+    toolCall?: {
+      toolCallId: string;
+      toolCall: { name: string; arguments: string; type?: string | null };
+    } | null;
+    toolResult?: { toolCallId: string; result: unknown } | null;
+  }[];
+} {
+  const toolCalls = message.toolCalls ?? [];
+  const hasToolCalls = toolCalls.length > 0;
+  const isToolResult = !!message.toolCallId;
+
+  type ContentPart = ReturnType<
+    typeof chatMessageToPromptMessageInput
+  >["content"][number];
+  const content: ContentPart[] = [];
+
+  if (isToolResult) {
+    content.push({
+      toolResult: {
+        toolCallId: message.toolCallId!,
+        result: message.content ?? null,
+      },
+    });
+  } else if (hasToolCalls) {
+    // Text content is excluded when tool calls are present (follows instanceToPromptVersion pattern)
+    for (const tc of toolCalls) {
+      const id = findToolCallId(tc) ?? "";
+      const name = findToolCallName(tc) ?? "";
+      const args = findToolCallArguments(tc);
+      const argsStr =
+        typeof args === "string"
+          ? args
+          : args !== null
+            ? JSON.stringify(args)
+            : "{}";
+      content.push({
+        toolCall: {
+          toolCallId: id,
+          toolCall: { name, arguments: argsStr, type: "function" },
+        },
+      });
+    }
+  } else {
+    if (message.content) {
+      content.push({ text: { text: message.content } });
+    }
+  }
+
+  return { role: chatRoleToPromptRole(message.role), content };
+}
+
 /**
- * Gets chat completion input for running over variables
+ * Extract the scalar value from an InvocationParameterInput (whichever value field is set).
+ * Returns null if no value is set.
+ */
+function extractInvocationParamValue(
+  p: InvocationParameterInput
+): unknown | null {
+  return (
+    p.valueFloat ??
+    p.valueInt ??
+    p.valueBool ??
+    p.valueBoolean ??
+    p.valueString ??
+    p.valueJson ??
+    p.valueStringList ??
+    null
+  );
+}
+
+/**
+ * Convert an InvocationParameterInput[] to a plain object keyed by invocationName.
+ * Only entries with a non-null value are included.
+ */
+function invocationParamsToFlatObject(
+  params: InvocationParameterInput[]
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const p of params) {
+    const value = extractInvocationParamValue(p);
+    if (value !== null && value !== undefined) {
+      result[p.invocationName] = value;
+    }
+  }
+  return result;
+}
+
+/**
+ * Convert a Tool from the Zustand store to the PromptToolFunctionInput wire format.
+ * This is a passthrough because Tool.definition is already CanonicalToolDefinition,
+ * which is isomorphic to the wire format.
+ */
+export function toolToPromptToolFunctionInput(tool: {
+  definition: CanonicalToolDefinition | null | undefined;
+}): {
+  function: {
+    name: string;
+    description?: string | null;
+    parameters?: unknown;
+    strict?: boolean | null;
+  };
+} {
+  return buildPromptToolFunctionInput(tool.definition);
+}
+
+/**
+ * Converts the canonical response format (from ModelConfig) to the
+ * provider-specific shape shown in the JSON editor.
+ *
+ * - OpenAI / Azure: `{ type, json_schema: { name, schema, strict?, description? } }`
+ * - Anthropic: `{ type: "json_schema", schema }` (flat output_config style)
+ * - Google: raw schema object only (no wrapper)
+ *
+ * Inverse: {@link displayToCanonicalResponseFormat}
+ */
+export function getResponseFormatDisplay(model: ModelConfig): unknown {
+  if (!model.responseFormat) return null;
+  const { jsonSchema } = model.responseFormat;
+  if (model.provider === "GOOGLE" || model.provider === "AWS") {
+    return jsonSchema.schema ?? {};
+  }
+  if (model.provider === "ANTHROPIC") {
+    return { type: "json_schema", schema: jsonSchema.schema ?? {} };
+  }
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: jsonSchema.name,
+      ...(jsonSchema.schema !== undefined && { schema: jsonSchema.schema }),
+      ...(jsonSchema.strict !== undefined && { strict: jsonSchema.strict }),
+      ...(jsonSchema.description != null && {
+        description: jsonSchema.description,
+      }),
+    },
+  };
+}
+
+/**
+ * Converts the provider-specific display value from the JSON editor back to
+ * canonical form for storage in ModelConfig.responseFormat.
+ *
+ * Inverse of {@link getResponseFormatDisplay}.
+ */
+export function displayToCanonicalResponseFormat(
+  display: unknown,
+  provider: ModelProvider
+): CanonicalResponseFormat | null {
+  if (!display || typeof display !== "object") return null;
+  const d = display as Record<string, unknown>;
+  if (provider === "GOOGLE" || provider === "AWS") {
+    // Display is the raw schema object directly
+    return {
+      type: "json_schema",
+      jsonSchema: { name: "response", schema: d },
+    };
+  }
+  if (provider === "ANTHROPIC") {
+    return {
+      type: "json_schema",
+      jsonSchema: { name: "response", schema: d.schema },
+    };
+  }
+  const js = d.json_schema as Record<string, unknown> | undefined;
+  if (!js) return null;
+  return {
+    type: "json_schema",
+    jsonSchema: {
+      name: typeof js.name === "string" ? js.name : "response",
+      ...(js.schema !== undefined && { schema: js.schema }),
+      ...(typeof js.strict === "boolean" && { strict: js.strict }),
+      ...(typeof js.description === "string" && {
+        description: js.description,
+      }),
+    },
+  };
+}
+
+export function buildPromptResponseFormatInput(
+  responseFormat: CanonicalResponseFormat | null | undefined
+): CanonicalResponseFormat | null {
+  return responseFormat ?? null;
+}
+
+/**
+ * Convert any provider-specific raw tool definition to the canonical form
+ * stored on Tool.definition (hub of the hub-and-spoke).
+ *
+ * Parses each provider schema directly — no OpenAI pivot — mirroring how
+ * {@link displayToCanonicalResponseFormat} handles response format.
+ */
+export function toCanonicalToolDefinition(
+  raw: unknown
+): CanonicalToolDefinition | null {
+  // OpenAI Chat Completions: { type: "function", function: { name, description?, parameters, strict? } }
+  const openai = openAIToolDefinitionSchema.safeParse(raw);
+  if (openai.success) {
+    const fn = openai.data.function as Record<string, unknown>;
+    return {
+      name: openai.data.function.name,
+      description: openai.data.function.description ?? null,
+      parameters: openai.data.function.parameters,
+      // strict lives at the function level in the actual API but isn't in
+      // our looseObject schema — extract safely.
+      strict: typeof fn.strict === "boolean" ? fn.strict : null,
+    };
+  }
+  // OpenAI Responses API: flat { type: "function", name, parameters, strict, description? }
+  const responses = openAIResponsesToolDefinitionSchema.safeParse(raw);
+  if (responses.success) {
+    return {
+      name: responses.data.name,
+      description: responses.data.description ?? null,
+      parameters: responses.data.parameters,
+      strict: responses.data.strict,
+    };
+  }
+  // Anthropic: { name, description, input_schema }
+  const anthropic = anthropicToolDefinitionSchema.safeParse(raw);
+  if (anthropic.success) {
+    return {
+      name: anthropic.data.name,
+      description: anthropic.data.description ?? null,
+      parameters: anthropic.data.input_schema,
+      strict: null,
+    };
+  }
+  // AWS: { toolSpec: { name, description, inputSchema: { json } } }
+  const aws = awsToolDefinitionSchema.safeParse(raw);
+  if (aws.success) {
+    return {
+      name: aws.data.toolSpec.name,
+      description: aws.data.toolSpec.description ?? null,
+      parameters: aws.data.toolSpec.inputSchema.json,
+      strict: null,
+    };
+  }
+  // Gemini: { name, description?, parameters? | parameters_json_schema? }
+  const gemini = geminiToolDefinitionSchema.safeParse(raw);
+  if (gemini.success) {
+    const params = gemini.data.parameters ??
+      gemini.data.parameters_json_schema ?? { type: "object" as const };
+    return {
+      name: gemini.data.name,
+      description: gemini.data.description ?? null,
+      parameters: params,
+      strict: null,
+    };
+  }
+  return null;
+}
+
+/**
+ * Convert canonical tool definition to the provider-specific display format
+ * shown in the JSON editor (spoke of the hub-and-spoke).
+ *
+ * Constructs provider shapes directly — no OpenAI pivot — mirroring how
+ * {@link getResponseFormatDisplay} handles response format.
+ */
+export function getToolDefinitionDisplay(
+  toolDefinition: CanonicalToolDefinition,
+  provider: ModelProvider
+): unknown {
+  if (provider === "ANTHROPIC") {
+    return {
+      name: toolDefinition.name,
+      ...(toolDefinition.description != null && {
+        description: toolDefinition.description,
+      }),
+      input_schema: toolDefinition.parameters ?? { type: "object" },
+    };
+  }
+  if (provider === "AWS") {
+    return {
+      toolSpec: {
+        name: toolDefinition.name,
+        ...(toolDefinition.description != null && {
+          description: toolDefinition.description,
+        }),
+        inputSchema: { json: toolDefinition.parameters ?? { type: "object" } },
+      },
+    };
+  }
+  if (provider === "GOOGLE") {
+    return {
+      name: toolDefinition.name,
+      ...(toolDefinition.description != null && {
+        description: toolDefinition.description,
+      }),
+      ...(toolDefinition.parameters != null && {
+        parameters: toolDefinition.parameters,
+      }),
+    };
+  }
+  // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
+  // FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  return {
+    type: "function",
+    function: {
+      name: toolDefinition.name,
+      ...(toolDefinition.description != null && {
+        description: toolDefinition.description,
+      }),
+      ...(toolDefinition.parameters != null && {
+        parameters: toolDefinition.parameters,
+      }),
+      ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
+    },
+  };
+}
+
+/**
+ * Convert a provider-specific JSON editor value back to canonical form.
+ * Inverse of {@link getToolDefinitionDisplay}.
+ */
+export function displayToCanonicalToolDefinition(
+  display: unknown
+): CanonicalToolDefinition | null {
+  return toCanonicalToolDefinition(display);
+}
+
+/**
+ * Convert a canonical tool definition to the PromptToolFunctionInput wire format
+ * for saving to the backend (passthrough — canonical is already the wire shape).
+ */
+export function buildPromptToolFunctionInput(
+  toolDefinition: CanonicalToolDefinition | null | undefined
+): {
+  function: {
+    name: string;
+    description?: string | null;
+    parameters?: unknown;
+    strict?: boolean | null;
+  };
+} {
+  return {
+    function: {
+      name: toolDefinition?.name ?? "",
+      description: toolDefinition?.description ?? null,
+      parameters: toolDefinition?.parameters ?? null,
+      strict: toolDefinition?.strict ?? null,
+    },
+  };
+}
+
+/**
+ * Convert a canonical tool choice to the PromptToolChoiceInput wire format
+ * (isomorphic to DB PromptToolChoice).
+ */
+export function toCanonicalToolChoice(
+  toolChoice: CanonicalToolChoice | null | undefined
+):
+  | { none: true }
+  | { zeroOrMore: true }
+  | { oneOrMore: true }
+  | { functionName: string }
+  | null {
+  if (toolChoice == null) return null;
+  switch (toolChoice.type) {
+    case "NONE":
+      return { none: true };
+    case "ZERO_OR_MORE":
+      return { zeroOrMore: true };
+    case "ONE_OR_MORE":
+      return { oneOrMore: true };
+    case "SPECIFIC_FUNCTION":
+      return { functionName: toolChoice.functionName ?? "" };
+  }
+}
+
+/**
+ * Gets chat completion input for running over variables.
+ *
+ * Builds the hub-and-spoke ChatCompletionInput shape where prompt content
+ * (messages, invocation parameters, tools, response format) travels via the
+ * normalized ChatPromptVersionInput wire type.
  */
 export const getChatCompletionInput = ({
   playgroundStore,
@@ -1292,6 +1942,8 @@ export const getChatCompletionInput = ({
   instanceId: number;
   credentials: CredentialsState;
 }): ChatCompletionInput => {
+  // Use the existing helper for model, credentials, and invocation params
+  // (with provider constraints applied).
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
     instanceId,
@@ -1303,30 +1955,83 @@ export const getChatCompletionInput = ({
     templateFormat,
     input,
     allInstanceMessages: instanceMessages,
+    repetitions,
   } = playgroundStore.getState();
 
-  // convert playgroundStateInstances to playgroundInstances
-  const playgroundInstances = instances.map((instance) => {
-    return denormalizePlaygroundInstance(instance, instanceMessages);
-  });
+  const instance = instances.find((i) => i.id === instanceId);
+  if (!instance) {
+    throw new Error(`No instance found for id ${instanceId}`);
+  }
+  if (instance.template.__type !== "chat") {
+    throw new Error("We only support chat templates for now");
+  }
 
+  // Compute template variables for mustache / f-string substitution
+  const playgroundInstances = instances.map((i) =>
+    denormalizePlaygroundInstance(i, instanceMessages)
+  );
   const { variablesMap } = getVariablesMapFromInstances({
     instances: playgroundInstances,
     input,
     templateFormat,
   });
 
+  // Convert messages to PromptMessageInput
+  const denormalized = denormalizePlaygroundInstance(
+    instance,
+    instanceMessages
+  );
+  if (denormalized.template.__type !== "chat") {
+    throw new Error("We only support chat templates for now");
+  }
+  const promptMessages = denormalized.template.messages.map(
+    chatMessageToPromptMessageInput
+  );
+
+  const promptVersion: ChatPromptVersionInput = {
+    templateFormat: "NONE",
+    template: {
+      messages:
+        promptMessages as ChatPromptVersionInput["template"]["messages"],
+    },
+    modelProvider: instance.model
+      .provider as ChatPromptVersionInput["modelProvider"],
+    modelName: instance.model.modelName ?? "",
+    customProviderId: instance.model.customProvider?.id ?? null,
+    invocationParameters: invocationParamsToFlatObject(
+      baseChatCompletionVariables.invocationParameters ?? []
+    ),
+    tools: instance.tools.length
+      ? {
+          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          toolChoice: toCanonicalToolChoice(instance.toolChoice),
+        }
+      : null,
+    responseFormat: buildPromptResponseFormatInput(
+      instance.model.responseFormat
+    ),
+  };
+
   return {
-    ...baseChatCompletionVariables,
+    promptVersion,
+    clientOptions: baseChatCompletionVariables.clientOptions,
+    credentials: baseChatCompletionVariables.credentials,
     template: {
       variables: variablesMap,
       format: templateFormat,
     },
-  };
+    promptName: instance.prompt?.name,
+    repetitions,
+  } as unknown as ChatCompletionInput;
 };
 
 /**
- * Gets chat completion input for running over a dataset
+ * Gets chat completion input for running over a dataset.
+ *
+ * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
+ * getChatCompletionInput, but uses the store's templateFormat (MUSTACHE /
+ * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
+ * substitution still works.
  */
 export const getChatCompletionOverDatasetInput = ({
   playgroundStore,
@@ -1355,16 +2060,66 @@ export const getChatCompletionOverDatasetInput = ({
     credentials,
   });
 
-  const { templateFormat, repetitions, stateByDatasetId } =
-    playgroundStore.getState();
+  const {
+    instances,
+    templateFormat,
+    repetitions,
+    allInstanceMessages: instanceMessages,
+    stateByDatasetId,
+  } = playgroundStore.getState();
+
+  const instance = instances.find((i) => i.id === instanceId);
+  if (!instance) {
+    throw new Error(`No instance found for id ${instanceId}`);
+  }
+  if (instance.template.__type !== "chat") {
+    throw new Error("We only support chat templates for now");
+  }
+
+  // Convert messages to PromptMessageInput
+  const denormalized = denormalizePlaygroundInstance(
+    instance,
+    instanceMessages
+  );
+  if (denormalized.template.__type !== "chat") {
+    throw new Error("We only support chat templates for now");
+  }
+  const promptMessages = denormalized.template.messages.map(
+    chatMessageToPromptMessageInput
+  );
+
+  const promptVersion: ChatPromptVersionInput = {
+    templateFormat: templateFormat as ChatPromptVersionInput["templateFormat"],
+    template: {
+      messages:
+        promptMessages as ChatPromptVersionInput["template"]["messages"],
+    },
+    modelProvider: instance.model
+      .provider as ChatPromptVersionInput["modelProvider"],
+    modelName: instance.model.modelName ?? "",
+    customProviderId: instance.model.customProvider?.id ?? null,
+    invocationParameters: invocationParamsToFlatObject(
+      baseChatCompletionVariables.invocationParameters ?? []
+    ),
+    tools: instance.tools.length
+      ? {
+          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          toolChoice: toCanonicalToolChoice(instance.toolChoice),
+        }
+      : null,
+    responseFormat: buildPromptResponseFormatInput(
+      instance.model.responseFormat
+    ),
+  };
 
   const playgroundDatasetState = stateByDatasetId[datasetId];
   const { appendedMessagesPath, templateVariablesPath } =
     playgroundDatasetState ?? {};
 
   return {
-    ...baseChatCompletionVariables,
-    templateFormat,
+    promptVersion,
+    clientOptions: baseChatCompletionVariables.clientOptions,
+    credentials: baseChatCompletionVariables.credentials,
     repetitions,
     datasetId,
     splitIds: splitIds ?? null,
@@ -1377,6 +2132,7 @@ export const getChatCompletionOverDatasetInput = ({
     ),
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
+    promptName: instance.prompt?.name,
   };
 };
 
@@ -1398,13 +2154,6 @@ export function areRequiredInvocationParametersConfigured(
  */
 const anthropicExtendedThinkingEnabledSchema = z.looseObject({
   type: z.literal("enabled"),
-});
-
-/**
- * Schema for validating Anthropic forced tool use.
- */
-const anthropicForcedToolUseSchema = z.looseObject({
-  type: z.enum(["any", "tool"]),
 });
 
 /**
@@ -1445,10 +2194,6 @@ const applyAnthropicInvocationParameterConstraints = (
         param.canonicalName === "TOP_P"
       ) {
         return false;
-      }
-      // Remove forced tool use because it's not compatible with extended thinking
-      if (param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME) {
-        return !anthropicForcedToolUseSchema.safeParse(param.valueJson).success;
       }
     }
     // Keep all other parameters

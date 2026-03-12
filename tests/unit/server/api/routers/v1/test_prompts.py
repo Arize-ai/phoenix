@@ -20,7 +20,7 @@ from typing_extensions import assert_never
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
