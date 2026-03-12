@@ -27,7 +27,7 @@ const onboardingCSS = css`
 
 const onboardingInnerCSS = css`
   padding: var(--global-dimension-size-400);
-  max-width: 800px;
+  max-width: 1000px;
   min-width: 500px;
   box-sizing: border-box;
   width: 100%;

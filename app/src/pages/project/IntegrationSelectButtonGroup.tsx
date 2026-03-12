@@ -14,7 +14,11 @@ const integrationSelectorCSS = css`
 
   .integration-selector__toggle {
     border-radius: var(--global-rounding-small) !important;
-    gap: var(--global-dimension-size-50);
+    padding: var(--global-dimension-size-100) !important;
+    & svg {
+      height: 20px;
+      width: 20px;
+    }
   }
 
   .integration-selector__toggle[data-selected="true"] {
