@@ -7,6 +7,7 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import {
   DialogCloseButton,
   DialogContent,
@@ -51,7 +52,11 @@ export function SessionPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Session ID: {loaderData.session?.sessionId ?? "--"}
+                Session ID:{" "}
+                <CopyId
+                  id={loaderData.session?.sessionId ?? "--"}
+                  variant="title"
+                />
               </DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton slot="close" />

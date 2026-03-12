@@ -25,6 +25,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import { CopyId } from "@phoenix/components/core/copy";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
@@ -243,7 +244,9 @@ function ExampleDetailsDialogContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Example: {exampleId}</DialogTitle>
+        <DialogTitle>
+          Example: <CopyId id={exampleId} variant="title" />
+        </DialogTitle>
         <DialogTitleExtra>
           <DatasetSplits labels={datasetSplits} />
           {sourceSpanInfo ? (
@@ -371,7 +374,9 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Example: {exampleId}</DialogTitle>
+        <DialogTitle>
+          Example: <CopyId id={exampleId} variant="title" />
+        </DialogTitle>
         <DialogTitleExtra>
           <Skeleton width={60} height={24} animation="wave" />
           <DialogCloseButton />

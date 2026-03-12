@@ -33,6 +33,7 @@ import {
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { CopyId } from "@phoenix/components/core/copy";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -304,7 +305,10 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "session id",
       accessorKey: "sessionId",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        return value ? <CopyId id={value} /> : <>{"--"}</>;
+      },
     },
     {
       header: "first input",
