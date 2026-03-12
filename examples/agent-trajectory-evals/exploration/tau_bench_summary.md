@@ -220,52 +220,24 @@ Two checks, both must pass for reward=1.0:
 - Agent calls `transfer_to_human_agents` → done
 - Simulated user sends `###STOP###` → done (goal satisfied)
 
-## Selected Task Subset (10 tasks)
+## Ground Truth Across Splits
 
-### Simple Lookups
+**All splits have full ground truth for trajectory evaluation.** Every task in dev, train, and test has:
+- `actions`: ordered list of `Action(name, kwargs)` — the exact tool calls with exact arguments
+- `instruction`: the simulated user's goal
+- `user_id`: which user the task operates on
 
+The DB-state evaluation (replay ground truth actions, compare hash) works identically across all splits.
 
-| Task ID | Summary                                                                                 | Actions                          | Why Interesting                                                                                           |
-| ------- | --------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **24**  | User tries to cancel a non-pending order; expected output explains it can't be done     | 0 actions, has output            | Tests agent's ability to correctly refuse and explain policy — no tools needed, pure policy understanding |
-| **67**  | User provides wrong name for their account; agent must find user and provide order info | 5 actions (readonly), has output | Tests identity verification edge case — user says "Noah" but may need exact name matching                 |
+| Feature | test (115) | dev (20) | train (500) |
+|---------|-----------|----------|-------------|
+| Ground truth tool sequences (`actions`) | 113/115 | 19/20 | 500/500 |
+| `outputs` (expected agent response strings) | 37/115 | 0/20 | 0/500 |
+| `transfer_to_human_agents` tasks | Yes | None | None |
+| Zero-action policy tasks | Yes | 1 | None |
+| Max action count | 14 | 6 | 7 |
 
-
-### Multi-Step Mutations
-
-
-| Task ID | Summary                                                                                             | Actions                        | Why Interesting                                                                                                                   |
-| ------- | --------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| **0**   | Exchange keyboard (clicky switches) + thermostat (Google Home compatible), with fallback preference | 5 actions (lookup + exchange)  | Classic multi-step: authenticate → lookup order → lookup 2 products → execute exchange. Conditional logic on product availability |
-| **23**  | Exchange items + modify pending order across multiple orders                                        | 12 actions (exchange + modify) | Complex multi-order task requiring both exchange and modify operations                                                            |
-
-
-### Policy-Sensitive
-
-
-| Task ID | Summary                                                 | Actions                | Why Interesting                                                                        |
-| ------- | ------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
-| **10**  | User wants to modify a non-pending order; must escalate | 5 actions (escalation) | Agent must recognize the request is out of scope and transfer to human                 |
-| **50**  | User in a rush wants to speed up delivery               | 1 action (escalation)  | Shortest possible task — just transfer immediately. Tests quick escalation recognition |
-
-
-### Cancellation / Return Combos
-
-
-| Task ID | Summary                                                | Actions                                 | Why Interesting                                                                                      |
-| ------- | ------------------------------------------------------ | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **16**  | Cancel all pending orders + return items, report total | 9 actions (cancel + return), has output | Multi-operation: must find all pending orders, cancel them, return items, and provide monetary total |
-| **59**  | Cancel one order + modify another, report savings      | 6 actions (cancel + modify), has output | Cross-order operations with output verification                                                      |
-
-
-### Ambiguous / Error-Prone
-
-
-| Task ID | Summary                                                                      | Actions              | Why Interesting                                                                                              |
-| ------- | ---------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **65**  | User wants to exchange bookshelf but order isn't delivered (readonly result) | 3 actions (readonly) | Agent must check order status and correctly refuse exchange on non-delivered order                           |
-| **69**  | User says "return" but order is pending — should cancel instead              | 4 actions (cancel)   | Tests whether agent correctly maps user intent ("return") to correct action ("cancel") based on order status |
-
+The `outputs` field and escalation tasks are test-only. These affect two narrow evaluation dimensions (output matching and escalation detection) but do not affect core trajectory evaluation: tool selection, parameter accuracy, sequencing, and DB state correctness.
 
 ## Key Observations for Trajectory Eval Design
 

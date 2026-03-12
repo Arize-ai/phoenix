@@ -1,6 +1,6 @@
 datasets>=2.0
 
-# Stage 3: tau-bench + OpenAI Agents SDK
+# tau-bench + OpenAI Agents SDK
 openai-agents>=0.10.0
 openinference-instrumentation-openai-agents>=1.0.0
 arize-phoenix>=13.0.0
