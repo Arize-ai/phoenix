@@ -4,6 +4,7 @@ import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatSessionOutput, type OutputFormat } from "./formatSessions";
 
@@ -108,7 +109,7 @@ async function sessionHandler(
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
       ];
       writeError({ message: getConfigErrorMessage({ errors }) });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Create client
@@ -178,7 +179,7 @@ async function sessionHandler(
     writeError({
       message: `Error fetching session: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 

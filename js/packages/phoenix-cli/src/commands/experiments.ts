@@ -5,6 +5,7 @@ import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
   formatExperimentsOutput,
@@ -157,7 +158,7 @@ async function experimentsHandler(
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
       ];
       writeError({ message: getConfigErrorMessage({ errors }) });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Validate that we have dataset
@@ -166,7 +167,7 @@ async function experimentsHandler(
         message:
           "Dataset not specified. Use --dataset <name-or-id> to specify a dataset.",
       });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Create client
@@ -240,7 +241,7 @@ async function experimentsHandler(
     writeError({
       message: `Error fetching experiments: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 

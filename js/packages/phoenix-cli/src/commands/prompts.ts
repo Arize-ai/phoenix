@@ -3,6 +3,7 @@ import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatPromptsOutput, type OutputFormat } from "./formatPrompts";
 
@@ -72,7 +73,7 @@ async function promptsHandler(options: PromptsOptions): Promise<void> {
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
       ];
       writeError({ message: getConfigErrorMessage({ errors }) });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Create client
@@ -103,7 +104,7 @@ async function promptsHandler(options: PromptsOptions): Promise<void> {
     writeError({
       message: `Error fetching prompts: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 
