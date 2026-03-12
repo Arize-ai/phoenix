@@ -1,7 +1,13 @@
 import { fetchQuery, graphql, readInlineData } from "react-relay";
 
-import type { GenerativeProviderKey } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
+import type {
+  GenerativeProviderKey,
+  OpenAIApiType,
+} from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import {
+  DEFAULT_MODEL_NAME,
+  DEFAULT_OPENAI_API_TYPE,
+} from "@phoenix/constants/generativeConstants";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
@@ -613,14 +619,17 @@ const supportedInvocationParametersQuery = graphql`
  *
  * @param modelName - The model name
  * @param providerKey - The provider key
+ * @param openaiApiType - The OpenAI API type (chat_completions or responses)
  * @returns The supported invocation parameters
  */
 const fetchSupportedInvocationParameters = async ({
   modelName,
   providerKey,
+  openaiApiType,
 }: {
   modelName: string;
   providerKey?: GenerativeProviderKey | null;
+  openaiApiType?: OpenAIApiType | null;
 }) => {
   const supportedInvocationParametersResponse =
     await fetchQuery<fetchPlaygroundPromptSupportedInvocationParametersQuery>(
@@ -630,6 +639,7 @@ const fetchSupportedInvocationParameters = async ({
         modelsInput: {
           modelName,
           providerKey,
+          openaiApiType,
         },
       }
     ).toPromise();
@@ -705,10 +715,15 @@ export const fetchPlaygroundPromptAsInstance = async ({
   });
   const latestPromptVersion = response?.prompt?.version ?? null;
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
+    // Only apply default openaiApiType for OpenAI/Azure providers
+    const isOpenAIProvider =
+      latestPromptVersion.modelProvider === "OPENAI" ||
+      latestPromptVersion.modelProvider === "AZURE_OPENAI";
     const supportedInvocationParameters =
       await fetchSupportedInvocationParameters({
         modelName: latestPromptVersion.modelName,
         providerKey: latestPromptVersion.modelProvider,
+        openaiApiType: isOpenAIProvider ? DEFAULT_OPENAI_API_TYPE : null,
       });
     const promptName = response?.prompt?.name;
     if (!promptName) {

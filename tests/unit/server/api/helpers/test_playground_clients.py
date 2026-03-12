@@ -20,10 +20,19 @@ from opentelemetry.trace import StatusCode, Tracer
 
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    AzureOpenAIReasoningNonStreamingClient,
+    AzureOpenAIResponsesAPIStreamingClient,
+    AzureOpenAIStreamingClient,
     OpenAIBaseStreamingClient,
+    OpenAIReasoningNonStreamingClient,
+    OpenAIResponsesAPIStreamingClient,
+    OpenAIStreamingClient,
+    get_openai_client_class,
 )
+from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from tests.unit.vcr import CustomVCR
 
 
@@ -433,3 +442,185 @@ TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUME
 
 # tool attributes
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+
+
+class TestGetOpenAIClientClass:
+    """Tests for the get_openai_client_class helper function."""
+
+    # OpenAI provider tests
+
+    def test_openai_chat_completions_returns_streaming_client(self) -> None:
+        """Standard models with CHAT_COMPLETIONS should return OpenAIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "gpt-4o",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is OpenAIStreamingClient
+
+    def test_openai_chat_completions_custom_model_returns_streaming_client(self) -> None:
+        """Custom/unknown models with CHAT_COMPLETIONS should return OpenAIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "my-custom-fine-tuned-model",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is OpenAIStreamingClient
+
+    def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
+        """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
+        for model_name in ["o1", "o1-mini", "o3", "o3-mini"]:
+            client_class = get_openai_client_class(
+                GenerativeProviderKey.OPENAI,
+                model_name,
+                OpenAIApiType.CHAT_COMPLETIONS,
+            )
+            assert client_class is OpenAIReasoningNonStreamingClient, f"Failed for {model_name}"
+
+    def test_openai_responses_returns_responses_client(self) -> None:
+        """RESPONSES API type should return OpenAIResponsesAPIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "gpt-4o",
+            OpenAIApiType.RESPONSES,
+        )
+        assert client_class is OpenAIResponsesAPIStreamingClient
+
+    def test_openai_responses_custom_model_returns_responses_client(self) -> None:
+        """Custom models with RESPONSES should return OpenAIResponsesAPIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "my-custom-model",
+            OpenAIApiType.RESPONSES,
+        )
+        assert client_class is OpenAIResponsesAPIStreamingClient
+
+    def test_openai_none_api_type_uses_registry_fallback(self) -> None:
+        """When openai_api_type is None, should fall back to registry."""
+        # For known models, registry should return the registered client
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "gpt-4o",
+            None,
+        )
+        assert client_class is OpenAIStreamingClient
+
+        # For unknown models, registry should return PROVIDER_DEFAULT
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "unknown-model",
+            None,
+        )
+        # PROVIDER_DEFAULT for OpenAI is OpenAIResponsesAPIStreamingClient
+        assert client_class is OpenAIResponsesAPIStreamingClient
+
+    # Azure OpenAI provider tests
+
+    def test_azure_chat_completions_returns_azure_streaming_client(self) -> None:
+        """Azure with CHAT_COMPLETIONS should return AzureOpenAIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.AZURE_OPENAI,
+            "gpt-4o",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is AzureOpenAIStreamingClient
+
+    def test_azure_chat_completions_custom_model_returns_azure_streaming_client(self) -> None:
+        """Azure custom models with CHAT_COMPLETIONS should return AzureOpenAIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.AZURE_OPENAI,
+            "my-azure-deployment",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is AzureOpenAIStreamingClient
+
+    def test_azure_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
+        """Azure reasoning models with CHAT_COMPLETIONS should return reasoning client."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.AZURE_OPENAI,
+            "o1",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is AzureOpenAIReasoningNonStreamingClient
+
+    def test_azure_responses_returns_azure_responses_client(self) -> None:
+        """Azure with RESPONSES should return AzureOpenAIResponsesAPIStreamingClient."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.AZURE_OPENAI,
+            "gpt-4o",
+            OpenAIApiType.RESPONSES,
+        )
+        assert client_class is AzureOpenAIResponsesAPIStreamingClient
+
+    # Non-OpenAI provider tests
+
+    def test_anthropic_returns_none(self) -> None:
+        """Non-OpenAI providers should return None (caller uses registry)."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.ANTHROPIC,
+            "claude-3-opus",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is None
+
+    def test_google_returns_none(self) -> None:
+        """Google provider should return None."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.GOOGLE,
+            "gemini-pro",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is None
+
+    def test_aws_returns_none(self) -> None:
+        """AWS Bedrock provider should return None."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.AWS,
+            "anthropic.claude-v2",
+            None,
+        )
+        assert client_class is None
+
+    # Invocation parameters tests
+
+    def test_chat_completions_has_temperature_parameter(self) -> None:
+        """CHAT_COMPLETIONS client should have temperature parameter."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "my-custom-model",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is not None
+        params = client_class.supported_invocation_parameters()
+        param_names = [p.invocation_name for p in params]
+        assert "temperature" in param_names
+        assert "top_p" in param_names
+        assert "frequency_penalty" in param_names
+        assert "reasoning_effort" not in param_names
+
+    def test_responses_has_reasoning_effort_parameter(self) -> None:
+        """RESPONSES client should have reasoning_effort parameter."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "my-custom-model",
+            OpenAIApiType.RESPONSES,
+        )
+        assert client_class is not None
+        params = client_class.supported_invocation_parameters()
+        param_names = [p.invocation_name for p in params]
+        assert "reasoning_effort" in param_names
+        assert "temperature" not in param_names
+        assert "top_p" not in param_names
+
+    def test_reasoning_model_has_reasoning_effort_parameter(self) -> None:
+        """Reasoning models should have reasoning_effort parameter."""
+        client_class = get_openai_client_class(
+            GenerativeProviderKey.OPENAI,
+            "o1",
+            OpenAIApiType.CHAT_COMPLETIONS,
+        )
+        assert client_class is not None
+        params = client_class.supported_invocation_parameters()
+        param_names = [p.invocation_name for p in params]
+        assert "reasoning_effort" in param_names
+        assert "temperature" not in param_names

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<931c76f3711a4e63740c74b192d6ae6a>>
+ * @generated SignedSource<<e299686bfb7365d88f72ff96e9f5f63f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,8 +12,10 @@ import { ConcreteRequest } from 'relay-runtime';
 export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
+export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type ModelsInput = {
   modelName?: string | null;
+  openaiApiType?: OpenAIApiType | null;
   providerKey?: GenerativeProviderKey | null;
 };
 export type ModelSupportedParamsFetcherQuery$variables = {

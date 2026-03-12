@@ -2644,3 +2644,212 @@ class TestEvaluatorsQuery:
         response = await gql_client.execute(query=self._EVALUATORS_QUERY)
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
+
+
+class TestModelInvocationParameters:
+    """Tests for the modelInvocationParameters query with openaiApiType support."""
+
+    _QUERY = """
+      query ($input: ModelsInput!) {
+        modelInvocationParameters(input: $input) {
+          __typename
+          ... on InvocationParameterBase {
+            invocationName
+            label
+          }
+        }
+      }
+    """
+
+    async def test_openai_chat_completions_returns_standard_params(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """OpenAI with CHAT_COMPLETIONS should return standard parameters like temperature."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "OPENAI",
+                    "modelName": "gpt-4o",
+                    "openaiApiType": "CHAT_COMPLETIONS",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        assert "temperature" in param_names
+        assert "top_p" in param_names
+        assert "frequency_penalty" in param_names
+        assert "reasoning_effort" not in param_names
+
+    async def test_openai_chat_completions_custom_model_returns_standard_params(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Custom model names with CHAT_COMPLETIONS should return standard parameters."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "OPENAI",
+                    "modelName": "my-custom-fine-tuned-model",
+                    "openaiApiType": "CHAT_COMPLETIONS",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        assert "temperature" in param_names
+        assert "reasoning_effort" not in param_names
+
+    async def test_openai_responses_returns_reasoning_params(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """OpenAI with RESPONSES should return reasoning parameters."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "OPENAI",
+                    "modelName": "gpt-4o",
+                    "openaiApiType": "RESPONSES",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        assert "reasoning_effort" in param_names
+        assert "temperature" not in param_names
+        assert "top_p" not in param_names
+
+    async def test_openai_reasoning_model_with_chat_completions_returns_reasoning_params(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning parameters."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "OPENAI",
+                    "modelName": "o1",
+                    "openaiApiType": "CHAT_COMPLETIONS",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        assert "reasoning_effort" in param_names
+        assert "temperature" not in param_names
+
+    async def test_azure_chat_completions_returns_standard_params(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Azure OpenAI with CHAT_COMPLETIONS should return standard parameters."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "AZURE_OPENAI",
+                    "modelName": "my-deployment",
+                    "openaiApiType": "CHAT_COMPLETIONS",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        assert "temperature" in param_names
+        assert "reasoning_effort" not in param_names
+
+    async def test_azure_responses_returns_reasoning_params(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Azure OpenAI with RESPONSES should return reasoning parameters."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "AZURE_OPENAI",
+                    "modelName": "my-deployment",
+                    "openaiApiType": "RESPONSES",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        assert "reasoning_effort" in param_names
+        assert "temperature" not in param_names
+
+    async def test_openai_without_api_type_uses_registry_fallback(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """OpenAI without openaiApiType should fall back to registry behavior."""
+        # Known model should use its registered client
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "OPENAI",
+                    "modelName": "gpt-4o",
+                    # openaiApiType not provided
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        # gpt-4o is registered with OpenAIStreamingClient which has temperature
+        assert "temperature" in param_names
+
+    async def test_anthropic_ignores_openai_api_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Non-OpenAI providers should ignore openaiApiType and use registry."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": "ANTHROPIC",
+                    "modelName": "claude-3-5-sonnet-latest",
+                    "openaiApiType": "CHAT_COMPLETIONS",  # Should be ignored
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
+        # Anthropic has its own parameters
+        assert "temperature" in param_names
+        assert "max_tokens" in param_names
+        # Should not have OpenAI-specific reasoning params
+        assert "reasoning_effort" not in param_names
+
+    async def test_null_provider_returns_empty(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Null provider should return empty parameters."""
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "input": {
+                    "providerKey": None,
+                    "modelName": "some-model",
+                }
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["modelInvocationParameters"] == []

@@ -2591,6 +2591,56 @@ def _get_credential_from_input(
     )
 
 
+def get_openai_client_class(
+    provider_key: "GenerativeProviderKey",
+    model_name: str,
+    openai_api_type: Optional["OpenAIApiType"] = None,
+) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
+    """
+    Get the appropriate OpenAI/Azure client class based on provider, model, and API type.
+
+    This function centralizes the logic for selecting the correct client class for
+    OpenAI and Azure OpenAI providers, ensuring consistency between parameter fetching
+    and client instantiation.
+
+    For non-OpenAI providers, returns None (callers should fall back to the registry).
+
+    Args:
+        provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
+        model_name: The name of the model
+        openai_api_type: The API type (CHAT_COMPLETIONS or RESPONSES). If None,
+            falls back to registry behavior.
+
+    Returns:
+        The appropriate client class, or None if the provider is not OpenAI/Azure.
+    """
+    from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+    from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+    if provider_key == GenerativeProviderKey.OPENAI:
+        if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
+            if model_name in OPENAI_REASONING_MODELS:
+                return OpenAIReasoningNonStreamingClient
+            return OpenAIStreamingClient
+        elif openai_api_type == OpenAIApiType.RESPONSES:
+            return OpenAIResponsesAPIStreamingClient
+        # If openai_api_type is None, fall back to registry
+        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+
+    elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
+        if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
+            if model_name in OPENAI_REASONING_MODELS:
+                return AzureOpenAIReasoningNonStreamingClient
+            return AzureOpenAIStreamingClient
+        elif openai_api_type == OpenAIApiType.RESPONSES:
+            return AzureOpenAIResponsesAPIStreamingClient
+        # If openai_api_type is None, fall back to registry
+        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+
+    # For non-OpenAI providers, return None to signal caller should use registry
+    return None
+
+
 async def _get_builtin_provider_client(
     obj: GenerativeModelBuiltinProviderInput,
     session: AsyncSession,
@@ -2641,20 +2691,10 @@ async def _get_builtin_provider_client(
             )
 
         client_factory: ClientFactory = create_openai_client
-        api_type = obj.openai_api_type
-        if api_type is OpenAIApiType.CHAT_COMPLETIONS:
-            if model_name in OPENAI_REASONING_MODELS:
-                return OpenAIReasoningNonStreamingClient(
-                    client_factory=client_factory,
-                    model_name=model_name,
-                    provider=provider,
-                )
-            return OpenAIStreamingClient(
-                client_factory=client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return OpenAIResponsesAPIStreamingClient(
+        client_class = get_openai_client_class(provider_key, model_name, obj.openai_api_type)
+        if client_class is None:
+            raise BadRequest(f"No client found for OpenAI model: {model_name}")
+        return client_class(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -2719,20 +2759,10 @@ async def _get_builtin_provider_client(
                 )
 
             client_factory = create_client_with_token
-        api_type = obj.openai_api_type
-        if api_type is OpenAIApiType.CHAT_COMPLETIONS:
-            if model_name in OPENAI_REASONING_MODELS:
-                return AzureOpenAIReasoningNonStreamingClient(
-                    client_factory=client_factory,
-                    model_name=model_name,
-                    provider=provider,
-                )
-            return AzureOpenAIStreamingClient(
-                client_factory=client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return AzureOpenAIResponsesAPIStreamingClient(
+        client_class = get_openai_client_class(provider_key, model_name, obj.openai_api_type)
+        if client_class is None:
+            raise BadRequest(f"No client found for Azure OpenAI model: {model_name}")
+        return client_class(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
