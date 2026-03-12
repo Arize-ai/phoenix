@@ -52,3 +52,24 @@ register({
   apiKey: process.env.PHOENIX_API_KEY,
 });`;
 }
+
+export function getVercelAiSdkCodeTypescript(projectName: string): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+
+// Must be called before any AI SDK imports
+const provider = register({
+  projectName: "${projectName}",
+});
+
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+const result = await generateText({
+  model: openai("gpt-4o-mini"),
+  prompt: "Explain the theory of relativity in simple terms.",
+  experimental_telemetry: { isEnabled: true },
+});
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}

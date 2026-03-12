@@ -22,6 +22,7 @@ import { OnboardingSteps } from "./OnboardingSteps";
 const onboardingCSS = css`
   overflow-y: auto;
   height: 100%;
+  scrollbar-gutter: stable;
 `;
 
 const onboardingInnerCSS = css`

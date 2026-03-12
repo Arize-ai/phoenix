@@ -3,6 +3,7 @@ import { VercelSVG } from "@phoenix/components/project/IntegrationIcons";
 import {
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
+  getVercelAiSdkCodeTypescript,
   PYTHON_PACKAGES,
   TYPESCRIPT_PACKAGES,
 } from "@phoenix/components/project/integrationSnippets";
@@ -36,8 +37,9 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     supportedLanguages: ["TypeScript"],
     snippets: {
       TypeScript: {
-        packages: ["ai", "@ai-sdk/openai", "@openinference/vercel"],
-        getImplementationCode: () => "// TODO: Vercel AI SDK implementation",
+        packages: ["ai", "@ai-sdk/openai", "@arizeai/phoenix-otel"],
+        getImplementationCode: ({ projectName }) =>
+          getVercelAiSdkCodeTypescript(projectName),
       },
     },
   },
