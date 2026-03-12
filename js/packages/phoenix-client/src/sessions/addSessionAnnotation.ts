@@ -1,6 +1,6 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
 
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";

@@ -15,8 +15,8 @@ import {
 import {
   parseSemanticVersion,
   satisfiesMinVersion,
-} from "./utils/semver";
-import type { SemanticVersion } from "./utils/semver";
+} from "./utils/semverUtils";
+import type { SemanticVersion } from "./utils/semverUtils";
 
 export type pathsV1 = oapiPathsV1;
 export type componentsV1 = oapiComponentsV1;

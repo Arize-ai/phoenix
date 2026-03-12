@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from phoenix.client.utils.semver import SemanticVersion
+from phoenix.client.utils.semver_utils import SemanticVersion
 
 ServerVersion = SemanticVersion
 

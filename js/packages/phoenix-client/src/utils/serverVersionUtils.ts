@@ -8,10 +8,10 @@
  */
 
 import type { PhoenixClient } from "../client";
-import type { SemanticVersion } from "./semver";
+import type { SemanticVersion } from "./semverUtils";
 
-export { parseSemanticVersion as parseServerVersion } from "./semver";
-export type { SemanticVersion as ServerVersion } from "./semver";
+export { parseSemanticVersion as parseServerVersion } from "./semverUtils";
+export type { SemanticVersion as ServerVersion } from "./semverUtils";
 
 export interface FeatureRequirement {
   /** Minimum Phoenix server version as [major, minor, patch]. */
@@ -49,7 +49,7 @@ export const TRACE_IDS_FILTER: FeatureRequirement = {
  *
  * @example
  * ```ts
- * import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+ * import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
  *
  * const ensureSessionsApi = ensureServerFeature(SESSIONS_API);
  *

@@ -451,7 +451,7 @@ class Spans:
         """
         if trace_ids:
             from phoenix.client.client import _WrappedClient
-            from phoenix.client.utils.server_version import TRACE_IDS_FILTER
+            from phoenix.client.utils.server_version_utils import TRACE_IDS_FILTER
 
             if isinstance(
                 self._client, _WrappedClient
@@ -1700,7 +1700,7 @@ class AsyncSpans:
         """
         if trace_ids:
             from phoenix.client.client import _WrappedAsyncClient
-            from phoenix.client.utils.server_version import TRACE_IDS_FILTER
+            from phoenix.client.utils.server_version_utils import TRACE_IDS_FILTER
 
             if isinstance(
                 self._client, _WrappedAsyncClient

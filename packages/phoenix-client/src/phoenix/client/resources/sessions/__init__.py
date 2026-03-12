@@ -94,7 +94,7 @@ class Sessions:
 
     def _ensure_supported(self) -> None:
         from phoenix.client.client import _WrappedClient
-        from phoenix.client.utils.server_version import SESSIONS_API
+        from phoenix.client.utils.server_version_utils import SESSIONS_API
 
         if isinstance(self._client, _WrappedClient) and not self._client.supports_server_version(
             SESSIONS_API.min_version
@@ -649,7 +649,7 @@ class AsyncSessions:
 
     async def _ensure_supported(self) -> None:
         from phoenix.client.client import _WrappedAsyncClient
-        from phoenix.client.utils.server_version import SESSIONS_API
+        from phoenix.client.utils.server_version_utils import SESSIONS_API
 
         if isinstance(
             self._client, _WrappedAsyncClient

@@ -6,7 +6,7 @@ import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import type { Session } from "../types/sessions";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
 
 import { toSession } from "./sessionUtils";
 

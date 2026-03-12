@@ -3,7 +3,7 @@ import invariant from "tiny-invariant";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
 import type { Session } from "../types/sessions";
-import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersion";
+import { ensureServerFeature, SESSIONS_API } from "../utils/serverVersionUtils";
 
 import { toSession } from "./sessionUtils";
 

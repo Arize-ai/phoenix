@@ -13,7 +13,7 @@ from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.resources.traces import AsyncTraces, Traces
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
-from phoenix.client.utils.semver import (
+from phoenix.client.utils.semver_utils import (
     SemanticVersion,
     format_version,
     parse_semantic_version,

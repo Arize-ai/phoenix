@@ -3,7 +3,7 @@ import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
-import { ensureServerFeature, TRACE_IDS_FILTER } from "../utils/serverVersion";
+import { ensureServerFeature, TRACE_IDS_FILTER } from "../utils/serverVersionUtils";
 
 const ensureTraceIdsFilter = ensureServerFeature(TRACE_IDS_FILTER);
 
