@@ -71,10 +71,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("backend_type"),
-        sa.CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
-            name="valid_sandbox_backend_type",
-        ),
     )
 
     op.create_table(
@@ -104,10 +100,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("backend_type", "name"),
-        sa.CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
-            name="valid_sandbox_instance_backend_type",
-        ),
     )
 
     with op.batch_alter_table("code_evaluators") as batch_op:

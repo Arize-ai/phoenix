@@ -1278,21 +1278,23 @@ async def get_evaluators(
             ]
             from phoenix.server.sandbox import get_or_create_backend
 
-            sandbox_config: dict[str, Any] = {}
-            if code_eval.sandbox_config_id is not None:
-                sandbox_instance = await session.get(
-                    models.SandboxConfig, code_eval.sandbox_config_id
+            if code_eval.sandbox_config_id is None:
+                raise BadRequest(
+                    f"Code evaluator '{code_eval.name}' has no sandbox configuration. "
+                    f"Please set a sandbox backend type in the evaluator settings."
                 )
-                if sandbox_instance is not None:
-                    backend_type = sandbox_instance.backend_type
-                    sandbox_config = sandbox_instance.config or {}
-                else:
-                    # Fallback: infer backend from language for local sandboxes
-                    backend_type = "DENO" if code_eval.language == "TYPESCRIPT" else "WASM"
-            else:
-                # No sandbox config - infer backend from language for local sandboxes
-                backend_type = "DENO" if code_eval.language == "TYPESCRIPT" else "WASM"
-            backend = await get_or_create_backend(backend_type, sandbox_config, session, decrypt)
+            sandbox_instance = await session.get(models.SandboxConfig, code_eval.sandbox_config_id)
+            if sandbox_instance is None:
+                raise BadRequest(
+                    f"Sandbox configuration for code evaluator '{code_eval.name}' was deleted. "
+                    f"Please reconfigure the sandbox backend type."
+                )
+            backend = await get_or_create_backend(
+                sandbox_instance.backend_type,
+                sandbox_instance.config or {},
+                session,
+                decrypt,
+            )
             evaluators.append(
                 CodeEvaluatorRunner(
                     name=str(code_eval.name),

@@ -185,6 +185,38 @@ async def sync_sandbox_adapters(session: AsyncSession) -> None:
     await session.flush()
 
 
+async def sync_sandbox_default_configs(session: AsyncSession) -> None:
+    """Ensure one default sandbox_configs row exists per configless backend type.
+
+    Iterates SANDBOX_ADAPTER_METADATA and for each entry with config_required=False,
+    inserts a SandboxConfig(backend_type=key, name="Default", config={}, timeout=30,
+    enabled=True) if no row with that (backend_type, name) pair exists.
+    """
+    from phoenix.db.models import SandboxConfig
+
+    existing_result = await session.execute(
+        select(SandboxConfig.backend_type, SandboxConfig.name).where(
+            SandboxConfig.name == "Default"
+        )
+    )
+    existing_keys: set[str] = {row[0] for row in existing_result.fetchall()}
+
+    for key, meta in SANDBOX_ADAPTER_METADATA.items():
+        if not meta.config_required and key not in existing_keys:
+            session.add(
+                SandboxConfig(
+                    backend_type=key,
+                    name="Default",
+                    config={},
+                    timeout=30,
+                    enabled=True,
+                )
+            )
+            logger.info(f"Inserted default sandbox_configs row for {key}")
+
+    await session.flush()
+
+
 async def sync_sandbox_settings(session: AsyncSession) -> None:
     """Ensure the singleton SandboxSettings row (id=1) exists."""
     from phoenix.db.models import SandboxSettings
@@ -208,6 +240,7 @@ __all__ = [
     "has_credentials",
     "register_sandbox_adapter",
     "sync_sandbox_adapters",
+    "sync_sandbox_default_configs",
     "sync_sandbox_settings",
 ]
 

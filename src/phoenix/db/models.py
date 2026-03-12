@@ -519,7 +519,7 @@ class _InputMapping(TypeDecorator[InputMapping]):
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[InputMapping]:
         if value is None:
-            raise ValueError("Input mapping cannot be None")
+            return None
         return InputMapping.model_validate(value)
 
 
@@ -2323,13 +2323,7 @@ class LLMEvaluator(Evaluator):
 
 class SandboxAdapter(HasId):
     __tablename__ = "sandbox_adapters"
-    backend_type: Mapped[str] = mapped_column(
-        CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
-            name="valid_sandbox_backend_type",
-        ),
-        nullable=False,
-    )
+    backend_type: Mapped[str] = mapped_column(nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
@@ -2343,13 +2337,7 @@ class SandboxAdapter(HasId):
 
 class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
-    backend_type: Mapped[str] = mapped_column(
-        CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
-            name="valid_sandbox_instance_backend_type",
-        ),
-        nullable=False,
-    )
+    backend_type: Mapped[str] = mapped_column(nullable=False)
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")

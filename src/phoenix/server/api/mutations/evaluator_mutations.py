@@ -102,16 +102,16 @@ def _convert_output_config_inputs_to_pydantic(
 async def _resolve_sandbox_config(
     session: AsyncSession,
     backend_type: Optional[SandboxBackendType],
-) -> tuple[Optional[int], Optional[str]]:
-    """Resolve sandbox config instance ID and hash from backend type.
+) -> tuple[int, str]:
+    """Resolve sandbox config ID and hash from backend type.
 
-    Returns (None, None) for local backends (WASM, DENO) or None backend types
-    (no DB config needed). Raises BadRequest if a cloud backend type has no
-    config instance in the DB.
+    Queries sandbox_configs by backend_type and returns (id, config_hash).
+    Raises BadRequest if no row is found or backend_type is None.
     """
-    # Local backends don't require DB configuration
-    if backend_type is None or backend_type in (SandboxBackendType.WASM, SandboxBackendType.DENO):
-        return None, None
+    if backend_type is None:
+        raise BadRequest(
+            "sandbox_backend_type is required. Please select a sandbox backend in Settings."
+        )
     instance = await session.scalar(
         select(models.SandboxConfig).where(models.SandboxConfig.backend_type == backend_type.value)
     )

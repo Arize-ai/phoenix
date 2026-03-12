@@ -612,7 +612,17 @@ async def projects_with_and_without_dataset_evaluators(
     """
     Insert two projects, one that is associated with a dataset evaluator and the other that is not.
     """
+    from sqlalchemy import select
+
+    from phoenix.server.sandbox import sync_sandbox_default_configs
+
     async with db() as session:
+        await sync_sandbox_default_configs(session)
+        wasm_config = await session.scalar(
+            select(models.SandboxConfig).where(models.SandboxConfig.backend_type == "WASM")
+        )
+        assert wasm_config is not None
+
         non_dataset_evaluator_project = models.Project(
             name="non-dataset-evaluator-project-name",
             description="non-dataset-evaluator-project-description",
@@ -636,6 +646,9 @@ async def projects_with_and_without_dataset_evaluators(
             name=Identifier(root="test-evaluator"),
             description="Test evaluator",
             metadata_={},
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            sandbox_config_id=wasm_config.id,
+            sandbox_config_hash=wasm_config.config_hash,
         )
         session.add(code_evaluator)
         await session.flush()

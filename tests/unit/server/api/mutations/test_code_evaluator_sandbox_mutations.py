@@ -5,6 +5,7 @@ from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.mutations.sandbox_config_mutations import compute_sandbox_config_hash
+from phoenix.server.sandbox import sync_sandbox_default_configs
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -69,9 +70,15 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
     """
 
     @pytest.fixture
-    async def sandbox_config_e2b(self, db: DbSessionFactory) -> models.SandboxConfigInstance:
-        """Create an E2B SandboxConfigInstance for tests that need to resolve a non-WASM backend."""
-        instance = models.SandboxConfigInstance(
+    async def default_sandbox_configs(self, db: DbSessionFactory) -> None:
+        """Ensure default SandboxConfig rows exist for configless backends (WASM, DENO, DAYTONA)."""
+        async with db() as session:
+            await sync_sandbox_default_configs(session)
+
+    @pytest.fixture
+    async def sandbox_config_e2b(self, db: DbSessionFactory) -> models.SandboxConfig:
+        """Create an E2B SandboxConfig for tests that need to resolve a non-WASM backend."""
+        instance = models.SandboxConfig(
             backend_type="E2B",
             name="test-e2b",
             config={"api_key_env_var": "E2B_API_KEY"},
@@ -84,7 +91,11 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
         return instance
 
     @pytest.fixture
-    async def code_evaluator_gid(self, gql_client: AsyncGraphQLClient) -> str:
+    async def code_evaluator_gid(
+        self,
+        gql_client: AsyncGraphQLClient,
+        default_sandbox_configs: None,
+    ) -> str:
         result = await gql_client.execute(
             self._CREATE_MUTATION,
             {
@@ -96,6 +107,7 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
                         "literalMapping": {},
                         "pathMapping": {},
                     },
+                    "sandboxBackendType": "WASM",
                 }
             },
         )
@@ -103,13 +115,14 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
         gid: str = result.data["createCodeEvaluator"]["evaluator"]["id"]
         return gid
 
-    async def test_update_sandbox_backend_type_wasm_sets_null(
+    async def test_update_sandbox_backend_type_wasm_sets_config(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         code_evaluator_gid: str,
+        default_sandbox_configs: None,
     ) -> None:
-        """Setting sandbox_backend_type to WASM should set sandbox_config_id to null."""
+        """Setting sandbox_backend_type to WASM should set sandbox_config_id to the default row."""
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
             {
@@ -126,15 +139,15 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
         async with db() as session:
             evaluator = await session.get(models.CodeEvaluator, evaluator_rowid)
             assert evaluator is not None
-            assert evaluator.sandbox_config_id is None
-            assert evaluator.sandbox_config_hash is None
+            assert evaluator.sandbox_config_id is not None
+            assert evaluator.sandbox_config_hash is not None
 
     async def test_update_sandbox_backend_type_e2b_sets_config(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         code_evaluator_gid: str,
-        sandbox_config_e2b: models.SandboxConfigInstance,
+        sandbox_config_e2b: models.SandboxConfig,
     ) -> None:
         """Setting sandbox_backend_type to E2B should set sandbox_config_id and hash."""
         result = await gql_client.execute(
@@ -161,7 +174,7 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         code_evaluator_gid: str,
-        sandbox_config_e2b: models.SandboxConfigInstance,
+        sandbox_config_e2b: models.SandboxConfig,
     ) -> None:
         """Omitting sandbox_backend_type should leave sandbox_config_id unchanged."""
         # First set to E2B
@@ -203,7 +216,7 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
         code_evaluator_gid: str,
     ) -> None:
         """Setting sandbox_backend_type to a type with no config should error."""
-        # No SandboxConfigInstance exists for VERCEL — the mutation should raise BadRequest.
+        # No SandboxConfig exists for VERCEL — the mutation should raise BadRequest.
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
             {
@@ -291,51 +304,83 @@ class TestPreviewHandlerSandboxBackendType:
                 f"Expected get_or_create_backend to be called with 'E2B', got '{call_args[0][0]}'"
             )
 
-    async def test_preview_without_sandbox_type_defaults_to_wasm(
+    async def test_preview_without_sandbox_type_returns_error(
         self,
         gql_client: AsyncGraphQLClient,
     ) -> None:
-        """Preview without sandboxBackendType should default to 'WASM'."""
-        with patch(
-            "phoenix.server.sandbox.get_or_create_backend",
-            new_callable=AsyncMock,
-        ) as mock_get_backend:
-            mock_backend = AsyncMock()
-            mock_backend.execute.return_value = AsyncMock(
-                stdout='{"label": "ok", "score": 0.5}',
-                stderr="",
-                exit_code=0,
-                timed_out=False,
-            )
-            mock_get_backend.return_value = mock_backend
+        """Preview without sandboxBackendType should return an error (no longer defaults to WASM)."""
+        result = await gql_client.execute(
+            self._MUTATION,
+            {
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {
+                                "inlineCodeEvaluator": {
+                                    "name": "test_preview_default",
+                                    "sourceCode": "def evaluate(text):\n  return {'label': 'ok', 'score': 0.5}",
+                                    "outputConfigs": [],
+                                }
+                            },
+                            "context": {"text": "hello"},
+                            "inputMapping": {
+                                "literalMapping": {},
+                                "pathMapping": {},
+                            },
+                        }
+                    ]
+                }
+            },
+        )
 
-            result = await gql_client.execute(
-                self._MUTATION,
-                {
-                    "input": {
-                        "previews": [
-                            {
-                                "evaluator": {
-                                    "inlineCodeEvaluator": {
-                                        "name": "test_preview_default",
-                                        "sourceCode": "def evaluate(text):\n  return {'label': 'ok', 'score': 0.5}",
-                                        "outputConfigs": [],
-                                    }
-                                },
-                                "context": {"text": "hello"},
-                                "inputMapping": {
-                                    "literalMapping": {},
-                                    "pathMapping": {},
-                                },
-                            }
-                        ]
-                    }
-                },
+        # BadRequest raises a top-level GraphQL error
+        assert result.errors, f"Expected error but got: {result.data}"
+        error_msg = result.errors[0].message
+        assert "sandbox_backend_type" in error_msg or "required" in error_msg.lower()
+
+
+class TestFullFlowSyncCreateExecute:
+    """Verify the full flow: startup sync → evaluator creation → config lookup."""
+
+    async def test_sync_creates_defaults_and_evaluator_resolves_to_them(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """Default configs created at sync time are used when creating evaluators."""
+        from sqlalchemy import select
+
+        from phoenix.server.sandbox import sync_sandbox_adapters, sync_sandbox_default_configs
+
+        async with db() as session:
+            # Step 1: Sync adapters and default configs (mirrors startup)
+            await sync_sandbox_adapters(session)
+            await sync_sandbox_default_configs(session)
+
+            # Step 2: Verify default configs exist for configless backends
+            configs = (
+                (
+                    await session.execute(
+                        select(models.SandboxConfig).where(models.SandboxConfig.name == "Default")
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            configless_types = {"WASM", "DENO", "DAYTONA"}
+            created_types = {c.backend_type for c in configs}
+            assert configless_types.issubset(created_types), (
+                f"Expected default configs for {configless_types}, got {created_types}"
             )
 
-            assert result.data and not result.errors, f"Preview failed: {result.errors}"
-            mock_get_backend.assert_called_once()
-            call_args = mock_get_backend.call_args
-            assert call_args[0][0] == "WASM", (
-                f"Expected get_or_create_backend to be called with 'WASM', got '{call_args[0][0]}'"
-            )
+            # Step 3: Verify config-required backends did NOT get default rows
+            for config in configs:
+                assert config.backend_type not in {"E2B", "VERCEL"}, (
+                    f"Config-required backend {config.backend_type} should not have a default row"
+                )
+
+            # Step 4: Verify evaluator creation resolves to the default config
+            wasm_config = next(c for c in configs if c.backend_type == "WASM")
+            assert wasm_config.id is not None
+            assert wasm_config.config_hash is not None
+            assert wasm_config.config == {}
+            assert wasm_config.timeout == 30

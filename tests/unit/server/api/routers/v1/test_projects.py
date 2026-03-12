@@ -793,10 +793,23 @@ class TestProjects:
             session.add(dataset)
             await session.flush()
 
+            from sqlalchemy import select
+
+            from phoenix.server.sandbox import sync_sandbox_default_configs
+
+            await sync_sandbox_default_configs(session)
+            wasm_config = await session.scalar(
+                select(models.SandboxConfig).where(models.SandboxConfig.backend_type == "WASM")
+            )
+            assert wasm_config is not None
+
             code_evaluator = models.CodeEvaluator(
                 name=Identifier(root="test-evaluator"),
                 description="Test evaluator",
                 metadata_={},
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                sandbox_config_id=wasm_config.id,
+                sandbox_config_hash=wasm_config.config_hash,
             )
             session.add(code_evaluator)
             await session.flush()
