@@ -347,3 +347,47 @@ done
 | Month nav group missing in docs.json? | Add new group object |
 | Feature spans multiple packages? | One entry, list all versions |
 | Not sure if user-facing? | Read the code — if a user can't see or call it, exclude it |
+
+## Pre-Submit Checklist
+
+Before opening a PR or considering the work done, walk through every item below. Do not skip any.
+
+### Steps completed
+
+- [ ] **Step 1**: Identified all undocumented releases
+- [ ] **Step 2**: Analyzed commits by reading the actual changed code, not just commit messages
+- [ ] **Step 3**: Drafted individual MDX files with correct frontmatter and file paths
+- [ ] **Step 4**: Updated the aggregate file (`release-notes.mdx`) with `<Update>` blocks
+- [ ] **Step 5**: Updated the year overview (`YYYY.mdx`) with `<Card>` entries
+- [ ] **Step 6**: Updated `docs.json` navigation with all new page paths
+- [ ] **Step 7**: (Only if requested) Updated GitHub release descriptions, preserving existing body
+- [ ] **Step 8**: Ran verification — all links resolve, order is correct, no dangling references
+
+### Technical writing review
+
+Review every MDX file you created as an expert technical writer:
+
+- [ ] **Lead with user value**: Every section opens with what the user can now do, not what changed internally
+- [ ] **Active voice, present tense**: No passive constructions like "has been added" or "was implemented"
+- [ ] **Concise**: No filler, no preamble. If a bullet can say it, don't write a paragraph
+- [ ] **Consistent terminology**: Use the same term for the same concept throughout — don't alternate between synonyms
+- [ ] **Scannable structure**: Headings, bold leads on bullets, code blocks. A reader skimming should get the gist
+- [ ] **No jargon leaks**: No internal class names, module paths, or implementation details unless they are part of the public API
+- [ ] **Version lines are accurate**: Each entry states the correct package names and minimum versions
+
+### Code snippet validation
+
+Every code example must be grounded in real code — no hallucinated APIs:
+
+- [ ] **Verified against source**: For each snippet, you read the actual implementation to confirm the function signatures, parameter names, return types, and class names are correct
+- [ ] **Import paths are real**: Any `import` or `from` statements use actual module paths from the codebase
+- [ ] **Runnable as-is**: Snippets are syntactically valid and copy-pasteable — no placeholder values like `YOUR_KEY` or `...` unless explicitly documenting a user-provided value
+- [ ] **Both languages when applicable**: If a feature has both Python and TypeScript SDKs, both examples are included and verified
+
+### Formatting and linting
+
+- [ ] **Valid MDX**: Each file has YAML frontmatter with at least `title`, all JSX components are properly closed
+- [ ] **No trailing whitespace or extra blank lines**
+- [ ] **Fenced code blocks have language tags**: Every ` ``` ` block specifies `python`, `typescript`, `bash`, `json`, etc.
+- [ ] **Links have no `.mdx` extension**: All internal doc links use extensionless paths
+- [ ] **Consistent date formats**: `MM.DD.YYYY` in labels and headings, `MM-DD-YYYY` in file paths
