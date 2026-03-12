@@ -2904,6 +2904,48 @@
               "title": "Parent Id"
             },
             "description": "Filter by parent span ID. Use \"null\" to get root spans only."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by span name(s)",
+              "title": "Name"
+            },
+            "description": "Filter by span name(s)"
+          },
+          {
+            "name": "status_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status code(s). Values: OK, ERROR, UNSET",
+              "title": "Status Code"
+            },
+            "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
           }
         ],
         "responses": {
@@ -3078,6 +3120,69 @@
               "title": "Parent Id"
             },
             "description": "Filter by parent span ID. Use \"null\" to get root spans only."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by span name(s)",
+              "title": "Name"
+            },
+            "description": "Filter by span name(s)"
+          },
+          {
+            "name": "span_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN",
+              "title": "Span Kind"
+            },
+            "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+          },
+          {
+            "name": "status_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status code(s). Values: OK, ERROR, UNSET",
+              "title": "Status Code"
+            },
+            "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
           }
         ],
         "responses": {

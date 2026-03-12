@@ -24,6 +24,7 @@ from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
+from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -159,6 +160,10 @@ class StatusCode(str, Enum):
             "OK": 1,
             "ERROR": 2,
         }[self.value]
+
+
+_VALID_STATUS_CODES = frozenset(e.value for e in StatusCode)
+_VALID_SPAN_KINDS = frozenset(e.value for e in SpanKind)
 
 
 class OtlpStatus(BaseModel):
@@ -611,6 +616,14 @@ async def span_search_otlpv1(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
     ),
+    name: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by span name(s)",
+    ),
+    status_code: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by status code(s). Values: OK, ERROR, UNSET",
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -641,6 +654,16 @@ async def span_search_otlpv1(
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
             stmt = stmt.where(models.Span.parent_id == parent_id)
+    if name:
+        stmt = stmt.where(models.Span.name.in_(name))
+    if status_code:
+        stmt = stmt.where(
+            models.Span.status_code.in_(
+                validate_enum_filter(
+                    values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+                )
+            )
+        )
 
     if cursor:
         try:
@@ -763,6 +786,21 @@ async def span_search(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
     ),
+    name: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by span name(s)",
+    ),
+    span_kind: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, "
+            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+        ),
+    ),
+    status_code: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by status code(s). Values: OK, ERROR, UNSET",
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -791,6 +829,24 @@ async def span_search(
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
             stmt = stmt.where(models.Span.parent_id == parent_id)
+    if name:
+        stmt = stmt.where(models.Span.name.in_(name))
+    if span_kind:
+        stmt = stmt.where(
+            models.Span.span_kind.in_(
+                validate_enum_filter(
+                    values=span_kind, valid=_VALID_SPAN_KINDS, param_name="span_kind"
+                )
+            )
+        )
+    if status_code:
+        stmt = stmt.where(
+            models.Span.status_code.in_(
+                validate_enum_filter(
+                    values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+                )
+            )
+        )
 
     if cursor:
         try:
