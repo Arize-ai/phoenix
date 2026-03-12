@@ -50,6 +50,7 @@ import {
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { CopyId } from "@phoenix/components/core/copy";
 import {
   RichTooltip,
   Tooltip,
@@ -512,7 +513,7 @@ export function ExperimentCompareListPage({
         const exampleId = getValue() as string;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <TextOverflow>{exampleId}</TextOverflow>
+            <CopyId id={exampleId} truncate={8} />
             <TooltipTrigger>
               <IconButton
                 size="S"

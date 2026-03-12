@@ -142,7 +142,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         justifyContent="start"
         alignItems="center"
       >
-        <Icon svg={<Icons.DuplicateOutline />} />
+        <Icon svg={<Icons.Copy />} />
         <Text>Copy experiment ID</Text>
       </Flex>
     </MenuItem>,

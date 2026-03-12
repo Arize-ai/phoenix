@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { startTransition, useEffect } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
@@ -27,12 +26,7 @@ import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 
 export function ProjectPageHeader(props: {
   project: ProjectPageHeader_stats$key;
-  /**
-   * the extra component displayed on the right side of the header
-   */
-  extra: ReactNode;
 }) {
-  const { extra } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     ProjectPageHeaderQuery,
@@ -85,128 +79,121 @@ export function ProjectPageHeader(props: {
       paddingBottom="size-50"
       flex="none"
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="center">
-        <div
-          css={css`
-            overflow-x: auto;
-            overflow-y: hidden;
-            flex: 1 1 auto;
-            background-image:
-              linear-gradient(
-                to right,
-                var(--global-color-gray-75),
-                var(--global-color-gray-75)
-              ),
-              linear-gradient(
-                to right,
-                var(--global-color-gray-75),
-                var(--global-color-gray-75)
-              ),
-              linear-gradient(
-                to right,
-                rgba(var(--global-color-gray-300-rgb), 0.9),
-                rgba(var(--global-color-gray-300-rgb), 0)
-              ),
-              linear-gradient(
-                to left,
-                rgba(var(--global-color-gray-300-rgb), 0.9),
-                rgba(var(--global-color-gray-300-rgb), 0)
-              );
-            background-repeat: no-repeat;
-            background-size:
-              32px 100%,
-              32px 100%,
-              32px 100%,
-              32px 100%;
-            background-position:
-              left center,
-              right center,
-              left center,
-              right center;
-            background-attachment: local, local, scroll, scroll;
-          `}
-        >
-          <Flex direction="row" gap="size-400" alignItems="center">
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Total Traces
-              </Text>
-              <Text size="L" fontFamily="mono">
-                {intFormatter(data?.timeRangeTraceCount)}
-              </Text>
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Total Cost
-              </Text>
-              <TooltipTrigger delay={0}>
-                <Focusable>
-                  <Text size="L" role="button" fontFamily="mono">
-                    {costFormatter(data?.costSummary?.total?.cost ?? 0)}
-                  </Text>
-                </Focusable>
-                <RichTooltip placement="bottom">
-                  <TooltipArrow />
-                  <View width="size-3600">
-                    <RichTokenBreakdown
-                      valueLabel="cost"
-                      totalValue={data?.costSummary?.total?.cost ?? 0}
-                      formatter={costFormatter}
-                      segments={[
-                        {
-                          name: "Prompt",
-                          value: data?.costSummary?.prompt?.cost ?? 0,
-                          color: colors.category1,
-                        },
-                        {
-                          name: "Completion",
-                          value: data?.costSummary?.completion?.cost ?? 0,
-                          color: colors.category2,
-                        },
-                      ]}
-                    />
-                  </View>
-                </RichTooltip>
-              </TooltipTrigger>
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Latency P50
-              </Text>
-              {latencyMsP50 != null ? (
-                <LatencyText latencyMs={latencyMsP50} size="L" />
-              ) : (
-                <Text size="L">--</Text>
-              )}
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Latency P99
-              </Text>
-
-              {latencyMsP99 != null ? (
-                <LatencyText latencyMs={latencyMsP99} size="L" />
-              ) : (
-                <Text size="L">--</Text>
-              )}
-            </Flex>
-            {spanAnnotationNames.map((name) => (
-              <ErrorBoundary key={name} fallback={TextErrorBoundaryFallback}>
-                <AnnotationSummary key={name} annotationName={name} />
-              </ErrorBoundary>
-            ))}
-            {documentEvaluationNames.map((name) => (
-              <DocumentEvaluationSummary
-                key={`document-${name}`}
-                evaluationName={name}
-              />
-            ))}
+      <div
+        css={css`
+          overflow-x: auto;
+          overflow-y: hidden;
+          background-image:
+            linear-gradient(
+              to right,
+              var(--global-color-gray-75),
+              var(--global-color-gray-75)
+            ),
+            linear-gradient(
+              to right,
+              var(--global-color-gray-75),
+              var(--global-color-gray-75)
+            ),
+            linear-gradient(
+              to right,
+              rgba(var(--global-color-gray-300-rgb), 0.9),
+              rgba(var(--global-color-gray-300-rgb), 0)
+            ),
+            linear-gradient(
+              to left,
+              rgba(var(--global-color-gray-300-rgb), 0.9),
+              rgba(var(--global-color-gray-300-rgb), 0)
+            );
+          background-repeat: no-repeat;
+          background-size:
+            32px 100%,
+            32px 100%,
+            32px 100%,
+            32px 100%;
+          background-position:
+            left center,
+            right center,
+            left center,
+            right center;
+          background-attachment: local, local, scroll, scroll;
+        `}
+      >
+        <Flex direction="row" gap="size-400" alignItems="center">
+          <Flex direction="column" flex="none">
+            <Text elementType="h3" size="S" color="text-700">
+              Total Traces
+            </Text>
+            <Text size="L" fontFamily="mono">
+              {intFormatter(data?.timeRangeTraceCount)}
+            </Text>
           </Flex>
-        </div>
-        <View flex="none" paddingStart="size-100">
-          {extra}
-        </View>
-      </Flex>
+          <Flex direction="column" flex="none">
+            <Text elementType="h3" size="S" color="text-700">
+              Total Cost
+            </Text>
+            <TooltipTrigger delay={0}>
+              <Focusable>
+                <Text size="L" role="button" fontFamily="mono">
+                  {costFormatter(data?.costSummary?.total?.cost ?? 0)}
+                </Text>
+              </Focusable>
+              <RichTooltip placement="bottom">
+                <TooltipArrow />
+                <View width="size-3600">
+                  <RichTokenBreakdown
+                    valueLabel="cost"
+                    totalValue={data?.costSummary?.total?.cost ?? 0}
+                    formatter={costFormatter}
+                    segments={[
+                      {
+                        name: "Prompt",
+                        value: data?.costSummary?.prompt?.cost ?? 0,
+                        color: colors.category1,
+                      },
+                      {
+                        name: "Completion",
+                        value: data?.costSummary?.completion?.cost ?? 0,
+                        color: colors.category2,
+                      },
+                    ]}
+                  />
+                </View>
+              </RichTooltip>
+            </TooltipTrigger>
+          </Flex>
+          <Flex direction="column" flex="none">
+            <Text elementType="h3" size="S" color="text-700">
+              Latency P50
+            </Text>
+            {latencyMsP50 != null ? (
+              <LatencyText latencyMs={latencyMsP50} size="L" />
+            ) : (
+              <Text size="L">--</Text>
+            )}
+          </Flex>
+          <Flex direction="column" flex="none">
+            <Text elementType="h3" size="S" color="text-700">
+              Latency P99
+            </Text>
+            {latencyMsP99 != null ? (
+              <LatencyText latencyMs={latencyMsP99} size="L" />
+            ) : (
+              <Text size="L">--</Text>
+            )}
+          </Flex>
+          {spanAnnotationNames.map((name) => (
+            <ErrorBoundary key={name} fallback={TextErrorBoundaryFallback}>
+              <AnnotationSummary key={name} annotationName={name} />
+            </ErrorBoundary>
+          ))}
+          {documentEvaluationNames.map((name) => (
+            <DocumentEvaluationSummary
+              key={`document-${name}`}
+              evaluationName={name}
+            />
+          ))}
+        </Flex>
+      </div>
     </View>
   );
 }

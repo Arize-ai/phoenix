@@ -53,6 +53,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
+import { CopyId } from "@phoenix/components/core/copy";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -1353,11 +1354,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   justifyContent="space-between"
                 >
                   <Text>
-                    Tool Result{toolResultId ? `: ${toolResultId}` : ""}
+                    Tool Result
+                    {toolResultId ? (
+                      <>
+                        : <CopyId id={toolResultId} />
+                      </>
+                    ) : null}
                   </Text>
-                  {toolResultId ? (
-                    <CopyToClipboardButton text={toolResultId} />
-                  ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
                   {messageContent ? (
@@ -1403,8 +1406,14 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                         arrowPosition="start"
                         justifyContent="space-between"
                       >
-                        <span>Tool Call{id ? `: ${id}` : ""}</span>
-                        {id ? <CopyToClipboardButton text={id} /> : null}
+                        <span>
+                          Tool Call
+                          {id ? (
+                            <>
+                              : <CopyId id={id} />
+                            </>
+                          ) : null}
+                        </span>
                       </DisclosureTrigger>
                       <DisclosurePanel>
                         <pre

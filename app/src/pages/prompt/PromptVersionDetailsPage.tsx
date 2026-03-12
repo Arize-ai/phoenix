@@ -3,7 +3,6 @@ import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
-  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -15,6 +14,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import type { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
@@ -50,23 +50,13 @@ function PromptVersionDetailsPageContent({
           marginEnd="auto"
         >
           <Flex direction="row" justifyContent="space-between">
-            <Flex direction="row" gap="size-100">
+            <Flex direction="row" gap="size-100" alignItems="center">
               <Heading level={2}>
-                Version:&nbsp;
-                <span
-                  css={css`
-                    user-select: all;
-                  `}
-                >
-                  {promptVersion.id}
-                </span>
+                Version: <CopyId id={promptVersion.id} variant="title" />
               </Heading>
               <PromptVersionTagsList promptVersion={promptVersion} />
             </Flex>
             <Flex direction="row" gap="size-100">
-              <CopyToClipboardButton text={promptVersion.id}>
-                Version ID
-              </CopyToClipboardButton>
               <TagPromptVersionButton
                 promptId={promptId}
                 versionId={promptVersion.id}

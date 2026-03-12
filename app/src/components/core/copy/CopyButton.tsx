@@ -51,9 +51,7 @@ export function CopyButton({ text, size = "S", children }: CopyButtonProps) {
     }, SHOW_COPIED_TIMEOUT_MS);
   }, [text]);
 
-  const icon = (
-    <Icon svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />} />
-  );
+  const icon = <Icon svg={isCopied ? <Icons.Checkmark /> : <Icons.Copy />} />;
 
   return (
     <div className="copy-button" css={copyButtonCSS}>

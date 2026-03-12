@@ -51,9 +51,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
         <Button
           size={size}
           leadingVisual={
-            <Icon
-              svg={isCopied ? <Icons.Checkmark /> : <Icons.DuplicateOutline />}
-            />
+            <Icon svg={isCopied ? <Icons.Checkmark /> : <Icons.Copy />} />
           }
           onPress={onPress}
           {...otherProps}
