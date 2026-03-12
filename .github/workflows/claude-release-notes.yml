@@ -6,6 +6,10 @@ on:
     - cron: "0 14 * * 3"
   workflow_dispatch:
 
+concurrency:
+  group: release-notes
+  cancel-in-progress: true
+
 jobs:
   release-notes:
     runs-on: ubuntu-latest
@@ -21,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
 
       - name: Create branch
@@ -39,13 +43,7 @@ jobs:
           github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           model: claude-opus-4-6
           prompt: |
-            Run the phoenix-release-notes skill. Follow its steps exactly:
-
-            1. Identify undocumented releases by comparing `gh release list` output against existing docs.
-            2. Analyze commits for each undocumented release by reading the actual code.
-            3. Draft individual MDX files for user-facing changes.
-            4. Update the aggregate file, year overview, and docs.json navigation.
-            5. Verify all links resolve and entries are in reverse-chronological order.
+            Run the phoenix-release-notes skill.
 
             If there are no undocumented releases with user-facing changes, exit without making changes.
 
