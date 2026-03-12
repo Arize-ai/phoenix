@@ -1,3 +1,4 @@
+export * from "./annotationConfig";
 export * from "./auth";
 export * from "./projects";
 export * from "./traces";
