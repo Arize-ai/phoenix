@@ -125,6 +125,42 @@ export const LayoutStability = () => (
 );
 
 /**
+ * Title variant in a realistic heading context — hover to reveal the bordered
+ * copy button at the end of the ID.
+ */
+export const TitleInHeading = () => (
+  <div
+    css={css`
+      display: flex;
+      flex-direction: column;
+      gap: var(--global-dimension-size-300);
+    `}
+  >
+    <h2
+      css={css`
+        margin: 0;
+        font-size: var(--global-font-size-xl);
+      `}
+    >
+      Project: <CopyId id="my-llm-project" variant="title" />
+    </h2>
+    <h3
+      css={css`
+        margin: 0;
+        font-size: var(--global-font-size-l);
+      `}
+    >
+      Version:{" "}
+      <CopyId
+        id="c1b2a3d4-e5f6-7890-abcd-ef1234567890"
+        variant="title"
+        truncate={12}
+      />
+    </h3>
+  </div>
+);
+
+/**
  * Side-by-side comparison of both variants.
  */
 export const VariantComparison = () => (
