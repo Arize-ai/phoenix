@@ -51,7 +51,8 @@ jobs:
         if: env.READY == 'true'
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-label "agent-in-progress"
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "github-actions[bot]"
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "mikeldking"
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Agent is working on this issue. Follow progress in the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
 
       - name: Checkout repository
         if: env.READY == 'true'
@@ -121,7 +122,7 @@ jobs:
       - name: Cleanup
         if: always() && env.READY == 'true'
         run: |
-          gh issue edit "$ISSUE_NUMBER" --remove-assignee "github-actions[bot]" --remove-label "agent-in-progress"
+          gh issue edit "$ISSUE_NUMBER" --remove-assignee "mikeldking" --remove-label "agent-in-progress"
           if [ "${{ job.status }}" = "failure" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
           fi
