@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -14,6 +16,8 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether an AI agent's tool selection was correct or incorrect based on
@@ -30,13 +34,21 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
         from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
         from phoenix.evals import LLM
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         tool_selection_eval = ToolSelectionEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        tool_selection_eval = ToolSelectionEvaluator(llm=llm, temperature=0.0)
+
         eval_input = {
             "input": "User: What is the weather in San Francisco?",
-            "available_tools": "WeatherTool: Get the current weather for a location.\n
-            NewsTool: Stay connected to global events with our up-to-date news around the world.\n
-            MusicTool: Create playlists, search for music, and check the latest music trends.",
-            "agent_tool_selection": "WeatherTool(location='San Francisco')" # input args optional
+            "available_tools": (
+                "WeatherTool: Get the current weather for a location.\\n"
+                "NewsTool: Stay connected to global events with our up-to-date news.\\n"
+                "MusicTool: Create playlists, search for music, and check music trends."
+            ),
+            "tool_selection": "WeatherTool(location='San Francisco')" # input args optional
         }
         scores = tool_selection_eval.evaluate(eval_input)
         print(scores)
@@ -61,6 +73,7 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        **kwargs: Any,
     ):
         super().__init__(
             name=self.NAME,
@@ -69,4 +82,5 @@ class ToolSelectionEvaluator(ClassificationEvaluator):
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.ToolSelectionInputSchema,
+            **kwargs,
         )

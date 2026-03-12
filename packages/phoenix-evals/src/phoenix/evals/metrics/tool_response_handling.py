@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -15,6 +17,8 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether an AI agent correctly processed the tool result to produce
@@ -31,7 +35,12 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
         from phoenix.evals import LLM
 
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         tool_response_eval = ToolResponseHandlingEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        tool_response_eval = ToolResponseHandlingEvaluator(llm=llm, temperature=0.0)
 
         # Example: Correct extraction from tool result
         eval_input = {
@@ -90,6 +99,7 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        **kwargs: Any,
     ):
         super().__init__(
             name=self.NAME,
@@ -98,4 +108,5 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.ToolResponseHandlingInputSchema,
+            **kwargs,
         )

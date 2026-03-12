@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -15,6 +17,8 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether an AI agent's tool invocation was correct or incorrect based on
@@ -45,7 +49,12 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
         from phoenix.evals import LLM
 
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         tool_invocation_eval = ToolInvocationEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        tool_invocation_eval = ToolInvocationEvaluator(llm=llm, temperature=0.0)
 
         # Example with JSON schema format for available tools
         eval_input = {
@@ -110,6 +119,7 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        **kwargs: Any,
     ):
         super().__init__(
             name=self.NAME,
@@ -118,4 +128,5 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.ToolInvocationInputSchema,
+            **kwargs,
         )

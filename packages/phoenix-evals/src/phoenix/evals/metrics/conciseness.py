@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
@@ -14,6 +16,8 @@ class ConcisenessEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether the output to an input is concise or verbose.
@@ -26,7 +30,13 @@ class ConcisenessEvaluator(ClassificationEvaluator):
         from phoenix.evals.metrics.conciseness import ConcisenessEvaluator
         from phoenix.evals import LLM
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         conciseness_eval = ConcisenessEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        conciseness_eval = ConcisenessEvaluator(llm=llm, temperature=0.0)
+
         eval_input = {
             "input": "What is the capital of France?",
             "output": "Paris.",
@@ -54,6 +64,7 @@ class ConcisenessEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        **kwargs: Any,
     ):
         super().__init__(
             name=self.NAME,
@@ -62,4 +73,5 @@ class ConcisenessEvaluator(ClassificationEvaluator):
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.ConcisenessInputSchema,
+            **kwargs,
         )

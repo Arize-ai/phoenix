@@ -7,6 +7,7 @@ Please use FaithfulnessEvaluator instead, which uses updated terminology:
 """
 
 import warnings
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +29,8 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the LLM client
+            (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether the output to an input is factual or hallucinated based on the context.
@@ -40,7 +43,13 @@ class HallucinationEvaluator(ClassificationEvaluator):
         from phoenix.evals.metrics.hallucination import HallucinationEvaluator
         from phoenix.evals import LLM
         llm = LLM(provider="openai", model="gpt-4o-mini")
+
+        # Default usage
         hallucination_eval = HallucinationEvaluator(llm=llm)
+
+        # With custom invocation parameters
+        hallucination_eval = HallucinationEvaluator(llm=llm, temperature=0.0)
+
         eval_input = {
             "input": "What is the capital of France?",
             "output": "Paris is the capital of France.",
@@ -71,6 +80,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
     def __init__(
         self,
         llm: LLM,
+        **kwargs: Any,
     ):
         warnings.warn(
             "HallucinationEvaluator is deprecated and will be removed in a future version. "
@@ -87,4 +97,5 @@ class HallucinationEvaluator(ClassificationEvaluator):
             choices=self.CHOICES,
             direction=self.DIRECTION,
             input_schema=self.HallucinationInputSchema,
+            **kwargs,
         )
