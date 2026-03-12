@@ -1,6 +1,11 @@
 import { SquiggleOutline } from "@phoenix/components";
-import { VercelSVG } from "@phoenix/components/project/IntegrationIcons";
 import {
+  LangGraphSVG,
+  VercelSVG,
+} from "@phoenix/components/project/IntegrationIcons";
+import {
+  getLanggraphCodePython,
+  getLanggraphCodeTypescript,
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
   getVercelAiSdkCodeTypescript,
@@ -25,8 +30,34 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
       },
       TypeScript: {
         packages: TYPESCRIPT_PACKAGES,
-        getImplementationCode: ({ projectName }) =>
-          getOtelInitCodeTypescript(projectName),
+        getImplementationCode: getOtelInitCodeTypescript,
+      },
+    },
+  },
+  {
+    id: "langgraph",
+    name: "LangGraph",
+    icon: <LangGraphSVG />,
+    supportedLanguages: ["Python", "TypeScript"],
+    snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-langchain",
+          "langgraph",
+          "langchain-openai",
+        ],
+        getImplementationCode: getLanggraphCodePython,
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-langchain",
+          "@langchain/core",
+          "@langchain/langgraph",
+          "@langchain/openai",
+        ],
+        getImplementationCode: getLanggraphCodeTypescript,
       },
     },
   },
@@ -37,9 +68,8 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     supportedLanguages: ["TypeScript"],
     snippets: {
       TypeScript: {
-        packages: ["ai", "@ai-sdk/openai", "@arizeai/phoenix-otel"],
-        getImplementationCode: ({ projectName }) =>
-          getVercelAiSdkCodeTypescript(projectName),
+        packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
+        getImplementationCode: getVercelAiSdkCodeTypescript,
       },
     },
   },

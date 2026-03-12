@@ -128,7 +128,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
       </View>
       <CodeWrap>
         <TypeScriptBlockWithCopy
-          value={getOtelInitCodeTypescript(projectName)}
+          value={getOtelInitCodeTypescript({ projectName, isHosted })}
         />
       </CodeWrap>
       <IsAuthenticated>
