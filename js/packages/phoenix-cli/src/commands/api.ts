@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 
 /**
@@ -28,7 +29,7 @@ async function apiGraphqlHandler(
         message:
           "Error: Only queries are permitted. Mutations and subscriptions are not allowed.",
       });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // 2. Resolve config (endpoint only — no project required)
@@ -44,7 +45,7 @@ async function apiGraphqlHandler(
           ],
         }),
       });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // 3. Build URL and auth headers
@@ -68,7 +69,10 @@ async function apiGraphqlHandler(
       writeError({
         message: `Error: HTTP ${response.status} ${response.statusText} from ${graphqlUrl}`,
       });
-      process.exit(1);
+      if (response.status === 401 || response.status === 403) {
+        process.exit(ExitCode.AUTH_REQUIRED);
+      }
+      process.exit(ExitCode.FAILURE);
     }
 
     // 5. Parse and output response
@@ -86,13 +90,13 @@ async function apiGraphqlHandler(
     writeOutput({ message: JSON.stringify(json, null, 2) });
 
     if (json.errors && json.errors.length > 0 && json.data == null) {
-      process.exit(1);
+      process.exit(ExitCode.FAILURE);
     }
   } catch (error) {
     writeError({
       message: `Error: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 

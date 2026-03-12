@@ -9,6 +9,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
 import { formatTracesOutput, type OutputFormat } from "./formatTraces";
@@ -217,7 +218,7 @@ async function tracesHandler(
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
       });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Create client
@@ -227,7 +228,7 @@ async function tracesHandler(
     const projectIdentifier = config.project;
     if (!projectIdentifier) {
       writeError({ message: "Project not configured" });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     writeProgress({
@@ -339,7 +340,7 @@ async function tracesHandler(
     writeError({
       message: `Error fetching traces: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 

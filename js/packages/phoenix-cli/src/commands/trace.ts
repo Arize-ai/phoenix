@@ -8,6 +8,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace } from "../trace";
 import { formatTraceOutput, type OutputFormat } from "./formatTraces";
@@ -105,7 +106,7 @@ async function traceHandler(
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
       });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Create client
@@ -115,7 +116,7 @@ async function traceHandler(
     const projectIdentifier = config.project;
     if (!projectIdentifier) {
       writeError({ message: "Project not configured" });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     writeProgress({
@@ -138,7 +139,7 @@ async function traceHandler(
 
     if (spans.length === 0) {
       writeError({ message: `Trace not found: ${traceId}` });
-      process.exit(1);
+      process.exit(ExitCode.FAILURE);
     }
 
     writeProgress({
@@ -206,7 +207,7 @@ async function traceHandler(
     writeError({
       message: `Error fetching trace: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 

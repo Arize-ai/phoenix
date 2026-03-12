@@ -7,6 +7,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { formatSessionsOutput, type OutputFormat } from "./formatSessions";
 
@@ -86,7 +87,7 @@ async function sessionsHandler(options: SessionsOptions): Promise<void> {
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
       });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     // Create client
@@ -96,7 +97,7 @@ async function sessionsHandler(options: SessionsOptions): Promise<void> {
     const projectIdentifier = config.project;
     if (!projectIdentifier) {
       writeError({ message: "Project not configured" });
-      process.exit(1);
+      process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
     writeProgress({
@@ -145,7 +146,7 @@ async function sessionsHandler(options: SessionsOptions): Promise<void> {
     writeError({
       message: `Error fetching sessions: ${error instanceof Error ? error.message : String(error)}`,
     });
-    process.exit(1);
+    process.exit(getExitCodeForError(error));
   }
 }
 
