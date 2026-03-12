@@ -2,8 +2,8 @@ import { Command } from "commander";
 
 import type { PhoenixConfig } from "../config";
 import { getConfigErrorMessage, resolveConfig } from "../config";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { renderCurlCommand } from "../curl";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 
 /**
@@ -184,7 +184,10 @@ function createApiGraphqlCommand(): Command {
     .argument("<query>", "GraphQL query string")
     .option("--endpoint <url>", "Phoenix API endpoint (or set PHOENIX_HOST)")
     .option("--api-key <key>", "Phoenix API key (or set PHOENIX_API_KEY)")
-    .option("--curl", "Print the equivalent curl command instead of executing the request")
+    .option(
+      "--curl",
+      "Print the equivalent curl command instead of executing the request"
+    )
     .option(
       "--show-token",
       "Show the raw Authorization token in curl output (requires --curl)"

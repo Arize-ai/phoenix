@@ -125,7 +125,7 @@ describe("renderCurlCommand", () => {
         Authorization: "Bearer secret-token",
       },
       body: JSON.stringify({
-        query: "{ project(name: \"Bob's\") { name } }",
+        query: '{ project(name: "Bob\'s") { name } }',
       }),
       maskTokens: true,
     });
@@ -271,9 +271,7 @@ describe("api graphql command", () => {
       expect.stringContaining("  -X POST \\")
     );
     expect(stdoutSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "  -H 'Content-Type: application/json' \\\n"
-      )
+      expect.stringContaining("  -H 'Content-Type: application/json' \\\n")
     );
     expect(stdoutSpy).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -295,11 +293,11 @@ describe("api graphql command", () => {
   it("rejects --show-token when --curl is not set", async () => {
     const fetchMock = vi.fn();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(((code?: number) => {
-        throw new Error(`process.exit:${code}`);
-      }) as never);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -326,11 +324,11 @@ describe("api graphql command", () => {
   it("still rejects mutations in curl mode", async () => {
     const fetchMock = vi.fn();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(((code?: number) => {
-        throw new Error(`process.exit:${code}`);
-      }) as never);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
 
     vi.stubGlobal("fetch", fetchMock);
 

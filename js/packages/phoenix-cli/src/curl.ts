@@ -17,13 +17,18 @@ function shellEscape(value: string): string {
  * output mirrors how `fetch` combines duplicate logical headers such as
  * `authorization` + `Authorization`.
  */
-function normalizeHeaders(headers: Record<string, string>): Array<[string, string]> {
+function normalizeHeaders(
+  headers: Record<string, string>
+): Array<[string, string]> {
   const normalizedHeaders = new Headers();
   const headerNames = new Map<string, string>();
 
   for (const [key, value] of Object.entries(headers)) {
     normalizedHeaders.append(key, value);
-    headerNames.set(key.toLowerCase(), headerNames.get(key.toLowerCase()) ?? key);
+    headerNames.set(
+      key.toLowerCase(),
+      headerNames.get(key.toLowerCase()) ?? key
+    );
   }
 
   return Array.from(normalizedHeaders.entries()).map(([key, value]) => [
