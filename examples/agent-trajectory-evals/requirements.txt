@@ -8,3 +8,8 @@ opentelemetry-sdk
 opentelemetry-exporter-otlp
 litellm
 openai
+
+# LangGraph (used by both TRAJECT-Bench and tau-bench examples)
+langgraph>=0.2
+langchain-openai>=0.3
+openinference-instrumentation-langchain>=0.1
