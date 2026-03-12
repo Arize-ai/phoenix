@@ -54,6 +54,13 @@ Span queries now support filtering by trace ID and parent relationships, enablin
 The Playground now displays evaluation metrics, cost, and latency aggregates in real-time as dataset experiments run. Metrics update incrementally every ~2 seconds, providing immediate feedback on experiment performance without waiting for completion.
 </Update>
 
+<Update label="03.04.2026">
+## [03.04.2026: Brute Force Login Protection](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
+**Available in arize-phoenix 13.8.0+**
+
+Phoenix now automatically protects login endpoints against brute force attacks. After 5 consecutive failed attempts, the account is temporarily locked for 5 minutes. Enabled by default with configurable thresholds via `PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS`.
+</Update>
+
 <Update label="03.07.2026">
 ## [03.07.2026: Unified Dataset Upload with Drag-and-Drop](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix 13.9.0+**
