@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import type { PromptResponseFormatFragment$key } from "@phoenix/pages/prompt/__generated__/PromptResponseFormatFragment.graphql";
-import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 export function PromptResponseFormat({
   promptVersion,
@@ -22,7 +22,12 @@ export function PromptResponseFormat({
     graphql`
       fragment PromptResponseFormatFragment on PromptVersion {
         responseFormat {
-          definition
+          jsonSchema {
+            name
+            description
+            schema
+            strict
+          }
         }
       }
     `,
@@ -30,17 +35,9 @@ export function PromptResponseFormat({
   );
 
   const formattedResponseFormat = useMemo(() => {
-    if (typeof responseFormat?.definition === "string") {
-      return (
-        safelyStringifyJSON(
-          safelyParseJSON(responseFormat?.definition).json || "",
-          null,
-          2
-        ).json || ""
-      );
-    }
-    return safelyStringifyJSON(responseFormat?.definition, null, 2).json || "";
-  }, [responseFormat?.definition]);
+    if (!responseFormat) return "";
+    return safelyStringifyJSON(responseFormat, null, 2).json || "";
+  }, [responseFormat]);
 
   if (!formattedResponseFormat) {
     return (

@@ -2,15 +2,43 @@ import { z } from "zod";
 
 import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import type { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import type { InvocationParameterInput } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
-import type { LlmProviderToolDefinition } from "@phoenix/schemas";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
-import type {
-  AnthropicToolChoice,
-  GoogleToolChoice,
-  OpenaiToolChoice,
-} from "@phoenix/schemas/toolChoiceSchemas";
+/**
+ * Provider-agnostic canonical tool choice stored on PlaygroundInstance.
+ * Mirrors the DB PromptToolChoice enum plus an optional function name.
+ */
+export type CanonicalToolChoice = {
+  type: "NONE" | "ZERO_OR_MORE" | "ONE_OR_MORE" | "SPECIFIC_FUNCTION";
+  functionName?: string;
+};
+
+/**
+ * Provider-agnostic canonical response format stored on ModelConfig.
+ * Matches the GraphQL PromptResponseFormatJSONSchemaInput wire type.
+ */
+export type CanonicalResponseFormat = {
+  type: string;
+  jsonSchema: {
+    name: string;
+    schema?: unknown;
+    strict?: boolean | null;
+    description?: string | null;
+  };
+};
+
+/**
+ * Provider-agnostic canonical tool definition stored on Tool.
+ * Isomorphic to OpenAIToolDefinition.function but named independently
+ * of any provider, consistent with CanonicalToolChoice and CanonicalResponseFormat.
+ */
+export type CanonicalToolDefinition = {
+  name: string;
+  description?: string | null;
+  parameters?: unknown;
+  strict?: boolean | null;
+};
 
 import type { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
@@ -95,6 +123,11 @@ export type ModelConfig = {
    * When set, the request will use the custom provider instead of the built-in provider.
    */
   customProvider?: { id: string; name: string } | null;
+  /**
+   * The response format for the model in canonical provider-agnostic form.
+   * Null means no response format is set.
+   */
+  responseFormat?: CanonicalResponseFormat | null;
   invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
   supportedInvocationParameters: InvocationParameter[];
 };
@@ -108,7 +141,7 @@ export type ModelInvocationParameterInput =
 export type Tool = {
   id: number;
   editorType: PhoenixToolEditorType;
-  definition: LlmProviderToolDefinition;
+  definition: CanonicalToolDefinition;
 };
 
 export type PlaygroundInstancePrompt = {
@@ -190,10 +223,10 @@ export interface PlaygroundInstance {
   template: PlaygroundTemplate;
   tools: Tool[];
   /**
-   * How the LLM should choose the tool to use
-   * @default "auto"
+   * How the LLM should choose the tool to use (canonical, provider-agnostic).
+   * @default { type: "ZERO_OR_MORE" } (auto)
    */
-  toolChoice?: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice;
+  toolChoice?: CanonicalToolChoice | null;
   model: ModelConfig;
   repetitions: Record<number, PlaygroundRepetition | undefined>;
   activeRunId: number | null;
@@ -448,6 +481,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
      */
     modelConfigByProvider: ModelConfigByProvider;
   }) => void;
+  /**
+   * Set the response format for an instance in canonical form.
+   */
+  setResponseFormat: (params: {
+    instanceId: number;
+    responseFormat: CanonicalResponseFormat;
+  }) => void;
+  /**
+   * Clear the response format for an instance.
+   */
+  deleteResponseFormat: (params: { instanceId: number }) => void;
   /**
    * Update an instance's model configuration excluding the provider and invocation parameters
    */

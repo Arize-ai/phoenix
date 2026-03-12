@@ -3,12 +3,12 @@ import logging
 from dataclasses import field
 from datetime import datetime, timezone
 from itertools import islice
-from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
+from typing import Any, Iterable, Iterator, Optional, TypeVar, Union, cast
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from pydantic import ValidationError
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
@@ -16,13 +16,13 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
+    SupportedSQLDialect,
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig
-from phoenix.db.types.model_provider import (
-    is_sdk_compatible_with_model_provider,
-)
+from phoenix.db.types.model_provider import is_sdk_compatible_with_model_provider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -47,6 +47,7 @@ from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     create_playground_message,
     extract_and_convert_example_messages,
+    prompt_chat_template_to_playground_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
@@ -314,11 +315,9 @@ class ChatCompletionMutationMixin:
                         llm_client,
                         ChatCompletionInput(
                             model=input.model,
-                            messages=input.messages,
-                            tools=input.tools,
-                            invocation_parameters=input.invocation_parameters,
+                            prompt_version=input.prompt_version,
                             template=PromptTemplateOptions(
-                                format=input.template_format,
+                                format=input.prompt_version.template_format,
                                 variables=template_variables_by_revision[revision.id],
                             ),
                             prompt_name=input.prompt_name,
@@ -721,15 +720,7 @@ class ChatCompletionMutationMixin:
         project_description: str = "Traces from prompt playground",
         appended_messages: Optional[list[PlaygroundMessage]] = None,
     ) -> tuple[ChatCompletionRepetition, models.Span]:
-        messages: list[PlaygroundMessage] = [
-            create_playground_message(
-                message.role,
-                message.content,
-                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-                message.tool_calls if isinstance(message.tool_calls, list) else None,
-            )
-            for message in input.messages
-        ]
+        messages = prompt_chat_template_to_playground_messages(input.prompt_version.template)
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
 
@@ -737,8 +728,13 @@ class ChatCompletionMutationMixin:
         if appended_messages:
             messages.extend(appended_messages)
 
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
+        invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+
+        tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+        response_format = (
+            input.prompt_version.response_format.to_orm()
+            if input.prompt_version.response_format
+            else None
         )
 
         text_content = ""
@@ -748,9 +744,10 @@ class ChatCompletionMutationMixin:
         try:
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
-                tools=input.tools or [],
-                tracer=tracer,
+                tools=tools,
+                response_format=response_format,
                 invocation_parameters=invocation_parameters,
+                tracer=tracer,
             ):
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
@@ -769,24 +766,24 @@ class ChatCompletionMutationMixin:
                     assert_never(chunk)
         except Exception as e:
             error_message = str(e)
-
+        stmt = select(models.Project.id).where(models.Project.name == project_name)
         async with info.context.db() as session:
-            if (
-                project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == project_name)
-                )
-            ) is None:
+            project_id = await session.scalar(stmt)
+            if project_id is None:
+                dialect = SupportedSQLDialect(session.bind.dialect.name)
                 project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=project_name,
-                        description=project_description,
-                    )
+                    insert_on_conflict(
+                        {"name": project_name, "description": project_description},
+                        table=models.Project,
+                        dialect=dialect,
+                        unique_by=["name"],
+                        on_conflict=OnConflict.DO_NOTHING,
+                    ).returning(models.Project.id)
                 )
+            if project_id is None:
+                project_id = await session.scalar(stmt)
             db_traces = tracer.get_db_traces(project_id=project_id)
             session.add_all(db_traces)
-            await session.flush()
 
         db_trace = db_traces[0]
         db_span = db_trace.spans[0]

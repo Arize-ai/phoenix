@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<16a497b66c8c51652402f9f274966db7>>
+ * @generated SignedSource<<35689bde1c268e1d2f8f2a8e83225d3d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type EvaluatorPreviewsInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
@@ -37,17 +38,17 @@ export type ChatPromptVersionInput = {
   invocationParameters?: any;
   modelName: string;
   modelProvider: ModelProvider;
-  responseFormat?: ResponseFormatInput | null;
+  responseFormat?: PromptResponseFormatJSONSchemaInput | null;
   template: PromptChatTemplateInput;
   templateFormat: PromptTemplateFormat;
-  tools?: ReadonlyArray<ToolDefinitionInput>;
+  tools?: PromptToolsInput | null;
 };
 export type PromptChatTemplateInput = {
   messages: ReadonlyArray<PromptMessageInput>;
 };
 export type PromptMessageInput = {
   content: ReadonlyArray<ContentPartInput>;
-  role: string;
+  role: PromptMessageRole;
 };
 export type ContentPartInput = {
   text?: TextContentValueInput | null;
@@ -70,11 +71,35 @@ export type ToolResultContentValueInput = {
   result: any;
   toolCallId: string;
 };
-export type ToolDefinitionInput = {
-  definition: any;
+export type PromptToolsInput = {
+  disableParallelToolCalls?: boolean | null;
+  toolChoice?: PromptToolChoiceInput | null;
+  tools: ReadonlyArray<PromptToolFunctionInput>;
 };
-export type ResponseFormatInput = {
-  definition: any;
+export type PromptToolFunctionInput = {
+  function: PromptToolFunctionDefinitionInput;
+};
+export type PromptToolFunctionDefinitionInput = {
+  description?: string | null;
+  name: string;
+  parameters?: any | null;
+  strict?: boolean | null;
+};
+export type PromptToolChoiceInput = {
+  functionName?: string | null;
+  none?: boolean | null;
+  oneOrMore?: boolean | null;
+  zeroOrMore?: boolean | null;
+};
+export type PromptResponseFormatJSONSchemaInput = {
+  jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput;
+  type: string;
+};
+export type PromptResponseFormatJSONSchemaDefinitionInput = {
+  description?: string | null;
+  name: string;
+  schema?: any | null;
+  strict?: boolean | null;
 };
 export type AnnotationConfigInput = {
   categorical?: CategoricalAnnotationConfigInput | null;

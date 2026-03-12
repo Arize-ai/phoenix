@@ -10,367 +10,149 @@ import {
   SelectValue,
   Token,
 } from "@phoenix/components";
-import type {
-  AnthropicToolChoice,
-  GoogleToolChoice,
-  OpenaiToolChoice,
-} from "@phoenix/schemas/toolChoiceSchemas";
-import {
-  findToolChoiceName,
-  makeAnthropicToolChoice,
-  makeAwsToolChoice,
-  makeGoogleToolChoice,
-  makeOpenAIToolChoice,
-} from "@phoenix/schemas/toolChoiceSchemas";
-import { assertUnreachable, isObject } from "@phoenix/typeUtils";
+import type { CanonicalToolChoice } from "@phoenix/store/playground/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
- * The "default" tool choices for each provider
- * Default just means choices we an always render without knowing any tool names
- * Note: Some providers wrap all tool choices in an object, some only wrap specific tool selections in an object
- *   so you need to unwrap the choice before checking if it is a default choice
+ * Per-provider configuration for rendering tool choice options.
  *
+ * The only property that varies by provider is the API token for ONE_OR_MORE:
+ * OpenAI-style providers call it "required"; Anthropic/Google/AWS call it "any".
+ * Everything else — "auto" for ZERO_OR_MORE, "none" for NONE — is identical
+ * across all providers.
  */
-export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
-  OPENAI: ["required", "auto", "none"] as const,
-  AZURE_OPENAI: ["required", "auto", "none"] as const,
-  DEEPSEEK: ["required", "auto", "none"] as const,
-  XAI: ["required", "auto", "none"] as const,
-  OLLAMA: ["required", "auto", "none"] as const,
-  CEREBRAS: ["required", "auto", "none"] as const,
-  FIREWORKS: ["required", "auto", "none"] as const,
-  GROQ: ["required", "auto", "none"] as const,
-  MOONSHOT: ["required", "auto", "none"] as const,
-  PERPLEXITY: ["required", "auto", "none"] as const,
-  TOGETHER: ["required", "auto", "none"] as const,
-  ANTHROPIC: ["any", "auto", "none"] as const,
-  AWS: ["any", "auto", "none"] as const,
-  GOOGLE: ["any", "auto", "none"] as const,
-} satisfies Partial<
-  Record<ModelProvider, (string | Record<string, unknown>)[]>
->;
-
-/**
- * Extracts the type of tool choice from a choice
- *
- * Some providers wrap all tool choices in an object, some only wrap specific tool selections in an object
- *
- * @param provider The provider of the choice
- * @param choice The choice to extract the type from
- * @returns The type of the choice
- */
-export const findToolChoiceType = (
-  provider: ModelProvider,
-  choice: unknown
-) => {
-  switch (provider) {
-    case "AZURE_OPENAI":
-    case "DEEPSEEK":
-    case "XAI":
-    case "OLLAMA":
-    case "CEREBRAS":
-    case "FIREWORKS":
-    case "GROQ":
-    case "MOONSHOT":
-    case "PERPLEXITY":
-    case "TOGETHER":
-    case "OPENAI":
-      if (
-        isObject(choice) &&
-        "type" in choice &&
-        typeof choice.type === "string"
-      ) {
-        return choice.type;
-      }
-      return choice;
-    case "AWS":
-      if (
-        isObject(choice) &&
-        "type" in choice &&
-        typeof choice.type === "string"
-      ) {
-        return choice.type;
-      }
-      return choice;
-    case "ANTHROPIC":
-      if (
-        isObject(choice) &&
-        "type" in choice &&
-        typeof choice.type === "string"
-      ) {
-        return choice.type;
-      }
-      return choice;
-    case "GOOGLE":
-      if (isObject(choice) && "function_calling_config" in choice) {
-        const functionCallingConfig = choice.function_calling_config;
-        if (isObject(functionCallingConfig)) {
-          if (
-            "allowed_function_names" in functionCallingConfig &&
-            Array.isArray(functionCallingConfig.allowed_function_names) &&
-            functionCallingConfig.allowed_function_names.length === 1
-          ) {
-            return "tool"; // a specific tool has been selected
-          }
-          if (
-            "mode" in functionCallingConfig &&
-            typeof functionCallingConfig.mode === "string"
-          ) {
-            return functionCallingConfig.mode;
-          }
-        }
-      }
-      return "auto";
-    default:
-      assertUnreachable(provider);
-  }
+type ProviderToolChoiceConfig = {
+  /** The wire token sent to the provider's API for "use at least one tool". */
+  oneOrMoreToken: "required" | "any";
 };
 
 /**
- * Checks if a provider has a default tool choice
- * If so, it is supported by the {@link ToolChoiceSelector} component
- * @param provider The provider to check
- * @returns True if the provider has a default tool choice, false otherwise
+ * Configuration for every provider that supports tool choice.
+ * A provider's presence here is the canonical signal that it supports tools.
+ */
+export const TOOL_CHOICE_CONFIG_BY_PROVIDER = {
+  OPENAI: { oneOrMoreToken: "required" },
+  AZURE_OPENAI: { oneOrMoreToken: "required" },
+  DEEPSEEK: { oneOrMoreToken: "required" },
+  XAI: { oneOrMoreToken: "required" },
+  OLLAMA: { oneOrMoreToken: "required" },
+  CEREBRAS: { oneOrMoreToken: "required" },
+  FIREWORKS: { oneOrMoreToken: "required" },
+  GROQ: { oneOrMoreToken: "required" },
+  MOONSHOT: { oneOrMoreToken: "required" },
+  PERPLEXITY: { oneOrMoreToken: "required" },
+  TOGETHER: { oneOrMoreToken: "required" },
+  ANTHROPIC: { oneOrMoreToken: "any" },
+  AWS: { oneOrMoreToken: "any" },
+  GOOGLE: { oneOrMoreToken: "any" },
+} satisfies Partial<Record<ModelProvider, ProviderToolChoiceConfig>>;
+
+export type SupportedToolChoiceProvider =
+  keyof typeof TOOL_CHOICE_CONFIG_BY_PROVIDER;
+
+/**
+ * Checks whether a provider supports tool choice.
+ * After this guard passes, TypeScript narrows the type to SupportedToolChoiceProvider.
  */
 export const isSupportedToolChoiceProvider = (
   provider: ModelProvider
-): provider is keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER => {
-  return provider in DEFAULT_TOOL_CHOICES_BY_PROVIDER;
-};
+): provider is SupportedToolChoiceProvider =>
+  provider in TOOL_CHOICE_CONFIG_BY_PROVIDER;
 
 /**
- * Checks if a choice is a default (simple) tool choice for a provider.
+ * Prefix applied to specific-function item IDs to avoid collisions with
+ * the canonical type names used for the built-in choices.
+ */
+const SPECIFIC_FUNCTION_PREFIX = "tool_";
+
+/**
+ * Maps a canonical tool choice to the stable Select item ID.
  *
- * A default tool choice is one like "auto" or {type: "auto"}, that we can render without knowing any tool names
- * Note: Wrapped tool choices must be unwrapped before being checked
- *
- * @param provider The provider to check the choice for
- * @param choice The choice to check
- * @returns True if the choice is a default tool choice for the provider, false otherwise
+ * Built-in choices use their canonical type name directly ("ZERO_OR_MORE",
+ * "ONE_OR_MORE", "NONE") so the ID never encodes provider-specific vocabulary.
+ * Specific-function choices use "tool_<name>".
  */
-const isDefaultToolChoice = <
-  T extends keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER,
->(
-  provider: T,
-  choice: unknown
-): choice is (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)[T][number] => {
-  return (
-    DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]?.includes(choice as "auto") ??
-    false
-  );
-};
-
-/**
- * A prefix to add to user defined tools in the picker to avoid picker key collisions with default {@link ToolChoice} keys
- */
-const TOOL_NAME_PREFIX = "tool_";
-
-/**
- * Adds a prefix to user defined tool names to avoid conflicts picker key collisions with default {@link ToolChoice} keys
- * @param toolName The name of a tool
- * @returns  The tool name with the "TOOL_NAME_PREFIX" prefix added
- */
-const addToolNamePrefix = (toolName: string) =>
-  `${TOOL_NAME_PREFIX}${toolName}`;
-
-/**
- * Removes the "TOOL_NAME_PREFIX" prefix from a tool name so that it can be used as a choice that corresponds to an actual tool
- * @param toolName The name of a tool with the "TOOL_NAME_PREFIX" prefix
- * @returns The tool name with the "TOOL_NAME_PREFIX" prefix removed
- */
-const removeToolNamePrefix = (toolName: string) =>
-  toolName.startsWith(TOOL_NAME_PREFIX)
-    ? toolName.slice(TOOL_NAME_PREFIX.length)
-    : toolName;
-
-/**
- * Renders a label for a tool choice
- *
- * Fuzzily matches the choice type to a friendly label
- *
- * @returns A label for the tool choice
- */
-export const ChoiceLabel = ({ choiceType }: { choiceType: string }) => {
-  switch (choiceType) {
-    case "any":
-    case "required":
-      return (
-        <Flex
-          gap="size-100"
-          alignItems="center"
-          justifyContent="space-between"
-          width="100%"
-        >
-          <span>Use at least one tool</span>
-          <Token color="var(--global-color-gray-900)" size="S">
-            {choiceType}
-          </Token>
-        </Flex>
-      );
-    case "none":
-      return (
-        <Flex
-          gap="size-100"
-          alignItems="center"
-          justifyContent="space-between"
-          width="100%"
-        >
-          <span>Don&apos;t use any tools</span>
-          <Token color="var(--global-color-gray-900)" size="S">
-            {choiceType}
-          </Token>
-        </Flex>
-      );
-    case "auto":
+const canonicalToId = (
+  choice: CanonicalToolChoice | null | undefined
+): string => {
+  if (!choice) return "ZERO_OR_MORE";
+  switch (choice.type) {
+    case "NONE":
+      return "NONE";
+    case "ZERO_OR_MORE":
+      return "ZERO_OR_MORE";
+    case "ONE_OR_MORE":
+      return "ONE_OR_MORE";
+    case "SPECIFIC_FUNCTION":
+      return `${SPECIFIC_FUNCTION_PREFIX}${choice.functionName ?? ""}`;
     default:
-      return (
-        <Flex
-          gap="size-100"
-          alignItems="center"
-          justifyContent="space-between"
-          width="100%"
-        >
-          <span>Tools auto-selected by LLM</span>
-          <Token color="var(--global-color-gray-900)" size="S">
-            {choiceType}
-          </Token>
-        </Flex>
-      );
+      assertUnreachable(choice.type);
   }
 };
 
-type ToolChoiceSelectorProps<
-  T extends keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER,
-> = {
-  provider: T;
-  /**
-   * The current choice including the default {@link ToolChoice} and any user defined tools
-   */
-  choice: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice | undefined;
-  /**
-   * Callback for when the tool choice changes
-   */
-  onChange: (
-    choice: OpenaiToolChoice | AnthropicToolChoice | GoogleToolChoice
-  ) => void;
-  /**
-   * A list of user defined tool names
-   */
+/**
+ * Maps a stable Select item ID back to a canonical tool choice.
+ */
+const idToCanonical = (id: string): CanonicalToolChoice => {
+  if (id === "NONE") return { type: "NONE" };
+  if (id === "ONE_OR_MORE") return { type: "ONE_OR_MORE" };
+  if (id.startsWith(SPECIFIC_FUNCTION_PREFIX))
+    return {
+      type: "SPECIFIC_FUNCTION",
+      functionName: id.slice(SPECIFIC_FUNCTION_PREFIX.length),
+    };
+  return { type: "ZERO_OR_MORE" };
+};
+
+/**
+ * Renders a labelled option row with a provider-specific API token badge.
+ */
+const OptionLabel = ({
+  label,
+  apiToken,
+}: {
+  label: string;
+  apiToken: string;
+}) => (
+  <Flex
+    gap="size-100"
+    alignItems="center"
+    justifyContent="space-between"
+    width="100%"
+  >
+    <span>{label}</span>
+    <Token color="var(--global-color-gray-900)" size="S">
+      {apiToken}
+    </Token>
+  </Flex>
+);
+
+type ToolChoiceSelectorProps = {
+  provider: SupportedToolChoiceProvider;
+  /** The current canonical tool choice. */
+  choice: CanonicalToolChoice | null | undefined;
+  /** Callback — always emits canonical form. */
+  onChange: (choice: CanonicalToolChoice) => void;
+  /** User-defined tool names available for SPECIFIC_FUNCTION selection. */
   toolNames: string[];
 };
 
-export function ToolChoiceSelector<
-  T extends keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER,
->({ choice, onChange, toolNames, provider }: ToolChoiceSelectorProps<T>) {
-  const currentChoiceType = findToolChoiceType(provider, choice);
-  const inDefaultToolChoices = isDefaultToolChoice(provider, currentChoiceType);
-  const currentKey = inDefaultToolChoices
-    ? currentChoiceType
-    : addToolNamePrefix(findToolChoiceName(choice) ?? "");
+export function ToolChoiceSelector({
+  choice,
+  onChange,
+  toolNames,
+  provider,
+}: ToolChoiceSelectorProps) {
+  const config = TOOL_CHOICE_CONFIG_BY_PROVIDER[provider];
+  const currentId = canonicalToId(choice);
+
   return (
     <Select
-      value={currentKey}
+      value={currentId}
       aria-label="Tool Choice for an LLM"
-      onChange={(choice) => {
-        if (typeof choice !== "string") {
-          return;
-        }
-        if (choice.startsWith(TOOL_NAME_PREFIX)) {
-          switch (provider) {
-            case "AZURE_OPENAI":
-            case "DEEPSEEK":
-            case "XAI":
-            case "OLLAMA":
-            case "CEREBRAS":
-            case "FIREWORKS":
-            case "GROQ":
-            case "MOONSHOT":
-            case "PERPLEXITY":
-            case "TOGETHER":
-            case "OPENAI":
-              onChange(
-                makeOpenAIToolChoice({
-                  type: "function",
-                  function: {
-                    name: removeToolNamePrefix(choice),
-                  },
-                })
-              );
-              break;
-            case "AWS":
-              onChange(
-                makeAwsToolChoice({
-                  type: "tool",
-                  name: removeToolNamePrefix(choice),
-                })
-              );
-              break;
-            case "ANTHROPIC":
-              onChange(
-                makeAnthropicToolChoice({
-                  type: "tool",
-                  name: removeToolNamePrefix(choice),
-                })
-              );
-              break;
-            case "GOOGLE":
-              onChange(
-                makeGoogleToolChoice({
-                  function_calling_config: {
-                    mode: "any",
-                    allowed_function_names: [removeToolNamePrefix(choice)],
-                  },
-                })
-              );
-              break;
-            default:
-              assertUnreachable(provider);
-          }
-        } else if (isDefaultToolChoice(provider, choice)) {
-          switch (provider) {
-            case "AZURE_OPENAI":
-            case "DEEPSEEK":
-            case "XAI":
-            case "OLLAMA":
-            case "CEREBRAS":
-            case "FIREWORKS":
-            case "GROQ":
-            case "MOONSHOT":
-            case "PERPLEXITY":
-            case "TOGETHER":
-            case "OPENAI":
-              onChange(
-                makeOpenAIToolChoice(
-                  choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["OPENAI"][number]
-                )
-              );
-              break;
-            case "AWS":
-              onChange(
-                makeAwsToolChoice({
-                  type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["AWS"][number],
-                })
-              );
-              break;
-            case "ANTHROPIC":
-              onChange(
-                makeAnthropicToolChoice({
-                  type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["ANTHROPIC"][number],
-                })
-              );
-              break;
-            case "GOOGLE":
-              onChange(
-                makeGoogleToolChoice({
-                  function_calling_config: {
-                    mode: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["GOOGLE"][number],
-                  },
-                })
-              );
-              break;
-            default:
-              assertUnreachable(provider);
-          }
+      onChange={(id) => {
+        if (typeof id === "string") {
+          onChange(idToCanonical(id));
         }
       }}
     >
@@ -381,25 +163,27 @@ export function ToolChoiceSelector<
       </Button>
       <Popover>
         <ListBox>
-          {[
-            ...(DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]
-              ? DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider].map((choice) => (
-                  <SelectItem key={choice} id={choice} textValue={choice}>
-                    <ChoiceLabel choiceType={choice} />
-                  </SelectItem>
-                ))
-              : []),
-            // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
-            ...toolNames.map((toolName) => (
-              <SelectItem
-                key={addToolNamePrefix(toolName)}
-                id={addToolNamePrefix(toolName)}
-                textValue={toolName}
-              >
-                {toolName}
-              </SelectItem>
-            )),
-          ]}
+          <SelectItem id="ZERO_OR_MORE" textValue="auto">
+            <OptionLabel label="Tools auto-selected by LLM" apiToken="auto" />
+          </SelectItem>
+          <SelectItem id="ONE_OR_MORE" textValue={config.oneOrMoreToken}>
+            <OptionLabel
+              label="Use at least one tool"
+              apiToken={config.oneOrMoreToken}
+            />
+          </SelectItem>
+          <SelectItem id="NONE" textValue="none">
+            <OptionLabel label="Don't use any tools" apiToken="none" />
+          </SelectItem>
+          {toolNames.map((toolName) => (
+            <SelectItem
+              key={`${SPECIFIC_FUNCTION_PREFIX}${toolName}`}
+              id={`${SPECIFIC_FUNCTION_PREFIX}${toolName}`}
+              textValue={toolName}
+            >
+              {toolName}
+            </SelectItem>
+          ))}
         </ListBox>
       </Popover>
     </Select>

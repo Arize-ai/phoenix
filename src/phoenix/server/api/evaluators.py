@@ -46,7 +46,6 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTools,
     RoleConversion,
     TextContentPart,
-    denormalize_tools,
     get_raw_invocation_parameters,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
@@ -344,11 +343,7 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     prompt_span.set_status(Status(StatusCode.OK))
 
-                denormalized_tools, denormalized_tool_choice = denormalize_tools(
-                    self._tools, self._model_provider
-                )
                 invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-                invocation_parameters.update(denormalized_tool_choice)
                 # Only pass params the client supports (e.g. Responses API has no temperature)
                 supported_names = {
                     p.invocation_name
@@ -363,7 +358,7 @@ class LLMEvaluator(BaseEvaluator):
 
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
-                    tools=denormalized_tools,
+                    tools=self._tools,
                     tracer=tracer_,
                     invocation_parameters=invocation_parameters,
                 ):

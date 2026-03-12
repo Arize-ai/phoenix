@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<932ad61f6559ee701f7086592ca6e51c>>
+ * @generated SignedSource<<003a17cfe91ed3f9643484f1b729d962>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
+export type PromptToolChoiceType = "NONE" | "ONE_OR_MORE" | "SPECIFIC_FUNCTION" | "ZERO_OR_MORE";
 import { FragmentRefs } from "relay-runtime";
 export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
   readonly customProvider: {
@@ -22,7 +23,12 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
   readonly modelName: string;
   readonly modelProvider: ModelProvider;
   readonly responseFormat: {
-    readonly definition: any;
+    readonly jsonSchema: {
+      readonly description: string | null;
+      readonly name: string;
+      readonly schema: any | null;
+      readonly strict: boolean | null;
+    };
   } | null;
   readonly template: {
     readonly __typename: "PromptChatTemplate";
@@ -62,9 +68,21 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
-  readonly tools: ReadonlyArray<{
-    readonly definition: any;
-  }>;
+  readonly tools: {
+    readonly disableParallelToolCalls: boolean | null;
+    readonly toolChoice: {
+      readonly functionName: string | null;
+      readonly type: PromptToolChoiceType;
+    } | null;
+    readonly tools: ReadonlyArray<{
+      readonly function: {
+        readonly description: string | null;
+        readonly name: string;
+        readonly parameters: any | null;
+        readonly strict: boolean | null;
+      };
+    }>;
+  } | null;
   readonly " $fragmentType": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion";
 };
 export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key = {
@@ -77,6 +95,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "68fb96bcc60939df0dc7e9fbb8238986";
+(node as any).hash = "cccc93bf9101868d1ff7d1b69643490b";
 
 export default node;

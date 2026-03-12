@@ -5,27 +5,64 @@ import {
 } from "../toolCallSchemas";
 import type {
   AnthropicToolDefinition,
+  AwsToolDefinition,
+  GeminiToolDefinition,
   OpenAIToolDefinition,
 } from "../toolSchemas";
-import {
-  createAnthropicToolDefinition,
-  createOpenAIToolDefinition,
-} from "../toolSchemas";
 
-export const getTestAnthropicToolDefinition = (
-  config: Partial<AnthropicToolDefinition> = {}
-): AnthropicToolDefinition =>
-  Object.assign(
-    {
-      ...createAnthropicToolDefinition(1),
-    },
-    config
-  );
+const defaultToolParams = {
+  type: "object" as const,
+  properties: { new_arg: { type: "string" as const } },
+  required: [] as string[],
+};
+
+const testOpenAIToolDefinition: OpenAIToolDefinition = {
+  type: "function",
+  function: {
+    name: "new_function_1",
+    description: "a description",
+    parameters: defaultToolParams,
+  },
+};
+
+const testAnthropicToolDefinition: AnthropicToolDefinition = {
+  name: "new_function_1",
+  description: "a description",
+  input_schema: defaultToolParams,
+};
+
+const testGeminiToolDefinition: GeminiToolDefinition = {
+  name: "new_function_1",
+  description: "a description",
+  parameters: defaultToolParams,
+};
+
+const testAwsToolDefinition: AwsToolDefinition = {
+  toolSpec: {
+    name: "new_function_1",
+    description: "a description",
+    inputSchema: { json: defaultToolParams },
+  },
+};
 
 export const getTestOpenAIToolDefinition = (
   config: Partial<OpenAIToolDefinition> = {}
 ): OpenAIToolDefinition =>
-  Object.assign({ ...createOpenAIToolDefinition(1) }, config);
+  Object.assign({ ...testOpenAIToolDefinition }, config);
+
+export const getTestAnthropicToolDefinition = (
+  config: Partial<AnthropicToolDefinition> = {}
+): AnthropicToolDefinition =>
+  Object.assign({ ...testAnthropicToolDefinition }, config);
+
+export const getTestGeminiToolDefinition = (
+  config: Partial<GeminiToolDefinition> = {}
+): GeminiToolDefinition =>
+  Object.assign({ ...testGeminiToolDefinition }, config);
+
+export const getTestAwsToolDefinition = (
+  config: Partial<AwsToolDefinition> = {}
+): AwsToolDefinition => Object.assign({ ...testAwsToolDefinition }, config);
 
 export const getTestOpenAIToolCall = (
   config: Partial<OpenAIToolCall> = {}
