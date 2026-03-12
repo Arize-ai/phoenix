@@ -88,6 +88,10 @@ px datasets --format raw --no-progress | jq '.[].name'
 px dataset <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
 px experiments --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
 px experiment <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
+px experiment export <id>                             # export JSON to stdout (default)
+px experiment export <id> --format csv                # export CSV to stdout
+px experiment export <id> --format json --output out.json  # write JSON to file
+px experiment export <id> --format csv --output out.csv    # write CSV to file
 px prompts --format raw --no-progress | jq '.[].name'
 px prompt <name> --format text --no-progress   # plain text, ideal for piping to AI
 ```

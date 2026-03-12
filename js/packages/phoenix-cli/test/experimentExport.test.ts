@@ -24,18 +24,14 @@ describe("Experiment Export Command", () => {
 
   it("should have --format option defaulting to json", () => {
     const command = createExperimentExportCommand();
-    const formatOption = command.options.find(
-      (opt) => opt.long === "--format"
-    );
+    const formatOption = command.options.find((opt) => opt.long === "--format");
     expect(formatOption).toBeDefined();
     expect(formatOption?.defaultValue).toBe("json");
   });
 
   it("should have --output option", () => {
     const command = createExperimentExportCommand();
-    const outputOption = command.options.find(
-      (opt) => opt.long === "--output"
-    );
+    const outputOption = command.options.find((opt) => opt.long === "--output");
     expect(outputOption).toBeDefined();
   });
 
