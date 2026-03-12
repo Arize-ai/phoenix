@@ -43,10 +43,10 @@ jobs:
           github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           model: claude-opus-4-6
           prompt: |
-            Read the skill file at .agents/skills/phoenix-release-notes/SKILL.md and follow its instructions.
+            /phoenix-release-notes
 
             If there are no undocumented releases with user-facing changes, exit without making changes.
 
             When done, commit all changes, push the branch, and open a PR via `gh pr create`.
             Title the PR: "docs: Add Phoenix release notes for <date range covered>"
-          claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+          claude_args: '--allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
