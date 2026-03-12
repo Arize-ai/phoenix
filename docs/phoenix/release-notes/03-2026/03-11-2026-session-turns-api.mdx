@@ -144,6 +144,19 @@ March 4, 2026
 
 The Playground now displays evaluation metrics, cost, and latency aggregates in real-time as dataset experiments run. Metrics update incrementally every ~2 seconds, providing immediate feedback on experiment performance without waiting for completion.
 
+# Brute Force Login Protection
+
+March 4, 2026
+
+**Available in arize-phoenix 13.8.0+**
+
+Phoenix now automatically protects login endpoints against brute force attacks. After 5 consecutive failed login attempts within a 5-minute window, the account is temporarily locked for 5 minutes. This applies to both basic auth and LDAP login endpoints.
+
+- **Enabled by default** — no configuration required
+- **Configurable attempt threshold** via `PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS` (default: 5)
+- **Disable if needed** by setting `PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=true`
+- **Automatic recovery** — the lockout resets after the 5-minute window expires, and clears immediately on successful login or password reset
+
 # Unified Dataset Upload with Drag-and-Drop
 
 March 7, 2026
