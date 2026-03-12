@@ -54,6 +54,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
     async def _run_subprocess(self, code: str, timeout: float) -> ExecutionResult:
         """Run code in a Deno subprocess."""
         cmd = self._build_command()
+        proc = None  # Initialize to avoid UnboundLocalError in exception handler
 
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -81,11 +82,12 @@ class DenoSandboxBackend(BaseNoSessionBackend):
 
         except asyncio.TimeoutError:
             # Kill the process if it's still running
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
+            if proc is not None:
+                try:
+                    proc.kill()
+                    await proc.wait()
+                except Exception:
+                    pass
             return ExecutionResult(
                 stdout="",
                 stderr=f"Execution timed out after {timeout}s",
