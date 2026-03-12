@@ -22,18 +22,15 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
 
     steps:
-      - name: Check sender permissions
+      - name: Guard – check permissions and duplicates
         run: |
+          # Verify sender has write access
           PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission" -q '.permission')
           if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
             echo "Sender ${{ github.event.sender.login }} has '$PERMISSION' permission, skipping"
             exit 0
           fi
-          echo "AUTHORIZED=true" >> "$GITHUB_ENV"
 
-      - name: Check if already in progress
-        if: env.AUTHORIZED == 'true'
-        run: |
           # Skip if already assigned
           ASSIGNEES=$(gh issue view "$ISSUE_NUMBER" --json assignees -q '.assignees | length')
           if [ "$ASSIGNEES" -gt 0 ]; then
@@ -41,10 +38,10 @@ jobs:
             exit 0
           fi
 
-          # Skip if there's already a PR for this issue
-          LINKED_PRS=$(gh pr list --search "issue:$ISSUE_NUMBER" --json number -q 'length')
-          if [ "$LINKED_PRS" -gt 0 ]; then
-            echo "PR already exists, skipping"
+          # Skip if a PR already exists for this issue's branch
+          EXISTING=$(gh pr list --head "claude/issue-$ISSUE_NUMBER" --json number -q 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "PR already exists for claude/issue-$ISSUE_NUMBER, skipping"
             exit 0
           fi
 
@@ -54,6 +51,7 @@ jobs:
         if: env.READY == 'true'
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-label "agent-in-progress"
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "github-actions[bot]"
 
       - name: Checkout repository
         if: env.READY == 'true'
@@ -76,10 +74,49 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           prompt: |
-            Read and implement GitHub issue #${{ github.event.issue.number }}.
-            Use `gh issue view ${{ github.event.issue.number }}` to read the issue details.
-            Create commits referencing #${{ github.event.issue.number }}, then push and open a PR with `gh pr create`.
-          claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(make:*)","Bash(gh:*)","Bash(uv:*)","Bash(pnpm:*)"'
+            Implement GitHub issue #${{ github.event.issue.number }} end-to-end. Deliver a complete, merge-ready PR.
+
+            The keywords MUST, MUST NOT, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, and OPTIONAL
+            follow RFC 2119 conventions when they appear in all capitals.
+
+            ## 1. Understand
+            - You MUST run `gh issue view ${{ github.event.issue.number }}` to read the full issue and comments.
+            - You MUST read CLAUDE.md and run `make help` to learn project tooling.
+            - You MUST explore relevant code, patterns, and conventions before writing anything.
+
+            ## 2. Plan
+            - You MUST outline your implementation approach before coding.
+            - You SHOULD identify affected files, tests, and documentation.
+
+            ## 3. Implement
+            - You MUST follow existing codebase patterns and conventions.
+            - You MUST add clear docstrings to new public functions, classes, and modules.
+            - You MUST keep changes focused on the issue.
+            - You MUST create a changeset via `pnpm changeset` if you modify any JS/TS packages under `js/`.
+
+            ## 4. Validate
+            - You MUST run /simplify and fix any issues found.
+            - You MUST run tests, linting, and formatting via `make` targets. All failures MUST be fixed.
+            - You MUST update docs and skills/ files if affected by your changes. Documentation MUST be grounded in real code — verify examples and references against the actual implementation. You MUST NOT hallucinate documentation.
+
+            ## 5. Ship
+            - You MUST commit referencing #${{ github.event.issue.number }}, push, and open a PR via `gh pr create`.
+            - You MUST write a clear PR description covering what changed, why, and how to verify.
+            - You SHOULD include screenshots or examples when applicable.
+
+            ## Acceptance Criteria
+            All REQUIRED items MUST be satisfied before opening the PR. The PR MUST NOT be opened if any item is incomplete.
+            - [ ] REQUIRED: Implementation plan reviewed
+            - [ ] REQUIRED: Code reviewed with /simplify — no issues remaining
+            - [ ] REQUIRED: Tests pass and validate the change
+            - [ ] REQUIRED: Docstrings added to new public APIs
+            - [ ] REQUIRED: Documentation updated and grounded in real code
+            - [ ] REQUIRED: Changeset created (`pnpm changeset`) if JS/TS packages were modified
+            - [ ] RECOMMENDED: Relevant skills updated under skills/ directory
+            - [ ] REQUIRED: Linting and formatting pass
+            - [ ] REQUIRED: PR created with a clear description
+            - [ ] RECOMMENDED: Screenshots or examples included when applicable
+          claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(make:*)","Bash(gh:*)","Bash(uv:*)","Bash(pnpm:*)","Bash(npx:*)"'
 
       - name: Cleanup
         if: always() && env.READY == 'true'
