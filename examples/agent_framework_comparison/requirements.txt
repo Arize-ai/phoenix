@@ -3,9 +3,9 @@ gradio==6.7.0
 python-dotenv==1.0.1
 arize-phoenix>=4.29.0
 
-langchain==0.2.17
-langchain_openai==0.1.25
-langgraph==0.2.39
+langchain>=1.0.0
+langchain-openai>=1.0.0
+langgraph>=1.0.0
 llama_index==0.13.0
 llama_index.llms.openai==0.2.15
 autogen~=0.2
