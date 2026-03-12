@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<79ba978e19e27a415ebd9defade4f941>>
+ * @generated SignedSource<<0696b5aaf67214b81faa9a55792028df>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "VERCEL" | "WASM";
 export type CreateSandboxConfigInput = {
   backendType: SandboxBackendType;
   config?: any | null;

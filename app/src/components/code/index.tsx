@@ -7,5 +7,6 @@ export * from "./PythonEditor";
 export * from "./PythonBlockWithCopy";
 export * from "./CodeWrap";
 export * from "./TypeScriptBlock";
+export * from "./TypeScriptEditor";
 export * from "./CodeEditorFieldWrapper";
 export * from "./CodeLanguageRadioGroup";

@@ -37,10 +37,7 @@ export function CredentialDialog({
 
   const [commitSetCredential, isSettingCredential] =
     useMutation<CredentialDialogSetMutation>(graphql`
-      mutation CredentialDialogSetMutation(
-        $envVarName: String!
-        $value: String!
-      ) {
+      mutation CredentialDialogSetMutation($envVarName: String!, $value: String!) {
         setSandboxCredential(envVarName: $envVarName, value: $value)
       }
     `);

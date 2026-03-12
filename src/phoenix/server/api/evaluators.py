@@ -693,6 +693,22 @@ class CodeEvaluatorRunner(BaseEvaluator):
         )
 
     @staticmethod
+    def _build_typescript_harness(source_code: str, inputs: dict[str, Any]) -> str:
+        # Double-encode JSON to safely embed in a string literal (same pattern as Python harness)
+        inputs_json_escaped = json.dumps(json.dumps(inputs))
+        return (
+            f"const inputs = JSON.parse({inputs_json_escaped});\n"
+            f"{source_code}\n"
+            "try {\n"
+            "    const result = evaluate(inputs);\n"
+            "    console.log(JSON.stringify(result));\n"
+            "} catch (e) {\n"
+            "    console.error(String(e));\n"
+            "    Deno.exit(1);\n"
+            "}\n"
+        )
+
+    @staticmethod
     def _make_error_result(
         name: str,
         error: str,
@@ -781,10 +797,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     template_span.set_attributes(oi.get_output_attributes(inputs))
                     template_span.set_status(Status(StatusCode.OK))
 
-                if self._language == "PYTHON":
-                    harness = self._build_python_harness(self._source_code, inputs)
+                if self._language == "TYPESCRIPT":
+                    harness = self._build_typescript_harness(self._source_code, inputs)
                 else:
-                    raise ValueError(f"Unsupported evaluator language: {self._language!r}")
+                    harness = self._build_python_harness(self._source_code, inputs)
 
                 with tracer_.start_as_current_span(
                     "Sandbox Execution",
@@ -1262,7 +1278,6 @@ async def get_evaluators(
             ]
             from phoenix.server.sandbox import get_or_create_backend
 
-            backend_type = "WASM"
             sandbox_config: dict[str, Any] = {}
             if code_eval.sandbox_config_id is not None:
                 sandbox_instance = await session.get(
@@ -1271,6 +1286,12 @@ async def get_evaluators(
                 if sandbox_instance is not None:
                     backend_type = sandbox_instance.backend_type
                     sandbox_config = sandbox_instance.config or {}
+                else:
+                    # Fallback: infer backend from language for local sandboxes
+                    backend_type = "DENO" if code_eval.language == "TYPESCRIPT" else "WASM"
+            else:
+                # No sandbox config - infer backend from language for local sandboxes
+                backend_type = "DENO" if code_eval.language == "TYPESCRIPT" else "WASM"
             backend = await get_or_create_backend(backend_type, sandbox_config, session, decrypt)
             evaluators.append(
                 CodeEvaluatorRunner(

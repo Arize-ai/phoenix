@@ -38,12 +38,12 @@ describe("extractPythonFunctionParams", () => {
     });
 
     it("strips default values", () => {
-      expect(extractPythonFunctionParams('def evaluate(a=1, b="hello"):')).toEqual(
-        [
-          { name: "a", type: undefined },
-          { name: "b", type: undefined },
-        ]
-      );
+      expect(
+        extractPythonFunctionParams('def evaluate(a=1, b="hello"):')
+      ).toEqual([
+        { name: "a", type: undefined },
+        { name: "b", type: undefined },
+      ]);
     });
 
     it("strips * and ** prefixes", () => {
@@ -134,9 +134,9 @@ describe("extractPythonFunctionParams", () => {
 
   describe("generic subscript types", () => {
     it("extracts List[str] as array", () => {
-      expect(extractPythonFunctionParams("def evaluate(a: List[str]):")).toEqual([
-        { name: "a", type: "array" },
-      ]);
+      expect(
+        extractPythonFunctionParams("def evaluate(a: List[str]):")
+      ).toEqual([{ name: "a", type: "array" }]);
     });
 
     it("extracts Dict[str, int] as object", () => {

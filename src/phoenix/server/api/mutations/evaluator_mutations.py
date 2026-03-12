@@ -105,10 +105,12 @@ async def _resolve_sandbox_config(
 ) -> tuple[Optional[int], Optional[str]]:
     """Resolve sandbox config instance ID and hash from backend type.
 
-    Returns (None, None) for WASM or None backend types (no DB config needed).
-    Raises BadRequest if a non-WASM backend type has no config instance in the DB.
+    Returns (None, None) for local backends (WASM, DENO) or None backend types
+    (no DB config needed). Raises BadRequest if a cloud backend type has no
+    config instance in the DB.
     """
-    if backend_type is None or backend_type == SandboxBackendType.WASM:
+    # Local backends don't require DB configuration
+    if backend_type is None or backend_type in (SandboxBackendType.WASM, SandboxBackendType.DENO):
         return None, None
     instance = await session.scalar(
         select(models.SandboxConfig).where(models.SandboxConfig.backend_type == backend_type.value)

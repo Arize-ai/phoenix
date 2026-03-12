@@ -38,8 +38,7 @@ const useLevenshteinDistanceEvaluatorForm = () => {
 };
 
 export const LevenshteinDistanceEvaluatorForm = () => {
-  const { control, getValues, trigger } =
-    useLevenshteinDistanceEvaluatorForm();
+  const { control, getValues, trigger } = useLevenshteinDistanceEvaluatorForm();
   const store = useEvaluatorStoreInstance();
   const [expectedPath, setExpectedPath] = useState<string>(
     () => getValues("pathMapping.expected") ?? ""
@@ -83,7 +82,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
           description="The expected text."
           defaultMode={expectedDefaultMode}
           control={control}
-
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Expected"
           literalPlaceholder="Enter expected value"
@@ -97,7 +95,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
           description="The actual text to compare."
           defaultMode={actualDefaultMode}
           control={control}
-
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Actual"
           literalPlaceholder="Enter actual value"

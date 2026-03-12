@@ -200,9 +200,13 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       sourceCode:
         evaluator.sourceCode ??
         DEFAULT_USER_CODE_EVALUATOR_STORE_VALUES.sourceCode,
-      language: "PYTHON" as const,
-      sandboxBackendType: evaluator.sandboxBackendType ?? "WASM",
-      savedSandboxBackendType: evaluator.sandboxBackendType ?? "WASM",
+      language: (evaluator.language ?? "PYTHON") as "PYTHON" | "TYPESCRIPT",
+      sandboxBackendType:
+        evaluator.sandboxBackendType ??
+        (evaluator.language === "TYPESCRIPT" ? "DENO" : "WASM"),
+      savedSandboxBackendType:
+        evaluator.sandboxBackendType ??
+        (evaluator.language === "TYPESCRIPT" ? "DENO" : "WASM"),
       outputConfigs,
     } satisfies EvaluatorStoreProps;
   }, [datasetEvaluator, evaluator, datasetId, datasetEvaluatorId]);
@@ -229,8 +233,8 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           inputMapping,
           outputConfigs: buildOutputConfigsInput(outputConfigs),
           description: normalizedDescription,
-          sandboxBackendType: sandboxBackendType as
-            EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation["variables"]["input"]["sandboxBackendType"],
+          sandboxBackendType:
+            sandboxBackendType as EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation["variables"]["input"]["sandboxBackendType"],
         },
       },
       onCompleted: () => {

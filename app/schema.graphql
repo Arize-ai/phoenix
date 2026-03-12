@@ -1959,6 +1959,7 @@ input InlineCodeEvaluatorInput {
   sourceCode: String!
   outputConfigs: [AnnotationConfigInput!]!
   description: String = null
+  language: String! = "PYTHON"
   sandboxBackendType: SandboxBackendType = null
 }
 
@@ -2900,6 +2901,7 @@ enum SandboxBackendType {
   E2B
   VERCEL
   DAYTONA
+  DENO
 }
 
 type SandboxConfig {

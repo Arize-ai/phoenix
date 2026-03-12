@@ -291,16 +291,22 @@ class CodeEvaluator(Evaluator, Node):
     ) -> SandboxBackendType:
         if self.db_record:
             config_id = self.db_record.sandbox_config_id
+            language = self.db_record.language
         else:
             config_id = await info.context.data_loaders.code_evaluator_fields.load(
                 (self.id, models.CodeEvaluator.sandbox_config_id),
             )
+            language = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.language),
+            )
         if config_id is None:
-            return SandboxBackendType.WASM
+            # Infer backend from language for local sandboxes
+            return SandboxBackendType.DENO if language == "TYPESCRIPT" else SandboxBackendType.WASM
         async with info.context.db() as session:
             config = await session.get(models.SandboxConfig, config_id)
         if config is None:
-            return SandboxBackendType.WASM
+            # Fallback: infer from language
+            return SandboxBackendType.DENO if language == "TYPESCRIPT" else SandboxBackendType.WASM
         return SandboxBackendType(config.backend_type)
 
     @strawberry.field

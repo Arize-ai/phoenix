@@ -72,7 +72,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("backend_type"),
         sa.CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
             name="valid_sandbox_backend_type",
         ),
     )
@@ -105,7 +105,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("backend_type", "name"),
         sa.CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
             name="valid_sandbox_instance_backend_type",
         ),
     )

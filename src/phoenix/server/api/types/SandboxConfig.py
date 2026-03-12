@@ -17,6 +17,7 @@ class SandboxBackendType(Enum):
     E2B = "E2B"
     VERCEL = "VERCEL"
     DAYTONA = "DAYTONA"
+    DENO = "DENO"
 
 
 @strawberry.enum

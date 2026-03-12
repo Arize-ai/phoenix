@@ -2325,7 +2325,7 @@ class SandboxAdapter(HasId):
     __tablename__ = "sandbox_adapters"
     backend_type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
             name="valid_sandbox_backend_type",
         ),
         nullable=False,
@@ -2345,7 +2345,7 @@ class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
     backend_type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA')",
+            "backend_type IN ('WASM', 'E2B', 'VERCEL', 'DAYTONA', 'DENO')",
             name="valid_sandbox_instance_backend_type",
         ),
         nullable=False,

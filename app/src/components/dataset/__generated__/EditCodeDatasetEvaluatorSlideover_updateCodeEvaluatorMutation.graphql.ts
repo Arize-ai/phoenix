@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3abe76e70a066b9d3b28fb152c2a223e>>
+ * @generated SignedSource<<ef968b4e88f487111586f9e4c47633a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "VERCEL" | "WASM";
 export type UpdateCodeEvaluatorInput = {
   description?: string | null;
   evaluatorId: string;

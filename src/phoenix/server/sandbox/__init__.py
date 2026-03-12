@@ -97,6 +97,24 @@ SANDBOX_ADAPTER_METADATA: dict[str, SandboxAdapterMeta] = {
             "pip install daytona",
         ],
     ),
+    "DENO": SandboxAdapterMeta(
+        key="DENO",
+        label="Deno (Local)",
+        description="Runs TypeScript evaluators locally using Deno.",
+        python_packages=[],
+        env_vars=[],
+        config_fields=[
+            ConfigFieldSpec(
+                key="permissions",
+                label="Permissions",
+                placeholder="--allow-none",
+                description="Comma-separated Deno permission flags",
+            )
+        ],
+        config_required=False,
+        setup_instructions=["Install Deno: https://deno.land/#installation"],
+        supported_languages=["TYPESCRIPT"],
+    ),
 }
 
 _SANDBOX_ADAPTERS: dict[str, type[SandboxAdapter]] = {}
@@ -222,6 +240,14 @@ try:
 
     register_sandbox_adapter(DaytonaAdapter)
     __all__.append("DaytonaSandboxBackend")
+except ImportError:
+    pass
+
+try:
+    from .deno_backend import DenoAdapter, DenoSandboxBackend  # noqa: F401
+
+    register_sandbox_adapter(DenoAdapter)
+    __all__.append("DenoSandboxBackend")
 except ImportError:
     pass
 

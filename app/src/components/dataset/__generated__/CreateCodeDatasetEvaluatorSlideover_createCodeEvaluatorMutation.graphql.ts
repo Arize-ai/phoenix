@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f85e80931893905b1886c9dc38e51dae>>
+ * @generated SignedSource<<79a8f86cd45f868683dfc51b0737fb66>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxBackendType = "DAYTONA" | "E2B" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "VERCEL" | "WASM";
 export type CreateDatasetCodeEvaluatorInput = {
   datasetId: string;
   description?: string | null;

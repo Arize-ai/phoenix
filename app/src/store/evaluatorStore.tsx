@@ -54,8 +54,8 @@ export type EvaluatorStoreProps = {
   showPromptPreview: boolean;
   /** Source code for user-authored CODE evaluators */
   sourceCode: string;
-  /** Language of the source code (currently only PYTHON) */
-  language: "PYTHON";
+  /** Language of the source code */
+  language: "PYTHON" | "TYPESCRIPT";
   /** Selected sandbox backend type for code evaluators */
   sandboxBackendType: string;
   /** The sandbox backend type the evaluator was last saved with (undefined in create flows) */
@@ -104,6 +104,8 @@ export type EvaluatorStoreActions = {
   setSourceCode: (sourceCode: string) => void;
   /** Sets the sandbox backend type for code evaluators. */
   setSandboxBackendType: (sandboxBackendType: string) => void;
+  /** Sets the language for the evaluator source code. */
+  setLanguage: (language: "PYTHON" | "TYPESCRIPT") => void;
 
   // Multi-output config CRUD actions
   /** Adds a new output config to the array. */
@@ -267,7 +269,69 @@ export const DEFAULT_CODE_SOURCE_GENERIC = `def evaluate(output, input) -> dict:
     return {"score": 0.9, "label": "correct", "explanation": "The output is correct."}
 `;
 
+/**
+ * Per-output-type TypeScript source code templates for CODE evaluators.
+ */
+export const DEFAULT_TS_CODE_SOURCE_SCORE = `function evaluate({ 
+  output,
+  input,
+}: {
+  output: string;
+  input: string;
+}): number {
+    return 0.0;
+}
+`;
+
+export const DEFAULT_TS_CODE_SOURCE_LABEL = `function evaluate({ 
+  output,
+  input,
+}: {
+  output: string;
+  input: string;
+}): string {
+    return "good";
+}
+`;
+
+export const DEFAULT_TS_CODE_SOURCE_LABEL_AND_SCORE = `function evaluate({ 
+  output,
+  input,
+}: {
+  output: string;
+  input: string;
+}): { 
+  label: string; 
+  score: number;
+} {
+    return { 
+      label: "good", 
+      score: 0.8,
+    };
+}
+`;
+
+export const DEFAULT_TS_CODE_SOURCE_GENERIC = `function evaluate({ 
+  output,
+  input,
+}: {
+  output: string;
+  input: string;
+}): { 
+  score: number; 
+  label: string; 
+  explanation: string;
+} {
+    return { 
+      score: 0.9, 
+      label: "correct", 
+      explanation: "The output is correct.",
+    };
+}
+`;
+
 const DEFAULT_USER_CODE_SOURCE = DEFAULT_CODE_SOURCE_GENERIC;
+const DEFAULT_USER_TS_CODE_SOURCE = DEFAULT_TS_CODE_SOURCE_GENERIC;
 
 /**
  * Default values for user-authored CODE evaluators.
@@ -512,6 +576,39 @@ export const createEvaluatorStore = (
           },
           setSandboxBackendType(sandboxBackendType) {
             set({ sandboxBackendType }, undefined, "setSandboxBackendType");
+          },
+          setLanguage(language) {
+            const currentSourceCode = get().sourceCode;
+            const currentLanguage = get().language;
+            // Only update source code if it's still the default template for the current language
+            const isPythonDefault =
+              currentSourceCode === DEFAULT_CODE_SOURCE_GENERIC ||
+              currentSourceCode === DEFAULT_CODE_SOURCE_SCORE ||
+              currentSourceCode === DEFAULT_CODE_SOURCE_LABEL ||
+              currentSourceCode === DEFAULT_CODE_SOURCE_LABEL_AND_SCORE;
+            const isTypeScriptDefault =
+              currentSourceCode === DEFAULT_TS_CODE_SOURCE_GENERIC ||
+              currentSourceCode === DEFAULT_TS_CODE_SOURCE_SCORE ||
+              currentSourceCode === DEFAULT_TS_CODE_SOURCE_LABEL ||
+              currentSourceCode === DEFAULT_TS_CODE_SOURCE_LABEL_AND_SCORE;
+            const isDefaultCode =
+              (currentLanguage === "PYTHON" && isPythonDefault) ||
+              (currentLanguage === "TYPESCRIPT" && isTypeScriptDefault);
+
+            if (isDefaultCode) {
+              // Switch to the default template for the new language
+              const newSourceCode =
+                language === "TYPESCRIPT"
+                  ? DEFAULT_USER_TS_CODE_SOURCE
+                  : DEFAULT_USER_CODE_SOURCE;
+              set(
+                { language, sourceCode: newSourceCode },
+                undefined,
+                "setLanguage"
+              );
+            } else {
+              set({ language }, undefined, "setLanguage");
+            }
           },
           setIncludeExplanation(includeExplanation) {
             set(

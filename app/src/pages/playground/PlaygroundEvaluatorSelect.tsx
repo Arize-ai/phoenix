@@ -19,6 +19,7 @@ import { CreateCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset
 import type { CreateLLMDatasetEvaluatorInitialState } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
+import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import type { EvaluatorKind } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenuContents } from "@phoenix/components/evaluators/AddEvaluatorMenu";
@@ -194,6 +195,16 @@ export function PlaygroundEvaluatorSelect(
           }
         }}
         updateConnectionIds={updateConnectionIds}
+      />
+      <EditCodeDatasetEvaluatorSlideover
+        datasetEvaluatorId={editingEvaluator?.datasetEvaluatorId ?? ""}
+        datasetId={datasetId}
+        isOpen={editingEvaluator !== null && editingEvaluator.kind === "CODE"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingEvaluator(null);
+          }
+        }}
       />
       <CreateBuiltInDatasetEvaluatorSlideover
         evaluatorId={builtinEvaluatorIdToAssociate}

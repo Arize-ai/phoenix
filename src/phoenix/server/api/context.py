@@ -233,6 +233,7 @@ class Context(BaseContext):
     secret: Optional[Secret] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
+
     def get_secret(self) -> Secret:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
 

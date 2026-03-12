@@ -724,11 +724,13 @@ class ChatCompletionMutationMixin:
 
                 from phoenix.server.sandbox import get_or_create_backend
 
-                backend_type_str = (
-                    inline_code_evaluator.sandbox_backend_type.value
-                    if inline_code_evaluator.sandbox_backend_type
-                    else "WASM"
-                )
+                if inline_code_evaluator.sandbox_backend_type:
+                    backend_type_str = inline_code_evaluator.sandbox_backend_type.value
+                else:
+                    # Infer backend from language for local sandboxes
+                    backend_type_str = (
+                        "DENO" if inline_code_evaluator.language == "TYPESCRIPT" else "WASM"
+                    )
                 async with info.context.db() as _sandbox_session:
                     sandbox_backend = await get_or_create_backend(
                         backend_type_str, {}, _sandbox_session, info.context.decrypt
@@ -737,6 +739,7 @@ class ChatCompletionMutationMixin:
                     name=inline_code_evaluator.name,
                     description=inline_code_evaluator.description,
                     source_code=inline_code_evaluator.source_code,
+                    language=inline_code_evaluator.language,
                     stored_input_schema={},
                     stored_output_configs=filtered_configs,
                     sandbox_backend=sandbox_backend,

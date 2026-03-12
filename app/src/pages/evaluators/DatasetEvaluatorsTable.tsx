@@ -22,19 +22,19 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
-import { SandboxMismatchIcon } from "@phoenix/components/evaluators/SandboxMismatchBanner";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { SandboxMismatchIcon } from "@phoenix/components/evaluators/SandboxMismatchBanner";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import { TextCell } from "@phoenix/components/table";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/tooltip";
-import { TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { LineClamp } from "@phoenix/components/utility/LineClamp";
 import { Truncate } from "@phoenix/components/utility/Truncate";

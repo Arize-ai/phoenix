@@ -32,6 +32,7 @@ class InlineCodeEvaluatorInput:
     source_code: str
     output_configs: list[AnnotationConfigInput]
     description: Optional[str] = None
+    language: str = "PYTHON"
     sandbox_backend_type: Optional[SandboxBackendType] = None
 
 

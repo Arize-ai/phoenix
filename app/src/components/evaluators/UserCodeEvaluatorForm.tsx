@@ -1,10 +1,15 @@
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Heading, Text, View } from "@phoenix/components";
-import { CodeEditorFieldWrapper, PythonEditor } from "@phoenix/components/code";
+import {
+  CodeEditorFieldWrapper,
+  PythonEditor,
+  TypeScriptEditor,
+} from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { CodeEvaluatorOutputSection } from "@phoenix/components/evaluators/CodeEvaluatorOutputSection";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { LanguageSelector } from "@phoenix/components/evaluators/LanguageSelector";
 import { SandboxTypeSelector } from "@phoenix/components/evaluators/SandboxTypeSelector";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
@@ -15,14 +20,20 @@ export const UserCodeEvaluatorForm = () => {
     throw new Error("UserCodeEvaluatorForm called for non-CODE evaluator");
   }
   const isSandboxEnabled = useFeatureFlag("sandboxing");
-  const { sourceCode, setSourceCode } = useEvaluatorStore(
+  const { sourceCode, setSourceCode, language } = useEvaluatorStore(
     useShallow((state) => ({
       sourceCode: state.sourceCode,
       setSourceCode: state.setSourceCode,
+      language: state.language,
     }))
   );
   return (
     <>
+      {isSandboxEnabled ? (
+        <View marginBottom="size-200" flex="none">
+          <LanguageSelector />
+        </View>
+      ) : null}
       {isSandboxEnabled ? (
         <View marginBottom="size-200" flex="none">
           <SandboxTypeSelector />
@@ -46,17 +57,27 @@ export const UserCodeEvaluatorForm = () => {
             Evaluator Code
           </Heading>
           <Text color="text-500">
-            Write a Python function that evaluates your task output.
+            {language === "TYPESCRIPT"
+              ? "Write a TypeScript function that evaluates your task output."
+              : "Write a Python function that evaluates your task output."}
           </Text>
         </Flex>
       </View>
       <CodeEditorFieldWrapper label="Source Code">
-        <LazyEditorWrapper preInitializationMinHeight={200}>
-          <PythonEditor
-            value={sourceCode}
-            onChange={setSourceCode}
-            height="200px"
-          />
+        <LazyEditorWrapper preInitializationMinHeight={360}>
+          {language === "TYPESCRIPT" ? (
+            <TypeScriptEditor
+              value={sourceCode}
+              onChange={setSourceCode}
+              height="360px"
+            />
+          ) : (
+            <PythonEditor
+              value={sourceCode}
+              onChange={setSourceCode}
+              height="360px"
+            />
+          )}
         </LazyEditorWrapper>
       </CodeEditorFieldWrapper>
       <Flex direction="column" gap="size-100" marginTop="size-200">

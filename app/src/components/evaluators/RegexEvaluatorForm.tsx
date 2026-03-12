@@ -113,7 +113,6 @@ export const RegexEvaluatorForm = () => {
           description="The text to search."
           defaultMode={textDefaultMode}
           control={control}
-
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Text"
           literalPlaceholder="Enter text value"
