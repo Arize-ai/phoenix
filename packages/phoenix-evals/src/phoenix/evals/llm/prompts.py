@@ -142,31 +142,10 @@ class MustacheFormatter(TemplateFormatter):
         Returns:
             List[str]: A list of unique variable names found in the template.
         """
-        parsed = pystache.parse(template)
-        variables: List[str] = []
-        self._extract_from_parsed(parsed, variables)
-        return list(set(variables))
-
-    def _extract_from_parsed(self, parsed: Any, variables: List[str]) -> None:
-        """Recursively extract variable names from parsed mustache template.
-
-        Args:
-            parsed (Any): The parsed template object.
-            variables (List[str]): List to accumulate variable names in.
-        """
-        try:
-            # ParsedTemplate stores elements in _parse_tree attribute
-            elements = parsed
-            if hasattr(parsed, "_parse_tree"):
-                elements = parsed._parse_tree
-
-            for element in elements:
-                if hasattr(element, "key") and element.key:
-                    variables.append(element.key)
-                elif hasattr(element, "parsed") and element.parsed:
-                    self._extract_from_parsed(element.parsed, variables)
-        except (AttributeError, TypeError):
-            pass
+        # Keep variable extraction aligned with type extraction so dotted paths
+        # like {{user.name}} are represented by their root ("user"), which is
+        # what callers can provide as an input key.
+        return list(self.extract_variables_with_types(template).keys())
 
     def extract_variables_with_types(
         self, template: str
@@ -207,7 +186,12 @@ class MustacheFormatter(TemplateFormatter):
                 key = getattr(node, "key", None)
                 if key and isinstance(key, str):
                     root = key if key == "." else key.split(".")[0]
-                    variables.setdefault(root, "string")
+                    # Dotted lookups (e.g. {{user.name}}) require the root
+                    # object to remain structured so Mustache can traverse it.
+                    if "." in key and key != ".":
+                        variables[root] = "section"
+                    else:
+                        variables.setdefault(root, "string")
         return variables
 
 

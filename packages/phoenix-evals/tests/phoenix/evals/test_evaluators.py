@@ -1931,6 +1931,14 @@ class TestLLMEvaluatorSchemaGeneration:
         assert result.query == "q"  # type: ignore[attr-defined]
         assert result.reference == "r"  # type: ignore[attr-defined]
 
+    def test_dotted_mustache_var_uses_root_object_in_schema(self) -> None:
+        evaluator = self._make_evaluator("User: {{user.name}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        assert set(schema.model_fields.keys()) == {"user"}
+        result = schema.model_validate({"user": {"name": "Alice"}})
+        assert result.user == {"name": "Alice"}  # type: ignore[attr-defined]
+
 
 # ---------------------------------------------------------------------------
 # End-to-end: section var iterates, string var JSON-serialised in prompt
@@ -1976,3 +1984,8 @@ class TestLLMEvaluatorStructuredInputEndToEnd:
         template = "Query: {{query}}"
         rendered = self._render_prompt(template, {"query": "find me"})
         assert rendered == "Query: find me"
+
+    def test_dotted_mustache_var_renders_from_root_object(self) -> None:
+        template = "User: {{user.name}}"
+        rendered = self._render_prompt(template, {"user": {"name": "Alice"}})
+        assert rendered == "User: Alice"

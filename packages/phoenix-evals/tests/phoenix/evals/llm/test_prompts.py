@@ -50,8 +50,8 @@ class TestMustacheFormatterExtractVariablesWithTypes:
     def test_dotted_path_extracts_root_only(self) -> None:
         formatter = MustacheFormatter()
         result = formatter.extract_variables_with_types("{{user.name}} lives in {{user.city}}")
-        # Only the root variable 'user' is returned
-        assert result == {"user": "string"}
+        # Dotted path lookups need root object passthrough
+        assert result == {"user": "section"}
 
     def test_empty_template(self) -> None:
         formatter = MustacheFormatter()
@@ -142,6 +142,10 @@ class TestPromptTemplateVariableTypes:
         vt = pt.variable_types
         assert vt == {"query": "string", "reference": "string"}
 
+    def test_mustache_dotted_lookup_requires_root_object_passthrough(self) -> None:
+        pt = PromptTemplate(template="User: {{user.name}}")
+        assert pt.variable_types == {"user": "section"}
+
     def test_copied_prompt_template_retains_variable_types(self) -> None:
         original = PromptTemplate(template="{{#items}}{{.}}{{/items}} query: {{query}}")
         copied = PromptTemplate(template=original)
@@ -210,6 +214,12 @@ class TestFormatters:
 
         extracted_vars = formatter.extract_variables(template)
         assert set(extracted_vars) == {"environment", "user"}
+
+    def test_mustache_extract_variables_uses_root_for_dotted_paths(self) -> None:
+        formatter = MustacheFormatter()
+        template = "Hello {{user.name}} from {{user.company}}"
+        extracted_vars = formatter.extract_variables(template)
+        assert set(extracted_vars) == {"user"}
 
 
 class TestFormatterFactory:
