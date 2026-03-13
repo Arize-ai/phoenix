@@ -16,12 +16,11 @@ from sqlalchemy import URL, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from typing_extensions import assert_never
 
-from phoenix.config import LoggingMode, get_env_database_schema
+from phoenix.config import get_env_database_schema
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
-from phoenix.settings import Settings
 
 sqlean.extensions.enable("text", "stats")
 
@@ -69,8 +68,9 @@ def get_async_db_url(connection_str: str) -> URL:
 
 def create_engine(
     connection_str: str,
-    migrate: bool = not Settings.disable_migrations,
+    migrate: bool = True,
     log_to_stdout: bool = False,
+    log_migrations: bool = True,
 ) -> AsyncEngine:
     """
     Factory to create a SQLAlchemy engine from a URL string.
@@ -80,24 +80,19 @@ def create_engine(
         raise ValueError("Failed to parse database from connection string")
     backend = SupportedSQLDialect(url.get_backend_name())
     url = get_async_db_url(url.render_as_string(hide_password=False))
-    # If Phoenix is run as an application, we want to pass log_migrations_to_stdout=False
-    # and let the configured sqlalchemy logger handle the migration logs
-    log_migrations_to_stdout = (
-        Settings.log_migrations and Settings.logging_mode != LoggingMode.STRUCTURED
-    )
     if backend is SupportedSQLDialect.SQLITE:
         return aio_sqlite_engine(
             url=url,
             migrate=migrate,
             log_to_stdout=log_to_stdout,
-            log_migrations_to_stdout=log_migrations_to_stdout,
+            log_migrations=log_migrations,
         )
     elif backend is SupportedSQLDialect.POSTGRESQL:
         return aio_postgresql_engine(
             url=url,
             migrate=migrate,
             log_to_stdout=log_to_stdout,
-            log_migrations_to_stdout=log_migrations_to_stdout,
+            log_migrations=log_migrations,
         )
     else:
         assert_never(backend)
@@ -108,7 +103,7 @@ def aio_sqlite_engine(
     migrate: bool = True,
     shared_cache: bool = True,
     log_to_stdout: bool = False,
-    log_migrations_to_stdout: bool = True,
+    log_migrations: bool = True,
 ) -> AsyncEngine:
     database = url.database or ":memory:"
     if database.startswith("file:"):
@@ -145,11 +140,11 @@ def aio_sqlite_engine(
     else:
         sync_engine = sqlalchemy.create_engine(
             url=url.set(drivername="sqlite"),
-            echo=log_migrations_to_stdout,
+            echo=log_migrations,
             json_serializer=_dumps,
             creator=lambda: sqlean.connect(f"file:{database}", uri=True),
         )
-        migrate_in_thread(sync_engine)
+        migrate_in_thread(sync_engine, log_migrations=log_migrations)
     return engine
 
 
@@ -166,7 +161,7 @@ def aio_postgresql_engine(
     url: URL,
     migrate: bool = True,
     log_to_stdout: bool = False,
-    log_migrations_to_stdout: bool = True,
+    log_migrations: bool = True,
 ) -> AsyncEngine:
     from phoenix.config import (
         get_env_postgres_iam_token_lifetime,
@@ -258,7 +253,7 @@ def aio_postgresql_engine(
         sync_engine = sqlalchemy.create_engine(
             url=psycopg_url,
             creator=iam_sync_creator,
-            echo=log_migrations_to_stdout,
+            echo=log_migrations,
             json_serializer=_dumps,
             pool_recycle=token_lifetime,
         )
@@ -266,13 +261,13 @@ def aio_postgresql_engine(
         sync_engine = sqlalchemy.create_engine(
             url=psycopg_url,
             connect_args=psycopg_args,
-            echo=log_migrations_to_stdout,
+            echo=log_migrations,
             json_serializer=_dumps,
         )
 
     if schema := get_env_database_schema():
         event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
-    migrate_in_thread(sync_engine)
+    migrate_in_thread(sync_engine, log_migrations=log_migrations)
     return engine
 
 

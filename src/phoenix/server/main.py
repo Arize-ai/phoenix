@@ -31,6 +31,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_log_migrations,
+    get_env_log_sql,
     get_env_logging_level,
     get_env_logging_mode,
     get_env_management_url,
@@ -51,12 +52,12 @@ from phoenix.config import (
     get_pids_path,
 )
 from phoenix.db import get_printable_db_url
+from phoenix.db.engines import create_engine
 from phoenix.logging import setup_logging
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
     create_app,
-    create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import SimpleEmailSender
@@ -156,35 +157,6 @@ def _resolve_grpc_port(args: Namespace) -> int:
     return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
 
 
-def _run_db_migrate(db_connection_str: str) -> None:
-    """Run database migrations as a standalone operation, then exit.
-
-    Always runs migrations regardless of PHOENIX_DISABLE_MIGRATIONS, and always
-    logs migration output so progress is visible (e.g. in a K8s initContainer).
-    Exits with code 0 on success and 1 on failure.
-    """
-    from phoenix.db.engines import create_engine as create_db_engine
-    from phoenix.exceptions import PhoenixMigrationError
-
-    Settings.disable_migrations = False
-    Settings.log_migrations = True
-
-    try:
-        engine = create_db_engine(
-            connection_str=db_connection_str,
-            migrate=True,
-            log_to_stdout=False,
-        )
-        asyncio.run(engine.dispose())
-        sys.exit(0)
-    except PhoenixMigrationError as e:
-        print(str(e), file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Migration error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
 def main() -> None:
     initialize_settings()
     setup_logging()
@@ -271,7 +243,7 @@ def main() -> None:
     db_subparsers = db_parser.add_subparsers(dest="db_command", required=True, help=SUPPRESS)
     db_subparsers.add_parser(
         "migrate",
-        help="Run database migrations and exit. Suitable for use as a Kubernetes initContainer.",
+        help="Run database migrations and exit.",
     )
 
     args = parser.parse_args()
@@ -281,8 +253,14 @@ def main() -> None:
 
     if args.command == "db":
         if args.db_command == "migrate":
-            _run_db_migrate(db_connection_str)
-        return  # unreachable; subcommand handlers exit
+            engine = create_engine(
+                connection_str=db_connection_str,
+                migrate=True,
+                log_to_stdout=True,
+                log_migrations=True,
+            )
+            asyncio.run(engine.dispose())
+        return
 
     force_fixture_ingestion = False
     scaffold_datasets = False
@@ -337,7 +315,12 @@ def main() -> None:
 
         start_prometheus()
 
-    engine = create_engine_and_run_migrations(db_connection_str)
+    engine = create_engine(
+        connection_str=db_connection_str,
+        migrate=not Settings.disable_migrations,
+        log_to_stdout=get_env_log_sql(),
+        log_migrations=Settings.log_migrations,
+    )
     shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
     shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
     # Ensure engine is disposed on shutdown to properly close database connections

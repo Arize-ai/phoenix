@@ -26,14 +26,15 @@ from phoenix.config import (
     get_env_database_connection_str,
     get_env_host,
     get_env_host_root_path,
+    get_env_log_sql,
     get_env_port,
     get_working_dir,
 )
 from phoenix.db import get_printable_db_url
+from phoenix.db.engines import create_engine
 from phoenix.server.app import (
     _db,
     create_app,
-    create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
 from phoenix.server.thread_server import ThreadServer
@@ -42,6 +43,7 @@ from phoenix.services import AppService
 from phoenix.session.client import Client
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
+from phoenix.settings import Settings
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
@@ -300,7 +302,12 @@ class ThreadSession(Session):
             notebook_env=notebook_env,
         )
         # Initialize an app service that keeps the server running
-        engine = create_engine_and_run_migrations(database_url)
+        engine = create_engine(
+            connection_str=database_url,
+            migrate=not Settings.disable_migrations,
+            log_to_stdout=get_env_log_sql(),
+            log_migrations=notebook_env is None,
+        )
         shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
         shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
         # Ensure engine is disposed on shutdown to properly close database connections

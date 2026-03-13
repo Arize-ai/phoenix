@@ -1,6 +1,4 @@
-import codecs
 import logging
-import sys
 from pathlib import Path
 from queue import Empty, SimpleQueue
 from threading import Thread
@@ -12,22 +10,34 @@ from alembic.config import Config
 from sqlalchemy import Engine
 
 from phoenix.exceptions import PhoenixMigrationError
-from phoenix.settings import Settings
+from phoenix.utilities import no_emojis_on_windows
 
 logger = logging.getLogger(__name__)
+
+
+_MIGRATION_FAILURE_MESSAGE = no_emojis_on_windows(
+    "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
+    "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
+    "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
+    "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
+    "then try starting Phoenix again.\n\n"
+    "If issues persist, please reach out for support in the Arize community Slack:\n"
+    "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g\n\n"
+    "You can also refer to the Alembic documentation for more information:\n"
+    "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
+)
 
 
 def printif(condition: bool, text: str) -> None:
     if not condition:
         return
-    if sys.platform.startswith("win"):
-        text = codecs.encode(text, "ascii", errors="ignore").decode("ascii").strip()
-    print(text)
+    print(no_emojis_on_windows(text), flush=True)
 
 
 def migrate(
     engine: Engine,
     error_queue: Optional["SimpleQueue[BaseException]"] = None,
+    log_migrations: bool = True,
 ) -> None:
     """
     Runs migrations on the database.
@@ -37,7 +47,6 @@ def migrate(
         url: The database URL.
     """
     try:
-        log_migrations = Settings.log_migrations
         printif(log_migrations, "🏃‍♀️‍➡️ Running migrations on the database.")
         printif(log_migrations, "---------------------------")
         config_path = str(Path(__file__).parent.resolve() / "alembic.ini")
@@ -59,17 +68,18 @@ def migrate(
     except BaseException as e:
         if error_queue:
             error_queue.put(e)
-            raise e
+            return
+        raise
 
 
-def migrate_in_thread(engine: Engine) -> None:
+def migrate_in_thread(engine: Engine, log_migrations: bool = True) -> None:
     """
     Runs migrations on the database in a separate thread.
     This is needed because depending on the context (notebook)
     the migration process can fail to execute in the main thread.
     """
     error_queue: SimpleQueue[BaseException] = SimpleQueue()
-    t = Thread(target=migrate, args=(engine, error_queue))
+    t = Thread(target=migrate, args=(engine, error_queue, log_migrations))
     t.start()
     t.join()
 
@@ -79,8 +89,4 @@ def migrate_in_thread(engine: Engine) -> None:
         return
 
     if result is not None:
-        error_message = (
-            "\n\nUnable to migrate configured Phoenix DB. Original error:\n"
-            f"{type(result).__name__}: {str(result)}"
-        )
-        raise PhoenixMigrationError(error_message) from result
+        raise PhoenixMigrationError(_MIGRATION_FAILURE_MESSAGE) from result
