@@ -7,8 +7,9 @@ header or by calling ``GET /arize_phoenix_version``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
+from phoenix.client.types.semver import SemanticVersion
 from phoenix.client.types.server_requirements import FeatureRequirement
 from phoenix.client.utils.semver_utils import format_version, satisfies_min_version
 
@@ -19,6 +20,25 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Guards
 # ---------------------------------------------------------------------------
+
+
+def _check_version(
+    server_version: Optional[SemanticVersion],
+    requirement: FeatureRequirement,
+) -> None:
+    """Raise if *server_version* does not satisfy *requirement*."""
+    if server_version is None or not satisfies_min_version(
+        server_version, requirement.min_server_version
+    ):
+        from phoenix.client.exceptions import PhoenixException
+
+        required = format_version(requirement.min_server_version)
+        actual = format_version(server_version) if server_version is not None else "unknown"
+        raise PhoenixException(
+            f"{requirement.feature} requires Phoenix >= {required}, "
+            f"but connected to server {actual}. "
+            "Please upgrade your Phoenix server."
+        )
 
 
 def ensure_server_feature(
@@ -32,19 +52,7 @@ def ensure_server_feature(
     server is too old or if the version cannot be determined.
     """
     client.fetch_server_version()
-    server_version = client.server_version
-    if server_version is None or not satisfies_min_version(
-        server_version, requirement.min_server_version
-    ):
-        from phoenix.client.exceptions import PhoenixException
-
-        required = format_version(requirement.min_server_version)
-        actual = format_version(server_version) if server_version is not None else "unknown"
-        raise PhoenixException(
-            f"{requirement.feature} requires Phoenix >= {required}, "
-            f"but connected to server {actual}. "
-            "Please upgrade your Phoenix server."
-        )
+    _check_version(client.server_version, requirement)
 
 
 async def async_ensure_server_feature(
@@ -53,16 +61,4 @@ async def async_ensure_server_feature(
 ) -> None:
     """Async version of :func:`ensure_server_feature`."""
     await client.async_fetch_server_version()
-    server_version = client.server_version
-    if server_version is None or not satisfies_min_version(
-        server_version, requirement.min_server_version
-    ):
-        from phoenix.client.exceptions import PhoenixException
-
-        required = format_version(requirement.min_server_version)
-        actual = format_version(server_version) if server_version is not None else "unknown"
-        raise PhoenixException(
-            f"{requirement.feature} requires Phoenix >= {required}, "
-            f"but connected to server {actual}. "
-            "Please upgrade your Phoenix server."
-        )
+    _check_version(client.server_version, requirement)
