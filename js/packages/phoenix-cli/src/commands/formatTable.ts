@@ -36,12 +36,9 @@ export function formatTable(rows: Record<string, unknown>[]): string {
     stringRows.reduce((max, row) => Math.max(max, row[i]!.length), h.length)
   );
 
-  const top =
-    "┌" + colWidths.map((w) => "─".repeat(w + 2)).join("┬") + "┐";
-  const mid =
-    "├" + colWidths.map((w) => "─".repeat(w + 2)).join("┼") + "┤";
-  const bot =
-    "└" + colWidths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
+  const top = "┌" + colWidths.map((w) => "─".repeat(w + 2)).join("┬") + "┐";
+  const mid = "├" + colWidths.map((w) => "─".repeat(w + 2)).join("┼") + "┤";
+  const bot = "└" + colWidths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
 
   const headerRow =
     "│" +
