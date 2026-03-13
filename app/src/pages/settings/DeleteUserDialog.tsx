@@ -1,7 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { type DataID, graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -13,7 +14,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function DeleteUserDialog({
@@ -39,7 +40,7 @@ export function DeleteUserDialog({
   `);
 
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const handleDelete = useCallback(() => {
     commit({
@@ -59,16 +60,12 @@ export function DeleteUserDialog({
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "Failed to delete user",
-          message: formattedError?.[0] ?? error.message,
-        });
+        setError(formattedError?.[0] ?? error.message);
       },
     });
   }, [
     commit,
     connectionIds,
-    notifyError,
     notifySuccess,
     onClose,
     onDeleted,
@@ -84,6 +81,7 @@ export function DeleteUserDialog({
             <DialogCloseButton onPress={onClose} slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
+        {error && <Alert variant="danger">{error}</Alert>}
         <View padding="size-200">
           <Text color="danger">
             {`Are you sure you want to delete this user? This action cannot be undone.`}

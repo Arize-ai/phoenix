@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Card,
   FieldError,
@@ -17,7 +18,7 @@ import {
   View,
 } from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import type { ViewerProfileCardMutation } from "./__generated__/ViewerProfileCardMutation.graphql";
@@ -27,7 +28,7 @@ type EditProfileFormParams = {
 };
 export function ViewerProfileCard() {
   const { viewer, refetchViewer } = useViewer();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
   const [commit, isCommitting] = useMutation<ViewerProfileCardMutation>(graphql`
     mutation ViewerProfileCardMutation($input: PatchViewerInput!) {
@@ -64,14 +65,11 @@ export function ViewerProfileCard() {
           refetchViewer();
         },
         onError: (error) => {
-          notifyError({
-            title: "Failed update profile",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     },
-    [commit, notifySuccess, reset, refetchViewer, notifyError]
+    [commit, notifySuccess, reset, refetchViewer]
   );
   if (!viewer) {
     return null;
@@ -87,6 +85,7 @@ export function ViewerProfileCard() {
         )
       }
     >
+      {error && <Alert variant="danger">{error}</Alert>}
       <View paddingTop="size-200" paddingStart="size-200" paddingEnd="size-200">
         <Flex direction="row" gap="size-200" alignItems="center">
           <UserPicture

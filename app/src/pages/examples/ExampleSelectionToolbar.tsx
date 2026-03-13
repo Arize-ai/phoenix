@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   Flex,
@@ -24,7 +25,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { AssignExamplesToSplitMenu } from "@phoenix/pages/examples/AssignExamplesToSplitMenu";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
@@ -59,7 +60,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
   const [isDeleteConfirmationDialogOpen, setIsDeleteConfirmationDialogOpen] =
     useState(false);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [deleteExamples, isDeletingExamples] = useMutation(graphql`
     mutation ExampleSelectionToolbarDeleteExamplesMutation(
@@ -88,15 +89,15 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         // Clear the selection
         onExamplesDeleted();
         onClearSelection();
+        setIsDeleteConfirmationDialogOpen(false);
         // Notify the dataset store to refresh the latest version
         refreshLatestVersion();
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "An error occurred",
-          message: `Failed to delete examples: ${formattedError?.[0] ?? error.message}`,
-        });
+        setDeleteError(
+          `Failed to delete examples: ${formattedError?.[0] ?? error.message}`
+        );
       },
     });
   }, [
@@ -107,7 +108,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     onExamplesDeleted,
     onClearSelection,
     refreshLatestVersion,
-    notifyError,
   ]);
 
   const selectedExampleIds = selectedExamples.map((example) => example.id);
@@ -159,9 +159,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
       <ModalOverlay
         isOpen={isDeleteConfirmationDialogOpen}
         onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setIsDeleteConfirmationDialogOpen(false);
-          }
+          if (isOpen) setDeleteError(null);
+          setIsDeleteConfirmationDialogOpen(isOpen);
         }}
         isDismissable
       >
@@ -179,6 +178,9 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                   Are you sure you want to delete {selectedExamples.length}{" "}
                   example{isPlural ? "s" : ""}?
                 </Text>
+                {deleteError && (
+                  <Alert variant="danger">{deleteError}</Alert>
+                )}
               </View>
               <View
                 paddingEnd="size-200"
@@ -197,10 +199,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                   <Button
                     variant="danger"
                     size="S"
-                    onPress={() => {
-                      onDeleteExamples();
-                      setIsDeleteConfirmationDialogOpen(false);
-                    }}
+                    onPress={onDeleteExamples}
                   >
                     Delete
                   </Button>

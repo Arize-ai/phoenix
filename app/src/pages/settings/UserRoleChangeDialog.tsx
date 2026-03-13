@@ -1,7 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Button, Dialog, Flex, Text, View } from "@phoenix/components";
+import { Alert, Button, Dialog, Flex, Text, View } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { normalizeUserRole } from "@phoenix/constants";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type {
   UserRoleChangeDialogMutation,
@@ -47,7 +47,7 @@ export function UserRoleChangeDialog({
   );
 
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = useCallback(() => {
     commit({
@@ -65,13 +65,10 @@ export function UserRoleChangeDialog({
         onClose();
       },
       onError: (error) => {
-        notifyError({
-          title: "Failed to delete user",
-          message: error.message,
-        });
+        setError(error.message);
       },
     });
-  }, [commit, newRole, notifyError, notifySuccess, onClose, userId]);
+  }, [commit, newRole, notifySuccess, onClose, userId]);
   return (
     <Dialog>
       <DialogContent>
@@ -81,6 +78,7 @@ export function UserRoleChangeDialog({
             <DialogCloseButton onPress={onClose} slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
+        {error && <Alert variant="danger">{error}</Alert>}
         <View padding="size-200">
           <Text>
             {`Are you sure you want to change the role for ${username} from `}{" "}

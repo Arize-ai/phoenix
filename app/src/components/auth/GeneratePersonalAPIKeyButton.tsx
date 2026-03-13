@@ -1,7 +1,6 @@
 import { graphql, useMutation } from "react-relay";
 
 import { Button } from "@phoenix/components";
-import { useNotifyError } from "@phoenix/contexts";
 
 import type { GeneratePersonalAPIKeyButtonMutation } from "./__generated__/GeneratePersonalAPIKeyButtonMutation.graphql";
 
@@ -16,6 +15,7 @@ type GeneratePersonalAPIKeyButtonProps = {
    * @default "Personal Key"
    */
   keyName?: string;
+  onError?: (message: string) => void;
 };
 
 /**
@@ -25,8 +25,8 @@ type GeneratePersonalAPIKeyButtonProps = {
 export function GeneratePersonalAPIKeyButton({
   onApiKeyGenerated,
   keyName = "Personal Key",
+  onError,
 }: GeneratePersonalAPIKeyButtonProps) {
-  const notifyError = useNotifyError();
 
   const [commit, isCommitting] =
     useMutation<GeneratePersonalAPIKeyButtonMutation>(graphql`
@@ -51,10 +51,7 @@ export function GeneratePersonalAPIKeyButton({
         onApiKeyGenerated(response.createUserApiKey.jwt);
       },
       onError: (error) => {
-        notifyError({
-          title: "Error creating personal key",
-          message: error.message,
-        });
+        onError?.(error.message);
       },
     });
   };

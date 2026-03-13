@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -19,7 +20,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";
 
@@ -37,8 +38,8 @@ export function ResetPasswordDialog({
   userId: string;
   onClose: () => void;
 }) {
-  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
+  const [error, setError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<ResetPasswordDialogMutation>(
     graphql`
       mutation ResetPasswordDialogMutation($input: PatchUserInput!) {
@@ -76,14 +77,11 @@ export function ResetPasswordDialog({
           onClose();
         },
         onError: (error) => {
-          notifyError({
-            title: "Failed to reset password",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     },
-    [commit, notifyError, notifySuccess, onClose, userId]
+    [commit, notifySuccess, onClose, userId]
   );
 
   return (
@@ -95,6 +93,7 @@ export function ResetPasswordDialog({
             <DialogCloseButton onPress={onClose} slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
+        {error && <Alert variant="danger">{error}</Alert>}
         <Form>
           <View padding="size-200">
             <Flex direction="column" gap="size-100">

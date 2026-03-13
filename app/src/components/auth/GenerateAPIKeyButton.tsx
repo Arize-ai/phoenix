@@ -17,6 +17,7 @@ type GenerateAPIKeyButtonProps = {
    * @default "System Key" for admins, "Personal Key" for members
    */
   keyName?: string;
+  onError?: (message: string) => void;
 };
 
 /**
@@ -28,6 +29,7 @@ type GenerateAPIKeyButtonProps = {
 export function GenerateAPIKeyButton({
   onApiKeyGenerated,
   keyName,
+  onError,
 }: GenerateAPIKeyButtonProps) {
   const { viewer } = useViewer();
 
@@ -48,6 +50,7 @@ export function GenerateAPIKeyButton({
       <GenerateSystemAPIKeyButton
         onApiKeyGenerated={onApiKeyGenerated}
         keyName={keyName}
+        onError={onError}
       />
     );
   }
@@ -56,6 +59,7 @@ export function GenerateAPIKeyButton({
     <GeneratePersonalAPIKeyButton
       onApiKeyGenerated={onApiKeyGenerated}
       keyName={keyName}
+      onError={onError}
     />
   );
 }

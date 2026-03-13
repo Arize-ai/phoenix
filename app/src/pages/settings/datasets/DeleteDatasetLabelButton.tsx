@@ -3,6 +3,7 @@ import { ModalOverlay } from "react-aria-components";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -18,7 +19,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { DeleteDatasetLabelButtonMutation } from "./__generated__/DeleteDatasetLabelButtonMutation.graphql";
 
@@ -29,8 +30,8 @@ export type DeleteDatasetLabelButtonProps = {
 export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
   const { datasetLabelId } = props;
   const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const [deleteLabel, isDeleting] =
     useMutation<DeleteDatasetLabelButtonMutation>(graphql`
       mutation DeleteDatasetLabelButtonMutation(
@@ -64,6 +65,7 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
               </DialogHeader>
               <DialogContent>
                 <View padding="size-200">
+                  {error && <Alert variant="danger">{error}</Alert>}
                   <Text color="danger">
                     Are you sure you want to delete this label? It will be
                     removed from all datasets if you do so.
@@ -93,11 +95,9 @@ export function DeleteDatasetLabelButton(props: DeleteDatasetLabelButtonProps) {
                               setIsOpen(false);
                             },
                             onError: () => {
-                              notifyError({
-                                title: "Failed to delete label",
-                                message:
-                                  "Failed to delete dataset label. Please try again.",
-                              });
+                              setError(
+                                "Failed to delete dataset label. Please try again."
+                              );
                             },
                           });
                         }}

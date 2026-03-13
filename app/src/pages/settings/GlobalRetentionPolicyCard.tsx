@@ -1,9 +1,10 @@
 import { css } from "@emotion/react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Card,
   FieldError,
@@ -16,13 +17,13 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import type { GlobalRetentionPolicyCardMutation } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardMutation.graphql";
 import type { GlobalRetentionPolicyCardQuery } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardQuery.graphql";
 
 export const GlobalRetentionPolicyCard = () => {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const data = useLazyLoadQuery<GlobalRetentionPolicyCardQuery>(
     graphql`
       query GlobalRetentionPolicyCardQuery {
@@ -119,18 +120,16 @@ export const GlobalRetentionPolicyCard = () => {
           }
         },
         onError: () => {
-          notifyError({
-            title: "Failed to update default retention policy",
-            expireMs: 5000,
-          });
+          setError("Failed to update default retention policy");
         },
       });
     },
-    [id, notifyError, notifySuccess, updateGlobalRetentionPolicy, reset]
+    [id, notifySuccess, updateGlobalRetentionPolicy, reset]
   );
 
   return (
     <Card title="Default Project Retention Policy">
+      {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
         <Flex direction="row" gap="size-200" justifyContent="space-between">
           <View paddingTop="size-100">

@@ -3,6 +3,7 @@ import { ModalOverlay } from "react-aria-components";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -18,7 +19,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { DeletePromptLabelButtonMutation } from "./__generated__/DeletePromptLabelButtonMutation.graphql";
 
@@ -29,8 +30,8 @@ export type DeletePromptLabelButtonProps = {
 export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
   const { promptLabelId } = props;
   const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const [deleteLabel, isDeleting] =
     useMutation<DeletePromptLabelButtonMutation>(graphql`
       mutation DeletePromptLabelButtonMutation(
@@ -62,6 +63,7 @@ export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
               </DialogHeader>
               <DialogContent>
                 <View padding="size-200">
+                  {error && <Alert variant="danger">{error}</Alert>}
                   <Text color="danger">
                     Are you sure you want to delete this label? It will be
                     removed from all prompts if you do so.
@@ -95,10 +97,7 @@ export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
                               setIsOpen(false);
                             },
                             onError: () => {
-                              notifyError({
-                                title: "Failed to delete prompt label",
-                                message: "Please try again",
-                              });
+                              setError("Please try again");
                             },
                           });
                         }}

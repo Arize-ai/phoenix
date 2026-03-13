@@ -22,6 +22,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
+  Alert,
   CopyToClipboardButton,
   Flex,
   Icon,
@@ -42,11 +43,7 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import {
-  useNotifyError,
-  useNotifySuccess,
-  useViewerCanModify,
-} from "@phoenix/contexts";
+import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -88,8 +85,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       DatasetsTableDatasetsQuery,
@@ -334,10 +331,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 onDatasetEditError={(error) => {
                   const formattedError =
                     getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset update failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
+                  setError(formattedError?.[0] ?? error.message);
                 }}
                 onDatasetDelete={() => {
                   notifySuccess({
@@ -363,10 +357,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 onDatasetDeleteError={(error) => {
                   const formattedError =
                     getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset deletion failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
+                  setError(formattedError?.[0] ?? error.message);
                 }}
               />
             </Flex>
@@ -375,7 +366,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
       });
     }
     return cols;
-  }, [filter, labelFilter, notifyError, notifySuccess, refetch, canModify]);
+  }, [filter, labelFilter, notifySuccess, refetch, canModify]);
 
   const table = useReactTable({
     columns,
@@ -446,135 +437,142 @@ export function DatasetsTable(props: DatasetsTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
 
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
-    >
-      <table
-        data-testid="datasets-table"
-        css={selectableTableCSS}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        ref={tableContainerRef}
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const sortDir = header.column.getIsSorted();
+        <table
+          data-testid="datasets-table"
+          css={selectableTableCSS}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const sortDir = header.column.getIsSorted();
+                  return (
+                    <th
+                      colSpan={header.colSpan}
+                      key={header.id}
+                      aria-sort={
+                        sortDir === "asc"
+                          ? "ascending"
+                          : sortDir === "desc"
+                            ? "descending"
+                            : header.column.getCanSort()
+                              ? "none"
+                              : undefined
+                      }
+                      style={{
+                        width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                        ...getCommonPinningStyles(header.column),
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "sort"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                              style: {
+                                textAlign:
+                                  header.column.columnDef.meta?.textAlign,
+                              },
+                            }}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {header.column.getIsSorted() ? (
+                              <Icon
+                                className="sort-icon"
+                                svg={
+                                  header.column.getIsSorted() === "asc" ? (
+                                    <Icons.ArrowUpFilled />
+                                  ) : (
+                                    <Icons.ArrowDownFilled />
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmptyWrap>
+              <DatasetsEmpty />
+            </TableEmptyWrap>
+          ) : (
+            <tbody>
+              {rows.map((row) => {
                 return (
-                  <th
-                    colSpan={header.colSpan}
-                    key={header.id}
-                    aria-sort={
-                      sortDir === "asc"
-                        ? "ascending"
-                        : sortDir === "desc"
-                          ? "descending"
-                          : header.column.getCanSort()
-                            ? "none"
-                            : undefined
-                    }
-                    style={{
-                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
-                      ...getCommonPinningStyles(header.column),
+                  <tr
+                    key={row.id}
+                    onClick={() => {
+                      const hasExperiments = row.original.experimentCount > 0;
+                      const to = hasExperiments
+                        ? `${row.original.id}/experiments`
+                        : `${row.original.id}/examples`;
+                      navigate(to);
                     }}
                   >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              textAlign:
-                                header.column.columnDef.meta?.textAlign,
-                            },
+                    {row.getVisibleCells().map((cell) => {
+                      const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+                      return (
+                        <td
+                          key={cell.id}
+                          align={cell.column.columnDef.meta?.textAlign}
+                          style={{
+                            width: `calc(var(${colSizeVar}) * 1px)`,
+                            maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                            ...getCommonPinningStyles(cell.column),
                           }}
                         >
                           {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.ArrowUpFilled />
-                                ) : (
-                                  <Icons.ArrowDownFilled />
-                                )
-                              }
-                            />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmptyWrap>
-            <DatasetsEmpty />
-          </TableEmptyWrap>
-        ) : (
-          <tbody>
-            {rows.map((row) => {
-              return (
-                <tr
-                  key={row.id}
-                  onClick={() => {
-                    const hasExperiments = row.original.experimentCount > 0;
-                    const to = hasExperiments
-                      ? `${row.original.id}/experiments`
-                      : `${row.original.id}/examples`;
-                    navigate(to);
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
-                    return (
-                      <td
-                        key={cell.id}
-                        align={cell.column.columnDef.meta?.textAlign}
-                        style={{
-                          width: `calc(var(${colSizeVar}) * 1px)`,
-                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                          ...getCommonPinningStyles(cell.column),
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        )}
-      </table>
-    </div>
+            </tbody>
+          )}
+        </table>
+      </div>
+    </>
   );
 }

@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { Alert } from "@phoenix/components";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ManualProjectGuideCreateProjectMutation } from "./__generated__/ManualProjectGuideCreateProjectMutation.graphql";
 import type { ProjectFormParams } from "./ProjectForm";
@@ -14,8 +15,8 @@ export function ManualProjectGuide({
   refetchProjects: () => void;
 }) {
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const [commit, isCommitting] =
     useMutation<ManualProjectGuideCreateProjectMutation>(graphql`
@@ -64,22 +65,23 @@ export function ManualProjectGuide({
           navigate(`/projects/${createdProject.id}`);
         },
         onError: () => {
-          notifyError({
-            title: "Failed to create project",
-            message:
-              "This is likely due to a naming conflict. Please try a different name.",
-          });
+          setError(
+            "This is likely due to a naming conflict. Please try a different name."
+          );
         },
       });
     },
-    [commit, notifySuccess, notifyError, navigate, refetchProjects]
+    [commit, notifySuccess, navigate, refetchProjects]
   );
 
   return (
-    <ProjectForm
-      onSubmit={onSubmit}
-      isSubmitting={isCommitting}
-      submitButtonText={isCommitting ? "Creating..." : "Create Project"}
-    />
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <ProjectForm
+        onSubmit={onSubmit}
+        isSubmitting={isCommitting}
+        submitButtonText={isCommitting ? "Creating..." : "Create Project"}
+      />
+    </>
   );
 }

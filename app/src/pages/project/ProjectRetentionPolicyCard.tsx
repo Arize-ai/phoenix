@@ -1,10 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
-import { Card, Flex, Link, Text, View } from "@phoenix/components";
+import { Alert, Card, Flex, Link, Text, View } from "@phoenix/components";
 import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
 import {
-  useNotifyError,
   useNotifySuccess,
   useViewerCanManageRetentionPolicy,
 } from "@phoenix/contexts";
@@ -25,8 +24,8 @@ export const ProjectRetentionPolicyCard = ({
   query: ProjectRetentionPolicyCard_query$key;
 }) => {
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const queryKey = useFragment(
     graphql`
@@ -105,16 +104,14 @@ export const ProjectRetentionPolicyCard = ({
         });
       },
       onError: () => {
-        notifyError({
-          title: "Failed to update retention policy",
-          message: "Please try again.",
-        });
+        setError("Please try again.");
       },
     });
   };
 
   return (
     <Card title="Data Retention">
+      {error && <Alert variant="danger">{error}</Alert>}
       <View paddingX="size-200" paddingY="size-100">
         <Flex direction="row" gap="size-400" alignItems="center">
           <section>

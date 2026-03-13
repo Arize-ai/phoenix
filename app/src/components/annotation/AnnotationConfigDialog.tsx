@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import {
+  Alert,
   Button,
   Card,
   Dialog,
@@ -21,7 +22,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import type {
   AnnotationConfig,
   AnnotationConfigCategorical,
@@ -58,7 +59,7 @@ export const AnnotationConfigDialog = ({
   ) => void;
   initialAnnotationConfig?: Partial<AnnotationConfig>;
 }) => {
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
   const mode: "new" | "edit" = initialAnnotationConfig ? "edit" : "new";
   const { control, handleSubmit } = useForm<AnnotationConfig>({
@@ -91,13 +92,7 @@ export const AnnotationConfigDialog = ({
       close();
     };
     const onError = (error: string) => {
-      notifyError({
-        title:
-          mode === "new"
-            ? "Failed to create annotation config"
-            : "Failed to update annotation config",
-        message: error,
-      });
+      setError(error);
     };
     switch (data.annotationType) {
       case "CATEGORICAL": {
@@ -427,6 +422,11 @@ export const AnnotationConfigDialog = ({
                 )}
               </Flex>
             </View>
+            {error && (
+              <View paddingX="size-200" paddingBottom="size-100">
+                <Alert variant="danger">{error}</Alert>
+              </View>
+            )}
             <View
               paddingX="size-200"
               paddingY="size-200"

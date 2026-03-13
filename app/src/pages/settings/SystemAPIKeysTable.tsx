@@ -4,16 +4,16 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { startTransition, useCallback, useMemo } from "react";
+import { startTransition, useCallback, useMemo, useState } from "react";
 import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { Alert, Flex, Icon, Icons } from "@phoenix/components";
 import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
@@ -47,7 +47,7 @@ export function SystemAPIKeysTable({
     query
   );
 
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
     mutation SystemAPIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
@@ -81,14 +81,11 @@ export function SystemAPIKeysTable({
         },
         onError: (error) => {
           const formattedError = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Error deleting system key",
-            message: formattedError?.[0] ?? error.message,
-          });
+          setError(formattedError?.[0] ?? error.message);
         },
       });
     },
-    [commit, notifyError, notifySuccess, refetch]
+    [commit, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
@@ -148,7 +145,9 @@ export function SystemAPIKeysTable({
   const rows = table.getRowModel().rows;
   const isEmpty = table.getRowModel().rows.length === 0;
   return (
-    <table css={tableCSS}>
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <table css={tableCSS}>
       <thead>
         {table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
@@ -211,5 +210,6 @@ export function SystemAPIKeysTable({
         </tbody>
       )}
     </table>
+    </>
   );
 }

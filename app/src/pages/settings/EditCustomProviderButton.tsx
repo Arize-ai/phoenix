@@ -25,7 +25,7 @@ import {
   ModalOverlay,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { EditCustomProviderButtonPatchMutation } from "./__generated__/EditCustomProviderButtonPatchMutation.graphql";
@@ -139,7 +139,7 @@ function EditCustomProviderDialogContent({
   setShouldShowConfirmation: (shouldShowConfirmation: boolean) => void;
 }) {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const data = usePreloadedQuery<EditCustomProviderButtonQuery>(
     ProviderQuery,
     queryReference
@@ -213,14 +213,11 @@ function EditCustomProviderDialogContent({
         },
         onError: (error) => {
           const messages = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Failed to update provider",
-            message: messages?.join(", ") || "An unknown error occurred",
-          });
+          setError(messages?.join(", ") || "An unknown error occurred");
         },
       });
     },
-    [commit, notifyError, notifySuccess, providerData, onClose]
+    [commit, notifySuccess, providerData, onClose]
   );
 
   const handleCancel = useCallback(() => {
@@ -264,6 +261,7 @@ function EditCustomProviderDialogContent({
           </Alert>
         </View>
       )}
+      {error && <Alert variant="danger">{error}</Alert>}
       <ProviderForm
         onSubmit={handleSubmit}
         onCancel={handleCancel}

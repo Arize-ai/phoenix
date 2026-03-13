@@ -31,7 +31,7 @@ import {
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ProjectAnnotationConfigCardContent_project_annotations$key } from "./__generated__/ProjectAnnotationConfigCardContent_project_annotations.graphql";
 import type { ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation } from "./__generated__/ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation.graphql";
@@ -152,8 +152,8 @@ const ProjectAnnotationConfigCardContent = (
   const [loadingConfigs, setLoadingConfigs] = useState<Record<string, boolean>>(
     {}
   );
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const data = useLazyLoadQuery<ProjectAnnotationConfigCardContentQuery>(
     graphql`
@@ -242,6 +242,7 @@ const ProjectAnnotationConfigCardContent = (
 
   const addAnnotationConfigToProject = useCallback(
     (annotationConfigId: string) => {
+      setError(null);
       setLoadingConfigs((prev) => ({ ...prev, [annotationConfigId]: true }));
       startTransition(() => {
         addAnnotationConfigToProjectiMutation({
@@ -264,10 +265,7 @@ const ProjectAnnotationConfigCardContent = (
               ...prev,
               [annotationConfigId]: false,
             }));
-            notifyError({
-              title: "Failed to add annotation config",
-              message: error.message || "An unknown error occurred",
-            });
+            setError(error.message || "An unknown error occurred");
           },
         });
       });
@@ -276,12 +274,12 @@ const ProjectAnnotationConfigCardContent = (
       projectId,
       addAnnotationConfigToProjectiMutation,
       notifySuccess,
-      notifyError,
     ]
   );
 
   const removeAnnotationConfigFromProject = useCallback(
     (annotationConfigId: string) => {
+      setError(null);
       setLoadingConfigs((prev) => ({ ...prev, [annotationConfigId]: true }));
       removeAnnotationConfigFromProjectMutation({
         variables: {
@@ -303,10 +301,7 @@ const ProjectAnnotationConfigCardContent = (
             ...prev,
             [annotationConfigId]: false,
           }));
-          notifyError({
-            title: "Failed to remove annotation config",
-            message: error.message || "An unknown error occurred",
-          });
+          setError(error.message || "An unknown error occurred");
         },
       });
     },
@@ -314,7 +309,6 @@ const ProjectAnnotationConfigCardContent = (
       projectId,
       removeAnnotationConfigFromProjectMutation,
       notifySuccess,
-      notifyError,
     ]
   );
 
@@ -359,7 +353,9 @@ const ProjectAnnotationConfigCardContent = (
   }
 
   return (
-    <div
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <div
       css={css`
         overflow: auto;
       `}
@@ -413,5 +409,6 @@ const ProjectAnnotationConfigCardContent = (
         </tbody>
       </table>
     </div>
+    </>
   );
 };

@@ -2,6 +2,7 @@ import { startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogTrigger,
@@ -22,7 +23,7 @@ import {
   DialogTitle,
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { DocumentAnnotationActionMenuDeleteMutation } from "./__generated__/DocumentAnnotationActionMenuDeleteMutation.graphql";
 
@@ -43,7 +44,7 @@ export function DocumentAnnotationActionMenu({
   onEdit?: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const [commitDelete] =
@@ -93,10 +94,7 @@ export function DocumentAnnotationActionMenu({
           setDeleting(false);
         },
         onError: (error) => {
-          notifyError({
-            title: "Error deleting annotation",
-            message: error.message,
-          });
+          setDeleteError(error.message);
         },
       });
     });
@@ -106,7 +104,7 @@ export function DocumentAnnotationActionMenu({
     spanNodeId,
     annotationName,
     notifySuccess,
-    notifyError,
+    setDeleteError,
   ]);
 
   return (
@@ -177,6 +175,9 @@ export function DocumentAnnotationActionMenu({
                     <Text color="danger">
                       {`Are you sure you want to delete annotation "${annotationName}"? This cannot be undone.`}
                     </Text>
+                    {deleteError && (
+                      <Alert variant="danger">{deleteError}</Alert>
+                    )}
                   </View>
                   <View
                     paddingEnd="size-200"
