@@ -114,7 +114,7 @@ export function PromptLayout() {
             <DialogTrigger>
               <Button
                 size="M"
-                leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
+                leadingVisual={<Icon svg={<Icons.GitBranchOutline />} />}
               >
                 Clone
               </Button>
