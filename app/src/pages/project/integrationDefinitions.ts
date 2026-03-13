@@ -11,6 +11,8 @@ export type IntegrationSnippets = {
     projectName: string;
     isHosted: boolean;
   }) => string;
+  docsHref?: string;
+  githubHref?: string;
 };
 
 /**

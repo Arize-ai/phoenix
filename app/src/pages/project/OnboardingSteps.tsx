@@ -1,9 +1,10 @@
-import { Heading, View } from "@phoenix/components";
+import { ExternalLink, Flex, Heading, View } from "@phoenix/components";
 import { IsAuthenticated } from "@phoenix/components/auth";
 import { GenerateAPIKeyButton } from "@phoenix/components/auth";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
+import { Separator } from "@phoenix/components/core/toolbar";
 import { IS_HOSTED_DEPLOYMENT } from "@phoenix/components/project/hosting";
 import { getEnvironmentVariables } from "@phoenix/components/project/integrationSnippets";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
@@ -14,12 +15,16 @@ export function OnboardingSteps({
   language,
   packages,
   implementationCode,
+  docsHref,
+  githubHref,
   generatedApiKey,
   onApiKeyGenerated,
 }: {
   language: ProgrammingLanguage;
   packages: readonly string[];
   implementationCode: string;
+  docsHref?: string;
+  githubHref?: string;
   generatedApiKey: string | null;
   onApiKeyGenerated: (key: string) => void;
 }) {
@@ -63,9 +68,25 @@ export function OnboardingSteps({
       </View>
       <View paddingBottom="size-200">
         <View paddingBottom="size-100">
-          <Heading level={3} weight="heavy">
-            Implementation
-          </Heading>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <Heading level={3} weight="heavy">
+              Implementation
+            </Heading>
+            {(docsHref || githubHref) && (
+              <Flex
+                direction="row"
+                alignItems="center"
+                gap="size-50"
+                marginStart="auto"
+              >
+                {githubHref && (
+                  <ExternalLink href={githubHref}>Github</ExternalLink>
+                )}
+                {githubHref && docsHref && <Separator orientation="vertical" />}
+                {docsHref && <ExternalLink href={docsHref}>Docs</ExternalLink>}
+              </Flex>
+            )}
+          </Flex>
         </View>
         <CodeWrap>
           <ImplementationCodeBlock

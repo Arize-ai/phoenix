@@ -69,6 +69,8 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
       projectName,
       isHosted: IS_HOSTED_DEPLOYMENT,
     }) ?? "";
+  const docsHref = languageSnippets?.docsHref;
+  const githubHref = languageSnippets?.githubHref;
 
   return (
     <div css={onboardingCSS}>
@@ -115,6 +117,8 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   language="Python"
                   packages={packages}
                   implementationCode={implementationCode}
+                  docsHref={docsHref}
+                  githubHref={githubHref}
                   generatedApiKey={generatedApiKey}
                   onApiKeyGenerated={setGeneratedApiKey}
                 />
@@ -126,6 +130,8 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   language="TypeScript"
                   packages={packages}
                   implementationCode={implementationCode}
+                  docsHref={docsHref}
+                  githubHref={githubHref}
                   generatedApiKey={generatedApiKey}
                   onApiKeyGenerated={setGeneratedApiKey}
                 />

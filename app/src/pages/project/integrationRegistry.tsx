@@ -48,6 +48,10 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "langchain-openai",
         ],
         getImplementationCode: getLanggraphCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-langchain",
       },
       TypeScript: {
         packages: [
@@ -58,6 +62,10 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "@langchain/openai",
         ],
         getImplementationCode: getLanggraphCodeTypescript,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/langchain",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain",
       },
     },
   },
@@ -70,6 +78,10 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
       TypeScript: {
         packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
         getImplementationCode: getVercelAiSdkCodeTypescript,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
       },
     },
   },
