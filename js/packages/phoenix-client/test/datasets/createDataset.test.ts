@@ -264,6 +264,82 @@ describe("createDataset", () => {
     });
   });
 
+  it("should create a dataset with external IDs", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await createDataset({
+      name: "test-dataset",
+      description: "A dataset with external IDs",
+      examples: [
+        {
+          input: { question: "What is AI?" },
+          output: { answer: "Artificial Intelligence" },
+          externalId: "ai-question",
+        },
+        {
+          input: { question: "What is ML?" },
+          output: { answer: "Machine Learning" },
+          externalId: "ml-question",
+        },
+      ],
+    });
+
+    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
+      params: {
+        query: {
+          sync: true,
+        },
+      },
+      body: {
+        name: "test-dataset",
+        description: "A dataset with external IDs",
+        action: "create",
+        inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
+        outputs: [
+          { answer: "Artificial Intelligence" },
+          { answer: "Machine Learning" },
+        ],
+        metadata: [{}, {}],
+        splits: [null, null],
+        external_ids: ["ai-question", "ml-question"],
+      },
+    });
+  });
+
+  it("should not include external_ids when no examples have external IDs", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await createDataset({
+      name: "test-dataset",
+      description: "A dataset without external IDs",
+      examples: [
+        {
+          input: { question: "What is AI?" },
+          output: { answer: "Artificial Intelligence" },
+        },
+      ],
+    });
+
+    const callBody = mockPost.mock.calls[0][1].body;
+    expect(callBody).not.toHaveProperty("external_ids");
+  });
+
   it("should handle metadata in examples", async () => {
     const mockResponse = {
       dataset_id: "dataset-123",

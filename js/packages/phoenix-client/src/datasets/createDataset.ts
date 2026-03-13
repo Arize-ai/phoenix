@@ -38,6 +38,7 @@ export type CreateDatasetResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
+ *   - `externalId`: Optional external ID for the example
  *
  * @returns A promise that resolves to the created dataset ID
  *
@@ -82,6 +83,12 @@ export async function createDataset({
   // Only include span_ids in the request if at least one example has a span ID
   const hasSpanIds = spanIds.some((id) => id !== null);
 
+  // Extract external IDs from examples, preserving null/undefined as null
+  const externalIds = examples.map((example) => example?.externalId ?? null);
+
+  // Only include external_ids in the request if at least one example has an external ID
+  const hasExternalIds = externalIds.some((id) => id !== null);
+
   const createDatasetResponse = await client.POST("/v1/datasets/upload", {
     params: {
       query: {
@@ -98,6 +105,7 @@ export async function createDataset({
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
+      ...(hasExternalIds ? { external_ids: externalIds } : {}),
     },
   });
   invariant(createDatasetResponse.data?.data, "Failed to create dataset");
