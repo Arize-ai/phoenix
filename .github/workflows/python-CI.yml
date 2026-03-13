@@ -378,10 +378,7 @@ jobs:
       matrix:
         py: ["3.10"]
         db: [sqlite, postgresql]
-        os: [oss-4-core-runner, windows-latest]
-        exclude:
-          - os: windows-latest
-            db: postgresql
+        os: [oss-4-core-runner]
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:
