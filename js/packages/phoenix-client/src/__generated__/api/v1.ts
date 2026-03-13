@@ -1282,6 +1282,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** External Id */
+            external_id?: string | null;
         };
         /** DatasetVersion */
         DatasetVersion: {
