@@ -1,5 +1,17 @@
 # Changelog
 
+## [13.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.15.0...arize-phoenix-v13.15.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* **ci:** resolve mypy dual-module-name conflict in canary tests ([52af159](https://github.com/Arize-ai/phoenix/commit/52af159bc09b735ad963f4fb3dc5bb36819fd4b9))
+
+
+### Reverts
+
+* undo hacky CI fixes ([5d60dcc](https://github.com/Arize-ai/phoenix/commit/5d60dccf9c09f12e10ada1b923cde89d06532d1d))
+
 ## [13.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.14.0...arize-phoenix-v13.15.0) (2026-03-13)
 
 
