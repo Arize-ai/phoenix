@@ -18,8 +18,8 @@ import {
   RichTooltipTitle,
 } from "@phoenix/components/core/tooltip";
 
-import { ColumnBucket } from "./ColumnBucket";
 import { NON_OBJECT_CONFLICT_MARKER } from "./collapseUtils";
+import { ColumnBucket } from "./ColumnBucket";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
 
 const containerCSS = css`
