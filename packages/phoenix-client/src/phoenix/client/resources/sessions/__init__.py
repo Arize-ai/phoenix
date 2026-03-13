@@ -236,6 +236,8 @@ class Sessions:
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             project_id: The ID of the project.
             project_name: The name of the project.
@@ -270,6 +272,8 @@ class Sessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[SessionTurn]:
         """**Experimental** - Retrieve the ordered conversation turns for a session.
+
+        Requires Phoenix server >= 13.5.0.
 
         Fetches every trace in the session, locates each trace's root span, and
         extracts the ``input.value`` / ``output.value`` attributes to build a
@@ -808,6 +812,8 @@ class AsyncSessions:
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             project_id: The ID of the project.
             project_name: The name of the project.
@@ -842,6 +848,8 @@ class AsyncSessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[SessionTurn]:
         """**Experimental** - Retrieve the ordered conversation turns for a session.
+
+        Requires Phoenix server >= 13.5.0.
 
         Async version of :meth:`Sessions.get_session_turns`.  Fetches every
         trace in the session, locates each trace's root span, and extracts the

@@ -7,7 +7,7 @@
  * {@link ensureServerCapability} at call time to produce a clear error when
  * the connected server is too old.
  *
- * When a new version-gated feature is added to the Phoenix REST API, add a
+ * When a new version-gated capability is added to the Phoenix REST API, add a
  * corresponding requirement constant here and reference it from the client
  * function that uses it.
  */
