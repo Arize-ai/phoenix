@@ -1,14 +1,14 @@
 from .prompts import PromptVersion
 from .semver import SemanticVersion
 from .server_requirements import (
-    FeatureRequirement,
+    CapabilityRequirement,
     ParameterRequirement,
     RouteRequirement,
     ServerVersion,
 )
 
 __all__ = [
-    "FeatureRequirement",
+    "CapabilityRequirement",
     "ParameterRequirement",
     "PromptVersion",
     "RouteRequirement",

@@ -12,19 +12,19 @@ import type {
   ParameterRequirement,
 } from "../../src/types/serverRequirements";
 import {
-  featureLabel,
-  ensureServerFeature,
+  capabilityLabel,
+  ensureServerCapability,
 } from "../../src/utils/serverVersionUtils";
 
-describe("featureLabel", () => {
+describe("capabilityLabel", () => {
   it("derives label for a route requirement", () => {
-    expect(featureLabel(GET_SESSION)).toBe(
+    expect(capabilityLabel(GET_SESSION)).toBe(
       "The GET /v1/sessions/{session_id} route"
     );
   });
 
   it("derives label for a parameter requirement", () => {
-    expect(featureLabel(GET_SPANS_TRACE_IDS)).toBe(
+    expect(capabilityLabel(GET_SPANS_TRACE_IDS)).toBe(
       "The 'trace_id' query parameter on GET /v1/projects/{id}/spans"
     );
   });
@@ -37,7 +37,7 @@ describe("featureLabel", () => {
       minServerVersion: [1, 0, 0],
       description: "Custom description",
     };
-    expect(featureLabel(req)).toBe("Custom description");
+    expect(capabilityLabel(req)).toBe("Custom description");
   });
 
   it("uses description override for parameter requirement", () => {
@@ -49,17 +49,17 @@ describe("featureLabel", () => {
       minServerVersion: [1, 0, 0],
       description: "Custom param description",
     };
-    expect(featureLabel(req)).toBe("Custom param description");
+    expect(capabilityLabel(req)).toBe("Custom param description");
   });
 });
 
-describe("ensureServerFeature", () => {
+describe("ensureServerCapability", () => {
   it("does not throw when server version meets requirement", async () => {
     const mockClient = {
       getServerVersion: async () => [13, 5, 0] as [number, number, number],
     };
     await expect(
-      ensureServerFeature({ client: mockClient as never, requirement: GET_SESSION })
+      ensureServerCapability({ client: mockClient as never, requirement: GET_SESSION })
     ).resolves.toBeUndefined();
   });
 
@@ -68,27 +68,27 @@ describe("ensureServerFeature", () => {
       getServerVersion: async () => [13, 4, 0] as [number, number, number],
     };
     await expect(
-      ensureServerFeature({ client: mockClient as never, requirement: GET_SESSION })
+      ensureServerCapability({ client: mockClient as never, requirement: GET_SESSION })
     ).rejects.toThrow(/requires Phoenix server >= 13\.5\.0/);
   });
 
-  it("includes feature label in error message for route", async () => {
+  it("includes capability label in error message for route", async () => {
     const mockClient = {
       getServerVersion: async () => [12, 0, 0] as [number, number, number],
     };
     await expect(
-      ensureServerFeature({ client: mockClient as never, requirement: DELETE_SESSION })
+      ensureServerCapability({ client: mockClient as never, requirement: DELETE_SESSION })
     ).rejects.toThrow(
       /The DELETE \/v1\/sessions\/\{session_id\} route/
     );
   });
 
-  it("includes feature label in error message for parameter", async () => {
+  it("includes capability label in error message for parameter", async () => {
     const mockClient = {
       getServerVersion: async () => [12, 0, 0] as [number, number, number],
     };
     await expect(
-      ensureServerFeature({ client: mockClient as never, requirement: GET_SPANS_TRACE_IDS })
+      ensureServerCapability({ client: mockClient as never, requirement: GET_SPANS_TRACE_IDS })
     ).rejects.toThrow(/The 'trace_id' query parameter/);
   });
 
@@ -102,7 +102,7 @@ describe("ensureServerFeature", () => {
       },
     };
     await expect(
-      ensureServerFeature({ client: mockClient as never, requirement: GET_SESSION })
+      ensureServerCapability({ client: mockClient as never, requirement: GET_SESSION })
     ).rejects.toThrow(/version could not be determined/);
   });
 });

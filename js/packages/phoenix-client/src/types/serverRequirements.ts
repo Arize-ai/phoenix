@@ -26,4 +26,4 @@ export interface ParameterRequirement {
   description?: string;
 }
 
-export type FeatureRequirement = RouteRequirement | ParameterRequirement;
+export type CapabilityRequirement = RouteRequirement | ParameterRequirement;

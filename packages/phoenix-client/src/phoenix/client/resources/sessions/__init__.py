@@ -77,7 +77,7 @@ if TYPE_CHECKING:
     from phoenix.client.client import PhoenixHTTPClient as PhoenixHTTPClient
     from phoenix.client.resources.spans import AsyncSpans, Spans
     from phoenix.client.types.server_requirements import (
-        FeatureRequirement as FeatureRequirement,
+        CapabilityRequirement as CapabilityRequirement,
     )
 
 # Re-export generated types
@@ -112,9 +112,9 @@ class Sessions:
             The session data.
         """
         from phoenix.client.constants.server_requirements import GET_SESSION
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=GET_SESSION)
+        ensure_server_capability(client=self._client, requirement=GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -140,9 +140,9 @@ class Sessions:
             A list of session data.
         """
         from phoenix.client.constants.server_requirements import LIST_PROJECT_SESSIONS
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=LIST_PROJECT_SESSIONS)
+        ensure_server_capability(client=self._client, requirement=LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -185,9 +185,9 @@ class Sessions:
             timeout: Optional timeout in seconds for the request.
         """
         from phoenix.client.constants.server_requirements import DELETE_SESSION
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=DELETE_SESSION)
+        ensure_server_capability(client=self._client, requirement=DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -209,9 +209,9 @@ class Sessions:
             timeout: Optional timeout in seconds for the request.
         """
         from phoenix.client.constants.server_requirements import DELETE_SESSIONS
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=DELETE_SESSIONS)
+        ensure_server_capability(client=self._client, requirement=DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -423,9 +423,9 @@ class Sessions:
             )
         """  # noqa: E501
         from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=ANNOTATE_SESSIONS)
+        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -513,9 +513,9 @@ class Sessions:
             client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
         from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=ANNOTATE_SESSIONS)
+        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -628,9 +628,9 @@ class Sessions:
             )
         """  # noqa: E501
         from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
-        from phoenix.client.utils.server_version_utils import ensure_server_feature
+        from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-        ensure_server_feature(client=self._client, requirement=ANNOTATE_SESSIONS)
+        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
@@ -670,9 +670,9 @@ class AsyncSessions:
             The session data.
         """
         from phoenix.client.constants.server_requirements import GET_SESSION
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=GET_SESSION)
+        await async_ensure_server_capability(client=self._client, requirement=GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -698,9 +698,9 @@ class AsyncSessions:
             A list of session data.
         """
         from phoenix.client.constants.server_requirements import LIST_PROJECT_SESSIONS
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=LIST_PROJECT_SESSIONS)
+        await async_ensure_server_capability(client=self._client, requirement=LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -743,9 +743,9 @@ class AsyncSessions:
             timeout: Optional timeout in seconds for the request.
         """
         from phoenix.client.constants.server_requirements import DELETE_SESSION
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=DELETE_SESSION)
+        await async_ensure_server_capability(client=self._client, requirement=DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -767,9 +767,9 @@ class AsyncSessions:
             timeout: Optional timeout in seconds for the request.
         """
         from phoenix.client.constants.server_requirements import DELETE_SESSIONS
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=DELETE_SESSIONS)
+        await async_ensure_server_capability(client=self._client, requirement=DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -984,9 +984,9 @@ class AsyncSessions:
             )
         """  # noqa: E501
         from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=ANNOTATE_SESSIONS)
+        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -1074,9 +1074,9 @@ class AsyncSessions:
             await async_client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
         from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=ANNOTATE_SESSIONS)
+        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -1189,9 +1189,9 @@ class AsyncSessions:
             )
         """  # noqa: E501
         from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
-        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+        from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-        await async_ensure_server_feature(client=self._client, requirement=ANNOTATE_SESSIONS)
+        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 

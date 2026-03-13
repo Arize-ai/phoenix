@@ -1,4 +1,4 @@
-"""Feature requirement types for Phoenix server version gating."""
+"""Capability requirement types for Phoenix server version gating."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ ServerVersion = SemanticVersion
 
 @dataclass(frozen=True)
 class RouteRequirement:
-    """A route feature gated behind a minimum Phoenix server version."""
+    """A route capability gated behind a minimum Phoenix server version."""
 
     method: str
     """HTTP method (e.g. ``'GET'``, ``'POST'``, ``'DELETE'``)."""
@@ -28,8 +28,8 @@ class RouteRequirement:
         return "route"
 
     @property
-    def feature(self) -> str:
-        """Human-readable feature label for error messages."""
+    def capability(self) -> str:
+        """Human-readable capability label for error messages."""
         if self.description:
             return self.description
         return f"The {self.method} {self.path} route"
@@ -37,7 +37,7 @@ class RouteRequirement:
 
 @dataclass(frozen=True)
 class ParameterRequirement:
-    """A parameter feature gated behind a minimum Phoenix server version."""
+    """A parameter capability gated behind a minimum Phoenix server version."""
 
     parameter_name: str
     """Name of the query/path/header parameter."""
@@ -55,11 +55,11 @@ class ParameterRequirement:
         return "parameter"
 
     @property
-    def feature(self) -> str:
-        """Human-readable feature label for error messages."""
+    def capability(self) -> str:
+        """Human-readable capability label for error messages."""
         if self.description:
             return self.description
         return f"The '{self.parameter_name}' {self.parameter_location} parameter on {self.route}"
 
 
-FeatureRequirement = Union[RouteRequirement, ParameterRequirement]
+CapabilityRequirement = Union[RouteRequirement, ParameterRequirement]

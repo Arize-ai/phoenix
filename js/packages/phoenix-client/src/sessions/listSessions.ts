@@ -7,7 +7,7 @@ import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import type { Session } from "../types/sessions";
 import { LIST_PROJECT_SESSIONS } from "../constants/serverRequirements";
-import { ensureServerFeature } from "../utils/serverVersionUtils";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 import { toSession } from "./sessionUtils";
 
@@ -37,7 +37,7 @@ export async function listSessions(
   params: ListSessionsParams
 ): Promise<Session[]> {
   const client = params.client || createClient();
-  await ensureServerFeature({ client, requirement: LIST_PROJECT_SESSIONS });
+  await ensureServerCapability({ client, requirement: LIST_PROJECT_SESSIONS });
   const projectIdentifier = resolveProjectIdentifier(params);
 
   const sessions: Session[] = [];

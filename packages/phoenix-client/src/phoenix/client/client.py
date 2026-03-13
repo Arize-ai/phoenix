@@ -381,7 +381,7 @@ class PhoenixAsyncHTTPClient(httpx.AsyncClient):
         """Synchronous no-op for the async client.
 
         The async client cannot do synchronous HTTP. This exists so that
-        ``ensure_server_feature`` can call it uniformly; it relies on the
+        ``ensure_server_capability`` can call it uniformly; it relies on the
         version already being cached from a prior response header.
         """
         pass

@@ -1,11 +1,11 @@
-"""Feature requirement constants for Phoenix server version gating."""
+"""Capability requirement constants for Phoenix server version gating."""
 
 from __future__ import annotations
 
 from typing import Sequence
 
 from phoenix.client.types.server_requirements import (
-    FeatureRequirement,
+    CapabilityRequirement,
     ParameterRequirement,
     RouteRequirement,
 )
@@ -47,7 +47,7 @@ GET_SPANS_TRACE_IDS = ParameterRequirement(
     min_server_version=(13, 9, 0),
 )
 
-ALL_REQUIREMENTS: Sequence[FeatureRequirement] = (
+ALL_REQUIREMENTS: Sequence[CapabilityRequirement] = (
     GET_SESSION,
     DELETE_SESSION,
     DELETE_SESSIONS,

@@ -456,9 +456,9 @@ class Spans:
         """
         if trace_ids:
             from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
-            from phoenix.client.utils.server_version_utils import ensure_server_feature
+            from phoenix.client.utils.server_version_utils import ensure_server_capability
 
-            ensure_server_feature(client=self._client, requirement=GET_SPANS_TRACE_IDS)
+            ensure_server_capability(client=self._client, requirement=GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1695,9 +1695,11 @@ class AsyncSpans:
         """
         if trace_ids:
             from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
-            from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+            from phoenix.client.utils.server_version_utils import async_ensure_server_capability
 
-            await async_ensure_server_feature(client=self._client, requirement=GET_SPANS_TRACE_IDS)
+            await async_ensure_server_capability(
+                client=self._client, requirement=GET_SPANS_TRACE_IDS
+            )
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)

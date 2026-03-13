@@ -1,5 +1,5 @@
 import type {
-  FeatureRequirement,
+  CapabilityRequirement,
   ParameterRequirement,
   RouteRequirement,
 } from "../types/serverRequirements";
@@ -47,8 +47,8 @@ export const GET_SPANS_TRACE_IDS: ParameterRequirement = {
   minServerVersion: [13, 9, 0],
 };
 
-/** All feature requirements for manifest scanning. */
-export const ALL_REQUIREMENTS: readonly FeatureRequirement[] = [
+/** All capability requirements for manifest scanning. */
+export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SESSION,
   DELETE_SESSION,
   DELETE_SESSIONS,
