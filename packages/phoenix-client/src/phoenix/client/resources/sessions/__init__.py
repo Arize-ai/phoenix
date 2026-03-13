@@ -75,6 +75,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from phoenix.client.resources.spans import AsyncSpans, Spans
+    from phoenix.client.types.server_requirements import FeatureRequirement
 
 # Re-export generated types
 InsertedSessionAnnotation = v1.InsertedSessionAnnotation
@@ -92,6 +93,16 @@ class Sessions:
         self._client = client
         self._spans = spans
 
+    def _ensure_supported(
+        self,
+        requirement: "FeatureRequirement",
+    ) -> None:
+        from phoenix.client.client import PhoenixHTTPClient
+        from phoenix.client.utils.server_version_utils import ensure_server_feature
+
+        if isinstance(self._client, PhoenixHTTPClient):
+            ensure_server_feature(self._client, requirement)
+
     def get(
         self,
         *,
@@ -107,6 +118,9 @@ class Sessions:
         Returns:
             The session data.
         """
+        from phoenix.client.constants.server_requirements import GET_SESSION
+
+        self._ensure_supported(GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -131,6 +145,9 @@ class Sessions:
         Returns:
             A list of session data.
         """
+        from phoenix.client.constants.server_requirements import LIST_PROJECT_SESSIONS
+
+        self._ensure_supported(LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -172,6 +189,9 @@ class Sessions:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
         """
+        from phoenix.client.constants.server_requirements import DELETE_SESSION
+
+        self._ensure_supported(DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -192,6 +212,9 @@ class Sessions:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
             timeout: Optional timeout in seconds for the request.
         """
+        from phoenix.client.constants.server_requirements import DELETE_SESSIONS
+
+        self._ensure_supported(DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -488,6 +511,9 @@ class Sessions:
             ]
             client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
+        from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
+
+        self._ensure_supported(ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -622,6 +648,16 @@ class AsyncSessions:
         self._client = client
         self._spans = spans
 
+    async def _ensure_supported(
+        self,
+        requirement: "FeatureRequirement",
+    ) -> None:
+        from phoenix.client.client import PhoenixAsyncHTTPClient
+        from phoenix.client.utils.server_version_utils import async_ensure_server_feature
+
+        if isinstance(self._client, PhoenixAsyncHTTPClient):
+            await async_ensure_server_feature(self._client, requirement)
+
     async def get(
         self,
         *,
@@ -637,6 +673,9 @@ class AsyncSessions:
         Returns:
             The session data.
         """
+        from phoenix.client.constants.server_requirements import GET_SESSION
+
+        await self._ensure_supported(GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -661,6 +700,9 @@ class AsyncSessions:
         Returns:
             A list of session data.
         """
+        from phoenix.client.constants.server_requirements import LIST_PROJECT_SESSIONS
+
+        await self._ensure_supported(LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -702,6 +744,9 @@ class AsyncSessions:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
         """
+        from phoenix.client.constants.server_requirements import DELETE_SESSION
+
+        await self._ensure_supported(DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -722,6 +767,9 @@ class AsyncSessions:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
             timeout: Optional timeout in seconds for the request.
         """
+        from phoenix.client.constants.server_requirements import DELETE_SESSIONS
+
+        await self._ensure_supported(DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -1021,6 +1069,9 @@ class AsyncSessions:
             ]
             await async_client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
+        from phoenix.client.constants.server_requirements import ANNOTATE_SESSIONS
+
+        await self._ensure_supported(ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:

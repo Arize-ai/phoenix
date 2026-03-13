@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Mapping, Optional
+import logging
+from typing import Final, Mapping, Optional
 
 import httpx
 
@@ -11,7 +12,20 @@ from phoenix.client.resources.prompts import AsyncPrompts, Prompts
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.resources.traces import AsyncTraces, Traces
+from phoenix.client.types.semver import SemanticVersion
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
+from phoenix.client.utils.semver_utils import parse_semantic_version
+
+logger = logging.getLogger(__name__)
+
+_VERSION_HEADER = "x-phoenix-server-version"
+
+
+class _VersionNotChecked:
+    """Sentinel type indicating the server version has not yet been checked."""
+
+
+_VERSION_NOT_CHECKED: Final = _VersionNotChecked()
 
 
 class Client:
@@ -41,20 +55,22 @@ class Client:
         """
         if http_client is None:
             base_url = base_url or get_base_url()
-            self._client = _WrappedClient(
+            self._client = PhoenixHTTPClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
                 timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
             )
         else:
-            self._client = http_client
+            self._client = PhoenixHTTPClient(
+                base_url=http_client.base_url, headers=dict(http_client.headers)
+            )
 
     @property
-    def _client(self) -> httpx.Client:
+    def _client(self) -> PhoenixHTTPClient:
         return self._http_client
 
     @_client.setter
-    def _client(self, value: httpx.Client) -> None:
+    def _client(self, value: PhoenixHTTPClient) -> None:
         self._http_client = value
         self._prompts = Prompts(value)
         self._projects = Projects(value)
@@ -155,18 +171,21 @@ class AsyncClient:
         """
         if http_client is None:
             base_url = base_url or get_base_url()
-            http_client = httpx.AsyncClient(
+            self._client = PhoenixAsyncHTTPClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
             )
-        self._client = http_client
+        else:
+            self._client = PhoenixAsyncHTTPClient(
+                base_url=http_client.base_url, headers=dict(http_client.headers)
+            )
 
     @property
-    def _client(self) -> httpx.AsyncClient:
+    def _client(self) -> PhoenixAsyncHTTPClient:
         return self._http_client
 
     @_client.setter
-    def _client(self, value: httpx.AsyncClient) -> None:
+    def _client(self, value: PhoenixAsyncHTTPClient) -> None:
         self._http_client = value
         self._prompts = AsyncPrompts(value)
         self._projects = AsyncProjects(value)
@@ -257,9 +276,153 @@ def _update_headers(
     return headers
 
 
-class _WrappedClient(httpx.Client):
+class PhoenixHTTPClient(httpx.Client):
+    """An httpx.Client subclass that captures the Phoenix server version from responses.
+
+    The server version is extracted from the ``x-phoenix-server-version``
+    response header and cached for use by server version guards.
+    """
+
+    _server_version: SemanticVersion | None | _VersionNotChecked
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        self._server_version = _VERSION_NOT_CHECKED
+
     def __del__(self) -> None:
         try:
             self.close()
         except BaseException:
             pass
+
+    def send(  # type: ignore[override]
+        self,
+        request: httpx.Request,
+        *,
+        stream: bool = False,
+        auth: Optional[httpx.Auth] = None,
+        follow_redirects: bool = True,
+    ) -> httpx.Response:
+        """Send a request, capturing the server version from the response header."""
+        response = super().send(
+            request, stream=stream, auth=auth, follow_redirects=follow_redirects
+        )
+        if isinstance(self._server_version, _VersionNotChecked):
+            version_str = response.headers.get(_VERSION_HEADER)
+            if version_str:
+                parsed = parse_semantic_version(version_str)
+                if parsed is not None:
+                    self._server_version = parsed
+        return response
+
+    def _fetch_server_version(self) -> None:
+        """Eagerly fetch the Phoenix server version if not yet cached.
+
+        Calls ``GET /arize_phoenix_version`` and caches the result.
+        """
+        if not isinstance(self._server_version, _VersionNotChecked):
+            return
+        try:
+            response = self.get("arize_phoenix_version")
+            if response.status_code == 200:
+                parsed = parse_semantic_version(response.text)
+                if parsed is not None:
+                    self._server_version = parsed
+                    return
+        except Exception:
+            logger.debug("Failed to fetch Phoenix server version", exc_info=True)
+        # Mark as checked but unknown
+        self._server_version = None
+
+    @property
+    def server_version(self) -> Optional[SemanticVersion]:
+        """The cached Phoenix server version, or ``None`` if unknown.
+
+        The version is populated from the ``x-phoenix-server-version``
+        response header.  If no response has been seen yet, returns ``None``
+        (use :meth:`_fetch_server_version` to eagerly fetch).
+        """
+        if isinstance(self._server_version, _VersionNotChecked):
+            return None
+        return self._server_version
+
+    @server_version.setter
+    def server_version(self, value: Optional[SemanticVersion]) -> None:
+        """Explicitly set the server version (useful for testing)."""
+        self._server_version = value
+
+
+class PhoenixAsyncHTTPClient(httpx.AsyncClient):
+    """An httpx.AsyncClient subclass that captures the Phoenix server version from responses.
+
+    The server version is extracted from the ``x-phoenix-server-version``
+    response header and cached for use by server version guards.
+    """
+
+    _server_version: SemanticVersion | None | _VersionNotChecked
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        self._server_version = _VERSION_NOT_CHECKED
+
+    async def send(  # type: ignore[override]
+        self,
+        request: httpx.Request,
+        *,
+        stream: bool = False,
+        auth: Optional[httpx.Auth] = None,
+        follow_redirects: bool = True,
+    ) -> httpx.Response:
+        """Send a request asynchronously, capturing the server version from the response header."""
+        response = await super().send(
+            request, stream=stream, auth=auth, follow_redirects=follow_redirects
+        )
+        if isinstance(self._server_version, _VersionNotChecked):
+            version_str = response.headers.get(_VERSION_HEADER)
+            if version_str:
+                parsed = parse_semantic_version(version_str)
+                if parsed is not None:
+                    self._server_version = parsed
+        return response
+
+    def _fetch_server_version(self) -> None:
+        """No-op for the async client.
+
+        The async client cannot perform synchronous HTTP requests.
+        Use :meth:`_async_fetch_server_version` to eagerly fetch the version.
+        This method exists so that synchronous server version guards can call it
+        uniformly.
+        """
+        # The async client cannot do synchronous HTTP.
+        pass
+
+    async def _async_fetch_server_version(self) -> None:
+        """Eagerly fetch the Phoenix server version if not yet cached.
+
+        Calls ``GET /arize_phoenix_version`` and caches the result.
+        """
+        if not isinstance(self._server_version, _VersionNotChecked):
+            return
+        try:
+            response = await self.get("arize_phoenix_version")
+            if response.status_code == 200:
+                parsed = parse_semantic_version(response.text)
+                if parsed is not None:
+                    self._server_version = parsed
+                    return
+        except Exception:
+            logger.debug("Failed to fetch Phoenix server version", exc_info=True)
+        # Mark as checked but unknown
+        self._server_version = None
+
+    @property
+    def server_version(self) -> Optional[SemanticVersion]:
+        """The cached Phoenix server version, or ``None`` if unknown."""
+        if isinstance(self._server_version, _VersionNotChecked):
+            return None
+        return self._server_version
+
+    @server_version.setter
+    def server_version(self, value: Optional[SemanticVersion]) -> None:
+        """Explicitly set the server version (useful for testing)."""
+        self._server_version = value
