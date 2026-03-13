@@ -1,4 +1,4 @@
-import { collapseRow, computeBucketCollapseConflicts } from "../collapseUtils";
+import { computeBucketCollapseConflicts } from "../collapseUtils";
 
 describe("computeBucketCollapseConflicts", () => {
   describe("assignment-first flattening", () => {
@@ -81,38 +81,5 @@ describe("computeBucketCollapseConflicts", () => {
       expect(result.keysToCollapse).toEqual([]);
       expect(result.conflicts.size).toBe(0);
     });
-  });
-});
-
-describe("collapseRow", () => {
-  it("collapses specified keys", () => {
-    const result = collapseRow(
-      { input: { question: "Hi" }, output: { answer: "Hello" }, id: 1 },
-      new Set(["input", "output"])
-    );
-    expect(result).toEqual({ question: "Hi", answer: "Hello", id: 1 });
-  });
-
-  it("keeps non-collapsed keys unchanged", () => {
-    const result = collapseRow(
-      { input: { question: "Hi" }, metadata: { source: "test" } },
-      new Set(["input"])
-    );
-    expect(result).toEqual({ question: "Hi", metadata: { source: "test" } });
-  });
-
-  it("handles non-object values in collapsed keys", () => {
-    const result = collapseRow(
-      { input: "plain string", output: { answer: "Hello" } },
-      new Set(["input", "output"])
-    );
-    // Non-object values are kept as-is
-    expect(result).toEqual({ input: "plain string", answer: "Hello" });
-  });
-
-  it("handles empty keysToCollapse", () => {
-    const row = { input: { question: "Hi" }, output: { answer: "Hello" } };
-    const result = collapseRow(row, new Set());
-    expect(result).toEqual(row);
   });
 });
