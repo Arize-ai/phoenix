@@ -60,24 +60,27 @@ export async function appendDatasetExamples({
   examples,
 }: AppendDatasetExamplesParams): Promise<AppendDatasetExamplesResponse> {
   const client = _client || createClient();
-  const inputs = examples.map((example) => example.input);
-  const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
-  const metadata = examples.map((example) => example.metadata ?? {});
-  const splits = examples.map((example) =>
-    example.splits !== undefined ? example.splits : null
-  );
+  const inputs: Record<string, unknown>[] = [];
+  const outputs: Record<string, unknown>[] = [];
+  const metadata: Record<string, unknown>[] = [];
+  const splits: (string | string[] | null)[] = [];
+  const spanIds: (string | null)[] = [];
+  const externalIds: (string | null)[] = [];
+  let hasSpanIds = false;
+  let hasExternalIds = false;
 
-  // Extract span IDs from examples, preserving null/undefined as null
-  const spanIds = examples.map((example) => example?.spanId ?? null);
-
-  // Only include span_ids in the request if at least one example has a span ID
-  const hasSpanIds = spanIds.some((id) => id !== null);
-
-  // Extract external IDs from examples, preserving null/undefined as null
-  const externalIds = examples.map((example) => example?.externalId ?? null);
-
-  // Only include external_ids in the request if at least one example has an external ID
-  const hasExternalIds = externalIds.some((id) => id !== null);
+  for (const example of examples) {
+    inputs.push(example.input);
+    outputs.push(example.output ?? {}); // Treat null as an empty object
+    metadata.push(example.metadata ?? {});
+    splits.push(example.splits !== undefined ? example.splits : null);
+    const spanId = example.spanId ?? null;
+    spanIds.push(spanId);
+    if (spanId !== null) hasSpanIds = true;
+    const externalId = example.externalId ?? null;
+    externalIds.push(externalId);
+    if (externalId !== null) hasExternalIds = true;
+  }
 
   let datasetName: string;
   if ("datasetName" in dataset) {
