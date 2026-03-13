@@ -2571,7 +2571,7 @@ def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     Returns:
         pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
     """
-    import pandas as pd  # pyright: ignore[reportUnusedImport]
+    import pandas as pd
     from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 
     df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))

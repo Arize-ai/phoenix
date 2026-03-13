@@ -1,11 +1,10 @@
-from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
 
 
 @pytest.fixture(autouse=True)
-def _skip_server_version_check() -> Generator[None, None, None]:
+def _skip_server_version_check() -> None:  # type: ignore[misc]
     """Bypass server-version gating in unit tests."""
     with (
         patch(
