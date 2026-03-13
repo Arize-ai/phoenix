@@ -304,17 +304,9 @@ class PhoenixHTTPClient(httpx.Client):
         except BaseException:
             pass
 
-    def send(  # type: ignore[override]
-        self,
-        request: httpx.Request,
-        *,
-        stream: bool = False,
-        auth: Optional[httpx.Auth] = None,
-        follow_redirects: bool = True,
-    ) -> httpx.Response:
-        response = super().send(
-            request, stream=stream, auth=auth, follow_redirects=follow_redirects
-        )
+    @override
+    def send(self, *args: Any, **kwargs: Any) -> httpx.Response:
+        response = super().send(*args, **kwargs)
         if self._server_version is None:
             self._server_version = _extract_version_from_response(response)
         return response
