@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.unmock("../../src/utils/serverVersionUtils");
 
 import {
   GET_SESSION,
