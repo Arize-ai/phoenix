@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Example: Retrieve examples from a dataset, mutate them, and upsert.
  *
@@ -96,10 +95,6 @@ async function main() {
     },
   ];
 
-  console.log("=".repeat(60));
-  console.log("Version 1: Upserting initial dataset");
-  console.log("=".repeat(60));
-
   const { datasetId, versionId: v1VersionId } = await upsertDatasetExamples({
     client,
     dataset: { datasetName: DATASET_NAME },
@@ -111,26 +106,6 @@ async function main() {
     client,
     dataset: { datasetName: DATASET_NAME },
   });
-
-  console.log(`Dataset: ${DATASET_NAME}`);
-  console.log(`Version ID: ${v1VersionId}`);
-  console.log(`Examples: ${v1Retrieved.length}`);
-
-  // ===========================================================================
-  // Retrieve and inspect examples from v1
-  // ===========================================================================
-
-  console.log("\n" + "=".repeat(60));
-  console.log("Retrieved examples from v1 (with externalId)");
-  console.log("=".repeat(60));
-
-  for (const ex of v1Retrieved) {
-    const extId = ex.externalId ?? null;
-    const question = ex.input.question as string;
-    console.log(
-      `  externalId=${String(extId).padEnd(20)}  question=${JSON.stringify(question)}`
-    );
-  }
 
   // ===========================================================================
   // Version 2: Mutate the retrieved list and upsert again
@@ -183,10 +158,6 @@ async function main() {
     metadata: { category: "astronomy", difficulty: "easy" },
   });
 
-  console.log("\n" + "=".repeat(60));
-  console.log("Version 2: Upserting mutated examples");
-  console.log("=".repeat(60));
-
   const { versionId: v2VersionId } = await upsertDatasetExamples({
     client,
     dataset: { datasetName: DATASET_NAME },
@@ -194,14 +165,10 @@ async function main() {
     examples: v2Examples,
   });
 
-  const { examples: v2Retrieved } = await getDatasetExamples({
+  await getDatasetExamples({
     client,
     dataset: { datasetName: DATASET_NAME },
   });
-
-  console.log(`Dataset: ${DATASET_NAME}`);
-  console.log(`Version ID: ${v2VersionId}`);
-  console.log(`Examples: ${v2Retrieved.length}`);
 
   // ===========================================================================
   // Experiment: Run against both versions
@@ -240,10 +207,6 @@ async function main() {
     },
   });
 
-  console.log("\n" + "=".repeat(60));
-  console.log("Experiment 1: Running against dataset version 1");
-  console.log("=".repeat(60));
-
   await runExperiment({
     client,
     dataset: { datasetId, versionId: v1VersionId },
@@ -251,12 +214,7 @@ async function main() {
     evaluators: [exactMatch],
     experimentName: `trivia-v1-${Date.now()}`,
     experimentDescription: "Experiment against initial dataset version",
-    logger: console,
   });
-
-  console.log("\n" + "=".repeat(60));
-  console.log("Experiment 2: Running against dataset version 2");
-  console.log("=".repeat(60));
 
   await runExperiment({
     client,
@@ -265,31 +223,9 @@ async function main() {
     evaluators: [exactMatch],
     experimentName: `trivia-v2-${Date.now()}`,
     experimentDescription: "Experiment against updated dataset version",
-    logger: console,
   });
-
-  // ===========================================================================
-  // Summary
-  // ===========================================================================
-
-  console.log("\n" + "=".repeat(60));
-  console.log("Summary");
-  console.log("=".repeat(60));
-  console.log(`Dataset: ${DATASET_NAME}`);
-  console.log(`  v1: ${v1Retrieved.length} examples (version ${v1VersionId})`);
-  console.log(`  v2: ${v2Retrieved.length} examples (version ${v2VersionId})`);
-  console.log("\nChanges from v1 -> v2 (via retrieve-mutate-upsert):");
-  console.log("  Deleted:   capital-france, largest ocean");
-  console.log("  Patched:   capital-germany (answer fixed)");
-  console.log(
-    "  Del+New:   fastest land animal (metadata changed -> new content hash)"
-  );
-  console.log("  Unchanged: capital-japan, boiling point of water");
-  console.log("  Created:   capital-italy, largest planet");
-  console.log(`\nView results at: ${PHOENIX_BASE_URL}/datasets`);
 }
 
-main().catch((error) => {
-  console.error("Error:", error);
+main().catch(() => {
   process.exit(1);
 });

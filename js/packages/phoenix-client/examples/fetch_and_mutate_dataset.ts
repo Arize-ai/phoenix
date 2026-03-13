@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Script 2 of 2: Fetch an existing dataset, mutate it, and upsert a new version.
  *
@@ -24,7 +23,6 @@ const PHOENIX_BASE_URL = "http://localhost:6006";
 async function main() {
   const datasetName = process.argv[2];
   if (!datasetName) {
-    console.log("Usage: npx tsx fetch_and_mutate_dataset.ts <dataset-name>");
     process.exit(1);
   }
 
@@ -34,25 +32,10 @@ async function main() {
   // Retrieve existing dataset
   // =========================================================================
 
-  console.log("=".repeat(60));
-  console.log(`Fetching dataset: ${datasetName}`);
-  console.log("=".repeat(60));
-
   const { examples: retrieved, versionId } = await getDatasetExamples({
     client,
     dataset: { datasetName },
   });
-
-  console.log(`Version ID: ${versionId}`);
-  console.log(`Examples: ${retrieved.length}`);
-
-  for (const ex of retrieved) {
-    const extId = ex.externalId ?? null;
-    const question = ex.input.question as string;
-    console.log(
-      `  externalId=${String(extId).padEnd(20)}  question=${JSON.stringify(question)}`
-    );
-  }
 
   // =========================================================================
   // Shared task and evaluator definitions
@@ -95,10 +78,6 @@ async function main() {
   // Experiment 1: Run against retrieved dataset (version 1)
   // =========================================================================
 
-  console.log("\n" + "=".repeat(60));
-  console.log("Experiment 1: Running against dataset version 1");
-  console.log("=".repeat(60));
-
   await runExperiment({
     client,
     dataset: { datasetName, versionId },
@@ -106,7 +85,6 @@ async function main() {
     evaluators: [exactMatch],
     experimentName: `trivia-v1-${Date.now()}`,
     experimentDescription: "Experiment against initial dataset version",
-    logger: console,
   });
 
   // =========================================================================
@@ -165,52 +143,21 @@ async function main() {
   // Upsert mutated examples as a new version
   // =========================================================================
 
-  console.log("\n" + "=".repeat(60));
-  console.log("Upserting mutated examples as new version");
-  console.log("=".repeat(60));
+  const { versionId: v2VersionId } = await upsertDatasetExamples({
+    client,
+    dataset: { datasetName },
+    description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
+    examples: v2Examples,
+  });
 
-  const { datasetId: v2DatasetId, versionId: v2VersionId } =
-    await upsertDatasetExamples({
-      client,
-      dataset: { datasetName },
-      description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
-      examples: v2Examples,
-    });
-
-  const { examples: v2Retrieved } = await getDatasetExamples({
+  await getDatasetExamples({
     client,
     dataset: { datasetName },
   });
 
-  console.log(`Dataset ID: ${v2DatasetId}`);
-  console.log(`Version ID: ${v2VersionId}`);
-  console.log(`Examples: ${v2Retrieved.length}`);
-
-  // =========================================================================
-  // Summary
-  // =========================================================================
-
-  console.log("\n" + "=".repeat(60));
-  console.log("Summary");
-  console.log("=".repeat(60));
-  console.log(`Dataset: ${datasetName}`);
-  console.log(`  v2: ${v2Retrieved.length} examples (version ${v2VersionId})`);
-  console.log("\nChanges applied:");
-  console.log("  Deleted:   capital-france, largest ocean");
-  console.log("  Patched:   capital-germany (answer fixed)");
-  console.log(
-    "  Del+New:   fastest land animal (metadata changed → new content hash)"
-  );
-  console.log("  Unchanged: capital-japan, boiling point of water");
-  console.log("  Created:   capital-italy, largest planet");
-
   // =========================================================================
   // Experiment 2: Run against version 2
   // =========================================================================
-
-  console.log("\n" + "=".repeat(60));
-  console.log("Experiment 2: Running against dataset version 2");
-  console.log("=".repeat(60));
 
   await runExperiment({
     client,
@@ -219,13 +166,9 @@ async function main() {
     evaluators: [exactMatch],
     experimentName: `trivia-v2-${Date.now()}`,
     experimentDescription: "Experiment against updated dataset version",
-    logger: console,
   });
-
-  console.log(`\nView results at: ${PHOENIX_BASE_URL}/datasets`);
 }
 
-main().catch((error) => {
-  console.error("Error:", error);
+main().catch(() => {
   process.exit(1);
 });

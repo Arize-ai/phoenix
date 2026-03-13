@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Script 1 of 2: Create the initial dataset.
  *
@@ -20,7 +19,6 @@ const PHOENIX_BASE_URL = "http://localhost:6006";
 async function main() {
   const datasetName = process.argv[2];
   if (!datasetName) {
-    console.log("Usage: npx tsx create_initial_dataset.ts <dataset-name>");
     process.exit(1);
   }
 
@@ -64,37 +62,19 @@ async function main() {
     },
   ];
 
-  console.log("=".repeat(60));
-  console.log(`Creating initial dataset: ${datasetName}`);
-  console.log("=".repeat(60));
-
-  const { datasetId, versionId } = await upsertDatasetExamples({
+  await upsertDatasetExamples({
     client,
     dataset: { datasetName },
     description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
     examples: v1Examples,
   });
 
-  console.log(`Dataset ID: ${datasetId}`);
-  console.log(`Version ID: ${versionId}`);
-
-  const { examples: retrievedExamples } = await getDatasetExamples({
+  await getDatasetExamples({
     client,
     dataset: { datasetName },
   });
-
-  console.log(`Examples: ${retrievedExamples.length}`);
-  console.log("\nRetrieved examples:");
-  for (const ex of retrievedExamples) {
-    const extId = ex.externalId ?? null;
-    const question = ex.input.question as string;
-    console.log(
-      `  externalId=${String(extId).padEnd(20)}  question=${JSON.stringify(question)}`
-    );
-  }
 }
 
-main().catch((error) => {
-  console.error("Error:", error);
+main().catch(() => {
   process.exit(1);
 });
