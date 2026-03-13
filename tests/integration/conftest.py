@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
@@ -9,6 +10,7 @@ from typing import Callable, Literal, Optional, cast
 
 import pytest
 from _pytest.fixtures import SubRequest
+from diskcache import Cache  # type: ignore[import-untyped]
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -46,17 +48,31 @@ from ._helpers import (
     _Username,
 )
 
+# Cross-process port reservation cache shared across all pytest-xdist workers.
+# pick_unused_port() finds a free port at the OS level, but two workers can race
+# to claim the same port before either has bound to it (TOCTOU). This diskcache
+# acts as a global registry: cache.add() is atomic across processes, so only one
+# worker can claim a given port. Entries expire after the TTL so stale entries
+# from crashed runs do not permanently crowd out ports.
+_PORT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "phoenix-test-ports")
+
 
 @pytest.fixture(scope="session")
-def _ports() -> Iterator[int]:
-    def _(used: list[int]) -> Iterator[int]:
+def _ports() -> Iterator[Iterator[int]]:
+    def _allocate(cache: Cache) -> Iterator[int]:
         while True:
-            port = pick_unused_port()
-            if port not in used:
-                used.append(port)
-                yield port
+            for _ in range(100):
+                candidate = pick_unused_port()
+                # cache.add() is atomic across processes: returns True only
+                # if the key was freshly inserted (i.e., not yet claimed).
+                if cache.add(str(candidate), True, expire=5 * 60):
+                    yield candidate
+                    break
+            else:
+                raise RuntimeError("Failed to allocate unique test port after 100 attempts")
 
-    return _([])
+    with Cache(_PORT_CACHE_DIR) as cache:
+        yield _allocate(cache)
 
 
 @pytest.fixture(scope="session")
