@@ -137,12 +137,9 @@ export function DatasetPreviewTable({
         // CSV row - array of strings
         columns.forEach((col, idx) => {
           let value: unknown = row[idx] ?? "";
-          // For CSV, try to parse JSON if this is a collapsible column
-          if (
-            collapseKeys &&
-            keysToCollapseSet.has(col) &&
-            typeof value === "string"
-          ) {
+          // For CSV, try to parse JSON strings so they render as objects
+          // instead of escaped JSON with backslashes
+          if (typeof value === "string") {
             const parsed = safelyParseJSONString(value);
             if (isPlainObject(parsed)) {
               value = parsed;
