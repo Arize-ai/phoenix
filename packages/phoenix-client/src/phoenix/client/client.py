@@ -387,8 +387,3 @@ class PhoenixAsyncHTTPClient(httpx.AsyncClient):
     def server_version(self) -> Optional[SemanticVersion]:
         """The cached Phoenix server version, or ``None`` if unknown."""
         return self._server_version
-
-    @server_version.setter
-    def server_version(self, value: Optional[SemanticVersion]) -> None:
-        """Explicitly set the server version (useful for testing)."""
-        self._server_version = value
