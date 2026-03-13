@@ -1,5 +1,22 @@
 # Changelog
 
+## [13.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.14.0...arize-phoenix-v13.15.0) (2026-03-13)
+
+
+### Features
+
+* Add `phoenix db migrate` subcommand for standalone migrations ([#12071](https://github.com/Arize-ai/phoenix/issues/12071)) ([11360a6](https://github.com/Arize-ai/phoenix/commit/11360a6f9e200e6bdff0cb4e5ee952aa174107ee))
+* **server:** add GET /v1/projects/{project_identifier}/traces endpoint ([#12057](https://github.com/Arize-ai/phoenix/issues/12057)) ([beee817](https://github.com/Arize-ai/phoenix/commit/beee8175fae76b2d8fcb128e73922a5ab794bada))
+* **server:** add name, span_kind, status_code filters to REST spans API ([#12053](https://github.com/Arize-ai/phoenix/issues/12053)) ([fb55df3](https://github.com/Arize-ai/phoenix/commit/fb55df3c8972b8b14eb3fc9a118dfa63a876ac47))
+* **skills:** add phoenix-frontend skill for UI development ([#12086](https://github.com/Arize-ai/phoenix/issues/12086)) ([301e841](https://github.com/Arize-ai/phoenix/commit/301e841dd17241162ee05dbd97b1eedd6dfdf224))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 2.0.0 ([#12085](https://github.com/Arize-ai/phoenix/issues/12085)) ([87f948d](https://github.com/Arize-ai/phoenix/commit/87f948dbc635b8b8ff7fae40b5a610d226e609aa))
+* make tool description optional for Anthropic and AWS Bedrock providers ([#12070](https://github.com/Arize-ai/phoenix/issues/12070)) ([a48f94a](https://github.com/Arize-ai/phoenix/commit/a48f94ac5b6c8c559683834436e00f1ff06efb68))
+* respect openaiApiType when fetching model invocation parameters ([#12080](https://github.com/Arize-ai/phoenix/issues/12080)) ([64ea473](https://github.com/Arize-ai/phoenix/commit/64ea4732cc75ab002f3a5dc4ea111bd08d3d2eea))
+
 ## [13.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.13.0...arize-phoenix-v13.14.0) (2026-03-11)
 
 
