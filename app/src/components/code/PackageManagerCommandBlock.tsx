@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Key } from "react";
-import { useState } from "react";
 
 import {
   CopyToClipboardButton,
@@ -9,6 +8,7 @@ import {
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
+import { isPackageManager } from "@phoenix/types/code";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { BashBlock } from "./BashBlock";
@@ -117,15 +117,6 @@ type PackageManagerCommandBlockProps = {
   className?: string;
 };
 
-function getInitialSelectedKey(
-  options: readonly InstallCommandOption[]
-): string {
-  if (options.length === 0) {
-    throw new Error("Expected at least one package manager option");
-  }
-  return options[0].packageManager;
-}
-
 function getSelectedKey(selection: Set<Key> | "all"): string | null {
   if (selection === "all" || selection.size === 0) {
     return null;
@@ -138,27 +129,22 @@ export function PackageManagerCommandBlock({
   packages,
   className,
 }: PackageManagerCommandBlockProps) {
-  const preferredPackageManager = usePreferencesContext(
-    (state) => state.packageManagerByLanguage[language]
+  const { selectedPackageManager, setPackageManager } = usePreferencesContext(
+    (state) => ({
+      selectedPackageManager: state.packageManagerByLanguage[language],
+      setPackageManager: state.setPackageManager,
+    })
   );
-  const options: readonly InstallCommandOption[] =
+  const installCommandOptions: readonly InstallCommandOption[] =
     language === "TypeScript"
       ? getTypeScriptInstallCommandOptions(packages)
       : getPythonInstallCommandOptions(packages);
-  const [selectedKey, setSelectedKey] = useState(() => {
-    if (options.some((o) => o.packageManager === preferredPackageManager)) {
-      return preferredPackageManager;
-    }
-    return getInitialSelectedKey(options);
-  });
-  // When language changes, selectedKey becomes invalid for the new options.
-  // Fall back to the user's preference for the new language.
-  const effectiveKey = options.some((o) => o.packageManager === selectedKey)
-    ? selectedKey
-    : preferredPackageManager;
   const selectedCommand =
-    options.find((option) => option.packageManager === effectiveKey)?.command ??
-    options[0]?.command ??
+    installCommandOptions.find(
+      (installCommandOption) =>
+        installCommandOption.packageManager === selectedPackageManager
+    )?.command ??
+    installCommandOptions[0]?.command ??
     "";
 
   return (
@@ -169,7 +155,7 @@ export function PackageManagerCommandBlock({
       <div className="package-manager-command__header">
         <ToggleButtonGroup
           aria-label="Package manager"
-          selectedKeys={[effectiveKey]}
+          selectedKeys={[selectedPackageManager]}
           disallowEmptySelection
           size="S"
           className="package-manager-command__toggle-group"
@@ -178,19 +164,19 @@ export function PackageManagerCommandBlock({
             if (nextKey == null) {
               return;
             }
-            if (options.some((option) => option.packageManager === nextKey)) {
-              setSelectedKey(nextKey);
+            if (isPackageManager(nextKey)) {
+              setPackageManager(language, nextKey);
             }
           }}
         >
-          {options.map((option) => (
+          {installCommandOptions.map((installCommandOption) => (
             <ToggleButton
-              key={option.packageManager}
-              id={option.packageManager}
-              aria-label={option.packageManager}
+              key={installCommandOption.packageManager}
+              id={installCommandOption.packageManager}
+              aria-label={installCommandOption.packageManager}
               className="package-manager-command__toggle"
             >
-              {option.packageManager}
+              {installCommandOption.packageManager}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>

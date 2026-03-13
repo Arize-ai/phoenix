@@ -166,7 +166,7 @@ export function ViewerPreferences() {
             selectedKey={packageManager}
             onSelectionChange={(value) => {
               if (value && isPackageManager(value)) {
-                setPackageManager(value);
+                setPackageManager(programmingLanguage, value);
               }
             }}
           >

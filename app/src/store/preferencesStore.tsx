@@ -182,9 +182,12 @@ export interface PreferencesState extends PreferencesProps {
    */
   setProgrammingLanguage: (programmingLanguage: ProgrammingLanguage) => void;
   /**
-   * Setter for the preferred package manager for the current language
+   * Setter for the preferred package manager for a given language
    */
-  setPackageManager: (packageManager: PackageManager) => void;
+  setPackageManager: (
+    language: ProgrammingLanguage,
+    packageManager: PackageManager
+  ) => void;
   /**
    * Setter for the AWS Bedrock model prefix
    */
@@ -281,12 +284,12 @@ export const createPreferencesStore = (
       set({ programmingLanguage }, false, { type: "setProgrammingLanguage" });
     },
     packageManagerByLanguage: { ...defaultPackageManagerByLanguage },
-    setPackageManager: (packageManager) => {
+    setPackageManager: (language, packageManager) => {
       set(
         (state) => ({
           packageManagerByLanguage: {
             ...state.packageManagerByLanguage,
-            [state.programmingLanguage]: packageManager,
+            [language]: packageManager,
           },
         }),
         false,
