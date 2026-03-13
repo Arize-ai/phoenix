@@ -82,16 +82,15 @@ All traces and metrics will then be stored in Phoenix for reference and comparis
 ### Create Dataset in Phoenix
 
 ```python
-phoenix_client = px.Client()
-try:
-    dataset = phoenix_client.get_dataset(name="crewai-researcher-test-topics")
-except ValueError:
-    dataset = phoenix_client.upload_dataset(
-        dataframe=df,
-        dataset_name="crewai-researcher-test-topics",
-        input_keys=["topic"],
-        output_keys=["reference_trajectory"],
-    )
+from phoenix.client import Client
+
+phoenix_client = Client()
+dataset = phoenix_client.datasets.create_dataset(
+    name="crewai-researcher-test-topics",
+    dataframe=df,
+    input_keys=["topic"],
+    output_keys=["reference_trajectory"],
+)
 ```
 
 ### Define your Experiment Task

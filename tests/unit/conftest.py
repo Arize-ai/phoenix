@@ -20,7 +20,6 @@ from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
-from phoenix.client import Client
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
@@ -29,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
+from phoenix.client import Client
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -43,7 +43,6 @@ from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
-from phoenix.session.client import Client as LegacyClient
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.transport import ASGIWebSocketTransport
@@ -357,16 +356,6 @@ def httpx_client(
 @pytest.fixture
 def gql_client(httpx_client: httpx.AsyncClient) -> Iterator[AsyncGraphQLClient]:
     yield AsyncGraphQLClient(httpx_client)
-
-
-@pytest.fixture
-def legacy_px_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
-) -> LegacyClient:
-    sync_client, _ = httpx_clients
-    client = LegacyClient(warn_if_server_not_running=False)
-    client._client = sync_client  # type: ignore[assignment]
-    return client
 
 
 @pytest.fixture

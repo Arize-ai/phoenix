@@ -81,11 +81,11 @@ def my_function(input_text: str) -> str:
 from phoenix.trace.dsl import SpanQuery
 
 # Get all spans
-all_spans = px.Client().get_spans_dataframe()
+all_spans = Client().spans.get_spans_dataframe()
 
 # Query specific spans
 query = SpanQuery().where("span_kind == 'CHAIN'")
-chain_spans = px.Client().query_spans(query, project_name='recipe-agent')
+chain_spans = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
 ```
 
 ### [Advanced Querying](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
@@ -137,10 +137,10 @@ Phoenix datasets are the foundation for running experiments. You upload your dat
 from phoenix.client import Client
 
 # Set up Phoenix client
-phoenix_client = px.Client()
+phoenix_client = Client()
 
 # Upload dataset with key mappings
-dataset = phoenix_client.upload_dataset(
+dataset = phoenix_client.datasets.create_dataset(
     dataframe=your_dataframe, #CSV or Pandas Dataframe
     dataset_name="my_dataset",
     input_keys=["query"],  # Columns that serve as inputs
@@ -487,7 +487,7 @@ import os
 
 # 1. Load traces from Phoenix
 query = SpanQuery().where("span_kind == 'CHAIN'")
-traces_df = px.Client().query_spans(query, project_name='recipe-agent')
+traces_df = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
 
 # 2. Define evaluation template
 template = """

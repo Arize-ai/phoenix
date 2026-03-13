@@ -6,7 +6,6 @@ A set of helper functions to
   - ingest evaluation results into Phoenix via HttpExporter
 """
 
-import logging
 import math
 from typing import (
     Any,
@@ -19,27 +18,9 @@ from typing import (
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
-from typing_extensions import deprecated
 
 import phoenix.trace.v1 as pb
-from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
-from phoenix.session.client import Client
-from phoenix.trace.dsl.helpers import (
-    get_called_tools,
-    get_qa_with_reference,
-    get_retrieved_documents,
-)
-from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.span_evaluations import Evaluations
-
-__all__ = [
-    "get_retrieved_documents",
-    "get_qa_with_reference",
-    "get_called_tools",
-    "add_evaluations",
-]
-
-logger = logging.getLogger(__name__)
 
 
 def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
@@ -58,18 +39,6 @@ def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
             result=result,
             subject_id=subject_id,
         )
-
-
-def add_evaluations(
-    exporter: HttpExporter,
-    evaluations: Evaluations,
-) -> None:
-    logger.warning(
-        "This `add_evaluations` function is deprecated and will be removed in a future release. "
-        "Please use `px.Client().log_evaluations(evaluations)` instead."
-    )
-    for evaluation in encode_evaluations(evaluations):
-        exporter.export(evaluation)
 
 
 def _extract_subject_id_from_index(
@@ -135,24 +104,3 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
         label=StringValue(value=label) if label else None,
         explanation=StringValue(value=explanation) if explanation else None,
     )
-
-
-@deprecated("Migrate to using client.spans.log_span_annotations via arize-phoenix-client")
-def log_evaluations(
-    *evals: Evaluations,
-    endpoint: Optional[str] = None,
-    host: Optional[str] = None,
-    port: Optional[int] = None,
-) -> None:
-    """
-    .. deprecated::
-        This function is deprecated. Use ``client.spans.log_span_annotations()`` via
-        arize-phoenix-client instead.
-        See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
-    """
-    host = host or get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    port = port or get_env_port()
-    endpoint = endpoint or get_env_collector_endpoint() or f"http://{host}:{port}"
-    Client(endpoint=endpoint).log_evaluations(*evals)

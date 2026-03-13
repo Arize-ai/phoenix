@@ -10,8 +10,6 @@ from importlib.machinery import ModuleSpec
 from types import ModuleType
 from typing import Any, Optional
 
-from .session.client import Client
-from .session.evaluation import log_evaluations
 from .session.session import (
     NotebookEnvironment,
     Session,
@@ -42,10 +40,30 @@ __all__ = [
     "load_example_traces",
     "TraceDataset",
     "NotebookEnvironment",
-    "log_evaluations",
-    "Client",
     "evals",
 ]
+
+
+class PhoenixClientFinder(MetaPathFinder):
+    def find_spec(self, fullname: Any, path: Any, target: Any = None) -> Optional[ModuleSpec]:
+        if fullname == "phoenix.session.client":
+            return ModuleSpec(fullname, PhoenixClientLoader())
+        return None
+
+
+class PhoenixClientLoader(Loader):
+    def create_module(self, spec: ModuleSpec) -> None:
+        return None
+
+    def exec_module(self, module: ModuleType) -> None:
+        raise ImportError(
+            "The legacy `phoenix.session.client.Client` class has been removed.\n"
+            "Please use the `arize-phoenix-client` package instead:\n\n"
+            "pip install arize-phoenix-client\n\n"
+            "```python\n"
+            "from phoenix.client import Client\n"
+            "```\n"
+        )
 
 
 class PhoenixTraceFinder(MetaPathFinder):
@@ -126,4 +144,5 @@ class PhoenixTraceLlamaIndexLoader(Loader):
         )
 
 
+sys.meta_path.append(PhoenixClientFinder())
 sys.meta_path.append(PhoenixTraceFinder())

@@ -21,8 +21,11 @@ Feel free to set up your template however you'd like to match your dataset.
 
 You will need a dataset of results to evaluate. This dataset should be a pandas dataframe. If you are already collecting traces with Phoenix, you can [export these traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) and use them as the dataframe to evaluate:
 
-```javascript
-trace_df = px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
+```python
+from phoenix.client import Client
+
+client = Client(base_url="http://127.0.0.1:6006")
+trace_df = client.spans.get_spans_dataframe()
 ```
 
 If your eval should have categorical outputs, use `llm_classify`.
@@ -187,10 +190,12 @@ In order for the results to show in Phoenix, make sure your `test_results` dataf
 Use the following method to log the results of either the `llm_classify` or `llm_generate` calls to Phoenix:
 
 ```py
-from phoenix.trace import SpanEvaluations
+from phoenix.client import Client
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Your Eval Display Name", dataframe=test_results)
+Client().spans.log_span_annotations_dataframe(
+    dataframe=test_results,
+    annotation_name="Your Eval Display Name",
+    annotator_kind="LLM",
 )
 ```
 
