@@ -73,19 +73,21 @@ describe("Dataset Formatting", () => {
   });
 
   describe("formatDatasetsOutput - pretty", () => {
-    it("should format datasets in human-readable format", () => {
+    it("should format datasets as a table with column headers", () => {
       const output = formatDatasetsOutput({
         datasets: [mockDataset1],
         format: "pretty",
       });
 
-      expect(output).toContain("Datasets:");
-      expect(output).toContain("┌─ test-dataset (abc123def456)");
-      expect(output).toContain("│  Examples: 100");
-      expect(output).toContain(
-        "│  Description: — A test dataset for unit tests"
-      );
-      expect(output).toContain("└─");
+      expect(output).toContain("name");
+      expect(output).toContain("examples");
+      expect(output).toContain("test-dataset");
+      expect(output).toContain("abc123def456");
+      expect(output).toContain("100");
+      expect(output).toContain("A test dataset for unit tests");
+      // table borders
+      expect(output).toContain("┌");
+      expect(output).toContain("┘");
     });
 
     it("should handle datasets without description", () => {
@@ -94,9 +96,9 @@ describe("Dataset Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("┌─ another-dataset (xyz789ghi012)");
-      expect(output).toContain("│  Examples: 50");
-      expect(output).not.toContain("Description:");
+      expect(output).toContain("another-dataset");
+      expect(output).toContain("xyz789ghi012");
+      expect(output).toContain("50");
     });
 
     it("should handle empty array", () => {
@@ -111,8 +113,8 @@ describe("Dataset Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("┌─ test-dataset (abc123def456)");
-      expect(output).toContain("┌─ another-dataset (xyz789ghi012)");
+      expect(output).toContain("test-dataset");
+      expect(output).toContain("another-dataset");
     });
   });
 

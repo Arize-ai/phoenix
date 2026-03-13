@@ -86,28 +86,31 @@ describe("Annotation Config Formatting", () => {
   });
 
   describe("formatAnnotationConfigsOutput - pretty", () => {
-    it("should show header and config name with id", () => {
+    it("should format configs as a table with column headers", () => {
       const output = formatAnnotationConfigsOutput({
         configs: [mockCategorical],
         format: "pretty",
       });
 
-      expect(output).toContain("Annotation Configs:");
-      expect(output).toContain("┌─ quality (cat-id-001)");
-      expect(output).toContain("│  Type: CATEGORICAL");
-      expect(output).toContain("│  Description: — Quality rating");
-      expect(output).toContain("└─");
+      expect(output).toContain("name");
+      expect(output).toContain("quality");
+      expect(output).toContain("cat-id-001");
+      expect(output).toContain("CATEGORICAL");
+      expect(output).toContain("Quality rating");
+      // table borders
+      expect(output).toContain("┌");
+      expect(output).toContain("┘");
     });
 
-    it("should omit description line when description is null", () => {
+    it("should handle null description as empty string", () => {
       const output = formatAnnotationConfigsOutput({
         configs: [mockContinuous],
         format: "pretty",
       });
 
-      expect(output).toContain("┌─ score (cont-id-002)");
-      expect(output).toContain("│  Type: CONTINUOUS");
-      expect(output).not.toContain("Description:");
+      expect(output).toContain("score");
+      expect(output).toContain("cont-id-002");
+      expect(output).toContain("CONTINUOUS");
     });
 
     it("should render freeform type", () => {
@@ -116,9 +119,10 @@ describe("Annotation Config Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("┌─ notes (free-id-003)");
-      expect(output).toContain("│  Type: FREEFORM");
-      expect(output).toContain("│  Description: — Free-text notes");
+      expect(output).toContain("notes");
+      expect(output).toContain("free-id-003");
+      expect(output).toContain("FREEFORM");
+      expect(output).toContain("Free-text notes");
     });
 
     it("should return empty message when no configs", () => {
@@ -136,8 +140,8 @@ describe("Annotation Config Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("┌─ quality (cat-id-001)");
-      expect(output).toContain("┌─ notes (free-id-003)");
+      expect(output).toContain("quality");
+      expect(output).toContain("notes");
     });
 
     it("should default to pretty format when format is undefined", () => {
@@ -145,7 +149,8 @@ describe("Annotation Config Formatting", () => {
         configs: [mockCategorical],
       });
 
-      expect(output).toContain("Annotation Configs:");
+      expect(output).toContain("name");
+      expect(output).toContain("quality");
     });
   });
 });

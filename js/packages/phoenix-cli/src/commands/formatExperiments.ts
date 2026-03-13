@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type Experiment = componentsV1["schemas"]["Experiment"];
@@ -34,39 +36,18 @@ function formatExperimentsPretty(experiments: Experiment[]): string {
     return "No experiments found";
   }
 
-  const lines: string[] = [];
-  lines.push("Experiments:");
-  lines.push("");
+  const rows = experiments.map((e) => ({
+    id: e.id,
+    project: e.project_name ?? "",
+    dataset_id: e.dataset_id,
+    examples: e.example_count,
+    successful: e.successful_run_count,
+    failed: e.failed_run_count,
+    missing: e.missing_run_count,
+    created: formatDate(e.created_at),
+  }));
 
-  for (const experiment of experiments) {
-    const projectInfo = experiment.project_name
-      ? ` [Project: ${experiment.project_name}]`
-      : "";
-
-    lines.push(`┌─ ${experiment.id}${projectInfo}`);
-    lines.push(`│  Dataset ID: ${experiment.dataset_id}`);
-    lines.push(`│  Version ID: ${experiment.dataset_version_id}`);
-    lines.push(`│  Examples: ${experiment.example_count}`);
-    lines.push(`│  Repetitions: ${experiment.repetitions}`);
-    lines.push(`│`);
-    lines.push(`│  Runs:`);
-    lines.push(`│    ✓ Successful: ${experiment.successful_run_count}`);
-    lines.push(`│    ✗ Failed: ${experiment.failed_run_count}`);
-    lines.push(`│    ○ Missing: ${experiment.missing_run_count}`);
-    lines.push(`│`);
-    lines.push(`│  Created: ${formatDate(experiment.created_at)}`);
-    lines.push(`│  Updated: ${formatDate(experiment.updated_at)}`);
-    if (
-      experiment.metadata &&
-      Object.keys(experiment.metadata as object).length > 0
-    ) {
-      lines.push(`│  Metadata: ${JSON.stringify(experiment.metadata)}`);
-    }
-    lines.push(`└─`);
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd();
+  return formatTable(rows);
 }
 
 function formatDate(dateStr: string): string {

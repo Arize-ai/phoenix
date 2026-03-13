@@ -187,7 +187,7 @@ describe("Output Formatting", () => {
       expect(output).toContain(`│  Input: ${"a".repeat(200)}…`);
     });
 
-    it("should format projects list in human-readable format", () => {
+    it("should format projects list as a table", () => {
       const projects = [
         { name: "default", description: "Default project", id: "UHJvamVjdDox" },
         { name: "SESSIONS-DEMO", description: null, id: "UHJvamVjdDo1" },
@@ -195,10 +195,12 @@ describe("Output Formatting", () => {
 
       const output = formatProjectsOutput({ projects, format: "pretty" });
 
-      expect(output).toContain("Projects:");
-      expect(output).toContain("- default (UHJvamVjdDox) — Default project");
-      expect(output).toContain("- SESSIONS-DEMO (UHJvamVjdDo1)");
-      expect(output).not.toContain("[");
+      expect(output).toContain("name");
+      expect(output).toContain("default");
+      expect(output).toContain("UHJvamVjdDox");
+      expect(output).toContain("Default project");
+      expect(output).toContain("SESSIONS-DEMO");
+      expect(output).toContain("UHJvamVjdDo1");
       expect(output).not.toContain("{");
     });
   });

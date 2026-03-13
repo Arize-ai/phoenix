@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type Dataset = componentsV1["schemas"]["Dataset"];
@@ -34,30 +36,16 @@ function formatDatasetsPretty(datasets: Dataset[]): string {
     return "No datasets found";
   }
 
-  const lines: string[] = [];
-  lines.push("Datasets:");
-  lines.push("");
+  const rows = datasets.map((d) => ({
+    name: d.name,
+    id: d.id,
+    examples: d.example_count,
+    description: d.description ?? "",
+    created: formatDate(d.created_at),
+    updated: formatDate(d.updated_at),
+  }));
 
-  for (const dataset of datasets) {
-    const desc =
-      dataset.description === null ||
-      dataset.description === undefined ||
-      dataset.description === ""
-        ? ""
-        : ` — ${dataset.description}`;
-
-    lines.push(`┌─ ${dataset.name} (${dataset.id})`);
-    lines.push(`│  Examples: ${dataset.example_count}`);
-    lines.push(`│  Created: ${formatDate(dataset.created_at)}`);
-    lines.push(`│  Updated: ${formatDate(dataset.updated_at)}`);
-    if (desc) {
-      lines.push(`│  Description:${desc}`);
-    }
-    lines.push(`└─`);
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd();
+  return formatTable(rows);
 }
 
 export interface FormatDatasetOutputOptions {

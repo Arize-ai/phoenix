@@ -1,3 +1,5 @@
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type ProjectLike = {
@@ -29,16 +31,11 @@ export function formatProjectsOutput({
     return JSON.stringify(projects, null, 2);
   }
 
-  const lines: string[] = [];
-  lines.push("Projects:");
-  for (const p of projects) {
-    const desc =
-      p.description === null ||
-      p.description === undefined ||
-      p.description === ""
-        ? ""
-        : ` — ${p.description}`;
-    lines.push(`- ${p.name} (${p.id})${desc}`);
-  }
-  return lines.join("\n");
+  const rows = projects.map((p) => ({
+    name: p.name,
+    id: p.id,
+    description: p.description ?? "",
+  }));
+
+  return formatTable(rows);
 }
