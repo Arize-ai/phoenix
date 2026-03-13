@@ -165,7 +165,7 @@ def main() -> None:
 
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser(usage="phoenix serve", add_help=False)
+    parser = ArgumentParser(prog="phoenix", add_help=False)
     parser.add_argument(
         "-h",
         "--help",
@@ -182,7 +182,7 @@ def main() -> None:
     parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
     parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
-    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
+    subparsers = parser.add_subparsers(dest="command", required=True, help="Command to run.")
     parser.set_defaults(grpc_port=None)
 
     serve_parser = subparsers.add_parser("serve")
@@ -239,8 +239,12 @@ def main() -> None:
     )
     trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
-    db_parser = subparsers.add_parser("db", help=SUPPRESS)
-    db_subparsers = db_parser.add_subparsers(dest="db_command", required=True, help=SUPPRESS)
+    db_parser = subparsers.add_parser("db", help="Database utility commands.")
+    db_subparsers = db_parser.add_subparsers(
+        dest="db_command",
+        required=True,
+        help="Database command to run.",
+    )
     db_subparsers.add_parser(
         "migrate",
         help="Run database migrations and exit.",
