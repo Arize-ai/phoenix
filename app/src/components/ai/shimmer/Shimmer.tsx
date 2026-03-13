@@ -15,11 +15,12 @@ export const Shimmer = forwardRef<HTMLElement, ShimmerProps>(
       duration = 2,
       spread = 2,
       className,
+      style,
       ...restProps
     },
     ref
   ) => {
-    const backgroundSize = `${children.length * spread}ch`;
+    const dynamicSpread = (children?.length ?? 0) * spread;
 
     return (
       <Element
@@ -27,7 +28,13 @@ export const Shimmer = forwardRef<HTMLElement, ShimmerProps>(
         className={classNames("shimmer", className)}
         data-size={size}
         data-weight={weight}
-        css={[shimmerBaseCSS, getShimmerAnimationCSS(duration, backgroundSize)]}
+        css={[shimmerBaseCSS, getShimmerAnimationCSS(duration)]}
+        style={
+          {
+            "--shimmer-spread": `${dynamicSpread}px`,
+            ...style,
+          } as React.CSSProperties
+        }
         {...restProps}
       >
         {children}
