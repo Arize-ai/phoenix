@@ -54,6 +54,7 @@ export async function getDatasetExamples({
     examples: examplesData.examples.map((example) => ({
       ...example,
       updatedAt: new Date(example.updated_at),
+      externalId: example.external_id ?? null,
     })),
   };
 }
