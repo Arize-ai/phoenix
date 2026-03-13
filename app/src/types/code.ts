@@ -15,11 +15,18 @@ export function isProgrammingLanguage(l: unknown): l is ProgrammingLanguage {
   );
 }
 
-export type TypeScriptPackageManager = "npm" | "pnpm" | "bun";
-export type PythonPackageManager = "pip" | "uv";
+export const typescriptPackageManagers = ["npm", "pnpm", "bun"] as const;
+export const pythonPackageManagers = ["pip", "uv"] as const;
+
+export type TypeScriptPackageManager =
+  (typeof typescriptPackageManagers)[number];
+export type PythonPackageManager = (typeof pythonPackageManagers)[number];
 export type PackageManager = TypeScriptPackageManager | PythonPackageManager;
 
-const packageManagers: PackageManager[] = ["npm", "pnpm", "bun", "pip", "uv"];
+const packageManagers = [
+  ...typescriptPackageManagers,
+  ...pythonPackageManagers,
+];
 
 /**
  * TypeGuard for the package manager

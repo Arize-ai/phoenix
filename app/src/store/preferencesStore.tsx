@@ -4,6 +4,10 @@ import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
+import {
+  pythonPackageManagers,
+  typescriptPackageManagers,
+} from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import type { ModelConfig } from "./playground";
@@ -21,16 +25,16 @@ export type PackageManagerByLanguage = Record<
  */
 export const packageManagersByLanguage: Record<
   ProgrammingLanguage,
-  PackageManager[]
+  readonly PackageManager[]
 > = {
-  Python: ["pip", "uv"],
-  TypeScript: ["npm", "pnpm", "bun"],
+  Python: pythonPackageManagers,
+  TypeScript: typescriptPackageManagers,
 };
 
 /**
  * The default package manager preference for each language.
  */
-export const defaultPackageManagerByLanguage: PackageManagerByLanguage = {
+const defaultPackageManagerByLanguage: PackageManagerByLanguage = {
   Python: "pip",
   TypeScript: "npm",
 };

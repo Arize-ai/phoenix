@@ -7,6 +7,7 @@ import {
   ToggleButtonGroup,
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import { isPackageManager } from "@phoenix/types/code";
 import { classNames } from "@phoenix/utils/classNames";
@@ -15,62 +16,15 @@ import { BashBlock } from "./BashBlock";
 import { codeBlockWithCopyCSS } from "./styles";
 
 /**
- * One selectable command preset for the package manager toggle.
+ * Maps each package manager to its install command prefix.
  */
-type InstallCommandOption = {
-  /**
-   * The package manager represented by this option.
-   */
-  packageManager: PackageManager;
-  /**
-   * The full command string copied/rendered when selected.
-   */
-  command: string;
+const installCommandByPackageManager: Record<PackageManager, string> = {
+  npm: "npm install",
+  pnpm: "pnpm add",
+  bun: "bun add",
+  pip: "pip install",
+  uv: "uv add",
 };
-
-function assertPackages(packages: readonly string[]) {
-  if (packages.length === 0) {
-    throw new Error("Expected at least one package");
-  }
-}
-
-function getTypeScriptInstallCommandOptions(
-  packages: readonly string[]
-): InstallCommandOption[] {
-  assertPackages(packages);
-  const dependencyList = packages.join(" ");
-  return [
-    {
-      packageManager: "npm",
-      command: `npm install ${dependencyList}`,
-    },
-    {
-      packageManager: "pnpm",
-      command: `pnpm add ${dependencyList}`,
-    },
-    {
-      packageManager: "bun",
-      command: `bun add ${dependencyList}`,
-    },
-  ];
-}
-
-function getPythonInstallCommandOptions(
-  packages: readonly string[]
-): InstallCommandOption[] {
-  assertPackages(packages);
-  const dependencyList = packages.join(" ");
-  return [
-    {
-      packageManager: "pip",
-      command: `pip install ${dependencyList}`,
-    },
-    {
-      packageManager: "uv",
-      command: `uv add ${dependencyList}`,
-    },
-  ];
-}
 
 const packageManagerCommandBlockCSS = css`
   border-radius: var(--global-rounding-small);
@@ -135,17 +89,9 @@ export function PackageManagerCommandBlock({
       setPackageManager: state.setPackageManager,
     })
   );
-  const installCommandOptions: readonly InstallCommandOption[] =
-    language === "TypeScript"
-      ? getTypeScriptInstallCommandOptions(packages)
-      : getPythonInstallCommandOptions(packages);
-  const selectedCommand =
-    installCommandOptions.find(
-      (installCommandOption) =>
-        installCommandOption.packageManager === selectedPackageManager
-    )?.command ??
-    installCommandOptions[0]?.command ??
-    "";
+  const packageManagerOptions = packageManagersByLanguage[language];
+  const dependencyList = packages.join(" ");
+  const selectedCommand = `${installCommandByPackageManager[selectedPackageManager]} ${dependencyList}`;
 
   return (
     <div
@@ -169,14 +115,14 @@ export function PackageManagerCommandBlock({
             }
           }}
         >
-          {installCommandOptions.map((installCommandOption) => (
+          {packageManagerOptions.map((packageManager) => (
             <ToggleButton
-              key={installCommandOption.packageManager}
-              id={installCommandOption.packageManager}
-              aria-label={installCommandOption.packageManager}
+              key={packageManager}
+              id={packageManager}
+              aria-label={packageManager}
               className="package-manager-command__toggle"
             >
-              {installCommandOption.packageManager}
+              {packageManager}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
