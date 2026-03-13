@@ -374,15 +374,6 @@ class PhoenixAsyncHTTPClient(httpx.AsyncClient):
             self._server_version = _extract_version_from_response(response)
         return response
 
-    def fetch_server_version(self) -> None:
-        """Synchronous no-op for the async client.
-
-        The async client cannot do synchronous HTTP. This exists so that
-        ``ensure_server_capability`` can call it uniformly; it relies on the
-        version already being cached from a prior response header.
-        """
-        pass
-
     async def async_fetch_server_version(self) -> None:
         """Eagerly fetch the Phoenix server version if not yet cached.
 
