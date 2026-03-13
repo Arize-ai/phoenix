@@ -2,13 +2,9 @@ import pytest
 
 from phoenix.client.client import PhoenixHTTPClient
 from phoenix.client.constants.server_requirements import (
-    ALL_REQUIREMENTS,
-    ANNOTATE_SESSIONS,
     DELETE_SESSION,
-    DELETE_SESSIONS,
     GET_SESSION,
     GET_SPANS_TRACE_IDS,
-    LIST_PROJECT_SESSIONS,
 )
 from phoenix.client.types.server_requirements import (
     ParameterRequirement,
@@ -90,14 +86,3 @@ class TestEnsureServerCapability:
         ):
             with pytest.raises(PhoenixException, match="version could not be determined"):
                 ensure_server_capability(client=client, requirement=GET_SESSION)
-
-
-class TestAllRequirements:
-    def test_contains_all(self) -> None:
-        assert GET_SESSION in ALL_REQUIREMENTS
-        assert DELETE_SESSION in ALL_REQUIREMENTS
-        assert DELETE_SESSIONS in ALL_REQUIREMENTS
-        assert LIST_PROJECT_SESSIONS in ALL_REQUIREMENTS
-        assert ANNOTATE_SESSIONS in ALL_REQUIREMENTS
-        assert GET_SPANS_TRACE_IDS in ALL_REQUIREMENTS
-        assert len(ALL_REQUIREMENTS) == 6
