@@ -306,7 +306,7 @@ class ThreadSession(Session):
             connection_str=database_url,
             migrate=not Settings.disable_migrations,
             log_to_stdout=get_env_log_sql(),
-            log_migrations=notebook_env is None,
+            log_migrations=self.notebook_env is None,
         )
         shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
         shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
