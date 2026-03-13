@@ -144,6 +144,10 @@ const router = createBrowserRouter(
               loader={projectLoader}
               handle={{
                 crumb: (data: ProjectLoaderData) => data?.project?.name,
+                copy: (data: ProjectLoaderData) => [
+                  { name: "Project Name", value: data?.project?.name },
+                  { name: "Project ID", value: data?.project?.name },
+                ],
               }}
               element={<ProjectRoot />}
             >
@@ -174,6 +178,10 @@ const router = createBrowserRouter(
               loader={datasetLoader}
               handle={{
                 crumb: (data: DatasetLoaderData) => data?.dataset?.name,
+                copy: (data: DatasetLoaderData) => [
+                  { name: "Dataset Name", value: data?.dataset?.name },
+                  { name: "Dataset ID", value: data?.dataset?.id },
+                ],
               }}
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
@@ -270,6 +278,15 @@ const router = createBrowserRouter(
                     return data?.prompt?.name;
                   }
                   return "prompt unknown";
+                },
+                copy: (data: PromptLoaderData) => {
+                  if (data?.prompt?.__typename === "Prompt") {
+                    return [
+                      { name: "Prompt Name", value: data.prompt.name },
+                      { name: "Prompt ID", value: data.prompt.id },
+                    ];
+                  }
+                  return [];
                 },
               }}
             >

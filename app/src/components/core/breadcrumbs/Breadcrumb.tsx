@@ -38,7 +38,12 @@ const breadcrumbCSS = css`
 function Breadcrumb(props: BreadcrumbProps, ref: Ref<HTMLLIElement>) {
   const { children, ...rest } = props;
   return (
-    <AriaBreadcrumb css={breadcrumbCSS} {...rest} ref={ref}>
+    <AriaBreadcrumb
+      css={breadcrumbCSS}
+      {...rest}
+      className="breadcrumb"
+      ref={ref}
+    >
       {({ isCurrent }) => (
         <>
           {children}
