@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.0.0...arize-phoenix-client-v2.0.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* **ci:** resolve mypy dual-module-name conflict in canary tests ([52af159](https://github.com/Arize-ai/phoenix/commit/52af159bc09b735ad963f4fb3dc5bb36819fd4b9))
+* **client:** add server version gating to Python and TypeScript clients ([0b62b56](https://github.com/Arize-ai/phoenix/commit/0b62b56eb577540da1ac90107a986a41b5a858f8))
+* **client:** correct conftest fixture return type for pyright ([955cf96](https://github.com/Arize-ai/phoenix/commit/955cf96bc22b0cf4cab7a00ad1477dc6584a6692))
+* **client:** set mypy_path to resolve dual-module-name conflict ([6857540](https://github.com/Arize-ai/phoenix/commit/685754037a67468d7e22a2161b454b394591ad14))
+
+
+### Reverts
+
+* undo hacky CI fixes ([5d60dcc](https://github.com/Arize-ai/phoenix/commit/5d60dccf9c09f12e10ada1b923cde89d06532d1d))
+
+
+### Documentation
+
+* **client:** add server version requirements to capability-gated methods ([916a7bd](https://github.com/Arize-ai/phoenix/commit/916a7bd9913c6909fb1573a60c61647336e285ad))
+* **client:** add version notes to delegate methods, fix "feature" in TS comment ([9ea7463](https://github.com/Arize-ai/phoenix/commit/9ea74636e5d9358e28a6afad9f5fd76c003d6a86))
+
 ## [2.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.31.0...arize-phoenix-client-v2.0.0) (2026-03-11)
 
 
