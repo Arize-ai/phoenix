@@ -6145,6 +6145,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
           }
         },
         "type": "object",

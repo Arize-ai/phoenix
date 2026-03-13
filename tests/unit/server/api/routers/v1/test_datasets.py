@@ -2086,16 +2086,19 @@ async def test_upsert_removes_split_assignments_when_splits_empty(
         ],
     )
 
-    # Re-upsert with no splits — old "train" assignment should be removed
-    await _upsert(
-        httpx_client,
-        name,
-        [
-            ExampleContent(
-                input={"q": "Q1"}, output={"a": "A1"}, splits=frozenset(), external_id="e1"
-            ),
-        ],
+    # Re-upsert with explicit splits=[None] — old "train" assignment should be removed.
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "upsert",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+            "external_ids": ["e1"],
+            "splits": [None],
+        },
     )
+    response.raise_for_status()
 
     async with db() as session:
         example = await session.scalar(
@@ -2178,10 +2181,12 @@ async def test_upsert_preserves_split_assignments_when_splits_not_provided(
         assert by_ext["e4"].dataset_splits_dataset_examples == []
 
 
-def _examples_to_body(action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
+def _examples_to_body(*, action: str, name: str, examples: list[ExampleContent]) -> dict[str, Any]:
     body: dict[str, Any] = {"action": action, "name": name, "inputs": [e.input for e in examples]}
     if any(e.output for e in examples):
         body["outputs"] = [e.output for e in examples]
+    if any(e.metadata for e in examples):
+        body["metadata"] = [e.metadata for e in examples]
     if any(e.external_id is not None for e in examples):
         body["external_ids"] = [e.external_id for e in examples]
     if any(e.splits for e in examples):
@@ -2198,7 +2203,7 @@ async def _upsert(
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json=_examples_to_body("upsert", name, examples),
+        json=_examples_to_body(action="upsert", name=name, examples=examples),
     )
     response.raise_for_status()
 
@@ -2210,7 +2215,7 @@ async def _append(
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json=_examples_to_body("append", name, examples),
+        json=_examples_to_body(action="append", name=name, examples=examples),
     )
     response.raise_for_status()
 

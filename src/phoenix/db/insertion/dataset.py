@@ -760,12 +760,15 @@ async def _rebuild_dataset_splits(
     examples and only deleted examples lose their assignments.
     """
 
-    if not splits_provided and diff.delete_example_ids:
-        await session.execute(
-            delete(models.DatasetSplitDatasetExample).where(
-                models.DatasetSplitDatasetExample.dataset_example_id.in_(diff.delete_example_ids)
+    if not splits_provided:
+        if diff.delete_example_ids:
+            await session.execute(
+                delete(models.DatasetSplitDatasetExample).where(
+                    models.DatasetSplitDatasetExample.dataset_example_id.in_(
+                        diff.delete_example_ids
+                    )
+                )
             )
-        )
         return
 
     await session.execute(

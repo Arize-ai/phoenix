@@ -933,6 +933,7 @@ class DatasetExample(V1RoutesBaseModel):
     output: dict[str, Any]
     metadata: dict[str, Any]
     updated_at: datetime
+    external_id: Optional[str] = None
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
@@ -1089,6 +1090,7 @@ async def get_dataset_examples(
                 output=revision.output,
                 metadata=revision.metadata_,
                 updated_at=revision.created_at,
+                external_id=example.external_id,
             )
             async for example, revision in await session.stream(query)
         ]

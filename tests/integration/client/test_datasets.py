@@ -8,6 +8,8 @@ from typing import Any, Sequence
 
 import pandas as pd
 import pytest
+from phoenix.client import AsyncClient
+from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 
@@ -24,9 +26,6 @@ class TestDatasetIntegration:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -68,9 +67,6 @@ class TestDatasetIntegration:
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_dataset_{token_hex(4)}"
@@ -106,9 +102,6 @@ class TestDatasetIntegration:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -151,9 +144,6 @@ class TestDatasetIntegration:
         tmp_path: Path,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -246,9 +236,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         df = pd.DataFrame(
@@ -283,9 +270,6 @@ Capital of Germany?,Berlin,geography,validation
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -344,9 +328,6 @@ Capital of Germany?,Berlin,geography,validation
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -462,9 +443,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_flex_{token_hex(4)}"
@@ -514,9 +492,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Test dataset not found
@@ -545,9 +520,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         """Test that dataset.examples can be passed directly to add_examples_to_dataset."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -632,9 +604,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_legacy_compat_{token_hex(4)}"
@@ -702,10 +671,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         """Test that Dataset.to_dict() and Dataset.from_dict() work correctly for round-tripping."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.resources.datasets import Dataset
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -829,9 +794,6 @@ Capital of Germany?,Berlin,geography,validation
         - Type safety with proper v1.Dataset annotations
         """  # noqa: E501
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1049,9 +1011,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         api_key_str = str(api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_splits_{token_hex(4)}"
@@ -1199,9 +1158,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         api_key_str = str(api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_splits_dedup_{token_hex(4)}"
@@ -1348,8 +1304,6 @@ Capital of Germany?,Berlin,geography,validation
         tmp_path: Path,
     ) -> None:
         """Test creating dataset with span_id_key parameter from CSV."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1430,8 +1384,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id_key parameter from DataFrame."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1508,8 +1460,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id in examples parameter (JSON path)."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1598,8 +1548,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test adding examples with span_id to existing dataset."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1685,8 +1633,6 @@ What is NLP?,Natural Language Processing,
         when they have no meaningful values. The server should handle missing
         keys and create examples with default values.
         """
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1753,3 +1699,195 @@ What is NLP?,Natural Language Processing,
             assert revision["metadata"] == {}
             # No span link
             assert ex["node"]["span"] is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_creates_new(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_dataset_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "4"}],
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 1
+        assert dataset[0]["input"]["question"] == "What is 2+2?"
+        assert dataset[0]["output"]["answer"] == "4"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_merges_existing(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_dataset_{token_hex(4)}"
+
+        initial = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "4"}],
+            )
+        )
+        assert len(initial) == 1
+
+        updated = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 3+3?"}],
+                outputs=[{"answer": "6"}],
+            )
+        )
+
+        assert updated.id == initial.id
+        assert updated.version_id != initial.version_id
+        assert len(updated) == 1
+        assert updated[0]["input"]["question"] == "What is 3+3?"
+        assert updated[0]["output"]["answer"] == "6"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_with_external_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_dataset_{token_hex(4)}"
+
+        initial = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "4"}],
+                external_ids=["q1"],
+            )
+        )
+        assert len(initial) == 1
+
+        # Upsert with same external_id — should update in place, not add a new example
+        updated = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "Four"}],
+                external_ids=["q1"],
+            )
+        )
+
+        assert updated.id == initial.id
+        assert updated.version_id != initial.version_id
+        assert len(updated) == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_no_version_for_unchanged(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_dataset_{token_hex(4)}"
+
+        first = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "4"}],
+                external_ids=["q1"],
+            )
+        )
+
+        second = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"question": "What is 2+2?"}],
+                outputs=[{"answer": "4"}],
+                external_ids=["q1"],
+            )
+        )
+
+        assert second.id == first.id
+        assert second.version_id == first.version_id
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_deletes_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_dataset_{token_hex(4)}"
+
+        initial = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"q": "Q1"}, {"q": "Q2"}, {"q": "Q3"}],
+                outputs=[{"a": "A1"}, {"a": "A2"}, {"a": "A3"}],
+                external_ids=["e1", "e2", "e3"],
+            )
+        )
+        assert len(initial) == 3
+
+        reduced = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                inputs=[{"q": "Q1"}],
+                outputs=[{"a": "A1"}],
+                external_ids=["e1"],
+            )
+        )
+        assert len(reduced) == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_with_dataframe(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        unique_name = f"test_dataset_{token_hex(4)}"
+
+        df = pd.DataFrame(
+            {
+                "question": ["What is 2+2?", "Capital of France?"],
+                "answer": ["4", "Paris"],
+            }
+        )
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.upsert_dataset(
+                name=unique_name,
+                dataframe=df,
+                input_keys=["question"],
+                output_keys=["answer"],
+            )
+        )
+
+        assert dataset.name == unique_name
+        assert len(dataset) == 2
