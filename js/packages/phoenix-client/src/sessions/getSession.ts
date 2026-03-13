@@ -1,11 +1,10 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
+import { GET_SESSION } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { Session } from "../types/sessions";
-import { GET_SESSION } from "../constants/serverRequirements";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
-
 import { toSession } from "./sessionUtils";
 
 export type GetSessionParams = ClientFn & {

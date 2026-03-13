@@ -1,6 +1,6 @@
 import { createClient } from "../client";
-import type { ClientFn } from "../types/core";
 import { DELETE_SESSIONS } from "../constants/serverRequirements";
+import type { ClientFn } from "../types/core";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**

@@ -2,13 +2,12 @@ import invariant from "tiny-invariant";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient } from "../client";
+import { LIST_PROJECT_SESSIONS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import type { Session } from "../types/sessions";
-import { LIST_PROJECT_SESSIONS } from "../constants/serverRequirements";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
-
 import { toSession } from "./sessionUtils";
 
 export type ListSessionsParams = ClientFn & ProjectIdentifier;

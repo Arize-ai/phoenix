@@ -59,7 +59,10 @@ describe("ensureServerCapability", () => {
       getServerVersion: async () => [13, 5, 0] as [number, number, number],
     };
     await expect(
-      ensureServerCapability({ client: mockClient as never, requirement: GET_SESSION })
+      ensureServerCapability({
+        client: mockClient as never,
+        requirement: GET_SESSION,
+      })
     ).resolves.toBeUndefined();
   });
 
@@ -68,7 +71,10 @@ describe("ensureServerCapability", () => {
       getServerVersion: async () => [13, 4, 0] as [number, number, number],
     };
     await expect(
-      ensureServerCapability({ client: mockClient as never, requirement: GET_SESSION })
+      ensureServerCapability({
+        client: mockClient as never,
+        requirement: GET_SESSION,
+      })
     ).rejects.toThrow(/requires Phoenix server >= 13\.5\.0/);
   });
 
@@ -77,10 +83,11 @@ describe("ensureServerCapability", () => {
       getServerVersion: async () => [12, 0, 0] as [number, number, number],
     };
     await expect(
-      ensureServerCapability({ client: mockClient as never, requirement: DELETE_SESSION })
-    ).rejects.toThrow(
-      /The DELETE \/v1\/sessions\/\{session_id\} route/
-    );
+      ensureServerCapability({
+        client: mockClient as never,
+        requirement: DELETE_SESSION,
+      })
+    ).rejects.toThrow(/The DELETE \/v1\/sessions\/\{session_id\} route/);
   });
 
   it("includes capability label in error message for parameter", async () => {
@@ -88,7 +95,10 @@ describe("ensureServerCapability", () => {
       getServerVersion: async () => [12, 0, 0] as [number, number, number],
     };
     await expect(
-      ensureServerCapability({ client: mockClient as never, requirement: GET_SPANS_TRACE_IDS })
+      ensureServerCapability({
+        client: mockClient as never,
+        requirement: GET_SPANS_TRACE_IDS,
+      })
     ).rejects.toThrow(/The 'trace_id' query parameter/);
   });
 
@@ -102,7 +112,10 @@ describe("ensureServerCapability", () => {
       },
     };
     await expect(
-      ensureServerCapability({ client: mockClient as never, requirement: GET_SESSION })
+      ensureServerCapability({
+        client: mockClient as never,
+        requirement: GET_SESSION,
+      })
     ).rejects.toThrow(/version could not be determined/);
   });
 });

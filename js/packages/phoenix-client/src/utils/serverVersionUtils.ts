@@ -67,7 +67,9 @@ export async function ensureServerCapability({
   requirement: CapabilityRequirement;
 }): Promise<void> {
   const version = await client.getServerVersion();
-  if (!satisfiesMinVersion({ version, minVersion: requirement.minServerVersion })) {
+  if (
+    !satisfiesMinVersion({ version, minVersion: requirement.minServerVersion })
+  ) {
     throw new Error(
       `${capabilityLabel(requirement)} requires Phoenix server >= ${formatVersion(requirement.minServerVersion)}, ` +
         `but connected to server ${formatVersion(version)}. Please upgrade your Phoenix server.`

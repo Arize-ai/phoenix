@@ -1,8 +1,7 @@
 import { createClient } from "../client";
-import type { ClientFn } from "../types/core";
 import { ANNOTATE_SESSIONS } from "../constants/serverRequirements";
+import type { ClientFn } from "../types/core";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
-
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
 

@@ -1,9 +1,9 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
+import { GET_SPANS_TRACE_IDS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
-import { GET_SPANS_TRACE_IDS } from "../constants/serverRequirements";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
