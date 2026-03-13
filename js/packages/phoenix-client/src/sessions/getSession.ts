@@ -3,6 +3,9 @@ import invariant from "tiny-invariant";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
 import type { Session } from "../types/sessions";
+import { GET_SESSION } from "../constants/serverRequirements";
+import { ensureServerFeature } from "../utils/serverVersionUtils";
+
 import { toSession } from "./sessionUtils";
 
 export type GetSessionParams = ClientFn & {
@@ -28,6 +31,7 @@ export async function getSession({
   sessionId,
 }: GetSessionParams): Promise<Session> {
   const client = _client || createClient();
+  await ensureServerFeature({ client, requirement: GET_SESSION });
   const { data, error } = await client.GET(
     "/v1/sessions/{session_identifier}",
     {

@@ -1,5 +1,8 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { ANNOTATE_SESSIONS } from "../constants/serverRequirements";
+import { ensureServerFeature } from "../utils/serverVersionUtils";
+
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
 
@@ -48,6 +51,7 @@ export async function addSessionAnnotation({
   sync = false,
 }: AddSessionAnnotationParams): Promise<{ id: string } | null> {
   const client = _client ?? createClient();
+  await ensureServerFeature({ client, requirement: ANNOTATE_SESSIONS });
 
   const { data, error } = await client.POST("/v1/session_annotations", {
     params: {

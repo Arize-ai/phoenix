@@ -1,5 +1,7 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { DELETE_SESSIONS } from "../constants/serverRequirements";
+import { ensureServerFeature } from "../utils/serverVersionUtils";
 
 /**
  * Parameters to bulk delete sessions
@@ -48,6 +50,7 @@ export async function deleteSessions({
   sessionIds,
 }: DeleteSessionsParams): Promise<void> {
   const client = _client ?? createClient();
+  await ensureServerFeature({ client, requirement: DELETE_SESSIONS });
 
   const { error } = await client.POST("/v1/sessions/delete", {
     body: {

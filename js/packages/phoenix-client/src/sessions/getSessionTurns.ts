@@ -86,6 +86,7 @@ export async function getSessionTurns({
 }: GetSessionTurnsParams): Promise<SessionTurn[]> {
   const client = _client ?? createClient();
 
+  // getSession already calls ensureSessionsApi internally
   const session: Session = await getSession({ client, sessionId });
   const traces = session.traces;
   if (traces.length === 0) {
