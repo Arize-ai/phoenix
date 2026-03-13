@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime, timezone, tzinfo
@@ -18,6 +20,9 @@ from phoenix.client.utils.annotation_helpers import (
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from phoenix.client.client import PhoenixAsyncHTTPClient as PhoenixAsyncHTTPClient
+    from phoenix.client.client import PhoenixHTTPClient as PhoenixHTTPClient
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
@@ -109,7 +114,7 @@ class Spans:
             client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(self, client: PhoenixHTTPClient) -> None:
         self._client = client
 
     def get_spans_dataframe(
@@ -450,12 +455,10 @@ class Spans:
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if trace_ids:
-            from phoenix.client.client import PhoenixHTTPClient
             from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
             from phoenix.client.utils.server_version_utils import ensure_server_feature
 
-            if isinstance(self._client, PhoenixHTTPClient):
-                ensure_server_feature(self._client, GET_SPANS_TRACE_IDS)
+            ensure_server_feature(client=self._client, requirement=GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1348,7 +1351,7 @@ class AsyncSpans:
             await client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(self, client: PhoenixAsyncHTTPClient) -> None:
         self._client = client
 
     async def get_spans_dataframe(
@@ -1691,12 +1694,10 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if trace_ids:
-            from phoenix.client.client import PhoenixAsyncHTTPClient
             from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
             from phoenix.client.utils.server_version_utils import async_ensure_server_feature
 
-            if isinstance(self._client, PhoenixAsyncHTTPClient):
-                await async_ensure_server_feature(self._client, GET_SPANS_TRACE_IDS)
+            await async_ensure_server_feature(client=self._client, requirement=GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)

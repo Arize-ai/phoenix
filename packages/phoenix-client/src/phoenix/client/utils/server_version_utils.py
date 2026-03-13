@@ -42,6 +42,7 @@ def _check_version(
 
 
 def ensure_server_feature(
+    *,
     client: Union[PhoenixHTTPClient, PhoenixAsyncHTTPClient],
     requirement: FeatureRequirement,
 ) -> None:
@@ -56,6 +57,7 @@ def ensure_server_feature(
 
 
 async def async_ensure_server_feature(
+    *,
     client: PhoenixAsyncHTTPClient,
     requirement: FeatureRequirement,
 ) -> None:

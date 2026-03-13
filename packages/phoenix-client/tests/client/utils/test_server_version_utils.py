@@ -59,19 +59,19 @@ class TestEnsureServerFeature:
     def test_no_error_when_version_satisfies(self) -> None:
         client = PhoenixHTTPClient(base_url="http://localhost:6006")
         client.server_version = (13, 5, 0)
-        ensure_server_feature(client, GET_SESSION)
+        ensure_server_feature(client=client, requirement=GET_SESSION)
 
     def test_raises_when_version_too_old(self) -> None:
         client = PhoenixHTTPClient(base_url="http://localhost:6006")
         client.server_version = (13, 4, 0)
         with pytest.raises(Exception, match="requires Phoenix >= 13.5.0"):
-            ensure_server_feature(client, GET_SESSION)
+            ensure_server_feature(client=client, requirement=GET_SESSION)
 
     def test_raises_with_feature_label(self) -> None:
         client = PhoenixHTTPClient(base_url="http://localhost:6006")
         client.server_version = (12, 0, 0)
         with pytest.raises(Exception, match="The DELETE /v1/sessions/"):
-            ensure_server_feature(client, DELETE_SESSION)
+            ensure_server_feature(client=client, requirement=DELETE_SESSION)
 
     def test_raises_when_version_unknown(self) -> None:
         from unittest.mock import patch
@@ -89,7 +89,7 @@ class TestEnsureServerFeature:
             ),
         ):
             with pytest.raises(PhoenixException, match="version could not be determined"):
-                ensure_server_feature(client, GET_SESSION)
+                ensure_server_feature(client=client, requirement=GET_SESSION)
 
 
 class TestAllRequirements:
