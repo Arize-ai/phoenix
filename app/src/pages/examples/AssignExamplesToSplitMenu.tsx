@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import type { ButtonProps } from "@phoenix/components";
 import {
+  Alert,
   Autocomplete,
   Button,
   Checkbox,
@@ -321,12 +322,14 @@ const SplitCreateMenu = ({
   setMode: (mode: "apply" | "create") => void;
   selectedExampleIds: string[];
 }) => {
+  const [error, setError] = useState<string | null>(null);
   const onCompleted = useCallback(() => {
     setMode("apply");
   }, [setMode]);
   const { onSubmit, isCreatingDatasetSplit } = useDatasetSplitMutations({
     exampleIds: selectedExampleIds,
     onCompleted,
+    onError: setError,
   });
   return (
     <>
@@ -346,6 +349,7 @@ const SplitCreateMenu = ({
             : ""}
         </MenuHeaderTitle>
       </MenuHeader>
+      {error && <Alert variant="danger">{error}</Alert>}
       <NewDatasetSplitForm
         onSubmit={onSubmit}
         isSubmitting={isCreatingDatasetSplit}

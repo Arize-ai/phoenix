@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Card,
   DialogTrigger,
@@ -16,7 +17,6 @@ import {
   CreateAPIKeyDialog,
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
-import { useNotifyError } from "@phoenix/contexts";
 
 import type { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
 import type {
@@ -32,7 +32,7 @@ export function ViewerAPIKeys({
 }) {
   const [showCreateAPIKeyResponse, setShowCreateAPIKeyResponse] =
     useState<ViewerAPIKeysCreateUserAPIKeyMutation$data | null>(null);
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const [commit, isCommitting] =
     useMutation<ViewerAPIKeysCreateUserAPIKeyMutation>(graphql`
@@ -64,14 +64,11 @@ export function ViewerAPIKeys({
           setShowCreateAPIKeyResponse(response);
         },
         onError: (error) => {
-          notifyError({
-            title: "Error creating API key",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     },
-    [commit, notifyError]
+    [commit]
   );
   return (
     <>
@@ -96,6 +93,7 @@ export function ViewerAPIKeys({
           </DialogTrigger>
         }
       >
+        {error && <Alert variant="danger">{error}</Alert>}
         <APIKeysTable query={viewer} />
       </Card>
       <DialogTrigger

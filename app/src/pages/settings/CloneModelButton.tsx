@@ -26,7 +26,7 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -105,7 +105,7 @@ function CloneModelDialogContent({
       }
     `);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const modelData = data?.node;
 
   if (!modelData) {
@@ -113,13 +113,15 @@ function CloneModelDialogContent({
   }
 
   return (
-    <ModelForm
-      modelName={`${modelData.name} (override)`}
-      modelProvider={modelData.provider}
-      modelNamePattern={modelData.namePattern}
-      modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
-      startDate={modelData.startTime}
-      onSubmit={(params) => {
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <ModelForm
+        modelName={`${modelData.name} (override)`}
+        modelProvider={modelData.provider}
+        modelNamePattern={modelData.namePattern}
+        modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
+        startDate={modelData.startTime}
+        onSubmit={(params) => {
         commitCloneModel({
           variables: {
             input: {
@@ -153,17 +155,15 @@ function CloneModelDialogContent({
           onError: (error) => {
             const formattedError =
               getErrorMessagesFromRelayMutationError(error);
-            notifyError({
-              title: "Failed to clone model",
-              message: formattedError?.[0] ?? "Failed to clone model",
-            });
+            setError(formattedError?.[0] ?? "Failed to clone model");
           },
         });
       }}
-      isSubmitting={isCommittingCloneModel}
-      submitButtonText="Save Changes"
-      formMode="create"
-    />
+        isSubmitting={isCommittingCloneModel}
+        submitButtonText="Save Changes"
+        formMode="create"
+      />
+    </>
   );
 }
 

@@ -116,17 +116,27 @@ export const useNotifySuccess = () => {
 /**
  * Trigger a notification with the error variant.
  *
+ * @deprecated Error toasts are an accessibility anti-pattern — they are
+ * ephemeral and may disappear before assistive technology users can read them.
+ * Use an inline `<Alert variant="danger">` component instead, storing the
+ * error message in local component state with `useState<string | null>(null)`.
+ *
+ * @example Migration pattern:
+ * ```tsx
+ * // Before
+ * const notifyError = useNotifyError();
+ * notifyError({ title: "Failed", message: error.message });
+ *
+ * // After — keep error in state and render it inline
+ * const [error, setError] = useState<string | null>(null);
+ * // in the mutation onError callback:
+ * setError(error.message);
+ * // in JSX:
+ * {error && <Alert variant="danger">{error}</Alert>}
+ * ```
+ *
  * @param params Notification parameters.
  * @returns A callback that triggers a notification. The callback returns a key that can be later used to programmatically dismiss the notification.
- * @example // Timed dismissal after 5 seconds
- * const notifyError = useNotifyError();
- * notifyError({ title: "Error", message: "Operation failed.", expireMs: 5000 });
- * @example // Programmatic dismissal
- * const queue = useNotificationQueue();
- * const notifyError = useNotifyError();
- * const key = notifyError({ title: "Error", message: "Operation failed." });
- * // later on...
- * queue.dismiss(key);
  */
 export const useNotifyError = () => {
   return useCallback(

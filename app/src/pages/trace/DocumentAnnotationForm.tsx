@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import { Input, TextArea } from "react-aria-components";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   FieldError,
   Flex,
@@ -14,7 +15,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ComboBox, ComboBoxItem } from "@phoenix/components/core/combobox";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { DocumentAnnotationFormCreateMutation } from "./__generated__/DocumentAnnotationFormCreateMutation.graphql";
 import type { DocumentAnnotationFormPatchMutation } from "./__generated__/DocumentAnnotationFormPatchMutation.graphql";
@@ -59,7 +60,7 @@ export function DocumentAnnotationForm({
   onSaved?: () => void;
   onCancel: () => void;
 }) {
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
 
   const {
@@ -193,10 +194,7 @@ export function DocumentAnnotationForm({
           onSaved?.();
         },
         onError: (error) => {
-          notifyError({
-            title: "Error updating annotation",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     } else {
@@ -225,10 +223,7 @@ export function DocumentAnnotationForm({
           onSaved?.();
         },
         onError: (error) => {
-          notifyError({
-            title: "Error creating annotation",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     }
@@ -346,6 +341,7 @@ export function DocumentAnnotationForm({
             </TextField>
           )}
         />
+        {error && <Alert variant="danger">{error}</Alert>}
         <Flex direction="row" gap="size-100" justifyContent="end">
           <Button size="S" onPress={onCancel}>
             Cancel

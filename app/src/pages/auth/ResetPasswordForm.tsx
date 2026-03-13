@@ -1,10 +1,11 @@
 import { css } from "@emotion/react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useFragment, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
+  Alert,
   Button,
   FieldError,
   Form,
@@ -14,7 +15,6 @@ import {
   TextField,
   VisuallyHidden,
 } from "@phoenix/components";
-import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import type { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
@@ -32,7 +32,7 @@ export function ResetPasswordForm(props: {
   query: ResetPasswordFormQuery$key;
 }) {
   const navigate = useNavigate();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const data = useFragment(
     graphql`
       fragment ResetPasswordFormQuery on Query {
@@ -75,14 +75,11 @@ export function ResetPasswordForm(props: {
           navigate(to);
         },
         onError: (error) => {
-          notifyError({
-            title: "Failed to reset password",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     },
-    [commit, navigate, notifyError]
+    [commit, navigate]
   );
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
@@ -208,6 +205,7 @@ export function ResetPasswordForm(props: {
           </TextField>
         )}
       />
+      {error && <Alert variant="danger">{error}</Alert>}
       <div
         css={css`
           display: flex;

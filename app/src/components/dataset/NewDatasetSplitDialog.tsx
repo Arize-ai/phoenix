@@ -1,4 +1,6 @@
-import { Dialog, Modal } from "@phoenix/components";
+import { useState } from "react";
+
+import { Alert, Dialog, Modal } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -16,9 +18,11 @@ type NewDatasetSplitDialogProps = {
 
 export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
   const { onCompleted, exampleIds } = props;
+  const [error, setError] = useState<string | null>(null);
   const { onSubmit, isCreatingDatasetSplit } = useDatasetSplitMutations({
     onCompleted,
     exampleIds,
+    onError: setError,
   });
 
   return (
@@ -31,6 +35,7 @@ export function NewDatasetSplitDialog(props: NewDatasetSplitDialogProps) {
               <DialogCloseButton />
             </DialogTitleExtra>
           </DialogHeader>
+          {error && <Alert variant="danger">{error}</Alert>}
           <NewDatasetSplitForm
             onSubmit={onSubmit}
             isSubmitting={isCreatingDatasetSplit}

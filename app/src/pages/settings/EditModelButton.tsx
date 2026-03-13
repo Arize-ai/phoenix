@@ -25,7 +25,7 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -90,7 +90,7 @@ function EditModelDialogContent({
       }
     `);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const modelData = data?.node;
 
   if (!modelData) {
@@ -98,13 +98,15 @@ function EditModelDialogContent({
   }
 
   return (
-    <ModelForm
-      modelName={modelData.name}
-      modelProvider={modelData.provider}
-      modelNamePattern={modelData.namePattern}
-      modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
-      startDate={modelData.startTime}
-      onSubmit={(params) => {
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <ModelForm
+        modelName={modelData.name}
+        modelProvider={modelData.provider}
+        modelNamePattern={modelData.namePattern}
+        modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
+        startDate={modelData.startTime}
+        onSubmit={(params) => {
         commitUpdateModel({
           variables: {
             input: {
@@ -138,17 +140,15 @@ function EditModelDialogContent({
           onError: (error) => {
             const formattedError =
               getErrorMessagesFromRelayMutationError(error);
-            notifyError({
-              title: "Failed to update model",
-              message: formattedError?.[0] ?? "Failed to update model",
-            });
+            setError(formattedError?.[0] ?? "Failed to update model");
           },
         });
       }}
-      isSubmitting={isCommittingUpdateModel}
-      submitButtonText="Save Changes"
-      formMode="edit"
-    />
+        isSubmitting={isCommittingUpdateModel}
+        submitButtonText="Save Changes"
+        formMode="edit"
+      />
+    </>
   );
 }
 

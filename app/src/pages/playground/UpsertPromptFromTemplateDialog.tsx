@@ -1,8 +1,8 @@
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { Dialog, Loading } from "@phoenix/components";
+import { Alert, Dialog, Loading } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -11,7 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import type { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import type { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
@@ -46,7 +46,7 @@ export const UpsertPromptFromTemplateDialog = ({
 }: UpsertPromptFromTemplateProps) => {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const store = usePlaygroundStore();
   const [createPrompt, isCreatePending] =
     useMutation<UpsertPromptFromTemplateDialogCreateMutation>(graphql`
@@ -118,10 +118,7 @@ export const UpsertPromptFromTemplateDialog = ({
         try {
           metadata = JSON.parse(params.metadata);
         } catch (_error) {
-          notifyError({
-            title: "Invalid metadata",
-            message: "Failed to parse metadata as JSON",
-          });
+          setError("Failed to parse metadata as JSON");
           return;
         }
       }
@@ -161,10 +158,7 @@ export const UpsertPromptFromTemplateDialog = ({
         },
         onError: (error) => {
           const message = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Error creating prompt",
-            message: message?.[0],
-          });
+          setError(message?.[0] ?? "Error creating prompt");
         },
       });
     },
@@ -172,7 +166,6 @@ export const UpsertPromptFromTemplateDialog = ({
       createPrompt,
       instanceId,
       navigate,
-      notifyError,
       notifySuccess,
       onSuccess,
       store,
@@ -220,17 +213,13 @@ export const UpsertPromptFromTemplateDialog = ({
         },
         onError: (error) => {
           const message = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "Error updating prompt",
-            message: message?.[0],
-          });
+          setError(message?.[0] ?? "Error updating prompt");
         },
       });
     },
     [
       instanceId,
       navigate,
-      notifyError,
       notifySuccess,
       store,
       updatePrompt,
@@ -247,6 +236,7 @@ export const UpsertPromptFromTemplateDialog = ({
               <DialogCloseButton />
             </DialogTitleExtra>
           </DialogHeader>
+          {error && <Alert variant="danger">{error}</Alert>}
           <Suspense fallback={<Loading />}>
             <SavePromptForm
               onClose={close}

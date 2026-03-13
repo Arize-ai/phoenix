@@ -17,7 +17,7 @@ import {
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { NewModelButtonCreateModelMutation } from "./__generated__/NewModelButtonCreateModelMutation.graphql";
@@ -32,7 +32,6 @@ export function NewModelButton({
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const connectionId = ConnectionHandler.getConnectionID(
     "client:root",
     "ModelsTable_generativeModels"
@@ -130,10 +129,7 @@ export function NewModelButton({
                     onError: (error) => {
                       const formattedError =
                         getErrorMessagesFromRelayMutationError(error);
-                      notifyError({
-                        title: "An error occurred",
-                        message: `Failed to add model: ${formattedError?.[0] ?? error.message}`,
-                      });
+                      setError(formattedError?.[0] ?? error.message);
                     },
                   });
                 }}
