@@ -14,7 +14,7 @@ actionable message when the connected server is too old.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from phoenix.client.types.semver import SemanticVersion
 from phoenix.client.types.server_requirements import CapabilityRequirement
