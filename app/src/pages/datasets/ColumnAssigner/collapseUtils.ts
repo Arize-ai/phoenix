@@ -7,6 +7,13 @@ import { isPlainObject } from "@phoenix/utils/jsonUtils";
 // ============================================================================
 
 /**
+ * Sentinel value used in conflict lists when a key has non-object values in
+ * preview rows and therefore cannot be collapsed. The UI uses this to render
+ * a type-error message instead of a "conflicts with <key>" message.
+ */
+export const NON_OBJECT_CONFLICT_MARKER = "__non_object_value__";
+
+/**
  * Result of computing collapse conflicts.
  */
 export type BucketCollapseConflictsResult = {
@@ -50,7 +57,7 @@ export function computeBucketCollapseConflicts(
     for (const row of previewRows) {
       const value = row[parentKey];
       if (!isPlainObject(value)) {
-        conflicts.set(parentKey, ["non-object preview value"]);
+        conflicts.set(parentKey, [NON_OBJECT_CONFLICT_MARKER]);
         childKeys.clear();
         break;
       }

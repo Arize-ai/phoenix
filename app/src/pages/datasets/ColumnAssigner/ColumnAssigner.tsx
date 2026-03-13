@@ -19,6 +19,7 @@ import {
 } from "@phoenix/components/core/tooltip";
 
 import { ColumnBucket } from "./ColumnBucket";
+import { NON_OBJECT_CONFLICT_MARKER } from "./collapseUtils";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
 
 const containerCSS = css`
@@ -285,17 +286,28 @@ export function ColumnAssigner({
                   </Text>
                   <ul css={conflictListCSS}>
                     {Array.from(collapseConflicts.entries()).map(
-                      ([parentKey, conflicts]) => (
-                        <li key={parentKey}>
-                          <code>{parentKey}</code>: conflicts with{" "}
-                          {conflicts.map((c, i) => (
-                            <span key={c}>
-                              {i > 0 && ", "}
-                              <code>{c}</code>
-                            </span>
-                          ))}
-                        </li>
-                      )
+                      ([parentKey, conflictList]) => {
+                        const isTypeError =
+                          conflictList[0] === NON_OBJECT_CONFLICT_MARKER;
+                        return (
+                          <li key={parentKey}>
+                            <code>{parentKey}</code>:{" "}
+                            {isTypeError ? (
+                              "contains non-object values and cannot be collapsed"
+                            ) : (
+                              <>
+                                {"conflicts with "}
+                                {conflictList.map((c, i) => (
+                                  <span key={c}>
+                                    {i > 0 && ", "}
+                                    <code>{c}</code>
+                                  </span>
+                                ))}
+                              </>
+                            )}
+                          </li>
+                        );
+                      }
                     )}
                   </ul>
                 </RichTooltipDescription>
