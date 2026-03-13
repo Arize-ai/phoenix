@@ -936,17 +936,6 @@ export const CloseCircleOutline = () => (
   </svg>
 );
 
-export const ClipboardCopy = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="clipboard">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M18 5V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v1a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3zM8 4h8v4H8V4zm11 15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7a1 1 0 0 1 1 1z" />
-      </g>
-    </g>
-  </svg>
-);
-
 export const CollapseOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1070,7 +1059,7 @@ export const DownloadOutline = () => (
   </svg>
 );
 
-export const DuplicateIcon = () => (
+export const DuplicateOutline = () => (
   <svg
     width="24"
     height="24"
@@ -1350,6 +1339,26 @@ export const FunnelOutline = () => (
 );
 
 //G
+
+export const GitBranchOutline = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <line x1="6" y1="3" x2="6" y2="15"></line>
+    <circle cx="18" cy="6" r="3" fill="none"></circle>
+    <circle cx="6" cy="18" r="3" fill="none"></circle>
+    <path d="M18 9a9 9 0 0 1-9 9" fill="none"></path>
+  </svg>
+);
+
 export const GitHub = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

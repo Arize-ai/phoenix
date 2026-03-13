@@ -75,7 +75,7 @@ export function SpanActionMenu(props: SpanActionMenuProps) {
                   justifyContent="start"
                   alignItems="center"
                 >
-                  <Icon svg={<Icons.ClipboardCopy />} />
+                  <Icon svg={<Icons.DuplicateOutline />} />
                   <Text>Copy Span ID</Text>
                 </Flex>
               </ListBoxItem>
@@ -86,7 +86,7 @@ export function SpanActionMenu(props: SpanActionMenuProps) {
                   justifyContent="start"
                   alignItems="center"
                 >
-                  <Icon svg={<Icons.ClipboardCopy />} />
+                  <Icon svg={<Icons.DuplicateOutline />} />
                   <Text>Copy Trace ID</Text>
                 </Flex>
               </ListBoxItem>
