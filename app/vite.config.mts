@@ -1,6 +1,7 @@
 import { resolve } from "path";
 import { lezer } from "@lezer/generator/rollup";
-import react from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 // Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
@@ -13,15 +14,23 @@ import relay from "vite-plugin-relay";
 // We however want to enable source maps on the containers for debugging purposes.
 const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
 
+// Configure React Compiler preset with custom options
+// reactCompilerPreset() provides optimized filters; we customize the babel plugin options
+const compilerPreset = reactCompilerPreset();
+compilerPreset.preset = () => ({
+  plugins: [["babel-plugin-react-compiler", { panicThreshold: "none" }]],
+});
+
 export default defineConfig(() => {
   const plugins = [
     // disable react's built-in 300ms suspense fallback timer
     // without this build plugin we see a 300ms delay on most UI interactions
     reactFallbackThrottlePlugin(),
-    react({
-      babel: {
-        plugins: [["babel-plugin-react-compiler", { panicThreshold: "none" }]],
-      },
+    react(),
+    // Use @rolldown/plugin-babel with React Compiler
+    // This is required in Vite 8+ as plugin-react v6 removed babel integration
+    babel({
+      presets: [compilerPreset],
     }),
     relay,
     lezer(),
@@ -68,7 +77,7 @@ export default defineConfig(() => {
       rolldownOptions: {
         input: resolve(__dirname, "src/index.tsx"),
         output: {
-          advancedChunks: {
+          codeSplitting: {
             groups: [
               {
                 name: "vendor-codemirror",
