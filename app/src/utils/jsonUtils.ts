@@ -1,6 +1,21 @@
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
+ * Type guard for plain objects (excludes arrays and null).
+ * Use this when you need to check if a value is a "dictionary-like" object.
+ */
+export function isPlainObject(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).every((key) => typeof key === "string")
+  );
+}
+
+/**
  * Checks if a string is a valid JSON string.
  * @param {Object} options - The options object.
  * @param {string} options.str - The string to check.

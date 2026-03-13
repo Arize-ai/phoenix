@@ -105,6 +105,8 @@ export function findCompleteCSVRowEnd(buffer: string): number {
   return -1; // No complete row found
 }
 
+import { isPlainObject, safelyParseJSONString } from "./jsonUtils";
+
 /**
  * Result of parsing a CSV file in a single pass.
  */
@@ -115,6 +117,11 @@ export type CSVParseResult = {
   previewRows: string[][];
   /** Total number of data rows (excluding header) */
   totalRowCount: number;
+  /**
+   * Columns that contain valid JSON objects in ALL preview rows.
+   * These columns can be "collapsed" - their children promoted to top-level.
+   */
+  collapsibleColumns: string[];
 };
 
 /**
@@ -194,7 +201,23 @@ export async function parseCSVFile(
       throw new Error("CSV file is empty");
     }
 
-    return { columns, previewRows, totalRowCount };
+    // Compute collapsible columns: columns where ALL preview rows have valid JSON object values
+    const collapsibleColumns = columns.filter((_, colIndex) => {
+      // Must have at least one preview row to determine collapsibility
+      if (previewRows.length === 0) {
+        return false;
+      }
+      return previewRows.every((row) => {
+        const cellValue = row[colIndex];
+        if (cellValue === undefined || cellValue === "") {
+          return false;
+        }
+        const parsed = safelyParseJSONString(cellValue);
+        return isPlainObject(parsed);
+      });
+    });
+
+    return { columns, previewRows, totalRowCount, collapsibleColumns };
   } finally {
     reader.cancel();
   }

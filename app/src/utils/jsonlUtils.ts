@@ -1,4 +1,5 @@
 import { removeBOM } from "./csvUtils";
+import { isPlainObject } from "./jsonUtils";
 
 export type JSONLParseError = {
   line: number;
@@ -80,6 +81,11 @@ export type JSONLFileParseResult =
       previewRows: Record<string, unknown>[];
       /** Total number of rows (using fast heuristic counting) */
       totalRowCount: number;
+      /**
+       * Keys that have plain object values in ALL preview rows.
+       * These keys can be "collapsed" - their children promoted to top-level.
+       */
+      collapsibleKeys: string[];
     }
   | {
       success: false;
@@ -204,11 +210,18 @@ export async function parseJSONLFile(
       };
     }
 
+    // Compute collapsible keys: keys that have plain object values in ALL preview rows
+    const keys = Array.from(allKeys);
+    const collapsibleKeys = keys.filter((key) =>
+      previewRows.every((row) => key in row && isPlainObject(row[key]))
+    );
+
     return {
       success: true,
-      keys: Array.from(allKeys),
+      keys,
       previewRows,
       totalRowCount,
+      collapsibleKeys,
     };
   } finally {
     reader.cancel();

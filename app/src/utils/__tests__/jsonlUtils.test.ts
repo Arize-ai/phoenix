@@ -270,3 +270,89 @@ describe("formatJSONLError", () => {
     );
   });
 });
+
+describe("parseJSONLFile collapsibleKeys", () => {
+  it("identifies keys with plain object values as collapsible", async () => {
+    const file = createFile(
+      '{"input": {"question": "Hi"}, "output": {"answer": "Hello"}, "id": 1}\n' +
+        '{"input": {"question": "Bye"}, "output": {"answer": "Goodbye"}, "id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).toContain("input");
+      expect(result.collapsibleKeys).toContain("output");
+      expect(result.collapsibleKeys).not.toContain("id");
+    }
+  });
+
+  it("does not mark key as collapsible if any row has non-object value", async () => {
+    // First row has object, second row has string
+    const file = createFile(
+      '{"input": {"question": "Hi"}, "id": 1}\n' +
+        '{"input": "plain string", "id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).not.toContain("input");
+    }
+  });
+
+  it("does not mark key as collapsible if value is array", async () => {
+    const file = createFile(
+      '{"data": [1, 2, 3], "id": 1}\n' + '{"data": [4, 5, 6], "id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).not.toContain("data");
+    }
+  });
+
+  it("does not mark key as collapsible if missing in any row", async () => {
+    // "input" missing in second row
+    const file = createFile(
+      '{"input": {"question": "Hi"}, "id": 1}\n' + '{"id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).not.toContain("input");
+    }
+  });
+
+  it("does not mark key as collapsible if value is null", async () => {
+    const file = createFile(
+      '{"input": {"question": "Hi"}, "id": 1}\n' + '{"input": null, "id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).not.toContain("input");
+    }
+  });
+
+  it("returns empty collapsibleKeys when no keys have object values", async () => {
+    const file = createFile('{"a": 1, "b": "text"}\n{"a": 2, "b": "more"}');
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).toEqual([]);
+    }
+  });
+
+  it("handles nested objects correctly", async () => {
+    // Only top-level keys with object values should be collapsible
+    const file = createFile(
+      '{"outer": {"inner": {"deep": "value"}}, "id": 1}\n' +
+        '{"outer": {"inner": {"deep": "another"}}, "id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).toContain("outer");
+      expect(result.collapsibleKeys).not.toContain("inner");
+    }
+  });
+});

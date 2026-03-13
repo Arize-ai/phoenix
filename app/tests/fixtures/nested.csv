@@ -1,0 +1,4 @@
+id,input,output
+1,"{""question"": ""What is 2+2?"", ""context"": ""math""}","{""answer"": ""4""}"
+2,"{""question"": ""Capital of France?"", ""context"": ""geography""}","{""answer"": ""Paris""}"
+3,"{""question"": ""Hello in Spanish?"", ""context"": ""translation""}","{""answer"": ""Hola""}"
