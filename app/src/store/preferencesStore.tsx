@@ -3,10 +3,41 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
-import type { ProgrammingLanguage } from "@phoenix/types/code";
+import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
+import {
+  pythonPackageManagers,
+  typescriptPackageManagers,
+} from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import type { ModelConfig } from "./playground";
+
+/**
+ * Per-language package manager preferences.
+ */
+export type PackageManagerByLanguage = Record<
+  ProgrammingLanguage,
+  PackageManager
+>;
+
+/**
+ * Available package managers for each programming language.
+ */
+export const packageManagersByLanguage: Record<
+  ProgrammingLanguage,
+  readonly PackageManager[]
+> = {
+  Python: pythonPackageManagers,
+  TypeScript: typescriptPackageManagers,
+};
+
+/**
+ * The default package manager preference for each language.
+ */
+const defaultPackageManagerByLanguage: PackageManagerByLanguage = {
+  Python: "pip",
+  TypeScript: "npm",
+};
 
 export type MarkdownDisplayMode = "text" | "markdown";
 
@@ -102,6 +133,10 @@ export interface PreferencesProps {
    */
   programmingLanguage: ProgrammingLanguage;
   /**
+   * The preferred package manager for install commands, per language
+   */
+  packageManagerByLanguage: PackageManagerByLanguage;
+  /**
    * The AWS Bedrock cross-region inference model prefix
    * @default "us"
    * @see https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
@@ -172,6 +207,13 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the preferred programming language
    */
   setProgrammingLanguage: (programmingLanguage: ProgrammingLanguage) => void;
+  /**
+   * Setter for the preferred package manager for a given language
+   */
+  setPackageManager: (
+    language: ProgrammingLanguage,
+    packageManager: PackageManager
+  ) => void;
   /**
    * Setter for the AWS Bedrock model prefix
    */
@@ -266,6 +308,19 @@ export const createPreferencesStore = (
     programmingLanguage: "Python",
     setProgrammingLanguage: (programmingLanguage) => {
       set({ programmingLanguage }, false, { type: "setProgrammingLanguage" });
+    },
+    packageManagerByLanguage: { ...defaultPackageManagerByLanguage },
+    setPackageManager: (language, packageManager) => {
+      set(
+        (state) => ({
+          packageManagerByLanguage: {
+            ...state.packageManagerByLanguage,
+            [language]: packageManager,
+          },
+        }),
+        false,
+        { type: "setPackageManager" }
+      );
     },
     awsBedrockModelPrefix: "us",
     setAwsBedrockModelPrefix: (awsBedrockModelPrefix) => {
