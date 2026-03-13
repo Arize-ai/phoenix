@@ -48,8 +48,9 @@ export function capabilityLabel(req: CapabilityRequirement): string {
  * Check the **Phoenix server version** before allowing a capability to proceed.
  *
  * Throws if the connected Phoenix server is older than the minimum version
- * required by the given capability. Does nothing if the server version cannot
- * be determined (to avoid blocking users on older servers).
+ * required by the given capability. Also throws if the server version cannot
+ * be determined — this typically means the server is too old to report its
+ * version at all and is therefore incompatible with this client.
  *
  * @example
  * ```ts
