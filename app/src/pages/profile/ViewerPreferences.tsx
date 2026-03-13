@@ -17,10 +17,10 @@ import {
   useTheme,
 } from "@phoenix/contexts";
 import type { DisplayTimezone } from "@phoenix/store/preferencesStore";
+import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
 import {
   isPackageManager,
   isProgrammingLanguage,
-  packageManagersByLanguage,
   programmingLanguages,
 } from "@phoenix/types/code";
 import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";

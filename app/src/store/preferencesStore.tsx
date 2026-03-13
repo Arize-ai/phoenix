@@ -3,15 +3,37 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
-import type {
-  PackageManager,
-  PackageManagerByLanguage,
-  ProgrammingLanguage,
-} from "@phoenix/types/code";
-import { defaultPackageManagerByLanguage } from "@phoenix/types/code";
+import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import type { ModelConfig } from "./playground";
+
+/**
+ * Per-language package manager preferences.
+ */
+export type PackageManagerByLanguage = Record<
+  ProgrammingLanguage,
+  PackageManager
+>;
+
+/**
+ * Available package managers for each programming language.
+ */
+export const packageManagersByLanguage: Record<
+  ProgrammingLanguage,
+  PackageManager[]
+> = {
+  Python: ["pip", "uv"],
+  TypeScript: ["npm", "pnpm", "bun"],
+};
+
+/**
+ * The default package manager preference for each language.
+ */
+export const defaultPackageManagerByLanguage: PackageManagerByLanguage = {
+  Python: "pip",
+  TypeScript: "npm",
+};
 
 export type MarkdownDisplayMode = "text" | "markdown";
 
