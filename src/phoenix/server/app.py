@@ -70,7 +70,6 @@ from phoenix.config import (
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
     get_env_host,
-    get_env_log_sql,
     get_env_max_spans_queue_size,
     get_env_port,
     get_env_support_email,
@@ -79,10 +78,8 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
-from phoenix.db.engines import create_engine
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.exceptions import PhoenixMigrationError
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -915,31 +912,6 @@ def create_graphql_router(
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
         subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
     )
-
-
-def create_engine_and_run_migrations(
-    database_url: str,
-) -> AsyncEngine:
-    try:
-        return create_engine(
-            connection_str=database_url,
-            migrate=not Settings.disable_migrations,
-            log_to_stdout=get_env_log_sql(),
-        )
-    except PhoenixMigrationError as e:
-        msg = (
-            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
-            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
-            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
-            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
-            "then try starting Phoenix again.\n\n"
-            "If issues persist, please reach out for support in the Arize community Slack:\n"
-            "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g\n\n"
-            "You can also refer to the Alembic documentation for more information:\n"
-            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
-            ""
-        )
-        raise PhoenixMigrationError(msg) from e
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:

@@ -1,3 +1,4 @@
+import asyncio
 import atexit
 import codecs
 import os
@@ -30,6 +31,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_log_migrations,
+    get_env_log_sql,
     get_env_logging_level,
     get_env_logging_mode,
     get_env_management_url,
@@ -50,12 +52,12 @@ from phoenix.config import (
     get_pids_path,
 )
 from phoenix.db import get_printable_db_url
+from phoenix.db.engines import create_engine
 from phoenix.logging import setup_logging
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
     create_app,
-    create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import SimpleEmailSender
@@ -163,7 +165,7 @@ def main() -> None:
 
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser(usage="phoenix serve", add_help=False)
+    parser = ArgumentParser(prog="phoenix", add_help=False)
     parser.add_argument(
         "-h",
         "--help",
@@ -180,7 +182,7 @@ def main() -> None:
     parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
     parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
-    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
+    subparsers = parser.add_subparsers(dest="command", required=True, help="Command to run.")
     parser.set_defaults(grpc_port=None)
 
     serve_parser = subparsers.add_parser("serve")
@@ -237,10 +239,33 @@ def main() -> None:
     )
     trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
+    db_parser = subparsers.add_parser("db", help="Database utility commands.")
+    db_subparsers = db_parser.add_subparsers(
+        dest="db_command",
+        required=True,
+        help="Database command to run.",
+    )
+    db_subparsers.add_parser(
+        "migrate",
+        help="Run database migrations and exit.",
+    )
+
     args = parser.parse_args()
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
+
+    if args.command == "db":
+        if args.db_command == "migrate":
+            engine = create_engine(
+                connection_str=db_connection_str,
+                migrate=True,
+                log_to_stdout=True,
+                log_migrations=True,
+            )
+            asyncio.run(engine.dispose())
+        return
+
     force_fixture_ingestion = False
     scaffold_datasets = False
     tracing_fixture_names = set()
@@ -294,7 +319,12 @@ def main() -> None:
 
         start_prometheus()
 
-    engine = create_engine_and_run_migrations(db_connection_str)
+    engine = create_engine(
+        connection_str=db_connection_str,
+        migrate=not Settings.disable_migrations,
+        log_to_stdout=get_env_log_sql(),
+        log_migrations=Settings.log_migrations,
+    )
     shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
     shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
     # Ensure engine is disposed on shutdown to properly close database connections
