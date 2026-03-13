@@ -472,7 +472,7 @@ export const GlobalEvaluatorsEmptyState = ({
             View Datasets
           </Button>
           <ExternalLinkButton
-            href="https://arize.com/docs/phoenix/evaluation/server-side-evaluation"
+            href="https://arize.com/docs/phoenix/evaluation/server-evals/overview"
             target="_blank"
             leadingVisual={<Icon svg={<Icons.BookOutline />} />}
           >
