@@ -55,9 +55,9 @@ class Client:
                 timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
             )
         else:
-            self._client = PhoenixHTTPClient(
-                base_url=http_client.base_url, headers=dict(http_client.headers)
-            )
+            http_client.__class__ = PhoenixHTTPClient
+            http_client._server_version = None  # type: ignore[attr-defined]
+            self._client = http_client  # type: ignore[assignment]
 
     @property
     def _client(self) -> PhoenixHTTPClient:
@@ -170,9 +170,9 @@ class AsyncClient:
                 headers=_update_headers(headers, api_key),
             )
         else:
-            self._client = PhoenixAsyncHTTPClient(
-                base_url=http_client.base_url, headers=dict(http_client.headers)
-            )
+            http_client.__class__ = PhoenixAsyncHTTPClient
+            http_client._server_version = None  # type: ignore[attr-defined]
+            self._client = http_client  # type: ignore[assignment]
 
     @property
     def _client(self) -> PhoenixAsyncHTTPClient:
