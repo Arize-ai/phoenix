@@ -351,17 +351,9 @@ class PhoenixAsyncHTTPClient(httpx.AsyncClient):
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         self._server_version = None
 
-    async def send(  # type: ignore[override]
-        self,
-        request: httpx.Request,
-        *,
-        stream: bool = False,
-        auth: Optional[httpx.Auth] = None,
-        follow_redirects: bool = True,
-    ) -> httpx.Response:
-        response = await super().send(
-            request, stream=stream, auth=auth, follow_redirects=follow_redirects
-        )
+    @override
+    async def send(self, *args: Any, **kwargs: Any) -> httpx.Response:
+        response = await super().send(*args, **kwargs)
         if self._server_version is None:
             self._server_version = _extract_version_from_response(response)
         return response
