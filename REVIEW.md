@@ -37,4 +37,3 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 
 - Generated files under `__generated__` directories
 - Files under `node_modules/`, `dist/`, or `build/`
-- Auto-generated migration files (review the schema change intent, not the generated boilerplate)
