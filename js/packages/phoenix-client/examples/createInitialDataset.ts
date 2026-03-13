@@ -3,10 +3,10 @@
  *
  * Creates a dataset with 6 trivia examples — some with external IDs, some without.
  * Pass the dataset name as a CLI argument so the companion script
- * (fetch_and_mutate_dataset.ts) can retrieve and mutate it.
+ * (fetchAndUpsertDataset.ts) can retrieve and mutate it.
  *
  * Usage:
- *    npx tsx create_initial_dataset.ts my-dataset-name
+ *    npx tsx createInitialDataset.ts my-dataset-name
  */
 
 import { createClient } from "../src";

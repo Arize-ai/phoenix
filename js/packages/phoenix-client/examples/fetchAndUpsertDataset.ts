@@ -1,14 +1,14 @@
 /**
  * Script 2 of 2: Fetch an existing dataset, mutate it, and upsert a new version.
  *
- * Retrieves the dataset created by create_initial_dataset.ts, then:
+ * Retrieves the dataset created by createInitialDataset.ts, then:
  *   - Deletes "capital-france" and "largest ocean"
  *   - Patches "capital-germany" (fixes the answer to Berlin)
  *   - Mutates metadata on "fastest land animal" (different content hash → delete + re-create)
  *   - Adds "capital-italy" and "largest planet"
  *
  * Usage:
- *    npx tsx fetch_and_mutate_dataset.ts my-dataset-name
+ *    npx tsx fetchAndUpsertDataset.ts my-dataset-name
  */
 
 import { createClient } from "../src";

@@ -1,11 +1,10 @@
 /**
- * Example: Retrieve examples from a dataset, mutate them, and upsert.
+ * Example: Upsert a dataset, run an experiment, upsert again, and re-run the experiment.
  *
- * Demonstrates the round-trip workflow:
- * 1. Upsert an initial dataset
- * 2. Retrieve the returned examples (which now include externalId)
- * 3. Mutate the list — patch, delete, add — using the retrieved examples directly
- * 4. Upsert the mutated list as a new version
+ * Demonstrates the full lifecycle of dataset upsert semantics:
+ * - Creating examples with and without external IDs
+ * - Deleting, patching, carrying over, and adding examples across versions
+ * - Running experiments against each dataset version
  *
  * The dataset has two versions:
  *
@@ -18,19 +17,19 @@
  *        (metadata change → different content hash → not matchable, so old is deleted, new is created)
  *     6. no externalId, content: "boiling point of water" — will be UNCHANGED in v2
  *
- *   Version 2 (mutated from v1 examples):
- *     - "capital-germany"  — PATCHED (answer corrected)
- *     - "capital-japan"    — UNCHANGED (same content)
- *     - "capital-italy"    — NEW example added to the list
- *     - "fastest land animal" now has updated metadata — DELETED + RE-CREATED
- *     - "boiling point of water" — UNCHANGED (same content)
- *     - "largest planet"   — NEW example added to the list
+ *   Version 2 (second upsert):
+ *     - "capital-germany"  (externalId) — PATCHED (answer corrected)
+ *     - "capital-japan"    (externalId) — UNCHANGED (same content)
+ *     - "capital-italy"    (externalId) — NEW example
+ *     - no externalId, content: "fastest land animal" now has updated metadata — DELETED + RE-CREATED
+ *     - no externalId, content: "boiling point of water" — UNCHANGED (same content)
+ *     - no externalId, content: "largest planet" — NEW example
  *
  * Prerequisites:
  *     - Phoenix server running (default: http://localhost:6006)
  *
  * Usage:
- *     npx tsx retrieve_mutate_upsert_example.ts
+ *     npx tsx datasetUpsertRoundTripWithExperiments.ts
  */
 
 import { createClient } from "../src";
@@ -41,7 +40,7 @@ import type { AnnotatorKind } from "../src/types/annotations";
 import type { Example } from "../src/types/datasets";
 
 const PHOENIX_BASE_URL = "http://localhost:6006";
-const DATASET_NAME = `retrieve-mutate-demo-${Date.now()}`;
+const DATASET_NAME = `upsert-demo-${Date.now()}`;
 
 const client = createClient({ options: { baseUrl: PHOENIX_BASE_URL } });
 
@@ -98,71 +97,8 @@ async function main() {
   const { datasetId, versionId: v1VersionId } = await upsertDatasetExamples({
     client,
     dataset: { datasetName: DATASET_NAME },
-    description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
+    description: "Trivia Q&A dataset for upsert demo",
     examples: v1Examples,
-  });
-
-  const { examples: v1Retrieved } = await getDatasetExamples({
-    client,
-    dataset: { datasetName: DATASET_NAME },
-  });
-
-  // ===========================================================================
-  // Version 2: Mutate the retrieved list and upsert again
-  // ===========================================================================
-
-  // DELETE "capital-france" and "largest ocean" by filtering them out.
-  const v2Examples: Example[] = v1Retrieved
-    .filter(
-      (orig) =>
-        orig.externalId !== "capital-france" &&
-        (orig.input.question as string) !== "What is the largest ocean?"
-    )
-    .map((orig) => {
-      const example: Example = {
-        input: { ...orig.input },
-        output: orig.output ? { ...orig.output } : {},
-        metadata: orig.metadata ? { ...orig.metadata } : {},
-        externalId: orig.externalId,
-      };
-
-      // PATCH: fix the answer for "capital-germany"
-      if (example.externalId === "capital-germany") {
-        example.output = { answer: "Berlin" };
-      }
-      // MUTATE metadata on "fastest land animal" → different content hash → delete + re-create
-      if (
-        (example.input.question as string) ===
-        "What is the fastest land animal?"
-      ) {
-        example.metadata = {
-          category: "biology",
-          difficulty: "easy",
-          fun_fact: "Up to 70 mph",
-        };
-      }
-
-      return example;
-    });
-
-  // ADD: new examples
-  v2Examples.push({
-    input: { question: "What is the capital of Italy?" },
-    output: { answer: "Rome" },
-    metadata: { category: "geography", difficulty: "easy" },
-    externalId: "capital-italy",
-  });
-  v2Examples.push({
-    input: { question: "What is the largest planet in our solar system?" },
-    output: { answer: "Jupiter" },
-    metadata: { category: "astronomy", difficulty: "easy" },
-  });
-
-  const { versionId: v2VersionId } = await upsertDatasetExamples({
-    client,
-    dataset: { datasetName: DATASET_NAME },
-    description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
-    examples: v2Examples,
   });
 
   await getDatasetExamples({
@@ -171,7 +107,7 @@ async function main() {
   });
 
   // ===========================================================================
-  // Experiment: Run against both versions
+  // Experiment 1: Run against version 1
   // ===========================================================================
 
   const triviaAnswers: Record<string, string> = {
@@ -215,6 +151,76 @@ async function main() {
     experimentName: `trivia-v1-${Date.now()}`,
     experimentDescription: "Experiment against initial dataset version",
   });
+
+  // ===========================================================================
+  // Version 2: Upsert with changes
+  // ===========================================================================
+
+  const v2Examples: Example[] = [
+    // --- Examples WITH external IDs ---
+    // "capital-france" is OMITTED → will be DELETED
+    {
+      // PATCHED: answer corrected from "Munich" to "Berlin"
+      input: { question: "What is the capital of Germany?" },
+      output: { answer: "Berlin" },
+      metadata: { category: "geography", difficulty: "easy" },
+      externalId: "capital-germany",
+    },
+    {
+      // UNCHANGED: identical to v1
+      input: { question: "What is the capital of Japan?" },
+      output: { answer: "Tokyo" },
+      metadata: { category: "geography", difficulty: "easy" },
+      externalId: "capital-japan",
+    },
+    {
+      // NEW: did not exist in v1
+      input: { question: "What is the capital of Italy?" },
+      output: { answer: "Rome" },
+      metadata: { category: "geography", difficulty: "easy" },
+      externalId: "capital-italy",
+    },
+    // --- Examples WITHOUT external IDs ---
+    // "largest ocean" is OMITTED → will be DELETED
+    {
+      // NEW: same question but metadata changed → different content hash → new example
+      input: { question: "What is the fastest land animal?" },
+      output: { answer: "Cheetah" },
+      metadata: {
+        category: "biology",
+        difficulty: "easy",
+        fun_fact: "Up to 70 mph",
+      },
+    },
+    {
+      // UNCHANGED: identical to v1 → same content hash
+      input: { question: "What is the boiling point of water?" },
+      output: { answer: "100°C at standard atmospheric pressure" },
+      metadata: { category: "science", difficulty: "easy" },
+    },
+    {
+      // NEW: did not exist in v1
+      input: { question: "What is the largest planet in our solar system?" },
+      output: { answer: "Jupiter" },
+      metadata: { category: "astronomy", difficulty: "easy" },
+    },
+  ];
+
+  const { versionId: v2VersionId } = await upsertDatasetExamples({
+    client,
+    dataset: { datasetName: DATASET_NAME },
+    description: "Trivia Q&A dataset for upsert demo",
+    examples: v2Examples,
+  });
+
+  await getDatasetExamples({
+    client,
+    dataset: { datasetName: DATASET_NAME },
+  });
+
+  // ===========================================================================
+  // Experiment 2: Run against version 2
+  // ===========================================================================
 
   await runExperiment({
     client,
