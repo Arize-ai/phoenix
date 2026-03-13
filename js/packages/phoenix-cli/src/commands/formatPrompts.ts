@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
@@ -34,28 +36,11 @@ function formatPromptsPretty(prompts: Prompt[]): string {
     return "No prompts found";
   }
 
-  const lines: string[] = [];
-  lines.push("Prompts:");
-  lines.push("");
+  const rows = prompts.map((p) => ({
+    name: p.name,
+    id: p.id,
+    description: p.description ?? "",
+  }));
 
-  for (const prompt of prompts) {
-    const desc =
-      prompt.description === null ||
-      prompt.description === undefined ||
-      prompt.description === ""
-        ? ""
-        : ` — ${prompt.description}`;
-
-    lines.push(`┌─ ${prompt.name} (${prompt.id})`);
-    if (desc) {
-      lines.push(`│  Description:${desc}`);
-    }
-    if (prompt.metadata && Object.keys(prompt.metadata).length > 0) {
-      lines.push(`│  Metadata: ${JSON.stringify(prompt.metadata)}`);
-    }
-    lines.push(`└─`);
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd();
+  return formatTable(rows);
 }

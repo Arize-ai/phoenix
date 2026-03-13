@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type SessionData = componentsV1["schemas"]["SessionData"];
@@ -50,24 +52,16 @@ function formatSessionsPretty(sessions: SessionData[]): string {
     return "No sessions found";
   }
 
-  const lines: string[] = [];
-  lines.push("Sessions:");
-  lines.push("");
+  const rows = sessions.map((s) => ({
+    session_id: s.session_id,
+    id: s.id,
+    traces: s.traces.length,
+    duration: formatDuration(s.start_time, s.end_time),
+    started: formatDate(s.start_time),
+    ended: formatDate(s.end_time),
+  }));
 
-  for (const session of sessions) {
-    lines.push(`┌─ ${session.session_id}`);
-    lines.push(`│  ID: ${session.id}`);
-    lines.push(`│  Traces: ${session.traces.length}`);
-    lines.push(`│  Started: ${formatDate(session.start_time)}`);
-    lines.push(`│  Ended: ${formatDate(session.end_time)}`);
-    lines.push(
-      `│  Duration: ${formatDuration(session.start_time, session.end_time)}`
-    );
-    lines.push(`└─`);
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd();
+  return formatTable(rows);
 }
 
 function formatSessionPretty(

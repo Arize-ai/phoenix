@@ -112,21 +112,22 @@ describe("Experiments Formatting", () => {
   });
 
   describe("formatExperimentsOutput - pretty", () => {
-    it("should format experiments in human-readable format", () => {
+    it("should format experiments as a table with column headers", () => {
       const output = formatExperimentsOutput({
         experiments: [mockExperiment1],
         format: "pretty",
       });
 
-      expect(output).toContain("Experiments:");
-      expect(output).toContain("┌─ exp-abc123 [Project: my-project]");
-      expect(output).toContain("│  Dataset ID: ds-123");
-      expect(output).toContain("│  Examples: 10");
-      expect(output).toContain("│  Repetitions: 1");
-      expect(output).toContain("│    ✓ Successful: 8");
-      expect(output).toContain("│    ✗ Failed: 2");
-      expect(output).toContain("│    ○ Missing: 0");
-      expect(output).toContain("└─");
+      expect(output).toContain("id");
+      expect(output).toContain("exp-abc123");
+      expect(output).toContain("my-project");
+      expect(output).toContain("ds-123");
+      expect(output).toContain("10"); // examples
+      expect(output).toContain("8"); // successful
+      expect(output).toContain("2"); // failed
+      // table borders
+      expect(output).toContain("┌");
+      expect(output).toContain("┘");
     });
 
     it("should handle experiments without project name", () => {
@@ -135,8 +136,8 @@ describe("Experiments Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("┌─ exp-xyz789");
-      expect(output).not.toContain("[Project:");
+      expect(output).toContain("exp-xyz789");
+      expect(output).toContain("ds-456");
     });
 
     it("should handle empty array", () => {
@@ -148,13 +149,14 @@ describe("Experiments Formatting", () => {
       expect(output).toBe("No experiments found");
     });
 
-    it("should show metadata if present", () => {
+    it("should show multiple experiments", () => {
       const output = formatExperimentsOutput({
-        experiments: [mockExperiment2],
+        experiments: [mockExperiment1, mockExperiment2],
         format: "pretty",
       });
 
-      expect(output).toContain('Metadata: {"model":"gpt-4"}');
+      expect(output).toContain("exp-abc123");
+      expect(output).toContain("exp-xyz789");
     });
   });
 });
