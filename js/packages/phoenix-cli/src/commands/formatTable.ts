@@ -41,9 +41,7 @@ export function formatTable(rows: Record<string, unknown>[]): string {
   const bot = "└" + colWidths.map((w) => "─".repeat(w + 2)).join("┴") + "┘";
 
   const headerRow =
-    "│" +
-    headers.map((h, i) => ` ${h.padEnd(colWidths[i]!)} `).join("│") +
-    "│";
+    "│" + headers.map((h, i) => ` ${h.padEnd(colWidths[i]!)} `).join("│") + "│";
 
   const dataRows = stringRows.map(
     (row) =>
