@@ -146,7 +146,7 @@ const router = createBrowserRouter(
                 crumb: (data: ProjectLoaderData) => data?.project?.name,
                 copy: (data: ProjectLoaderData) => [
                   { name: "Project Name", value: data?.project?.name },
-                  { name: "Project ID", value: data?.project?.name },
+                  { name: "Project ID", value: data?.project?.id },
                 ],
               }}
               element={<ProjectRoot />}
