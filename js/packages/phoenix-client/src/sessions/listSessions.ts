@@ -2,10 +2,12 @@ import invariant from "tiny-invariant";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient } from "../client";
+import { LIST_PROJECT_SESSIONS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import type { Session } from "../types/sessions";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 import { toSession } from "./sessionUtils";
 
 export type ListSessionsParams = ClientFn & ProjectIdentifier;
@@ -16,6 +18,8 @@ const DEFAULT_PAGE_SIZE = 100;
 
 /**
  * List all sessions for a project with automatic pagination handling.
+ *
+ * @requires Phoenix server >= 13.5.0
  *
  * @example
  * ```ts
@@ -34,6 +38,7 @@ export async function listSessions(
   params: ListSessionsParams
 ): Promise<Session[]> {
   const client = params.client || createClient();
+  await ensureServerCapability({ client, requirement: LIST_PROJECT_SESSIONS });
   const projectIdentifier = resolveProjectIdentifier(params);
 
   const sessions: Session[] = [];

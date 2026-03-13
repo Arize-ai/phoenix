@@ -1,5 +1,7 @@
 import { createClient } from "../client";
+import { ANNOTATE_SESSIONS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
 
@@ -27,6 +29,8 @@ export interface LogSessionAnnotationsParams extends ClientFn {
  *
  * @param params - The parameters to log session annotations
  * @returns The IDs of the created or updated annotations
+ *
+ * @requires Phoenix server >= 12.0.0
  *
  * @example
  * ```ts
@@ -60,6 +64,7 @@ export async function logSessionAnnotations({
   sync = false,
 }: LogSessionAnnotationsParams): Promise<{ id: string }[]> {
   const client = _client ?? createClient();
+  await ensureServerCapability({ client, requirement: ANNOTATE_SESSIONS });
 
   const { data, error } = await client.POST("/v1/session_annotations", {
     params: {

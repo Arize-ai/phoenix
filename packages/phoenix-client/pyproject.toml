@@ -70,6 +70,7 @@ line-ending = "native"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
+mypy_path = "src"
 explicit_package_bases = true
 strict = true
 exclude = [

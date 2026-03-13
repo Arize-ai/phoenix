@@ -1,5 +1,7 @@
 import { createClient } from "../client";
+import { DELETE_SESSIONS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
  * Parameters to bulk delete sessions
@@ -28,6 +30,8 @@ export interface DeleteSessionsParams extends ClientFn {
  * @returns Promise that resolves when the sessions are successfully deleted
  * @throws Error if identifiers are mixed types or deletion fails
  *
+ * @requires Phoenix server >= 13.13.0
+ *
  * @example
  * ```ts
  * // Delete by user-provided session IDs
@@ -48,6 +52,7 @@ export async function deleteSessions({
   sessionIds,
 }: DeleteSessionsParams): Promise<void> {
   const client = _client ?? createClient();
+  await ensureServerCapability({ client, requirement: DELETE_SESSIONS });
 
   const { error } = await client.POST("/v1/sessions/delete", {
     body: {

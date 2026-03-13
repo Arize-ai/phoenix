@@ -12,17 +12,27 @@ from typing import (
     overload,
 )
 
-import httpx
 from openinference.semconv.trace import SpanAttributes
 from typing_extensions import NotRequired, TypedDict
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    ANNOTATE_SESSIONS,
+    DELETE_SESSION,
+    DELETE_SESSIONS,
+    GET_SESSION,
+    LIST_PROJECT_SESSIONS,
+)
 from phoenix.client.utils.annotation_helpers import (
     _chunk_session_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
     _create_session_annotation,  # pyright: ignore[reportPrivateUsage]
     _validate_session_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.server_version_utils import (
+    async_ensure_server_capability,
+    ensure_server_capability,
+)
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _MAX_TRACE_IDS_PER_BATCH = 50
@@ -74,7 +84,12 @@ class SessionTurn(TypedDict):
 if TYPE_CHECKING:
     import pandas as pd
 
+    from phoenix.client.client import PhoenixAsyncHTTPClient as PhoenixAsyncHTTPClient
+    from phoenix.client.client import PhoenixHTTPClient as PhoenixHTTPClient
     from phoenix.client.resources.spans import AsyncSpans, Spans
+    from phoenix.client.types.server_requirements import (
+        CapabilityRequirement as CapabilityRequirement,
+    )
 
 # Re-export generated types
 InsertedSessionAnnotation = v1.InsertedSessionAnnotation
@@ -88,7 +103,7 @@ GetSessionsResponseBody = v1.GetSessionsResponseBody
 
 
 class Sessions:
-    def __init__(self, client: httpx.Client, spans: "Spans") -> None:
+    def __init__(self, client: PhoenixHTTPClient, spans: "Spans") -> None:
         self._client = client
         self._spans = spans
 
@@ -100,6 +115,8 @@ class Sessions:
     ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
@@ -107,6 +124,8 @@ class Sessions:
         Returns:
             The session data.
         """
+
+        ensure_server_capability(client=self._client, requirement=GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -122,6 +141,8 @@ class Sessions:
     ) -> List[v1.SessionData]:
         """List sessions for a project.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             project_id: The ID of the project.
             project_name: The name of the project.
@@ -131,6 +152,8 @@ class Sessions:
         Returns:
             A list of session data.
         """
+
+        ensure_server_capability(client=self._client, requirement=LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -168,10 +191,14 @@ class Sessions:
         This will permanently remove the session and all associated traces, spans,
         and annotations via cascade delete.
 
+        Requires Phoenix server >= 13.13.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
         """
+
+        ensure_server_capability(client=self._client, requirement=DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -188,10 +215,14 @@ class Sessions:
         user-provided session_id strings. Non-existent IDs are silently skipped.
         All associated traces, spans, and annotations are cascade deleted.
 
+        Requires Phoenix server >= 13.13.0.
+
         Args:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
             timeout: Optional timeout in seconds for the request.
         """
+
+        ensure_server_capability(client=self._client, requirement=DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -207,6 +238,8 @@ class Sessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
+
+        Requires Phoenix server >= 13.5.0.
 
         Args:
             project_id: The ID of the project.
@@ -242,6 +275,8 @@ class Sessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[SessionTurn]:
         """**Experimental** - Retrieve the ordered conversation turns for a session.
+
+        Requires Phoenix server >= 13.5.0.
 
         Fetches every trace in the session, locates each trace's root span, and
         extracts the ``input.value`` / ``output.value`` attributes to build a
@@ -361,6 +396,8 @@ class Sessions:
     ) -> Optional[InsertedSessionAnnotation]:
         """Add a single session annotation.
 
+        Requires Phoenix server >= 12.0.0.
+
         Args:
             session_id (str): The ID of the session to annotate.
             annotation_name (str): The name of the annotation.
@@ -402,6 +439,8 @@ class Sessions:
                 sync=True
             )
         """  # noqa: E501
+
+        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -451,6 +490,8 @@ class Sessions:
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations.
 
+        Requires Phoenix server >= 12.0.0.
+
         Args:
             session_annotations (Iterable[SessionAnnotationData]): An iterable of session annotation data to log. Each annotation must include
                 at least a session_id, name, and annotator_kind, and at least one of label, score, or explanation.
@@ -488,6 +529,8 @@ class Sessions:
             ]
             client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
+
+        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -541,6 +584,8 @@ class Sessions:
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame.
+
+        Requires Phoenix server >= 12.0.0.
 
         This method allows you to create multiple session annotations at once by providing the data
         in a pandas DataFrame. The DataFrame can either include `name` or `annotation_name` columns
@@ -599,6 +644,8 @@ class Sessions:
                 annotator_kind="HUMAN"  # applies to all rows
             )
         """  # noqa: E501
+
+        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
@@ -618,7 +665,7 @@ class Sessions:
 
 
 class AsyncSessions:
-    def __init__(self, client: httpx.AsyncClient, spans: "AsyncSpans") -> None:
+    def __init__(self, client: PhoenixAsyncHTTPClient, spans: "AsyncSpans") -> None:
         self._client = client
         self._spans = spans
 
@@ -630,6 +677,8 @@ class AsyncSessions:
     ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
@@ -637,6 +686,8 @@ class AsyncSessions:
         Returns:
             The session data.
         """
+
+        await async_ensure_server_capability(client=self._client, requirement=GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -652,6 +703,8 @@ class AsyncSessions:
     ) -> List[v1.SessionData]:
         """List sessions for a project.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             project_id: The ID of the project.
             project_name: The name of the project.
@@ -661,6 +714,8 @@ class AsyncSessions:
         Returns:
             A list of session data.
         """
+
+        await async_ensure_server_capability(client=self._client, requirement=LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -698,10 +753,14 @@ class AsyncSessions:
         This will permanently remove the session and all associated traces, spans,
         and annotations via cascade delete.
 
+        Requires Phoenix server >= 13.13.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
         """
+
+        await async_ensure_server_capability(client=self._client, requirement=DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -718,10 +777,14 @@ class AsyncSessions:
         user-provided session_id strings. Non-existent IDs are silently skipped.
         All associated traces, spans, and annotations are cascade deleted.
 
+        Requires Phoenix server >= 13.13.0.
+
         Args:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
             timeout: Optional timeout in seconds for the request.
         """
+
+        await async_ensure_server_capability(client=self._client, requirement=DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -737,6 +800,8 @@ class AsyncSessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
+
+        Requires Phoenix server >= 13.5.0.
 
         Args:
             project_id: The ID of the project.
@@ -772,6 +837,8 @@ class AsyncSessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[SessionTurn]:
         """**Experimental** - Retrieve the ordered conversation turns for a session.
+
+        Requires Phoenix server >= 13.5.0.
 
         Async version of :meth:`Sessions.get_session_turns`.  Fetches every
         trace in the session, locates each trace's root span, and extracts the
@@ -894,6 +961,8 @@ class AsyncSessions:
     ) -> Optional[InsertedSessionAnnotation]:
         """Add a single session annotation.
 
+        Requires Phoenix server >= 12.0.0.
+
         Args:
             session_id (str): The ID of the session to annotate.
             annotation_name (str): The name of the annotation.
@@ -935,6 +1004,8 @@ class AsyncSessions:
                 sync=True
             )
         """  # noqa: E501
+
+        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -984,6 +1055,8 @@ class AsyncSessions:
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations asynchronously.
 
+        Requires Phoenix server >= 12.0.0.
+
         Args:
             session_annotations (Iterable[SessionAnnotationData]): An iterable of session annotation data to log. Each annotation must include
                 at least a session_id, name, and annotator_kind, and at least one of label, score, or explanation.
@@ -1021,6 +1094,8 @@ class AsyncSessions:
             ]
             await async_client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
+
+        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -1074,6 +1149,8 @@ class AsyncSessions:
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame asynchronously.
+
+        Requires Phoenix server >= 12.0.0.
 
         This method allows you to create multiple session annotations at once by providing the data
         in a pandas DataFrame. The DataFrame can either include `name` or `annotation_name` columns
@@ -1132,6 +1209,8 @@ class AsyncSessions:
                 annotator_kind="HUMAN"  # applies to all rows
             )
         """  # noqa: E501
+
+        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime, timezone, tzinfo
@@ -19,11 +21,19 @@ from phoenix.client.utils.annotation_helpers import (
 if TYPE_CHECKING:
     import pandas as pd
 
+    from phoenix.client.client import PhoenixAsyncHTTPClient as PhoenixAsyncHTTPClient
+    from phoenix.client.client import PhoenixHTTPClient as PhoenixHTTPClient
+
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
+from phoenix.client.utils.server_version_utils import (
+    async_ensure_server_capability,
+    ensure_server_capability,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +119,7 @@ class Spans:
             client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(self, client: PhoenixHTTPClient) -> None:
         self._client = client
 
     def get_spans_dataframe(
@@ -438,6 +448,7 @@ class Spans:
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
             trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
+                Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
             limit (int): Maximum number of spans to return. Defaults to 100.
@@ -449,6 +460,8 @@ class Spans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if trace_ids:
+            ensure_server_capability(client=self._client, requirement=GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1341,7 +1354,7 @@ class AsyncSpans:
             await client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(self, client: PhoenixAsyncHTTPClient) -> None:
         self._client = client
 
     async def get_spans_dataframe(
@@ -1672,6 +1685,7 @@ class AsyncSpans:
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
             trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
+                Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
             limit (int): Maximum number of spans to return. Defaults to 100.
@@ -1683,6 +1697,10 @@ class AsyncSpans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if trace_ids:
+            await async_ensure_server_capability(
+                client=self._client, requirement=GET_SPANS_TRACE_IDS
+            )
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -2552,7 +2570,7 @@ def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     Returns:
         pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
     """
-    import pandas as pd
+    import pandas as pd  # pyright: ignore[reportUnusedImport]
     from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 
     df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))

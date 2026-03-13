@@ -1,5 +1,7 @@
 import { createClient } from "../client";
+import { ANNOTATE_SESSIONS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 import type { SessionAnnotation } from "./types";
 import { toSessionAnnotationData } from "./types";
 
@@ -25,6 +27,8 @@ export interface AddSessionAnnotationParams extends ClientFn {
  * @param params - The parameters to add a span annotation
  * @returns The ID of the created or updated annotation
  *
+ * @requires Phoenix server >= 12.0.0
+ *
  * @example
  * ```ts
  * const result = await addSessionAnnotation({
@@ -48,6 +52,7 @@ export async function addSessionAnnotation({
   sync = false,
 }: AddSessionAnnotationParams): Promise<{ id: string } | null> {
   const client = _client ?? createClient();
+  await ensureServerCapability({ client, requirement: ANNOTATE_SESSIONS });
 
   const { data, error } = await client.POST("/v1/session_annotations", {
     params: {
