@@ -3,7 +3,12 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
-import type { ProgrammingLanguage } from "@phoenix/types/code";
+import type {
+  PackageManager,
+  PackageManagerByLanguage,
+  ProgrammingLanguage,
+} from "@phoenix/types/code";
+import { defaultPackageManagerByLanguage } from "@phoenix/types/code";
 import { getSupportedTimezones } from "@phoenix/utils/timeUtils";
 
 import type { ModelConfig } from "./playground";
@@ -102,6 +107,10 @@ export interface PreferencesProps {
    */
   programmingLanguage: ProgrammingLanguage;
   /**
+   * The preferred package manager for install commands, per language
+   */
+  packageManagerByLanguage: PackageManagerByLanguage;
+  /**
    * The AWS Bedrock cross-region inference model prefix
    * @default "us"
    * @see https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
@@ -172,6 +181,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the preferred programming language
    */
   setProgrammingLanguage: (programmingLanguage: ProgrammingLanguage) => void;
+  /**
+   * Setter for the preferred package manager for the current language
+   */
+  setPackageManager: (packageManager: PackageManager) => void;
   /**
    * Setter for the AWS Bedrock model prefix
    */
@@ -266,6 +279,19 @@ export const createPreferencesStore = (
     programmingLanguage: "Python",
     setProgrammingLanguage: (programmingLanguage) => {
       set({ programmingLanguage }, false, { type: "setProgrammingLanguage" });
+    },
+    packageManagerByLanguage: { ...defaultPackageManagerByLanguage },
+    setPackageManager: (packageManager) => {
+      set(
+        (state) => ({
+          packageManagerByLanguage: {
+            ...state.packageManagerByLanguage,
+            [state.programmingLanguage]: packageManager,
+          },
+        }),
+        false,
+        { type: "setPackageManager" }
+      );
     },
     awsBedrockModelPrefix: "us",
     setAwsBedrockModelPrefix: (awsBedrockModelPrefix) => {

@@ -7,22 +7,12 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@phoenix/components";
-import type { ProgrammingLanguage } from "@phoenix/types/code";
+import { usePreferencesContext } from "@phoenix/contexts";
+import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { BashBlock } from "./BashBlock";
 import { codeBlockWithCopyCSS } from "./styles";
-
-/**
- * A package manager shown in the command toggle.
- *
- * The value is used for:
- * - toggle identity (`id`)
- * - visible button text
- * - accessibility label
- * - command generation
- */
-type PackageManager = "npm" | "pnpm" | "bun" | "pip" | "uv";
 
 /**
  * One selectable command preset for the package manager toggle.
@@ -148,15 +138,26 @@ export function PackageManagerCommandBlock({
   packages,
   className,
 }: PackageManagerCommandBlockProps) {
+  const preferredPackageManager = usePreferencesContext(
+    (state) => state.packageManagerByLanguage[language]
+  );
   const options: readonly InstallCommandOption[] =
     language === "TypeScript"
       ? getTypeScriptInstallCommandOptions(packages)
       : getPythonInstallCommandOptions(packages);
-  const [selectedKey, setSelectedKey] = useState(() =>
-    getInitialSelectedKey(options)
-  );
+  const [selectedKey, setSelectedKey] = useState(() => {
+    if (options.some((o) => o.packageManager === preferredPackageManager)) {
+      return preferredPackageManager;
+    }
+    return getInitialSelectedKey(options);
+  });
+  // When language changes, selectedKey becomes invalid for the new options.
+  // Fall back to the user's preference for the new language.
+  const effectiveKey = options.some((o) => o.packageManager === selectedKey)
+    ? selectedKey
+    : preferredPackageManager;
   const selectedCommand =
-    options.find((option) => option.packageManager === selectedKey)?.command ??
+    options.find((option) => option.packageManager === effectiveKey)?.command ??
     options[0]?.command ??
     "";
 
@@ -168,7 +169,7 @@ export function PackageManagerCommandBlock({
       <div className="package-manager-command__header">
         <ToggleButtonGroup
           aria-label="Package manager"
-          selectedKeys={[selectedKey]}
+          selectedKeys={[effectiveKey]}
           disallowEmptySelection
           size="S"
           className="package-manager-command__toggle-group"
