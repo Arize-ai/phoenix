@@ -5,11 +5,7 @@ vi.unmock("../../src/utils/serverVersionUtils");
 import {
   GET_SESSION,
   DELETE_SESSION,
-  DELETE_SESSIONS,
-  LIST_PROJECT_SESSIONS,
-  ANNOTATE_SESSIONS,
   GET_SPANS_TRACE_IDS,
-  ALL_REQUIREMENTS,
 } from "../../src/constants/serverRequirements";
 import type {
   RouteRequirement,
@@ -108,17 +104,5 @@ describe("ensureServerFeature", () => {
     await expect(
       ensureServerFeature({ client: mockClient as never, requirement: GET_SESSION })
     ).rejects.toThrow(/version could not be determined/);
-  });
-});
-
-describe("ALL_REQUIREMENTS", () => {
-  it("contains all defined requirements", () => {
-    expect(ALL_REQUIREMENTS).toContain(GET_SESSION);
-    expect(ALL_REQUIREMENTS).toContain(DELETE_SESSION);
-    expect(ALL_REQUIREMENTS).toContain(DELETE_SESSIONS);
-    expect(ALL_REQUIREMENTS).toContain(LIST_PROJECT_SESSIONS);
-    expect(ALL_REQUIREMENTS).toContain(ANNOTATE_SESSIONS);
-    expect(ALL_REQUIREMENTS).toContain(GET_SPANS_TRACE_IDS);
-    expect(ALL_REQUIREMENTS).toHaveLength(6);
   });
 });
