@@ -33,7 +33,6 @@
  */
 
 import { createClient } from "../src";
-import { getDatasetExamples } from "../src/datasets/getDatasetExamples";
 import { upsertDatasetExamples } from "../src/datasets/upsertDatasetExamples";
 import { asExperimentEvaluator, runExperiment } from "../src/experiments";
 import type { AnnotatorKind } from "../src/types/annotations";
@@ -99,11 +98,6 @@ async function main() {
     dataset: { datasetName: DATASET_NAME },
     description: "Trivia Q&A dataset for upsert demo",
     examples: v1Examples,
-  });
-
-  await getDatasetExamples({
-    client,
-    dataset: { datasetName: DATASET_NAME },
   });
 
   // ===========================================================================
@@ -211,11 +205,6 @@ async function main() {
     dataset: { datasetName: DATASET_NAME },
     description: "Trivia Q&A dataset for upsert demo",
     examples: v2Examples,
-  });
-
-  await getDatasetExamples({
-    client,
-    dataset: { datasetName: DATASET_NAME },
   });
 
   // ===========================================================================
