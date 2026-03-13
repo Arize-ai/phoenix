@@ -12,6 +12,10 @@ vi.mock("openapi-fetch", () => ({
   }),
 }));
 
+vi.mock("../../src/utils/serverVersionUtils", () => ({
+  ensureServerFeature: vi.fn(),
+}));
+
 type SessionData = components["schemas"]["SessionData"];
 type Span = components["schemas"]["Span"];
 

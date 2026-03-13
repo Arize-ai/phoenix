@@ -12,6 +12,10 @@ vi.mock("openapi-fetch", () => ({
   }),
 }));
 
+vi.mock("../../src/utils/serverVersionUtils", () => ({
+  ensureServerFeature: vi.fn(),
+}));
+
 const mockSessionData: components["schemas"]["SessionData"] = {
   id: "session-global-id",
   session_id: "my-session",
