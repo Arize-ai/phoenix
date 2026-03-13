@@ -74,7 +74,6 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-          model: claude-opus-4-6
           prompt: |
             Implement GitHub issue #${{ github.event.issue.number }} end-to-end. Deliver a complete, merge-ready PR.
 
