@@ -11,7 +11,6 @@
 
 import { createClient } from "../src";
 import { createDataset } from "../src/datasets/createDataset";
-import { getDatasetExamples } from "../src/datasets/getDatasetExamples";
 import type { Example } from "../src/types/datasets";
 
 const PHOENIX_BASE_URL = "http://localhost:6006";
@@ -67,11 +66,6 @@ async function main() {
     name: datasetName,
     description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
     examples: v1Examples,
-  });
-
-  await getDatasetExamples({
-    client,
-    dataset: { datasetName },
   });
 }
 

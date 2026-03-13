@@ -14,7 +14,7 @@
 import { createClient } from "../src";
 import { getDatasetExamples } from "../src/datasets/getDatasetExamples";
 import { upsertDatasetExamples } from "../src/datasets/upsertDatasetExamples";
-import { asEvaluator, runExperiment } from "../src/experiments";
+import { asExperimentEvaluator, runExperiment } from "../src/experiments";
 import type { AnnotatorKind } from "../src/types/annotations";
 import type { Example } from "../src/types/datasets";
 
@@ -58,7 +58,7 @@ async function main() {
     return triviaAnswers[question] ?? "I don't know";
   };
 
-  const exactMatch = asEvaluator({
+  const exactMatch = asExperimentEvaluator({
     name: "exact_match",
     kind: "CODE" as AnnotatorKind,
     evaluate: async ({ output, expected }) => {
