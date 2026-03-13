@@ -50,7 +50,7 @@ def _check_version(
 
 def ensure_server_capability(
     *,
-    client: Union[PhoenixHTTPClient, PhoenixAsyncHTTPClient],
+    client: PhoenixHTTPClient,
     requirement: CapabilityRequirement,
 ) -> None:
     """Check that *client*'s server version satisfies *requirement*.
