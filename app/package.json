@@ -122,6 +122,7 @@
     "@types/react-relay": "^18.2.1",
     "@types/recharts": "^1.8.29",
     "@types/relay-runtime": "^19.0.3",
+    "@vitejs/devtools": "^0.1.0",
     "@vitejs/plugin-react": "^6.0.1",
     "babel-plugin-react-compiler": "1.0.0",
     "babel-plugin-relay": "^20.1.1",

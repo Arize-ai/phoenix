@@ -1,6 +1,7 @@
 import { resolve } from "path";
 import { lezer } from "@lezer/generator/rollup";
 import babel from "@rolldown/plugin-babel";
+import { DevTools } from "@vitejs/devtools";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 // Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
 // import { visualizer } from "rollup-plugin-visualizer";
@@ -13,6 +14,9 @@ import relay from "vite-plugin-relay";
 // We default to not exporting source maps since the JS bundle gets added to the python package.
 // We however want to enable source maps on the containers for debugging purposes.
 const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
+
+// Enable Vite DevTools in local development (not in CI)
+const enableDevTools = !process.env.CI;
 
 // Configure React Compiler preset with custom options
 // reactCompilerPreset() provides optimized filters; we customize the babel plugin options
@@ -35,7 +39,9 @@ export default defineConfig(() => {
     relay,
     lezer(),
     circleDependency({ circleImportThrowErr: true }),
-  ];
+    // Vite DevTools for build analysis (only in local development)
+    enableDevTools && DevTools(),
+  ].filter(Boolean);
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {
