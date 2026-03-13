@@ -3,6 +3,7 @@ import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import { Flex, Text, Token, View } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useCurrentTime } from "@phoenix/hooks";
@@ -45,7 +46,7 @@ export function PromptVersionSummary(props: {
             <Token color="var(--global-color-blue-900)">
               {version.sequenceNumber}
             </Token>
-            <span>{`${version.id}`}</span>
+            <CopyId id={version.id} truncate={8} />
           </Flex>
         </Flex>
       </View>

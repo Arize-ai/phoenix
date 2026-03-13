@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import {
   Tooltip,
   TooltipArrow,
@@ -67,7 +68,9 @@ export function ExperimentInputCell({
           css={css`
             white-space: nowrap;
           `}
-        >{`example ${exampleId}`}</Text>
+        >
+          example <CopyId id={exampleId} truncate={8} />
+        </Text>
       </CellTop>
       <OverflowCell height={height}>
         <div css={contentCSS}>

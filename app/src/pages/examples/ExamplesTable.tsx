@@ -17,7 +17,7 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { Link } from "@phoenix/components/core/Link";
+import { CopyId } from "@phoenix/components/core/copy";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -259,9 +259,9 @@ export function ExamplesTable({
         header: "example id",
         accessorKey: "id",
         size: 180,
-        cell: ({ getValue, row }) => {
+        cell: ({ row }) => {
           const exampleId = row.original.id;
-          return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
+          return <CopyId id={exampleId} truncate={8} />;
         },
       },
       {

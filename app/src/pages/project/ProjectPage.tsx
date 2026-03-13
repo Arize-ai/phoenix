@@ -13,10 +13,12 @@ import {
   Flex,
   LazyTabPanel,
   Loading,
+  PageHeader,
   Tab,
   TabList,
   Tabs,
 } from "@phoenix/components";
+import { CopyId } from "@phoenix/components/core/copy";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
@@ -135,6 +137,7 @@ function ProjectPageContentBody({
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
+            name
             ...ProjectPageHeader_stats
             ...StreamToggle_data
           }
@@ -236,8 +239,9 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
-      <ProjectPageHeader
-        project={data.project}
+      <PageHeader
+        title={data.project.name ?? "Project"}
+        subTitle={<CopyId id={projectId} />}
         extra={
           <Flex direction="row" alignItems="center" gap="size-100">
             <StreamToggle project={data.project} />
@@ -245,6 +249,7 @@ function ProjectPageContentBody({
           </Flex>
         }
       />
+      <ProjectPageHeader project={data.project} />
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,

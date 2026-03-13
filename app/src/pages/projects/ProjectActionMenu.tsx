@@ -151,7 +151,7 @@ export function ProjectActionMenu({
                 justifyContent={"start"}
                 alignItems={"center"}
               >
-                <Icon svg={<Icons.ClipboardCopy />} />
+                <Icon svg={<Icons.Copy />} />
                 <Text>Copy Name</Text>
               </Flex>
             </MenuItem>
