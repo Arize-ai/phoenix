@@ -64,6 +64,7 @@ describe("appendDatasetExamples", () => {
 
     expect(result).toEqual({
       datasetId: "dataset-123",
+      versionId: "version-456",
     });
   });
 
@@ -116,6 +117,7 @@ describe("appendDatasetExamples", () => {
 
     expect(result).toEqual({
       datasetId: "dataset-123",
+      versionId: "version-456",
     });
   });
 

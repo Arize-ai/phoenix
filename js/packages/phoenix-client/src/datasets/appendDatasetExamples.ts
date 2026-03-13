@@ -18,8 +18,7 @@ export type AppendDatasetExamplesParams = ClientFn & {
 
 export type AppendDatasetExamplesResponse = {
   datasetId: string;
-  // TODO: respond with the versionId
-  // versionId: string;
+  versionId: string;
 };
 
 /**
@@ -109,7 +108,9 @@ export async function appendDatasetExamples({
   });
   invariant(appendResponse.data?.data, "Failed to append dataset examples");
   const datasetId = appendResponse.data.data.dataset_id;
+  const versionId = appendResponse.data.data.version_id;
   return {
     datasetId,
+    versionId,
   };
 }

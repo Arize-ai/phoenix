@@ -10,8 +10,8 @@
  */
 
 import { createClient } from "../src";
+import { createDataset } from "../src/datasets/createDataset";
 import { getDatasetExamples } from "../src/datasets/getDatasetExamples";
-import { upsertDatasetExamples } from "../src/datasets/upsertDatasetExamples";
 import type { Example } from "../src/types/datasets";
 
 const PHOENIX_BASE_URL = "http://localhost:6006";
@@ -62,9 +62,9 @@ async function main() {
     },
   ];
 
-  await upsertDatasetExamples({
+  await createDataset({
     client,
-    dataset: { datasetName },
+    name: datasetName,
     description: "Trivia Q&A dataset for retrieve-mutate-upsert demo",
     examples: v1Examples,
   });

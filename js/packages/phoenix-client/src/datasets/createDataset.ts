@@ -21,6 +21,7 @@ export type CreateDatasetParams = ClientFn & {
 
 export type CreateDatasetResponse = {
   datasetId: string;
+  versionId: string;
 };
 
 /**
@@ -110,7 +111,9 @@ export async function createDataset({
   });
   invariant(createDatasetResponse.data?.data, "Failed to create dataset");
   const datasetId = createDatasetResponse.data.data.dataset_id;
+  const versionId = createDatasetResponse.data.data.version_id;
   return {
     datasetId,
+    versionId,
   };
 }
