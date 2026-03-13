@@ -28,6 +28,8 @@ export interface AddSessionAnnotationParams extends ClientFn {
  * @param params - The parameters to add a span annotation
  * @returns The ID of the created or updated annotation
  *
+ * @requires Phoenix server >= 12.0.0
+ *
  * @example
  * ```ts
  * const result = await addSessionAnnotation({

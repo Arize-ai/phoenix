@@ -1,8 +1,15 @@
 """Phoenix server version utilities.
 
-Provides guards for capabilities that require a minimum Phoenix **server** version.
-The server version is detected from the ``x-phoenix-server-version`` response
-header or by calling ``GET /arize_phoenix_version``.
+Provides guards for capabilities that require a minimum Phoenix **server**
+version.  The server version is detected from the
+``x-phoenix-server-version`` response header or by calling
+``GET /arize_phoenix_version``.
+
+The main entry points are :func:`ensure_server_capability` (sync) and
+:func:`async_ensure_server_capability` (async).  Both accept a
+:data:`~phoenix.client.types.server_requirements.CapabilityRequirement` and
+raise :class:`~phoenix.client.exceptions.PhoenixException` with an
+actionable message when the connected server is too old.
 """
 
 from __future__ import annotations

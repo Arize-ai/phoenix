@@ -1,3 +1,17 @@
+/**
+ * Known server capability requirements.
+ *
+ * Each constant below describes a single Phoenix server capability — an HTTP
+ * route or query parameter — together with the minimum server version that
+ * supports it.  These constants are passed to
+ * {@link ensureServerCapability} at call time to produce a clear error when
+ * the connected server is too old.
+ *
+ * When a new version-gated feature is added to the Phoenix REST API, add a
+ * corresponding requirement constant here and reference it from the client
+ * function that uses it.
+ */
+
 import type {
   CapabilityRequirement,
   ParameterRequirement,
@@ -47,7 +61,12 @@ export const GET_SPANS_TRACE_IDS: ParameterRequirement = {
   minServerVersion: [13, 9, 0],
 };
 
-/** All capability requirements for manifest scanning. */
+/**
+ * Aggregate list of every known capability requirement.
+ *
+ * Useful for manifest scanning or startup diagnostics — iterate over this
+ * array to check which capabilities the connected server supports.
+ */
 export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SESSION,
   DELETE_SESSION,

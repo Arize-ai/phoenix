@@ -20,6 +20,8 @@ const DEFAULT_PAGE_SIZE = 100;
 /**
  * List all sessions for a project with automatic pagination handling.
  *
+ * @requires Phoenix server >= 13.5.0
+ *
  * @example
  * ```ts
  * import { listSessions } from "@arizeai/phoenix-client/sessions";

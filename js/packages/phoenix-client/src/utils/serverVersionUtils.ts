@@ -5,6 +5,17 @@
  * version.  The server version is detected from the
  * `x-phoenix-server-version` response header or by calling
  * `GET /arize_phoenix_version`.
+ *
+ * ## Capability guard pattern
+ *
+ * Each server-side feature that was introduced after the initial release is
+ * represented by a {@link CapabilityRequirement} constant (defined in
+ * `constants/serverRequirements`).  Before calling such a feature, the client
+ * passes the requirement to {@link ensureServerCapability}, which compares the
+ * connected server's version against the requirement's minimum version and
+ * throws a descriptive error when the server is too old.  This lets callers
+ * see *exactly* which feature is unavailable and which version they need,
+ * rather than receiving an opaque HTTP 404 or 400 response.
  */
 
 import type { PhoenixClient } from "../client";

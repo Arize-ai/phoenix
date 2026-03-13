@@ -27,6 +27,8 @@ export interface DeleteSessionParams extends ClientFn {
  * @returns Promise that resolves when the session is successfully deleted
  * @throws Error if the session is not found or deletion fails
  *
+ * @requires Phoenix server >= 13.13.0
+ *
  * @example
  * ```ts
  * // Delete by user-provided session ID

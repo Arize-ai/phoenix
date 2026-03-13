@@ -104,6 +104,8 @@ class Sessions:
     ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
@@ -129,6 +131,8 @@ class Sessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[v1.SessionData]:
         """List sessions for a project.
+
+        Requires Phoenix server >= 13.5.0.
 
         Args:
             project_id: The ID of the project.
@@ -180,6 +184,8 @@ class Sessions:
         This will permanently remove the session and all associated traces, spans,
         and annotations via cascade delete.
 
+        Requires Phoenix server >= 13.13.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
@@ -203,6 +209,8 @@ class Sessions:
         All identifiers must be the same type: either all GlobalIDs or all
         user-provided session_id strings. Non-existent IDs are silently skipped.
         All associated traces, spans, and annotations are cascade deleted.
+
+        Requires Phoenix server >= 13.13.0.
 
         Args:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
@@ -381,6 +389,8 @@ class Sessions:
     ) -> Optional[InsertedSessionAnnotation]:
         """Add a single session annotation.
 
+        Requires Phoenix server >= 12.0.0.
+
         Args:
             session_id (str): The ID of the session to annotate.
             annotation_name (str): The name of the annotation.
@@ -474,6 +484,8 @@ class Sessions:
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations.
+
+        Requires Phoenix server >= 12.0.0.
 
         Args:
             session_annotations (Iterable[SessionAnnotationData]): An iterable of session annotation data to log. Each annotation must include
@@ -570,6 +582,8 @@ class Sessions:
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame.
 
+        Requires Phoenix server >= 12.0.0.
+
         This method allows you to create multiple session annotations at once by providing the data
         in a pandas DataFrame. The DataFrame can either include `name` or `annotation_name` columns
         (but not both) and `annotator_kind` column, or you can specify global values for all rows.
@@ -662,6 +676,8 @@ class AsyncSessions:
     ) -> v1.SessionData:
         """Get a session by ID or session_id string.
 
+        Requires Phoenix server >= 13.5.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
@@ -687,6 +703,8 @@ class AsyncSessions:
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[v1.SessionData]:
         """List sessions for a project.
+
+        Requires Phoenix server >= 13.5.0.
 
         Args:
             project_id: The ID of the project.
@@ -738,6 +756,8 @@ class AsyncSessions:
         This will permanently remove the session and all associated traces, spans,
         and annotations via cascade delete.
 
+        Requires Phoenix server >= 13.13.0.
+
         Args:
             session_id: The session identifier (GlobalID or user-provided session_id).
             timeout: Optional timeout in seconds for the request.
@@ -761,6 +781,8 @@ class AsyncSessions:
         All identifiers must be the same type: either all GlobalIDs or all
         user-provided session_id strings. Non-existent IDs are silently skipped.
         All associated traces, spans, and annotations are cascade deleted.
+
+        Requires Phoenix server >= 13.13.0.
 
         Args:
             session_ids: List of session identifiers (GlobalIDs or session_id strings).
@@ -942,6 +964,8 @@ class AsyncSessions:
     ) -> Optional[InsertedSessionAnnotation]:
         """Add a single session annotation.
 
+        Requires Phoenix server >= 12.0.0.
+
         Args:
             session_id (str): The ID of the session to annotate.
             annotation_name (str): The name of the annotation.
@@ -1035,6 +1059,8 @@ class AsyncSessions:
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations asynchronously.
+
+        Requires Phoenix server >= 12.0.0.
 
         Args:
             session_annotations (Iterable[SessionAnnotationData]): An iterable of session annotation data to log. Each annotation must include
@@ -1130,6 +1156,8 @@ class AsyncSessions:
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame asynchronously.
+
+        Requires Phoenix server >= 12.0.0.
 
         This method allows you to create multiple session annotations at once by providing the data
         in a pandas DataFrame. The DataFrame can either include `name` or `annotation_name` columns

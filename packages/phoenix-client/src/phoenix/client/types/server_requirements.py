@@ -1,4 +1,22 @@
-"""Capability requirement types for Phoenix server version gating."""
+"""Capability requirement types for Phoenix server version gating.
+
+A "capability" represents a specific server-side feature — such as an HTTP
+route or query parameter — that is gated behind a minimum Phoenix server
+version.  Each :data:`CapabilityRequirement` declares *what* the capability
+is (via its :attr:`capability` label) and *which* server version first
+introduced it.
+
+The client checks these requirements at call time via
+:func:`~phoenix.client.utils.server_version_utils.ensure_server_capability`
+so that callers get a clear, actionable error instead of an opaque 404 or
+400 from an older server.
+
+There are two concrete requirement types:
+
+* :class:`RouteRequirement` — an entire HTTP endpoint (method + path).
+* :class:`ParameterRequirement` — a specific query/path/header parameter on
+  an existing route.
+"""
 
 from __future__ import annotations
 

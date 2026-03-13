@@ -46,6 +46,8 @@ export type GetSpansResult = {
  * @param params - The parameters to search for spans
  * @returns A paginated response containing spans and optional next cursor
  *
+ * @requires Phoenix server >= 13.9.0 when filtering by `traceIds`
+ *
  * @example
  * ```ts
  * // Get recent spans from a project

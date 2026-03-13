@@ -1,3 +1,16 @@
+/**
+ * Server capability requirements.
+ *
+ * A "capability" represents a specific server-side feature — such as an HTTP
+ * route or query parameter — that is gated behind a minimum Phoenix server
+ * version.  Each {@link CapabilityRequirement} declares *what* the capability
+ * is and *which* server version first introduced it.
+ *
+ * The client checks these requirements at call time via
+ * {@link ensureServerCapability} so that callers get a clear, actionable error
+ * instead of an opaque 404 or 400 from an older server.
+ */
+
 import type { SemanticVersion } from "./semver";
 
 export interface RouteRequirement {

@@ -31,6 +31,8 @@ export interface LogSessionAnnotationsParams extends ClientFn {
  * @param params - The parameters to log session annotations
  * @returns The IDs of the created or updated annotations
  *
+ * @requires Phoenix server >= 12.0.0
+ *
  * @example
  * ```ts
  * const results = await logSessionAnnotations({

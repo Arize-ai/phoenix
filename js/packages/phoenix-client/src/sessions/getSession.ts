@@ -18,6 +18,8 @@ export type GetSessionParams = ClientFn & {
 /**
  * Fetch a single session by its GlobalID or user-provided session_id string.
  *
+ * @requires Phoenix server >= 13.5.0
+ *
  * @example
  * ```ts
  * import { getSession } from "@arizeai/phoenix-client/sessions";

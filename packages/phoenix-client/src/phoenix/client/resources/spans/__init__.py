@@ -443,6 +443,7 @@ class Spans:
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
             trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
+                Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
             limit (int): Maximum number of spans to return. Defaults to 100.
@@ -1682,6 +1683,7 @@ class AsyncSpans:
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
             trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
+                Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
             limit (int): Maximum number of spans to return. Defaults to 100.

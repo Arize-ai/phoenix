@@ -1,4 +1,9 @@
-"""Capability requirement constants for Phoenix server version gating."""
+"""Capability requirement constants for Phoenix server version gating.
+
+Each constant declares a server capability and the minimum Phoenix version
+that supports it.  These are checked at call time by
+:func:`~phoenix.client.utils.server_version_utils.ensure_server_capability`.
+"""
 
 from __future__ import annotations
 
