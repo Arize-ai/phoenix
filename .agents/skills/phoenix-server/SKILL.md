@@ -6,6 +6,8 @@ description: >
   SQLAlchemy async, FastAPI). Use this skill when writing or modifying Python server code
   in the phoenix repo — adding mutations, types, migrations, or tests. Trigger on any
   backend task touching src/phoenix/server/, src/phoenix/db/, or tests/unit/server/.
+metadata:
+  internal: true
 ---
 
 # Phoenix Backend Development
