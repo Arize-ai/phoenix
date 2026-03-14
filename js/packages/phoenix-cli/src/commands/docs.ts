@@ -1,25 +1,20 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as fsPromises from "node:fs/promises";
+import * as path from "node:path";
+
 import { Command } from "commander";
 
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const LLMS_TXT_URL = "https://arize.com/docs/phoenix/llms.txt";
 const PHOENIX_DOCS_PREFIX = "https://arize.com/docs/phoenix/";
 const DEFAULT_OUTPUT_DIR = ".px/docs";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface DocEntry {
   title: string;
   url: string;
+  description: string;
   section: string;
 }
 
@@ -33,10 +28,11 @@ interface DocsFetchOptions {
   workers: number;
 }
 
-// ---------------------------------------------------------------------------
-// Workflow mapping
-// ---------------------------------------------------------------------------
-
+/**
+ * Maps user-facing workflow names to the top-level `##` section headings
+ * in the llms.txt index. Entries under `###` subsections inherit their
+ * parent `##` section.
+ */
 const WORKFLOW_SECTION_MAP: Record<string, string[]> = {
   tracing: ["tracing"],
   evaluation: ["evaluation"],
@@ -48,36 +44,45 @@ const WORKFLOW_SECTION_MAP: Record<string, string[]> = {
   cookbooks: ["cookbooks"],
 };
 
+const VALID_WORKFLOWS = Object.keys(WORKFLOW_SECTION_MAP);
+
 // ---------------------------------------------------------------------------
 // Pure functions (exported for testing)
 // ---------------------------------------------------------------------------
 
 /**
- * Parse an llms.txt file into an array of doc entries.
+ * Parse an llms.txt file into doc entries.
  *
- * The format uses `##` headings for sections and markdown links `- [title](url)`
- * for individual pages.
+ * The real Phoenix llms.txt format uses:
+ *   ## Section           — top-level sections
+ *   ### Subsection       — subsections (inherit parent ## section)
+ *   - Title: `url` - Description
  */
 export function parseLlmsTxt(content: string): DocEntry[] {
   const entries: DocEntry[] = [];
   let currentSection = "";
 
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
 
-    // Track section headings
-    const sectionMatch = trimmed.match(/^##\s+(.+)/);
-    if (sectionMatch) {
-      currentSection = sectionMatch[1].trim();
+    // Track top-level ## section headings (subsections ### inherit the parent)
+    const topSectionMatch = line.match(/^##\s+(?!#)(.+)/);
+    if (topSectionMatch) {
+      currentSection = topSectionMatch[1].trim();
       continue;
     }
 
-    // Extract markdown links: - [title](url) or [title](url)
-    const linkMatch = trimmed.match(/^-?\s*\[([^\]]+)\]\(([^)]+)\)/);
-    if (linkMatch) {
-      const title = linkMatch[1];
-      const url = linkMatch[2];
-      entries.push({ title, url, section: currentSection });
+    // Parse: - Title: `url` - Description
+    const entryMatch = line.match(
+      /^-\s+(.+?):\s+`(https?:\/\/[^`]+)`(?:\s+-\s+(.*))?$/
+    );
+    if (entryMatch) {
+      entries.push({
+        title: entryMatch[1],
+        url: entryMatch[2],
+        description: entryMatch[3] ?? "",
+        section: currentSection,
+      });
     }
   }
 
@@ -85,10 +90,8 @@ export function parseLlmsTxt(content: string): DocEntry[] {
 }
 
 /**
- * Filter doc entries to only those matching the given workflow categories.
- *
- * Matching is case-insensitive against the section heading. If no workflows
- * are provided (or the list is empty), all entries are returned.
+ * Filter doc entries by workflow categories. Returns all entries if
+ * workflows is empty or contains "all".
  */
 export function filterByWorkflows(
   entries: DocEntry[],
@@ -98,10 +101,13 @@ export function filterByWorkflows(
     return entries;
   }
 
-  // Collect all allowed section names (lowercase) from the workflow map
+  const normalized = workflows.map((workflow) => workflow.toLowerCase());
+  if (normalized.includes("all")) {
+    return entries;
+  }
+
   const allowedSections = new Set<string>();
-  for (const workflow of workflows) {
-    const key = workflow.toLowerCase();
+  for (const key of normalized) {
     const mapped = WORKFLOW_SECTION_MAP[key];
     if (mapped) {
       for (const section of mapped) {
@@ -117,15 +123,12 @@ export function filterByWorkflows(
 
 /**
  * Convert a Phoenix docs URL to a local file path.
- *
- * Strips the `https://arize.com/docs/phoenix/` prefix and appends `.md`.
+ * Strips the common prefix and appends `.md`.
  */
 export function urlToFilePath(url: string, outputDir: string): string {
-  let relative = url;
-  if (relative.startsWith(PHOENIX_DOCS_PREFIX)) {
-    relative = relative.slice(PHOENIX_DOCS_PREFIX.length);
-  }
-  // Strip leading/trailing slashes
+  let relative = url.startsWith(PHOENIX_DOCS_PREFIX)
+    ? url.slice(PHOENIX_DOCS_PREFIX.length)
+    : url;
   relative = relative.replace(/^\/+|\/+$/g, "");
   return path.join(outputDir, `${relative}.md`);
 }
@@ -134,52 +137,41 @@ export function urlToFilePath(url: string, outputDir: string): string {
 // Fetch helpers
 // ---------------------------------------------------------------------------
 
-async function fetchMarkdown(url: string): Promise<string> {
-  const markdownUrl = url.endsWith(".md") ? url : `${url}.md`;
+async function fetchAndSave(entry: DocEntry, outputDir: string): Promise<void> {
+  const markdownUrl = entry.url.endsWith(".md")
+    ? entry.url
+    : `${entry.url}.md`;
   const response = await fetch(markdownUrl);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} for ${markdownUrl}`);
   }
-  return response.text();
-}
-
-async function fetchAndSave(entry: DocEntry, outputDir: string): Promise<void> {
-  const content = await fetchMarkdown(entry.url);
+  const content = await response.text();
   const filePath = urlToFilePath(entry.url, outputDir);
-  const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(filePath, content, "utf-8");
-}
-
-interface FetchResult {
-  succeeded: DocEntry[];
-  failed: { entry: DocEntry; error: string }[];
+  await fsPromises.mkdir(path.dirname(filePath), { recursive: true });
+  await fsPromises.writeFile(filePath, content, "utf-8");
 }
 
 async function fetchWithConcurrency(
   entries: DocEntry[],
   outputDir: string,
   workers: number
-): Promise<FetchResult> {
+): Promise<{ succeeded: DocEntry[]; failed: { entry: DocEntry; error: string }[] }> {
   const succeeded: DocEntry[] = [];
   const failed: { entry: DocEntry; error: string }[] = [];
 
-  // Process entries in batches
-  for (let index = 0; index < entries.length; index += workers) {
-    const batch = entries.slice(index, index + workers);
+  for (let offset = 0; offset < entries.length; offset += workers) {
+    const batch = entries.slice(offset, offset + workers);
     const results = await Promise.allSettled(
       batch.map((entry) => fetchAndSave(entry, outputDir).then(() => entry))
     );
 
-    for (const result of results) {
+    for (let index = 0; index < results.length; index++) {
+      const result = results[index];
       if (result.status === "fulfilled") {
         succeeded.push(result.value);
       } else {
-        // Find the corresponding entry for this failed result
-        const batchIndex = results.indexOf(result);
-        const entry = batch[batchIndex];
         failed.push({
-          entry,
+          entry: batch[index],
           error:
             result.reason instanceof Error
               ? result.reason.message
@@ -197,7 +189,7 @@ async function fetchWithConcurrency(
 // ---------------------------------------------------------------------------
 
 async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
-  // 1. Fetch llms.txt index
+  // Fetch llms.txt index
   writeProgress({ message: `Fetching index from ${options.llmsUrl}...` });
   let response: Response;
   try {
@@ -216,13 +208,22 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
   }
   const indexContent = await response.text();
 
-  // 2. Parse entries
+  // Parse entries
   let entries = parseLlmsTxt(indexContent);
   writeProgress({ message: `Found ${entries.length} pages in index` });
 
-  // 3. Filter by workflow if specified
+  // Filter by workflow
   const workflows = options.workflow ?? [];
   if (workflows.length > 0) {
+    // Warn about unknown workflow names
+    for (const workflow of workflows) {
+      const key = workflow.toLowerCase();
+      if (key !== "all" && !VALID_WORKFLOWS.includes(key)) {
+        writeError({
+          message: `Warning: unknown workflow "${workflow}". Valid values: ${VALID_WORKFLOWS.join(", ")}, all`,
+        });
+      }
+    }
     entries = filterByWorkflows(entries, workflows);
     writeProgress({
       message: `Filtered to ${entries.length} pages for workflow(s): ${workflows.join(", ")}`,
@@ -234,7 +235,7 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     return;
   }
 
-  // 4. Dry run — just list the discovered links
+  // Dry run — list discovered links
   if (options.dryRun) {
     writeOutput({ message: `Discovered ${entries.length} pages:\n` });
     for (const entry of entries) {
@@ -246,18 +247,15 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     return;
   }
 
-  // 5. Refresh — clear output dir
+  // Refresh — clear output dir
   if (options.refresh && fs.existsSync(options.outputDir)) {
-    writeProgress({
-      message: `Clearing ${options.outputDir}...`,
-    });
+    writeProgress({ message: `Clearing ${options.outputDir}...` });
     fs.rmSync(options.outputDir, { recursive: true, force: true });
   }
 
-  // 6. Ensure output dir exists
   fs.mkdirSync(options.outputDir, { recursive: true });
 
-  // 7. Fetch and save all pages
+  // Fetch and save
   writeProgress({
     message: `Downloading ${entries.length} pages (${options.workers} workers)...`,
   });
@@ -267,7 +265,6 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     options.workers
   );
 
-  // 8. Report results
   writeOutput({
     message: `Downloaded ${succeeded.length}/${entries.length} pages to ${options.outputDir}`,
   });
@@ -277,7 +274,6 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     for (const { entry, error } of failed) {
       writeError({ message: `  ${entry.url}: ${error}` });
     }
-
     if (options.strict) {
       process.exit(ExitCode.FAILURE);
     }

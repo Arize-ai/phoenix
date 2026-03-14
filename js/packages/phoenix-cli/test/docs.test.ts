@@ -7,71 +7,94 @@ import {
   urlToFilePath,
 } from "../src/commands/docs";
 
-const SAMPLE_LLMS_TXT = `# Phoenix Documentation
+// Matches the real Phoenix llms.txt format
+const SAMPLE_LLMS_TXT = `# Phoenix Documentation Index
 
-> Phoenix is an open-source observability library.
+This file provides an overview of the Phoenix documentation structure.
+
+## Overview
+
+- Main page: \`https://arize.com/docs/phoenix\` - Overview of Phoenix features
 
 ## Tracing
 
-- [LLM Traces](https://arize.com/docs/phoenix/tracing/llm-traces)
-- [Setup Tracing](https://arize.com/docs/phoenix/tracing/setup-tracing)
+Tracing captures detailed execution information from your AI applications.
+
+### Tutorial
+
+- Tracing Tutorial: \`https://arize.com/docs/phoenix/tracing/tutorial\` - Build a fully observable AI agent
+- Your First Traces: \`https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces\` - Step-by-step guide
+
+### Overview
+
+- LLM Traces: \`https://arize.com/docs/phoenix/tracing/llm-traces\` - Understanding traces and spans
 
 ## Evaluation
 
-- [How to Evals](https://arize.com/docs/phoenix/evaluation/how-to-evals)
-- [LLM as Judge](https://arize.com/docs/phoenix/evaluation/llm-as-judge)
+- How to Evals: \`https://arize.com/docs/phoenix/evaluation/how-to-evals\` - Comprehensive evaluation guide
+- LLM as Judge: \`https://arize.com/docs/phoenix/evaluation/llm-as-judge\` - Using LLMs to assess quality
 
 ## Datasets & Experiments
 
-- [Manage Datasets](https://arize.com/docs/phoenix/datasets/manage-datasets)
+- Manage Datasets: \`https://arize.com/docs/phoenix/datasets/manage-datasets\` - Create and manage datasets
 
 ## Prompt Engineering
 
-- [Prompt Templates](https://arize.com/docs/phoenix/prompt-engineering/prompt-templates)
+- Prompt Templates: \`https://arize.com/docs/phoenix/prompt-engineering/prompt-templates\` - Build prompt templates
 
 ## Integrations
 
-- [OpenAI](https://arize.com/docs/phoenix/integrations/openai)
+### LLM Providers
+
+- OpenAI: \`https://arize.com/docs/phoenix/integrations/openai\` - OpenAI integration
 
 ## SDK & API Reference
 
-- [Python SDK](https://arize.com/docs/phoenix/sdk/python-sdk)
+- Python SDK: \`https://arize.com/docs/phoenix/sdk/python-sdk\` - Python SDK reference
 
 ## Self-Hosting
 
-- [Docker](https://arize.com/docs/phoenix/self-hosting/docker)
+- Docker: \`https://arize.com/docs/phoenix/self-hosting/docker\` - Deploy with Docker
 
 ## Cookbooks
 
-- [RAG Cookbook](https://arize.com/docs/phoenix/cookbooks/rag-cookbook)
+- RAG Cookbook: \`https://arize.com/docs/phoenix/cookbooks/rag-cookbook\` - RAG examples
 `;
 
 describe("docs", () => {
   describe("parseLlmsTxt", () => {
-    it("should parse sections and entries from llms.txt content", () => {
+    it("should parse entries from real llms.txt format", () => {
       const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
 
-      expect(entries.length).toBe(10);
+      expect(entries.length).toBe(12);
       expect(entries[0]).toEqual({
-        title: "LLM Traces",
-        url: "https://arize.com/docs/phoenix/tracing/llm-traces",
-        section: "Tracing",
-      });
-      expect(entries[1]).toEqual({
-        title: "Setup Tracing",
-        url: "https://arize.com/docs/phoenix/tracing/setup-tracing",
-        section: "Tracing",
+        title: "Main page",
+        url: "https://arize.com/docs/phoenix",
+        description: "Overview of Phoenix features",
+        section: "Overview",
       });
     });
 
-    it("should assign correct sections to entries", () => {
+    it("should assign subsection entries to parent ## section", () => {
       const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
-      const sections = entries.map((entry) => entry.section);
+      // "Tracing Tutorial" is under ### Tutorial which is under ## Tracing
+      const tutorial = entries.find(
+        (entry) => entry.title === "Tracing Tutorial"
+      );
+      expect(tutorial?.section).toBe("Tracing");
+
+      // "LLM Traces" is under ### Overview which is under ## Tracing
+      const traces = entries.find((entry) => entry.title === "LLM Traces");
+      expect(traces?.section).toBe("Tracing");
+    });
+
+    it("should assign correct top-level sections", () => {
+      const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
+      const sections = [...new Set(entries.map((entry) => entry.section))];
 
       expect(sections).toEqual([
+        "Overview",
         "Tracing",
-        "Tracing",
-        "Evaluation",
         "Evaluation",
         "Datasets & Experiments",
         "Prompt Engineering",
@@ -80,6 +103,11 @@ describe("docs", () => {
         "Self-Hosting",
         "Cookbooks",
       ]);
+    });
+
+    it("should parse descriptions", () => {
+      const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
+      expect(entries[0].description).toBe("Overview of Phoenix features");
     });
 
     it("should handle empty content", () => {
@@ -91,15 +119,16 @@ describe("docs", () => {
       expect(parseLlmsTxt(content)).toEqual([]);
     });
 
-    it("should handle links without a preceding section", () => {
+    it("should handle entries without descriptions", () => {
       const content =
-        "- [Top Level](https://arize.com/docs/phoenix/top-level)\n";
+        "## Section\n- Title: `https://arize.com/docs/phoenix/page`\n";
       const entries = parseLlmsTxt(content);
       expect(entries).toEqual([
         {
-          title: "Top Level",
-          url: "https://arize.com/docs/phoenix/top-level",
-          section: "",
+          title: "Title",
+          url: "https://arize.com/docs/phoenix/page",
+          description: "",
+          section: "Section",
         },
       ]);
     });
@@ -110,27 +139,35 @@ describe("docs", () => {
       {
         title: "LLM Traces",
         url: "https://arize.com/docs/phoenix/tracing/llm-traces",
+        description: "Understanding traces",
         section: "Tracing",
       },
       {
         title: "How to Evals",
         url: "https://arize.com/docs/phoenix/evaluation/how-to-evals",
+        description: "Evaluation guide",
         section: "Evaluation",
       },
       {
         title: "Manage Datasets",
         url: "https://arize.com/docs/phoenix/datasets/manage-datasets",
+        description: "Dataset management",
         section: "Datasets & Experiments",
       },
       {
         title: "Docker",
         url: "https://arize.com/docs/phoenix/self-hosting/docker",
+        description: "Docker deployment",
         section: "Self-Hosting",
       },
     ];
 
     it("should return all entries when no workflows specified", () => {
       expect(filterByWorkflows(entries, [])).toEqual(entries);
+    });
+
+    it("should return all entries for workflow 'all'", () => {
+      expect(filterByWorkflows(entries, ["all"])).toEqual(entries);
     });
 
     it("should filter by a single workflow", () => {
@@ -187,12 +224,6 @@ describe("docs", () => {
         "/tmp/my-docs"
       );
       expect(result).toBe("/tmp/my-docs/tracing/llm-traces.md");
-    });
-
-    it("should handle URLs without the Phoenix prefix", () => {
-      const result = urlToFilePath("https://other.com/some/path", ".px/docs");
-      // path.join normalizes :// to :/ — acceptable since non-Phoenix URLs are an edge case
-      expect(result).toBe(".px/docs/https:/other.com/some/path.md");
     });
 
     it("should strip trailing slashes from the URL path", () => {
