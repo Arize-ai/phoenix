@@ -108,7 +108,10 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
           });
         },
         onError: (error) => {
-          setError(getErrorMessagesFromRelayMutationError(error)?.[0] ?? "Error updating prompt");
+          setError(
+            getErrorMessagesFromRelayMutationError(error)?.[0] ??
+              "Error updating prompt"
+          );
         },
       });
     },
@@ -131,6 +134,11 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
             </DialogTitleExtra>
           </DialogHeader>
           <Form>
+            {error && (
+              <View paddingX="size-200" paddingTop="size-100">
+                <Alert variant="danger">{error}</Alert>
+              </View>
+            )}
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
                 <Controller
@@ -180,11 +188,6 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
                 />
               </Flex>
             </View>
-            {error && (
-              <View paddingX="size-200" paddingBottom="size-100">
-                <Alert variant="danger">{error}</Alert>
-              </View>
-            )}
             <View
               paddingX="size-200"
               paddingY="size-100"

@@ -153,6 +153,11 @@ export const AnnotationConfigDialog = ({
               })(e);
             }}
           >
+            {error && (
+              <View paddingX="size-200" paddingTop="size-200">
+                <Alert variant="danger">{error}</Alert>
+              </View>
+            )}
             <View minWidth="200px" padding="size-200">
               <Flex
                 direction="column"
@@ -422,11 +427,6 @@ export const AnnotationConfigDialog = ({
                 )}
               </Flex>
             </View>
-            {error && (
-              <View paddingX="size-200" paddingBottom="size-100">
-                <Alert variant="danger">{error}</Alert>
-              </View>
-            )}
             <View
               paddingX="size-200"
               paddingY="size-200"

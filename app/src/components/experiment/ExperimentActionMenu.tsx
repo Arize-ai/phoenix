@@ -229,14 +229,8 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <View padding="size-200">
-                <Text color="danger">
-                  Are you sure you want to delete this experiment and its
-                  annotations and traces?
-                </Text>
-              </View>
               {error && (
-                <View paddingX="size-200" paddingBottom="size-100">
+                <View paddingX="size-200" paddingTop="size-100">
                   <Alert
                     variant="danger"
                     dismissable
@@ -246,6 +240,12 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   </Alert>
                 </View>
               )}
+              <View padding="size-200">
+                <Text color="danger">
+                  Are you sure you want to delete this experiment and its
+                  annotations and traces?
+                </Text>
+              </View>
               <View
                 paddingEnd="size-200"
                 paddingTop="size-100"

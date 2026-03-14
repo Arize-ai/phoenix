@@ -80,12 +80,11 @@ function DeleteModelDialogContent({
     modelName,
     notifySuccess,
     onClose,
-    setError,
     connectionId,
   ]);
 
   return (
-    <div>
+    <>
       {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
         <Text color="danger">
@@ -115,7 +114,7 @@ function DeleteModelDialogContent({
           </Button>
         </Flex>
       </View>
-    </div>
+    </>
   );
 }
 
