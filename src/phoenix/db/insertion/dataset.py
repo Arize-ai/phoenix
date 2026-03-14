@@ -444,7 +444,6 @@ async def bulk_assign_examples_to_splits(
 class DatasetAction(Enum):
     CREATE = "create"
     APPEND = "append"
-    UPSERT = "upsert"
 
     @classmethod
     def _missing_(cls, v: Any) -> "DatasetAction":
@@ -496,7 +495,7 @@ async def add_dataset_examples(
 ) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
-    if action is DatasetAction.UPSERT:
+    if action is DatasetAction.CREATE:
         return await _upsert_dataset_examples(
             session=session,
             name=name,
@@ -513,7 +512,7 @@ async def add_dataset_examples(
         dataset_id = await session.scalar(
             select(models.Dataset.id).where(models.Dataset.name == name)
         )
-    if action is DatasetAction.CREATE or dataset_id is None:
+    if dataset_id is None:
         try:
             dataset_id = await insert_dataset(
                 session=session,

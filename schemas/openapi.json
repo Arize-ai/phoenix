@@ -1105,16 +1105,6 @@
             },
             "description": "Forbidden"
           },
-          "409": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Dataset of the same name already exists"
-          },
           "422": {
             "content": {
               "text/plain": {
@@ -1140,8 +1130,7 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append",
-                      "upsert"
+                      "append"
                     ]
                   },
                   "name": {
@@ -1202,7 +1191,7 @@
                     },
                     "description": "Span IDs to link examples back to spans"
                   },
-                  "external_ids": {
+                  "id": {
                     "type": "array",
                     "items": {
                       "oneOf": [
@@ -1214,7 +1203,7 @@
                         }
                       ]
                     },
-                    "description": "Optional external ID per example."
+                    "description": "Optional ID per example. If provided, overrides the server-generated ID."
                   }
                 }
               }
@@ -1233,8 +1222,7 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append",
-                      "upsert"
+                      "append"
                     ]
                   },
                   "name": {
@@ -6145,17 +6133,6 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
-          },
-          "external_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "External Id"
           }
         },
         "type": "object",

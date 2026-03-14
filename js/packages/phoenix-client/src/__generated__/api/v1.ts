@@ -1282,8 +1282,6 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
-            /** External Id */
-            external_id?: string | null;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -3989,7 +3987,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    action?: "create" | "append" | "upsert";
+                    action?: "create" | "append";
                     name: string;
                     description?: string;
                     inputs: Record<string, unknown>[];
@@ -3999,12 +3997,12 @@ export interface operations {
                     splits?: (string | string[] | null)[];
                     /** @description Span IDs to link examples back to spans */
                     span_ids?: (string | null)[];
-                    /** @description Optional external ID per example. */
-                    external_ids?: (string | null)[];
+                    /** @description Optional ID per example. If provided, overrides the server-generated ID. */
+                    id?: (string | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
-                    action?: "create" | "append" | "upsert";
+                    action?: "create" | "append";
                     name: string;
                     description?: string;
                     "input_keys[]": string[];
@@ -4031,15 +4029,6 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Dataset of the same name already exists */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -805,6 +805,44 @@ async def test_get_simple_dataset_examples(
         assert example_subset == expected
 
 
+async def test_get_dataset_examples_prefers_external_id_for_public_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}, {"q": "Q2"}],
+            "id": ["external-1", None],
+        },
+    )
+    response.raise_for_status()
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        db_examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+
+    list_response = await httpx_client.get(f"/v1/datasets/{dataset_id}/examples")
+    list_response.raise_for_status()
+    examples = list_response.json()["data"]["examples"]
+
+    assert [example["id"] for example in examples] == [
+        "external-1",
+        str(GlobalID("DatasetExample", str(db_examples[1].id))),
+    ]
+    assert all("external_id" not in example for example in examples)
+
+
 async def test_list_simple_dataset_examples_at_each_version(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
@@ -1470,7 +1508,7 @@ async def test_post_dataset_upload_append_with_splits(
 
 
 @pytest.mark.parametrize("sync", [True, False])
-@pytest.mark.parametrize("action", ["create", "append", "upsert"])
+@pytest.mark.parametrize("action", ["create", "append"])
 @pytest.mark.parametrize(
     "request_body,expected_error",
     [
@@ -1478,9 +1516,9 @@ async def test_post_dataset_upload_append_with_splits(
             {
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
-                "external_ids": ["same-id", "same-id"],
+                "id": ["same-id", "same-id"],
             },
-            "Duplicate external_id in request: 'same-id'",
+            "Duplicate id in request: 'same-id'",
             id="duplicate_external_ids",
         ),
         pytest.param(
@@ -1505,18 +1543,18 @@ async def test_post_dataset_upload_append_with_splits(
             {
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
-                "external_ids": ["e1"],
+                "id": ["e1"],
             },
-            "external_ids must have same length as inputs",
+            "id must have same length as inputs",
             id="external_ids_length_mismatch",
         ),
         pytest.param(
             {
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
-                "external_ids": [123, "e2"],
+                "id": [123, "e2"],
             },
-            "external_ids must contain only strings or None",
+            "id must contain only strings or None",
             id="external_ids_non_string",
         ),
         pytest.param(
@@ -1552,7 +1590,7 @@ async def test_upsert_empty_examples_list_creates_empty_version(
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={"action": "upsert", "name": "empty-upsert-ds", "inputs": []},
+        json={"action": "create", "name": "empty-upsert-ds", "inputs": []},
     )
     assert response.status_code == 200
 
@@ -1576,7 +1614,7 @@ async def test_upsert_empty_examples_list_creates_empty_version(
 
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={"action": "upsert", "name": "empty-upsert-ds", "inputs": []},
+        json={"action": "create", "name": "empty-upsert-ds", "inputs": []},
     )
     assert response.status_code == 200
 
@@ -1882,7 +1920,7 @@ async def test_upsert_does_not_create_new_version_for_unchanged_examples(
 
     upsert_response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={"action": "upsert", "name": name, "inputs": [ex.input]},
+        json={"action": "create", "name": name, "inputs": [ex.input]},
     )
     upsert_response.raise_for_status()
 
@@ -2090,11 +2128,11 @@ async def test_upsert_removes_split_assignments_when_splits_empty(
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
         json={
-            "action": "upsert",
+            "action": "create",
             "name": name,
             "inputs": [{"q": "Q1"}],
             "outputs": [{"a": "A1"}],
-            "external_ids": ["e1"],
+            "id": ["e1"],
             "splits": [None],
         },
     )
@@ -2188,7 +2226,7 @@ def _examples_to_body(*, action: str, name: str, examples: list[ExampleContent])
     if any(e.metadata for e in examples):
         body["metadata"] = [e.metadata for e in examples]
     if any(e.external_id is not None for e in examples):
-        body["external_ids"] = [e.external_id for e in examples]
+        body["id"] = [e.external_id for e in examples]
     if any(e.splits for e in examples):
         body["splits"] = [sorted(e.splits) if e.splits else None for e in examples]
     if any(e.span_id is not None for e in examples):
@@ -2203,7 +2241,7 @@ async def _upsert(
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json=_examples_to_body(action="upsert", name=name, examples=examples),
+        json=_examples_to_body(action="create", name=name, examples=examples),
     )
     response.raise_for_status()
 

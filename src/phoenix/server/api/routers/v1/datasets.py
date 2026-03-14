@@ -344,10 +344,6 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     summary="Upload dataset from JSON, JSONL, CSV, or PyArrow",
     responses=add_errors_to_responses(
         [
-            {
-                "status_code": 409,
-                "description": "Dataset of the same name already exists",
-            },
             {"status_code": 422, "description": "Invalid request body"},
         ]
     ),
@@ -364,7 +360,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "inputs"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append", "upsert"]},
+                            "action": {"type": "string", "enum": ["create", "append"]},
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "inputs": {"type": "array", "items": {"type": "object"}},
@@ -391,7 +387,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 },
                                 "description": "Span IDs to link examples back to spans",
                             },
-                            "external_ids": {
+                            "id": {
                                 "type": "array",
                                 "items": {
                                     "oneOf": [
@@ -399,7 +395,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                         {"type": "null"},
                                     ]
                                 },
-                                "description": ("Optional external ID per example."),
+                                "description": (
+                                    "Optional ID per example. "
+                                    "If provided, overrides the server-generated ID."
+                                ),
                             },
                         },
                     }
@@ -409,7 +408,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "input_keys[]", "output_keys[]", "file"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append", "upsert"]},
+                            "action": {"type": "string", "enum": ["create", "append"]},
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "input_keys[]": {
@@ -470,13 +469,6 @@ async def upload_dataset(
                 detail=str(e),
                 status_code=422,
             )
-        if action is DatasetAction.CREATE:
-            async with request.app.state.db() as session:
-                if await _check_table_exists(session, name):
-                    raise HTTPException(
-                        detail=f"Dataset with the same name already exists: {name=}",
-                        status_code=409,
-                    )
     elif request_content_type.startswith("multipart/form-data"):
         async with request.form() as form:
             try:
@@ -496,13 +488,6 @@ async def upload_dataset(
                     detail=str(e),
                     status_code=422,
                 )
-            if action is DatasetAction.CREATE:
-                async with request.app.state.db() as session:
-                    if await _check_table_exists(session, name):
-                        raise HTTPException(
-                            detail=f"Dataset with the same name already exists: {name=}",
-                            status_code=409,
-                        )
             content = await file.read()
         try:
             file_content_type = FileContentType(file.content_type)
@@ -656,25 +641,22 @@ def _process_json(
                 f"span_ids must have same length as inputs ({len(span_ids)} != {len(inputs)})"
             )
 
-    # Validate external_ids format if provided
-    external_ids = data.get("external_ids")
-    if external_ids is not None:
-        if not isinstance(external_ids, list):
-            raise ValueError("external_ids must be a list")
-        if len(external_ids) != len(inputs):
-            raise ValueError(
-                f"external_ids must have same length as inputs "
-                f"({len(external_ids)} != {len(inputs)})"
-            )
+    # Validate id format if provided
+    ids = data.get("id")
+    if ids is not None:
+        if not isinstance(ids, list):
+            raise ValueError("id must be a list")
+        if len(ids) != len(inputs):
+            raise ValueError(f"id must have same length as inputs ({len(ids)} != {len(inputs)})")
         seen: set[str] = set()
-        for external_id in external_ids:
-            if external_id is None:
+        for id_value in ids:
+            if id_value is None:
                 continue
-            if not isinstance(external_id, str):
-                raise ValueError("external_ids must contain only strings or None")
-            if external_id in seen:
-                raise ValueError(f"Duplicate external_id in request: {external_id!r}")
-            seen.add(external_id)
+            if not isinstance(id_value, str):
+                raise ValueError("id must contain only strings or None")
+            if id_value in seen:
+                raise ValueError(f"Duplicate id in request: {id_value!r}")
+            seen.add(id_value)
 
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
@@ -718,12 +700,12 @@ def _process_json(
                 if span_id_value.strip():
                     span_id = span_id_value.strip()
 
-        # Extract external_id for this example
+        # Extract id for this example
         external_id = None
-        if external_ids is not None:
-            external_id_value = external_ids[i]
-            if external_id_value is not None:
-                external_id = str(external_id_value)
+        if ids is not None:
+            id_value = ids[i]
+            if id_value is not None:
+                external_id = str(id_value)
 
         example = ExampleContent(
             input=obj,
@@ -847,14 +829,6 @@ async def _process_jsonl(
     return iter(examples)
 
 
-async def _check_table_exists(session: AsyncSession, name: str) -> bool:
-    return bool(
-        await session.scalar(
-            select(1).select_from(models.Dataset).where(models.Dataset.name == name)
-        )
-    )
-
-
 def _check_keys_exist(
     column_headers: frozenset[str],
     input_keys: InputKeys,
@@ -933,7 +907,6 @@ class DatasetExample(V1RoutesBaseModel):
     output: dict[str, Any]
     metadata: dict[str, Any]
     updated_at: datetime
-    external_id: Optional[str] = None
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
@@ -1085,12 +1058,13 @@ async def get_dataset_examples(
 
         examples = [
             DatasetExample(
-                id=str(GlobalID("DatasetExample", str(example.id))),
+                id=example.external_id
+                if isinstance(example.external_id, str)
+                else str(GlobalID("DatasetExample", str(example.id))),
                 input=revision.input,
                 output=revision.output,
                 metadata=revision.metadata_,
                 updated_at=revision.created_at,
-                external_id=example.external_id,
             )
             async for example, revision in await session.stream(query)
         ]
