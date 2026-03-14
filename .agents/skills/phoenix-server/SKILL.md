@@ -12,22 +12,12 @@ metadata:
 
 # Phoenix Backend Development
 
-Phoenix is an AI observability platform. The backend is Python: FastAPI serving a Strawberry
+Phoenix is an AI observability platform. The backend is Python: FastAPI serving a REST API and Strawberry
 GraphQL API over an async SQLAlchemy ORM (PostgreSQL + SQLite).
 
 ## Development Guide Index
 
-Read these files for environment setup, conventions, and style — don't re-derive them:
-
-| Need | Where to look |
-|------|---------------|
-| Python/Node setup, `uv` usage | `DEVELOPMENT.md` → "Setting Up Your macOS Development Environment" |
-| Running tests, `--run-postgres` | `DEVELOPMENT.md` → "Testing and Linting" |
-| Debugpy / attaching a debugger | `DEVELOPMENT.md` → "Debugging the Python Server" |
-| Pre-commit hooks | `DEVELOPMENT.md` → "Installing Pre-Commit Hooks" |
-| REST API conventions | `DEVELOPMENT.md` → "Best Practices → REST API" |
-| PR format, conventional commits | `CONTRIBUTING.md` → "Pull Request Descriptions" |
-| Code review expectations | `CONTRIBUTING.md` → "Code Reviews" |
+Read `DEVELOPMENT.md` (env setup, `uv`, tests, debugpy, pre-commit, REST API conventions) and `CONTRIBUTING.md` (PR format, conventional commits, code review expectations) if you have not already.
 
 ### Everyday Commands
 
