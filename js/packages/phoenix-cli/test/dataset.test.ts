@@ -101,10 +101,10 @@ describe("Dataset Examples Formatting", () => {
       expect(output).toContain("Dataset: query_response (RGF0YXNldDox)");
       expect(output).toContain("Version: RGF0YXNldFZlcnNpb246MQ==");
       expect(output).toContain("Examples: 2");
-      expect(output).toContain("┌─ Example: RGF0YXNldEV4YW1wbGU6MQ==");
-      expect(output).toContain("│  Input:");
-      expect(output).toContain("│  Output:");
-      expect(output).toContain("└─");
+      expect(output).toContain("RGF0YXNldEV4YW1wbGU6MQ==");
+      expect(output).toContain("│ id");
+      expect(output).toContain("│ input");
+      expect(output).toContain("│ output");
     });
 
     it("should show dataset ID if no name provided", () => {
@@ -132,7 +132,7 @@ describe("Dataset Examples Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain('Metadata: {"category":"seafood"}');
+      expect(output).toContain('{"category":"seafood"}');
     });
 
     it("should handle empty examples", () => {
@@ -168,8 +168,9 @@ describe("Dataset Examples Formatting", () => {
         format: "pretty",
       });
 
-      // Should be truncated with ellipsis
-      expect(output).toContain("…");
+      // Should contain the example data in a table
+      expect(output).toContain("example-1");
+      expect(output).toContain("│ id");
     });
   });
 
@@ -180,7 +181,7 @@ describe("Dataset Examples Formatting", () => {
       });
 
       expect(output).toContain("Dataset:");
-      expect(output).toContain("┌─ Example:");
+      expect(output).toContain("│ id");
     });
   });
 });

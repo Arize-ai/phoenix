@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 
+import { printBanner } from "./banner";
 import {
   createAnnotationConfigCommand,
   createApiCommand,
@@ -23,10 +24,7 @@ import {
 export function main() {
   const program = new Command();
 
-  program
-    .name("px")
-    .description("Phoenix CLI - AI observability from the command line")
-    .version("0.0.4");
+  program.name("px");
 
   // Register commands
   program.addCommand(createAnnotationConfigCommand());
@@ -44,8 +42,9 @@ export function main() {
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
 
-  // Show help if no command provided
+  // Show banner and help if no command provided
   if (process.argv.length === 2) {
+    printBanner();
     program.help();
   }
 
