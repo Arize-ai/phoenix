@@ -9,6 +9,7 @@ import {
   createAuthCommand,
   createDatasetCommand,
   createDatasetsCommand,
+  createDocsCommand,
   createExperimentCommand,
   createExperimentsCommand,
   createProjectsCommand,
@@ -41,6 +42,7 @@ export function main() {
   program.addCommand(createPromptsCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
+  program.addCommand(createDocsCommand());
 
   // Show banner and help if no command provided
   if (process.argv.length === 2) {
