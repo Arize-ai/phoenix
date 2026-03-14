@@ -846,7 +846,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -1050,7 +1050,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -1256,14 +1256,6 @@
                     "uniqueItems": true,
                     "description": "Column names for auto-assigning examples to splits"
                   },
-                  "flatten_keys[]": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "uniqueItems": true,
-                    "description": "Column names whose object values should be flattened into their selected bucket"
-                  },
                   "span_id_key": {
                     "type": "string",
                     "description": "Column name for span IDs to link examples back to spans"
@@ -1450,7 +1442,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -1748,7 +1740,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -2452,205 +2444,6 @@
         }
       }
     },
-    "/v1/projects/{project_identifier}/traces": {
-      "get": {
-        "tags": [
-          "traces"
-        ],
-        "summary": "List traces for a project",
-        "operationId": "listProjectTraces",
-        "parameters": [
-          {
-            "name": "project_identifier",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The project identifier: either project ID or project name.",
-              "title": "Project Identifier"
-            },
-            "description": "The project identifier: either project ID or project name."
-          },
-          {
-            "name": "start_time",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Inclusive lower bound on trace start time (ISO 8601)",
-              "title": "Start Time"
-            },
-            "description": "Inclusive lower bound on trace start time (ISO 8601)"
-          },
-          {
-            "name": "end_time",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Exclusive upper bound on trace start time (ISO 8601)",
-              "title": "End Time"
-            },
-            "description": "Exclusive upper bound on trace start time (ISO 8601)"
-          },
-          {
-            "name": "sort",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "start_time",
-                "latency_ms"
-              ],
-              "type": "string",
-              "description": "Sort field",
-              "default": "start_time",
-              "title": "Sort"
-            },
-            "description": "Sort field"
-          },
-          {
-            "name": "order",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string",
-              "description": "Sort direction",
-              "default": "desc",
-              "title": "Order"
-            },
-            "description": "Sort direction"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 1000,
-              "exclusiveMinimum": 0,
-              "description": "Maximum number of traces to return",
-              "default": 100,
-              "title": "Limit"
-            },
-            "description": "Maximum number of traces to return"
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Pagination cursor (Trace GlobalID)",
-              "title": "Cursor"
-            },
-            "description": "Pagination cursor (Trace GlobalID)"
-          },
-          {
-            "name": "include_spans",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible.",
-              "default": false,
-              "title": "Include Spans"
-            },
-            "description": "If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible."
-          },
-          {
-            "name": "session_identifier",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned.",
-              "title": "Session Identifier"
-            },
-            "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetTracesResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      }
-    },
     "/v1/trace_annotations": {
       "post": {
         "tags": [
@@ -2873,87 +2666,6 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
-          },
-          {
-            "name": "trace_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by one or more trace IDs",
-              "title": "Trace Id"
-            },
-            "description": "Filter by one or more trace IDs"
-          },
-          {
-            "name": "parent_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by parent span ID. Use \"null\" to get root spans only.",
-              "title": "Parent Id"
-            },
-            "description": "Filter by parent span ID. Use \"null\" to get root spans only."
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by span name(s)",
-              "title": "Name"
-            },
-            "description": "Filter by span name(s)"
-          },
-          {
-            "name": "status_code",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by status code(s). Values: OK, ERROR, UNSET",
-              "title": "Status Code"
-            },
-            "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
           }
         ],
         "responses": {
@@ -2995,7 +2707,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -3089,108 +2801,6 @@
               "title": "End Time"
             },
             "description": "Exclusive upper bound time"
-          },
-          {
-            "name": "trace_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by one or more trace IDs",
-              "title": "Trace Id"
-            },
-            "description": "Filter by one or more trace IDs"
-          },
-          {
-            "name": "parent_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by parent span ID. Use \"null\" to get root spans only.",
-              "title": "Parent Id"
-            },
-            "description": "Filter by parent span ID. Use \"null\" to get root spans only."
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by span name(s)",
-              "title": "Name"
-            },
-            "description": "Filter by span name(s)"
-          },
-          {
-            "name": "span_kind",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN",
-              "title": "Span Kind"
-            },
-            "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
-          },
-          {
-            "name": "status_code",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter by status code(s). Values: OK, ERROR, UNSET",
-              "title": "Status Code"
-            },
-            "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
           }
         ],
         "responses": {
@@ -3232,7 +2842,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -3588,7 +3198,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         },
         "requestBody": {
@@ -3747,7 +3357,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -3797,7 +3407,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -3883,7 +3493,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           },
           "404": {
             "content": {
@@ -3958,7 +3568,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4034,7 +3644,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4099,7 +3709,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4195,7 +3805,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -4261,7 +3871,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4360,7 +3970,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -4410,7 +4020,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4475,7 +4085,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -4548,7 +4158,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -4604,7 +4214,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4668,108 +4278,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "sessions"
-        ],
-        "summary": "Delete a session by identifier",
-        "description": "Delete a session by its identifier. The identifier can be either:\n1. A global ID (base64-encoded)\n2. A user-provided session_id string\n\nThis will permanently remove the session and all associated traces, spans, and annotations via cascade delete.",
-        "operationId": "deleteSession",
-        "parameters": [
-          {
-            "name": "session_identifier",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The session identifier: either a GlobalID or user-provided session_id string.",
-              "title": "Session Identifier"
-            },
-            "description": "The session identifier: either a GlobalID or user-provided session_id string."
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sessions/delete": {
-      "post": {
-        "tags": [
-          "sessions"
-        ],
-        "summary": "Bulk delete sessions",
-        "description": "Delete multiple sessions by their identifiers (GlobalIDs or session_id strings). All identifiers in a single request must be the same type. Non-existent IDs are silently skipped. All associated traces, spans, and annotations are cascade deleted.",
-        "operationId": "deleteSessions",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteSessionsRequestBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -4880,7 +4389,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -5098,7 +4607,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       },
@@ -5168,7 +4677,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -5226,7 +4735,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -6270,23 +5779,6 @@
         ],
         "title": "DeleteAnnotationConfigResponseBody"
       },
-      "DeleteSessionsRequestBody": {
-        "properties": {
-          "session_identifiers": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Session Identifiers",
-            "description": "List of session identifiers to delete. All identifiers must be the same type: either all GlobalIDs or all user-provided session_id strings."
-          }
-        },
-        "type": "object",
-        "required": [
-          "session_identifiers"
-        ],
-        "title": "DeleteSessionsRequestBody"
-      },
       "Experiment": {
         "properties": {
           "id": {
@@ -6894,34 +6386,6 @@
         ],
         "title": "GetSessionsResponseBody"
       },
-      "GetTracesResponseBody": {
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/TraceData"
-            },
-            "type": "array",
-            "title": "Data"
-          },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Cursor"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
-        "title": "GetTracesResponseBody"
-      },
       "GetUsersResponseBody": {
         "properties": {
           "data": {
@@ -7447,13 +6911,7 @@
           "DEEPSEEK",
           "XAI",
           "OLLAMA",
-          "AWS",
-          "CEREBRAS",
-          "FIREWORKS",
-          "GROQ",
-          "MOONSHOT",
-          "PERPLEXITY",
-          "TOGETHER"
+          "AWS"
         ],
         "title": "ModelProvider"
       },
@@ -8373,72 +7831,6 @@
         "type": "object",
         "title": "PromptAzureOpenAIInvocationParametersContent"
       },
-      "PromptCerebrasInvocationParameters": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "cerebras",
-            "title": "Type"
-          },
-          "cerebras": {
-            "$ref": "#/components/schemas/PromptCerebrasInvocationParametersContent"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "cerebras"
-        ],
-        "title": "PromptCerebrasInvocationParameters"
-      },
-      "PromptCerebrasInvocationParametersContent": {
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "title": "Max Tokens"
-          },
-          "max_completion_tokens": {
-            "type": "integer",
-            "title": "Max Completion Tokens"
-          },
-          "frequency_penalty": {
-            "type": "number",
-            "title": "Frequency Penalty"
-          },
-          "presence_penalty": {
-            "type": "number",
-            "title": "Presence Penalty"
-          },
-          "top_p": {
-            "type": "number",
-            "title": "Top P"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed"
-          },
-          "reasoning_effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ],
-            "title": "Reasoning Effort"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PromptCerebrasInvocationParametersContent"
-      },
       "PromptChatTemplate": {
         "properties": {
           "type": {
@@ -8574,72 +7966,6 @@
         "type": "object",
         "title": "PromptDeepSeekInvocationParametersContent"
       },
-      "PromptFireworksInvocationParameters": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "fireworks",
-            "title": "Type"
-          },
-          "fireworks": {
-            "$ref": "#/components/schemas/PromptFireworksInvocationParametersContent"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "fireworks"
-        ],
-        "title": "PromptFireworksInvocationParameters"
-      },
-      "PromptFireworksInvocationParametersContent": {
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "title": "Max Tokens"
-          },
-          "max_completion_tokens": {
-            "type": "integer",
-            "title": "Max Completion Tokens"
-          },
-          "frequency_penalty": {
-            "type": "number",
-            "title": "Frequency Penalty"
-          },
-          "presence_penalty": {
-            "type": "number",
-            "title": "Presence Penalty"
-          },
-          "top_p": {
-            "type": "number",
-            "title": "Top P"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed"
-          },
-          "reasoning_effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ],
-            "title": "Reasoning Effort"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PromptFireworksInvocationParametersContent"
-      },
       "PromptGoogleInvocationParameters": {
         "properties": {
           "type": {
@@ -8697,72 +8023,6 @@
         "type": "object",
         "title": "PromptGoogleInvocationParametersContent"
       },
-      "PromptGroqInvocationParameters": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "groq",
-            "title": "Type"
-          },
-          "groq": {
-            "$ref": "#/components/schemas/PromptGroqInvocationParametersContent"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "groq"
-        ],
-        "title": "PromptGroqInvocationParameters"
-      },
-      "PromptGroqInvocationParametersContent": {
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "title": "Max Tokens"
-          },
-          "max_completion_tokens": {
-            "type": "integer",
-            "title": "Max Completion Tokens"
-          },
-          "frequency_penalty": {
-            "type": "number",
-            "title": "Frequency Penalty"
-          },
-          "presence_penalty": {
-            "type": "number",
-            "title": "Presence Penalty"
-          },
-          "top_p": {
-            "type": "number",
-            "title": "Top P"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed"
-          },
-          "reasoning_effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ],
-            "title": "Reasoning Effort"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PromptGroqInvocationParametersContent"
-      },
       "PromptMessage": {
         "properties": {
           "role": {
@@ -8819,72 +8079,6 @@
           "content"
         ],
         "title": "PromptMessage"
-      },
-      "PromptMoonshotInvocationParameters": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "moonshot",
-            "title": "Type"
-          },
-          "moonshot": {
-            "$ref": "#/components/schemas/PromptMoonshotInvocationParametersContent"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "moonshot"
-        ],
-        "title": "PromptMoonshotInvocationParameters"
-      },
-      "PromptMoonshotInvocationParametersContent": {
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "title": "Max Tokens"
-          },
-          "max_completion_tokens": {
-            "type": "integer",
-            "title": "Max Completion Tokens"
-          },
-          "frequency_penalty": {
-            "type": "number",
-            "title": "Frequency Penalty"
-          },
-          "presence_penalty": {
-            "type": "number",
-            "title": "Presence Penalty"
-          },
-          "top_p": {
-            "type": "number",
-            "title": "Top P"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed"
-          },
-          "reasoning_effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ],
-            "title": "Reasoning Effort"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PromptMoonshotInvocationParametersContent"
       },
       "PromptOllamaInvocationParameters": {
         "properties": {
@@ -9018,72 +8212,6 @@
         "type": "object",
         "title": "PromptOpenAIInvocationParametersContent"
       },
-      "PromptPerplexityInvocationParameters": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "perplexity",
-            "title": "Type"
-          },
-          "perplexity": {
-            "$ref": "#/components/schemas/PromptPerplexityInvocationParametersContent"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "perplexity"
-        ],
-        "title": "PromptPerplexityInvocationParameters"
-      },
-      "PromptPerplexityInvocationParametersContent": {
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "title": "Max Tokens"
-          },
-          "max_completion_tokens": {
-            "type": "integer",
-            "title": "Max Completion Tokens"
-          },
-          "frequency_penalty": {
-            "type": "number",
-            "title": "Frequency Penalty"
-          },
-          "presence_penalty": {
-            "type": "number",
-            "title": "Presence Penalty"
-          },
-          "top_p": {
-            "type": "number",
-            "title": "Top P"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed"
-          },
-          "reasoning_effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ],
-            "title": "Reasoning Effort"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PromptPerplexityInvocationParametersContent"
-      },
       "PromptResponseFormatJSONSchema": {
         "properties": {
           "type": {
@@ -9166,72 +8294,6 @@
           "CHAT"
         ],
         "title": "PromptTemplateType"
-      },
-      "PromptTogetherInvocationParameters": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "together",
-            "title": "Type"
-          },
-          "together": {
-            "$ref": "#/components/schemas/PromptTogetherInvocationParametersContent"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "together"
-        ],
-        "title": "PromptTogetherInvocationParameters"
-      },
-      "PromptTogetherInvocationParametersContent": {
-        "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "title": "Max Tokens"
-          },
-          "max_completion_tokens": {
-            "type": "integer",
-            "title": "Max Completion Tokens"
-          },
-          "frequency_penalty": {
-            "type": "number",
-            "title": "Frequency Penalty"
-          },
-          "presence_penalty": {
-            "type": "number",
-            "title": "Presence Penalty"
-          },
-          "top_p": {
-            "type": "number",
-            "title": "Top P"
-          },
-          "seed": {
-            "type": "integer",
-            "title": "Seed"
-          },
-          "reasoning_effort": {
-            "type": "string",
-            "enum": [
-              "none",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ],
-            "title": "Reasoning Effort"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "PromptTogetherInvocationParametersContent"
       },
       "PromptToolChoiceNone": {
         "properties": {
@@ -9477,24 +8539,6 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAwsInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptCerebrasInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptFireworksInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptGroqInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptMoonshotInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptPerplexityInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -9504,16 +8548,10 @@
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
-                "cerebras": "#/components/schemas/PromptCerebrasInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
-                "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "groq": "#/components/schemas/PromptGroqInvocationParameters",
-                "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
-                "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
-                "together": "#/components/schemas/PromptTogetherInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
@@ -9635,24 +8673,6 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAwsInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptCerebrasInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptFireworksInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptGroqInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptMoonshotInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptPerplexityInvocationParameters"
-              },
-              {
-                "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -9662,16 +8682,10 @@
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "aws": "#/components/schemas/PromptAwsInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
-                "cerebras": "#/components/schemas/PromptCerebrasInvocationParameters",
                 "deepseek": "#/components/schemas/PromptDeepSeekInvocationParameters",
-                "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
-                "groq": "#/components/schemas/PromptGroqInvocationParameters",
-                "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
-                "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
-                "together": "#/components/schemas/PromptTogetherInvocationParameters",
                 "xai": "#/components/schemas/PromptXAIInvocationParameters"
               }
             }
@@ -10848,112 +9862,6 @@
           "next_cursor"
         ],
         "title": "TraceAnnotationsResponseBody"
-      },
-      "TraceData": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "trace_id": {
-            "type": "string",
-            "title": "Trace Id"
-          },
-          "project_id": {
-            "type": "string",
-            "title": "Project Id"
-          },
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          },
-          "spans": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/TraceSpanData"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Spans"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "trace_id",
-          "project_id",
-          "start_time",
-          "end_time"
-        ],
-        "title": "TraceData"
-      },
-      "TraceSpanData": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "span_id": {
-            "type": "string",
-            "title": "Span Id"
-          },
-          "parent_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "span_kind": {
-            "type": "string",
-            "title": "Span Kind"
-          },
-          "status_code": {
-            "type": "string",
-            "title": "Status Code"
-          },
-          "start_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start Time"
-          },
-          "end_time": {
-            "type": "string",
-            "format": "date-time",
-            "title": "End Time"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "span_id",
-          "parent_id",
-          "name",
-          "span_kind",
-          "status_code",
-          "start_time",
-          "end_time"
-        ],
-        "title": "TraceSpanData"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
