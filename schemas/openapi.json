@@ -1191,7 +1191,7 @@
                     },
                     "description": "Span IDs to link examples back to spans"
                   },
-                  "id": {
+                  "example_ids": {
                     "type": "array",
                     "items": {
                       "oneOf": [
@@ -1203,7 +1203,7 @@
                         }
                       ]
                     },
-                    "description": "Optional ID per example. If provided, overrides the server-generated ID."
+                    "description": "Optional example ID per example. If provided, it is used as the example's stable public ID."
                   }
                 }
               }

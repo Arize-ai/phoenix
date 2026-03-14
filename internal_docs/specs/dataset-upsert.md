@@ -30,7 +30,7 @@ Content-Type: application/json
   "inputs": [...],
   "outputs": [...],
   "metadata": [...],
-  "external_ids": [...],   // optional, enables stable identity matching
+  "example_ids": [...],    // optional, enables stable identity matching
   "splits": [...]           // optional
 }
 ```
@@ -107,8 +107,8 @@ The migration adds two columns:
 
 ## Edge Cases
 
-### Duplicate external_ids in a single request
-Rejected with a validation error before any DB writes. The REST layer checks for duplicates using a `Counter` and raises 422 if any external_id appears more than once.
+### Duplicate example_ids in a single request
+Rejected with a validation error before any DB writes. The REST layer checks for duplicates using a `Counter` and raises 422 if any example_id appears more than once.
 
 ### Upsert on a non-existent dataset
 Creates the dataset first, then treats all incoming examples as CREATEs (there is no previous version to diff against).
@@ -135,7 +135,7 @@ Logged as a warning. Examples are created without span links. This is non-fatal 
 Handled with `ON CONFLICT DO NOTHING` so concurrent requests creating the same split name don't fail.
 
 ### Length mismatches
-The REST layer validates that `inputs`, `outputs`, `metadata`, `splits`, `span_ids`, and `external_ids` arrays are all the same length (when provided). Mismatches raise 422.
+The REST layer validates that `inputs`, `outputs`, `metadata`, `splits`, `span_ids`, and `example_ids` arrays are all the same length (when provided). Mismatches raise 422.
 
 ### No-op upsert (content unchanged)
 When all incoming examples match previous examples with identical hashes, no new version is created. The response returns the existing latest version ID.

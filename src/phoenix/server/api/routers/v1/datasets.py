@@ -387,7 +387,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 },
                                 "description": "Span IDs to link examples back to spans",
                             },
-                            "id": {
+                            "example_ids": {
                                 "type": "array",
                                 "items": {
                                     "oneOf": [
@@ -396,8 +396,8 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                     ]
                                 },
                                 "description": (
-                                    "Optional ID per example. "
-                                    "If provided, overrides the server-generated ID."
+                                    "Optional example ID per example. "
+                                    "If provided, it is used as the example's stable public ID."
                                 ),
                             },
                         },
@@ -641,22 +641,24 @@ def _process_json(
                 f"span_ids must have same length as inputs ({len(span_ids)} != {len(inputs)})"
             )
 
-    # Validate id format if provided
-    ids = data.get("id")
-    if ids is not None:
-        if not isinstance(ids, list):
-            raise ValueError("id must be a list")
-        if len(ids) != len(inputs):
-            raise ValueError(f"id must have same length as inputs ({len(ids)} != {len(inputs)})")
+    # Validate example_ids format if provided
+    example_ids = data.get("example_ids")
+    if example_ids is not None:
+        if not isinstance(example_ids, list):
+            raise ValueError("example_ids must be a list")
+        if len(example_ids) != len(inputs):
+            raise ValueError(
+                f"example_ids must have same length as inputs ({len(example_ids)} != {len(inputs)})"
+            )
         seen: set[str] = set()
-        for id_value in ids:
-            if id_value is None:
+        for example_id_value in example_ids:
+            if example_id_value is None:
                 continue
-            if not isinstance(id_value, str):
-                raise ValueError("id must contain only strings or None")
-            if id_value in seen:
-                raise ValueError(f"Duplicate id in request: {id_value!r}")
-            seen.add(id_value)
+            if not isinstance(example_id_value, str):
+                raise ValueError("example_ids must contain only strings or None")
+            if example_id_value in seen:
+                raise ValueError(f"Duplicate example_id in request: {example_id_value!r}")
+            seen.add(example_id_value)
 
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
@@ -700,12 +702,12 @@ def _process_json(
                 if span_id_value.strip():
                     span_id = span_id_value.strip()
 
-        # Extract id for this example
+        # Extract example_id for this example
         external_id = None
-        if ids is not None:
-            id_value = ids[i]
-            if id_value is not None:
-                external_id = str(id_value)
+        if example_ids is not None:
+            example_id_value = example_ids[i]
+            if example_id_value is not None:
+                external_id = str(example_id_value)
 
         example = ExampleContent(
             input=obj,

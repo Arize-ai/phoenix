@@ -816,7 +816,7 @@ async def test_get_dataset_examples_prefers_external_id_for_public_id(
             "action": "create",
             "name": name,
             "inputs": [{"q": "Q1"}, {"q": "Q2"}],
-            "id": ["external-1", None],
+            "example_ids": ["external-1", None],
         },
     )
     response.raise_for_status()
@@ -1516,9 +1516,9 @@ async def test_post_dataset_upload_append_with_splits(
             {
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
-                "id": ["same-id", "same-id"],
+                "example_ids": ["same-id", "same-id"],
             },
-            "Duplicate id in request: 'same-id'",
+            "Duplicate example_id in request: 'same-id'",
             id="duplicate_external_ids",
         ),
         pytest.param(
@@ -1543,18 +1543,18 @@ async def test_post_dataset_upload_append_with_splits(
             {
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
-                "id": ["e1"],
+                "example_ids": ["e1"],
             },
-            "id must have same length as inputs",
+            "example_ids must have same length as inputs",
             id="external_ids_length_mismatch",
         ),
         pytest.param(
             {
                 "name": "ds",
                 "inputs": [{"a": 1}, {"a": 2}],
-                "id": [123, "e2"],
+                "example_ids": [123, "e2"],
             },
-            "id must contain only strings or None",
+            "example_ids must contain only strings or None",
             id="external_ids_non_string",
         ),
         pytest.param(
@@ -2132,7 +2132,7 @@ async def test_upsert_removes_split_assignments_when_splits_empty(
             "name": name,
             "inputs": [{"q": "Q1"}],
             "outputs": [{"a": "A1"}],
-            "id": ["e1"],
+            "example_ids": ["e1"],
             "splits": [None],
         },
     )
@@ -2226,7 +2226,7 @@ def _examples_to_body(*, action: str, name: str, examples: list[ExampleContent])
     if any(e.metadata for e in examples):
         body["metadata"] = [e.metadata for e in examples]
     if any(e.external_id is not None for e in examples):
-        body["id"] = [e.external_id for e in examples]
+        body["example_ids"] = [e.external_id for e in examples]
     if any(e.splits for e in examples):
         body["splits"] = [sorted(e.splits) if e.splits else None for e in examples]
     if any(e.span_id is not None for e in examples):
