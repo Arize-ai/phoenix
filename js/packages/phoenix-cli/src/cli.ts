@@ -15,6 +15,7 @@ import {
   createPromptCommand,
   createPromptsCommand,
   createSessionCommand,
+  createSessionDeleteCommand,
   createSessionsCommand,
   createTraceCommand,
   createTracesCommand,
@@ -36,6 +37,7 @@ export function main() {
   program.addCommand(createDatasetCommand());
   program.addCommand(createSessionsCommand());
   program.addCommand(createSessionCommand());
+  program.addCommand(createSessionDeleteCommand());
   program.addCommand(createExperimentsCommand());
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptsCommand());
