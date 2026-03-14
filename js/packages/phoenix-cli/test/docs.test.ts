@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { DocEntry } from "../src/commands/docs";
 import {
-  DocEntry,
   filterByWorkflows,
   parseLlmsTxt,
   urlToFilePath,

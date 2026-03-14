@@ -197,89 +197,90 @@ async function fetchWithConcurrency(
 // ---------------------------------------------------------------------------
 
 async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
+  // 1. Fetch llms.txt index
+  writeProgress({ message: `Fetching index from ${options.llmsUrl}...` });
+  let response: Response;
   try {
-    // 1. Fetch llms.txt index
-    writeProgress({ message: `Fetching index from ${options.llmsUrl}...` });
-    const response = await fetch(options.llmsUrl);
-    if (!response.ok) {
-      writeError({
-        message: `Failed to fetch llms.txt: HTTP ${response.status}`,
-      });
-      process.exit(ExitCode.NETWORK_ERROR);
-    }
-    const indexContent = await response.text();
-
-    // 2. Parse entries
-    let entries = parseLlmsTxt(indexContent);
-    writeProgress({ message: `Found ${entries.length} pages in index` });
-
-    // 3. Filter by workflow if specified
-    const workflows = options.workflow ?? [];
-    if (workflows.length > 0) {
-      entries = filterByWorkflows(entries, workflows);
-      writeProgress({
-        message: `Filtered to ${entries.length} pages for workflow(s): ${workflows.join(", ")}`,
-      });
-    }
-
-    if (entries.length === 0) {
-      writeOutput({ message: "No matching pages found." });
-      return;
-    }
-
-    // 4. Dry run — just list the discovered links
-    if (options.dryRun) {
-      writeOutput({ message: `Discovered ${entries.length} pages:\n` });
-      for (const entry of entries) {
-        const filePath = urlToFilePath(entry.url, options.outputDir);
-        writeOutput({
-          message: `  [${entry.section}] ${entry.title}\n    ${entry.url} -> ${filePath}`,
-        });
-      }
-      return;
-    }
-
-    // 5. Refresh — clear output dir
-    if (options.refresh && fs.existsSync(options.outputDir)) {
-      writeProgress({
-        message: `Clearing ${options.outputDir}...`,
-      });
-      fs.rmSync(options.outputDir, { recursive: true, force: true });
-    }
-
-    // 6. Ensure output dir exists
-    fs.mkdirSync(options.outputDir, { recursive: true });
-
-    // 7. Fetch and save all pages
-    writeProgress({
-      message: `Downloading ${entries.length} pages (${options.workers} workers)...`,
-    });
-    const { succeeded, failed } = await fetchWithConcurrency(
-      entries,
-      options.outputDir,
-      options.workers
-    );
-
-    // 8. Report results
-    writeOutput({
-      message: `Downloaded ${succeeded.length}/${entries.length} pages to ${options.outputDir}`,
-    });
-
-    if (failed.length > 0) {
-      writeError({ message: `\nFailed to download ${failed.length} pages:` });
-      for (const { entry, error } of failed) {
-        writeError({ message: `  ${entry.url}: ${error}` });
-      }
-
-      if (options.strict) {
-        process.exit(ExitCode.FAILURE);
-      }
-    }
+    response = await fetch(options.llmsUrl);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown error occurred";
-    writeError({ message: `Error: ${message}` });
+    writeError({ message: `Error fetching llms.txt: ${message}` });
     process.exit(getExitCodeForError(error));
+  }
+  if (!response.ok) {
+    writeError({
+      message: `Failed to fetch llms.txt: HTTP ${response.status}`,
+    });
+    process.exit(ExitCode.NETWORK_ERROR);
+  }
+  const indexContent = await response.text();
+
+  // 2. Parse entries
+  let entries = parseLlmsTxt(indexContent);
+  writeProgress({ message: `Found ${entries.length} pages in index` });
+
+  // 3. Filter by workflow if specified
+  const workflows = options.workflow ?? [];
+  if (workflows.length > 0) {
+    entries = filterByWorkflows(entries, workflows);
+    writeProgress({
+      message: `Filtered to ${entries.length} pages for workflow(s): ${workflows.join(", ")}`,
+    });
+  }
+
+  if (entries.length === 0) {
+    writeOutput({ message: "No matching pages found." });
+    return;
+  }
+
+  // 4. Dry run — just list the discovered links
+  if (options.dryRun) {
+    writeOutput({ message: `Discovered ${entries.length} pages:\n` });
+    for (const entry of entries) {
+      const filePath = urlToFilePath(entry.url, options.outputDir);
+      writeOutput({
+        message: `  [${entry.section}] ${entry.title}\n    ${entry.url} -> ${filePath}`,
+      });
+    }
+    return;
+  }
+
+  // 5. Refresh — clear output dir
+  if (options.refresh && fs.existsSync(options.outputDir)) {
+    writeProgress({
+      message: `Clearing ${options.outputDir}...`,
+    });
+    fs.rmSync(options.outputDir, { recursive: true, force: true });
+  }
+
+  // 6. Ensure output dir exists
+  fs.mkdirSync(options.outputDir, { recursive: true });
+
+  // 7. Fetch and save all pages
+  writeProgress({
+    message: `Downloading ${entries.length} pages (${options.workers} workers)...`,
+  });
+  const { succeeded, failed } = await fetchWithConcurrency(
+    entries,
+    options.outputDir,
+    options.workers
+  );
+
+  // 8. Report results
+  writeOutput({
+    message: `Downloaded ${succeeded.length}/${entries.length} pages to ${options.outputDir}`,
+  });
+
+  if (failed.length > 0) {
+    writeError({ message: `\nFailed to download ${failed.length} pages:` });
+    for (const { entry, error } of failed) {
+      writeError({ message: `  ${entry.url}: ${error}` });
+    }
+
+    if (options.strict) {
+      process.exit(ExitCode.FAILURE);
+    }
   }
 }
 
