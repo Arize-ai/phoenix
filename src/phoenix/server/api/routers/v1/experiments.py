@@ -7,7 +7,7 @@ import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from pydantic import Field
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import Float, and_, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
@@ -40,6 +40,118 @@ from .utils import (
 router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
+async def _fetch_annotation_summaries(
+    session: AsyncSession,
+    experiment_ids: list[int],
+) -> dict[int, list["AnnotationSummary"]]:
+    """
+    Fetch aggregated annotation summaries for a batch of experiments.
+
+    Returns a dict mapping experiment_id -> list of AnnotationSummary.
+    The SQL mirrors the logic in ExperimentAnnotationSummaryDataLoader but
+    operates directly on the session instead of going through the GraphQL
+    dataloader layer.
+    """
+    if not experiment_ids:
+        return {}
+
+    # Step 1: Average scores per (experiment, example, annotation_name) to handle repetitions
+    repetition_mean_scores_by_example = (
+        select(
+            models.ExperimentRun.experiment_id.label("experiment_id"),
+            models.ExperimentRunAnnotation.name.label("annotation_name"),
+            cast(func.avg(models.ExperimentRunAnnotation.score), Float).label(
+                "mean_repetition_score"
+            ),
+        )
+        .select_from(models.ExperimentRunAnnotation)
+        .join(
+            models.ExperimentRun,
+            models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+        )
+        .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+        .group_by(
+            models.ExperimentRun.experiment_id,
+            models.ExperimentRun.dataset_example_id,
+            models.ExperimentRunAnnotation.name,
+        )
+        .subquery("repetition_mean_scores_by_example")
+    )
+
+    # Step 2: Average per-example means to get overall mean
+    repetition_mean_scores = (
+        select(
+            repetition_mean_scores_by_example.c.experiment_id.label("experiment_id"),
+            repetition_mean_scores_by_example.c.annotation_name.label("annotation_name"),
+            cast(func.avg(repetition_mean_scores_by_example.c.mean_repetition_score), Float).label(
+                "mean_score"
+            ),
+        )
+        .select_from(repetition_mean_scores_by_example)
+        .group_by(
+            repetition_mean_scores_by_example.c.experiment_id,
+            repetition_mean_scores_by_example.c.annotation_name,
+        )
+        .subquery("repetition_mean_scores")
+    )
+
+    # Step 3: Min, max, count, error_count per (experiment, annotation_name)
+    stats = (
+        select(
+            models.ExperimentRun.experiment_id.label("experiment_id"),
+            models.ExperimentRunAnnotation.name.label("annotation_name"),
+            func.min(models.ExperimentRunAnnotation.score).label("min_score"),
+            func.max(models.ExperimentRunAnnotation.score).label("max_score"),
+            func.count().label("count_"),
+            func.count(models.ExperimentRunAnnotation.error).label("error_count"),
+        )
+        .select_from(models.ExperimentRunAnnotation)
+        .join(
+            models.ExperimentRun,
+            models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+        )
+        .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+        .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
+        .subquery()
+    )
+
+    # Step 4: Join mean scores with stats
+    query = (
+        select(
+            repetition_mean_scores.c.experiment_id,
+            repetition_mean_scores.c.annotation_name,
+            repetition_mean_scores.c.mean_score,
+            stats.c.min_score,
+            stats.c.max_score,
+            stats.c.count_,
+            stats.c.error_count,
+        )
+        .select_from(repetition_mean_scores)
+        .join(
+            stats,
+            and_(
+                stats.c.experiment_id == repetition_mean_scores.c.experiment_id,
+                stats.c.annotation_name == repetition_mean_scores.c.annotation_name,
+            ),
+        )
+        .order_by(repetition_mean_scores.c.annotation_name)
+    )
+
+    result: dict[int, list["AnnotationSummary"]] = {}
+    for row in await session.execute(query):
+        result.setdefault(row.experiment_id, []).append(
+            AnnotationSummary(
+                annotation_name=row.annotation_name,
+                min_score=float(row.min_score) if row.min_score is not None else None,
+                max_score=float(row.max_score) if row.max_score is not None else None,
+                mean_score=float(row.mean_score) if row.mean_score is not None else None,
+                count=int(row.count_),
+                error_count=int(row.error_count),
+            )
+        )
+    return result
+
+
 def _short_uuid() -> str:
     return str(getrandbits(32).to_bytes(4, "big").hex())
 
@@ -50,6 +162,15 @@ def _generate_experiment_name(dataset_name: str) -> str:
     """
     short_ds_name = dataset_name[:8].replace(" ", "-")
     return f"{short_ds_name}-{_short_uuid()}"
+
+
+class AnnotationSummary(V1RoutesBaseModel):
+    annotation_name: str = Field(description="Name of the annotation evaluator")
+    min_score: Optional[float] = Field(description="Minimum score across all runs")
+    max_score: Optional[float] = Field(description="Maximum score across all runs")
+    mean_score: Optional[float] = Field(description="Mean score across all runs")
+    count: int = Field(description="Total number of annotations")
+    error_count: int = Field(description="Number of annotations with errors")
 
 
 class Experiment(V1RoutesBaseModel):
@@ -70,6 +191,11 @@ class Experiment(V1RoutesBaseModel):
     failed_run_count: int = Field(description="Number of failed runs in the experiment")
     missing_run_count: int = Field(
         description="Number of missing (not yet executed) runs in the experiment"
+    )
+    annotation_summaries: list[AnnotationSummary] = Field(
+        default_factory=list,
+        description="Aggregated annotation metrics (min/max/mean score, count, error count) "
+        "per evaluator. Empty if no annotations exist.",
     )
 
 
@@ -359,6 +485,8 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
         missing_run_count = (
             total_expected_runs - (successful_run_count or 0) - (failed_run_count or 0)
         )
+
+        summaries_by_id = await _fetch_annotation_summaries(session, [experiment_rowid])
     return GetExperimentResponseBody(
         data=Experiment(
             id=str(experiment_globalid),
@@ -373,6 +501,7 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
             successful_run_count=successful_run_count or 0,
             failed_run_count=failed_run_count or 0,
             missing_run_count=missing_run_count,
+            annotation_summaries=summaries_by_id.get(experiment_rowid, []),
         )
     )
 
@@ -713,6 +842,10 @@ async def list_experiments(
             next_cursor = str(GlobalID("Experiment", str(last_experiment.id)))
             experiments = experiments[:-1]  # Remove the extra overfetched experiment
 
+        # Batch-fetch annotation summaries for all experiments on this page
+        page_experiment_ids = [exp.id for exp in experiments]
+        summaries_by_id = await _fetch_annotation_summaries(session, page_experiment_ids)
+
         data = []
         for experiment in experiments:
             counts = counts_by_experiment.get(experiment.id, (0, 0, 0))
@@ -740,6 +873,7 @@ async def list_experiments(
                     successful_run_count=successful_run_count,
                     failed_run_count=failed_run_count,
                     missing_run_count=missing_run_count,
+                    annotation_summaries=summaries_by_id.get(experiment.id, []),
                 )
             )
 

@@ -1662,3 +1662,100 @@ class TestIncompleteEvaluations:
         assert normal_result["status_code"] == 200, (
             "Database should still be functional after SQL injection attempts"
         )
+
+
+async def test_annotation_summaries_in_list_experiments(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_runs_and_evals: Any,
+) -> None:
+    """Annotation summaries should be included when listing experiments."""
+    dataset_gid = GlobalID("Dataset", "1")
+
+    response = await httpx_client.get(f"v1/datasets/{dataset_gid}/experiments")
+    assert response.status_code == 200
+    experiments = response.json()["data"]
+    assert len(experiments) == 2
+
+    # Find experiment 1 (has runs with annotations)
+    exp_1 = next(e for e in experiments if e["id"] == str(GlobalID("Experiment", "1")))
+    summaries = exp_1["annotation_summaries"]
+    assert isinstance(summaries, list)
+    assert len(summaries) > 0
+
+    # Verify annotation summary structure
+    for summary in summaries:
+        assert "annotation_name" in summary
+        assert "count" in summary
+        assert "error_count" in summary
+        assert "mean_score" in summary
+        assert isinstance(summary["count"], int)
+        assert isinstance(summary["error_count"], int)
+
+    # Find experiment 0 (check it also has summaries field)
+    exp_0 = next(e for e in experiments if e["id"] == str(GlobalID("Experiment", "0")))
+    assert "annotation_summaries" in exp_0
+    assert isinstance(exp_0["annotation_summaries"], list)
+
+
+async def test_annotation_summaries_in_get_experiment(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_runs_and_evals: Any,
+) -> None:
+    """Annotation summaries should be included when getting a single experiment."""
+    experiment_gid = GlobalID("Experiment", "1")
+
+    response = await httpx_client.get(f"v1/experiments/{experiment_gid}")
+    assert response.status_code == 200
+    experiment = response.json()["data"]
+    summaries = experiment["annotation_summaries"]
+    assert isinstance(summaries, list)
+    assert len(summaries) > 0
+
+    summary_names = [s["annotation_name"] for s in summaries]
+    # Experiment 1 has annotations "second experiment" (score=1) and "experiment" (error, no score)
+    assert "second experiment" in summary_names
+
+    # Check the "second experiment" annotation summary values (score=1, no error)
+    se_summary = next(s for s in summaries if s["annotation_name"] == "second experiment")
+    assert se_summary["count"] >= 1
+    assert se_summary["error_count"] == 0
+    assert se_summary["min_score"] == 1.0
+    assert se_summary["max_score"] == 1.0
+    assert se_summary["mean_score"] == 1.0
+
+    # Check "experiment" annotation (has error, score is None)
+    exp_summary = next(s for s in summaries if s["annotation_name"] == "experiment")
+    assert exp_summary["count"] >= 1
+    assert exp_summary["error_count"] == 1
+    assert exp_summary["min_score"] is None
+    assert exp_summary["max_score"] is None
+
+
+async def test_annotation_summaries_empty_when_no_annotations(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
+    """Experiments without annotations should have empty annotation_summaries."""
+    dataset_gid = GlobalID("Dataset", "0")
+
+    # Create an experiment
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+
+    # Verify annotation_summaries is empty
+    assert created["annotation_summaries"] == []
+
+    # Also verify via GET
+    experiment = (await httpx_client.get(f"v1/experiments/{created['id']}")).json()["data"]
+    assert experiment["annotation_summaries"] == []
+
+    # Also verify via list
+    response = await httpx_client.get(f"v1/datasets/{dataset_gid}/experiments")
+    experiments = response.json()["data"]
+    for exp in experiments:
+        assert "annotation_summaries" in exp
+        assert isinstance(exp["annotation_summaries"], list)
