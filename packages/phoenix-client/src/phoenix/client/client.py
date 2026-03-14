@@ -12,6 +12,7 @@ from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.resources.traces import AsyncTraces, Traces
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
+from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
 
 class Client:
@@ -41,13 +42,12 @@ class Client:
         """
         if http_client is None:
             base_url = base_url or get_base_url()
-            self._client = _WrappedClient(
+            http_client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
                 timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
             )
-        else:
-            self._client = http_client
+        self._client = http_client
 
     @property
     def _client(self) -> httpx.Client:
@@ -56,13 +56,14 @@ class Client:
     @_client.setter
     def _client(self, value: httpx.Client) -> None:
         self._http_client = value
-        self._prompts = Prompts(value)
-        self._projects = Projects(value)
-        self._spans = Spans(value)
-        self._traces = Traces(value)
-        self._sessions = Sessions(value, self._spans)
-        self._datasets = Datasets(value)
-        self._experiments = Experiments(value)
+        guard = ServerVersionGuard(value)
+        self._prompts = Prompts(value, _guard=guard)
+        self._projects = Projects(value, _guard=guard)
+        self._spans = Spans(value, _guard=guard)
+        self._traces = Traces(value, _guard=guard)
+        self._sessions = Sessions(value, self._spans, _guard=guard)
+        self._datasets = Datasets(value, _guard=guard)
+        self._experiments = Experiments(value, _guard=guard)
 
     @property
     def prompts(self) -> Prompts:
@@ -168,13 +169,14 @@ class AsyncClient:
     @_client.setter
     def _client(self, value: httpx.AsyncClient) -> None:
         self._http_client = value
-        self._prompts = AsyncPrompts(value)
-        self._projects = AsyncProjects(value)
-        self._spans = AsyncSpans(value)
-        self._traces = AsyncTraces(value)
-        self._sessions = AsyncSessions(value, self._spans)
-        self._datasets = AsyncDatasets(value)
-        self._experiments = AsyncExperiments(value)
+        guard = AsyncServerVersionGuard(value)
+        self._prompts = AsyncPrompts(value, _guard=guard)
+        self._projects = AsyncProjects(value, _guard=guard)
+        self._spans = AsyncSpans(value, _guard=guard)
+        self._traces = AsyncTraces(value, _guard=guard)
+        self._sessions = AsyncSessions(value, self._spans, _guard=guard)
+        self._datasets = AsyncDatasets(value, _guard=guard)
+        self._experiments = AsyncExperiments(value, _guard=guard)
 
     @property
     def prompts(self) -> AsyncPrompts:

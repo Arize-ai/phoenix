@@ -90,7 +90,7 @@ exclude = [
   "tests/canary/",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
-   "**/.venv", 
+   "**/.venv",
 ]
 
 

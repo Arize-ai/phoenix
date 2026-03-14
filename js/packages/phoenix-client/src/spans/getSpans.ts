@@ -1,8 +1,10 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
+import { GET_SPANS_TRACE_IDS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
  * Parameters to get spans from a project using auto-generated types
@@ -43,6 +45,8 @@ export type GetSpansResult = {
  *
  * @param params - The parameters to search for spans
  * @returns A paginated response containing spans and optional next cursor
+ *
+ * @requires Phoenix server >= 13.9.0 when filtering by `traceIds`
  *
  * @example
  * ```ts
@@ -101,6 +105,9 @@ export async function getSpans({
   parentId,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
+  if (traceIds) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
+  }
   const projectIdentifier = resolveProjectIdentifier(project);
 
   const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {

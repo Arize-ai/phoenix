@@ -1,5 +1,7 @@
 import { createClient } from "../client";
+import { DELETE_SESSION } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
  * Parameters to delete a session
@@ -25,6 +27,8 @@ export interface DeleteSessionParams extends ClientFn {
  * @returns Promise that resolves when the session is successfully deleted
  * @throws Error if the session is not found or deletion fails
  *
+ * @requires Phoenix server >= 13.13.0
+ *
  * @example
  * ```ts
  * // Delete by user-provided session ID
@@ -45,6 +49,7 @@ export async function deleteSession({
   sessionId,
 }: DeleteSessionParams): Promise<void> {
   const client = _client ?? createClient();
+  await ensureServerCapability({ client, requirement: DELETE_SESSION });
 
   const { error } = await client.DELETE("/v1/sessions/{session_identifier}", {
     params: {

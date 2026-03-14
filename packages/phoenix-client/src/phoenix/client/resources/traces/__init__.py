@@ -16,6 +16,7 @@ from phoenix.client.utils.annotation_helpers import (
     _create_trace_annotation,  # pyright: ignore[reportPrivateUsage]
     _validate_trace_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
+from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -28,8 +29,14 @@ AnnotateTracesResponseBody = v1.AnnotateTracesResponseBody
 
 
 class Traces:
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     @overload
     def add_trace_annotation(
@@ -325,8 +332,14 @@ class Traces:
 
 
 class AsyncTraces:
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     @overload
     async def add_trace_annotation(

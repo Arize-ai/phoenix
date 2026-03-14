@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.id_handling import is_node_id
+from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
 logger = logging.getLogger(__name__)
 
@@ -452,8 +453,14 @@ class Datasets:
             )
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def _resolve_dataset_id_and_name(
         self,
@@ -1281,8 +1288,14 @@ class AsyncDatasets:
             )
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def _resolve_dataset_id_and_name(
         self,

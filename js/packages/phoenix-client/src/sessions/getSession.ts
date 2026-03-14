@@ -1,8 +1,10 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
+import { GET_SESSION } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { Session } from "../types/sessions";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 import { toSession } from "./sessionUtils";
 
 export type GetSessionParams = ClientFn & {
@@ -14,6 +16,8 @@ export type GetSessionParams = ClientFn & {
 
 /**
  * Fetch a single session by its GlobalID or user-provided session_id string.
+ *
+ * @requires Phoenix server >= 13.5.0
  *
  * @example
  * ```ts
@@ -28,6 +32,7 @@ export async function getSession({
   sessionId,
 }: GetSessionParams): Promise<Session> {
   const client = _client || createClient();
+  await ensureServerCapability({ client, requirement: GET_SESSION });
   const { data, error } = await client.GET(
     "/v1/sessions/{session_identifier}",
     {

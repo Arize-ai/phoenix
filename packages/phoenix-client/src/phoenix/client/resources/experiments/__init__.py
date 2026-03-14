@@ -55,6 +55,7 @@ from phoenix.client.resources.experiments.types import (
 )
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
+from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
 logger = logging.getLogger(__name__)
 
@@ -516,8 +517,14 @@ class Experiments:
                 return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
         self._base_url = str(client.base_url)
         self._headers = dict(client.headers)
 
@@ -2250,8 +2257,14 @@ class AsyncExperiments:
                 return {"score": score, "label": "pass" if score > 0.8 else "fail"}
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
         self._base_url = str(client.base_url)
         self._headers = dict(client.headers)
 
