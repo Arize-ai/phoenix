@@ -82,9 +82,5 @@ function stringifyCompact(obj: unknown): string {
   if (obj === null || obj === undefined) {
     return "";
   }
-  try {
-    return JSON.stringify(obj).replace(/\s+/g, " ").trim();
-  } catch {
-    return String(obj);
-  }
+  return JSON.stringify(obj).replace(/\s+/g, " ").trim();
 }

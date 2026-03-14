@@ -1,4 +1,5 @@
 import { loadConfigFromEnvironment } from "./config";
+import { writeOutput } from "./io";
 
 const LOGO_LINES = [
   "░█▀█░█░█░█▀█░█▀▀░█▀█░▀█▀░█░█",
@@ -24,6 +25,6 @@ export function printBanner(): void {
     return info ? `${logo}${info}` : logo;
   });
 
-  console.log(output.join("\n"));
-  console.log();
+  writeOutput({ message: output.join("\n") });
+  writeOutput({ message: "" });
 }
