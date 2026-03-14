@@ -54,7 +54,7 @@ class ThingConfigInput:
 
 ### Payload Type Template
 
-Payloads always include `query: Query` so the client can chain follow-up reads:
+Some payloads may include `query: Query` so the client can chain follow-up reads:
 
 ```python
 from phoenix.server.api.queries import Query
@@ -66,12 +66,20 @@ class ThingMutationPayload:
     query: Query
 ```
 
-For delete mutations, just return `Query`:
+For delete mutations, return `Query`. If the deleted entity is a GraphQL node, also return the deleted node ID. This enables the frontend to the `@deleteEdge` directive to update the Relay cache without refetching dataset from the server.
 
 ```python
-async def delete_thing(self, ...) -> Query:
+@strawberry.type
+class DeleteThingMutationPayload:
+    id: GlobalID
+    query: Query
+
+async def delete_thing(self, ...) -> DeleteThingMutationPayload:
     # ... delete ...
-    return Query()
+    return DeleteThingMutationPayload(
+        id=GlobalID("Thing", str(thing_id)),
+        query=Query(),
+    )
 ```
 
 ### Mutation Mixin Template
@@ -233,12 +241,6 @@ Getting this wrong causes resource leaks.
 
 ## Gotchas
 
-**Permission class order doesn't matter** — Strawberry checks all of them, but by convention
-list them in order of generality: `IsNotReadOnly`, `IsNotViewer`, `IsAdmin`, `IsLocked`.
-
-**Always emit DML events after commit** — Emitting before the session commits means subscribers
-might query stale data. The `async with info.context.db()` commits on clean exit, so emit
-after the `async with` block.
 
 **UNSET vs None** — `UNSET` means "the client didn't send this field." `None` means "the
 client explicitly sent null." This distinction matters for patch mutations where you need to

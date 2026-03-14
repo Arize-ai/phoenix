@@ -87,13 +87,6 @@ and errors simultaneously (partial success). Checking both catches subtle issues
 **Use a private `_MUTATION` class constant** for the GraphQL string. If a test class has
 multiple tests against the same operation, they all share the string.
 
-**Private helpers reduce boilerplate:**
-
-```python
-async def _create(self, gql_client: AsyncGraphQLClient, **input_fields) -> Any:
-    return await gql_client.execute(self._MUTATION, {"input": input_fields})
-```
-
 ## Query Test Template
 
 ```python
@@ -180,27 +173,7 @@ async def test_subscription(
                 break
 ```
 
-## VCR Cassettes for External API Calls
-
-Tests that call external APIs (OpenAI, Anthropic, etc.) use VCR cassettes to record and
-replay HTTP interactions. Cassettes are stored in `tests/unit/server/api/cassettes/`.
-
-If you're writing a test that makes LLM API calls, either:
-1. Use an existing cassette from a similar test
-2. Record a new cassette (requires valid API keys during the first run)
-3. Mock the external call directly with monkeypatch
-
 ## Gotchas
-
-**aiosqlite can't handle concurrent async DB sessions** — When two sibling GraphQL field
-resolvers both open sessions via `info.context.db()`, the second fails with "no active
-connection." This only affects the SQLite test backend, not production PostgreSQL.
-Workaround: populate in-memory values on the ORM object after commit so the resolver
-uses the fast path and skips the DB lookup.
-
-**Pre-existing test failures on main** — `test_all_provider_mutations_comprehensive` and
-`test_generative_model_store_lifecycle` fail on SQLite. These are known issues — don't
-debug them on feature branches.
 
 **Fixture scope is per-test** — Each test gets a fresh database transaction that rolls back
 after the test completes. Don't rely on data from a previous test.
