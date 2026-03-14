@@ -1105,16 +1105,6 @@
             },
             "description": "Forbidden"
           },
-          "409": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Dataset of the same name already exists"
-          },
           "422": {
             "content": {
               "text/plain": {
@@ -1200,6 +1190,20 @@
                       ]
                     },
                     "description": "Span IDs to link examples back to spans"
+                  },
+                  "example_ids": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Optional example ID per example. If provided, it is used as the example's stable public ID."
                   }
                 }
               }

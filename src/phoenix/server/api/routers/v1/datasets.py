@@ -344,10 +344,6 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     summary="Upload dataset from JSON, JSONL, CSV, or PyArrow",
     responses=add_errors_to_responses(
         [
-            {
-                "status_code": 409,
-                "description": "Dataset of the same name already exists",
-            },
             {"status_code": 422, "description": "Invalid request body"},
         ]
     ),
@@ -390,6 +386,19 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                     ]
                                 },
                                 "description": "Span IDs to link examples back to spans",
+                            },
+                            "example_ids": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": (
+                                    "Optional example ID per example. "
+                                    "If provided, it is used as the example's stable public ID."
+                                ),
                             },
                         },
                     }
@@ -448,10 +457,11 @@ async def upload_dataset(
             detail="Missing content-type header",
             status_code=400,
         )
-    examples: Union[Examples, Awaitable[Examples]]
+    examples: Examples
+    splits_provided = True
     if request_content_type.startswith("application/json"):
         try:
-            examples, action, name, description = await run_in_threadpool(
+            examples, action, name, description, splits_provided = await run_in_threadpool(
                 _process_json, await request.json()
             )
         except ValueError as e:
@@ -459,13 +469,6 @@ async def upload_dataset(
                 detail=str(e),
                 status_code=422,
             )
-        if action is DatasetAction.CREATE:
-            async with request.app.state.db() as session:
-                if await _check_table_exists(session, name):
-                    raise HTTPException(
-                        detail=f"Dataset with the same name already exists: {name=}",
-                        status_code=409,
-                    )
     elif request_content_type.startswith("multipart/form-data"):
         async with request.form() as form:
             try:
@@ -485,13 +488,6 @@ async def upload_dataset(
                     detail=str(e),
                     status_code=422,
                 )
-            if action is DatasetAction.CREATE:
-                async with request.app.state.db() as session:
-                    if await _check_table_exists(session, name):
-                        raise HTTPException(
-                            detail=f"Dataset with the same name already exists: {name=}",
-                            status_code=409,
-                        )
             content = await file.read()
         try:
             file_content_type = FileContentType(file.content_type)
@@ -545,6 +541,7 @@ async def upload_dataset(
             name=name,
             description=description,
             user_id=user_id,
+            splits_provided=splits_provided,
         ),
     )
     if sync:
@@ -601,19 +598,20 @@ OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
 SplitKeys: TypeAlias = frozenset[str]
 SpanIdKey: TypeAlias = Optional[str]
+SplitsProvided: TypeAlias = bool
 DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
 
 def _process_json(
     data: Mapping[str, Any],
-) -> tuple[Examples, DatasetAction, Name, Description]:
+) -> tuple[Examples, DatasetAction, Name, Description, SplitsProvided]:
     name = data.get("name")
     if not name:
         raise ValueError("Dataset name is required")
     description = data.get("description") or ""
     inputs = data.get("inputs")
-    if not inputs:
+    if inputs is None:
         raise ValueError("input is required")
     if not isinstance(inputs, list) or not _is_all_dict(inputs):
         raise ValueError("Input should be a list containing only dictionary objects")
@@ -642,6 +640,25 @@ def _process_json(
             raise ValueError(
                 f"span_ids must have same length as inputs ({len(span_ids)} != {len(inputs)})"
             )
+
+    # Validate example_ids format if provided
+    example_ids = data.get("example_ids")
+    if example_ids is not None:
+        if not isinstance(example_ids, list):
+            raise ValueError("example_ids must be a list")
+        if len(example_ids) != len(inputs):
+            raise ValueError(
+                f"example_ids must have same length as inputs ({len(example_ids)} != {len(inputs)})"
+            )
+        seen: set[str] = set()
+        for example_id_value in example_ids:
+            if example_id_value is None:
+                continue
+            if not isinstance(example_id_value, str):
+                raise ValueError("example_ids must contain only strings or None")
+            if example_id_value in seen:
+                raise ValueError(f"Duplicate example_id in request: {example_id_value!r}")
+            seen.add(example_id_value)
 
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
@@ -685,16 +702,24 @@ def _process_json(
                 if span_id_value.strip():
                     span_id = span_id_value.strip()
 
+        # Extract example_id for this example
+        external_id = None
+        if example_ids is not None:
+            example_id_value = example_ids[i]
+            if example_id_value is not None:
+                external_id = str(example_id_value)
+
         example = ExampleContent(
             input=obj,
             output=outputs[i] if outputs else {},
             metadata=metadata[i] if metadata else {},
             splits=frozenset(split_set),
             span_id=span_id,
+            external_id=external_id,
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
-    return iter(examples), action, name, description
+    return iter(examples), action, name, description, splits is not None
 
 
 async def _process_csv(
@@ -745,7 +770,7 @@ async def _process_pyarrow(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
-) -> Awaitable[Examples]:
+) -> Examples:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
@@ -767,7 +792,7 @@ async def _process_pyarrow(
                 span_id=_get_span_id(row, span_id_key),
             )
 
-    return run_in_threadpool(get_examples)
+    return await run_in_threadpool(get_examples)
 
 
 async def _process_jsonl(
@@ -804,14 +829,6 @@ async def _process_jsonl(
         )
         examples.append(example)
     return iter(examples)
-
-
-async def _check_table_exists(session: AsyncSession, name: str) -> bool:
-    return bool(
-        await session.scalar(
-            select(1).select_from(models.Dataset).where(models.Dataset.name == name)
-        )
-    )
 
 
 def _check_keys_exist(
@@ -1043,7 +1060,9 @@ async def get_dataset_examples(
 
         examples = [
             DatasetExample(
-                id=str(GlobalID("DatasetExample", str(example.id))),
+                id=example.external_id
+                if isinstance(example.external_id, str)
+                else str(GlobalID("DatasetExample", str(example.id))),
                 input=revision.input,
                 output=revision.output,
                 metadata=revision.metadata_,

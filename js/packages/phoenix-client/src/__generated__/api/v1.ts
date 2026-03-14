@@ -3997,6 +3997,8 @@ export interface operations {
                     splits?: (string | string[] | null)[];
                     /** @description Span IDs to link examples back to spans */
                     span_ids?: (string | null)[];
+                    /** @description Optional example ID per example. If provided, it is used as the example's stable public ID. */
+                    example_ids?: (string | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
@@ -4027,15 +4029,6 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Dataset of the same name already exists */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
