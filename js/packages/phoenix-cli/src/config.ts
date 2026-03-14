@@ -7,6 +7,11 @@ import {
 } from "@arizeai/phoenix-config";
 
 /**
+ * Default Phoenix endpoint used when PHOENIX_HOST is not set.
+ */
+export const DEFAULT_PHOENIX_ENDPOINT = "http://localhost:6006";
+
+/**
  * Configuration for the Phoenix CLI
  */
 export interface PhoenixConfig {
@@ -35,7 +40,9 @@ export interface PhoenixConfig {
  * Load configuration from environment variables
  */
 export function loadConfigFromEnvironment(): PhoenixConfig {
-  const config: PhoenixConfig = {};
+  const config: PhoenixConfig = {
+    endpoint: DEFAULT_PHOENIX_ENDPOINT,
+  };
 
   const endpoint = getStrFromEnvironment(ENV_PHOENIX_HOST);
   if (endpoint) {

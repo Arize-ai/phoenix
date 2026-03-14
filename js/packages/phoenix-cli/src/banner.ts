@@ -1,4 +1,5 @@
 import { loadConfigFromEnvironment } from "./config";
+import { VERSION } from "./version";
 
 const LOGO_LINES = [
   "░█▀█░█░█░█▀█░█▀▀░█▀█░▀█▀░█░█",
@@ -11,10 +12,14 @@ const LOGO_LINES = [
  */
 export function printBanner(): void {
   const config = loadConfigFromEnvironment();
-  const serverUrl = config.endpoint ?? "http://localhost:6006";
+  const serverUrl = config.endpoint ?? "not set";
   const project = config.project ?? "not set";
 
-  const infoLines = [`  Server: ${serverUrl}`, `  Project: ${project}`, ""];
+  const infoLines = [
+    `  v${VERSION}`,
+    `  Server: ${serverUrl}`,
+    `  Project: ${project}`,
+  ];
 
   const output = LOGO_LINES.map(
     (logo, index) => `${logo}${infoLines[index] ?? ""}`
