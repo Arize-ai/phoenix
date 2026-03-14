@@ -19,13 +19,12 @@ import {
   createTraceCommand,
   createTracesCommand,
 } from "./commands";
-import { VERSION } from "./version";
 
 // Phoenix CLI Main Logic
 export function main() {
   const program = new Command();
 
-  program.name("px").version(VERSION);
+  program.name("px");
 
   // Register commands
   program.addCommand(createAnnotationConfigCommand());

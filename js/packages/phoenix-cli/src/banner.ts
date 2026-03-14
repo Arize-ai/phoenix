@@ -1,5 +1,4 @@
 import { loadConfigFromEnvironment } from "./config";
-import { VERSION } from "./version";
 
 const LOGO_LINES = [
   "░█▀█░█░█░█▀█░█▀▀░█▀█░▀█▀░█░█",
@@ -14,16 +13,12 @@ export function printBanner(): void {
   const config = loadConfigFromEnvironment();
   const serverUrl = config.endpoint ?? "not set";
   const project = config.project ?? "not set";
-
   const apiKey = config.apiKey ? "set" : "not set";
 
-  // Align left columns to the same width so the │ separator lines up
-  const leftCol = [`Server: ${serverUrl}`, `API Key: ${apiKey}`];
-  const leftWidth = Math.max(...leftCol.map((line) => line.length));
-
   const infoLines = [
-    `  ${leftCol[0]!.padEnd(leftWidth)}  │  Project: ${project}`,
-    `  ${leftCol[1]!.padEnd(leftWidth)}  │  Version: v${VERSION}`,
+    `  Server:  ${serverUrl}`,
+    `  Project: ${project}`,
+    `  API Key: ${apiKey}`,
   ];
 
   const output = LOGO_LINES.map((logo, index) => {
