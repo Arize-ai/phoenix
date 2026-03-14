@@ -13,12 +13,10 @@ export function printBanner(): void {
   const config = loadConfigFromEnvironment();
   const serverUrl = config.endpoint ?? "not set";
   const project = config.project ?? "not set";
-  const apiKey = config.apiKey ? "set" : "unauthenticated";
-
   const infoLines = [
     `  Server:  ${serverUrl}`,
     `  Project: ${project}`,
-    `  API Key: ${apiKey}`,
+    ...(config.apiKey ? [`  API Key: set`] : []),
   ];
 
   const output = LOGO_LINES.map((logo, index) => {
