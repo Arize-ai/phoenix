@@ -67,16 +67,16 @@ export function DeletePromptDialog({
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
+        {error && (
+          <View paddingX="size-200" paddingTop="size-100">
+            <Alert variant="danger">{error}</Alert>
+          </View>
+        )}
         <View padding="size-200">
           <Text color="danger">
             {`Are you sure you want to delete this prompt? This action cannot be undone and all services dependent on this prompt will be affected.`}
           </Text>
         </View>
-        {error && (
-          <View paddingX="size-200" paddingBottom="size-100">
-            <Alert variant="danger">{error}</Alert>
-          </View>
-        )}
         <View
           paddingEnd="size-200"
           paddingTop="size-100"

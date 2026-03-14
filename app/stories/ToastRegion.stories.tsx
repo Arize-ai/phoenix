@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 
 import { Button, Flex } from "@phoenix/components";
 import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
-import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotify, useNotifySuccess } from "@phoenix/contexts";
 
 /**
  * ToastRegion manages the display of one or more queued toasts
@@ -21,7 +21,6 @@ export default meta;
 const TriggerToasts = () => {
   const notify = useNotify();
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   return (
     <Flex direction="column" gap="size-100">
       <Button
@@ -47,7 +46,7 @@ const TriggerToasts = () => {
       </Button>
       <Button
         onPress={() =>
-          notifyError({
+          notify({
             title: "Error Toast",
             message: "This is an error toast message.",
             expireMs: null,

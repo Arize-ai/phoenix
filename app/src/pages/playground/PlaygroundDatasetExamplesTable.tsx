@@ -1259,7 +1259,7 @@ export function PlaygroundDatasetExamplesTable({
       return;
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
-    if (apiError !== null) setApiError(null);
+    setApiError(null);
     resetPendingExperimentMetrics();
     resetData();
 
