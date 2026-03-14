@@ -13,7 +13,7 @@ export function printBanner(): void {
   const config = loadConfigFromEnvironment();
   const serverUrl = config.endpoint ?? "not set";
   const project = config.project ?? "not set";
-  const apiKey = config.apiKey ? "set" : "not set";
+  const apiKey = config.apiKey ? "set" : "unauthenticated";
 
   const infoLines = [
     `  Server:  ${serverUrl}`,
