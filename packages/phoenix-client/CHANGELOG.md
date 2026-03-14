@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.0.0...arize-phoenix-client-v2.0.1) (2026-03-14)
+
+
+### Bug Fixes
+
+* **client:** add server version gating with capability requirements ([#12122](https://github.com/Arize-ai/phoenix/issues/12122)) ([9769f90](https://github.com/Arize-ai/phoenix/commit/9769f906ae0caef8e19f88e25e0ea545ee399d72))
+
 ## [2.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.31.0...arize-phoenix-client-v2.0.0) (2026-03-11)
 
 
