@@ -9,6 +9,10 @@ from httpx import HTTPStatusError
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.prompts import PromptVersion
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +70,18 @@ class Prompts:
             )
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     @property
     def tags(self) -> PromptVersionTags:
-        return PromptVersionTags(self._client)
+        return PromptVersionTags(self._client, _guard=self._guard)
 
     def get(
         self,
@@ -198,8 +208,14 @@ class PromptVersionTags:
                 )
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def create(
         self,
@@ -343,12 +359,18 @@ class AsyncPrompts:
             )
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     @property
     def tags(self) -> AsyncPromptVersionTags:
-        return AsyncPromptVersionTags(self._client)
+        return AsyncPromptVersionTags(self._client, _guard=self._guard)
 
     async def get(
         self,
@@ -475,8 +497,14 @@ class AsyncPromptVersionTags:
                 )
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def create(
         self,

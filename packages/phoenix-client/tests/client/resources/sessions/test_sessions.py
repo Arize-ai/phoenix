@@ -3,7 +3,6 @@ import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.client import PhoenixAsyncHTTPClient, PhoenixHTTPClient
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 
@@ -42,7 +41,7 @@ class TestSessionsGet:
             assert request.url.path == "/v1/sessions/my-session"
             return httpx.Response(200, json={"data": session})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = Sessions(client, Spans(client)).get(session_id="my-session")
         assert result["session_id"] == "my-session"
         assert len(result["traces"]) == 2
@@ -51,21 +50,21 @@ class TestSessionsGet:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(404, json={"detail": "not found"})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
             Sessions(client, Spans(client)).get(session_id="nonexistent")
 
 
 class TestSessionsList:
     def test_list_requires_project_identifier(self) -> None:
-        client = PhoenixHTTPClient(
+        client = httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="Either project_id or project_name"):
             Sessions(client, Spans(client)).list()
 
     def test_list_rejects_both_identifiers(self) -> None:
-        client = PhoenixHTTPClient(
+        client = httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="Only one of"):
@@ -78,7 +77,7 @@ class TestSessionsList:
             assert "/projects/my-project/sessions" in request.url.path
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = Sessions(client, Spans(client)).list(project_name="my-project")
         assert len(result) == 3
 
@@ -98,7 +97,7 @@ class TestSessionsList:
                 assert "cursor=cursor-abc" in str(request.url)
                 return httpx.Response(200, json={"data": page2, "next_cursor": None})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = Sessions(client, Spans(client)).list(project_name="proj")
         assert len(result) == 2
         assert result[0]["session_id"] == "s1"
@@ -110,7 +109,7 @@ class TestSessionsList:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={"data": sessions, "next_cursor": "more"})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = Sessions(client, Spans(client)).list(project_name="proj", limit=3)
         assert len(result) == 3
 
@@ -119,7 +118,7 @@ class TestSessionsList:
             assert "/projects/proj-id-123/sessions" in request.url.path
             return httpx.Response(200, json={"data": [], "next_cursor": None})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = Sessions(client, Spans(client)).list(project_id="proj-id-123")
         assert result == []
 
@@ -134,7 +133,7 @@ class TestGetSessionsDataframe:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         df = Sessions(client, Spans(client)).get_sessions_dataframe(project_name="proj")
 
         assert isinstance(df, pd.DataFrame)
@@ -154,7 +153,7 @@ class TestGetSessionsDataframe:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={"data": [], "next_cursor": None})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         df = Sessions(client, Spans(client)).get_sessions_dataframe(project_name="proj")
 
         assert isinstance(df, pd.DataFrame)
@@ -168,14 +167,14 @@ class TestSessionsDelete:
             assert request.method == "DELETE"
             return httpx.Response(204)
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         Sessions(client, Spans(client)).delete(session_id="my-session")
 
     def test_delete_raises_on_404(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(404, json={"detail": "not found"})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
             Sessions(client, Spans(client)).delete(session_id="nonexistent")
 
@@ -190,11 +189,11 @@ class TestSessionsBulkDelete:
             assert body == {"session_identifiers": ["s1", "s2", "s3"]}
             return httpx.Response(204)
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         Sessions(client, Spans(client)).bulk_delete(session_ids=["s1", "s2", "s3"])
 
     def test_bulk_delete_raises_on_empty_list(self) -> None:
-        client = PhoenixHTTPClient(
+        client = httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="must not be empty"):
@@ -204,7 +203,7 @@ class TestSessionsBulkDelete:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(422, json={"detail": "mixed types"})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with pytest.raises(httpx.HTTPStatusError):
             Sessions(client, Spans(client)).bulk_delete(session_ids=["s1"])
 
@@ -220,14 +219,12 @@ class TestAsyncSessionsBulkDelete:
             assert body == {"session_identifiers": ["s1", "s2"]}
             return httpx.Response(204)
 
-        client = PhoenixAsyncHTTPClient(
-            transport=httpx.MockTransport(handler), base_url="http://test"
-        )
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         await AsyncSessions(client, AsyncSpans(client)).bulk_delete(session_ids=["s1", "s2"])
 
     @pytest.mark.anyio
     async def test_bulk_delete_raises_on_empty_list(self) -> None:
-        client = PhoenixAsyncHTTPClient(
+        client = httpx.AsyncClient(
             transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
         )
         with pytest.raises(ValueError, match="must not be empty"):
@@ -243,9 +240,7 @@ class TestAsyncSessionsGet:
             assert request.url.path == "/v1/sessions/my-session"
             return httpx.Response(200, json={"data": session})
 
-        client = PhoenixAsyncHTTPClient(
-            transport=httpx.MockTransport(handler), base_url="http://test"
-        )
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         result = await AsyncSessions(client, AsyncSpans(client)).get(session_id="my-session")
         assert result["session_id"] == "my-session"
 
@@ -266,9 +261,7 @@ class TestAsyncSessionsList:
             else:
                 return httpx.Response(200, json={"data": page2, "next_cursor": None})
 
-        client = PhoenixAsyncHTTPClient(
-            transport=httpx.MockTransport(handler), base_url="http://test"
-        )
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         result = await AsyncSessions(client, AsyncSpans(client)).list(project_name="proj")
         assert len(result) == 2
 
@@ -281,9 +274,7 @@ class TestAsyncGetSessionsDataframe:
         async def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={"data": sessions, "next_cursor": None})
 
-        client = PhoenixAsyncHTTPClient(
-            transport=httpx.MockTransport(handler), base_url="http://test"
-        )
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         df = await AsyncSessions(client, AsyncSpans(client)).get_sessions_dataframe(
             project_name="proj"
         )
@@ -339,7 +330,7 @@ class TestGetSessionTurns:
                 return httpx.Response(200, json={"data": [span0, span1], "next_cursor": None})
             return httpx.Response(404)
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
 
         assert len(turns) == 2
@@ -358,7 +349,7 @@ class TestGetSessionTurns:
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={"data": session})
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
         assert turns == []
 
@@ -372,7 +363,7 @@ class TestGetSessionTurns:
                 return httpx.Response(200, json={"data": [], "next_cursor": None})
             return httpx.Response(404)
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
         assert len(turns) == 1
         assert turns[0]["trace_id"] == "tid-0"
@@ -415,7 +406,7 @@ class TestGetSessionTurns:
                 )
             return httpx.Response(404)
 
-        client = PhoenixHTTPClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         turns = Sessions(client, Spans(client)).get_session_turns(session_id="s1")
         assert turns[0].get("input") == {"value": "first"}
         assert turns[1].get("input") == {"value": "second"}
@@ -440,9 +431,7 @@ class TestAsyncGetSessionTurns:
                 return httpx.Response(200, json={"data": [span], "next_cursor": None})
             return httpx.Response(404)
 
-        client = PhoenixAsyncHTTPClient(
-            transport=httpx.MockTransport(handler), base_url="http://test"
-        )
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         turns = await AsyncSessions(client, AsyncSpans(client)).get_session_turns(session_id="s1")
         assert len(turns) == 1
         assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}

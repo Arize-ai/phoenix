@@ -7,6 +7,10 @@ import httpx
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +52,19 @@ class Projects:
             client.projects.delete(project_id=new_project["id"])
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         """Initialize the Projects client.
 
         Args:
             client (httpx.Client): The httpx client to use for making requests.
         """
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def get(
         self,
@@ -310,13 +320,19 @@ class AsyncProjects:
             await async_client.projects.delete(project_id=new_project["id"])
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         """Initialize the AsyncProjects client.
 
         Args:
             client (httpx.AsyncClient): The httpx async client to use for making requests.
         """
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def get(
         self,

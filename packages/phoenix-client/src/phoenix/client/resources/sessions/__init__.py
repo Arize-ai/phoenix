@@ -12,6 +12,7 @@ from typing import (
     overload,
 )
 
+import httpx
 from openinference.semconv.trace import SpanAttributes
 from typing_extensions import NotRequired, TypedDict
 
@@ -29,9 +30,9 @@ from phoenix.client.utils.annotation_helpers import (
     _validate_session_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
 from phoenix.client.utils.encode_path_param import encode_path_param
-from phoenix.client.utils.server_version_utils import (
-    async_ensure_server_capability,
-    ensure_server_capability,
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
 )
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -84,12 +85,7 @@ class SessionTurn(TypedDict):
 if TYPE_CHECKING:
     import pandas as pd
 
-    from phoenix.client.client import PhoenixAsyncHTTPClient as PhoenixAsyncHTTPClient
-    from phoenix.client.client import PhoenixHTTPClient as PhoenixHTTPClient
     from phoenix.client.resources.spans import AsyncSpans, Spans
-    from phoenix.client.types.server_requirements import (
-        CapabilityRequirement as CapabilityRequirement,
-    )
 
 # Re-export generated types
 InsertedSessionAnnotation = v1.InsertedSessionAnnotation
@@ -103,8 +99,15 @@ GetSessionsResponseBody = v1.GetSessionsResponseBody
 
 
 class Sessions:
-    def __init__(self, client: PhoenixHTTPClient, spans: "Spans") -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        spans: "Spans",
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
         self._spans = spans
 
     def get(
@@ -125,7 +128,7 @@ class Sessions:
             The session data.
         """
 
-        ensure_server_capability(client=self._client, requirement=GET_SESSION)
+        self._guard.require(GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -153,7 +156,7 @@ class Sessions:
             A list of session data.
         """
 
-        ensure_server_capability(client=self._client, requirement=LIST_PROJECT_SESSIONS)
+        self._guard.require(LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -198,7 +201,7 @@ class Sessions:
             timeout: Optional timeout in seconds for the request.
         """
 
-        ensure_server_capability(client=self._client, requirement=DELETE_SESSION)
+        self._guard.require(DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -222,7 +225,7 @@ class Sessions:
             timeout: Optional timeout in seconds for the request.
         """
 
-        ensure_server_capability(client=self._client, requirement=DELETE_SESSIONS)
+        self._guard.require(DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -440,7 +443,7 @@ class Sessions:
             )
         """  # noqa: E501
 
-        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
+        self._guard.require(ANNOTATE_SESSIONS)
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -530,7 +533,7 @@ class Sessions:
             client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
 
-        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
+        self._guard.require(ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -645,7 +648,7 @@ class Sessions:
             )
         """  # noqa: E501
 
-        ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
+        self._guard.require(ANNOTATE_SESSIONS)
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 
@@ -665,8 +668,15 @@ class Sessions:
 
 
 class AsyncSessions:
-    def __init__(self, client: PhoenixAsyncHTTPClient, spans: "AsyncSpans") -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        spans: "AsyncSpans",
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
         self._spans = spans
 
     async def get(
@@ -687,7 +697,7 @@ class AsyncSessions:
             The session data.
         """
 
-        await async_ensure_server_capability(client=self._client, requirement=GET_SESSION)
+        await self._guard.require(GET_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -715,7 +725,7 @@ class AsyncSessions:
             A list of session data.
         """
 
-        await async_ensure_server_capability(client=self._client, requirement=LIST_PROJECT_SESSIONS)
+        await self._guard.require(LIST_PROJECT_SESSIONS)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -760,7 +770,7 @@ class AsyncSessions:
             timeout: Optional timeout in seconds for the request.
         """
 
-        await async_ensure_server_capability(client=self._client, requirement=DELETE_SESSION)
+        await self._guard.require(DELETE_SESSION)
         url = f"v1/sessions/{encode_path_param(session_id)}"
         response = await self._client.delete(url, timeout=timeout)
         response.raise_for_status()
@@ -784,7 +794,7 @@ class AsyncSessions:
             timeout: Optional timeout in seconds for the request.
         """
 
-        await async_ensure_server_capability(client=self._client, requirement=DELETE_SESSIONS)
+        await self._guard.require(DELETE_SESSIONS)
         if not session_ids:
             raise ValueError("session_ids must not be empty")
         json_: v1.DeleteSessionsRequestBody = {"session_identifiers": list(session_ids)}
@@ -1005,7 +1015,7 @@ class AsyncSessions:
             )
         """  # noqa: E501
 
-        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
+        await self._guard.require(ANNOTATE_SESSIONS)
         # Create the annotation using the factory
         anno = _create_session_annotation(
             session_id=session_id,
@@ -1095,7 +1105,7 @@ class AsyncSessions:
             await async_client.sessions.log_session_annotations(session_annotations=annotations)
         """  # noqa: E501
 
-        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
+        await self._guard.require(ANNOTATE_SESSIONS)
         # Convert to list and validate input
         annotations_list = list(session_annotations)
         if not annotations_list:
@@ -1210,7 +1220,7 @@ class AsyncSessions:
             )
         """  # noqa: E501
 
-        await async_ensure_server_capability(client=self._client, requirement=ANNOTATE_SESSIONS)
+        await self._guard.require(ANNOTATE_SESSIONS)
         # Validate DataFrame first
         _validate_session_annotations_dataframe(dataframe=dataframe)
 

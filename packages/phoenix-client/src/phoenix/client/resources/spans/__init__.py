@@ -17,12 +17,14 @@ from phoenix.client.utils.annotation_helpers import (
     _validate_document_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
     _validate_span_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
 
 if TYPE_CHECKING:
+    import httpx
     import pandas as pd
-
-    from phoenix.client.client import PhoenixAsyncHTTPClient as PhoenixAsyncHTTPClient
-    from phoenix.client.client import PhoenixHTTPClient as PhoenixHTTPClient
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
@@ -30,10 +32,6 @@ from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCr
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
-from phoenix.client.utils.server_version_utils import (
-    async_ensure_server_capability,
-    ensure_server_capability,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +117,14 @@ class Spans:
             client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: PhoenixHTTPClient) -> None:
+    def __init__(
+        self,
+        client: "httpx.Client",
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def get_spans_dataframe(
         self,
@@ -461,7 +465,7 @@ class Spans:
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if trace_ids:
-            ensure_server_capability(client=self._client, requirement=GET_SPANS_TRACE_IDS)
+            self._guard.require(GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1354,8 +1358,14 @@ class AsyncSpans:
             await client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: PhoenixAsyncHTTPClient) -> None:
+    def __init__(
+        self,
+        client: "httpx.AsyncClient",
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def get_spans_dataframe(
         self,
@@ -1698,9 +1708,7 @@ class AsyncSpans:
             httpx.HTTPStatusError: If the API returns an error response.
         """
         if trace_ids:
-            await async_ensure_server_capability(
-                client=self._client, requirement=GET_SPANS_TRACE_IDS
-            )
+            await self._guard.require(GET_SPANS_TRACE_IDS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
