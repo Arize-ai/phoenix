@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type DatasetExample = componentsV1["schemas"]["DatasetExample"];
@@ -64,46 +66,25 @@ function formatDatasetExamplesPretty(
     return lines.join("\n");
   }
 
-  // Examples
-  for (const example of data.examples) {
-    lines.push(`┌─ Example: ${example.id}`);
+  const rows = data.examples.map((example) => ({
+    id: example.id,
+    input: stringifyCompact(example.input),
+    output: stringifyCompact(example.output),
+    metadata: stringifyCompact(example.metadata),
+  }));
 
-    const inputPreview = truncateJson(example.input, 150);
-    lines.push(`│  Input: ${inputPreview}`);
-
-    const outputPreview = truncateJson(example.output, 150);
-    lines.push(`│  Output: ${outputPreview}`);
-
-    if (example.metadata && Object.keys(example.metadata).length > 0) {
-      const metadataPreview = truncateJson(example.metadata, 100);
-      lines.push(`│  Metadata: ${metadataPreview}`);
-    }
-
-    lines.push(`└─`);
-    lines.push("");
-  }
+  lines.push(formatTable(rows));
 
   return lines.join("\n").trimEnd();
 }
 
-function truncateJson(obj: unknown, maxLength: number): string {
+function stringifyCompact(obj: unknown): string {
   if (obj === null || obj === undefined) {
-    return "null";
+    return "";
   }
-
-  let str: string;
   try {
-    str = JSON.stringify(obj);
+    return JSON.stringify(obj).replace(/\s+/g, " ").trim();
   } catch {
-    str = String(obj);
+    return String(obj);
   }
-
-  // Clean up whitespace for display
-  str = str.replace(/\s+/g, " ").trim();
-
-  if (str.length <= maxLength) {
-    return str;
-  }
-
-  return `${str.slice(0, maxLength)}…`;
 }
