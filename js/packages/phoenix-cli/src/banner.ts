@@ -17,15 +17,22 @@ export function printBanner(): void {
 
   const apiKey = config.apiKey ? "set" : "not set";
 
+  // Align left columns to the same width so the │ separator lines up
+  const leftCol = [
+    `Server: ${serverUrl}`,
+    `API Key: ${apiKey}`,
+  ];
+  const leftWidth = Math.max(...leftCol.map((line) => line.length));
+
   const infoLines = [
-    `  v${VERSION}`,
-    `  Server: ${serverUrl}  │  API Key: ${apiKey}`,
-    `  Project: ${project}`,
+    `  ${leftCol[0]!.padEnd(leftWidth)}  │  Project: ${project}`,
+    `  ${leftCol[1]!.padEnd(leftWidth)}  │  Version: v${VERSION}`,
   ];
 
-  const output = LOGO_LINES.map(
-    (logo, index) => `${logo}${infoLines[index] ?? ""}`
-  );
+  const output = LOGO_LINES.map((logo, index) => {
+    const info = infoLines[index - 1];
+    return info ? `${logo}${info}` : logo;
+  });
 
   console.log(output.join("\n"));
   console.log();
