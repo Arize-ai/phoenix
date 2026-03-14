@@ -19,14 +19,12 @@ export function printBanner(): void {
 
   const infoLines = [
     `  v${VERSION}`,
-    `  Server: ${serverUrl}`,
+    `  Server: ${serverUrl}  │  API Key: ${apiKey}`,
     `  Project: ${project}`,
-    `  API Key: ${apiKey}`,
   ];
 
-  const logoWidth = LOGO_LINES[0]!.length;
-  const output = infoLines.map(
-    (info, index) => `${(LOGO_LINES[index] ?? "").padEnd(logoWidth)}${info}`
+  const output = LOGO_LINES.map(
+    (logo, index) => `${logo}${infoLines[index] ?? ""}`
   );
 
   console.log(output.join("\n"));
