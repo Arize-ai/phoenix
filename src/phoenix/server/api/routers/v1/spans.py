@@ -10,7 +10,7 @@ from typing import Annotated, Any, Optional, Union
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
-from pydantic import BaseModel, BeforeValidator, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -406,11 +406,34 @@ class SpanContext(V1RoutesBaseModel):
     trace_id: str = Field(description="OpenTelemetry trace ID")
     span_id: str = Field(description="OpenTelemetry span ID")
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+                    "span_id": "1a2b3c4d5e6f7a8b",
+                }
+            ]
+        }
+    )
+
 
 class SpanEvent(V1RoutesBaseModel):
     name: str = Field(description="Name of the event")
     timestamp: datetime = Field(description="When the event occurred (must be timezone-aware)")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "exception",
+                    "timestamp": "2024-01-01T12:00:00Z",
+                    "attributes": {"exception.message": "Connection refused"},
+                }
+            ]
+        }
+    )
 
     @model_validator(mode="after")
     def _require_timezone_aware_timestamp(self) -> "SpanEvent":
@@ -438,6 +461,31 @@ class Span(V1RoutesBaseModel):
     status_message: str = Field(default="", description="Status message")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
     events: list[SpanEvent] = Field(default_factory=list, description="Span events")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "llm_call",
+                    "context": {
+                        "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+                        "span_id": "1a2b3c4d5e6f7a8b",
+                    },
+                    "span_kind": "LLM",
+                    "start_time": "2024-01-01T12:00:00Z",
+                    "end_time": "2024-01-01T12:00:01Z",
+                    "status_code": "OK",
+                    "status_message": "",
+                    "attributes": {
+                        "llm.model_name": "gpt-4",
+                        "llm.token_count.prompt": 100,
+                        "llm.token_count.completion": 50,
+                    },
+                    "events": [],
+                }
+            ]
+        }
+    )
 
     @model_validator(mode="after")
     def _require_timezone_aware_timestamps(self) -> "Span":
