@@ -495,23 +495,9 @@ async def add_dataset_examples(
 ) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
-    if action is DatasetAction.CREATE:
-        return await _upsert_dataset_examples(
-            session=session,
-            name=name,
-            examples=examples,
-            description=description,
-            metadata=metadata,
-            user_id=user_id,
-            created_at=created_at,
-            splits_provided=splits_provided,
-        )
-
-    dataset_id: Optional[DatasetId] = None
-    if action is DatasetAction.APPEND and name:
-        dataset_id = await session.scalar(
-            select(models.Dataset.id).where(models.Dataset.name == name)
-        )
+    dataset_id: Optional[DatasetId] = await session.scalar(
+        select(models.Dataset.id).where(models.Dataset.name == name)
+    )
     if dataset_id is None:
         try:
             dataset_id = await insert_dataset(
@@ -525,6 +511,17 @@ async def add_dataset_examples(
         except Exception:
             logger.exception(f"Failed to insert dataset: {name=}")
             raise
+
+    if action is DatasetAction.CREATE:
+        return await _upsert_dataset_examples(
+            session=session,
+            dataset_id=dataset_id,
+            examples=examples,
+            user_id=user_id,
+            created_at=created_at,
+            splits_provided=splits_provided,
+        )
+
     try:
         dataset_version_id = await insert_dataset_version(
             session=session,
@@ -798,10 +795,8 @@ async def _rebuild_dataset_splits(
 
 async def _upsert_dataset_examples(
     session: AsyncSession,
-    name: str,
+    dataset_id: DatasetId,
     examples: Examples,
-    description: Optional[str] = None,
-    metadata: Optional[Mapping[str, Any]] = None,
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
     splits_provided: bool = True,
@@ -810,21 +805,7 @@ async def _upsert_dataset_examples(
     if created_at is None:
         created_at = datetime.now(timezone.utc)
 
-    # 1. Resolve dataset
-    dataset_id: Optional[DatasetId] = await session.scalar(
-        select(models.Dataset.id).where(models.Dataset.name == name)
-    )
-    if dataset_id is None:
-        dataset_id = await insert_dataset(
-            session=session,
-            name=name,
-            description=description,
-            metadata=metadata,
-            created_at=created_at,
-            user_id=user_id,
-        )
-
-    # 2. Load previous state and hash incoming examples
+    # Load previous state and hash incoming examples
     previous = await _get_external_ids_and_content_hashes_for_most_recent_version(
         session, dataset_id
     )
@@ -840,10 +821,10 @@ async def _upsert_dataset_examples(
         for example in examples_
     ]
 
-    # 3. Diff incoming vs previous → creates, patches, deletes
+    # Diff incoming vs previous → creates, patches, deletes
     diff = _diff_examples(incoming_examples, previous)
 
-    # 4. Write revisions if content changed, otherwise reuse latest version
+    # Write revisions if content changed, otherwise reuse latest version
     created_examples: list[ExampleWithExternalID] = []
     if diff.has_changes:
         dataset_version_id = await insert_dataset_version(
@@ -946,7 +927,7 @@ async def _upsert_dataset_examples(
                 user_id=user_id,
             )
 
-    # 5. Delete all split assignments for the dataset and reassign
+    # Delete all split assignments for the dataset and reassign
     await _rebuild_dataset_splits(
         session=session,
         dataset_id=dataset_id,
