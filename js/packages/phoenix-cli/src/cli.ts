@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 
+import { printBanner } from "./banner";
 import {
   createAnnotationConfigCommand,
   createApiCommand,
@@ -44,8 +45,9 @@ export function main() {
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
 
-  // Show help if no command provided
+  // Show banner and help if no command provided
   if (process.argv.length === 2) {
+    printBanner();
     program.help();
   }
 
