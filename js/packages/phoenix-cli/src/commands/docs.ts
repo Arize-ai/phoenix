@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
-
 import { Command } from "commander";
 
 import { ExitCode, getExitCodeForError } from "../exitCodes";
@@ -138,9 +137,7 @@ export function urlToFilePath(url: string, outputDir: string): string {
 // ---------------------------------------------------------------------------
 
 async function fetchAndSave(entry: DocEntry, outputDir: string): Promise<void> {
-  const markdownUrl = entry.url.endsWith(".md")
-    ? entry.url
-    : `${entry.url}.md`;
+  const markdownUrl = entry.url.endsWith(".md") ? entry.url : `${entry.url}.md`;
   const response = await fetch(markdownUrl);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} for ${markdownUrl}`);
@@ -155,7 +152,10 @@ async function fetchWithConcurrency(
   entries: DocEntry[],
   outputDir: string,
   workers: number
-): Promise<{ succeeded: DocEntry[]; failed: { entry: DocEntry; error: string }[] }> {
+): Promise<{
+  succeeded: DocEntry[];
+  failed: { entry: DocEntry; error: string }[];
+}> {
   const succeeded: DocEntry[] = [];
   const failed: { entry: DocEntry; error: string }[] = [];
 
