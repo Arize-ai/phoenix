@@ -18,10 +18,7 @@ export function printBanner(): void {
   const apiKey = config.apiKey ? "set" : "not set";
 
   // Align left columns to the same width so the │ separator lines up
-  const leftCol = [
-    `Server: ${serverUrl}`,
-    `API Key: ${apiKey}`,
-  ];
+  const leftCol = [`Server: ${serverUrl}`, `API Key: ${apiKey}`];
   const leftWidth = Math.max(...leftCol.map((line) => line.length));
 
   const infoLines = [
@@ -30,7 +27,7 @@ export function printBanner(): void {
   ];
 
   const output = LOGO_LINES.map((logo, index) => {
-    const info = infoLines[index - 1];
+    const info = infoLines[index];
     return info ? `${logo}${info}` : logo;
   });
 
