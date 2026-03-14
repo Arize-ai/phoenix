@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { formatTable } from "./formatTable";
+
 export type OutputFormat = "pretty" | "json" | "raw";
 
 type AnnotationConfig =
@@ -37,26 +39,12 @@ function formatAnnotationConfigsPretty(configs: AnnotationConfig[]): string {
     return "No annotation configs found";
   }
 
-  const lines: string[] = [];
-  lines.push("Annotation Configs:");
-  lines.push("");
+  const rows = configs.map((c) => ({
+    name: c.name,
+    id: c.id,
+    type: c.type,
+    description: c.description ?? "",
+  }));
 
-  for (const config of configs) {
-    const desc =
-      config.description === null ||
-      config.description === undefined ||
-      config.description === ""
-        ? ""
-        : ` — ${config.description}`;
-
-    lines.push(`┌─ ${config.name} (${config.id})`);
-    lines.push(`│  Type: ${config.type}`);
-    if (desc) {
-      lines.push(`│  Description:${desc}`);
-    }
-    lines.push(`└─`);
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd();
+  return formatTable(rows);
 }

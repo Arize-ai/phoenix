@@ -17,7 +17,9 @@ import {
   useTheme,
 } from "@phoenix/contexts";
 import type { DisplayTimezone } from "@phoenix/store/preferencesStore";
+import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
 import {
+  isPackageManager,
   isProgrammingLanguage,
   programmingLanguages,
 } from "@phoenix/types/code";
@@ -31,12 +33,18 @@ export function ViewerPreferences() {
     setDisplayTimezone,
     programmingLanguage,
     setProgrammingLanguage,
+    packageManager,
+    setPackageManager,
   } = usePreferencesContext((state) => ({
     displayTimezone: state.displayTimezone,
     setDisplayTimezone: state.setDisplayTimezone,
     programmingLanguage: state.programmingLanguage,
     setProgrammingLanguage: state.setProgrammingLanguage,
+    packageManager: state.packageManagerByLanguage[state.programmingLanguage],
+    setPackageManager: state.setPackageManager,
   }));
+
+  const packageManagerOptions = packageManagersByLanguage[programmingLanguage];
 
   const themeOptions = useMemo(() => {
     return [
@@ -148,6 +156,23 @@ export function ViewerPreferences() {
             {programmingLanguages.map((lang) => (
               <ComboBoxItem key={lang} id={lang} textValue={lang}>
                 <Text weight="heavy">{lang}</Text>
+              </ComboBoxItem>
+            ))}
+          </ComboBox>
+          <ComboBox
+            aria-label="Package Manager"
+            label="Package Manager"
+            description="Choose the default package manager for install commands"
+            selectedKey={packageManager}
+            onSelectionChange={(value) => {
+              if (value && isPackageManager(value)) {
+                setPackageManager(programmingLanguage, value);
+              }
+            }}
+          >
+            {packageManagerOptions.map((pm) => (
+              <ComboBoxItem key={pm} id={pm} textValue={pm}>
+                <Text weight="heavy">{pm}</Text>
               </ComboBoxItem>
             ))}
           </ComboBox>

@@ -3,41 +3,40 @@ title: "Braintrust Open Source Alternative? LLM Evaluation Platform Comparison"
 description: "Braintrust is an evaluation platform that serves as an alternative to Arize Phoenix. Both platforms support core AI application needs, such as: evaluating AI applications, prompt management, tracing executions, and experimentation. However, there are a few major differences."
 ---
 
-
 ## Why is Arize Phoenix a popular open source alternative to Braintrust?
 
 Braintrust is a proprietary LLM-observability platform that often hits road-blocks when AI engineers need open code, friction-free self-hosting, or things like agent tracing or online evaluation. Arize Phoenix is a fully open-source alternative that fills those gaps while remaining free to run anywhere.
 
 **Top Differences (TL;DR)**
 
-| Open source                                                      | OSS                         | Closed source          |
-| :---------------------------------------------------------------- | :--------------------------- | ---------------------- |
+| Open source                                     | OSS                         | Closed source          |
+| :---------------------------------------------- | :-------------------------- | ---------------------- |
 | [1-click self-host](/docs/phoenix/self-hosting) | Single Docker               | Enterprise-only hybrid |
-| LLM Evaluation Library                                           | OSS Pipeline Library and UI | UI Centric Workflows   |
+| LLM Evaluation Library                          | OSS Pipeline Library and UI | UI Centric Workflows   |
 
 ### BrainTrust versus Arize Phoenix Versus Arize AX: Feature Comparison
 
-| Open source                                                                                                 | ✅           | –          | ❌             |
-| :----------------------------------------------------------------------------------------------------------- | :----------- | :---------- | :------------- |
-| 1-command self-host                                                                                         | ✅           | ✅          | ❌             |
-| Free                                                                                                        | ✅           | Free Tier  | Free Tier     |
-| [Tracing & graphs](/docs/phoenix/tracing/llm-traces)                                       | ✅           | ✅          | ✅             |
-| [Multi-agent graphs](/docs/phoenix/integrations)                                           | ✅           | ✅          | ❌             |
-| [Session support](/docs/phoenix/tracing/llm-traces/sessions)                         | ✅           | ✅          | ✅             |
-| [Token / cost tracking](https://arize.com/docs/ax/observe/dashboards/token-counting)                        | ✅           | ✅          | ❌             |
-| [Auto-instrumentation](/docs/phoenix/tracing/llm-traces-1)                                 | ✅           | ✅          | ❌             |
-| [Multi-modal support](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing)    | ✅           | ✅          | ✅             |
-| [Custom metrics builder](https://arize.com/docs/ax/observe/custom-metrics-api)                              | ✅           | ✅          | ❌             |
-| [Custom dashboards](https://arize.com/docs/ax/observe/dashboards)                                           | 🔸 built-in | ✅ advanced | ❌             |
-| [Monitoring & alerting](https://arize.com/docs/ax/observe/production-monitoring)                            | ❌           | ✅ full     | ❌             |
-| [Offline evals](https://arize.com/docs/ax/evaluate/experiment-evals)                                        | ✅           | ✅          | ✅             |
-| [Online evals](https://arize.com/docs/ax/evaluate/online-evals) (debuggable)                                | ❌           | ✅          | ⚠️ limited    |
-| [Online Playground Evals](https://arize.com/docs/ax/evaluate/online-evals/test-llm-evaluator-in-playground) | Coming Soon | ✅          | ✅             |
-| [Annotation queues](https://arize.com/docs/ax/evaluate/human-annotations/annotation-queues)                 | ❌           | ✅          | ❌             |
-| AI-powered search & analytics                                                                               | ❌           | ✅          | ❌             |
-| [AI Copilot](https://arize.com/docs/ax/arize-copilot)                                                       | ❌           | ✅          | ❌             |
-| [Enterprise SSO & RBAC](https://arize.com/trust-center/)                                                    | ✅           | ✅          | ⚠️ SOC-2 only |
-| HIPAA / [on-prem](https://arize.com/docs/ax/selfhosting/info/on-premise-overview)                           | –           | ✅          | ❌             |
+| Open source                                                                                                 | Arize Phoenix | Arize AX   | BrainTrust    |
+| :---------------------------------------------------------------------------------------------------------- | :------------ | :--------- | :------------ |
+| 1-command self-host                                                                                         | ✅             | ✅          | ❌             |
+| Free                                                                                                        | ✅             | Free Tier  | Free Tier     |
+| [Tracing & graphs](/docs/phoenix/tracing/llm-traces)                                                        | ✅             | ✅          | ✅             |
+| [Multi-agent graphs](/docs/phoenix/integrations)                                                            | ✅             | ✅          | ❌             |
+| [Session support](/docs/phoenix/tracing/llm-traces/sessions)                                                | ✅             | ✅          | ✅             |
+| [Token / cost tracking](https://arize.com/docs/ax/observe/dashboards/token-counting)                        | ✅             | ✅          | ❌             |
+| [Auto-instrumentation](/docs/phoenix/tracing/llm-traces-1)                                                  | ✅             | ✅          | ❌             |
+| [Multi-modal support](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing)                     | ✅             | ✅          | ✅             |
+| [Custom metrics builder](https://arize.com/docs/ax/observe/custom-metrics-api)                              | ✅             | ✅          | ❌             |
+| [Custom dashboards](https://arize.com/docs/ax/observe/dashboards)                                           | 🔸 built-in   | ✅ advanced | ❌             |
+| [Monitoring & alerting](https://arize.com/docs/ax/observe/production-monitoring)                            | ❌             | ✅ full     | ❌             |
+| [Offline evals](https://arize.com/docs/ax/evaluate/experiment-evals)                                        | ✅             | ✅          | ✅             |
+| [Online evals](https://arize.com/docs/ax/evaluate/online-evals) (debuggable)                                | ❌             | ✅          | ⚠️ limited    |
+| [Online Playground Evals](https://arize.com/docs/ax/evaluate/online-evals/test-llm-evaluator-in-playground) | Coming Soon   | ✅          | ✅             |
+| [Annotation queues](https://arize.com/docs/ax/evaluate/human-annotations/annotation-queues)                 | ❌             | ✅          | ❌             |
+| AI-powered search & analytics                                                                               | ❌             | ✅          | ❌             |
+| [AI Copilot](https://arize.com/docs/ax/arize-copilot)                                                       | ❌             | ✅          | ❌             |
+| [Enterprise SSO & RBAC](https://arize.com/trust-center/)                                                    | ✅             | ✅          | ⚠️ SOC-2 only |
+| HIPAA / [on-prem](https://arize.com/docs/ax/selfhosting/info/on-premise-overview)                           | –             | ✅          | ❌             |
 
 ## Key Differences
 
@@ -45,50 +44,50 @@ Braintrust is a proprietary LLM-observability platform that often hits road-bloc
 
 Phoenix:
 
-* 100% open source
-* Free self-hosting forever - no feature gates, no restrictions
-* Deploy with a single Docker container - truly "batteries included"
-* Your data stays on your infrastructure from day one
+- 100% open source
+- Free self-hosting forever - no feature gates, no restrictions
+- Deploy with a single Docker container - truly "batteries included"
+- Your data stays on your infrastructure from day one
 
 Braintrust:
 
-* Proprietary closed-source platform
-* Self-hosting locked behind paid Enterprise tier (custom pricing)
-* Free tier severely limited: 14-day retention, 5 users max, 1GB storage
-* \$249/month minimum for meaningful usage (\$1.50 per 1,000 scores beyond limit)
+- Proprietary closed-source platform
+- Self-hosting locked behind paid Enterprise tier (custom pricing)
+- Free tier severely limited: 14-day retention, 5 users max, 1GB storage
+- \$249/month minimum for meaningful usage (\$1.50 per 1,000 scores beyond limit)
 
 ### Developer-First Experience
 
 Phoenix:
 
-* Framework agnostic - works with LangChain, LlamaIndex, DSPy, custom agents, anything
-* Built on OpenTelemetry/OpenInference standard - no proprietary lock-in
-* Auto-instrumentation that just works across ecosystems
-* Deploy anywhere: Docker, Kubernetes, AWS, your laptop - your choice
+- Framework agnostic - works with LangChain, LlamaIndex, DSPy, custom agents, anything
+- Built on OpenTelemetry/OpenInference standard - no proprietary lock-in
+- Auto-instrumentation that just works across ecosystems
+- Deploy anywhere: Docker, Kubernetes, AWS, your laptop - your choice
 
 Braintrust:
 
-* Platform-dependent approach
-* Requires learning their specific APIs and workflows
-* Limited deployment flexibility on free/Pro tiers
-* Forces you into their ecosystem and pricing model
+- Platform-dependent approach
+- Requires learning their specific APIs and workflows
+- Limited deployment flexibility on free/Pro tiers
+- Forces you into their ecosystem and pricing model
 
 ### Evaluation & Observability
 
 Phoenix:
 
-* Unlimited evaluations - run as many as you need
-* Pre-built evaluators: hallucination detection, toxicity, relevance, Q\&A correctness
-* Custom evaluators with code or natural language
-* Human annotation capabilities built-in
-* Real-time tracing with full visibility into LLM applications
+- Unlimited evaluations - run as many as you need
+- Pre-built evaluators: hallucination detection, toxicity, relevance, Q&A correctness
+- Custom evaluators with code or natural language
+- Human annotation capabilities built-in
+- Real-time tracing with full visibility into LLM applications
 
 Braintrust:
 
-* 10,000 scores on free tier (\$1.50 per 1,000 additional)
-* 50,000 scores on Pro (\$249/month) - can get expensive fast
-* Good evaluation features, but pay-per-use model creates cost anxiety
-* Enterprise features locked behind custom pricing
+- 10,000 scores on free tier (\$1.50 per 1,000 additional)
+- 50,000 scores on Pro (\$249/month) - can get expensive fast
+- Good evaluation features, but pay-per-use model creates cost anxiety
+- Enterprise features locked behind custom pricing
 
 ### Self-Hosting — Ease & Cost
 
@@ -115,13 +114,13 @@ Phoenix and Arize AX include annotation queues that let reviewers label any trac
 Phoenix and AX have released extensive Agent evaluation including path evaluations, convergence evaluations and session level evaluations. The investment in research, material and technology spans over a year of work from the Arize team. Arize is the leading company thinking and working on Agent evaluation.
 
 <Frame>
-<iframe width="100%" height="420" src="https://www.youtube.com/embed/Qvp9vw4jJQ8" title="Break It &#39;Til You Make It: Building the Self-Improving Stack for AI Agents - Aparna Dhinakaran" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen className="aspect-video"></iframe>
+  <iframe width="100%" height="420" src="https://www.youtube.com/embed/Qvp9vw4jJQ8" title="Break It 'Til You Make It: Building the Self-Improving Stack for AI Agents - Aparna Dhinakaran" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen className="aspect-video" />
 </Frame>
 
 <Frame caption="Learn more about agent evaluation">
-    <Card title="Agent Evaluation" href="https://arize.com/ai-agents/agent-evaluation/" icon="clipboard-check" horizontal>
+  <Card icon="clipboard-check" horizontal href="https://arize.com/ai-agents/agent-evaluation/" title="Agent Evaluation">
     Arize AI
-    </Card>
+  </Card>
 </Frame>
 
 ### Open Source vs. Proprietary
@@ -134,6 +133,5 @@ Teams that prioritize transparency, community-driven development, and long-term 
 
 ### How to Choose
 
-* Prototype & iterate fast? → Phoenix (open, free, unlimited instrumentation & evals).
-
-* Scale, governance, compliance? → Arize AX (also free to start, petabyte storage, 99.9 % SLA, HIPAA, RBAC, AI-powered analytics).
+- Prototype & iterate fast? → Phoenix (open, free, unlimited instrumentation & evals).
+- Scale, governance, compliance? → Arize AX (also free to start, petabyte storage, 99.9 % SLA, HIPAA, RBAC, AI-powered analytics).

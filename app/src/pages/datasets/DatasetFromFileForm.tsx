@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
@@ -24,6 +24,7 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
+import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
@@ -32,6 +33,7 @@ import {
   getAutoAssignment,
   isAutoSplitColumn,
 } from "./ColumnAssigner";
+import { computeBucketCollapseConflicts } from "./ColumnAssigner/collapseUtils";
 import { ColumnMultiSelector } from "./ColumnMultiSelector";
 import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
@@ -211,6 +213,8 @@ export function DatasetFromFileForm({
   const parseGeneration = useRef(0);
   const [previewTab, setPreviewTab] = useState<"file" | "dataset">("file");
   const hasAutoSwitched = useRef(false);
+  const [collapsibleKeys, setCollapsibleKeys] = useState<string[]>([]);
+  const [collapseKeys, setCollapseKeys] = useState(false);
 
   const {
     control,
@@ -237,6 +241,65 @@ export function DatasetFromFileForm({
   const inputKeys = watch("input_keys");
   const outputKeys = watch("output_keys");
   const metadataKeys = watch("metadata_keys");
+
+  // Compute the keys that can be flattened within their assigned bucket.
+  const { keysToCollapse, collapseConflicts } = useMemo(() => {
+    if (!collapseKeys || collapsibleKeys.length === 0) {
+      return {
+        keysToCollapse: [],
+        collapseConflicts: new Map<string, string[]>(),
+      };
+    }
+
+    // Get preview rows as objects (parse JSON for CSV if needed)
+    let objectRows: Record<string, unknown>[];
+    if (fileType === "jsonl") {
+      objectRows = previewRows as Record<string, unknown>[];
+    } else if (fileType === "csv") {
+      const csvRows = previewRows as string[][];
+      objectRows = csvRows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        columns.forEach((col, idx) => {
+          const value = row[idx] ?? "";
+          if (collapsibleKeys.includes(col)) {
+            const parsed = safelyParseJSONString(value);
+            if (isPlainObject(parsed)) {
+              obj[col] = parsed;
+              return;
+            }
+          }
+          obj[col] = value;
+        });
+        return obj;
+      });
+    } else {
+      return {
+        keysToCollapse: [],
+        collapseConflicts: new Map<string, string[]>(),
+      };
+    }
+
+    // Compute assignment-local flatten conflicts for the current assignments
+    const result = computeBucketCollapseConflicts(
+      collapsibleKeys,
+      { input: inputKeys, output: outputKeys, metadata: metadataKeys },
+      objectRows
+    );
+
+    return {
+      keysToCollapse: result.keysToCollapse,
+      collapseConflicts: result.conflicts,
+    };
+  }, [
+    collapseKeys,
+    collapsibleKeys,
+    columns,
+    previewRows,
+    fileType,
+    inputKeys,
+    outputKeys,
+    metadataKeys,
+  ]);
 
   // Create controlled value for ColumnAssigner
   const columnAssignerValue: ColumnAssignerValue = {
@@ -276,6 +339,8 @@ export function DatasetFromFileForm({
       setPreviewRows([]);
       setTotalRowCount(null);
       setPreviewTab("file");
+      setCollapsibleKeys([]);
+      setCollapseKeys(false);
       hasAutoSwitched.current = false;
 
       const detectedType = detectFileType(file.name);
@@ -307,6 +372,8 @@ export function DatasetFromFileForm({
             setPreviewRows(result.previewRows);
             setTotalRowCount(result.totalRowCount);
             setErrorMessage(null);
+            // Store collapsible columns for collapse feature
+            setCollapsibleKeys(result.collapsibleColumns);
             // Auto-assign columns based on name heuristics
             const autoAssigned = computeAutoAssignment(result.columns);
             setValue("input_keys", autoAssigned.input, {
@@ -327,6 +394,8 @@ export function DatasetFromFileForm({
               setPreviewRows(result.previewRows);
               setTotalRowCount(result.totalRowCount);
               setErrorMessage(null);
+              // Store collapsible keys for collapse feature
+              setCollapsibleKeys(result.collapsibleKeys);
               // Auto-assign columns based on name heuristics
               const autoAssigned = computeAutoAssignment(result.keys);
               setValue("input_keys", autoAssigned.input, {
@@ -397,6 +466,8 @@ export function DatasetFromFileForm({
     resetField("name");
     setErrorMessage(null);
     setPreviewTab("file");
+    setCollapsibleKeys([]);
+    setCollapseKeys(false);
     hasAutoSwitched.current = false;
   }, [setValue, resetField]);
 
@@ -465,6 +536,12 @@ export function DatasetFromFileForm({
       data.split_keys.forEach((key) => {
         formData.append("split_keys[]", key);
       });
+      // Send flatten_keys if collapse is enabled
+      if (collapseKeys && keysToCollapse.length > 0) {
+        keysToCollapse.forEach((key) => {
+          formData.append("flatten_keys[]", key);
+        });
+      }
 
       return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
@@ -472,7 +549,20 @@ export function DatasetFromFileForm({
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error(response.statusText || "Failed to create dataset");
+            return response
+              .json()
+              .catch(() => null)
+              .then((body) => {
+                const detail =
+                  body && typeof body === "object" && "detail" in body
+                    ? body.detail
+                    : null;
+                throw new Error(
+                  typeof detail === "string"
+                    ? detail
+                    : response.statusText || "Failed to create dataset"
+                );
+              });
           }
           return response.json();
         })
@@ -491,7 +581,7 @@ export function DatasetFromFileForm({
           setIsSubmitting(false);
         });
     },
-    [fileType, onDatasetCreated]
+    [fileType, onDatasetCreated, collapseKeys, keysToCollapse]
   );
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
@@ -620,6 +710,8 @@ export function DatasetFromFileForm({
                     inputColumns={inputKeys}
                     outputColumns={outputKeys}
                     metadataColumns={metadataKeys}
+                    collapseKeys={collapseKeys}
+                    keysToCollapse={keysToCollapse}
                   />
                 </div>
               </TabPanel>
@@ -645,6 +737,10 @@ export function DatasetFromFileForm({
                     onClear={handleColumnAssignerClear}
                     onAuto={handleColumnAssignerAuto}
                     fileType={fileType}
+                    hasCollapsibleKeys={collapsibleKeys.length > 0}
+                    collapseKeys={collapseKeys}
+                    onCollapseKeysChange={setCollapseKeys}
+                    collapseConflicts={collapseConflicts}
                   />
                   {error?.message && (
                     <Text color="danger" size="S">

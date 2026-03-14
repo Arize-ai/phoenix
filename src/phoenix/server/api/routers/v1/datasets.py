@@ -7,7 +7,8 @@ import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from collections.abc import Awaitable, Callable, Coroutine, Hashable, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import partial
@@ -423,6 +424,15 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "uniqueItems": True,
                                 "description": "Column names for auto-assigning examples to splits",
                             },
+                            "flatten_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                                "description": (
+                                    "Column names whose object values should be "
+                                    "flattened into their selected bucket"
+                                ),
+                            },
                             "span_id_key": {
                                 "type": "string",
                                 "description": "Column name for span IDs to link examples back to spans",  # noqa: E501
@@ -478,6 +488,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
+                    flatten_keys,
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
@@ -505,6 +516,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
+                    flatten_keys,
                 )
             elif file_content_type is FileContentType.PYARROW:
                 examples = await _process_pyarrow(
@@ -520,6 +532,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
+                    flatten_keys,
                 )
             else:
                 assert_never(file_content_type)
@@ -601,8 +614,77 @@ OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
 SplitKeys: TypeAlias = frozenset[str]
 SpanIdKey: TypeAlias = Optional[str]
+FlattenKeys: TypeAlias = frozenset[str]
 DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
+
+
+@dataclass(frozen=True, slots=True)
+class BucketPlan:
+    """Projects row data into a bucket, optionally flattening nested objects."""
+
+    direct_keys: frozenset[str]
+    flatten_map: Mapping[str, frozenset[str]]  # parent → children to extract
+
+    @classmethod
+    def build(
+        cls,
+        keys: frozenset[str],
+        flatten_keys: frozenset[str],
+        child_keys_by_parent: Mapping[str, frozenset[str]],
+    ) -> "BucketPlan":
+        parents_to_flatten = keys & flatten_keys
+        flatten_map: dict[str, frozenset[str]] = {}
+        emitted: set[str] = set()
+
+        for parent in sorted(parents_to_flatten):
+            children = child_keys_by_parent.get(parent, frozenset())
+            if conflicts := emitted & children:
+                raise ValueError(f"Cannot flatten '{parent}': keys {conflicts} already emitted")
+            flatten_map[parent] = children
+            emitted.update(children)
+
+        direct_keys = keys - parents_to_flatten
+        if conflicts := emitted & direct_keys:
+            raise ValueError(f"Keys {conflicts} conflict with flattened children")
+
+        return cls(direct_keys=direct_keys, flatten_map=flatten_map)
+
+    def project(self, row: Mapping[str, Any]) -> dict[str, Any]:
+        result = {k: row.get(k) for k in self.direct_keys}
+        for parent, children in self.flatten_map.items():
+            value = row.get(parent)
+            if not isinstance(value, Mapping):
+                raise ValueError(f"Cannot flatten '{parent}': expected object")
+            for child in children:
+                result[child] = value.get(child)
+        return result
+
+
+def _build_flatten_plans(
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+    flatten_keys: FlattenKeys,
+    rows: list[dict[str, Any]],
+) -> tuple[BucketPlan, BucketPlan, BucketPlan]:
+    """Build projection plans for flattening nested objects into dataset buckets."""
+    child_keys_by_parent: dict[str, frozenset[str]] = {}
+    for parent in flatten_keys:
+        children: set[str] = set()
+        for row in rows:
+            value = row.get(parent)
+            if isinstance(value, dict):
+                children.update(value.keys())
+            elif value is not None:
+                raise ValueError(f"Cannot flatten '{parent}': expected object values")
+        child_keys_by_parent[parent] = frozenset(children)
+
+    return (
+        BucketPlan.build(input_keys, flatten_keys, child_keys_by_parent),
+        BucketPlan.build(output_keys, flatten_keys, child_keys_by_parent),
+        BucketPlan.build(metadata_keys, flatten_keys, child_keys_by_parent),
+    )
 
 
 def _process_json(
@@ -705,6 +787,7 @@ async def _process_csv(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
+    flatten_keys: FlattenKeys = frozenset(),
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -723,19 +806,52 @@ async def _process_csv(
         column_headers, input_keys, output_keys, metadata_keys, split_keys, span_id_key
     )
 
-    rows = list(reader)
-    return (
-        ExampleContent(
-            input={k: row.get(k) for k in input_keys},
-            output={k: row.get(k) for k in output_keys},
-            metadata={k: row.get(k) for k in metadata_keys},
-            splits=frozenset(
-                str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
-            ),  # Only include non-empty, non-whitespace split values
-            span_id=_get_span_id(row, span_id_key),
+    def process_rows() -> list[ExampleContent]:
+        # First pass: read all rows and parse JSON for flatten keys
+        parsed_rows: list[dict[str, Any]] = []
+        for row in reader:
+            if flatten_keys:
+                parsed_row: dict[str, Any] = {}
+                for k, v in row.items():
+                    if k in flatten_keys and v:
+                        try:
+                            parsed = json.loads(v)
+                            if isinstance(parsed, dict):
+                                parsed_row[k] = parsed
+                                continue
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    parsed_row[k] = v
+                parsed_rows.append(parsed_row)
+            else:
+                parsed_rows.append(dict(row))
+
+        input_plan, output_plan, metadata_plan = _build_flatten_plans(
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            flatten_keys=flatten_keys,
+            rows=parsed_rows,
         )
-        for row in rows
-    )
+
+        # Second pass: flatten rows and create examples
+        examples = []
+        for row in parsed_rows:
+            examples.append(
+                ExampleContent(
+                    input=input_plan.project(row),
+                    output=output_plan.project(row),
+                    metadata=metadata_plan.project(row),
+                    splits=frozenset(
+                        str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
+                    ),
+                    span_id=_get_span_id(row, span_id_key),
+                )
+            )
+        return examples
+
+    rows = await run_in_threadpool(process_rows)
+    return iter(rows)
 
 
 async def _process_pyarrow(
@@ -778,6 +894,7 @@ async def _process_jsonl(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
+    flatten_keys: FlattenKeys = frozenset(),
 ) -> Examples:
     if encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -785,24 +902,33 @@ async def _process_jsonl(
         content = await run_in_threadpool(zlib.decompress, content)
     elif encoding is not FileContentEncoding.NONE:
         assert_never(encoding)
-    # content is a newline delimited list of JSON objects
-    # parse within a threadpool
-    reader = await run_in_threadpool(
-        lambda c: [json.loads(line) for line in c.decode().splitlines()], content
-    )
 
-    examples: list[ExampleContent] = []
-    for obj in reader:
-        example = ExampleContent(
-            input={k: obj.get(k) for k in input_keys},
-            output={k: obj.get(k) for k in output_keys},
-            metadata={k: obj.get(k) for k in metadata_keys},
-            splits=frozenset(
-                str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
-            ),  # Only include non-empty, non-whitespace split values
-            span_id=_get_span_id(obj, span_id_key),
+    def parse_and_process(c: bytes) -> list[ExampleContent]:
+        rows = [json.loads(line) for line in c.decode().splitlines()]
+
+        input_plan, output_plan, metadata_plan = _build_flatten_plans(
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            flatten_keys=flatten_keys,
+            rows=rows,
         )
-        examples.append(example)
+
+        examples: list[ExampleContent] = []
+        for obj in rows:
+            example = ExampleContent(
+                input=input_plan.project(obj),
+                output=output_plan.project(obj),
+                metadata=metadata_plan.project(obj),
+                splits=frozenset(
+                    str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
+                ),
+                span_id=_get_span_id(obj, span_id_key),
+            )
+            examples.append(example)
+        return examples
+
+    examples = await run_in_threadpool(parse_and_process, content)
     return iter(examples)
 
 
@@ -834,7 +960,7 @@ def _check_keys_exist(
         raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
 
 
-def _get_span_id(row: Mapping[Hashable, Any], span_id_key: SpanIdKey) -> Optional[str]:
+def _get_span_id(row: Mapping[Any, Any], span_id_key: SpanIdKey) -> Optional[str]:
     """Extract span_id from a row, returning None if not present or empty."""
     if not span_id_key:
         return None
@@ -858,6 +984,7 @@ async def _parse_form_data(
     MetadataKeys,
     SplitKeys,
     SpanIdKey,
+    FlattenKeys,
     UploadFile,
 ]:
     name = cast(Optional[str], form.get("name"))
@@ -873,6 +1000,7 @@ async def _parse_form_data(
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
     split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
     span_id_key = cast(Optional[str], form.get("span_id_key")) or None
+    flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
     return (
         action,
         name,
@@ -882,6 +1010,7 @@ async def _parse_form_data(
         metadata_keys,
         split_keys,
         span_id_key,
+        flatten_keys,
         file,
     )
 

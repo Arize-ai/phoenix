@@ -4008,6 +4008,8 @@ export interface operations {
                     "metadata_keys[]"?: string[];
                     /** @description Column names for auto-assigning examples to splits */
                     "split_keys[]"?: string[];
+                    /** @description Column names whose object values should be flattened into their selected bucket */
+                    "flatten_keys[]"?: string[];
                     /** @description Column name for span IDs to link examples back to spans */
                     span_id_key?: string;
                     /** Format: binary */

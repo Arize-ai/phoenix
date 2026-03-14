@@ -10,7 +10,14 @@ const MAX_LENGTH = 100;
  */
 export function CompactJSONCell<TData extends object, TValue>({
   getValue,
-}: CellContext<TData, TValue>) {
+  collapseSingleKey = true,
+}: CellContext<TData, TValue> & { collapseSingleKey?: boolean }) {
   const value = getValue();
-  return <JSONText json={value} maxLength={MAX_LENGTH} />;
+  return (
+    <JSONText
+      json={value}
+      maxLength={MAX_LENGTH}
+      collapseSingleKey={collapseSingleKey}
+    />
+  );
 }

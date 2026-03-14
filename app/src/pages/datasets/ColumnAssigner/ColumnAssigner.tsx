@@ -1,13 +1,24 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo } from "react";
+import { Pressable } from "react-aria-components";
 
-import { Button, Flex, Text, TooltipTrigger } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Switch,
+  Text,
+  TooltipTrigger,
+} from "@phoenix/components";
 import {
   RichTooltip,
   RichTooltipDescription,
   RichTooltipTitle,
 } from "@phoenix/components/core/tooltip";
 
+import { NON_OBJECT_CONFLICT_MARKER } from "./collapseUtils";
 import { ColumnBucket } from "./ColumnBucket";
 import type { ColumnBucket as ColumnBucketType } from "./constants";
 
@@ -25,6 +36,31 @@ const headerCSS = css`
   gap: var(--global-dimension-size-200);
 `;
 
+const collapseToggleRowCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  // prevent layout shift when the switch is toggled
+  min-height: 30px;
+  user-select: none;
+`;
+
+const conflictListCSS = css`
+  padding-top: var(--global-dimension-size-50);
+  margin: 0;
+  font-size: var(--global-font-size-s);
+
+  li {
+    margin-bottom: var(--global-dimension-size-50);
+  }
+
+  code {
+    font-family: monospace;
+    background: var(--global-background-color-300);
+  }
+`;
+
 const assignmentBucketsCSS = css`
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
@@ -33,10 +69,8 @@ const assignmentBucketsCSS = css`
 
 const tooltipListCSS = css`
   margin: 0;
-  padding-left: var(--global-dimension-size-200);
 
   li {
-    margin-bottom: var(--global-dimension-size-50);
   }
 
   code {
@@ -67,6 +101,24 @@ export type ColumnAssignerProps = {
    * - "jsonl" -> "Keys"
    */
   fileType?: "csv" | "jsonl" | null;
+  /**
+   * Whether there are any collapsible keys (keys with object values that can be flattened).
+   * When true, shows the collapse toggle.
+   */
+  hasCollapsibleKeys?: boolean;
+  /**
+   * Whether collapsing is currently enabled.
+   */
+  collapseKeys?: boolean;
+  /**
+   * Called when the collapse toggle is changed.
+   */
+  onCollapseKeysChange?: (collapse: boolean) => void;
+  /**
+   * Map of keys that couldn't be collapsed due to assignment-local conflicts.
+   * Key is the parent key, value is the list of conflicting emitted keys.
+   */
+  collapseConflicts?: Map<string, string[]>;
 };
 
 const ASSIGNMENT_BUCKETS: ColumnBucketType[] = ["input", "output", "metadata"];
@@ -78,6 +130,10 @@ export function ColumnAssigner({
   onClear,
   onAuto,
   fileType,
+  hasCollapsibleKeys = false,
+  collapseKeys = false,
+  onCollapseKeysChange,
+  collapseConflicts,
 }: ColumnAssignerProps) {
   // Source bucket contains only unassigned columns
   // When a column is assigned to input/output/metadata, it's removed from source
@@ -189,6 +245,77 @@ export function ColumnAssigner({
           )}
         </Flex>
       </div>
+      {hasCollapsibleKeys && onCollapseKeysChange && (
+        <div css={collapseToggleRowCSS}>
+          <TooltipTrigger delay={300}>
+            <Pressable>
+              <Switch
+                isSelected={collapseKeys}
+                onChange={onCollapseKeysChange}
+                labelPlacement="end"
+              >
+                <Text size="S">Collapse top-level keys</Text>
+              </Switch>
+            </Pressable>
+            <RichTooltip placement="bottom start">
+              <RichTooltipTitle>Collapse Top-Level Keys</RichTooltipTitle>
+              <RichTooltipDescription>
+                When enabled, nested object keys are promoted to become
+                top-level keys. This helps avoid paths like{" "}
+                <code css={tooltipListCSS}>dataset.input.input</code> by
+                flattening one level of nesting.
+              </RichTooltipDescription>
+            </RichTooltip>
+          </TooltipTrigger>
+          {collapseKeys && collapseConflicts && collapseConflicts.size > 0 && (
+            <TooltipTrigger delay={100}>
+              <IconButton
+                size="S"
+                color="warning"
+                aria-label="Collapse conflicts detected"
+              >
+                <Icon svg={<Icons.AlertTriangleOutline />} />
+              </IconButton>
+              <RichTooltip placement="bottom start">
+                <RichTooltipTitle>
+                  Some keys could not be collapsed
+                </RichTooltipTitle>
+                <RichTooltipDescription>
+                  <Text size="S">
+                    The following keys could not be collapsed:
+                  </Text>
+                  <ul css={conflictListCSS}>
+                    {Array.from(collapseConflicts.entries()).map(
+                      ([parentKey, conflictList]) => {
+                        const isTypeError =
+                          conflictList[0] === NON_OBJECT_CONFLICT_MARKER;
+                        return (
+                          <li key={parentKey}>
+                            <code>{parentKey}</code>:{" "}
+                            {isTypeError ? (
+                              "contains non-object values and cannot be collapsed"
+                            ) : (
+                              <>
+                                {"conflicts with "}
+                                {conflictList.map((c, i) => (
+                                  <span key={c}>
+                                    {i > 0 && ", "}
+                                    <code>{c}</code>
+                                  </span>
+                                ))}
+                              </>
+                            )}
+                          </li>
+                        );
+                      }
+                    )}
+                  </ul>
+                </RichTooltipDescription>
+              </RichTooltip>
+            </TooltipTrigger>
+          )}
+        </div>
+      )}
       <ColumnBucket
         bucket="source"
         label={getLabel("source")}

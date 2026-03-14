@@ -1,86 +1,30 @@
 import { css } from "@emotion/react";
 import type { Key } from "react";
-import { useState } from "react";
 
 import {
   CopyToClipboardButton,
   ToggleButton,
   ToggleButtonGroup,
 } from "@phoenix/components";
-import type { ProgrammingLanguage } from "@phoenix/types/code";
+import { usePreferencesContext } from "@phoenix/contexts";
+import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
+import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
+import { isPackageManager } from "@phoenix/types/code";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { BashBlock } from "./BashBlock";
 import { codeBlockWithCopyCSS } from "./styles";
 
 /**
- * A package manager shown in the command toggle.
- *
- * The value is used for:
- * - toggle identity (`id`)
- * - visible button text
- * - accessibility label
- * - command generation
+ * Maps each package manager to its install command prefix.
  */
-type PackageManager = "npm" | "pnpm" | "bun" | "pip" | "uv";
-
-/**
- * One selectable command preset for the package manager toggle.
- */
-type InstallCommandOption = {
-  /**
-   * The package manager represented by this option.
-   */
-  packageManager: PackageManager;
-  /**
-   * The full command string copied/rendered when selected.
-   */
-  command: string;
+const installCommandByPackageManager: Record<PackageManager, string> = {
+  npm: "npm install",
+  pnpm: "pnpm add",
+  bun: "bun add",
+  pip: "pip install",
+  uv: "uv add",
 };
-
-function assertPackages(packages: readonly string[]) {
-  if (packages.length === 0) {
-    throw new Error("Expected at least one package");
-  }
-}
-
-function getTypeScriptInstallCommandOptions(
-  packages: readonly string[]
-): InstallCommandOption[] {
-  assertPackages(packages);
-  const dependencyList = packages.join(" ");
-  return [
-    {
-      packageManager: "npm",
-      command: `npm install ${dependencyList}`,
-    },
-    {
-      packageManager: "pnpm",
-      command: `pnpm add ${dependencyList}`,
-    },
-    {
-      packageManager: "bun",
-      command: `bun add ${dependencyList}`,
-    },
-  ];
-}
-
-function getPythonInstallCommandOptions(
-  packages: readonly string[]
-): InstallCommandOption[] {
-  assertPackages(packages);
-  const dependencyList = packages.join(" ");
-  return [
-    {
-      packageManager: "pip",
-      command: `pip install ${dependencyList}`,
-    },
-    {
-      packageManager: "uv",
-      command: `uv add ${dependencyList}`,
-    },
-  ];
-}
 
 const packageManagerCommandBlockCSS = css`
   border-radius: var(--global-rounding-small);
@@ -127,15 +71,6 @@ type PackageManagerCommandBlockProps = {
   className?: string;
 };
 
-function getInitialSelectedKey(
-  options: readonly InstallCommandOption[]
-): string {
-  if (options.length === 0) {
-    throw new Error("Expected at least one package manager option");
-  }
-  return options[0].packageManager;
-}
-
 function getSelectedKey(selection: Set<Key> | "all"): string | null {
   if (selection === "all" || selection.size === 0) {
     return null;
@@ -148,17 +83,15 @@ export function PackageManagerCommandBlock({
   packages,
   className,
 }: PackageManagerCommandBlockProps) {
-  const options: readonly InstallCommandOption[] =
-    language === "TypeScript"
-      ? getTypeScriptInstallCommandOptions(packages)
-      : getPythonInstallCommandOptions(packages);
-  const [selectedKey, setSelectedKey] = useState(() =>
-    getInitialSelectedKey(options)
+  const { selectedPackageManager, setPackageManager } = usePreferencesContext(
+    (state) => ({
+      selectedPackageManager: state.packageManagerByLanguage[language],
+      setPackageManager: state.setPackageManager,
+    })
   );
-  const selectedCommand =
-    options.find((option) => option.packageManager === selectedKey)?.command ??
-    options[0]?.command ??
-    "";
+  const packageManagerOptions = packageManagersByLanguage[language];
+  const dependencyList = packages.join(" ");
+  const selectedCommand = `${installCommandByPackageManager[selectedPackageManager]} ${dependencyList}`;
 
   return (
     <div
@@ -168,7 +101,7 @@ export function PackageManagerCommandBlock({
       <div className="package-manager-command__header">
         <ToggleButtonGroup
           aria-label="Package manager"
-          selectedKeys={[selectedKey]}
+          selectedKeys={[selectedPackageManager]}
           disallowEmptySelection
           size="S"
           className="package-manager-command__toggle-group"
@@ -177,19 +110,19 @@ export function PackageManagerCommandBlock({
             if (nextKey == null) {
               return;
             }
-            if (options.some((option) => option.packageManager === nextKey)) {
-              setSelectedKey(nextKey);
+            if (isPackageManager(nextKey)) {
+              setPackageManager(language, nextKey);
             }
           }}
         >
-          {options.map((option) => (
+          {packageManagerOptions.map((packageManager) => (
             <ToggleButton
-              key={option.packageManager}
-              id={option.packageManager}
-              aria-label={option.packageManager}
+              key={packageManager}
+              id={packageManager}
+              aria-label={packageManager}
               className="package-manager-command__toggle"
             >
-              {option.packageManager}
+              {packageManager}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>

@@ -43,7 +43,7 @@ describe("Configuration", () => {
     it("should handle missing environment variables", () => {
       const config = loadConfigFromEnvironment();
 
-      expect(config.endpoint).toBeUndefined();
+      expect(config.endpoint).toBe("http://localhost:6006");
       expect(config.project).toBeUndefined();
       expect(config.apiKey).toBeUndefined();
     });

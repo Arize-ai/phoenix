@@ -1464,3 +1464,335 @@ async def test_post_dataset_upload_append_with_splits(
         )
         assert len(ex3_splits) == 1
         assert ex3_splits[0].name == "test"
+
+
+# =============================================================================
+# Tests for flatten_keys (collapse top-level keys feature)
+# =============================================================================
+
+
+class TestBuildFlattenPlan:
+    def test_ignores_unselected_flatten_keys(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
+
+        rows = [
+            {
+                "input": {"question": "Hi"},
+                "output": {"answer": "Hello"},
+                "id": 1,
+            }
+        ]
+
+        input_plan, output_plan, _ = _build_flatten_plans(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(),
+            metadata_keys=frozenset(),
+            flatten_keys=frozenset(["input", "output"]),
+            rows=rows,
+        )
+
+        assert input_plan.flatten_map == {"input": frozenset(["question"])}
+        assert output_plan.flatten_map == {}
+
+    def test_allows_duplicate_children_across_different_buckets(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
+
+        rows = [{"input": {"text": "Hi"}, "output": {"text": "Hello"}}]
+
+        input_plan, output_plan, _ = _build_flatten_plans(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(["output"]),
+            metadata_keys=frozenset(),
+            flatten_keys=frozenset(["input", "output"]),
+            rows=rows,
+        )
+
+        assert input_plan.flatten_map == {"input": frozenset(["text"])}
+        assert output_plan.flatten_map == {"output": frozenset(["text"])}
+
+    def test_rejects_duplicate_children_within_same_bucket(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
+
+        rows = [{"input": {"text": "Hi"}, "output": {"text": "Hello"}}]
+
+        with pytest.raises(
+            ValueError,
+            match=r"Cannot flatten 'output': keys \{'text'\} already emitted",
+        ):
+            _build_flatten_plans(
+                input_keys=frozenset(["input", "output"]),
+                output_keys=frozenset(),
+                metadata_keys=frozenset(),
+                flatten_keys=frozenset(["input", "output"]),
+                rows=rows,
+            )
+
+    def test_allows_flatten_keys_used_for_split_selection(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
+
+        rows = [{"input": {"text": "Hi"}, "split": "train"}]
+
+        input_plan, _, _ = _build_flatten_plans(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(),
+            metadata_keys=frozenset(),
+            flatten_keys=frozenset(["input"]),
+            rows=rows,
+        )
+
+        assert input_plan.flatten_map == {"input": frozenset(["text"])}
+
+    def test_rejects_conflict_with_selected_sibling_key_in_same_bucket(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
+
+        rows = [{"input": {"text": "Hi"}, "text": "plain"}]
+
+        with pytest.raises(
+            ValueError,
+            match=r"Keys \{'text'\} conflict with flattened children",
+        ):
+            _build_flatten_plans(
+                input_keys=frozenset(["input", "text"]),
+                output_keys=frozenset(),
+                metadata_keys=frozenset(),
+                flatten_keys=frozenset(["input"]),
+                rows=rows,
+            )
+
+    def test_rejects_rows_with_non_object_flatten_values(self) -> None:
+        from phoenix.server.api.routers.v1.datasets import _build_flatten_plans
+
+        rows: list[dict[str, Any]] = [{"input": {"text": "Hi"}}, {"input": "plain text"}]
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot flatten 'input': expected object values",
+        ):
+            _build_flatten_plans(
+                input_keys=frozenset(["input"]),
+                output_keys=frozenset(),
+                metadata_keys=frozenset(),
+                flatten_keys=frozenset(["input"]),
+                rows=rows,
+            )
+
+
+async def test_post_dataset_upload_csv_with_flatten_keys(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test CSV upload with flatten_keys to collapse nested JSON columns.
+
+    This test verifies that CSV columns containing JSON objects can be flattened.
+    The flatten operation promotes children of the flattened columns to top-level,
+    replacing the original column.
+
+    Note: CSV validation requires input_keys to match original column names.
+    The flattened child keys are accessible via row.get() but the original
+    parent key becomes None after flattening.
+    """
+    name = inspect.stack()[0][3]
+    # CSV with a JSON-encoded "details" column that will be flattened
+    # The "details" column contains {"context": "...", "difficulty": "..."}
+    csv_content = (
+        b"question,details\n"
+        b'What is 2+2?,"{""context"": ""math"", ""difficulty"": ""easy""}"\n'
+        b'Capital of France?,"{""context"": ""geography"", ""difficulty"": ""medium""}"\n'
+    )
+    file = gzip.compress(csv_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            # Use original column names - the backend expands them to child keys
+            "input_keys[]": ["question", "details"],
+            "output_keys[]": [],
+            "flatten_keys[]": ["details"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+
+    # After flattening "details", the backend automatically expands input_keys
+    # from ["question", "details"] to ["question", "context", "difficulty"]
+    # (replacing "details" with its child keys)
+    assert revisions[0].input == {
+        "question": "What is 2+2?",
+        "context": "math",
+        "difficulty": "easy",
+    }
+    assert revisions[0].output == {}
+
+    assert revisions[1].input == {
+        "question": "Capital of France?",
+        "context": "geography",
+        "difficulty": "medium",
+    }
+    assert revisions[1].output == {}
+
+
+async def test_post_dataset_upload_jsonl_with_flatten_keys(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test JSONL upload with flatten_keys to collapse nested objects.
+
+    When flatten_keys is used, the backend automatically expands keys that are
+    being flattened to include their child keys. The API user can pass the original
+    parent keys (input, output) and the backend replaces them with their children.
+    """
+    name = inspect.stack()[0][3]
+    # JSONL with nested objects that should be flattened
+    jsonl_content = (
+        b'{"question": "What is 2+2?", "input": {"context": "math", "difficulty": "easy"}, '
+        b'"output": {"answer": "4"}}\n'
+        b'{"question": "Capital of France?", "input": {"context": "geography"}, '
+        b'"output": {"answer": "Paris"}}\n'
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            # Use original parent keys - the backend expands them to child keys
+            "input_keys[]": ["question", "input"],
+            "output_keys[]": ["output"],
+            "flatten_keys[]": ["input", "output"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+
+    # Backend expands input_keys ["question", "input"] -> ["question", "context", "difficulty"]
+    # and output_keys ["output"] -> ["answer"]
+    assert revisions[0].input == {
+        "question": "What is 2+2?",
+        "context": "math",
+        "difficulty": "easy",
+    }
+    assert revisions[0].output == {"answer": "4"}
+
+    # Second row: difficulty is missing from input, so it will be None
+    assert revisions[1].input == {
+        "question": "Capital of France?",
+        "context": "geography",
+        "difficulty": None,
+    }
+    assert revisions[1].output == {"answer": "Paris"}
+
+
+async def test_post_dataset_upload_flatten_keys_no_effect_when_empty(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that empty flatten_keys doesn't change anything."""
+    name = inspect.stack()[0][3]
+    jsonl_content = b'{"input": {"question": "Hi"}, "output": {"answer": "Hello"}}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input"],
+            "output_keys[]": ["output"],
+            # No flatten_keys[]
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+            )
+        )
+    assert len(revisions) == 1
+    # Without flattening, the nested structure is preserved
+    assert revisions[0].input == {"input": {"question": "Hi"}}
+    assert revisions[0].output == {"output": {"answer": "Hello"}}
+
+
+async def test_post_dataset_upload_flatten_keys_partial(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test flattening only some keys while leaving others nested.
+
+    When only "input" is flattened, its children (question) are promoted to top-level.
+    The output and metadata keys are NOT flattened, so they remain nested.
+    """
+    name = inspect.stack()[0][3]
+    jsonl_content = (
+        b'{"input": {"question": "Hi"}, "output": {"answer": "Hello"}, '
+        b'"metadata": {"source": "test"}}\n'
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            # Select "input" to trigger flattening - children are promoted to top-level
+            "input_keys[]": ["input"],
+            # "output" and "metadata" are not flattened, so we use them directly
+            "output_keys[]": ["output"],
+            "metadata_keys[]": ["metadata"],
+            "flatten_keys[]": ["input"],  # Only flatten input, not output or metadata
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+            )
+        )
+    assert len(revisions) == 1
+    # "input" was flattened to "question", output and metadata remain nested
+    assert revisions[0].input == {"question": "Hi"}
+    assert revisions[0].output == {"output": {"answer": "Hello"}}
+    assert revisions[0].metadata_ == {"metadata": {"source": "test"}}

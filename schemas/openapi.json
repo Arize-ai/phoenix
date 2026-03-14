@@ -1256,6 +1256,14 @@
                     "uniqueItems": true,
                     "description": "Column names for auto-assigning examples to splits"
                   },
+                  "flatten_keys[]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "uniqueItems": true,
+                    "description": "Column names whose object values should be flattened into their selected bucket"
+                  },
                   "span_id_key": {
                     "type": "string",
                     "description": "Column name for span IDs to link examples back to spans"
