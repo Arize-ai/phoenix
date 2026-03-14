@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { resolveConfig } from "../config";
 import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
+import { formatTable } from "./formatTable";
 
 interface AuthStatusOptions {
   endpoint?: string;
@@ -40,20 +41,13 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  const lines: string[] = [];
+  const row: Record<string, string> = {
+    endpoint: config.endpoint,
+    status: config.apiKey ? "authenticated" : "anonymous",
+    "api key": config.apiKey ? obscureApiKey(config.apiKey) : "not set",
+  };
 
-  // Display endpoint
-  lines.push(config.endpoint);
-
-  // Display API key status
-  if (config.apiKey) {
-    lines.push("  ✓ Logged in to Phoenix");
-    lines.push(`  - API Key: ${obscureApiKey(config.apiKey)}`);
-  } else {
-    lines.push("  - No API key configured (anonymous access)");
-  }
-
-  writeOutput({ message: lines.join("\n") });
+  writeOutput({ message: formatTable([row]) });
 }
 
 /**
