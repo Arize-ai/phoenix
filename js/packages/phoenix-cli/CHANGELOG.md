@@ -1,5 +1,40 @@
 # @arizeai/phoenix-cli
 
+## 0.8.0
+
+### Minor Changes
+
+- 62666f6: Add `px annotation-config list` command to list all annotation configurations.
+
+  The new command fetches annotation configs from `GET /v1/annotation_configs` with cursor-based pagination and supports `--format pretty|json|raw`, `--limit`, `--endpoint`, `--api-key`, and `--no-progress` options.
+
+- d647a32: Add ASCII art banner to CLI intro displayed when running `px` with no arguments.
+  Shows the connected server URL and project name alongside the Phoenix logo.
+- a6319de: Replace verbose box-drawing list output with compact ASCII tables for all `list` commands.
+
+  Commands like `px datasets list`, `px experiments list`, `px prompts list`, `px sessions list`,
+  `px projects list`, and `px annotation-config list` now render results as aligned tabular output
+  (matching the style of `console.table`) instead of multi-line box-drawing cards. This makes long
+  lists far easier to scan at a glance. The `--format json` and `--format raw` output is unchanged.
+
+- 4e7b7c2: Add semantic exit codes to the CLI for scripting and CI integration.
+
+  Commands now exit with meaningful codes instead of always using `1` on failure:
+
+  | Code | Meaning          | Description                                            |
+  | ---- | ---------------- | ------------------------------------------------------ |
+  | `0`  | Success          | Command completed successfully                         |
+  | `1`  | Failure          | Unspecified or unexpected error                        |
+  | `2`  | Cancelled        | User cancelled the operation                           |
+  | `3`  | Invalid argument | Bad CLI flags, missing required args, or invalid input |
+  | `4`  | Auth required    | Not authenticated or insufficient permissions          |
+  | `5`  | Network error    | Failed to connect to server or network request failed  |
+
+### Patch Changes
+
+- Updated dependencies [9769f90]
+  - @arizeai/phoenix-client@6.5.0
+
 ## 0.7.4
 
 ### Patch Changes
