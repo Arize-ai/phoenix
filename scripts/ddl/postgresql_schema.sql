@@ -779,6 +779,7 @@ CREATE TABLE public.experiments (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     user_id BIGINT,
+    is_ephemeral BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
     CONSTRAINT fk_experiments_dataset_id_datasets FOREIGN KEY
         (dataset_id)
@@ -799,6 +800,8 @@ CREATE INDEX ix_experiments_dataset_id ON public.experiments
     USING btree (dataset_id);
 CREATE INDEX ix_experiments_dataset_version_id ON public.experiments
     USING btree (dataset_version_id);
+CREATE INDEX ix_experiments_ephemeral_created_at ON public.experiments
+    USING btree (created_at) WHERE (is_ephemeral IS TRUE);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
 
