@@ -102,7 +102,7 @@ describe("Auth Status", () => {
 
     const config = resolveConfig({ cliOptions: {} });
 
-    expect(config.endpoint).toBeUndefined();
+    expect(config.endpoint).toBe("http://localhost:6006");
   });
 
   it("should handle missing API key (anonymous access)", async () => {
