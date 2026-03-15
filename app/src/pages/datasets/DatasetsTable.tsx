@@ -22,6 +22,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
+  Alert,
   Flex,
   Icon,
   Icons,
@@ -39,7 +40,6 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import {
-  useNotifyError,
   useNotifySuccess,
   useViewerCanModify,
 } from "@phoenix/contexts";
@@ -84,8 +84,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       DatasetsTableDatasetsQuery,
@@ -322,10 +322,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 onDatasetEditError={(error) => {
                   const formattedError =
                     getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset update failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
+                  setError(formattedError?.[0] ?? error.message);
                 }}
                 onDatasetDelete={() => {
                   notifySuccess({
@@ -351,10 +348,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 onDatasetDeleteError={(error) => {
                   const formattedError =
                     getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Dataset deletion failed",
-                    message: formattedError?.[0] ?? error.message,
-                  });
+                  setError(formattedError?.[0] ?? error.message);
                 }}
               />
             </Flex>
@@ -363,7 +357,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
       });
     }
     return cols;
-  }, [filter, labelFilter, notifyError, notifySuccess, refetch, canModify]);
+  }, [filter, labelFilter, notifySuccess, refetch, canModify]);
 
   const table = useReactTable({
     columns,
@@ -434,7 +428,9 @@ export function DatasetsTable(props: DatasetsTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
 
   return (
-    <div
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <div
       css={css`
         flex: 1 1 auto;
         overflow: auto;
@@ -564,5 +560,6 @@ export function DatasetsTable(props: DatasetsTableProps) {
         )}
       </table>
     </div>
+    </>
   );
 }

@@ -4,18 +4,19 @@ import { ConnectionHandler, graphql, useMutation } from "react-relay";
 import type { useDatasetSplitMutationsCreateSplitMutation } from "@phoenix/components/datasetSplit/__generated__/useDatasetSplitMutationsCreateSplitMutation.graphql";
 import type { useDatasetSplitMutationsCreateSplitWithExamplesMutation } from "@phoenix/components/datasetSplit/__generated__/useDatasetSplitMutationsCreateSplitWithExamplesMutation.graphql";
 import type { DatasetSplitParams } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export const useDatasetSplitMutations = ({
   onCompleted,
   exampleIds,
+  onError,
 }: {
   onCompleted?: () => void;
   exampleIds?: string[];
+  onError?: (message: string) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const [
     commitCreateDatasetSplitWithExamples,
     isCommittingCreateDatasetSplitWithExamples,
@@ -97,10 +98,7 @@ export const useDatasetSplitMutations = ({
           onError: (error) => {
             const formattedError =
               getErrorMessagesFromRelayMutationError(error);
-            notifyError({
-              title: "Failed to create split",
-              message: formattedError?.[0] ?? error.message,
-            });
+            onError?.(formattedError?.[0] ?? error.message);
           },
         });
       } else {
@@ -124,10 +122,7 @@ export const useDatasetSplitMutations = ({
           onError: (error) => {
             const formattedError =
               getErrorMessagesFromRelayMutationError(error);
-            notifyError({
-              title: "Failed to create split",
-              message: formattedError?.[0] ?? error.message,
-            });
+            onError?.(formattedError?.[0] ?? error.message);
           },
         });
       }
@@ -137,7 +132,7 @@ export const useDatasetSplitMutations = ({
       createDatasetSplit,
       exampleIds,
       onCompleted,
-      notifyError,
+      onError,
       notifySuccess,
     ]
   );

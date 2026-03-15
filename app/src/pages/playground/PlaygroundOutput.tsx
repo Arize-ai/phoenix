@@ -1,10 +1,11 @@
 import type { Key } from "react";
-import { Suspense, useCallback, useEffect } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useMutation, useRelayEnvironment } from "react-relay";
 import type { GraphQLSubscriptionConfig, PayloadError } from "relay-runtime";
 import { graphql, requestSubscription } from "relay-runtime";
 
 import {
+  Alert,
   Card,
   Flex,
   Icon,
@@ -21,7 +22,6 @@ import {
   ConnectedMarkdownModeSelect,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
-import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   usePlaygroundContext,
@@ -214,18 +214,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const runInProgress = instances.some(
     (instance) => instance.activeRunId != null
   );
-  const notifyErrorToast = useNotifyError();
-
-  const notifyError = useCallback(
-    ({ title, message, ...rest }: Parameters<typeof notifyErrorToast>[0]) => {
-      notifyErrorToast({
-        title,
-        message,
-        ...rest,
-      });
-    },
-    [notifyErrorToast]
-  );
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const handleChatCompletionSubscriptionPayload = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
@@ -322,10 +311,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ) => {
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
       if (errors != null && errors.length > 0) {
-        notifyError({
-          title: "Chat completion failed",
-          message: errors[0].message,
-        });
+        setApiError(errors[0].message);
         return;
       }
       const instance = playgroundStore
@@ -363,7 +349,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     [
       instanceId,
       markPlaygroundInstanceComplete,
-      notifyError,
       setRepetitionToolCalls,
       playgroundStore,
       props.playgroundInstanceId,
@@ -378,6 +363,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!runInProgress) {
       return;
     }
+    if (apiError !== null) setApiError(null);
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -416,15 +402,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             const errorMessages =
               getErrorMessagesFromRelaySubscriptionError(error);
             if (errorMessages != null && errorMessages.length > 0) {
-              notifyError({
-                title: "Failed to get output",
-                message: errorMessages.join("\n"),
-              });
+              setApiError(errorMessages.join("\n"));
             } else {
-              notifyError({
-                title: "Failed to get output",
-                message: error.message,
-              });
+              setApiError(error.message);
             }
           },
         };
@@ -442,15 +422,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         clearRepetitions(instanceId);
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
         if (errorMessages != null && errorMessages.length > 0) {
-          notifyError({
-            title: "Failed to get output",
-            message: errorMessages.join("\n"),
-          });
+          setApiError(errorMessages.join("\n"));
         } else {
-          notifyError({
-            title: "Failed to get output",
-            message: error.message,
-          });
+          setApiError(error.message);
         }
       },
     });
@@ -458,12 +432,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     return disposable.dispose;
   }, [
     credentials,
+    apiError,
     environment,
     generateChatCompletion,
     instanceId,
     clearRepetitions,
     markPlaygroundInstanceComplete,
-    notifyError,
     handleChatCompletionMutationPayload,
     handleChatCompletionSubscriptionPayload,
     runInProgress,
@@ -534,6 +508,17 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           default:
             return (
               <>
+                {apiError && (
+                  <View padding="size-200">
+                    <Alert
+                      variant="danger"
+                      dismissable
+                      onDismissClick={() => setApiError(null)}
+                    >
+                      {apiError}
+                    </Alert>
+                  </View>
+                )}
                 <View padding="size-200">
                   <MarkdownDisplayProvider>
                     <PlaygroundOutputContent

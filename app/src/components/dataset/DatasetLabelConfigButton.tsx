@@ -32,7 +32,6 @@ import {
 import type { UseDatasetLabelMutationsParams } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { NewLabelForm } from "@phoenix/components/label";
-import { useNotifyError } from "@phoenix/contexts";
 import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -101,7 +100,7 @@ function DatasetLabelList({
   query: DatasetLabelConfigButton_allLabels$key;
 }) {
   const [mode, setMode] = useState<"apply" | "create">("apply");
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const datasetData = useFragment<DatasetLabelConfigButton_datasetLabels$key>(
     graphql`
       fragment DatasetLabelConfigButton_datasetLabels on Dataset {
@@ -182,16 +181,14 @@ function DatasetLabelList({
       },
       onError: (error) => {
         const formattedError = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "Failed to save label changes",
-          message: formattedError?.[0] ?? error.message,
-        });
+        setError(formattedError?.[0] ?? error.message);
       },
     });
   };
 
   return (
     <>
+      {error && <Alert variant="danger">{error}</Alert>}
       <View
         padding="size-100"
         paddingTop="size-50"

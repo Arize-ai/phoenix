@@ -9,6 +9,7 @@ import {
 import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
+import { Alert } from "@phoenix/components/core/alert";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { Icons } from "@phoenix/components/core/icon";
 import { Icon } from "@phoenix/components/core/icon/Icon";
@@ -21,7 +22,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type {
   SpanFeedback_annotations$data,
@@ -51,7 +52,7 @@ function SpanAnnotationsTable({
     }));
   }, [annotations, spanNodeId]);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
@@ -151,17 +152,14 @@ function SpanAnnotationsTable({
               annotationName={row.original.name}
               onSpanAnnotationActionSuccess={notifySuccess}
               onSpanAnnotationActionError={(error) => {
-                notifyError({
-                  title: "Failed to update span annotation",
-                  message: error.message,
-                });
+                setError(error.message);
               }}
             />
           );
         },
       },
     ],
-    [notifyError, notifySuccess]
+    [setError, notifySuccess]
   );
 
   const [sorting, setSorting] = useState<SortingState>([
@@ -183,6 +181,7 @@ function SpanAnnotationsTable({
 
   return (
     <div css={spanAnnotationsTableWrapCSS}>
+      {error && <Alert variant="danger">{error}</Alert>}
       <table css={tableCSS} data-testid="span-annotations-table">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (

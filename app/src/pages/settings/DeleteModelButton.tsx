@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -18,7 +19,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { DeleteModelButtonMutation } from "./__generated__/DeleteModelButtonMutation.graphql";
@@ -53,7 +54,7 @@ function DeleteModelDialogContent({
       }
     `);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const handleDelete = useCallback(() => {
     commitDeleteModel({
@@ -70,24 +71,21 @@ function DeleteModelDialogContent({
       },
       onError: (error) => {
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: `Failed to delete model`,
-          message: errorMessages?.[0] || "Failed to delete model",
-        });
+        setError(errorMessages?.[0] || "Failed to delete model");
       },
     });
   }, [
     commitDeleteModel,
     modelId,
     modelName,
-    notifyError,
     notifySuccess,
     onClose,
     connectionId,
   ]);
 
   return (
-    <div>
+    <>
+      {error && <Alert variant="danger">{error}</Alert>}
       <View padding="size-200">
         <Text color="danger">
           {`Are you sure you want to delete the "${modelName}" model? This action cannot be undone and all services dependent on this model, including associated costs, will be affected.`}
@@ -116,7 +114,7 @@ function DeleteModelDialogContent({
           </Button>
         </Flex>
       </View>
-    </div>
+    </>
   );
 }
 

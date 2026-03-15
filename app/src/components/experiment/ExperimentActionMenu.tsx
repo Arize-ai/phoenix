@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components";
 import {
+  Alert,
   Button,
   Dialog,
   Flex,
@@ -28,7 +29,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -72,7 +73,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
   const onExperimentDeleted = props.onExperimentDeleted;
 
   const onDeleteExperiment = useCallback(
@@ -88,19 +89,18 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
             title: "Experiment deleted",
             message: `The experiment has been deleted.`,
           });
+          onExperimentDeleted?.();
+          setIsDeleteDialogOpen(false);
         },
         onError: (error) => {
           const formattedError = getErrorMessagesFromRelayMutationError(error);
-          notifyError({
-            title: "An error occurred",
-            message: `Failed to delete experiment: ${formattedError?.[0] ?? error.message}`,
-          });
+          setError(
+            `Failed to delete experiment: ${formattedError?.[0] ?? error.message}`
+          );
         },
       });
-      onExperimentDeleted?.();
-      setIsDeleteDialogOpen(false);
     },
-    [commitDeleteExperiment, notifySuccess, notifyError, onExperimentDeleted]
+    [commitDeleteExperiment, notifySuccess, onExperimentDeleted]
   );
 
   const menuItems = [
@@ -215,7 +215,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       <ModalOverlay
         isDismissable
         isOpen={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (open) setError(null);
+          setIsDeleteDialogOpen(open);
+        }}
       >
         <Modal size="S">
           <Dialog>
@@ -226,6 +229,17 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
+              {error && (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert
+                    variant="danger"
+                    dismissable
+                    onDismissClick={() => setError(null)}
+                  >
+                    {error}
+                  </Alert>
+                </View>
+              )}
               <View padding="size-200">
                 <Text color="danger">
                   Are you sure you want to delete this experiment and its

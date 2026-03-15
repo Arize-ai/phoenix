@@ -3,6 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useFragment, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -22,7 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -35,8 +36,8 @@ type EditPromptFormParams = {
 
 export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
   const data = useFragment(
     graphql`
       fragment EditPromptButton_data on Prompt {
@@ -72,6 +73,8 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
             ? JSON.stringify(data.metadata, null, 2)
             : "{}",
         });
+      } else {
+        setError(null);
       }
     },
     [data, reset]
@@ -84,10 +87,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
         try {
           metadata = JSON.parse(promptPatch.metadata);
         } catch (_error) {
-          notifyError({
-            title: "Invalid metadata",
-            message: "Failed to parse metadata as JSON",
-          });
+          setError("Failed to parse metadata as JSON");
           return;
         }
       }
@@ -108,14 +108,14 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
           });
         },
         onError: (error) => {
-          notifyError({
-            title: "Error updating prompt",
-            message: getErrorMessagesFromRelayMutationError(error)?.[0],
-          });
+          setError(
+            getErrorMessagesFromRelayMutationError(error)?.[0] ??
+              "Error updating prompt"
+          );
         },
       });
     },
-    [data.id, mutatePrompt, notifyError, notifySuccess]
+    [data.id, mutatePrompt, notifySuccess]
   );
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={handleOpenChange}>
@@ -134,6 +134,11 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
             </DialogTitleExtra>
           </DialogHeader>
           <Form>
+            {error && (
+              <View paddingX="size-200" paddingTop="size-100">
+                <Alert variant="danger">{error}</Alert>
+              </View>
+            )}
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
                 <Controller

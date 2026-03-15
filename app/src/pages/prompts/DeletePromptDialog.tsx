@@ -1,7 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
@@ -13,7 +14,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { DeletePromptDialogMutation } from "./__generated__/DeletePromptDialogMutation.graphql";
 
@@ -37,7 +38,7 @@ export function DeletePromptDialog({
   );
 
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const handleDelete = useCallback(() => {
     commit({
@@ -52,13 +53,10 @@ export function DeletePromptDialog({
         onDeleted();
       },
       onError: (error) => {
-        notifyError({
-          title: "Failed to delete prompt",
-          message: error.message,
-        });
+        setError(error.message);
       },
     });
-  }, [commit, notifyError, notifySuccess, onDeleted, promptId]);
+  }, [commit, notifySuccess, onDeleted, promptId]);
 
   return (
     <Dialog>
@@ -69,6 +67,11 @@ export function DeletePromptDialog({
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
+        {error && (
+          <View paddingX="size-200" paddingTop="size-100">
+            <Alert variant="danger">{error}</Alert>
+          </View>
+        )}
         <View padding="size-200">
           <Text color="danger">
             {`Are you sure you want to delete this prompt? This action cannot be undone and all services dependent on this prompt will be affected.`}

@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Button, Card, Icon, Icons, Loading, View } from "@phoenix/components";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { Alert, Button, Card, Icon, Icons, Loading, View } from "@phoenix/components";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
@@ -13,9 +13,9 @@ import { UsersTable } from "./UsersTable";
 export function UsersCard() {
   const [fetchKey, setFetchKey] = useState(0);
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const isDisabled = useMemo(() => {
     // Disable when no user creation method is available:
@@ -64,10 +64,7 @@ export function UsersCard() {
                 onNewUserCreationError={(error) => {
                   const formattedError =
                     getErrorMessagesFromRelayMutationError(error);
-                  notifyError({
-                    title: "Error adding user",
-                    message: formattedError?.[0] ?? error.message,
-                  });
+                  setError(formattedError?.[0] ?? error.message);
                 }}
               />
             );
@@ -80,6 +77,7 @@ export function UsersCard() {
         </Button>
       }
     >
+      {error && <Alert variant="danger">{error}</Alert>}
       <Suspense
         fallback={
           <View padding="size-200">

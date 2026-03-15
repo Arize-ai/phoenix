@@ -3,6 +3,7 @@ import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Card,
   DialogTrigger,
@@ -22,7 +23,6 @@ import {
   CreateAPIKeyDialog,
   OneTimeAPIKeyDialog,
 } from "@phoenix/components/auth";
-import { useNotifyError } from "@phoenix/contexts";
 
 import type { APIKeysCardCreateSystemAPIKeyMutation } from "./__generated__/APIKeysCardCreateSystemAPIKeyMutation.graphql";
 import type { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
@@ -63,7 +63,7 @@ export function APIKeysCard() {
     string | null
   >(null);
   const [fetchKey, setFetchKey] = useState(0);
-  const notifyError = useNotifyError();
+  const [error, setError] = useState<string | null>(null);
 
   const [commit, isCommitting] =
     useMutation<APIKeysCardCreateSystemAPIKeyMutation>(graphql`
@@ -100,14 +100,11 @@ export function APIKeysCard() {
           setShowOneTimeAPIKeyJwt(response.createSystemApiKey.jwt);
         },
         onError: (error) => {
-          notifyError({
-            title: "Error creating system key",
-            message: error.message,
-          });
+          setError(error.message);
         },
       });
     },
-    [commit, notifyError]
+    [commit]
   );
 
   return (
@@ -139,6 +136,7 @@ export function APIKeysCard() {
           </DialogTrigger>
         }
       >
+        {error && <Alert variant="danger">{error}</Alert>}
         <Suspense
           fallback={
             <View padding="size-100">

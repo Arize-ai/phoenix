@@ -31,6 +31,7 @@ import type { GraphQLSubscriptionConfig, PayloadError } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
 
 import {
+  Alert,
   Flex,
   Icon,
   IconButton,
@@ -72,7 +73,6 @@ import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   usePlaygroundContext,
@@ -981,7 +981,7 @@ export function PlaygroundDatasetExamplesTable({
   );
   const playgroundStore = usePlaygroundStore();
 
-  const notifyError = useNotifyError();
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
@@ -1201,10 +1201,7 @@ export function PlaygroundDatasetExamplesTable({
         markPlaygroundInstanceComplete(instanceId);
         setRepetitions(repetitions);
         if (errors) {
-          notifyError({
-            title: "Chat completion failed",
-            message: errors[0].message,
-          });
+          setApiError(errors[0].message);
           return;
         }
         updateInstance({
@@ -1249,7 +1246,7 @@ export function PlaygroundDatasetExamplesTable({
       addRunAnnotations,
       addRunCosts,
       markPlaygroundInstanceComplete,
-      notifyError,
+      setApiError,
       repetitions,
       setExampleDataForInstance,
       setRepetitions,
@@ -1262,6 +1259,7 @@ export function PlaygroundDatasetExamplesTable({
       return;
     }
     const { instances, streaming, updateInstance } = playgroundStore.getState();
+    setApiError(null);
     resetPendingExperimentMetrics();
     resetData();
 
@@ -1317,17 +1315,9 @@ export function PlaygroundDatasetExamplesTable({
               const errorMessages =
                 getErrorMessagesFromRelaySubscriptionError(error);
               if (errorMessages != null && errorMessages.length > 0) {
-                notifyError({
-                  title: "Failed to get output",
-                  message: errorMessages.join("\n"),
-                  expireMs: 10000,
-                });
+                setApiError(errorMessages.join("\n"));
               } else {
-                notifyError({
-                  title: "Failed to get output",
-                  message: error.message,
-                  expireMs: 10000,
-                });
+                setApiError(error.message);
               }
             },
           };
@@ -1381,17 +1371,9 @@ export function PlaygroundDatasetExamplesTable({
             markPlaygroundInstanceComplete(instance.id);
             const errorMessages = getErrorMessagesFromRelayMutationError(error);
             if (errorMessages != null && errorMessages.length > 0) {
-              notifyError({
-                title: "Failed to get output",
-                message: errorMessages.join("\n"),
-                expireMs: 10000,
-              });
+              setApiError(errorMessages.join("\n"));
             } else {
-              notifyError({
-                title: "Failed to get output",
-                message: error.message,
-                expireMs: 10000,
-              });
+              setApiError(error.message);
             }
           },
         });
@@ -1416,7 +1398,6 @@ export function PlaygroundDatasetExamplesTable({
     hasSomeRunIds,
     initExperimentRunProgress,
     markPlaygroundInstanceComplete,
-    notifyError,
     onCompleted,
     onNext,
     resetPendingExperimentMetrics,
@@ -1677,6 +1658,15 @@ export function PlaygroundDatasetExamplesTable({
 
   return (
     <InstanceVariablesProvider>
+      {apiError && (
+        <Alert
+          variant="danger"
+          dismissable
+          onDismissClick={() => setApiError(null)}
+        >
+          {apiError}
+        </Alert>
+      )}
       <div
         css={css`
           flex: 1 1 auto;
