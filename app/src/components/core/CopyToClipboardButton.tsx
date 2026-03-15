@@ -57,6 +57,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
           }
           onPress={onPress}
           {...otherProps}
+          className="copy-button"
         />
         <Tooltip offset={5}>Copy</Tooltip>
       </TooltipTrigger>

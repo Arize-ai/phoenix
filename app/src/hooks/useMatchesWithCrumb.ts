@@ -1,11 +1,14 @@
 import { useMatches } from "react-router";
 
 export type CrumbFn = (data: unknown) => string;
+export type CopyItem = { name: string; value: string };
+export type CopyFn = (data: unknown) => CopyItem[];
 type Matches = ReturnType<typeof useMatches>;
 type Match = Matches[number];
 type RouteMatchWithCrumb = Match & {
   handle: {
     crumb: CrumbFn;
+    copy?: CopyFn;
   };
 };
 
