@@ -2243,7 +2243,14 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             config_dict["system_instruction"] = system_prompt
 
         if tools:
-            function_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
+            function_declarations = [
+                types.FunctionDeclaration(
+                    name=tool["name"],
+                    description=tool.get("description"),
+                    parameters_json_schema=tool.get("parameters"),
+                )
+                for tool in tools
+            ]
             config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
 
         config = types.GenerateContentConfig.model_validate(config_dict)
