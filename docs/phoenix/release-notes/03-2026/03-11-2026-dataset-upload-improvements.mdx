@@ -1,0 +1,59 @@
+---
+title: "03.11.2026 Dataset Upload Improvements"
+description: "Phoenix v13.8.0–v13.13.0 delivers a redesigned dataset upload experience with drag-and-drop file upload, streaming CSV/JSONL parsing, column assignment, and bulk inserts."
+---
+
+Phoenix v13.8.0 through v13.13.0 ships a series of improvements that make uploading datasets faster and more intuitive.
+
+## Unified CSV & JSONL upload form
+
+A single upload form now handles both CSV and JSONL files with automatic format detection. Drop a file or click to browse — Phoenix detects the format and parses it immediately using the Web Streams API for CSV and heuristic counting for JSONL, so even large files load efficiently without blocking the UI.
+
+## Column drag-and-drop assignment
+
+Parsed columns appear as draggable chips that you can drop into **Input**, **Output**, or **Metadata** buckets. The drag-and-drop interaction is built on React Aria for full keyboard and screen-reader accessibility.
+
+Phoenix also auto-assigns columns using name heuristics:
+
+| Column name | Assigned to |
+|-------------|-------------|
+| `input`, `query`, `prompt` | Input |
+| `output`, `reference`, `response` | Output |
+| Everything else | Metadata |
+
+You can override any automatic assignment by dragging the column to a different bucket.
+
+## Collapse top-level keys (JSONL)
+
+When uploading JSONL files with nested objects, Phoenix can flatten top-level keys into dot-notation columns (e.g., `attributes.model` becomes a single column). Conflict detection warns you when flattening would produce duplicate column names.
+
+## File dropzone component
+
+A new drag-and-drop zone provides visual feedback during file upload — progress indicators, file-type validation, and clear error messages if the file is unsupported.
+
+## Bulk inserts
+
+Dataset rows are now inserted in bulk rather than one at a time, significantly improving upload performance for large datasets.
+
+## Bug fix: Windows CSV uploads
+
+Fixed an issue where Windows systems sent CSV files with the MIME type `application/vnd.ms-excel` instead of `text/csv`, causing uploads to be rejected.
+
+## Get started
+
+```bash
+pip install 'arize-phoenix>=13.13.0'
+```
+
+```bash
+docker pull arizephoenix/phoenix:13.13.0
+```
+
+<CardGroup cols={2}>
+  <Card title="Datasets" icon="database" href="/docs/phoenix/datasets-and-experiments/how-to-datasets">
+    Learn how to create and manage datasets
+  </Card>
+  <Card title="Experiments" icon="flask" href="/docs/phoenix/datasets-and-experiments/how-to-experiments">
+    Run experiments on your datasets
+  </Card>
+</CardGroup>
