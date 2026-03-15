@@ -3,6 +3,7 @@
 aioboto3
 asyncpg
 beautifulsoup4
+diskcache
 faker
 google-genai
 httpx
