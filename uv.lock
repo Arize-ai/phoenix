@@ -744,7 +744,7 @@ requires-dist = [
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "2.11.0"
+version = "2.11.1"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },
