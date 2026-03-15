@@ -184,6 +184,22 @@ Make authenticated GraphQL queries against the Phoenix API. Output is `{"data": 
 px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
 ```
 
+Preview the exact HTTP request as `curl` without executing it:
+
+```bash
+px api graphql '{ projects { edges { node { name } } } }' --curl
+px api graphql '{ projects { edges { node { name } } } }' --curl --show-token
+```
+
+`--curl` prints the equivalent request to stdout and exits without making a network call. Authorization headers are masked by default, including values supplied through `PHOENIX_API_KEY` or `PHOENIX_CLIENT_HEADERS`. Use `--show-token` only when you explicitly need the raw credential in the generated command.
+
+Current scope and behavior:
+
+- `--curl` is currently implemented for `px api graphql` only.
+- `--curl` prints the request without executing it.
+- `--show-token` is only valid with `--curl`.
+- Authorization masking and header normalization are designed to match the live request behavior used by `fetch`.
+
 Use introspection to discover what fields are available:
 
 ```bash
