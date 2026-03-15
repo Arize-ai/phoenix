@@ -41,9 +41,17 @@ const WORKFLOW_SECTION_MAP: Record<string, string[]> = {
   sdk: ["sdk & api reference"],
   "self-hosting": ["self-hosting"],
   cookbooks: ["cookbooks"],
+  concepts: ["concepts"],
+  quickstart: ["quick start"],
+  overview: ["overview"],
+  resources: ["resources"],
+  settings: ["settings"],
 };
 
 const VALID_WORKFLOWS = Object.keys(WORKFLOW_SECTION_MAP);
+
+/** The default set fetched when no --workflow is specified. */
+const DEFAULT_WORKFLOWS = ["tracing", "evaluation", "datasets", "prompts"];
 
 // ---------------------------------------------------------------------------
 // Pure functions (exported for testing)
@@ -212,23 +220,25 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
   let entries = parseLlmsTxt(indexContent);
   writeProgress({ message: `Found ${entries.length} pages in index` });
 
-  // Filter by workflow
-  const workflows = options.workflow ?? [];
-  if (workflows.length > 0) {
-    // Warn about unknown workflow names
-    for (const workflow of workflows) {
-      const key = workflow.toLowerCase();
-      if (key !== "all" && !VALID_WORKFLOWS.includes(key)) {
-        writeError({
-          message: `Warning: unknown workflow "${workflow}". Valid values: ${VALID_WORKFLOWS.join(", ")}, all`,
-        });
-      }
+  // Filter by workflow (defaults to curated subset, use --workflow all for everything)
+  const workflows =
+    options.workflow && options.workflow.length > 0
+      ? options.workflow
+      : DEFAULT_WORKFLOWS;
+
+  // Warn about unknown workflow names
+  for (const workflow of workflows) {
+    const key = workflow.toLowerCase();
+    if (key !== "all" && !VALID_WORKFLOWS.includes(key)) {
+      writeError({
+        message: `Warning: unknown workflow "${workflow}". Valid values: ${VALID_WORKFLOWS.join(", ")}, all`,
+      });
     }
-    entries = filterByWorkflows(entries, workflows);
-    writeProgress({
-      message: `Filtered to ${entries.length} pages for workflow(s): ${workflows.join(", ")}`,
-    });
   }
+  entries = filterByWorkflows(entries, workflows);
+  writeProgress({
+    message: `Filtered to ${entries.length} pages for workflow(s): ${workflows.join(", ")}`,
+  });
 
   if (entries.length === 0) {
     writeOutput({ message: "No matching pages found." });
@@ -291,7 +301,7 @@ function createDocsFetchCommand(): Command {
     .description("Fetch Phoenix documentation from llms.txt index")
     .option(
       "--workflow <name>",
-      "Filter by workflow category (repeatable)",
+      `Filter by workflow category (repeatable). Defaults to: ${DEFAULT_WORKFLOWS.join(", ")}. Use "all" for everything.`,
       (value: string, previous: string[]) => previous.concat([value]),
       [] as string[]
     )
