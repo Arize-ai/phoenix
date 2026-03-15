@@ -1,4 +1,3 @@
-import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import { Command } from "commander";
@@ -10,6 +9,7 @@ const LLMS_TXT_URL = "https://arize.com/docs/phoenix/llms.txt";
 const PHOENIX_DOCS_PREFIX = "https://arize.com/docs/phoenix/";
 const DEFAULT_OUTPUT_DIR = ".px/docs";
 const DEFAULT_WORKERS = 10;
+const ALL_WORKFLOWS = "all";
 
 export interface DocEntry {
   title: string;
@@ -21,7 +21,6 @@ export interface DocEntry {
 interface DocsFetchOptions {
   workflow?: string[];
   outputDir: string;
-  llmsUrl: string;
   dryRun?: boolean;
   refresh?: boolean;
   strict?: boolean;
@@ -41,8 +40,6 @@ const WORKFLOW_SECTION_MAP: Record<string, string[]> = {
   integrations: ["integrations"],
   sdk: ["sdk & api reference"],
   "self-hosting": ["self-hosting"],
-  cloud: ["phoenix cloud"],
-  settings: ["settings"],
 };
 
 const VALID_WORKFLOWS = Object.keys(WORKFLOW_SECTION_MAP);
@@ -101,7 +98,7 @@ export function parseLlmsTxt(content: string): DocEntry[] {
 
 /**
  * Filter doc entries by workflow categories. Returns all entries if
- * workflows is empty or contains "all".
+ * workflows is empty or contains ALL_WORKFLOWS.
  */
 export function filterByWorkflows(
   entries: DocEntry[],
@@ -112,7 +109,7 @@ export function filterByWorkflows(
   }
 
   const normalized = workflows.map((workflow) => workflow.toLowerCase());
-  if (normalized.includes("all")) {
+  if (normalized.includes(ALL_WORKFLOWS)) {
     return entries;
   }
 
@@ -163,7 +160,10 @@ export function groupBySection(entries: DocEntry[]): Map<string, DocEntry[]> {
 /**
  * Generate the content for the top-level README.md index file.
  */
-export function generateReadme(entries: DocEntry[]): string {
+export function generateReadme(
+  entries: DocEntry[],
+  grouped?: Map<string, DocEntry[]>
+): string {
   const lines: string[] = [
     "# Phoenix Docs",
     "",
@@ -171,8 +171,8 @@ export function generateReadme(entries: DocEntry[]): string {
     "",
   ];
 
-  const grouped = groupBySection(entries);
-  for (const [section, sectionEntries] of grouped) {
+  const sections = grouped ?? groupBySection(entries);
+  for (const [section, sectionEntries] of sections) {
     lines.push(`## ${section}`);
     for (const entry of sectionEntries) {
       const filePath = urlToFilePath(entry.url, "").replace(/^\/+/, "");
@@ -271,8 +271,10 @@ async function writeIndexFiles(
   entries: DocEntry[],
   outputDir: string
 ): Promise<void> {
+  const grouped = groupBySection(entries);
+
   // Top-level README.md
-  const readmeContent = generateReadme(entries);
+  const readmeContent = generateReadme(entries, grouped);
   await fsPromises.writeFile(
     path.join(outputDir, "README.md"),
     readmeContent,
@@ -280,7 +282,6 @@ async function writeIndexFiles(
   );
 
   // Per-section _index.md files
-  const grouped = groupBySection(entries);
   for (const [section, sectionEntries] of grouped) {
     const indexContent = generateSectionIndex(section, sectionEntries);
     // Derive the section directory from the first entry's file path
@@ -308,7 +309,7 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
   // Fetch llms.txt index
   let response: Response;
   try {
-    response = await fetch(options.llmsUrl);
+    response = await fetch(LLMS_TXT_URL);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown error occurred";
@@ -321,7 +322,7 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     });
     process.exit(ExitCode.NETWORK_ERROR);
   }
-  writeOutput({ message: `Fetched docs index: ${options.llmsUrl}` });
+  writeOutput({ message: `Fetched docs index: ${LLMS_TXT_URL}` });
   const indexContent = await response.text();
 
   // Parse and filter
@@ -334,7 +335,7 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
 
   for (const workflow of workflows) {
     const key = workflow.toLowerCase();
-    if (key !== "all" && !VALID_WORKFLOWS.includes(key)) {
+    if (key !== ALL_WORKFLOWS && !VALID_WORKFLOWS.includes(key)) {
       writeError({
         message: `Warning: unknown workflow "${workflow}". Valid values: ${VALID_WORKFLOWS.join(", ")}, all`,
       });
@@ -362,11 +363,11 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
   }
 
   // Refresh — clear output dir
-  if (options.refresh && fs.existsSync(options.outputDir)) {
-    fs.rmSync(options.outputDir, { recursive: true, force: true });
+  if (options.refresh) {
+    await fsPromises.rm(options.outputDir, { recursive: true, force: true });
   }
 
-  fs.mkdirSync(options.outputDir, { recursive: true });
+  await fsPromises.mkdir(options.outputDir, { recursive: true });
 
   // Fetch and save
   const { succeeded, failed } = await fetchWithConcurrency(
@@ -413,7 +414,7 @@ function addDocsOptions(command: Command): Command {
   return command
     .option(
       "--workflow <name>",
-      `Filter by workflow category (repeatable). Defaults to: ${DEFAULT_WORKFLOWS.join(", ")}. Use "all" for everything.`,
+      `Filter by workflow category (repeatable) [possible values: ${VALID_WORKFLOWS.join(", ")}, all] [default: ${DEFAULT_WORKFLOWS.join(", ")}]`,
       (value: string, previous: string[]) => previous.concat([value]),
       [] as string[]
     )
@@ -421,11 +422,6 @@ function addDocsOptions(command: Command): Command {
       "--output-dir <dir>",
       "Output directory for downloaded docs",
       DEFAULT_OUTPUT_DIR
-    )
-    .option(
-      "--llms-url <url>",
-      "llms.txt index URL (Mintlify markdown index)",
-      LLMS_TXT_URL
     )
     .option("--dry-run", "Discover links only; do not write files", false)
     .option(
