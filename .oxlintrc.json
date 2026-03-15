@@ -1,7 +1,7 @@
 {
   "$schema": "./app/node_modules/oxlint/configuration_schema.json",
 
-  "plugins": ["typescript"],
+  "plugins": ["typescript", "jsx-a11y"],
 
   "rules": {
     "no-console": "error",
