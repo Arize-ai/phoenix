@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { Command } from "commander";
 
 import { ExitCode, getExitCodeForError } from "../exitCodes";
-import { writeError, writeOutput, writeProgress } from "../io";
+import { writeError, writeOutput } from "../io";
 
 const LLMS_TXT_URL = "https://arize.com/docs/phoenix/llms.txt";
 const PHOENIX_DOCS_PREFIX = "https://arize.com/docs/phoenix/";
@@ -196,9 +196,13 @@ async function fetchWithConcurrency(
 // Handler
 // ---------------------------------------------------------------------------
 
+function formatEntryLine(entry: DocEntry, target: string): string {
+  const section = entry.section.toLowerCase();
+  return `  - ${entry.title} [${section}] -> ${target}`;
+}
+
 async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
   // Fetch llms.txt index
-  writeProgress({ message: `Fetching index from ${options.llmsUrl}...` });
   let response: Response;
   try {
     response = await fetch(options.llmsUrl);
@@ -214,19 +218,17 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     });
     process.exit(ExitCode.NETWORK_ERROR);
   }
+  writeOutput({ message: `Fetched docs index: ${options.llmsUrl}` });
   const indexContent = await response.text();
 
-  // Parse entries
+  // Parse and filter
   let entries = parseLlmsTxt(indexContent);
-  writeProgress({ message: `Found ${entries.length} pages in index` });
 
-  // Filter by workflow (defaults to curated subset, use --workflow all for everything)
   const workflows =
     options.workflow && options.workflow.length > 0
       ? options.workflow
       : DEFAULT_WORKFLOWS;
 
-  // Warn about unknown workflow names
   for (const workflow of workflows) {
     const key = workflow.toLowerCase();
     if (key !== "all" && !VALID_WORKFLOWS.includes(key)) {
@@ -236,22 +238,21 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
     }
   }
   entries = filterByWorkflows(entries, workflows);
-  writeProgress({
-    message: `Filtered to ${entries.length} pages for workflow(s): ${workflows.join(", ")}`,
-  });
+  writeOutput({ message: `Workflows: ${workflows.join(", ")}` });
 
   if (entries.length === 0) {
     writeOutput({ message: "No matching pages found." });
     return;
   }
 
-  // Dry run — list discovered links
+  // Dry run — show what would be fetched
   if (options.dryRun) {
-    writeOutput({ message: `Discovered ${entries.length} pages:\n` });
+    writeOutput({
+      message: `Discovered ${entries.length} page(s), wrote 0 page(s) (dry-run)`,
+    });
     for (const entry of entries) {
-      const filePath = urlToFilePath(entry.url, options.outputDir);
       writeOutput({
-        message: `  [${entry.section}] ${entry.title}\n    ${entry.url} -> ${filePath}`,
+        message: formatEntryLine(entry, `${entry.url}.md`),
       });
     }
     return;
@@ -259,16 +260,12 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
 
   // Refresh — clear output dir
   if (options.refresh && fs.existsSync(options.outputDir)) {
-    writeProgress({ message: `Clearing ${options.outputDir}...` });
     fs.rmSync(options.outputDir, { recursive: true, force: true });
   }
 
   fs.mkdirSync(options.outputDir, { recursive: true });
 
   // Fetch and save
-  writeProgress({
-    message: `Downloading ${entries.length} pages (${options.workers} workers)...`,
-  });
   const { succeeded, failed } = await fetchWithConcurrency(
     entries,
     options.outputDir,
@@ -276,13 +273,22 @@ async function docsFetchHandler(options: DocsFetchOptions): Promise<void> {
   );
 
   writeOutput({
-    message: `Downloaded ${succeeded.length}/${entries.length} pages to ${options.outputDir}`,
+    message: `Discovered ${entries.length} page(s), wrote ${succeeded.length} page(s)`,
   });
+  for (const entry of succeeded) {
+    writeOutput({
+      message: formatEntryLine(
+        entry,
+        urlToFilePath(entry.url, options.outputDir)
+      ),
+    });
+  }
 
   if (failed.length > 0) {
-    writeError({ message: `\nFailed to download ${failed.length} pages:` });
     for (const { entry, error } of failed) {
-      writeError({ message: `  ${entry.url}: ${error}` });
+      writeError({
+        message: `  - ${entry.title} [${entry.section.toLowerCase()}] FAILED: ${error}`,
+      });
     }
     if (options.strict) {
       process.exit(ExitCode.FAILURE);
