@@ -12,7 +12,6 @@ import {
   Alert,
   Button,
   Card,
-  CopyToClipboardButton,
   Flex,
   Icon,
   Icons,
@@ -21,6 +20,7 @@ import {
   ListBox,
   Loading,
   Popover,
+  ReadOnlyTextField,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
@@ -108,18 +108,8 @@ function findGradientPreset(startColor: string, endColor: string): string {
   return match?.id ?? GRADIENT_PRESETS[0].id;
 }
 
-const nameFieldCSS = css`
-  width: 100%;
-`;
-
 const ReadOnlyNameField = ({ name }: { name: string }) => (
-  <Flex direction="row" gap="size-100" alignItems="end" width="100%">
-    <TextField value={name} isReadOnly css={nameFieldCSS}>
-      <Label>Project Name</Label>
-      <Input />
-    </TextField>
-    <CopyToClipboardButton text={name} size="M" />
-  </Flex>
+  <ReadOnlyTextField value={name} label="Project Name" copyable />
 );
 
 const ProjectConfigCard = ({

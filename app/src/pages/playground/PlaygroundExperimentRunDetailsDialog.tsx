@@ -6,7 +6,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type { CardProps } from "@phoenix/components";
 import {
   Card,
-  CopyToClipboardButton,
+  CopyButton,
   Dialog,
   Flex,
   Heading,
@@ -101,9 +101,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                   <Card
                     title="Input"
                     {...defaultCardProps}
-                    extra={
-                      <CopyToClipboardButton text={JSON.stringify(input)} />
-                    }
+                    extra={<CopyButton text={JSON.stringify(input)} />}
                   >
                     <View maxHeight="300px" overflow="auto">
                       <JSONBlock value={JSON.stringify(input, null, 2)} />
@@ -115,9 +113,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                     title="Reference Output"
                     {...defaultCardProps}
                     extra={
-                      <CopyToClipboardButton
-                        text={JSON.stringify(referenceOutput)}
-                      />
+                      <CopyButton text={JSON.stringify(referenceOutput)} />
                     }
                   >
                     <View maxHeight="300px" overflow="auto">

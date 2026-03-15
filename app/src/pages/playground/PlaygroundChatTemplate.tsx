@@ -20,7 +20,7 @@ import {
   Alert,
   Button,
   Card,
-  CopyToClipboardButton,
+  CopyButton,
   Flex,
   Form,
   Icon,
@@ -463,7 +463,7 @@ function SortableMessageItem({
                 />
               ) : null
             }
-            <CopyToClipboardButton
+            <CopyButton
               text={
                 aiMessageMode === "toolCalls"
                   ? (safelyStringifyJSON(message.toolCalls).json ?? "")

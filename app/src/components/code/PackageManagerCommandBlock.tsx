@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { Key } from "react";
 
 import {
-  CopyToClipboardButton,
+  CopyButton,
   ToggleButton,
   ToggleButtonGroup,
 } from "@phoenix/components";
@@ -126,7 +126,7 @@ export function PackageManagerCommandBlock({
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
-        <CopyToClipboardButton text={selectedCommand} />
+        <CopyButton text={selectedCommand} />
       </div>
       <div css={codeBlockWithCopyCSS}>
         <BashBlock value={selectedCommand} />

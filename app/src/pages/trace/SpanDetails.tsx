@@ -26,7 +26,7 @@ import {
   Button,
   Card,
   ContextualHelp,
-  CopyToClipboardButton,
+  CopyButton,
   Counter,
   DialogTrigger,
   Disclosure,
@@ -727,7 +727,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     extra={
                       <Flex direction="row" gap="size-100">
                         <ConnectedMarkdownModeSelect />
-                        <CopyToClipboardButton text={input.value} />
+                        <CopyButton text={input.value} />
                       </Flex>
                     }
                   >
@@ -828,7 +828,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       extra={
                         <Flex direction="row" gap="size-100">
                           <ConnectedMarkdownModeSelect />
-                          <CopyToClipboardButton text={output.value} />
+                          <CopyButton text={output.value} />
                         </Flex>
                       }
                     >
@@ -898,7 +898,7 @@ function RetrieverSpanInfo(props: {
                 {isText ? (
                   <ConnectedMarkdownModeSelect />
                 ) : (
-                  <CopyToClipboardButton text={input.value} />
+                  <CopyButton text={input.value} />
                 )}
               </Flex>
             }
@@ -1190,7 +1190,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
-                <CopyToClipboardButton text={input.value} />
+                <CopyButton text={input.value} />
               </Flex>
             }
           >
@@ -1208,7 +1208,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
-                <CopyToClipboardButton text={output.value} />
+                <CopyButton text={output.value} />
               </Flex>
             }
           >
@@ -1310,9 +1310,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />
-            <CopyToClipboardButton
-              text={messageContent || JSON.stringify(message)}
-            />
+            <CopyButton text={messageContent || JSON.stringify(message)} />
           </Flex>
         }
       >
@@ -1496,7 +1494,7 @@ function LLMToolSchema({
       {...defaultCardProps}
       backgroundColor="yellow-100"
       borderColor="yellow-700"
-      extra={<CopyToClipboardButton text={toolSchema} />}
+      extra={<CopyButton text={toolSchema} />}
     >
       <CodeBlock value={toolSchema} mimeType={"json"} />
     </Card>
@@ -1659,7 +1657,7 @@ function SpanIO({ span }: { span: Span }) {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeSelect /> : null}
-                <CopyToClipboardButton text={input.value} />
+                <CopyButton text={input.value} />
               </Flex>
             }
           >
@@ -1677,7 +1675,7 @@ function SpanIO({ span }: { span: Span }) {
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
-                <CopyToClipboardButton text={output.value} />
+                <CopyButton text={output.value} />
               </Flex>
             }
           >
@@ -1721,7 +1719,7 @@ function CopyToClipboard({
         }
       `}
     >
-      <CopyToClipboardButton text={text} />
+      <CopyButton text={text} />
       {children}
     </div>
   );

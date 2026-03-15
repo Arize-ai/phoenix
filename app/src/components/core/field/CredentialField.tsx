@@ -5,7 +5,10 @@ import type { TextFieldProps as AriaTextFieldProps } from "react-aria-components
 import { TextField as AriaTextField } from "react-aria-components";
 
 import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
-import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
+import {
+  fieldBaseCSS,
+  readOnlyInputCSS,
+} from "@phoenix/components/core/field/styles";
 import type { SizingProps } from "@phoenix/components/core/types";
 
 import { CredentialContext } from "./CredentialContext";
@@ -14,17 +17,31 @@ import { textFieldCSS } from "./styles";
 export interface CredentialFieldProps
   extends Omit<AriaTextFieldProps, "type">, SizingProps {
   children: ReactNode;
+  /**
+   * When true, renders an inline copy-to-clipboard button alongside the
+   * visibility toggle. Copy works regardless of whether the value is revealed.
+   * @default false
+   */
+  copyable?: boolean;
 }
 
 function CredentialField(
   props: CredentialFieldProps,
   ref: Ref<HTMLDivElement>
 ) {
-  const { size = "M", children, ...otherProps } = props;
+  const { size = "M", copyable = false, children, ...otherProps } = props;
   const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <CredentialContext.Provider value={{ isVisible, setIsVisible }}>
+    <CredentialContext.Provider
+      value={{
+        isVisible,
+        setIsVisible,
+        isDisabled: otherProps.isDisabled,
+        isReadOnly: otherProps.isReadOnly,
+        copyable,
+      }}
+    >
       <SizeProvider size={size}>
         <AriaTextField
           data-size={size}
@@ -32,7 +49,11 @@ function CredentialField(
           autoComplete="off"
           ref={ref}
           {...otherProps}
-          css={css(fieldBaseCSS, textFieldCSS)}
+          css={css(
+            fieldBaseCSS,
+            textFieldCSS,
+            otherProps.isReadOnly && readOnlyInputCSS
+          )}
         >
           {children}
         </AriaTextField>

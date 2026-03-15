@@ -1,106 +1,112 @@
 import { css } from "@emotion/react";
-import type { Ref } from "react";
-import { forwardRef } from "react";
+import copy from "copy-to-clipboard";
+import type { MutableRefObject, Ref } from "react";
+import { forwardRef, useCallback, useRef, useState } from "react";
 import type { InputProps as AriaInputProps } from "react-aria-components";
-import { Button, Input as AriaInput } from "react-aria-components";
+import { Input as AriaInput } from "react-aria-components";
 
-import { useSize } from "@phoenix/components/core/contexts/SizeContext";
-
+import { IconButton } from "../button";
 import { Icon, Icons } from "../icon";
+import { Tooltip, TooltipTrigger } from "../tooltip";
 import { useCredentialContext } from "./CredentialContext";
 
 export type CredentialInputProps = Omit<AriaInputProps, "type">;
 
-/**
- * A specialized text field for entering sensitive information like passwords, API keys, and tokens.
- * Features a toggle button to show/hide the credential value.
- *
- * @param props - The props for the CredentialInput component.
- * @param ref - The ref for the CredentialInput component.
- * @returns The CredentialInput component.
- */
+const SHOW_COPIED_TIMEOUT_MS = 2000;
+
+const credentialInputCSS = css`
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  & > input {
+    padding-right: calc(
+      var(--global-dimension-size-50) + var(--credential-actions-width) +
+        var(--global-dimension-size-50)
+    ) !important;
+  }
+
+  .credential-input__actions {
+    position: absolute;
+    right: var(--global-dimension-size-50);
+    display: flex;
+    align-items: center;
+  }
+`;
+
 function CredentialInput(
   props: CredentialInputProps,
-  ref: Ref<HTMLInputElement>
+  forwardedRef: Ref<HTMLInputElement>
 ) {
-  const { isVisible, setIsVisible } = useCredentialContext();
-  const size = useSize();
-  const { disabled, readOnly, ...otherProps } = props;
+  const { isVisible, setIsVisible, isDisabled, isReadOnly, copyable } =
+    useCredentialContext();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const setRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      inputRef.current = node;
+      if (typeof forwardedRef === "function") {
+        forwardedRef(node);
+      } else if (forwardedRef) {
+        (forwardedRef as MutableRefObject<HTMLInputElement | null>).current =
+          node;
+      }
+    },
+    [forwardedRef]
+  );
+
+  const onCopy = useCallback(() => {
+    if (inputRef.current) {
+      copy(inputRef.current.value);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), SHOW_COPIED_TIMEOUT_MS);
+    }
+  }, []);
 
   return (
     <div
-      data-size={size}
       data-testid="credential-input"
-      css={css`
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        // The 2px (e.g. 50) is to account making the toggle button to be slightly bigger
-        --credential-visibility-toggle-size: calc(
-          var(--textfield-input-height) - 2 *
-            var(--textfield-vertical-padding) + var(--global-dimension-size-50)
-        );
-
-        & > input {
-          padding-right: calc(
-            var(--textfield-vertical-padding) +
-              var(--credential-visibility-toggle-size) +
-              var(--textfield-vertical-padding)
-          ) !important; // Don't want to fight specificity here
-        }
-
-        .credential-input__toggle {
-          position: absolute;
-          right: var(
-            --textfield-vertical-padding
-          ); // We want it to be nestled evenly
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          width: var(--credential-visibility-toggle-size);
-          height: var(--credential-visibility-toggle-size);
-          color: var(--global-text-color-700);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--global-rounding-small);
-          transition: background-color 0.2s;
-          background-color: var(--global-color-gray-200);
-          &:hover {
-            background-color: var(--global-color-gray-300);
-          }
-
-          &:focus-visible {
-            outline: 2px solid var(--global-color-primary);
-            outline-offset: 2px;
-          }
-
-          &[disabled] {
-            cursor: not-allowed;
-            opacity: 0.5;
-          }
-        }
-      `}
+      css={credentialInputCSS}
+      style={
+        {
+          "--credential-actions-width": copyable
+            ? "calc(var(--global-button-height-s) * 2)"
+            : "var(--global-button-height-s)",
+        } as React.CSSProperties
+      }
     >
       <AriaInput
-        {...otherProps}
-        ref={ref}
+        {...props}
+        ref={setRef}
         type={isVisible ? "text" : "password"}
-        disabled={disabled}
-        readOnly={readOnly}
       />
-      <Button
-        className="credential-input__toggle"
-        onPress={() => setIsVisible(!isVisible)}
-        isDisabled={disabled || readOnly}
-        aria-label={isVisible ? "Hide credential" : "Show credential"}
-      >
-        <Icon
-          svg={isVisible ? <Icons.EyeOutline /> : <Icons.EyeOffOutline />}
-        />
-      </Button>
+      <div className="credential-input__actions">
+        {copyable && (
+          <TooltipTrigger delay={500}>
+            <IconButton
+              size="S"
+              onPress={onCopy}
+              isDisabled={isDisabled}
+              aria-label="Copy"
+            >
+              <Icon svg={isCopied ? <Icons.Checkmark /> : <Icons.Copy />} />
+            </IconButton>
+            <Tooltip offset={5}>{isCopied ? "Copied" : "Copy"}</Tooltip>
+          </TooltipTrigger>
+        )}
+        <IconButton
+          size="S"
+          onPress={() => setIsVisible(!isVisible)}
+          isDisabled={isDisabled}
+          aria-label={isVisible ? "Hide credential" : "Show credential"}
+        >
+          <Icon
+            svg={isVisible ? <Icons.EyeOutline /> : <Icons.EyeOffOutline />}
+          />
+        </IconButton>
+      </div>
     </div>
   );
 }

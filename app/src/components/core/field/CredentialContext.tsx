@@ -3,6 +3,9 @@ import { createContext, useContext } from "react";
 interface CredentialContextValue {
   isVisible: boolean;
   setIsVisible: (visible: boolean) => void;
+  isDisabled?: boolean;
+  isReadOnly?: boolean;
+  copyable?: boolean;
 }
 
 export const CredentialContext = createContext<CredentialContextValue | null>(

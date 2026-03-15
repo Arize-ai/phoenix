@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import {
   Button,
   Card,
-  CopyToClipboardButton,
+  CopyButton,
   Flex,
   Icon,
   Icons,
@@ -169,7 +169,7 @@ export function PlaygroundTool({
       }
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={toolDefinitionString} />
+          <CopyButton text={toolDefinitionString} />
           <Button
             aria-label="Delete tool"
             leadingVisual={<Icon svg={<Icons.TrashOutline />} />}

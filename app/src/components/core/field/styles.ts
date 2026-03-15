@@ -83,6 +83,30 @@ export const fieldPopoverCSS = css`
   max-height: inherit;
 `;
 
+/**
+ * Styles for read-only field inputs: muted background, no border/hover/focus
+ * effects. Apply to the TextField wrapper (scoped to `&[data-readonly]` or
+ * unconditionally for always-read-only components).
+ */
+export const readOnlyInputCSS = css`
+  .react-aria-Input,
+  input {
+    background-color: var(--global-color-gray-200);
+    border-color: transparent;
+    cursor: default;
+    transition: none;
+
+    &[data-focused]:not([data-invalid]) {
+      outline: none;
+      border-color: transparent;
+    }
+
+    &[data-hovered]:not([data-disabled]):not([data-invalid]) {
+      border-color: transparent;
+    }
+  }
+`;
+
 export const textFieldCSS = css`
   position: relative;
   width: 100%;

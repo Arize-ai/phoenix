@@ -13,42 +13,23 @@ import {
 const meta: Meta = {
   title: "Core/Forms/Credential Field",
   component: CredentialField,
-
+  decorators: [
+    (Story) => (
+      <div style={{ width: 600 }}>
+        <Story />
+      </div>
+    ),
+  ],
   parameters: {
     controls: { expanded: true },
-    docs: {
-      description: {
-        component: `
-A specialized text field for entering sensitive information like passwords, API keys, and tokens.
-Features a toggle button to show/hide the credential value.
-
-## Usage
-
-The CredentialField component extends TextField with visibility toggle functionality.
-It uses CredentialContext internally to manage the visibility state.
-When used with CredentialInput, the toggle button is automatically included.
-
-### Basic Usage
-\`\`\`tsx
-<CredentialField>
-  <Label>API Key</Label>
-  <CredentialInput />
-  <Text slot="description">Your secret API key</Text>
-</CredentialField>
-\`\`\`
-
-### With Regular Input
-You can also use a regular Input if you don't need the visibility toggle:
-\`\`\`tsx
-<CredentialField>
-  <Label>Field Label</Label>
-  <Input type="text" />
-</CredentialField>
-\`\`\`
-
-Note: When using regular Input, no toggle button will be shown.
-        `,
-      },
+  },
+  argTypes: {
+    size: {
+      control: { type: "radio" },
+      options: ["S", "M"],
+    },
+    copyable: {
+      control: { type: "boolean" },
     },
   },
 };
@@ -56,90 +37,133 @@ Note: When using regular Input, no toggle button will be shown.
 export default meta;
 
 const Template: StoryFn<CredentialFieldProps> = (args) => (
-  <CredentialField {...args}>
+  <CredentialField defaultValue="sk-1234567890abcdef" {...args}>
     <Label>API Key</Label>
-    <CredentialInput defaultValue="sk-1234567890abcdef" />
+    <CredentialInput />
     <Text slot="description">Your secret API key</Text>
   </CredentialField>
 );
 
 export const Default = Template.bind({});
-Default.args = {};
 
-export const Empty = Template.bind({});
-Empty.args = {};
+export const Copyable: StoryFn = () => (
+  <CredentialField defaultValue="sk-1234567890abcdef" copyable>
+    <Label>API Key</Label>
+    <CredentialInput />
+    <Text slot="description">Copy without revealing the value</Text>
+  </CredentialField>
+);
 
 export const WithError: StoryFn = () => (
-  <CredentialField isInvalid>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="invalid-key" />
-    <FieldError>Invalid API key format</FieldError>
-  </CredentialField>
-);
-
-export const ReadOnly: StoryFn = () => (
-  <CredentialField isReadOnly>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="sk-readonly-key-1234" />
-    <Text slot="description">This key is read-only</Text>
-  </CredentialField>
-);
-
-export const Disabled: StoryFn = () => (
-  <CredentialField isDisabled>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="sk-disabled-key-5678" />
-    <Text slot="description">This field is disabled</Text>
-  </CredentialField>
-);
-
-export const Gallery: StoryFn = () => (
-  <Flex direction="column" gap="size-200" width="600px">
-    <CredentialField>
-      <Label>API Key</Label>
-      <CredentialInput defaultValue="sk-1234567890abcdef" />
-      <Text slot="description">Click the eye icon to show/hide</Text>
-    </CredentialField>
-
-    <CredentialField>
-      <Label>Database Password</Label>
-      <CredentialInput />
-      <Text slot="description">Enter your database password</Text>
-    </CredentialField>
-
+  <Flex direction="column" gap="size-200">
     <CredentialField isInvalid>
-      <Label>Secret Token</Label>
-      <CredentialInput defaultValue="wrong-format" />
-      <FieldError>Token must start with &quot;tok-&quot;</FieldError>
-    </CredentialField>
-
-    <CredentialField isRequired>
-      <Label>Required Secret</Label>
+      <Label>API Key (empty)</Label>
       <CredentialInput />
-      <Text slot="description">This field is required</Text>
+      <FieldError>API key is required</FieldError>
     </CredentialField>
-
-    <CredentialField size="S">
-      <Label>Small Credential Field</Label>
-      <CredentialInput defaultValue="small-secret" />
-    </CredentialField>
-
-    <CredentialField size="L">
-      <Label>Large Credential Field</Label>
-      <CredentialInput defaultValue="large-secret-value" />
+    <CredentialField isInvalid defaultValue="invalid-key">
+      <Label>API Key (with value)</Label>
+      <CredentialInput />
+      <FieldError>Invalid API key format</FieldError>
     </CredentialField>
   </Flex>
 );
 
-export const DifferentSizes: StoryFn = () => (
-  <Flex direction="column" gap="size-200" width="600px">
-    <CredentialField size="S">
-      <Label>Size S</Label>
-      <CredentialInput defaultValue="size-s-credential" />
+export const ReadOnly: StoryFn = () => (
+  <Flex direction="column" gap="size-200">
+    <CredentialField isReadOnly>
+      <Label>API Key (empty, read-only)</Label>
+      <CredentialInput />
+      <Text slot="description">No value to reveal</Text>
     </CredentialField>
-    <CredentialField size="M">
+    <CredentialField isReadOnly defaultValue="sk-readonly-key-1234">
+      <Label>API Key (with value, read-only)</Label>
+      <CredentialInput />
+      <Text slot="description">Toggle still works to reveal the value</Text>
+    </CredentialField>
+    <CredentialField isReadOnly defaultValue="sk-readonly-key-1234" copyable>
+      <Label>API Key (read-only + copyable)</Label>
+      <CredentialInput />
+      <Text slot="description">Reveal and copy are independent actions</Text>
+    </CredentialField>
+  </Flex>
+);
+
+export const Disabled: StoryFn = () => (
+  <Flex direction="column" gap="size-200">
+    <CredentialField isDisabled>
+      <Label>API Key (empty, disabled)</Label>
+      <CredentialInput />
+      <Text slot="description">No value, fully disabled</Text>
+    </CredentialField>
+    <CredentialField isDisabled defaultValue="sk-disabled-key-5678">
+      <Label>API Key (with value, disabled)</Label>
+      <CredentialInput />
+      <Text slot="description">Has a value, but fully disabled</Text>
+    </CredentialField>
+    <CredentialField isDisabled defaultValue="sk-disabled-key-5678" copyable>
+      <Label>API Key (disabled + copyable)</Label>
+      <CredentialInput />
+      <Text slot="description">Both buttons are disabled</Text>
+    </CredentialField>
+  </Flex>
+);
+
+export const Required: StoryFn = () => (
+  <CredentialField isRequired>
+    <Label>Required Secret</Label>
+    <CredentialInput />
+    <Text slot="description">This field is required</Text>
+  </CredentialField>
+);
+
+export const Sizes: StoryFn = () => (
+  <Flex direction="column" gap="size-200">
+    <CredentialField size="S" defaultValue="size-s-credential" copyable>
+      <Label>Size S</Label>
+      <CredentialInput />
+    </CredentialField>
+    <CredentialField size="M" defaultValue="size-m-credential" copyable>
       <Label>Size M (default)</Label>
-      <CredentialInput defaultValue="size-m-credential" />
+      <CredentialInput />
+    </CredentialField>
+  </Flex>
+);
+
+export const Gallery: StoryFn = () => (
+  <Flex direction="column" gap="size-200">
+    <CredentialField defaultValue="sk-1234567890abcdef">
+      <Label>Default</Label>
+      <CredentialInput />
+      <Text slot="description">Show/hide only</Text>
+    </CredentialField>
+
+    <CredentialField defaultValue="sk-1234567890abcdef" copyable>
+      <Label>With Copy</Label>
+      <CredentialInput />
+      <Text slot="description">Show/hide + copy</Text>
+    </CredentialField>
+
+    <CredentialField>
+      <Label>Empty</Label>
+      <CredentialInput />
+      <Text slot="description">Enter a credential</Text>
+    </CredentialField>
+
+    <CredentialField isInvalid defaultValue="wrong-format">
+      <Label>Invalid</Label>
+      <CredentialInput />
+      <FieldError>Token must start with &quot;tok-&quot;</FieldError>
+    </CredentialField>
+
+    <CredentialField isReadOnly defaultValue="sk-readonly-key-1234" copyable>
+      <Label>Read-Only + Copyable</Label>
+      <CredentialInput />
+    </CredentialField>
+
+    <CredentialField isDisabled defaultValue="sk-disabled-key-5678" copyable>
+      <Label>Disabled + Copyable</Label>
+      <CredentialInput />
     </CredentialField>
   </Flex>
 );

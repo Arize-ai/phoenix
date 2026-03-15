@@ -2,7 +2,6 @@ export * from "./Link";
 export * from "./ExternalLink";
 export * from "./LoadingMask";
 export * from "./ViewSummaryAside";
-export * from "./CopyToClipboardButton";
 export * from "./SectionHeading";
 export * from "./Empty";
 export * from "./KeyboardToken";

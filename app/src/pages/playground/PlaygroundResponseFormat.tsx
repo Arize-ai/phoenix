@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Button,
   Card,
-  CopyToClipboardButton,
+  CopyButton,
   Flex,
   Icon,
   Icons,
@@ -113,7 +113,7 @@ export function PlaygroundResponseFormat({
       collapsible
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={currentValueRef} />
+          <CopyButton text={currentValueRef} />
           <Button
             aria-label="Delete Response Format"
             leadingVisual={<Icon svg={<Icons.TrashOutline />} />}

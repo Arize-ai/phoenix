@@ -4,7 +4,7 @@ import { graphql } from "relay-runtime";
 
 import {
   Card,
-  CopyToClipboardButton,
+  CopyButton,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -132,7 +132,7 @@ export function PromptCodeExportCard({
               width="100%"
             >
               <Text>SDK Inline</Text>
-              {sdkSnippet ? <CopyToClipboardButton text={sdkSnippet} /> : null}
+              {sdkSnippet ? <CopyButton text={sdkSnippet} /> : null}
             </Flex>
           </DisclosureTrigger>
           <DisclosurePanel>
@@ -157,9 +157,7 @@ export function PromptCodeExportCard({
               gap="size-100"
             >
               <Text>Using the Client</Text>
-              {clientSnippet ? (
-                <CopyToClipboardButton text={clientSnippet} />
-              ) : null}
+              {clientSnippet ? <CopyButton text={clientSnippet} /> : null}
             </Flex>
           </DisclosureTrigger>
           <DisclosurePanel>

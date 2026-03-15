@@ -3,16 +3,7 @@ import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Card,
-  CopyToClipboardButton,
-  Flex,
-  Input,
-  Label,
-  Text,
-  TextField,
-  View,
-} from "@phoenix/components";
+import { Card, Flex, ReadOnlyTextField, View } from "@phoenix/components";
 import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
@@ -24,10 +15,6 @@ import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGe
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
 const formCSS = css`
-  .field {
-    // Hacky solution to make the text fields fill the remaining space
-    width: calc(100% - var(--global-dimension-size-600));
-  }
   padding: var(--global-dimension-size-200);
 `;
 
@@ -44,39 +31,24 @@ export function SettingsGeneralPage() {
         <View flex="2">
           <Card title="Platform Settings">
             <form css={formCSS}>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField value={BASE_URL} isReadOnly>
-                  <Label>Hostname</Label>
-                  <Input />
-                  <Text slot="description">Connect to Phoenix over HTTP</Text>
-                </TextField>
-                <CopyToClipboardButtonWithPadding text={BASE_URL} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField value={VERSION} isReadOnly>
-                  <Label>Platform Version</Label>
-                  <Input />
-                  <Text slot="description">
-                    The version of the Phoenix server
-                  </Text>
-                </TextField>
-                <CopyToClipboardButtonWithPadding text={VERSION} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  value={`pip install "arize-phoenix==${VERSION}"`}
-                  isReadOnly
-                >
-                  <Label>Installation Instructions</Label>
-                  <Input />
-                  <Text slot="description">
-                    The command to install the Phoenix Python package
-                  </Text>
-                </TextField>
-                <CopyToClipboardButtonWithPadding
-                  text={`pip install "arize-phoenix==${VERSION}"`}
-                />
-              </Flex>
+              <ReadOnlyTextField
+                value={BASE_URL}
+                label="Hostname"
+                description="Connect to Phoenix over HTTP"
+                copyable
+              />
+              <ReadOnlyTextField
+                value={VERSION}
+                label="Platform Version"
+                description="The version of the Phoenix server"
+                copyable
+              />
+              <ReadOnlyTextField
+                value={`pip install "arize-phoenix==${VERSION}"`}
+                label="Installation Instructions"
+                description="The command to install the Phoenix Python package"
+                copyable
+              />
             </form>
           </Card>
         </View>
@@ -96,13 +68,5 @@ export function SettingsGeneralPage() {
         <GlobalRetentionPolicyCard />
       </CanManageRetentionPolicy>
     </Flex>
-  );
-}
-
-function CopyToClipboardButtonWithPadding(props: { text: string }) {
-  return (
-    <View paddingBottom="20px" flex="none">
-      <CopyToClipboardButton text={props.text} size="M" />
-    </View>
   );
 }

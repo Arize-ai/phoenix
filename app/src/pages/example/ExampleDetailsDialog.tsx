@@ -7,7 +7,7 @@ import type { CardProps } from "@phoenix/components";
 import {
   Button,
   Card,
-  CopyToClipboardButton,
+  CopyButton,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -296,7 +296,7 @@ function ExampleDetailsDialogContent({
                           value={inputViewMode}
                           onChange={setInputViewMode}
                         />
-                        <CopyToClipboardButton text={input} />
+                        <CopyButton text={input} />
                       </Flex>
                     }
                   >
@@ -319,7 +319,7 @@ function ExampleDetailsDialogContent({
                           value={outputViewMode}
                           onChange={setOutputViewMode}
                         />
-                        <CopyToClipboardButton text={output} />
+                        <CopyButton text={output} />
                       </Flex>
                     }
                   >
@@ -336,7 +336,7 @@ function ExampleDetailsDialogContent({
                   <Card
                     title="Metadata"
                     {...defaultCardProps}
-                    extra={<CopyToClipboardButton text={metadata} />}
+                    extra={<CopyButton text={metadata} />}
                   >
                     <JSONBlock value={metadata} />
                   </Card>

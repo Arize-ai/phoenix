@@ -117,8 +117,7 @@ const titleIconBtnCSS = css`
   justify-content: center;
   width: var(--global-button-height-s);
   height: var(--global-button-height-s);
-  border: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
   opacity: 0;
   transition:
@@ -142,8 +141,7 @@ const titleIconBtnCopiedCSS = css`
   justify-content: center;
   width: var(--global-button-height-s);
   height: var(--global-button-height-s);
-  border: var(--global-border-size-thin) solid
-    var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
   opacity: 1;
   animation: ${fadeOut} ${SHOW_COPIED_TIMEOUT_MS}ms ease-in-out forwards;

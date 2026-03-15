@@ -11,7 +11,7 @@ import {
   Card,
   Checkbox,
   ColorSwatch,
-  CopyToClipboardButton,
+  CopyButton,
   Dialog,
   DialogTrigger,
   Empty,
@@ -284,7 +284,7 @@ export function ExperimentCompareDetails({
           <View overflow="hidden" padding="size-200" height="100%">
             <Card
               title="Input"
-              extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
+              extra={<CopyButton text={JSON.stringify(input)} />}
               height="100%"
               scrollBody={true}
               collapsible
@@ -909,7 +909,7 @@ function ExperimentItemHeader({
                 <Tooltip>View run trace</Tooltip>
               </TooltipTrigger>
             )}
-            {copyText && <CopyToClipboardButton text={copyText} />}
+            {copyText && <CopyButton text={copyText} />}
           </Flex>
         </div>
       </Flex>

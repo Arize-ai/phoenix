@@ -1,5 +1,3 @@
-import { css } from "@emotion/react";
-
 import {
   Alert,
   Button,
@@ -7,15 +5,12 @@ import {
   ExternalLink,
   Flex,
   Heading,
-  Input,
-  Label,
+  ReadOnlyTextField,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
-import { CopyToClipboardButton } from "@phoenix/components/core/CopyToClipboardButton";
 import {
   DialogCloseButton,
   DialogContent,
@@ -42,21 +37,9 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
           You have successfully created a new API key. The API key will only be
           displayed once below. Please copy and save it in a secure location.
         </Alert>
-        <div
-          css={css`
-            .field {
-              width: 100%;
-            }
-          `}
-        >
+        <div>
           <View padding="size-200">
-            <Flex direction="row" gap="size-100" alignItems="end">
-              <TextField isReadOnly value={jwt}>
-                <Label>API Key</Label>
-                <Input />
-              </TextField>
-              <CopyToClipboardButton text={jwt} size="M" />
-            </Flex>
+            <ReadOnlyTextField value={jwt} label="API Key" copyable />
           </View>
           <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
             <Heading level={2} weight="heavy">
