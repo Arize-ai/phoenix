@@ -1,29 +1,16 @@
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
-import {
-  getOtelInitCodePython,
-  getOtelInitCodeTypescript,
-} from "@phoenix/components/project/integrationSnippets";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
 export function ImplementationCodeBlock({
   language,
-  projectName,
-  isHosted,
+  code,
 }: {
   language: ProgrammingLanguage;
-  projectName: string;
-  /** Whether the app is running on a hosted (cloud) deployment, which affects the generated code snippet (e.g. endpoint configuration). */
-  isHosted: boolean;
+  code: string;
 }) {
   if (language === "Python") {
-    return (
-      <PythonBlockWithCopy
-        value={getOtelInitCodePython({ isHosted, projectName })}
-      />
-    );
+    return <PythonBlockWithCopy value={code} />;
   }
-  return (
-    <TypeScriptBlockWithCopy value={getOtelInitCodeTypescript(projectName)} />
-  );
+  return <TypeScriptBlockWithCopy value={code} />;
 }

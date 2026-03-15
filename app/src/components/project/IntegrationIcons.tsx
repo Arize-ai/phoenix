@@ -462,10 +462,7 @@ export const VercelSVG = () => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <path
-      d="M15.357 4L26.714 27H4L15.357 4Z"
-      fill="var(--global-text-color-900)"
-    />
+    <path d="M15.357 4L26.714 27H4L15.357 4Z" fill="currentColor" />
   </svg>
 );
 
