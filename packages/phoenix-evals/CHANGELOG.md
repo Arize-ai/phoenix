@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.11.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.11.0...arize-phoenix-evals-v2.11.1) (2026-03-15)
+
+
+### Bug Fixes
+
+* **evals:** allow prompt_template and kwargs in built-in classification evaluators ([#11984](https://github.com/Arize-ai/phoenix/issues/11984)) ([2ec192c](https://github.com/Arize-ai/phoenix/commit/2ec192c07c5e2f1831a2b159bdcbc17c3902a1aa))
+* **playground:** prevent OTel context leak causing duplicate trace_id in dataset runs ([#12062](https://github.com/Arize-ai/phoenix/issues/12062)) ([2a24625](https://github.com/Arize-ai/phoenix/commit/2a24625c5b390332a059266e9f05a972550c9cdc))
+
 ## [2.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.10.0...arize-phoenix-evals-v2.11.0) (2026-02-27)
 
 
