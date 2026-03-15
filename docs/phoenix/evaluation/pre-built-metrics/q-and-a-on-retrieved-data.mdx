@@ -3,43 +3,8 @@ title: "Q&A on Retrieved Data"
 ---
 
 <Warning>
-**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and is not available as a built-in metric in evals 2.0. You can still use these templates with older versions of the library (see [API Reference](https://arize-phoenix.readthedocs.io/projects/evals/)), or migrate them to custom evaluators as shown below.
+**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and will be removed in a future version. You can migrate the template to a custom evaluator as shown below.
 </Warning>
-
-<Accordion title="Using this template with evals 2.0">
-You can use the legacy template with a custom `ClassificationEvaluator`:
-
-```python
-from phoenix.evals import ClassificationEvaluator
-from phoenix.evals.llm import LLM
-
-QA_TEMPLATE = """You are given a question, an answer and reference text. You must determine whether the
-given answer correctly answers the question based on the reference text. Here is the data:
-    [BEGIN DATA]
-    ************
-    [Question]: {input}
-    ************
-    [Reference]: {reference}
-    ************
-    [Answer]: {output}
-    [END DATA]
-"correct" means that the question is correctly and fully answered by the answer.
-"incorrect" means that the question is not correctly or only partially answered by the answer."""
-
-qa_evaluator = ClassificationEvaluator(
-    name="qa_correctness",
-    prompt_template=QA_TEMPLATE,
-    model=LLM(provider="openai", model="gpt-4o"),
-    choices={"incorrect": 0, "correct": 1},
-)
-
-result = qa_evaluator.evaluate({
-    "input": "What is the capital of France?",
-    "reference": "Paris is the capital and largest city of France.",
-    "output": "The capital of France is Paris."
-})
-```
-</Accordion>
 
 ## When To Use Q\&A Eval Template
 
@@ -78,29 +43,34 @@ answer.
 ## How To Run the Q\&A Eval
 
 ```python
-import phoenix.evals.default_templates as templates
-from phoenix.evals import (
-    OpenAIModel,
-    download_benchmark_dataset,
-    llm_classify,
+from phoenix.evals import ClassificationEvaluator
+from phoenix.evals.llm import LLM
+
+QA_TEMPLATE = """You are given a question, an answer and reference text. You must determine whether the
+given answer correctly answers the question based on the reference text. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {input}
+    ************
+    [Reference]: {reference}
+    ************
+    [Answer]: {output}
+    [END DATA]
+"correct" means that the question is correctly and fully answered by the answer.
+"incorrect" means that the question is not correctly or only partially answered by the answer."""
+
+qa_evaluator = ClassificationEvaluator(
+    name="qa_correctness",
+    prompt_template=QA_TEMPLATE,
+    model=LLM(provider="openai", model="gpt-4o"),
+    choices={"incorrect": 0, "correct": 1},
 )
 
-model = OpenAIModel(
-    model="gpt-4",
-    temperature=0.0,
-)
-
-#The rails fore the output to specific values of the template
-#It will remove text such as ",,," or "...", anything not the
-#binary value expected from the template
-rails = list(templates.QA_PROMPT_RAILS_MAP.values())
-Q_and_A_classifications = llm_classify(
-    dataframe=df_sample,
-    template=templates.QA_PROMPT_TEMPLATE,
-    model=model,
-    rails=rails,
-    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
-)
+result = qa_evaluator.evaluate({
+    "input": "What is the capital of France?",
+    "reference": "Paris is the capital and largest city of France.",
+    "output": "The capital of France is Paris."
+})
 ```
 
 The above Eval uses the QA template for Q\&A analysis on retrieved data.
