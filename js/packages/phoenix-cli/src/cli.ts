@@ -9,6 +9,7 @@ import {
   createAuthCommand,
   createDatasetCommand,
   createDatasetsCommand,
+  createDocsCommand,
   createExperimentCommand,
   createExperimentsCommand,
   createProjectsCommand,
@@ -25,6 +26,7 @@ export function main() {
   const program = new Command();
 
   program.name("px");
+  program.enablePositionalOptions();
 
   // Register commands
   program.addCommand(createAnnotationConfigCommand());
@@ -41,6 +43,7 @@ export function main() {
   program.addCommand(createPromptsCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
+  program.addCommand(createDocsCommand());
 
   // Show banner and help if no command provided
   if (process.argv.length === 2) {
