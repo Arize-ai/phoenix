@@ -1662,3 +1662,256 @@ class TestIncompleteEvaluations:
         assert normal_result["status_code"] == 200, (
             "Database should still be functional after SQL injection attempts"
         )
+
+
+async def test_log_evaluation_with_result(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
+    """Test logging a successful evaluation to an experiment run."""
+    dataset_gid = GlobalID("Dataset", "0")
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = experiment["id"]
+
+    examples = (
+        await httpx_client.get(
+            f"v1/datasets/{dataset_gid}/examples",
+            params={"version_id": str(experiment["dataset_version_id"])},
+        )
+    ).json()["data"]["examples"]
+
+    run = (
+        await httpx_client.post(
+            f"v1/experiments/{experiment_gid}/runs",
+            json={
+                "dataset_example_id": str(examples[0]["id"]),
+                "output": "test output",
+                "repetition_number": 1,
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    ).json()["data"]
+
+    eval_response = (
+        await httpx_client.post(
+            "v1/experiment_evaluations",
+            json={
+                "experiment_run_id": run["id"],
+                "name": "Hallucination",
+                "annotator_kind": "LLM",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+                "result": {
+                    "label": "factual",
+                    "score": 0.95,
+                    "explanation": "No hallucination detected",
+                },
+            },
+        )
+    ).json()
+
+    assert "data" in eval_response
+    assert "id" in eval_response["data"]
+    eval_id = eval_response["data"]["id"]
+    assert eval_id.startswith("RXhw")  # base64 GlobalID prefix
+
+    # Verify annotation appears in experiment JSON
+    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/json")
+    runs_json = json.loads(response.text)
+    assert len(runs_json) == 1
+    annotations = runs_json[0]["annotations"]
+    assert len(annotations) == 1
+    assert annotations[0]["name"] == "Hallucination"
+    assert annotations[0]["score"] == 0.95
+    assert annotations[0]["label"] == "factual"
+    assert annotations[0]["explanation"] == "No hallucination detected"
+    assert annotations[0]["annotator_kind"] == "LLM"
+
+
+async def test_log_evaluation_with_error(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
+    """Test logging a failed evaluation with an error message."""
+    dataset_gid = GlobalID("Dataset", "0")
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+
+    examples = (
+        await httpx_client.get(
+            f"v1/datasets/{dataset_gid}/examples",
+            params={"version_id": str(experiment["dataset_version_id"])},
+        )
+    ).json()["data"]["examples"]
+
+    run = (
+        await httpx_client.post(
+            f"v1/experiments/{experiment['id']}/runs",
+            json={
+                "dataset_example_id": str(examples[0]["id"]),
+                "output": "test output",
+                "repetition_number": 1,
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    ).json()["data"]
+
+    eval_response = (
+        await httpx_client.post(
+            "v1/experiment_evaluations",
+            json={
+                "experiment_run_id": run["id"],
+                "name": "Toxicity",
+                "annotator_kind": "CODE",
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+                "error": "Evaluator timed out after 30s",
+            },
+        )
+    ).json()
+
+    assert "data" in eval_response
+    assert "id" in eval_response["data"]
+
+    response = await httpx_client.get(f"v1/experiments/{experiment['id']}/json")
+    runs_json = json.loads(response.text)
+    annotations = runs_json[0]["annotations"]
+    assert len(annotations) == 1
+    assert annotations[0]["name"] == "Toxicity"
+    assert annotations[0]["error"] == "Evaluator timed out after 30s"
+    assert annotations[0]["annotator_kind"] == "CODE"
+
+
+async def test_log_evaluation_upsert_semantics(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
+    """Test that logging the same (run_id, name) pair updates the existing evaluation."""
+    dataset_gid = GlobalID("Dataset", "0")
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+
+    examples = (
+        await httpx_client.get(
+            f"v1/datasets/{dataset_gid}/examples",
+            params={"version_id": str(experiment["dataset_version_id"])},
+        )
+    ).json()["data"]["examples"]
+
+    run = (
+        await httpx_client.post(
+            f"v1/experiments/{experiment['id']}/runs",
+            json={
+                "dataset_example_id": str(examples[0]["id"]),
+                "output": "test output",
+                "repetition_number": 1,
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    ).json()["data"]
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    first = (
+        await httpx_client.post(
+            "v1/experiment_evaluations",
+            json={
+                "experiment_run_id": run["id"],
+                "name": "Quality",
+                "annotator_kind": "LLM",
+                "start_time": now,
+                "end_time": now,
+                "result": {"score": 0.5},
+            },
+        )
+    ).json()
+
+    second = (
+        await httpx_client.post(
+            "v1/experiment_evaluations",
+            json={
+                "experiment_run_id": run["id"],
+                "name": "Quality",
+                "annotator_kind": "LLM",
+                "start_time": now,
+                "end_time": now,
+                "result": {"score": 0.9},
+            },
+        )
+    ).json()
+
+    assert "data" in first
+    assert "data" in second
+
+    response = await httpx_client.get(f"v1/experiments/{experiment['id']}/json")
+    runs_json = json.loads(response.text)
+    annotations = runs_json[0]["annotations"]
+    assert len(annotations) == 1
+    assert annotations[0]["name"] == "Quality"
+    assert annotations[0]["score"] == 0.9
+
+
+async def test_log_evaluation_validation_requires_result_or_error(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
+    """Test that the server rejects evaluations missing both result and error."""
+    dataset_gid = GlobalID("Dataset", "0")
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+
+    examples = (
+        await httpx_client.get(
+            f"v1/datasets/{dataset_gid}/examples",
+            params={"version_id": str(experiment["dataset_version_id"])},
+        )
+    ).json()["data"]["examples"]
+
+    run = (
+        await httpx_client.post(
+            f"v1/experiments/{experiment['id']}/runs",
+            json={
+                "dataset_example_id": str(examples[0]["id"]),
+                "output": "test output",
+                "repetition_number": 1,
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    ).json()["data"]
+
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run["id"],
+            "name": "MissingBoth",
+            "annotator_kind": "CODE",
+            "start_time": datetime.now(timezone.utc).isoformat(),
+            "end_time": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    assert response.status_code == 422
