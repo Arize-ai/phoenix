@@ -26,6 +26,7 @@ export function main() {
   const program = new Command();
 
   program.name("px");
+  program.enablePositionalOptions();
 
   // Register commands
   program.addCommand(createAnnotationConfigCommand());

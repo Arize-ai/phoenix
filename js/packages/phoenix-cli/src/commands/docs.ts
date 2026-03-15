@@ -41,18 +41,20 @@ const WORKFLOW_SECTION_MAP: Record<string, string[]> = {
   integrations: ["integrations"],
   sdk: ["sdk & api reference"],
   "self-hosting": ["self-hosting"],
-  cookbooks: ["cookbooks"],
-  concepts: ["concepts"],
-  quickstart: ["quick start"],
-  overview: ["overview"],
-  resources: ["resources"],
+  cloud: ["phoenix cloud"],
   settings: ["settings"],
 };
 
 const VALID_WORKFLOWS = Object.keys(WORKFLOW_SECTION_MAP);
 
 /** The default set fetched when no --workflow is specified. */
-const DEFAULT_WORKFLOWS = ["tracing", "evaluation", "datasets", "prompts"];
+const DEFAULT_WORKFLOWS = [
+  "tracing",
+  "evaluation",
+  "datasets",
+  "prompts",
+  "integrations",
+];
 
 // ---------------------------------------------------------------------------
 // Pure functions (exported for testing)
@@ -447,14 +449,22 @@ function addDocsOptions(command: Command): Command {
 export function createDocsCommand(): Command {
   const command = new Command("docs");
   command.description("Manage workflow docs for coding agents");
+  command.enablePositionalOptions();
+  command.passThroughOptions();
 
+  // All options live on the parent so `px docs --help` shows them
+  addDocsOptions(command);
+  command.action(docsFetchHandler);
+
+  // `fetch` is a convenience alias — it re-parses its own argv so
+  // `px docs fetch --workflow X` works identically to `px docs --workflow X`.
   const fetchCommand = new Command("fetch");
   fetchCommand.description(
     "Download workflow docs markdown from llms.txt index"
   );
   addDocsOptions(fetchCommand);
   fetchCommand.action(docsFetchHandler);
-  command.addCommand(fetchCommand, { isDefault: true });
+  command.addCommand(fetchCommand);
 
   return command;
 }
