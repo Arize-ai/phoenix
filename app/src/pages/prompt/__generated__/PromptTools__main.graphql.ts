@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<617e91b5e6a67d879103cebe496dd415>>
+ * @generated SignedSource<<67b98669b327e924298aa7b6facdf40a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,9 +11,16 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptTools__main$data = {
-  readonly tools: ReadonlyArray<{
-    readonly definition: any;
-  }>;
+  readonly tools: {
+    readonly tools: ReadonlyArray<{
+      readonly function: {
+        readonly description: string | null;
+        readonly name: string;
+        readonly parameters: any | null;
+        readonly strict: boolean | null;
+      };
+    }>;
+  } | null;
   readonly " $fragmentType": "PromptTools__main";
 };
 export type PromptTools__main$key = {
@@ -30,16 +37,59 @@ const node: ReaderFragment = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "ToolDefinition",
+      "concreteType": "PromptTools",
       "kind": "LinkedField",
       "name": "tools",
-      "plural": true,
+      "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "definition",
+          "concreteType": "PromptToolFunction",
+          "kind": "LinkedField",
+          "name": "tools",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "PromptToolFunctionDefinition",
+              "kind": "LinkedField",
+              "name": "function",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "description",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "parameters",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "strict",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
           "storageKey": null
         }
       ],
@@ -50,6 +100,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "aa512d962d83a58b70ae0e17f01242b3";
+(node as any).hash = "507119da76561b2b15a57bdd140f7b73";
 
 export default node;

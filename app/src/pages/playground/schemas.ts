@@ -201,6 +201,72 @@ export const modelConfigWithResponseFormatSchema = z.object({
   }),
 });
 
+export const modelConfigWithOpenAIResponsesFormatSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema.pipe(
+        z.object({
+          text: z.object({ format: jsonObjectSchema.optional() }).optional(),
+        }) as z.ZodType<
+          {
+            text?: { format?: { [key: string]: JSONLiteral } };
+          },
+          { [key: string]: JSONLiteral }
+        >
+      ),
+  }),
+});
+
+export const modelConfigWithAnthropicOutputConfigSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema.pipe(
+        z.object({
+          output_config: z
+            .object({
+              format: z
+                .object({
+                  type: z.literal("json_schema"),
+                  schema: jsonObjectSchema,
+                })
+                .optional(),
+            })
+            .optional(),
+        }) as z.ZodType<
+          {
+            output_config?: {
+              format?: {
+                type: "json_schema";
+                schema: { [key: string]: JSONLiteral };
+              };
+            };
+          },
+          { [key: string]: JSONLiteral }
+        >
+      ),
+  }),
+});
+
+export const modelConfigWithGoogleResponseFormatSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema.pipe(
+        z.object({
+          response_json_schema: jsonObjectSchema.optional(),
+          response_schema: jsonObjectSchema.optional(),
+          response_mime_type: z.string().optional(),
+        }) as z.ZodType<
+          {
+            response_json_schema?: { [key: string]: JSONLiteral };
+            response_schema?: { [key: string]: JSONLiteral };
+            response_mime_type?: string;
+          },
+          { [key: string]: JSONLiteral }
+        >
+      ),
+  }),
+});
+
 export const urlSchema = z.object({
   url: z.object({
     full: z.string(),
@@ -275,7 +341,16 @@ export const openAIResponseFormatSchema = z.lazy(() =>
       schema: jsonSchemaZodSchema.describe(
         "The schema itself in JSON schema format"
       ),
-      strict: z.literal(true).describe("The schema must be strict"),
+      strict: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether to enforce strict parameter validation (OpenAI only)"
+        ),
+      description: z
+        .string()
+        .optional()
+        .describe("An optional description of the schema"),
     }),
   })
 );
@@ -284,6 +359,29 @@ export type OpenAIResponseFormat = z.infer<typeof openAIResponseFormatSchema>;
 
 export const openAIResponseFormatJSONSchema = z.toJSONSchema(
   openAIResponseFormatSchema
+);
+
+export const anthropicResponseFormatSchema = z.object({
+  type: z.literal("json_schema"),
+  schema: jsonSchemaZodSchema.describe(
+    "The schema itself in JSON schema format"
+  ),
+});
+
+export type AnthropicResponseFormat = z.infer<
+  typeof anthropicResponseFormatSchema
+>;
+
+export const anthropicResponseFormatJSONSchema = z.toJSONSchema(
+  anthropicResponseFormatSchema
+);
+
+/**
+ * Google spans carry only the raw JSON schema (no `type`/`name` wrapper).
+ * The editor shows and accepts a plain JSON schema object.
+ */
+export const googleResponseFormatJSONSchema = z.toJSONSchema(
+  jsonSchemaZodSchema.describe("The JSON schema for the response")
 );
 
 const promptTemplateVariablesSchema = z.string().transform((s, ctx) => {

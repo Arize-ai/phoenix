@@ -197,7 +197,11 @@ const EditEvaluatorDialog = ({
               }
               promptVersion {
                 tools {
-                  definition
+                  tools {
+                    function {
+                      parameters
+                    }
+                  }
                 }
                 ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               }

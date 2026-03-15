@@ -44,7 +44,11 @@ export function LLMDatasetEvaluatorDetails({
               modelName
               modelProvider
               tools {
-                definition
+                tools {
+                  function {
+                    parameters
+                  }
+                }
               }
               ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
               ...PromptChatMessagesCard__main

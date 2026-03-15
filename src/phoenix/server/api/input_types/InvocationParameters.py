@@ -13,7 +13,6 @@ class CanonicalParameterName(str, Enum):
     STOP_SEQUENCES = "stop_sequences"
     TOP_P = "top_p"
     RANDOM_SEED = "random_seed"
-    TOOL_CHOICE = "tool_choice"
     RESPONSE_FORMAT = "response_format"
     REASONING_EFFORT = "reasoning_effort"
     ANTHROPIC_EXTENDED_THINKING = "anthropic_extended_thinking"

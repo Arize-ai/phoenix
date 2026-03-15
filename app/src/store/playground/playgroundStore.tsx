@@ -10,23 +10,13 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import {
-  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  RESPONSE_FORMAT_PARAM_NAME,
-  TOOL_CHOICE_PARAM_CANONICAL_NAME,
-} from "@phoenix/pages/playground/constants";
-import {
   areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
   mergeInvocationParametersWithDefaults,
 } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
-import type { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
-import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 
-import {
-  convertInstanceToolsToProvider,
-  convertMessageToolCallsToProvider,
-} from "./playgroundStoreUtils";
+import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import {
   type ChatMessage,
   type GenAIOperationType,
@@ -142,7 +132,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
-    toolChoice: "auto",
+    toolChoice: { type: "ZERO_OR_MORE" },
     repetitions: {
       1: {
         output: null,
@@ -172,22 +162,6 @@ export function createNormalizedPlaygroundInstance() {
       selectedRepetitionNumber: 1,
     } as PlaygroundNormalizedInstance,
     instanceMessages: normalizedTemplate.messages,
-  };
-}
-
-export function createOpenAIResponseFormat(): OpenAIResponseFormat {
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: "response",
-      schema: {
-        type: "object",
-        properties: {},
-        required: [],
-        additionalProperties: false,
-      },
-      strict: true,
-    },
   };
 }
 
@@ -413,15 +387,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               const { baseUrl, endpoint, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
 
-              // Preserve the response format invocation parameter regardless of dirty state
-              // This ensures response format is not lost when the model changes
-              const responseFormatInvocationParameter =
-                instance.model.invocationParameters.find(
-                  (p) =>
-                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-                );
-
               // try to port dirty invocation parameters to the new supported invocation parameters
               // ensure that the invocation parameters are only the ones that are supported by the model
               const dirtyInvocationParameters =
@@ -432,36 +397,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   supportedInvocationParameters
                 );
               // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
-              const mergedInvocationParameters =
+              const finalInvocationParameters =
                 mergeInvocationParametersWithDefaults(
                   filteredInvocationParameters,
                   supportedInvocationParameters
                 );
-
-              // Add back the response format if it exists and is supported by the model
-              // but only if it's not already present in mergedInvocationParameters
-              // (it would be present if the parameter had dirty: true)
-              const modelSupportsResponseFormat =
-                supportedInvocationParameters.some(
-                  (p) =>
-                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-                );
-              const responseFormatAlreadyInMerged =
-                mergedInvocationParameters.some(
-                  (p) =>
-                    p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-                    p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-                );
-              const finalInvocationParameters =
-                responseFormatInvocationParameter &&
-                modelSupportsResponseFormat &&
-                !responseFormatAlreadyInMerged
-                  ? [
-                      ...mergedInvocationParameters,
-                      responseFormatInvocationParameter,
-                    ]
-                  : mergedInvocationParameters;
 
               return {
                 ...instance,
@@ -472,13 +412,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   region: instance.model.region ?? region,
                   supportedInvocationParameters,
                   invocationParameters: finalInvocationParameters,
+                  // responseFormat lives on model directly — preserved by spread
                 },
-                // Delete tools if the model does not support tool choice
-                tools: supportedInvocationParameters.find(
-                  (p) => p.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
-                )
-                  ? instance.tools
-                  : [],
               };
             }
             return instance;
@@ -499,15 +434,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
 
       const savedProviderConfig = modelConfigByProvider[provider];
-
-      // pluck the response format invocation parameter from the current invocation parameters
-      // so we can merge it with the saved provider config if necessary
-      const responseFormatInvocationParameter =
-        instance.model.invocationParameters.find(
-          (p) =>
-            p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-            p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-        );
 
       // Set default baseUrl for OLLAMA if no saved config exists
       const getDefaultBaseUrl = (provider: ModelProvider) => {
@@ -542,27 +468,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...(savedProviderConfig || {}),
             // Only override invocation parameters if we have saved config
             ...(savedProviderConfig && {
-              invocationParameters: [
-                ...savedProviderConfig.invocationParameters,
-                ...(responseFormatInvocationParameter
-                  ? [responseFormatInvocationParameter]
-                  : []),
-              ],
+              invocationParameters: savedProviderConfig.invocationParameters,
             }),
+            // responseFormat is canonical (provider-agnostic) — carry through if present
+            ...(instance.model.responseFormat != null
+              ? { responseFormat: instance.model.responseFormat }
+              : {}),
             provider,
           };
 
           return finalModel;
         })(),
-        toolChoice:
-          safelyConvertToolChoiceToProvider({
-            toolChoice: instance.toolChoice,
-            targetProvider: provider,
-          }) ?? undefined,
-        tools: convertInstanceToolsToProvider({
-          instanceTools: instance.tools,
-          provider,
-        }),
+        toolChoice: instance.toolChoice ?? undefined,
+        tools: instance.tools,
       };
       const messageMapPatch: Record<number, ChatMessage> = {};
       if (instance.template.__type === "chat") {
@@ -1115,6 +1033,37 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "deleteInvocationParameterInput" }
+      );
+    },
+    setResponseFormat: ({ instanceId, responseFormat }) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) return instance;
+            return {
+              ...instance,
+              model: { ...instance.model, responseFormat },
+            };
+          }),
+        },
+        false,
+        { type: "setResponseFormat" }
+      );
+    },
+    deleteResponseFormat: ({ instanceId }) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) return instance;
+            const { responseFormat: _removed, ...modelWithout } =
+              instance.model;
+            return { ...instance, model: modelWithout };
+          }),
+        },
+        false,
+        { type: "deleteResponseFormat" }
       );
     },
     setDirty: (instanceId: number, dirty: boolean) => {

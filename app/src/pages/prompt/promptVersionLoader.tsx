@@ -28,9 +28,7 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
             description
             invocationParameters
             modelName
-            tools {
-              definition
-            }
+
             tags {
               name
             }

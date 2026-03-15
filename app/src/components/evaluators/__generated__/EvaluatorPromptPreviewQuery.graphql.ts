@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04989ec3e6dd99bd6655a91a87f1ce21>>
+ * @generated SignedSource<<d5d09076b41bc105d44d37d42b393b01>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type PromptChatTemplateInput = {
 };
 export type PromptMessageInput = {
   content: ReadonlyArray<ContentPartInput>;
-  role: string;
+  role: PromptMessageRole;
 };
 export type ContentPartInput = {
   text?: TextContentValueInput | null;

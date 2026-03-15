@@ -378,151 +378,54 @@ async def _dataset_id(
 # =============================================================================
 
 
-def _openai_tool(output_name: str) -> dict[str, Any]:
-    """OpenAI tool definition format."""
+def _canonical_prompt_tools(output_name: str) -> dict[str, Any]:
+    """Canonical PromptToolsInput format (provider-agnostic)."""
     return {
-        "type": "function",
-        "function": {
-            "name": output_name,
-            "description": "Evaluate the correctness of the output",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "label": {
-                        "type": "string",
-                        "enum": ["correct", "incorrect"],
-                        "description": output_name,
-                    },
-                    "explanation": {
-                        "type": "string",
-                        "description": "Explanation for the evaluation result",
-                    },
-                },
-                "required": ["label", "explanation"],
-            },
-        },
-    }
-
-
-def _anthropic_tool(output_name: str) -> dict[str, Any]:
-    """Anthropic tool definition format."""
-    return {
-        "name": output_name,
-        "description": "Evaluate the correctness of the output",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "label": {
-                    "type": "string",
-                    "enum": ["correct", "incorrect"],
-                    "description": output_name,
-                },
-                "explanation": {
-                    "type": "string",
-                    "description": "Explanation for the evaluation result",
-                },
-            },
-            "required": ["label", "explanation"],
-        },
-    }
-
-
-def _bedrock_tool(output_name: str) -> dict[str, Any]:
-    """AWS Bedrock tool definition format."""
-    return {
-        "toolSpec": {
-            "name": output_name,
-            "description": "Evaluate the correctness of the output",
-            "inputSchema": {
-                "json": {
-                    "type": "object",
-                    "properties": {
-                        "label": {
-                            "type": "string",
-                            "enum": ["correct", "incorrect"],
-                            "description": output_name,
+        "tools": [
+            {
+                "function": {
+                    "name": output_name,
+                    "description": "Evaluate the correctness of the output",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "enum": ["correct", "incorrect"],
+                                "description": output_name,
+                            },
+                            "explanation": {
+                                "type": "string",
+                                "description": "Explanation for the evaluation result",
+                            },
                         },
-                        "explanation": {
-                            "type": "string",
-                            "description": "Explanation for the evaluation result",
-                        },
+                        "required": ["label", "explanation"],
                     },
-                    "required": ["label", "explanation"],
                 }
-            },
-        }
+            }
+        ],
+        "toolChoice": {"functionName": output_name},
     }
 
 
-def _google_tool(output_name: str) -> dict[str, Any]:
-    """Google Gemini tool definition format."""
-    return {
-        "name": output_name,
-        "description": "Evaluate the correctness of the output",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "label": {
-                    "type": "string",
-                    "enum": ["correct", "incorrect"],
-                    "description": output_name,
-                },
-                "explanation": {
-                    "type": "string",
-                    "description": "Explanation for the evaluation result",
-                },
-            },
-            "required": ["label", "explanation"],
-        },
-    }
-
-
-def _openai_tool_choice(output_name: str) -> dict[str, Any]:
-    """OpenAI tool_choice format."""
-    return {"type": "function", "function": {"name": output_name}}
-
-
-def _anthropic_tool_choice(output_name: str) -> dict[str, Any]:
-    """Anthropic tool_choice format."""
-    return {"type": "tool", "name": output_name}
-
-
-def _bedrock_tool_choice(output_name: str) -> dict[str, Any]:
-    """AWS Bedrock tool_choice format (Anthropic-style)."""
-    return {"type": "tool", "name": output_name}
-
-
-def _google_tool_choice(output_name: str) -> dict[str, Any]:
-    """Google Gemini tool_choice format (function_calling_config)."""
-    return {
-        "function_calling_config": {
-            "mode": "any",
-            "allowed_function_names": [output_name],
-        }
-    }
-
-
-def _openai_invocation_params(output_name: str) -> dict[str, Any]:
+def _openai_invocation_params() -> dict[str, Any]:
     """OpenAI invocation parameters."""
-    return {"tool_choice": _openai_tool_choice(output_name)}
+    return {}
 
 
-def _anthropic_invocation_params(output_name: str) -> dict[str, Any]:
+def _anthropic_invocation_params() -> dict[str, Any]:
     """Anthropic invocation parameters (max_tokens is required)."""
-    return {
-        "max_tokens": 1024,
-        "tool_choice": _anthropic_tool_choice(output_name),
-    }
+    return {"max_tokens": 1024}
 
 
-def _bedrock_invocation_params(output_name: str) -> dict[str, Any]:
+def _bedrock_invocation_params() -> dict[str, Any]:
     """AWS Bedrock invocation parameters."""
-    return {"tool_choice": _bedrock_tool_choice(output_name)}
+    return {}
 
 
-def _google_invocation_params(output_name: str) -> dict[str, Any]:
+def _google_invocation_params() -> dict[str, Any]:
     """Google Gemini invocation parameters."""
-    return {"tool_choice": _google_tool_choice(output_name)}
+    return {}
 
 
 def _evaluator_prompt_version(
@@ -531,23 +434,15 @@ def _evaluator_prompt_version(
     output_name: str,
     custom_provider_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create a prompt version input for an evaluator.
-
-    Tool definitions, tool_choice, and invocation parameters are provider-specific.
-    """
-    # Select provider-specific tool and invocation parameters
+    """Create a prompt version input for an evaluator."""
     if model_provider == "OPENAI":
-        tool = _openai_tool(output_name)
-        invocation_params = _openai_invocation_params(output_name)
+        invocation_params = _openai_invocation_params()
     elif model_provider == "ANTHROPIC":
-        tool = _anthropic_tool(output_name)
-        invocation_params = _anthropic_invocation_params(output_name)
+        invocation_params = _anthropic_invocation_params()
     elif model_provider == "AWS":
-        tool = _bedrock_tool(output_name)
-        invocation_params = _bedrock_invocation_params(output_name)
+        invocation_params = _bedrock_invocation_params()
     elif model_provider == "GOOGLE":
-        tool = _google_tool(output_name)
-        invocation_params = _google_invocation_params(output_name)
+        invocation_params = _google_invocation_params()
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
 
@@ -587,7 +482,7 @@ def _evaluator_prompt_version(
             ]
         },
         "invocationParameters": invocation_params,
-        "tools": [{"definition": tool}],
+        "tools": _canonical_prompt_tools(output_name),
         "modelProvider": model_provider,
         "modelName": model_name,
         **({"customProviderId": custom_provider_id} if custom_provider_id else {}),

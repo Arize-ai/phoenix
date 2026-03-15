@@ -6,6 +6,7 @@ import type {
   AnthropicToolCall,
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
+import type { CanonicalToolDefinition } from "@phoenix/store/playground";
 
 import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
@@ -47,12 +48,6 @@ export const basePlaygroundSpan: PlaygroundSpan = {
       canonicalName: "RANDOM_SEED",
       invocationInputField: "value_int",
       invocationName: "seed",
-    },
-    {
-      __typename: "JsonInvocationParameter",
-      canonicalName: "RESPONSE_FORMAT",
-      invocationInputField: "value_json",
-      invocationName: "response_format",
     },
   ],
 };
@@ -174,4 +169,30 @@ export const testSpanAnthropicTool: SpanTool = {
   tool: {
     json_schema: JSON.stringify(testSpanAnthropicToolDefinition),
   },
+};
+
+// Canonical (CanonicalToolDefinition) form of the OpenAI span tool
+export const testSpanOpenAIToolCanonical: CanonicalToolDefinition = {
+  name: "get_weather",
+  description: null,
+  parameters: {
+    type: "object",
+    properties: {
+      city: { type: "string" },
+    },
+  },
+  strict: null,
+};
+
+// Canonical (CanonicalToolDefinition) form of the Anthropic span tool
+export const testSpanAnthropicToolCanonical: CanonicalToolDefinition = {
+  name: "get_weather",
+  description: "This is a test tool",
+  parameters: {
+    type: "object",
+    properties: {
+      city: { type: "string" },
+    },
+  },
+  strict: null,
 };

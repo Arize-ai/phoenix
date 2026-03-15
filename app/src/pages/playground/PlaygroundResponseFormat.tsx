@@ -15,13 +15,17 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
-  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  RESPONSE_FORMAT_PARAM_NAME,
-} from "./constants";
-import { openAIResponseFormatJSONSchema } from "./schemas";
+  displayToCanonicalResponseFormat,
+  getResponseFormatDisplay,
+} from "./playgroundUtils";
+import {
+  anthropicResponseFormatJSONSchema,
+  openAIResponseFormatJSONSchema,
+} from "./schemas";
 import type { PlaygroundInstanceProps } from "./types";
 
 /**
@@ -38,52 +42,40 @@ const RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT = 400;
 export function PlaygroundResponseFormat({
   playgroundInstanceId,
 }: PlaygroundInstanceProps) {
-  const deleteInvocationParameterInput = usePlaygroundContext(
-    (state) => state.deleteInvocationParameterInput
+  const deleteResponseFormat = usePlaygroundContext(
+    (state) => state.deleteResponseFormat
+  );
+  const setResponseFormat = usePlaygroundContext(
+    (state) => state.setResponseFormat
   );
   const instance = usePlaygroundContext((state) =>
     state.instances.find((i) => i.id === playgroundInstanceId)
   );
   const instanceProvider = instance?.model.provider;
-  const upsertInvocationParameterInput = usePlaygroundContext(
-    (state) => state.upsertInvocationParameterInput
-  );
 
   if (!instance) {
     throw new Error(`Instance ${playgroundInstanceId} not found`);
   }
 
-  const responseFormat = instance.model.invocationParameters.find(
-    (p) =>
-      p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
-      p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
-  );
   const [initialResponseFormatDefinition, setInitialResponseFormatDefinition] =
-    useState(() => JSON.stringify(responseFormat?.valueJson ?? {}, null, 2));
+    useState(() =>
+      JSON.stringify(getResponseFormatDisplay(instance.model) ?? {}, null, 2)
+    );
   const currentValueRef = useRef(initialResponseFormatDefinition);
   const store = usePlaygroundStore();
 
-  // when the instance provider changes, we need to update the editor value
-  // to reflect the new response format schema
+  // when the instance provider changes, re-derive the display value from the canonical form
   useEffect(() => {
     const state = store.getState();
     const instance = state.instances.find((i) => i.id === playgroundInstanceId);
     if (instance == null) {
       return;
     }
-    const responseFormat = instance.model.invocationParameters.find(
-      (p) =>
-        p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
-        p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
-    );
-    if (responseFormat == null) {
+    const displayValue = getResponseFormatDisplay(instance.model);
+    if (displayValue == null) {
       return;
     }
-    const newResponseFormatDefinition = JSON.stringify(
-      responseFormat.valueJson,
-      null,
-      2
-    );
+    const newResponseFormatDefinition = JSON.stringify(displayValue, null, 2);
     if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
       // eslint-disable-next-line react-hooks-js/set-state-in-effect
       setInitialResponseFormatDefinition(newResponseFormatDefinition);
@@ -92,38 +84,41 @@ export function PlaygroundResponseFormat({
 
   const onChange = useCallback(
     (value: string) => {
-      // track the current value of the editor, even when it is invalid
       currentValueRef.current = value;
-      const { json: format } = safelyParseJSON(value);
-      upsertInvocationParameterInput({
-        instanceId: playgroundInstanceId,
-        invocationParameterInput: {
-          invocationName: RESPONSE_FORMAT_PARAM_NAME,
-          valueJson: format,
-          canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        },
-      });
+      const { json: display } = safelyParseJSON(value);
+      if (!instanceProvider) return;
+      const canonical = displayToCanonicalResponseFormat(
+        display,
+        instanceProvider
+      );
+      if (canonical) {
+        setResponseFormat({
+          instanceId: playgroundInstanceId,
+          responseFormat: canonical,
+        });
+      }
     },
-    [playgroundInstanceId, upsertInvocationParameterInput]
+    [playgroundInstanceId, setResponseFormat, instanceProvider]
   );
+
+  const label =
+    instanceProvider === "GOOGLE" || instanceProvider === "AWS"
+      ? "Response Schema"
+      : "Response Format";
 
   return (
     <Card
-      title="Response Format"
+      title={label}
       collapsible
       extra={
         <Flex direction="row" gap="size-100">
           <CopyToClipboardButton text={currentValueRef} />
           <Button
-            aria-label="Delete Response Format"
+            aria-label={`Delete ${label}`}
             leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
             size="S"
             onPress={() => {
-              deleteInvocationParameterInput({
-                instanceId: playgroundInstanceId,
-                invocationParameterInputInvocationName:
-                  RESPONSE_FORMAT_PARAM_NAME,
-              });
+              deleteResponseFormat({ instanceId: playgroundInstanceId });
             }}
           />
         </Flex>
@@ -135,7 +130,13 @@ export function PlaygroundResponseFormat({
         <JSONEditor
           value={initialResponseFormatDefinition}
           onChange={onChange}
-          jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
+          jsonSchema={
+            (instanceProvider === "GOOGLE" || instanceProvider === "AWS"
+              ? jsonSchemaZodSchema
+              : instanceProvider === "ANTHROPIC"
+                ? anthropicResponseFormatJSONSchema
+                : openAIResponseFormatJSONSchema) as JSONSchema7
+          }
         />
       </LazyEditorWrapper>
     </Card>

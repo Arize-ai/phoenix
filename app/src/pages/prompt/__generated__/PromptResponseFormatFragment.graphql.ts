@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e461de62d84bb6513501fb4c21259ae1>>
+ * @generated SignedSource<<198e90844b3c381d667061ccc0f7a9b6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,12 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptResponseFormatFragment$data = {
   readonly responseFormat: {
-    readonly definition: any;
+    readonly jsonSchema: {
+      readonly description: string | null;
+      readonly name: string;
+      readonly schema: any | null;
+      readonly strict: boolean | null;
+    };
   } | null;
   readonly " $fragmentType": "PromptResponseFormatFragment";
 };
@@ -30,7 +35,7 @@ const node: ReaderFragment = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "ResponseFormat",
+      "concreteType": "PromptResponseFormatJSONSchema",
       "kind": "LinkedField",
       "name": "responseFormat",
       "plural": false,
@@ -38,8 +43,40 @@ const node: ReaderFragment = {
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "definition",
+          "concreteType": "PromptResponseFormatJSONSchemaDefinition",
+          "kind": "LinkedField",
+          "name": "jsonSchema",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "name",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "description",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "schema",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "strict",
+              "storageKey": null
+            }
+          ],
           "storageKey": null
         }
       ],
@@ -50,6 +87,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "154d745ec5e978e0dfc811ebfb9faa8c";
+(node as any).hash = "b3e879309fe87a12c3d0ba4aa88fef6b";
 
 export default node;

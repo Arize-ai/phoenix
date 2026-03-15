@@ -1,16 +1,11 @@
 import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
-import type { LlmProviderToolDefinition } from "@phoenix/schemas";
 import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import type { PlaygroundInput, PlaygroundInstance } from "@phoenix/store";
-import {
-  _resetInstanceId,
-  _resetMessageId,
-  createOpenAIResponseFormat,
-} from "@phoenix/store";
+import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
+import type { CanonicalToolDefinition } from "@phoenix/store/playground";
 
-import type { InvocationParameterInput } from "../__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
@@ -22,6 +17,7 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
+import type { InvocationParameterInput } from "../invocationParameterUtils";
 import {
   areInvocationParamsEqual,
   mergeInvocationParametersWithDefaults,
@@ -40,6 +36,8 @@ import {
   getPromptTemplateVariablesFromAttributes,
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
+  getResponseFormatFromAttributes,
+  getToolChoiceFromAttributes,
   getVariablesMapFromInstances,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
@@ -53,9 +51,9 @@ import {
   expectedUnknownToolCall,
   spanAttributesWithInputMessages,
   testSpanAnthropicTool,
-  testSpanAnthropicToolDefinition,
+  testSpanAnthropicToolCanonical,
   testSpanOpenAITool,
-  testSpanOpenAIToolJsonSchema,
+  testSpanOpenAIToolCanonical,
   testSpanToolCall,
 } from "./fixtures";
 
@@ -69,7 +67,7 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
     supportedInvocationParameters: [],
   },
   tools: [],
-  toolChoice: "auto",
+  toolChoice: { type: "ZERO_OR_MORE" },
   repetitions: {
     1: {
       output: null,
@@ -96,7 +94,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
     supportedInvocationParameters: [],
   },
   tools: [],
-  toolChoice: "auto",
+  toolChoice: { type: "ZERO_OR_MORE" },
   repetitions: {
     1: {
       output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
@@ -437,7 +435,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           {
             id: expect.any(Number),
             editorType: "json",
-            definition: testSpanOpenAIToolJsonSchema,
+            definition: testSpanOpenAIToolCanonical,
           },
         ],
         repetitions: {
@@ -544,7 +542,21 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ...spanAttributesWithInputMessages.llm,
           // only parameters defined on the span InvocationParameter[] field are parsed
           // note that snake case keys are automatically converted to camel case
-          invocation_parameters: `{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"], "response_format": ${JSON.stringify(createOpenAIResponseFormat())}}`,
+          invocation_parameters: `{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"], "response_format": ${JSON.stringify(
+            {
+              type: "json_schema",
+              json_schema: {
+                name: "response",
+                schema: {
+                  type: "object",
+                  properties: {},
+                  required: [],
+                  additionalProperties: false,
+                },
+                strict: true,
+              },
+            }
+          )}}`,
         },
       }),
     };
@@ -553,6 +565,19 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         ...expectedPlaygroundInstanceWithIO,
         model: {
           ...expectedPlaygroundInstanceWithIO.model,
+          responseFormat: {
+            type: "json_schema",
+            jsonSchema: {
+              name: "response",
+              schema: {
+                type: "object",
+                properties: {},
+                required: [],
+                additionalProperties: false,
+              },
+              strict: true,
+            },
+          },
           invocationParameters: [
             {
               canonicalName: "TOP_P",
@@ -573,11 +598,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               canonicalName: "STOP_SEQUENCES",
               invocationName: "stop",
               valueStringList: ["stop", "me"],
-            },
-            {
-              canonicalName: "RESPONSE_FORMAT",
-              invocationName: "response_format",
-              valueJson: createOpenAIResponseFormat(),
             },
           ],
         },
@@ -1214,7 +1234,7 @@ describe("getVariablesMapFromInstances", () => {
       supportedInvocationParameters: [],
     },
     tools: [],
-    toolChoice: "auto",
+    toolChoice: { type: "ZERO_OR_MORE" },
     repetitions: {
       1: {
         output: null,
@@ -1343,10 +1363,71 @@ describe("getVariablesMapFromInstances", () => {
   });
 });
 
+describe("getResponseFormatFromAttributes", () => {
+  it("should parse AWS outputConfig with schema as JSON string into responseFormat", () => {
+    const schemaString = JSON.stringify({
+      type: "object",
+      title: "MathReasoning",
+      properties: {
+        steps: { type: "array", items: { $ref: "#/$defs/Step" } },
+        final_answer: { type: "string", title: "Final Answer" },
+      },
+      required: ["steps", "final_answer"],
+      additionalProperties: false,
+    });
+    const parsedAttributes = {
+      llm: {
+        invocation_parameters: JSON.stringify({
+          inferenceConfig: { maxTokens: 1024 },
+          outputConfig: {
+            textFormat: {
+              type: "json_schema",
+              structure: {
+                jsonSchema: {
+                  schema: schemaString,
+                  name: "response",
+                },
+              },
+            },
+          },
+        }),
+      },
+    };
+    const result = getResponseFormatFromAttributes(parsedAttributes, "AWS");
+    expect(result.parsingErrors).toEqual([]);
+    expect(result.responseFormat).toEqual({
+      type: "json_schema",
+      jsonSchema: {
+        name: "response",
+        schema: JSON.parse(schemaString),
+      },
+    });
+  });
+});
+
+describe("getToolChoiceFromAttributes", () => {
+  it("should parse AWS Bedrock toolChoice shape { tool: { name } } as SPECIFIC_FUNCTION", () => {
+    const parsedAttributes = {
+      llm: {
+        invocation_parameters: JSON.stringify({
+          inferenceConfig: { maxTokens: 1024 },
+          toolConfig: {
+            toolChoice: { tool: { name: "new_function_1" } },
+          },
+        }),
+      },
+    };
+    expect(getToolChoiceFromAttributes(parsedAttributes)).toEqual({
+      type: "SPECIFIC_FUNCTION",
+      functionName: "new_function_1",
+    });
+  });
+});
+
 type ProviderToolTestTuple<T extends ModelProvider> = [
   T,
   SpanTool,
-  LlmProviderToolDefinition,
+  CanonicalToolDefinition,
 ];
 
 type ProviderToolTestMap = {
@@ -1358,30 +1439,26 @@ describe("getToolsFromAttributes", () => {
     ANTHROPIC: [
       "ANTHROPIC",
       testSpanAnthropicTool,
-      testSpanAnthropicToolDefinition,
+      testSpanAnthropicToolCanonical,
     ],
-    OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    AWS: ["AWS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    XAI: ["XAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    OLLAMA: ["OLLAMA", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    AWS: ["AWS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    DEEPSEEK: ["DEEPSEEK", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    XAI: ["XAI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    OLLAMA: ["OLLAMA", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     AZURE_OPENAI: [
       "AZURE_OPENAI",
       testSpanOpenAITool,
-      testSpanOpenAIToolJsonSchema,
+      testSpanOpenAIToolCanonical,
     ],
     // TODO(apowell): #5348 Add Google tool tests
-    GOOGLE: ["GOOGLE", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    CEREBRAS: ["CEREBRAS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
-    PERPLEXITY: [
-      "PERPLEXITY",
-      testSpanOpenAITool,
-      testSpanOpenAIToolJsonSchema,
-    ],
-    TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    GOOGLE: ["GOOGLE", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    CEREBRAS: ["CEREBRAS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    PERPLEXITY: ["PERPLEXITY", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolCanonical],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(

@@ -157,12 +157,27 @@ class TestChatCompletionSubscription:
     ) -> None:
         variables = {
             "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "Who won the World Cup in 2018? Answer in one word",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "NONE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "Who won the World Cup in 2018? Answer in one word"
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {"temperature": 0.1},
+                    "tools": None,
+                },
                 "model": {
                     "builtin": {
                         "name": "gpt-4",
@@ -170,9 +185,6 @@ class TestChatCompletionSubscription:
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.1},
-                ],
                 "repetitions": 1,
             },
         }
@@ -258,7 +270,11 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
-        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"temperature": 0.1})
+        assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
+        assert json.loads(invocation_parameters) == {
+            "temperature": 0.1,
+            "stream_options": {"include_usage": True},
+        }
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -298,12 +314,27 @@ class TestChatCompletionSubscription:
     ) -> None:
         variables = {
             "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "Who won the World Cup in 2018? Answer in one word",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "NONE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "Who won the World Cup in 2018? Answer in one word"
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {"temperature": 0.1},
+                    "tools": None,
+                },
                 "model": {
                     "builtin": {
                         "name": "gpt-4",
@@ -311,9 +342,6 @@ class TestChatCompletionSubscription:
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.1},
-                ],
                 "repetitions": 1,
             },
         }
@@ -400,7 +428,11 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
-        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"temperature": 0.1})
+        assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
+        assert json.loads(invocation_parameters) == {
+            "temperature": 0.1,
+            "stream_options": {"include_usage": True},
+        }
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
@@ -423,7 +455,7 @@ class TestChatCompletionSubscription:
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
-        get_current_weather_tool_schema = {
+        get_current_weather_tool_schema: dict[str, Any] = {
             "type": "function",
             "function": {
                 "name": "get_current_weather",
@@ -438,16 +470,43 @@ class TestChatCompletionSubscription:
                     },
                     "required": ["location"],
                 },
+                "strict": None,
             },
         }
         variables = {
             "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "How's the weather in San Francisco?",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "NONE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {"text": {"text": "How's the weather in San Francisco?"}}
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": {
+                        "tools": [
+                            {
+                                "function": {
+                                    "name": get_current_weather_tool_schema["function"]["name"],
+                                    "description": get_current_weather_tool_schema["function"][
+                                        "description"
+                                    ],
+                                    "parameters": get_current_weather_tool_schema["function"][
+                                        "parameters"
+                                    ],
+                                },
+                            }
+                        ],
+                        "toolChoice": {"zeroOrMore": True},
+                    },
+                },
                 "model": {
                     "builtin": {
                         "name": "gpt-4",
@@ -455,10 +514,6 @@ class TestChatCompletionSubscription:
                         "openaiApiType": "CHAT_COMPLETIONS",
                     }
                 },
-                "tools": [get_current_weather_tool_schema],
-                "invocationParameters": [
-                    {"invocationName": "tool_choice", "valueJson": "auto"},
-                ],
                 "repetitions": 1,
             },
         }
@@ -546,7 +601,11 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
-        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"tool_choice": "auto"})
+        assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
+        assert json.loads(invocation_paramaters) == {
+            "tool_choice": "auto",
+            "stream_options": {"include_usage": True},
+        }
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -575,7 +634,8 @@ class TestChatCompletionSubscription:
         assert function["name"] == "get_current_weather"
         assert json.loads(function["arguments"]) == {"location": "San Francisco"}
         assert (llm_tools := attributes.pop(LLM_TOOLS))
-        assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
+        assert len(llm_tools) == 1
+        assert json.loads(llm_tools[0]["tool"]["json_schema"]) == get_current_weather_tool_schema
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
@@ -589,33 +649,53 @@ class TestChatCompletionSubscription:
         custom_vcr: CustomVCR,
     ) -> None:
         tool_call_id = "call_zz1hkqH3IakqnHfVhrrUemlQ"
-        tool_calls = [
-            {
-                "id": tool_call_id,
-                "function": {
-                    "arguments": json.dumps({"city": "San Francisco"}, indent=4),
-                    "name": "get_weather",
-                },
-                "type": "function",
-            }
-        ]
         variables = {
             "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "How's the weather in San Francisco?",
+                "promptVersion": {
+                    "templateFormat": "NONE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {"text": {"text": "How's the weather in San Francisco?"}}
+                                ],
+                            },
+                            {
+                                "role": "AI",
+                                "content": [
+                                    {
+                                        "toolCall": {
+                                            "toolCallId": tool_call_id,
+                                            "toolCall": {
+                                                "type": "function",
+                                                "name": "get_weather",
+                                                "arguments": json.dumps(
+                                                    {"city": "San Francisco"}, indent=4
+                                                ),
+                                            },
+                                        }
+                                    }
+                                ],
+                            },
+                            {
+                                "role": "TOOL",
+                                "content": [
+                                    {
+                                        "toolResult": {
+                                            "toolCallId": tool_call_id,
+                                            "result": "sunny",
+                                        }
+                                    }
+                                ],
+                            },
+                        ]
                     },
-                    {
-                        "role": "AI",
-                        "toolCalls": tool_calls,
-                    },
-                    {
-                        "content": "sunny",
-                        "role": "TOOL",
-                        "toolCallId": tool_call_id,
-                    },
-                ],
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "model": {
                     "builtin": {
                         "name": "gpt-4",
@@ -707,6 +787,8 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
+        assert json.loads(invocation_paramaters) == {"stream_options": {"include_usage": True}}
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -733,7 +815,7 @@ class TestChatCompletionSubscription:
                     "id": tool_call_id,
                     "function": {
                         "name": "get_weather",
-                        "arguments": '"{\\n    \\"city\\": \\"San Francisco\\"\\n}"',
+                        "arguments": '{"city": "San Francisco"}',
                     },
                 }
             }
@@ -766,19 +848,30 @@ class TestChatCompletionSubscription:
     ) -> None:
         variables = {
             "input": {
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "Who won the World Cup in 2018? Answer in one word",
-                    }
-                ],
+                "promptVersion": {
+                    "templateFormat": "NONE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "Who won the World Cup in 2018? Answer in one word"
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "ANTHROPIC",
+                    "modelName": "claude-3-5-sonnet-20240620",
+                    "invocationParameters": {"temperature": 0.1, "max_tokens": 1024},
+                    "tools": None,
+                },
                 "model": {
                     "builtin": {"name": "claude-3-5-sonnet-20240620", "providerKey": "ANTHROPIC"}
                 },
-                "invocationParameters": [
-                    {"invocationName": "temperature", "valueFloat": 0.1},
-                    {"invocationName": "max_tokens", "valueInt": 1024},
-                ],
                 "repetitions": 1,
             },
         }
@@ -864,9 +957,8 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "claude-3-5-sonnet-20240620"
-        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps(
-            {"temperature": 0.1, "max_tokens": 1024}
-        )
+        assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
+        assert json.loads(invocation_paramaters) == {"temperature": 0.1, "max_tokens": 1024}
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
         assert attributes.pop(INPUT_VALUE)
@@ -1042,13 +1134,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
             }
         }
@@ -1195,6 +1301,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
+        assert json.loads(invocation_paramaters) == {"stream_options": {"include_usage": True}}
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -1283,6 +1391,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
+        assert json.loads(invocation_paramaters) == {"stream_options": {"include_usage": True}}
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -1429,16 +1539,30 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": (
-                            "What country is {city} in? "
-                            "Answer with the country name only without punctuation."
-                        ),
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": (
+                                                "What country is {city} in? "
+                                                "Answer with the country name only without punctuation."
+                                            )
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
             }
         }
@@ -1536,13 +1660,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
                 "splitIds": [train_split_id],  # Only train split
             }
@@ -1624,13 +1762,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],  # Both splits
             }
@@ -1700,13 +1852,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
                 # No splitIds provided
             }
@@ -1796,13 +1962,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
                 "tracingEnabled": True,
                 "evaluators": [
@@ -2366,13 +2546,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-nonexistent-model",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -2455,13 +2649,27 @@ class TestChatCompletionOverDatasetSubscription:
                 },
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "messages": [
-                    {
-                        "role": "USER",
-                        "content": "What country is {city} in? Answer in one word, no punctuation.",
-                    }
-                ],
-                "templateFormat": "F_STRING",
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {},
+                    "tools": None,
+                },
                 "repetitions": 1,
                 "evaluators": [
                     {

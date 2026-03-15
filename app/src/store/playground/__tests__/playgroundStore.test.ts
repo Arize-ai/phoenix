@@ -3,20 +3,20 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import {
-  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  RESPONSE_FORMAT_PARAM_NAME,
-} from "@phoenix/pages/playground/constants";
 
 import {
   _resetInstanceId,
   createNormalizedPlaygroundInstance,
-  createOpenAIResponseFormat,
   createPlaygroundStore,
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   getInitialInstances,
 } from "../playgroundStore";
-import type { InitialPlaygroundState } from "../types";
+import type { CanonicalResponseFormat, InitialPlaygroundState } from "../types";
+
+const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
+  type: "json_schema",
+  jsonSchema: { name: "MySchema", schema: { type: "object" }, strict: true },
+};
 
 describe("getInitialInstances", () => {
   beforeEach(() => {
@@ -712,8 +712,6 @@ describe("cancelPlaygroundInstances", () => {
 
 describe("updateModelSupportedInvocationParameters", () => {
   it("should preserve response format when updating supported invocation parameters", () => {
-    // This test captures the bug where response format disappears when
-    // the model changes (e.g., GPT-4o to GPT-4.1) because it's not marked as dirty.
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
       datasetId: null,
@@ -721,30 +719,15 @@ describe("updateModelSupportedInvocationParameters", () => {
     const store = createPlaygroundStore(initialProps);
     const instanceId = store.getState().instances[0].id;
 
-    // Add a response format via upsertInvocationParameterInput
-    // Note: This mimics how the UI adds response format - WITHOUT dirty: true
-    const responseFormatValue = createOpenAIResponseFormat();
-    store.getState().upsertInvocationParameterInput({
+    store.getState().setResponseFormat({
       instanceId,
-      invocationParameterInput: {
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        valueJson: responseFormatValue,
-      },
+      responseFormat: TEST_RESPONSE_FORMAT,
     });
 
-    // Verify response format was added
-    let responseFormat = store
-      .getState()
-      .instances[0].model.invocationParameters.find(
-        (p) =>
-          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-      );
-    expect(responseFormat).toBeDefined();
-    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+    expect(store.getState().instances[0].model.responseFormat).toEqual(
+      TEST_RESPONSE_FORMAT
+    );
 
-    // Create some mock supported invocation parameters that include response format
     const supportedInvocationParameters: InvocationParameter[] = [
       {
         __typename: "FloatInvocationParameter",
@@ -754,37 +737,20 @@ describe("updateModelSupportedInvocationParameters", () => {
         floatDefaultValue: 1.0,
         invocationInputField: "value_float",
       },
-      {
-        __typename: "JSONInvocationParameter",
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        required: false,
-        invocationInputField: "value_json",
-      },
     ];
 
-    // Simulate what happens when ModelSupportedParamsFetcher triggers after a model change
     store.getState().updateModelSupportedInvocationParameters({
       instanceId,
       supportedInvocationParameters,
       modelConfigByProvider: {},
     });
 
-    // Assert response format is still present after the update
-    responseFormat = store
-      .getState()
-      .instances[0].model.invocationParameters.find(
-        (p) =>
-          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-      );
-    expect(responseFormat).toBeDefined();
-    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+    expect(store.getState().instances[0].model.responseFormat).toEqual(
+      TEST_RESPONSE_FORMAT
+    );
   });
 
   it("should preserve response format when copied via addInstance (Compare feature)", () => {
-    // This test captures the bug where response format disappears when
-    // clicking "Compare" because the new instance triggers updateModelSupportedInvocationParameters.
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
       datasetId: null,
@@ -792,33 +758,19 @@ describe("updateModelSupportedInvocationParameters", () => {
     const store = createPlaygroundStore(initialProps);
     const firstInstanceId = store.getState().instances[0].id;
 
-    // Add a response format to the first instance
-    const responseFormatValue = createOpenAIResponseFormat();
-    store.getState().upsertInvocationParameterInput({
+    store.getState().setResponseFormat({
       instanceId: firstInstanceId,
-      invocationParameterInput: {
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        valueJson: responseFormatValue,
-      },
+      responseFormat: TEST_RESPONSE_FORMAT,
     });
 
-    // Add a second instance (simulates clicking "Compare")
     store.getState().addInstance();
     const secondInstanceId = store.getState().instances[1].id;
 
-    // Verify the response format was copied to the second instance
-    let responseFormat = store
-      .getState()
-      .instances[1].model.invocationParameters.find(
-        (p) =>
-          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-      );
-    expect(responseFormat).toBeDefined();
-    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+    // Verify the response format was copied to the second instance via spread
+    expect(store.getState().instances[1].model.responseFormat).toEqual(
+      TEST_RESPONSE_FORMAT
+    );
 
-    // Simulate what happens when ModelSupportedParamsFetcher triggers for the new instance
     const supportedInvocationParameters: InvocationParameter[] = [
       {
         __typename: "FloatInvocationParameter",
@@ -827,13 +779,6 @@ describe("updateModelSupportedInvocationParameters", () => {
         required: false,
         floatDefaultValue: 1.0,
         invocationInputField: "value_float",
-      },
-      {
-        __typename: "JSONInvocationParameter",
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        required: false,
-        invocationInputField: "value_json",
       },
     ];
 
@@ -843,23 +788,12 @@ describe("updateModelSupportedInvocationParameters", () => {
       modelConfigByProvider: {},
     });
 
-    // Assert response format is still present after the update
-    responseFormat = store
-      .getState()
-      .instances[1].model.invocationParameters.find(
-        (p) =>
-          p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-          p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-      );
-    expect(responseFormat).toBeDefined();
-    expect(responseFormat?.valueJson).toEqual(responseFormatValue);
+    expect(store.getState().instances[1].model.responseFormat).toEqual(
+      TEST_RESPONSE_FORMAT
+    );
   });
 
-  it("should not create duplicate response format when dirty: true is set", () => {
-    // This test verifies that when response format has dirty: true (set when users
-    // modify it via the form), it doesn't get duplicated in the final parameters.
-    // The dirty parameter flows through mergedInvocationParameters, and then the
-    // code should NOT append it again.
+  it("should clear response format when deleteResponseFormat is called", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
       datasetId: null,
@@ -867,62 +801,18 @@ describe("updateModelSupportedInvocationParameters", () => {
     const store = createPlaygroundStore(initialProps);
     const instanceId = store.getState().instances[0].id;
 
-    // Add a response format WITH dirty: true (as if user modified it via form)
-    const responseFormatValue = createOpenAIResponseFormat();
-    store.getState().upsertInvocationParameterInput({
+    store.getState().setResponseFormat({
       instanceId,
-      invocationParameterInput: {
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        valueJson: responseFormatValue,
-        dirty: true, // User modified via form
-      },
+      responseFormat: TEST_RESPONSE_FORMAT,
     });
 
-    // Verify response format was added
-    let params = store.getState().instances[0].model.invocationParameters;
-    let responseFormats = params.filter(
-      (p) =>
-        p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-        p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+    expect(store.getState().instances[0].model.responseFormat).toEqual(
+      TEST_RESPONSE_FORMAT
     );
-    expect(responseFormats).toHaveLength(1);
 
-    // Create supported invocation parameters that include response format
-    const supportedInvocationParameters: InvocationParameter[] = [
-      {
-        __typename: "FloatInvocationParameter",
-        invocationName: "temperature",
-        canonicalName: "TEMPERATURE",
-        required: false,
-        floatDefaultValue: 1.0,
-        invocationInputField: "value_float",
-      },
-      {
-        __typename: "JSONInvocationParameter",
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        required: false,
-        invocationInputField: "value_json",
-      },
-    ];
+    store.getState().deleteResponseFormat({ instanceId });
 
-    // Simulate what happens when ModelSupportedParamsFetcher triggers after a model change
-    store.getState().updateModelSupportedInvocationParameters({
-      instanceId,
-      supportedInvocationParameters,
-      modelConfigByProvider: {},
-    });
-
-    // Assert there is exactly ONE response format parameter (no duplicates)
-    params = store.getState().instances[0].model.invocationParameters;
-    responseFormats = params.filter(
-      (p) =>
-        p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-        p.invocationName === RESPONSE_FORMAT_PARAM_NAME
-    );
-    expect(responseFormats).toHaveLength(1);
-    expect(responseFormats[0]?.valueJson).toEqual(responseFormatValue);
+    expect(store.getState().instances[0].model.responseFormat).toBeUndefined();
   });
 });
 
