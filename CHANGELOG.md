@@ -1,5 +1,23 @@
 # Changelog
 
+## [13.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.15.0...arize-phoenix-v13.16.0) (2026-03-15)
+
+
+### Features
+
+* Add backend skill ([#12117](https://github.com/Arize-ai/phoenix/issues/12117)) ([cc8de3b](https://github.com/Arize-ai/phoenix/commit/cc8de3b9d23a2579f50f9c76e20efeb7adf432c7))
+* add configurable package manager preference per language ([#12140](https://github.com/Arize-ai/phoenix/issues/12140)) ([bf35656](https://github.com/Arize-ai/phoenix/commit/bf35656c7b548c058467e6bef2f486ea1c83dfcf))
+* add copy name/ID action menu to nav breadcrumbs ([#12150](https://github.com/Arize-ai/phoenix/issues/12150)) ([bc3ae84](https://github.com/Arize-ai/phoenix/commit/bc3ae84da81bd8e15cebea8f39efed4bf3b24d6b))
+* Figma MCP and storybook skills ([#11510](https://github.com/Arize-ai/phoenix/issues/11510)) ([c65c6fb](https://github.com/Arize-ai/phoenix/commit/c65c6fbfa384d6c84dc2b0f9ac54f09d04f70063))
+* **ui:** add collapse top-level keys toggle for dataset upload ([#12058](https://github.com/Arize-ai/phoenix/issues/12058)) ([8f7c7d5](https://github.com/Arize-ai/phoenix/commit/8f7c7d594b7ff4b20ddfe6e605652db06a0a87a0))
+* **ui:** add Shimmer component for AI loading states ([#12126](https://github.com/Arize-ai/phoenix/issues/12126)) ([0cb2548](https://github.com/Arize-ai/phoenix/commit/0cb2548ff9ddd93ae2059e07f1a4f1442d8a5b06))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 2.0.1 ([#12153](https://github.com/Arize-ai/phoenix/issues/12153)) ([a5fb8b1](https://github.com/Arize-ai/phoenix/commit/a5fb8b1e4c7ad4db71f23b77bd71df70512661a9))
+* fix link to server evals docs ([#12138](https://github.com/Arize-ai/phoenix/issues/12138)) ([3edc9cb](https://github.com/Arize-ai/phoenix/commit/3edc9cb50884aeaa9b72f4a2f717c215a202ab8e))
+
 ## [13.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.14.0...arize-phoenix-v13.15.0) (2026-03-13)
 
 
