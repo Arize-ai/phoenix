@@ -62,6 +62,39 @@ def _coerce_to_str(value: Any) -> str:
 EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 
 
+def _smart_string_coerce(value: Any) -> str:
+    """Coerce a value to string using JSON serialisation for non-strings.
+
+    Unlike :data:`EnforcedString` (which uses :func:`str`), this produces
+    valid JSON for dicts and lists, which is what LLM prompts expect.
+
+    Examples::
+
+        >>> _smart_string_coerce("hello")
+        'hello'
+        >>> _smart_string_coerce({"key": "value"})
+        '{"key": "value"}'
+        >>> _smart_string_coerce([1, 2, 3])
+        '[1, 2, 3]'
+    """
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+SmartString = Annotated[str, BeforeValidator(_smart_string_coerce)]
+"""Pydantic type that coerces non-string values to JSON strings.
+
+Use this for template variables that should receive their value as a
+JSON-serialised string inside the rendered prompt.  Prefer
+:data:`EnforcedString` only when Python :func:`str` repr is explicitly
+desired.
+"""
+
+
 # --- Helper Functions ---
 def _get_evaluator_span_name_sync(bound: Any) -> str:
     """Extract span name from evaluator instance for sync evaluation."""
@@ -522,11 +555,17 @@ class LLMEvaluator(Evaluator):
 
         required_fields = self._prompt_template.variables
 
-        # If no explicit input_schema, create a Pydantic model with all fields as required str
+        # If no explicit input_schema, build a type-aware Pydantic model:
+        #   - section vars ({{#var}}, {{^var}}) → Any, passed through unchanged
+        #     so pystache can iterate lists / use dicts for conditionals
+        #   - string vars ({{var}}, {var}) → SmartString, JSON-serialised if
+        #     not already a string (produces valid JSON, unlike str())
         if input_schema is None:
             model_name = f"{name.capitalize()}Input"
+            var_types = self._prompt_template.variable_types
             field_defs: Dict[str, Tuple[Any, Any]] = {
-                var: (EnforcedString, ...) for var in required_fields
+                var: (Any, ...) if var_types.get(var) == "section" else (SmartString, ...)
+                for var in required_fields
             }
             input_schema = create_model(
                 model_name,
@@ -1713,6 +1752,7 @@ __all__ = [
     "SQLEvaluator",
     # evals 2.0
     "EnforcedString",
+    "SmartString",
     "Score",
     "Evaluator",
     "LLMEvaluator",

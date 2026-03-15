@@ -12,6 +12,146 @@ from phoenix.evals.llm.prompts import (
     detect_template_format,
 )
 
+# ---------------------------------------------------------------------------
+# extract_variables_with_types — MustacheFormatter
+# ---------------------------------------------------------------------------
+
+
+class TestMustacheFormatterExtractVariablesWithTypes:
+    def test_plain_string_vars(self) -> None:
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("Hello {{name}}, you have {{count}} msgs")
+        assert result == {"name": "string", "count": "string"}
+
+    def test_section_var(self) -> None:
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("{{#items}}{{.}}{{/items}}")
+        assert result == {"items": "section"}
+
+    def test_inverted_section_var(self) -> None:
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("{{^empty}}has content{{/empty}}")
+        assert result == {"empty": "section"}
+
+    def test_section_precedence_over_string(self) -> None:
+        """A variable used as both a section and a plain var — section wins."""
+        formatter = MustacheFormatter()
+        # {{var}} appears as string, but {{#var}} as section: section takes precedence
+        result = formatter.extract_variables_with_types("{{var}} and {{#var}}yes{{/var}}")
+        assert result["var"] == "section"
+
+    def test_mixed_section_and_string_vars(self) -> None:
+        formatter = MustacheFormatter()
+        template = "Query: {{query}}\n{{#docs}}{{.}}{{/docs}}"
+        result = formatter.extract_variables_with_types(template)
+        assert result["query"] == "string"
+        assert result["docs"] == "section"
+
+    def test_dotted_path_extracts_root_only(self) -> None:
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("{{user.name}} lives in {{user.city}}")
+        # Dotted path lookups need root object passthrough
+        assert result == {"user": "section"}
+
+    def test_empty_template(self) -> None:
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("No variables here")
+        assert result == {}
+
+    def test_string_type_not_overwritten_by_another_string(self) -> None:
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("{{x}} and {{x}} again")
+        assert result == {"x": "string"}
+
+    def test_nested_vars_inside_section_not_extracted_as_top_level(self) -> None:
+        """Inner variables of a section (e.g. {{name}} inside {{#users}}) live in
+        the section's child parse tree and should NOT appear as top-level variables."""
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("{{#users}}{{name}} - {{email}}{{/users}}")
+        # Only the section variable 'users' is top-level
+        assert result == {"users": "section"}
+        assert "name" not in result
+        assert "email" not in result
+
+
+# ---------------------------------------------------------------------------
+# extract_variables_with_types — FStringFormatter (all string)
+# ---------------------------------------------------------------------------
+
+
+class TestFStringFormatterExtractVariablesWithTypes:
+    def test_all_string_types(self) -> None:
+        formatter = FStringFormatter()
+        result = formatter.extract_variables_with_types("Hello {name}, count={count}")
+        assert result == {"name": "string", "count": "string"}
+
+    def test_empty_template(self) -> None:
+        formatter = FStringFormatter()
+        result = formatter.extract_variables_with_types("No variables here")
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# PromptTemplate.variable_types property
+# ---------------------------------------------------------------------------
+
+
+class TestPromptTemplateVariableTypes:
+    def test_string_template_all_string(self) -> None:
+        pt = PromptTemplate(template="Rate: {{query}} vs {{reference}}")
+        vt = pt.variable_types
+        assert vt == {"query": "string", "reference": "string"}
+
+    def test_string_template_section_detected(self) -> None:
+        pt = PromptTemplate(template="{{#items}}{{.}}{{/items}}")
+        vt = pt.variable_types
+        assert vt["items"] == "section"
+
+    def test_message_list_all_string(self) -> None:
+        messages = [
+            {"role": "system", "content": "You are helpful."},
+            {"role": "user", "content": "Rate: {{query}} vs {{reference}}"},
+        ]
+        pt = PromptTemplate(template=messages)
+        vt = pt.variable_types
+        assert vt == {"query": "string", "reference": "string"}
+
+    def test_message_list_with_section(self) -> None:
+        messages = [
+            {"role": "system", "content": "Context: {{#docs}}{{.}}{{/docs}}"},
+            {"role": "user", "content": "{{query}}"},
+        ]
+        pt = PromptTemplate(template=messages)
+        vt = pt.variable_types
+        assert vt["docs"] == "section"
+        assert vt["query"] == "string"
+
+    def test_section_precedence_across_messages(self) -> None:
+        """If a var is string in one message and section in another, section wins."""
+        messages = [
+            {"role": "system", "content": "{{items}}"},
+            {"role": "user", "content": "{{#items}}{{.}}{{/items}}"},
+        ]
+        pt = PromptTemplate(template=messages)
+        assert pt.variable_types["items"] == "section"
+
+    def test_fstring_template_all_string(self) -> None:
+        pt = PromptTemplate(
+            template="Rate: {query} vs {reference}", template_format=TemplateFormat.F_STRING
+        )
+        vt = pt.variable_types
+        assert vt == {"query": "string", "reference": "string"}
+
+    def test_mustache_dotted_lookup_requires_root_object_passthrough(self) -> None:
+        pt = PromptTemplate(template="User: {{user.name}}")
+        assert pt.variable_types == {"user": "section"}
+
+    def test_copied_prompt_template_retains_variable_types(self) -> None:
+        original = PromptTemplate(template="{{#items}}{{.}}{{/items}} query: {{query}}")
+        copied = PromptTemplate(template=original)
+        assert copied.variable_types["items"] == "section"
+        assert copied.variable_types["query"] == "string"
+
 
 class TestTemplateFormatDetection:
     @pytest.mark.parametrize(
@@ -74,6 +214,12 @@ class TestFormatters:
 
         extracted_vars = formatter.extract_variables(template)
         assert set(extracted_vars) == {"environment", "user"}
+
+    def test_mustache_extract_variables_uses_root_for_dotted_paths(self) -> None:
+        formatter = MustacheFormatter()
+        template = "Hello {{user.name}} from {{user.company}}"
+        extracted_vars = formatter.extract_variables(template)
+        assert set(extracted_vars) == {"user"}
 
 
 class TestFormatterFactory:
