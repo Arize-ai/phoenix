@@ -144,9 +144,7 @@ export function urlToFilePath(url: string, outputDir: string): string {
 /**
  * Group doc entries by their section name (lowercased).
  */
-export function groupBySection(
-  entries: DocEntry[]
-): Map<string, DocEntry[]> {
+export function groupBySection(entries: DocEntry[]): Map<string, DocEntry[]> {
   const groups = new Map<string, DocEntry[]>();
   for (const entry of entries) {
     const section = entry.section.toLowerCase();
@@ -196,10 +194,7 @@ export function generateSectionIndex(
   const lines: string[] = [`# ${section} Docs`, ""];
 
   // Determine the section directory from the first entry
-  const firstFilePath = urlToFilePath(entries[0].url, "").replace(
-    /^\/+/,
-    ""
-  );
+  const firstFilePath = urlToFilePath(entries[0].url, "").replace(/^\/+/, "");
   const sectionDir = firstFilePath.split(path.sep)[0];
 
   for (const entry of entries) {
@@ -219,13 +214,8 @@ export function generateSectionIndex(
 // Fetch helpers
 // ---------------------------------------------------------------------------
 
-async function fetchAndSave(
-  entry: DocEntry,
-  outputDir: string
-): Promise<void> {
-  const markdownUrl = entry.url.endsWith(".md")
-    ? entry.url
-    : `${entry.url}.md`;
+async function fetchAndSave(entry: DocEntry, outputDir: string): Promise<void> {
+  const markdownUrl = entry.url.endsWith(".md") ? entry.url : `${entry.url}.md`;
   const response = await fetch(markdownUrl);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} for ${markdownUrl}`);
@@ -435,11 +425,7 @@ function addDocsOptions(command: Command): Command {
       "llms.txt index URL (Mintlify markdown index)",
       LLMS_TXT_URL
     )
-    .option(
-      "--dry-run",
-      "Discover links only; do not write files",
-      false
-    )
+    .option("--dry-run", "Discover links only; do not write files", false)
     .option(
       "--refresh",
       "Refresh docs by clearing output directory before download",
@@ -458,23 +444,17 @@ function addDocsOptions(command: Command): Command {
 // Command factories
 // ---------------------------------------------------------------------------
 
-function createDocsFetchCommand(): Command {
-  const command = new Command("fetch");
-  command.description("Download workflow docs markdown from llms.txt index");
-  addDocsOptions(command);
-  command.action(docsFetchHandler);
-  return command;
-}
-
 export function createDocsCommand(): Command {
   const command = new Command("docs");
   command.description("Manage workflow docs for coding agents");
 
-  // Options live on the parent so `px docs --workflow X` works directly
-  addDocsOptions(command);
-  command.action(docsFetchHandler);
-
-  command.addCommand(createDocsFetchCommand());
+  const fetchCommand = new Command("fetch");
+  fetchCommand.description(
+    "Download workflow docs markdown from llms.txt index"
+  );
+  addDocsOptions(fetchCommand);
+  fetchCommand.action(docsFetchHandler);
+  command.addCommand(fetchCommand, { isDefault: true });
 
   return command;
 }
