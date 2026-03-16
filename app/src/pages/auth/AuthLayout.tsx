@@ -27,7 +27,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
         borderWidth="thin"
         width="size-5000"
         padding="size-400"
-        backgroundColor="dark"
+        backgroundColor="gray-75"
         marginStart="auto"
         marginEnd="auto"
         borderRadius="medium"

@@ -356,7 +356,6 @@ export function ModelForm({
         borderTopWidth="thin"
         position="sticky"
         bottom={0}
-        backgroundColor="dark"
       >
         <Flex direction="row" justifyContent="end">
           <Button

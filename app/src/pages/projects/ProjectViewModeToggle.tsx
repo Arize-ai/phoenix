@@ -44,7 +44,6 @@ export const ProjectViewModeToggle = () => {
         <Tooltip offset={10}>
           <View
             padding="size-100"
-            backgroundColor="light"
             borderColor="dark"
             borderWidth="thin"
             borderRadius="small"
@@ -62,7 +61,6 @@ export const ProjectViewModeToggle = () => {
         <Tooltip offset={10}>
           <View
             padding="size-100"
-            backgroundColor="light"
             borderColor="dark"
             borderWidth="thin"
             borderRadius="small"

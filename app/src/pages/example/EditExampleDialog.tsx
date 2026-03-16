@@ -43,8 +43,6 @@ export type EditExampleDialogProps = {
 };
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };
 

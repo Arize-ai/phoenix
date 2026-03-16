@@ -409,7 +409,5 @@ export function ExampleDetailsDialog({
 }
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };

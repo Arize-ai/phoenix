@@ -16,7 +16,6 @@ export function ViewSummaryAside(props: ViewSummaryAsideProps) {
   return (
     <View
       width={width}
-      backgroundColor="light"
       borderStartWidth="thin"
       borderStartColor="dark"
       padding="size-200"

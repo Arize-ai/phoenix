@@ -1229,7 +1229,6 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 paddingBottom="size-100"
                 borderBottomColor="dark"
                 borderBottomWidth="thin"
-                backgroundColor="light"
               >
                 <Flex direction="column" alignItems="start" gap="size-50">
                   <Text color="text-700" fontStyle="italic">
@@ -1394,7 +1393,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       css={
                         idx === 0
                           ? css`
-                              border-top: 1px solid var(--global-border-color-default);
+                              border-top: 1px solid
+                                var(--global-border-color-default);
                             `
                           : null
                       }

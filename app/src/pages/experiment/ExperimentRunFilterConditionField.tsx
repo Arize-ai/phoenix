@@ -361,7 +361,7 @@ function FilterConditionBuilder(props: {
       paddingEnd="size-200"
       paddingBottom="size-200"
       borderRadius="medium"
-      backgroundColor="light"
+      backgroundColor="gray-75"
     >
       <Form>
         <FilterConditionSnippet

@@ -79,7 +79,6 @@ export const LLMEvaluatorForm = () => {
           the field names.
         </Text>
         <View
-          backgroundColor="dark"
           borderRadius="medium"
           borderWidth="thin"
           padding="size-200"

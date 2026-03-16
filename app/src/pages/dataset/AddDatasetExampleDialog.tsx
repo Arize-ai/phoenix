@@ -54,8 +54,6 @@ export type AddDatasetExampleDialogProps = {
 };
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };
 
@@ -66,7 +64,9 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddDatasetExampleDialogMutation>(
     graphql`
-      mutation AddDatasetExampleDialogMutation($input: AddExamplesToDatasetInput!) {
+      mutation AddDatasetExampleDialogMutation(
+        $input: AddExamplesToDatasetInput!
+      ) {
         addExamplesToDataset(input: $input) {
           __typename
         }
