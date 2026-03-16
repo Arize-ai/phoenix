@@ -268,14 +268,14 @@ px docs fetch --dry-run                      # preview without downloading
 px docs fetch --refresh                      # clear output dir and re-download
 ```
 
-| Option                | Description                                                                                       | Default                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `--workflow <name>`   | Filter by workflow category (repeatable). Values: `tracing`, `evaluation`, `datasets`, `prompts`, `integrations`, `sdk`, `self-hosting`, `all` | `tracing`, `evaluation`, `datasets`, `prompts`, `integrations` |
-| `--output-dir <dir>`  | Output directory for downloaded docs                                                              | `.px/docs`                                               |
-| `--dry-run`           | Discover links only; do not write files                                                           | `false`                                                  |
-| `--refresh`           | Clear output directory before downloading                                                         | `false`                                                  |
-| `--strict`            | Fail command if any page download fails                                                           | `false`                                                  |
-| `--workers <n>`       | Number of concurrent download workers                                                             | `10`                                                     |
+| Option               | Description                                                                                                                                    | Default                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `--workflow <name>`  | Filter by workflow category (repeatable). Values: `tracing`, `evaluation`, `datasets`, `prompts`, `integrations`, `sdk`, `self-hosting`, `all` | `tracing`, `evaluation`, `datasets`, `prompts`, `integrations` |
+| `--output-dir <dir>` | Output directory for downloaded docs                                                                                                           | `.px/docs`                                                     |
+| `--dry-run`          | Discover links only; do not write files                                                                                                        | `false`                                                        |
+| `--refresh`          | Clear output directory before downloading                                                                                                      | `false`                                                        |
+| `--strict`           | Fail command if any page download fails                                                                                                        | `false`                                                        |
+| `--workers <n>`      | Number of concurrent download workers                                                                                                          | `10`                                                           |
 
 ---
 
