@@ -45,7 +45,7 @@ export function AgentsPage() {
         overflow: hidden;
       `}
     >
-      <View borderBottomColor="dark" borderBottomWidth="thin">
+      <View borderBottomColor="default" borderBottomWidth="thin">
         <PageHeader title="PXI" />
       </View>
       <Chat

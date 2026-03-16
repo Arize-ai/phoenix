@@ -254,7 +254,11 @@ function DatasetLabelList({
           >
             {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
           </ListBox>
-          <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+          <View
+            padding="size-100"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
             <LinkButton variant="quiet" size="S" to="/settings/datasets">
               Edit Labels
             </LinkButton>

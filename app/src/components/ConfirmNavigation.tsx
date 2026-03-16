@@ -20,7 +20,7 @@ import {
 
 function ConfirmNavigationDialogFooter({ blocker }: { blocker: Blocker }) {
   return (
-    <View padding={"size-100"} borderTopColor={"dark"} borderTopWidth={"thin"}>
+    <View padding={"size-100"} borderTopColor="default" borderTopWidth={"thin"}>
       <Flex justifyContent={"end"} gap={"size-100"}>
         <Button onPress={() => blocker.reset && blocker.reset()} size="S">
           Cancel

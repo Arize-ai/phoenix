@@ -275,7 +275,7 @@ export function SessionDetailsTraceList({
     >
       {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
         <View
-          borderBottomColor={"dark"}
+          borderBottomColor="default"
           borderBottomWidth={"thin"}
           key={rootSpan.spanId}
         >
@@ -300,7 +300,7 @@ export function SessionDetailsTraceList({
       ))}
       {isLoadingNext && (
         <View
-          borderBottomColor={"dark"}
+          borderBottomColor="default"
           borderBottomWidth={"thin"}
           padding="size-200"
         >

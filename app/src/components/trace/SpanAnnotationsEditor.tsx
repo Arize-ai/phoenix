@@ -163,10 +163,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             query {
               node(id: $spanId) {
@@ -300,7 +297,7 @@ function AnnotationList(props: AnnotationListProps) {
         refetchKey={refetchKey}
       />
 
-      <View padding="size-100" borderTopWidth="thin" borderTopColor="dark">
+      <View padding="size-100" borderTopWidth="thin" borderTopColor="default">
         <Button
           variant="quiet"
           size="S"

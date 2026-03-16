@@ -22,7 +22,7 @@ export function SupportPage() {
   return (
     <main>
       <Flex direction="column" width="100%">
-        <View borderBottomColor="dark" borderBottomWidth="thin">
+        <View borderBottomColor="default" borderBottomWidth="thin">
           <PageHeader
             title="Support"
             subTitle="We are here to help. Pick a channel below to get in touch with us."
