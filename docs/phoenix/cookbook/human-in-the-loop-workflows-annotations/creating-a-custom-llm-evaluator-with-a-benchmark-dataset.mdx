@@ -177,7 +177,7 @@ from phoenix.client import Client
 dataset = Client().datasets.get_dataset(dataset="annotated-receipts")
 
 initial_experiment = run_experiment(
-    dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
+    dataset=dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
 )
 ```
 
@@ -219,7 +219,7 @@ INPUT RECEIPT: """,
 
 ```py
 initial_experiment = run_experiment(
-    dataset, task=task_function, evaluators=[evaluate_response], experiment_name="improved template"
+    dataset=dataset, task=task_function, evaluators=[evaluate_response], experiment_name="improved template"
 )
 ```
 

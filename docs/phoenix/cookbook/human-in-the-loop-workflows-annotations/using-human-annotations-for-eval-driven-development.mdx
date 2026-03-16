@@ -203,7 +203,7 @@ Here, we expect to see improvements in our experiment. The evaluator should flag
 
 ```javascript
 experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=updated_task,
     evaluators=[evaluate_response],
     experiment_name="updated system prompt",

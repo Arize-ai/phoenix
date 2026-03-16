@@ -152,8 +152,8 @@ from phoenix.client.experiments import run_experiment
 nest_asyncio.apply()
 
 experiment = run_experiment(
-    dataset,
-    call_crew_with_topic,
+    dataset=dataset,
+    task=call_crew_with_topic,
     experiment_name="agent-experiment",
     evaluators=[
         trajectory_exact_match,

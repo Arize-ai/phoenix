@@ -158,8 +158,8 @@ golden_dataset = px_client.datasets.get_dataset(
 )
 
 experiment = run_experiment(
-    golden_dataset,
-    classify_ticket_task,
+    dataset=golden_dataset,
+    task=classify_ticket_task,
     evaluators=[tool_call_accuracy],
     experiment_name="tool call accuracy experiment",
     experiment_description="Evaluating classify_ticket tool accuracy against ground truth labels using a code-based evaluator"

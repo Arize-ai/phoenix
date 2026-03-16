@@ -628,8 +628,8 @@ def tools_match(expected: str, output: str) -> bool:
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_router_step,
+    dataset=dataset,
+    task=run_router_step,
     evaluators=[tools_match],
     experiment_name="Tool Calling Eval",
     experiment_description="Evaluating the tool calling step of the agent",
@@ -700,8 +700,8 @@ def evaluate_sql_result(output: str, expected: str) -> bool:
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_sql_query,
+    dataset=dataset,
+    task=run_sql_query,
     evaluators=[evaluate_sql_result],
     experiment_name="SQL Query Eval",
     experiment_description="Evaluating the SQL query generation step of the agent",
@@ -786,8 +786,8 @@ def evaluate_chart_config(output: str, expected: str) -> bool:
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_code_generation,
+    dataset=dataset,
+    task=run_code_generation,
     evaluators=[code_is_runnable, evaluate_chart_config],
     experiment_name="Code Generation Eval",
     experiment_description="Evaluating the code generation step of the agent",
@@ -925,8 +925,8 @@ def run_agent_messages(messages):
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_agent_and_track_path,
+    dataset=dataset,
+    task=run_agent_and_track_path,
     experiment_name="Convergence Eval",
     experiment_description="Evaluating the convergence of the agent",
 )
@@ -956,7 +956,7 @@ def evaluate_path_length(output: str) -> float:
 ```
 
 ```python
-experiment = evaluate_experiment(experiment, evaluators=[evaluate_path_length])
+experiment = evaluate_experiment(experiment=experiment, evaluators=[evaluate_path_length])
 ```
 
 ## Advanced - Combining all the evals into our experiment
@@ -1328,8 +1328,8 @@ def run_overall_experiment(example: Example) -> str:
 
 
 experiment = run_experiment(
-    dataset,
-    run_overall_experiment,
+    dataset=dataset,
+    task=run_overall_experiment,
     evaluators=[
         function_calling_eval,
         evaluate_sql_result,

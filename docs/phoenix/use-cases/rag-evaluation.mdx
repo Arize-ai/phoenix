@@ -360,13 +360,14 @@ client = Client()
 
 retrieved_documents_df = client.spans.get_spans_dataframe(
     query=SpanQuery().where("span_kind == 'RETRIEVER'").select(
-        input="input.value",
+        "input.value",
     ).explode(
         "retrieval.documents",
         reference="document.content",
         document_score="document.score",
     )
 )
+retrieved_documents_df = retrieved_documents_df.rename(columns={"input.value": "input"})
 retrieved_documents_df
 ```
 
@@ -552,24 +553,18 @@ from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 
-query_for_root_span = SpanQuery().where(
-    "parent_id is None",
-).select(
-    input="input.value",
-    output="output.value",
+root_df = client.spans.get_spans_dataframe(
+    query=SpanQuery().where("parent_id is None").select("input.value", "output.value")
 )
+root_df = root_df.rename(columns={"input.value": "input", "output.value": "output"})
 
-query_for_retrieved_documents = SpanQuery().where(
-    "span_kind == 'RETRIEVER'",
-).select(
-    span_id="parent_id",
-).concat(
-    "retrieval.documents",
-    reference="document.content",
+docs_df = client.spans.get_spans_dataframe(
+    query=SpanQuery()
+    .where("span_kind == 'RETRIEVER'")
+    .select("parent_id")
+    .concat("retrieval.documents", reference="document.content")
 )
-
-root_df = client.spans.get_spans_dataframe(query=query_for_root_span)
-docs_df = client.spans.get_spans_dataframe(query=query_for_retrieved_documents)
+docs_df = docs_df.rename(columns={"parent_id": "span_id"})
 
 qa_with_reference_df = pd.concat([root_df, docs_df], axis=1, join="inner")
 qa_with_reference_df

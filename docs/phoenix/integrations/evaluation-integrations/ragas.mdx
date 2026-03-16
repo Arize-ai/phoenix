@@ -130,7 +130,7 @@ Finally, we run our experiment and view the results in Phoenix.
 from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
-    dataset, task=solve_math_problem, evaluators=[goal_evaluator, tool_call_evaluator]
+    dataset=dataset, task=solve_math_problem, evaluators=[goal_evaluator, tool_call_evaluator]
 )
 ```
 

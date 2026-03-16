@@ -162,8 +162,8 @@ Run the experiment on your dataset.
 from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
-    dataset,
-    my_support_agent_task,
+    dataset=dataset,
+    task=my_support_agent_task,
     evaluators=[call_actionability_judge],
     experiment_name="support agent",
     experiment_description="Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",
