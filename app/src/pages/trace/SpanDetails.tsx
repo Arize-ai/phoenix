@@ -744,8 +744,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   {promptTemplateObject.template != null && (
                     <View
                       borderRadius="medium"
-                      borderColor="light"
-                      backgroundColor="light"
                       borderWidth="thin"
                       padding="size-200"
                     >

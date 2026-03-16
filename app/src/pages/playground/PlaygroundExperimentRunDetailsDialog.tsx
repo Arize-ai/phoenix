@@ -229,7 +229,5 @@ function RunError({ error }: { error: string }) {
 }
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };

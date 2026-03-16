@@ -77,7 +77,6 @@ export const TraceDetailsPaginator = ({
           />
           <Tooltip offset={4}>
             <View
-              backgroundColor="dark"
               borderWidth="thin"
               borderColor="dark"
               borderRadius="medium"
