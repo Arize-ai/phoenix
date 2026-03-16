@@ -52,8 +52,6 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { CopyButton } from "@phoenix/components/core/copy";
 import {
   RichTooltip,
-  Tooltip,
-  TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components/core/tooltip";

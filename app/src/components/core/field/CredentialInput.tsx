@@ -39,7 +39,7 @@ function CredentialInput(
   props: CredentialInputProps,
   forwardedRef: Ref<HTMLInputElement>
 ) {
-  const { isVisible, setIsVisible, isDisabled, isReadOnly, copyable } =
+  const { isVisible, setIsVisible, isDisabled, copyable } =
     useCredentialContext();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isCopied, setIsCopied] = useState(false);
