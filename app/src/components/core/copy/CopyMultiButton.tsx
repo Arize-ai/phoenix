@@ -30,7 +30,7 @@ export interface CopyMultiButtonProps {
    * The size of the trigger button.
    * @default "S"
    */
-  size?: ButtonProps["size"];
+  size?: Exclude<ButtonProps["size"], "L">;
   /**
    * CSS class applied to the outermost wrapper element, useful for
    * parent-driven visibility toggling (e.g. show-on-hover patterns).

@@ -27,14 +27,12 @@ export const Default = Template.bind({});
 Default.args = {
   items: [
     {
-      key: "span",
-      label: "Span ID",
-      text: "span-abc123def456",
+      name: "Span ID",
+      value: "span-abc123def456",
     },
     {
-      key: "trace",
-      label: "Trace ID",
-      text: "trace-789ghi012jkl",
+      name: "Trace ID",
+      value: "trace-789ghi012jkl",
     },
   ],
 };
@@ -47,19 +45,16 @@ export const ThreeItems = Template.bind({});
 ThreeItems.args = {
   items: [
     {
-      key: "span",
-      label: "Span ID",
-      text: "span-abc123",
+      name: "Span ID",
+      value: "span-abc123",
     },
     {
-      key: "trace",
-      label: "Trace ID",
-      text: "trace-def456",
+      name: "Trace ID",
+      value: "trace-def456",
     },
     {
-      key: "project",
-      label: "Project ID",
-      text: "project-ghi789",
+      name: "Project ID",
+      value: "project-ghi789",
     },
   ],
 };
