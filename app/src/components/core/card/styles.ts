@@ -2,15 +2,13 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 
 export const cardCSS = (style?: CSSProperties) => css`
-  --scope-border-color: ${
-    style?.borderColor ?? "var(--global-border-color-default)"
-  };
+  --scope-border-color: ${style?.borderColor ??
+  "var(--global-border-color-default)"};
   --collapsible-card-animation-duration: 200ms;
   --collapsible-card-icon-size: var(--global-dimension-size-300);
 
   display: flex;
   flex-direction: column;
-  background-color: var(--global-background-color-dark);
   color: var(--global-text-color-900);
   border-radius: var(--global-rounding-medium);
   border: 1px solid var(--scope-border-color);

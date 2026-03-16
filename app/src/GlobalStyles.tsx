@@ -200,7 +200,7 @@ export const darkThemeCSS = css`
     --global-color-gray-900-rgb: 255, 255, 255;
     --global-color-gray-900: rgb(var(--global-color-gray-900-rgb));
 
-    --global-color-red-100-rgb: 87, 0, 0;
+    --global-color purple-100-rgb: 87, 0, 0;
     --global-color-red-100: rgb(var(--global-color-red-100-rgb));
     --global-color-red-200-rgb: 110, 0, 0;
     --global-color-red-200: rgb(var(--global-color-red-200-rgb));
@@ -908,10 +908,6 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-color-primary-50: rgba(var(--global-color-gray-900-rgb), 0.05);
 
     --global-background-color-default: var(--global-color-gray-100);
-    --global-background-color-light: var(--global-color-gray-200);
-    --global-background-color-light-hover: var(--global-color-gray-300);
-    --global-background-color-dark: var(--global-color-gray-100);
-    --global-background-color-danger: var(--global-color-danger);
 
     --global-border-color-default: var(--global-color-gray-300);
     --global-border-color-light: var(--global-color-gray-400);
@@ -991,6 +987,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-rounding-large: var(--global-dimension-static-size-200);
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
+
+    // Table tokens
+    --global-table-pinned-column-background-color: var(--global-color-gray-75);
 
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);

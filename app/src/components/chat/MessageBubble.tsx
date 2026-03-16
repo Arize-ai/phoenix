@@ -41,13 +41,13 @@ const bubbleCSS = css`
   line-height: var(--global-line-height-s);
   word-wrap: break-word;
   &[data-outgoing="true"] {
-    background-color: var(--global-color-primary);
+    background-color: var(--global-color-gray-800);
     color: var(--global-color-gray-50);
     border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
       var(--global-rounding-large);
   }
   &[data-outgoing="false"] {
-    background-color: var(--global-background-color-light);
+    background-color: var(--global-color-gray-200);
     color: var(--global-text-color-900);
     border-radius: var(--global-rounding-large) var(--global-rounding-large)
       var(--global-rounding-large) 0;

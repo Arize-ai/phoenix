@@ -15,7 +15,7 @@ const counterCSS = css`
   border-radius: var(--global-rounding-large);
   border: 1px solid var(--global-color-gray-300);
   min-width: var(--global-dimension-size-150);
-  background-color: var(--global-background-color-light);
+  background-color: var(--global-color-gray-200);
   font-size: var(--global-font-size-xs);
   line-height: var(--global-line-height-xs);
   text-align: center;

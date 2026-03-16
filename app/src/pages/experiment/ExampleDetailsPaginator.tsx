@@ -63,7 +63,6 @@ export const ExampleDetailsPaginator = ({
         <Tooltip
           offset={4}
           css={css`
-            background-color: var(--global-background-color-dark);
             border-color: var(--global-border-color-dark);
             border-radius: var(--global-rounding-medium);
             padding: var(--global-dimension-static-size-100);
@@ -86,7 +85,6 @@ export const ExampleDetailsPaginator = ({
         <Tooltip
           offset={4}
           css={css`
-            background-color: var(--global-background-color-dark);
             border-color: var(--global-border-color-dark);
             border-radius: var(--global-rounding-medium);
             padding: var(--global-dimension-static-size-100);

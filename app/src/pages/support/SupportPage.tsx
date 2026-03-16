@@ -71,7 +71,6 @@ const supportItemCSS = css`
   border: var(--global-border-size-thin) solid var(--global-border-color-dark);
   border-radius: var(--global-dimension-size-100);
   cursor: pointer;
-  background-color: var(--global-background-color-dark);
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);

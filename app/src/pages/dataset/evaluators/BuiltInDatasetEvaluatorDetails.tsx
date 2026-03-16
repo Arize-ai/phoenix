@@ -20,7 +20,6 @@ import { RegexEvaluatorDetails } from "@phoenix/components/evaluators/RegexEvalu
 import type { BuiltInDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/BuiltInDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 const boxCSS = css`
-  background-color: var(--global-background-color-dark);
   border-radius: var(--global-rounding-medium);
   padding: var(--global-dimension-static-size-200);
   margin-top: var(--global-dimension-static-size-50);

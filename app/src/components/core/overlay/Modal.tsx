@@ -117,7 +117,7 @@ const modalCSS = css`
     box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
     width: var(--modal-width);
     border-radius: var(--global-rounding-medium);
-    background: var(--global-background-color-dark);
+    background: var(--global-background-color-default);
     color: var(--global-text-color-900);
     border: 1px solid var(--global-border-color-light);
     outline: none;
@@ -125,7 +125,6 @@ const modalCSS = css`
     & .dialog__header {
       position: sticky;
       top: 0;
-      background: var(--global-background-color-dark);
       z-index: 1;
     }
   }

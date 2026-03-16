@@ -107,7 +107,6 @@ export const EvaluatorCategoricalChoiceConfig = () => {
   return (
     <div
       css={css`
-        background-color: var(--global-background-color-dark);
         border-radius: var(--global-rounding-medium);
         padding: var(--global-dimension-static-size-200);
         margin-top: var(--global-dimension-static-size-50);
