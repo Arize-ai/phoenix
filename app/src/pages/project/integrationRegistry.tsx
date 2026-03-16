@@ -1,4 +1,4 @@
-import { SquiggleOutline } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components";
 import {
   LangGraphSVG,
   VercelSVG,
@@ -21,7 +21,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "phoenix-otel",
     name: "Trace directly from app",
-    icon: <SquiggleOutline />,
+    icon: <Icon svg={<Icons.Trace />} />,
     supportedLanguages: ["Python", "TypeScript"],
     snippets: {
       Python: {
