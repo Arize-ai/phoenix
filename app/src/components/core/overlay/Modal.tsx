@@ -78,7 +78,7 @@ const modalCSS = css`
     .react-aria-Dialog {
       height: 100%;
       border-radius: 0;
-      border-left-color: var(--global-border-color-dark);
+      border-left-color: var(--global-border-color-default);
       border-top: none;
       border-bottom: none;
       border-right: none;
@@ -119,7 +119,7 @@ const modalCSS = css`
     border-radius: var(--global-rounding-medium);
     background: var(--global-background-color-default);
     color: var(--global-text-color-900);
-    border: 1px solid var(--global-border-color-light);
+    border: 1px solid var(--global-border-color-default);
     outline: none;
 
     & .dialog__header {

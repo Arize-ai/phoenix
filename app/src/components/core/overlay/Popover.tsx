@@ -42,7 +42,7 @@ const popoverCSS = css`
   .react-aria-OverlayArrow svg {
     display: block;
     fill: var(--background-color);
-    stroke: var(--global-border-color-light);
+    stroke: var(--global-border-color-default);
     stroke-width: 1px;
   }
 
