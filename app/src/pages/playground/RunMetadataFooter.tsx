@@ -63,7 +63,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
 
   return (
     <View
-      borderTopColor="light"
+      borderTopColor="default"
       borderTopWidth="thin"
       paddingStart="size-200"
       paddingEnd="size-200"

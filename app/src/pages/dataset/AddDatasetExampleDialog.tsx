@@ -64,7 +64,9 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddDatasetExampleDialogMutation>(
     graphql`
-      mutation AddDatasetExampleDialogMutation($input: AddExamplesToDatasetInput!) {
+      mutation AddDatasetExampleDialogMutation(
+        $input: AddExamplesToDatasetInput!
+      ) {
         addExamplesToDataset(input: $input) {
           __typename
         }
@@ -336,7 +338,7 @@ function AddExampleDialogContent(props: AddExampleDialogContentProps) {
           </View>
         </Flex>
       </div>
-      <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
+      <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
         <Flex direction="row" justifyContent="space-between" gap="size-100">
           <Checkbox isSelected={createMore} onChange={setCreateMore}>
             Create more

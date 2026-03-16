@@ -186,7 +186,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
             <View
               paddingX="size-200"
               paddingY="size-100"
-              borderTopColor="light"
+              borderTopColor="default"
               borderTopWidth="thin"
             >
               <Flex direction="row" gap="size-100" justifyContent="end">

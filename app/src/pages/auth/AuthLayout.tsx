@@ -23,7 +23,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
       `}
     >
       <View
-        borderColor="light"
+        borderColor="default"
         borderWidth="thin"
         width="size-5000"
         padding="size-400"

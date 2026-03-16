@@ -58,7 +58,11 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
               <CopyToClipboardButton text={jwt} size="M" />
             </Flex>
           </View>
-          <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
+          <View
+            padding="size-200"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
             <Heading level={2} weight="heavy">
               How to Use the API Key
             </Heading>
@@ -95,7 +99,11 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
               <PythonBlockWithCopy value={`Authorization: Bearer ${jwt}`} />
             </CodeWrap>
           </View>
-          <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
+          <View
+            padding="size-200"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
             <Flex direction="row" justifyContent="end">
               <Button variant="primary" aria-label="dismiss" slot="close">
                 Close

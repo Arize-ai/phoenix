@@ -181,7 +181,7 @@ const Template: Story = (args) => {
   return (
     <View
       width="600px"
-      borderColor="light"
+      borderColor="default"
       borderWidth="thin"
       borderRadius="medium"
       overflow="hidden"

@@ -74,7 +74,7 @@ export function DeletePromptVersionTagButton({
               paddingX="size-200"
               paddingY="size-100"
               borderTopWidth="thin"
-              borderColor="light"
+              borderColor="default"
             >
               <Flex gap="size-100" justifyContent="end">
                 <Button size="S" onPress={() => setIsOpen(false)}>

@@ -56,7 +56,7 @@ export const AnnotationConfigSelectionToolbar = ({
     >
       <View
         padding="size-200"
-        borderColor="light"
+        borderColor="default"
         borderWidth="thin"
         borderRadius="medium"
         minWidth="size-6000"

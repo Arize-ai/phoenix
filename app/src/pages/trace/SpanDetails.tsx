@@ -913,7 +913,7 @@ function RetrieverSpanInfo(props: {
           >
             {hasDocumentRetrievalMetrics && (
               <View
-                borderColor="light"
+                borderColor="default"
                 borderBottomWidth="thin"
                 padding="size-200"
               >
