@@ -24,8 +24,8 @@ const popoverCSS = css`
   box-sizing: border-box;
   --background-color: var(--global-popover-background-color);
   transition:
-    transform 200ms,
-    opacity 200ms;
+    transform 0ms,
+    opacity 0ms;
   border: 1px solid var(--global-popover-border-color);
   box-shadow: var(--overlay-box-shadow);
   border-radius: var(--global-rounding-small);
@@ -95,11 +95,11 @@ const popoverCSS = css`
   }
 
   &[data-entering] {
-    animation: ${popoverSlideKeyframes} 200ms;
+    animation: ${popoverSlideKeyframes} 0ms;
   }
 
   &[data-exiting] {
-    animation: ${popoverSlideKeyframes} 200ms reverse ease-in;
+    animation: ${popoverSlideKeyframes} 0ms reverse ease-in;
   }
 
   .react-aria-Dialog {

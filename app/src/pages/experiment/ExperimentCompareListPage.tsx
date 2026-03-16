@@ -36,7 +36,6 @@ import {
   ColorSwatch,
   Flex,
   Icon,
-  IconButton,
   Icons,
   Modal,
   ModalOverlay,
@@ -50,7 +49,7 @@ import {
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import {
   RichTooltip,
   Tooltip,
@@ -59,8 +58,14 @@ import {
   TriggerWrap,
 } from "@phoenix/components/core/tooltip";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { CellWithControlsWrap } from "@phoenix/components/table";
+import {
+  borderedTableCSS,
+  interactiveTableCSS,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -102,6 +107,9 @@ const tableWrapCSS = css`
     min-width: 100%;
     td {
       vertical-align: top;
+    }
+    tbody tr {
+      cursor: pointer;
     }
   }
 `;
@@ -509,30 +517,14 @@ export function ExperimentCompareListPage({
       header: "example",
       accessorKey: "example",
       size: 110,
-      cell: ({ getValue, row }) => {
+      cell: ({ getValue }) => {
         const exampleId = getValue() as string;
         return (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <CopyId id={exampleId} truncate={8} />
-            <TooltipTrigger>
-              <IconButton
-                size="S"
-                aria-label="View experiment run details"
-                onPress={() => {
-                  setSelectedExampleIndex(row.index);
-                }}
-                css={css`
-                  flex: none;
-                `}
-              >
-                <Icon svg={<Icons.ExpandOutline />} />
-              </IconButton>
-              <Tooltip>
-                <TooltipArrow />
-                view experiment runs
-              </Tooltip>
-            </TooltipTrigger>
-          </Flex>
+          <CellWithControlsWrap controls={<CopyButton text={exampleId} />}>
+            <Truncate>
+              <Text fontFamily="mono">{exampleId}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
         );
       },
     };
@@ -1224,7 +1216,7 @@ export function ExperimentCompareListPage({
           ref={tableContainerRef}
         >
           <table
-            css={css(tableCSS, borderedTableCSS)}
+            css={css(tableCSS, borderedTableCSS, interactiveTableCSS)}
             style={{
               ...columnSizeVars,
               width: table.getTotalSize(),
@@ -1272,9 +1264,17 @@ export function ExperimentCompareListPage({
             </thead>
             {table.getState().columnSizingInfo.isResizingColumn ? (
               /* When resizing any column we will render this special memoized version of our table body */
-              <MemoizedTableBody table={table} virtualizer={virtualizer} />
+              <MemoizedTableBody
+                table={table}
+                virtualizer={virtualizer}
+                onRowClick={setSelectedExampleIndex}
+              />
             ) : (
-              <TableBody table={table} virtualizer={virtualizer} />
+              <TableBody
+                table={table}
+                virtualizer={virtualizer}
+                onRowClick={setSelectedExampleIndex}
+              />
             )}
           </table>
         </div>
@@ -1436,9 +1436,11 @@ function AnnotationValueItem({
 function TableBody<T>({
   table,
   virtualizer,
+  onRowClick,
 }: {
   table: Table<T>;
   virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
+  onRowClick?: (rowIndex: number) => void;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
@@ -1455,6 +1457,7 @@ function TableBody<T>({
         return (
           <tr
             key={row.id}
+            onClick={onRowClick ? () => onRowClick(row.index) : undefined}
             style={{
               height: `${virtualRow.size}px`,
               transform: `translateY(${
@@ -1497,7 +1500,9 @@ function TableBody<T>({
 //special memoized wrapper for our table body that we will use during column resizing
 export const MemoizedTableBody = memo(
   TableBody,
-  (prev, next) => prev.table.options.data === next.table.options.data
+  (prev, next) =>
+    prev.table.options.data === next.table.options.data &&
+    prev.onRowClick === next.onRowClick
 ) as typeof TableBody;
 
 const getAnnotationValue = (annotation: Annotation | undefined) => {

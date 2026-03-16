@@ -25,10 +25,33 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import type { EditExampleDialogMutation } from "./__generated__/EditExampleDialogMutation.graphql";
+
+const dialogTitleIdCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-static-size-50);
+
+  .copy-button {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .copy-button,
+  .copy-button:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const monoCSS = css`
+  font-family: "Geist Mono", monospace;
+  white-space: nowrap;
+`;
 
 type ExamplePatch = {
   input: string;
@@ -118,7 +141,10 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Edit Example: <CopyId id={exampleId} variant="title" />
+              <span css={dialogTitleIdCSS}>
+                Edit Example: <span css={monoCSS}>{exampleId}</span>
+                <CopyButton text={exampleId} variant="quiet" size="S" />
+              </span>
             </DialogTitle>
             <DialogTitleExtra>
               <Button

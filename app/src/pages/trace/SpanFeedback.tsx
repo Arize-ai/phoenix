@@ -10,11 +10,13 @@ import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { CopyId } from "@phoenix/components/core/copy";
+import { Text } from "@phoenix/components/core/content/Text";
+import { CopyButton } from "@phoenix/components/core/copy";
 import { Icons } from "@phoenix/components/core/icon";
 import { Icon } from "@phoenix/components/core/icon/Icon";
 import { Flex } from "@phoenix/components/core/layout/Flex";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { CellWithControlsWrap } from "@phoenix/components/table";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -116,7 +118,14 @@ function SpanAnnotationsTable({
         size: 100,
         cell: ({ getValue }) => {
           const value = getValue() as string | null;
-          return value ? <CopyId id={value} /> : <>{"--"}</>;
+          if (!value) return <>{"--"}</>;
+          return (
+            <CellWithControlsWrap controls={<CopyButton text={value} />}>
+              <Truncate>
+                <Text fontFamily="mono">{value}</Text>
+              </Truncate>
+            </CellWithControlsWrap>
+          );
         },
       },
       {

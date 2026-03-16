@@ -18,7 +18,6 @@ import {
   TabList,
   Tabs,
 } from "@phoenix/components";
-import { CopyId } from "@phoenix/components/core/copy";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
@@ -138,6 +137,7 @@ function ProjectPageContentBody({
         project: node(id: $id) {
           ... on Project {
             name
+            description
             ...ProjectPageHeader_stats
             ...StreamToggle_data
           }
@@ -241,7 +241,11 @@ function ProjectPageContentBody({
     <main css={mainCSS}>
       <PageHeader
         title={data.project.name ?? "Project"}
-        subTitle={<CopyId id={projectId} />}
+        subTitle={data.project.description || undefined}
+        copyItems={[
+          { name: "Project Name", value: data.project.name ?? "" },
+          { name: "Project ID", value: projectId },
+        ]}
         extra={
           <Flex direction="row" alignItems="center" gap="size-100">
             <StreamToggle project={data.project} />

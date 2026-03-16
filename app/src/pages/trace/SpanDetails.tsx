@@ -53,7 +53,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyMultiButton } from "@phoenix/components/core/copy";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -1310,7 +1310,27 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeSelect />
-            <CopyButton text={messageContent || JSON.stringify(message)} />
+            {toolResultId ? (
+              <CopyMultiButton
+                variant="default"
+                items={[
+                  {
+                    name: "Result ID",
+                    value: toolResultId,
+                  },
+                  ...(messageContent
+                    ? [
+                        {
+                          name: "Result Content",
+                          value: messageContent,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            ) : (
+              <CopyButton text={messageContent || JSON.stringify(message)} />
+            )}
           </Flex>
         }
       >
@@ -1323,17 +1343,16 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
           <DisclosureGroup
             css={css`
               width: 100%;
-              // when any .disclosure__trigger is hovered, show the child .copy-to-clipboard-button
               .disclosure__trigger {
                 width: 100%;
-                .copy-to-clipboard-button {
+                .copy-button {
                   visibility: hidden;
                 }
               }
               .disclosure__trigger:hover,
               .disclosure__trigger:focus-within,
               .disclosure__trigger:focus-visible {
-                .copy-to-clipboard-button {
+                .copy-button {
                   visibility: visible;
                 }
               }
@@ -1353,11 +1372,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                 >
                   <Text>
                     Tool Result
-                    {toolResultId ? (
-                      <>
-                        : <CopyId id={toolResultId} />
-                      </>
-                    ) : null}
+                    {toolResultId ? <>: {toolResultId}</> : null}
                   </Text>
                 </DisclosureTrigger>
                 <DisclosurePanel>
@@ -1406,11 +1421,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       >
                         <span>
                           Tool Call
-                          {id ? (
-                            <>
-                              : <CopyId id={id} />
-                            </>
-                          ) : null}
+                          {id ? <>: {id}</> : null}
                         </span>
                       </DisclosureTrigger>
                       <DisclosurePanel>

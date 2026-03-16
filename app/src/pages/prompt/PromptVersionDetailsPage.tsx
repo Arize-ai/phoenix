@@ -14,7 +14,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import type { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
@@ -23,6 +23,29 @@ import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersion
 import type { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
+
+const dialogTitleIdCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-static-size-50);
+
+  .copy-button {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .copy-button,
+  .copy-button:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const monoCSS = css`
+  font-family: "Geist Mono", monospace;
+  white-space: nowrap;
+`;
 
 export function PromptVersionDetailsPage() {
   const loaderData = useLoaderData<typeof promptVersionLoader>();
@@ -52,7 +75,14 @@ function PromptVersionDetailsPageContent({
           <Flex direction="row" justifyContent="space-between">
             <Flex direction="row" gap="size-100" alignItems="center">
               <Heading level={2}>
-                Version: <CopyId id={promptVersion.id} variant="title" />
+                <span css={dialogTitleIdCSS}>
+                  Version: <span css={monoCSS}>{promptVersion.id}</span>
+                  <CopyButton
+                    text={promptVersion.id}
+                    variant="quiet"
+                    size="S"
+                  />
+                </span>
               </Heading>
               <PromptVersionTagsList promptVersion={promptVersion} />
             </Flex>

@@ -5,14 +5,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
-import { Icon, Icons } from "@phoenix/components";
-import { CopyId } from "@phoenix/components/core/copy";
+import { Icon, Icons, Text } from "@phoenix/components";
+import { CopyButton } from "@phoenix/components/core/copy";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { CellWithControlsWrap } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type { DatasetHistoryTable_versions$key } from "./__generated__/DatasetHistoryTable_versions.graphql";
 
@@ -74,18 +77,28 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
       {
         header: "version ID",
         accessorKey: "id",
+        size: 180,
         cell: ({ getValue }) => {
           const value = getValue() as string | null;
-          return value ? <CopyId id={value} /> : <>{"--"}</>;
+          if (!value) return <>{"--"}</>;
+          return (
+            <CellWithControlsWrap controls={<CopyButton text={value} />}>
+              <Truncate>
+                <Text fontFamily="mono">{value}</Text>
+              </Truncate>
+            </CellWithControlsWrap>
+          );
         },
       },
       {
         header: "description",
         accessorKey: "description",
+        size: 600,
       },
       {
         header: "created at",
         accessorKey: "createdAt",
+        size: 180,
         cell: TimestampCell,
       },
     ],
@@ -95,6 +108,26 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const getFlatHeaders = table.getFlatHeaders;
+  const { columnSizing: columnSizingState } = table.getState();
+
+  /**
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
+        header.getSize();
+      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+        header.column.getSize();
+    }
+    return colSizes;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnSizingState, getFlatHeaders]);
+
   return (
     <div
       css={css`
@@ -104,22 +137,31 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table
+        css={tableCSS}
+        style={{
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={{
+                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                  }}
+                >
                   {header.isPlaceholder ? null : (
                     <div
-                      {...{
-                        className: header.column.getCanSort() ? "sort" : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                        style: {
-                          left: header.getStart(),
-                          width: header.getSize(),
-                        },
-                      }}
+                      className={
+                        header.column.getCanSort() ? "sort" : undefined
+                      }
+                      onClick={header.column.getToggleSortingHandler()}
                     >
                       {flexRender(
                         header.column.columnDef.header,
@@ -153,7 +195,12 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => {
                     return (
-                      <td key={cell.id}>
+                      <td
+                        key={cell.id}
+                        style={{
+                          width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                        }}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

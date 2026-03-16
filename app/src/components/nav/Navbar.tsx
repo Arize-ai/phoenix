@@ -34,14 +34,13 @@ const topNavCSS = css`
   gap: var(--global-dimension-static-size-100);
 
   .nav-copy-action-menu__button {
-    opacity: 0;
-    transition: none;
+    display: none;
+    margin-left: var(--global-dimension-static-size-100);
   }
   &:hover .nav-copy-action-menu__button,
-  .nav-copy-action-menu__button[data-pressed],
+  .nav-copy-action-menu__button:has([data-pressed]),
   .nav-copy-action-menu__button[data-copied] {
-    opacity: 1;
-    transition: opacity 0.15s ease-in-out;
+    display: inline-flex;
   }
 `;
 

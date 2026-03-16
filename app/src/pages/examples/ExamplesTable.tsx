@@ -17,9 +17,14 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { CopyId } from "@phoenix/components/core/copy";
+import { Text } from "@phoenix/components/core/content/Text";
+import { CopyButton } from "@phoenix/components/core/copy";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
-import { CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellWithControlsWrap,
+  CompactJSONCell,
+} from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
 import {
@@ -261,7 +266,13 @@ export function ExamplesTable({
         size: 180,
         cell: ({ row }) => {
           const exampleId = row.original.id;
-          return <CopyId id={exampleId} truncate={8} />;
+          return (
+            <CellWithControlsWrap controls={<CopyButton text={exampleId} />}>
+              <Truncate>
+                <Text fontFamily="mono">{exampleId}</Text>
+              </Truncate>
+            </CellWithControlsWrap>
+          );
         },
       },
       {

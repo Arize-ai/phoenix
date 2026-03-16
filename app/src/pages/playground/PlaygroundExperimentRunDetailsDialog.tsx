@@ -6,7 +6,6 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type { CardProps } from "@phoenix/components";
 import {
   Card,
-  CopyButton,
   Dialog,
   Flex,
   Heading,
@@ -18,7 +17,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import {
   DialogCloseButton,
   DialogContent,
@@ -30,6 +29,29 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 
 import type { PlaygroundExperimentRunDetailsDialogQuery } from "./__generated__/PlaygroundExperimentRunDetailsDialogQuery.graphql";
+
+const dialogTitleIdCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-static-size-50);
+
+  .copy-button {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .copy-button,
+  .copy-button:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const monoCSS = css`
+  font-family: "Geist Mono", monospace;
+  white-space: nowrap;
+`;
 
 /**
  * A slide-over that shows the details of a playground experiment run.
@@ -83,8 +105,11 @@ export function PlaygroundExperimentRunDetailsDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Experiment Run for Example:{" "}
-            <CopyId id={exampleId ?? "--"} variant="title" />
+            <span css={dialogTitleIdCSS}>
+              Experiment Run for Example:{" "}
+              <span css={monoCSS}>{exampleId ?? "--"}</span>
+              <CopyButton text={exampleId ?? ""} variant="quiet" size="S" />
+            </span>
           </DialogTitle>
           <DialogTitleExtra>
             <DialogCloseButton />

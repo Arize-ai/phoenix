@@ -249,6 +249,15 @@ const router = createBrowserRouter(
                   }
                   return "span unknown";
                 },
+                copy: (data: SpanPlaygroundPageLoaderData) => {
+                  if (data?.span.__typename === "Span") {
+                    return [
+                      { name: "Span ID", value: data.span.spanId },
+                      { name: "Trace ID", value: data.span.trace.traceId },
+                    ];
+                  }
+                  return [];
+                },
               }}
             />
           </Route>

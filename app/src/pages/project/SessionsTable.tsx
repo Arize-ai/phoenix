@@ -33,8 +33,9 @@ import {
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { CellWithControlsWrap } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -307,7 +308,14 @@ export function SessionsTable(props: SessionsTableProps) {
       enableSorting: false,
       cell: ({ getValue }) => {
         const value = getValue() as string | null;
-        return value ? <CopyId id={value} /> : <>{"--"}</>;
+        if (!value) return <>{"--"}</>;
+        return (
+          <CellWithControlsWrap controls={<CopyButton text={value} />}>
+            <Truncate>
+              <Text fontFamily="mono">{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
       },
     },
     {

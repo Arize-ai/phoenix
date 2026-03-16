@@ -284,7 +284,6 @@ export function ExperimentCompareDetails({
           <View overflow="hidden" padding="size-200" height="100%">
             <Card
               title="Input"
-              extra={<CopyButton text={JSON.stringify(input)} />}
               height="100%"
               scrollBody={true}
               collapsible
@@ -292,16 +291,17 @@ export function ExperimentCompareDetails({
                 const panel = inputPanelRef.current;
                 if (panel) {
                   if (isCollapsed) {
-                    // Shrink panel to minimum size when collapsed
                     panel.resize(0);
                   } else {
-                    // Expand panel to default size when expanded
                     panel.resize(35);
                   }
                 }
               }}
             >
-              <FullSizeJSONBlock value={JSON.stringify(input, null, 2)} />
+              <FullSizeJSONBlock
+                value={JSON.stringify(input, null, 2)}
+                copyText={JSON.stringify(input)}
+              />
             </Card>
           </View>
         </div>
@@ -880,38 +880,33 @@ const experimentItemCSS = css`
 function ExperimentItemHeader({
   children,
   onTraceClick,
-  copyText,
 }: {
   children: React.ReactNode;
   onTraceClick?: () => void;
-  copyText?: string;
 }) {
   return (
     <View paddingX="size-200" paddingTop="size-200" flex="none">
       <Flex direction="row" gap="size-100" alignItems="center">
         {children}
-        <div
-          css={css`
-            margin-left: auto;
-            padding-left: var(--global-dimension-size-100);
-          `}
-        >
-          <Flex direction="row" gap="size-100">
-            {onTraceClick && (
-              <TooltipTrigger>
-                <IconButton
-                  size="S"
-                  aria-label="View run trace"
-                  onPress={onTraceClick}
-                >
-                  <Icon svg={<Icons.Trace />} />
-                </IconButton>
-                <Tooltip>View run trace</Tooltip>
-              </TooltipTrigger>
-            )}
-            {copyText && <CopyButton text={copyText} />}
-          </Flex>
-        </div>
+        {onTraceClick && (
+          <div
+            css={css`
+              margin-left: auto;
+              padding-left: var(--global-dimension-size-100);
+            `}
+          >
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                aria-label="View run trace"
+                onPress={onTraceClick}
+              >
+                <Icon svg={<Icons.Trace />} />
+              </IconButton>
+              <Tooltip>View run trace</Tooltip>
+            </TooltipTrigger>
+          </div>
+        )}
       </Flex>
     </View>
   );
@@ -1005,10 +1000,7 @@ export function ExperimentItem({
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column" height="100%">
-        <ExperimentItemHeader
-          onTraceClick={handleTraceClick}
-          copyText={copyText}
-        >
+        <ExperimentItemHeader onTraceClick={handleTraceClick}>
           <span
             css={css`
               flex: none;
@@ -1044,7 +1036,7 @@ export function ExperimentItem({
             <ExperimentItemAnnotations
               experimentRun={experimentRepetition.experimentRun}
             />
-            <View flex={1}>
+            <View flex={1} position="relative">
               {experimentRepetition.experimentRun.error ? (
                 <View padding="size-200">
                   {experimentRepetition.experimentRun.error}
@@ -1052,6 +1044,7 @@ export function ExperimentItem({
               ) : (
                 <FullSizeExperimentOutputContent
                   value={experimentRepetition.experimentRun.output}
+                  copyText={copyText}
                 />
               )}
             </View>
@@ -1073,15 +1066,18 @@ function ReferenceOutputItem() {
   return (
     <div css={experimentItemCSS}>
       <Flex direction="column" height="100%">
-        <ExperimentItemHeader copyText={referenceOutputStr}>
+        <ExperimentItemHeader>
           <Heading weight="heavy" level={3}>
             Reference Output
           </Heading>
         </ExperimentItemHeader>
         <ExperimentItemMetadata />
         <ExperimentItemAnnotations />
-        <View flex={1}>
-          <FullSizeExperimentOutputContent value={referenceOutput} />
+        <View flex={1} position="relative">
+          <FullSizeExperimentOutputContent
+            value={referenceOutput}
+            copyText={referenceOutputStr}
+          />
         </View>
       </Flex>
     </div>
@@ -1091,44 +1087,98 @@ function ReferenceOutputItem() {
 /**
  * Wrapper to make JSONBlock fill available vertical and horizontal space in this dialog
  */
-function FullSizeJSONBlock({ value }: { value: string }) {
+const fullSizeJSONCSS = css`
+  position: relative;
+  height: 100%;
+  width: 100%;
+  & .cm-theme,
+  & .cm-editor {
+    height: 100%;
+    width: 100%;
+  }
+
+  .json-copy {
+    position: absolute;
+    top: var(--global-dimension-size-100);
+    right: var(--global-dimension-size-100);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .json-copy,
+  .json-copy:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+function FullSizeJSONBlock({
+  value,
+  copyText,
+}: {
+  value: string;
+  copyText?: string;
+}) {
   return (
-    <div
-      css={css`
-        height: 100%;
-        width: 100%;
-        & .cm-theme, // CodeMirror wrapper component
-        & .cm-editor {
-          height: 100%;
-          width: 100%;
-        }
-      `}
-    >
+    <div css={fullSizeJSONCSS}>
       <JSONBlock value={value} />
+      {copyText && (
+        <div className="json-copy">
+          <CopyButton text={copyText} />
+        </div>
+      )}
     </div>
   );
 }
 
+const fullSizeOutputCSS = css`
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  padding: var(--global-dimension-size-200);
+  box-sizing: border-box;
+  & .cm-theme,
+  & .cm-editor {
+    height: 100%;
+    width: 100%;
+  }
+
+  .output-copy {
+    position: absolute;
+    top: var(--global-dimension-size-100);
+    right: var(--global-dimension-size-100);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .output-copy,
+  .output-copy:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
 /**
  * Wrapper to make ExperimentOutputContent fill available vertical and horizontal space
  */
-function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
+function FullSizeExperimentOutputContent({
+  value,
+  copyText,
+}: {
+  value: unknown;
+  copyText?: string;
+}) {
   return (
-    <div
-      css={css`
-        height: 100%;
-        width: 100%;
-        overflow: auto;
-        padding: var(--global-dimension-size-200);
-        box-sizing: border-box;
-        & .cm-theme, // CodeMirror wrapper component
-        & .cm-editor {
-          height: 100%;
-          width: 100%;
-        }
-      `}
-    >
+    <div css={fullSizeOutputCSS}>
       <ExperimentOutputContent value={value} />
+      {copyText && (
+        <div className="output-copy">
+          <CopyButton text={copyText} />
+        </div>
+      )}
     </div>
   );
 }

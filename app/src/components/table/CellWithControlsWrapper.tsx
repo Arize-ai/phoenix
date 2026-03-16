@@ -3,35 +3,35 @@ import type { PropsWithChildren, ReactNode } from "react";
 
 const cellWithControlsWrapCSS = css`
   position: relative;
-  height: 100%;
-  min-height: 100%;
-  .controls {
-    transition: opacity 0.2s ease-in-out;
-    opacity: 0;
-    display: none;
-    z-index: 1;
-  }
-  &:hover .controls {
-    opacity: 1;
-    display: flex;
-    // make them stand out
-    button {
-      border-color: var(--global-color-primary);
-    }
-  }
-`;
-
-const cellControlsCSS = css`
-  position: absolute;
-  top: calc(-1 * var(--global-dimension-static-size-200));
-  right: var(--global-dimension-static-size-200);
   display: flex;
-  flex-direction: row;
-  gap: var(--global-dimension-static-size-100);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .cell-controls {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-static-size-50);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .cell-controls,
+  .cell-controls:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
 `;
 
 /**
- * Wraps a cell to provides space for controls that are shown on hover.
+ * Wraps table cell content to show action controls on hover.
+ *
+ * Controls are absolutely positioned at the right edge of the cell and
+ * fade in on hover. Clicks on the controls area stop propagation so
+ * row-level click handlers (e.g. navigation) are not triggered.
  */
 export function CellWithControlsWrap(
   props: PropsWithChildren<{ controls: ReactNode }>
@@ -39,7 +39,7 @@ export function CellWithControlsWrap(
   return (
     <div css={cellWithControlsWrapCSS}>
       {props.children}
-      <div css={cellControlsCSS} className="controls">
+      <div className="cell-controls" onClick={(e) => e.stopPropagation()}>
         {props.controls}
       </div>
     </div>

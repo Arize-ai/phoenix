@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense } from "react";
 
 import {
@@ -10,9 +11,32 @@ import {
   Flex,
   LinkButton,
 } from "@phoenix/components";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import { ExperimentCompareDetails } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
+
+const dialogTitleIdCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-static-size-50);
+
+  .copy-button {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .copy-button,
+  .copy-button:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const monoCSS = css`
+  font-family: "Geist Mono", monospace;
+  white-space: nowrap;
+`;
 
 export function ExperimentCompareDetailsDialog({
   selectedExampleId,
@@ -48,7 +72,10 @@ export function ExperimentCompareDetailsDialog({
               onExampleChange={onExampleChange}
             />
             <DialogTitle>
-              Example: <CopyId id={selectedExampleId} variant="title" />
+              <span css={dialogTitleIdCSS}>
+                Example: <span css={monoCSS}>{selectedExampleId}</span>
+                <CopyButton text={selectedExampleId} variant="quiet" size="S" />
+              </span>
             </DialogTitle>
           </Flex>
           <DialogTitleExtra>

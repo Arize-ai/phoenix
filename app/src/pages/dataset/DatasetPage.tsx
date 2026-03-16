@@ -14,6 +14,7 @@ import {
   Tab,
   TabList,
   Tabs,
+  Text,
   Token,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -169,6 +170,10 @@ function DatasetPageContent({
         title={
           <Flex direction="row" gap="size-100" alignItems="center">
             <Heading level={1}>{dataset.name}</Heading>
+          </Flex>
+        }
+        subTitle={
+          <Flex direction="row" gap="size-100" alignItems="center">
             {dataset.labels && dataset.labels.length > 0 && (
               <ul
                 css={css`
@@ -190,9 +195,17 @@ function DatasetPageContent({
                 ))}
               </ul>
             )}
+            {dataset.description ? (
+              <Text size="S" color="text-700">
+                {dataset.description}
+              </Text>
+            ) : null}
           </Flex>
         }
-        subTitle={dataset.description || "--"}
+        copyItems={[
+          { name: "Dataset Name", value: dataset.name as string },
+          { name: "Dataset ID", value: datasetId },
+        ]}
         extra={
           <Flex direction="row" gap="size-100" alignItems="center">
             <DatasetDownloadMenu datasetId={dataset.id} />

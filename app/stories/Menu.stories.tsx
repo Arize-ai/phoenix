@@ -341,3 +341,31 @@ export const TrailingContentMenu = () => {
     </MenuTrigger>
   );
 };
+
+export const LeadingContentMenu = () => {
+  return (
+    <MenuTrigger isOpen>
+      <Button>Menu with leadingContent</Button>
+      <Popover>
+        <Menu>
+          <MenuItem leadingContent={<Icon svg={<Icons.EntityTitle />} />}>
+            Copy Project Name
+          </MenuItem>
+          <MenuItem leadingContent={<Icon svg={<Icons.EntityId />} />}>
+            Copy Project ID
+          </MenuItem>
+          <Separator />
+          <MenuItem leadingContent={<Icon svg={<Icons.PlusOutline />} />}>
+            Create new
+          </MenuItem>
+          <MenuItem leadingContent={<Icon svg={<Icons.TemplateOutline />} />}>
+            Use template
+          </MenuItem>
+          <MenuItem leadingContent={<Icon svg={<Icons.Code />} />}>
+            View code
+          </MenuItem>
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+};

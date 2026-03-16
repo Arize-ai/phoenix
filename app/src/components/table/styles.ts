@@ -85,6 +85,7 @@ export const tableCSS = css`
       & > td {
         padding: var(--global-dimension-size-100)
           var(--global-dimension-size-200);
+        height: var(--global-dimension-size-400);
       }
       &[data-selected="true"] {
         background-color: var(--global-color-primary-100);
@@ -111,6 +112,9 @@ export const interactiveTableCSS = css`
     tr {
       &:hover {
         background-color: var(--hover-background);
+      }
+      &:hover:has(.cell-controls:hover) {
+        background-color: transparent;
       }
     }
   }

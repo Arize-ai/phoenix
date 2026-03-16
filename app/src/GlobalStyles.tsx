@@ -92,6 +92,7 @@ const dimensionsCSS = css`
     --global-dimension-static-size-10: 1px;
     --global-dimension-static-size-25: 2px;
     --global-dimension-static-size-50: 4px;
+    --global-dimension-static-size-75: 6px;
     --global-dimension-static-size-40: 3px;
     --global-dimension-static-size-65: 5px;
     --global-dimension-static-size-100: 8px;
@@ -941,6 +942,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
       --global-dimension-static-size-300
     );
     --global-menu-item-gap: var(--global-dimension-static-size-50);
+    --global-menu-item-leading-gap: var(--global-dimension-static-size-75);
 
     // Styles for buttons
     --global-button-primary-background-color: var(--global-color-gray-900);

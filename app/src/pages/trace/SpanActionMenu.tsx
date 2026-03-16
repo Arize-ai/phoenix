@@ -13,9 +13,10 @@ export function SpanActionMenu(props: SpanActionMenuProps) {
 
   return (
     <CopyMultiButton
+      variant="default"
       items={[
-        { key: "span", label: "Span ID", text: spanId },
-        { key: "trace", label: "Trace ID", text: traceId },
+        { name: "Span ID", value: spanId },
+        { name: "Trace ID", value: traceId },
       ]}
     />
   );

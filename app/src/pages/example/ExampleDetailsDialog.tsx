@@ -7,7 +7,6 @@ import type { CardProps } from "@phoenix/components";
 import {
   Button,
   Card,
-  CopyButton,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -25,7 +24,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { CopyId } from "@phoenix/components/core/copy";
+import { CopyButton } from "@phoenix/components/core/copy";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { Skeleton } from "@phoenix/components/core/loading";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
@@ -41,6 +40,29 @@ import { EditExampleButton } from "./EditExampleButton";
 import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 
 type ViewMode = "json" | "pretty";
+
+const dialogTitleIdCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-static-size-50);
+
+  .copy-button {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &:hover .copy-button,
+  .copy-button:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+const monoCSS = css`
+  font-family: "Geist Mono", monospace;
+  white-space: nowrap;
+`;
 
 /**
  * Extracts the display value for "pretty" mode.
@@ -245,7 +267,10 @@ function ExampleDetailsDialogContent({
     <>
       <DialogHeader>
         <DialogTitle>
-          Example: <CopyId id={exampleId} variant="title" />
+          <span css={dialogTitleIdCSS}>
+            Example: <span css={monoCSS}>{exampleId}</span>
+            <CopyButton text={exampleId} variant="quiet" size="S" />
+          </span>
         </DialogTitle>
         <DialogTitleExtra>
           <DatasetSplits labels={datasetSplits} />
@@ -375,7 +400,10 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
     <>
       <DialogHeader>
         <DialogTitle>
-          Example: <CopyId id={exampleId} variant="title" />
+          <span css={dialogTitleIdCSS}>
+            Example: <span css={monoCSS}>{exampleId}</span>
+            <CopyButton text={exampleId} variant="quiet" size="S" />
+          </span>
         </DialogTitle>
         <DialogTitleExtra>
           <Skeleton width={60} height={24} animation="wave" />
