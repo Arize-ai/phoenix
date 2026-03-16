@@ -188,7 +188,7 @@ function TagList({
             <View
               paddingY="size-100"
               paddingX="size-200"
-              borderBottomColor="light"
+              borderBottomColor="default"
               borderBottomWidth="thin"
             >
               <Checkbox
