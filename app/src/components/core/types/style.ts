@@ -302,7 +302,7 @@ export type DimensionValue =
 export type BorderRadiusValue = "small" | "medium";
 export type BorderColorValue = "default" | "light" | "dark" | ColorValue;
 export type BorderSizeValue = "thin" | "thick" | "thicker" | "thickest";
-export type BackgroundColorValue = "light" | "dark" | ColorValue;
+export type BackgroundColorValue = ColorValue;
 
 export interface StyleProps {
   /** Sets the CSS [className](https://developer.mozilla.org/en-US/docs/Web/API/Element/className) for the element. Only use as a **last resort**. **/

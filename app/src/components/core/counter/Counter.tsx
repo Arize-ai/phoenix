@@ -22,7 +22,7 @@ const counterCSS = css`
   color: var(--global-text-color-900);
   font-family: "Geist Mono", monospace;
   &[data-variant="danger"] {
-    background-color: var(--global-background-color-danger);
+    background-color: var(--global-color-danger-700);
   }
   &[data-variant="quiet"] {
     border: none;
