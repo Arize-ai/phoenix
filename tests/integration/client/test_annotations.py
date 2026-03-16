@@ -13,7 +13,6 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
-
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.__generated__ import v1
 

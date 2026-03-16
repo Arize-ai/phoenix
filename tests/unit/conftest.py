@@ -20,6 +20,7 @@ from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
+from phoenix.client import Client
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
@@ -28,7 +29,6 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
-from phoenix.client import Client
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (

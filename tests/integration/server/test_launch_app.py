@@ -10,10 +10,9 @@ from _pytest.tmpdir import TempPathFactory
 from faker import Faker
 from opentelemetry.trace import format_span_id, format_trace_id
 from pandas.core.dtypes.common import is_datetime64_any_dtype
-from sqlalchemy import URL
-
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.types.spans import SpanQuery
+from sqlalchemy import URL
 
 from .._helpers import (
     _ADMIN_ONLY_ENDPOINTS,

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from faker import Faker
-
 from phoenix.client import Client
 from phoenix.client.experiments import run_experiment
 

@@ -1,9 +1,8 @@
 import time
 
-from sqlalchemy import create_engine, text
-
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
+from sqlalchemy import create_engine, text
 
 stmt = text("""\
 SELECT (attributes -> 'metadata' ->> 'conversation_id')

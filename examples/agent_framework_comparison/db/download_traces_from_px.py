@@ -1,7 +1,6 @@
 # type: ignore
 import dotenv
 from database import save_df_to_db
-
 from phoenix.client import Client
 
 dotenv.load_dotenv()

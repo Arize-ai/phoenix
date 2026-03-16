@@ -28,7 +28,6 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
-
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
 from phoenix.evals import (
