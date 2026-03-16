@@ -835,9 +835,11 @@ function ExperimentRepetitionsSidebarItems({
                 minHeight={30}
                 css={css`
                   overflow: hidden;
-                  color: ${repetitionDidNotRun
-                    ? "var(--global-color-gray-500)"
-                    : "inherit"};
+                  color: ${
+                    repetitionDidNotRun
+                      ? "var(--global-color-gray-500)"
+                      : "inherit"
+                  };
                 `}
               >
                 <Text>repetition&nbsp;{repetition.repetitionNumber}</Text>
@@ -1222,8 +1224,7 @@ function ExperimentRunAnnotationButton({
       css={[
         css`
           cursor: pointer;
-          padding: var(--global-dimension-size-50)
-            var(--global-dimension-size-100);
+          padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
           border-radius: var(--global-rounding-small);
           width: 100%;
           display: grid;

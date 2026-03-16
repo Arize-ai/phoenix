@@ -909,7 +909,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --global-background-color-default: var(--global-color-gray-100);
 
-    --global-border-color-default: var(--global-color-gray-200);
+    --global-border-color-default: var(--global-color-gray-300);
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
