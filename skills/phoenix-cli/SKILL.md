@@ -107,3 +107,18 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 ```
 
 Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+
+## Docs
+
+Download Phoenix documentation markdown for local use by coding agents.
+
+```bash
+px docs fetch                                # fetch default workflow docs to .px/docs
+px docs fetch --workflow tracing             # fetch only tracing docs
+px docs fetch --workflow tracing --workflow evaluation
+px docs fetch --dry-run                      # preview what would be downloaded
+px docs fetch --refresh                      # clear .px/docs and re-download
+px docs fetch --output-dir ./my-docs         # custom output directory
+```
+
+Key options: `--workflow` (repeatable, values: `tracing`, `evaluation`, `datasets`, `prompts`, `integrations`, `sdk`, `self-hosting`, `all`), `--dry-run`, `--refresh`, `--output-dir` (default `.px/docs`), `--workers` (default 10).

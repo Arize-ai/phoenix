@@ -256,6 +256,29 @@ $ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
 
 ---
 
+### `px docs fetch`
+
+Download Phoenix documentation markdown files for use by coding agents. Fetches pages from the [llms.txt](https://arize.com/docs/phoenix/llms.txt) index, filtered by workflow category, and writes them to a local directory with auto-generated index files.
+
+```bash
+px docs fetch                                # fetch default workflows
+px docs fetch --workflow tracing             # fetch only tracing docs
+px docs fetch --workflow tracing --workflow evaluation
+px docs fetch --dry-run                      # preview without downloading
+px docs fetch --refresh                      # clear output dir and re-download
+```
+
+| Option                | Description                                                                                       | Default                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `--workflow <name>`   | Filter by workflow category (repeatable). Values: `tracing`, `evaluation`, `datasets`, `prompts`, `integrations`, `sdk`, `self-hosting`, `all` | `tracing`, `evaluation`, `datasets`, `prompts`, `integrations` |
+| `--output-dir <dir>`  | Output directory for downloaded docs                                                              | `.px/docs`                                               |
+| `--dry-run`           | Discover links only; do not write files                                                           | `false`                                                  |
+| `--refresh`           | Clear output directory before downloading                                                         | `false`                                                  |
+| `--strict`            | Fail command if any page download fails                                                           | `false`                                                  |
+| `--workers <n>`       | Number of concurrent download workers                                                             | `10`                                                     |
+
+---
+
 ## JSON output shape
 
 All commands output JSON. Use `--format raw` for compact JSON and `--no-progress` to suppress stderr when piping:
