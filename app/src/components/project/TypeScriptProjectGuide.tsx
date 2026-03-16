@@ -188,7 +188,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
           is traced.
         </Text>
       </View>
-      <View borderColor="dark" borderWidth="thin" borderRadius="medium">
+      <View borderColor="default" borderWidth="thin" borderRadius="medium">
         <Tabs>
           <TabList>
             <Tab id="integrations">Integrations</Tab>

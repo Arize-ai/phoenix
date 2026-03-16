@@ -80,7 +80,7 @@ export function AnnotationSummaryPopover({
                 <Flex direction="column">
                   <View
                     borderBottomWidth="thin"
-                    borderColor="dark"
+                    borderColor="default"
                     paddingX="size-200"
                     paddingY="size-100"
                   >

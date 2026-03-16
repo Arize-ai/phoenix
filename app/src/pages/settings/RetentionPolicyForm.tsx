@@ -210,7 +210,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
         paddingY="size-100"
         paddingX="size-200"
         borderTopWidth="thin"
-        borderColor="dark"
+        borderColor="default"
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
           <Button size="S" slot="close" onPress={props.onCancel}>

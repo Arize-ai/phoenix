@@ -81,7 +81,7 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
           paddingY="size-100"
           paddingX="size-100"
           borderBottomWidth="thin"
-          borderColor="dark"
+          borderColor="default"
           width="100%"
           flex="none"
         >
@@ -163,7 +163,10 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
-            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
           ) {
             query {
               node(id: $spanId) {

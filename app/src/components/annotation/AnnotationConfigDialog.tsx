@@ -430,7 +430,7 @@ export const AnnotationConfigDialog = ({
             <View
               paddingX="size-200"
               paddingY="size-200"
-              borderTopColor="dark"
+              borderTopColor="default"
               borderTopWidth="thin"
             >
               <Flex gap="size-100" justifyContent="end">

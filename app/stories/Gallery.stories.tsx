@@ -78,7 +78,7 @@ const Template: StoryFn = () => {
       <View
         padding="size-200"
         borderWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         borderRadius="medium"
       >
         <Flex direction="row" gap="size-100" alignItems="center">
@@ -97,7 +97,7 @@ const Template: StoryFn = () => {
       </View>
       <View
         borderWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         padding="size-200"
         borderRadius="medium"
         marginTop="size-200"
@@ -190,7 +190,7 @@ const Template: StoryFn = () => {
       <View
         padding="size-200"
         borderWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         borderRadius="medium"
         marginTop="size-200"
       >
@@ -234,7 +234,7 @@ const Template: StoryFn = () => {
       <View
         padding="size-200"
         borderWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         borderRadius="medium"
         marginTop="size-200"
       >
@@ -274,7 +274,7 @@ const Template: StoryFn = () => {
       </View>
       <View
         borderWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         borderRadius="medium"
         marginTop="size-200"
       >

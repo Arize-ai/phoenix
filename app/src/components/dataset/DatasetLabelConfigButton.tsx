@@ -196,7 +196,7 @@ function DatasetLabelList({
         padding="size-100"
         paddingTop="size-50"
         borderBottomWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         minWidth={300}
       >
         <Flex direction="column" gap="size-50">

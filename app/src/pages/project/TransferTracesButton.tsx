@@ -171,7 +171,7 @@ function ProjectsList({
       <View
         padding="size-100"
         borderBottomWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         minWidth={300}
       >
         <Flex direction="column" gap="size-50">

@@ -188,7 +188,7 @@ function TraceHeader({
       paddingBottom="size-150"
       paddingX="size-200"
       borderBottomWidth="thin"
-      borderBottomColor="dark"
+      borderBottomColor="default"
     >
       <Flex
         direction="row"

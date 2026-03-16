@@ -60,7 +60,7 @@ export const ProjectAnnotationConfigCard = (
         paddingX="size-200"
         paddingY="size-100"
         borderTopWidth="thin"
-        borderColor="dark"
+        borderColor="default"
       >
         <Flex direction="row" justifyContent="end">
           <Link to="/settings/annotations">Configure Annotation Configs</Link>
@@ -212,7 +212,10 @@ const ProjectAnnotationConfigCardContent = (
           $annotationConfigId: ID!
         ) {
           addAnnotationConfigToProject(
-            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
           ) {
             project {
               ...ProjectAnnotationConfigCardContent_project_annotations
@@ -230,7 +233,10 @@ const ProjectAnnotationConfigCardContent = (
           $annotationConfigId: ID!
         ) {
           removeAnnotationConfigFromProject(
-            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
           ) {
             project {
               ...ProjectAnnotationConfigCardContent_project_annotations

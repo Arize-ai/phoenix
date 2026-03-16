@@ -98,7 +98,7 @@ export function MetadataTooltip({
             </Flex>
           </Flex>
           <View
-            borderColor="dark"
+            borderColor="default"
             paddingStart="size-200"
             paddingEnd="size-100"
             marginStart="size-200"
@@ -129,7 +129,8 @@ export function MetadataTooltip({
                         color: var(--global-text-color-900);
                         border: 1px solid var(--global-color-gray-300);
                         border-radius: 4px;
-                        padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+                        padding: var(--global-dimension-size-50)
+                          var(--global-dimension-size-100);
                         cursor: pointer;
                         transition: background-color 0.2s;
                         &:hover {

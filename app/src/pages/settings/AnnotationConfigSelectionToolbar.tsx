@@ -103,7 +103,7 @@ export const AnnotationConfigSelectionToolbar = ({
                         <View
                           paddingX="size-200"
                           paddingY="size-100"
-                          borderTopColor="dark"
+                          borderTopColor="default"
                           borderTopWidth="thin"
                         >
                           <Flex gap="size-100" justifyContent="end">
