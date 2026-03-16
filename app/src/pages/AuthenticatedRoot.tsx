@@ -3,6 +3,7 @@ import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
+import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
 import type { authenticatedRootLoader } from "@phoenix/pages/authenticatedRootLoader";
 
@@ -29,8 +30,10 @@ export function AuthenticatedRoot() {
 
   return (
     <ViewerProvider query={loaderData}>
-      <AppAlerts />
-      <Outlet />
+      <AgentProvider>
+        <AppAlerts />
+        <Outlet />
+      </AgentProvider>
     </ViewerProvider>
   );
 }
