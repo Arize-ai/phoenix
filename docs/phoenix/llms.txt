@@ -36,7 +36,7 @@ Tracing captures detailed execution information from your AI applications, showi
 
 ### Overview
 
-- LLM Traces: `https://arize.com/docs/phoenix/tracing/llm-traces` - Understanding traces, spans, and execution flow including LLM calls, tool execution, retrieval operations, embeddings, and prompt templates
+- LLM Traces: `https://arize.com/docs/phoenix/tracing/llm-traces` - Understanding traces, spans, and execution flow including LLM calls, tool execution, retrieval operations, and prompt templates
 - Projects: `https://arize.com/docs/phoenix/tracing/llm-traces/projects` - Organize traces into separate projects by environment, application, team, or use case for better management and isolation
 - Sessions: `https://arize.com/docs/phoenix/tracing/llm-traces/sessions` - Group related traces into conversational sessions to track multi-turn conversations and maintain context across interactions
 - How to Annotate Traces: `https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces` - Add human feedback, labels, scores, and quality signals to traces for evaluation
@@ -171,10 +171,6 @@ Phoenix integrates with AI platforms including Dify, Flowise, LangFlow, and Prom
 ### Evaluation Integrations
 
 Phoenix integrates with evaluation libraries including Cleanlab, Ragas, and UQLM. See the integrations page for complete details.
-
-### Vector Databases
-
-Phoenix integrates with vector databases including MongoDB, OpenSearch, Pinecone, Qdrant, Weaviate, Zilliz/Milvus, and Couchbase. See the integrations page for complete details.
 
 ## Settings
 
