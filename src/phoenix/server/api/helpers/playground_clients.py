@@ -2172,6 +2172,10 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self.provider = OpenInferenceLLMProviderValues.GOOGLE.value
 
+    def _format_model_name(self) -> str:
+        """Format model name for the API call. Gemini API uses 'models/' prefix."""
+        return f"models/{self.model_name}"
+
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="google-genai", module_name="google.genai")]
@@ -2243,14 +2247,21 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             config_dict["system_instruction"] = system_prompt
 
         if tools:
-            function_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
+            function_declarations = [
+                types.FunctionDeclaration(
+                    name=tool["name"],
+                    description=tool.get("description"),
+                    parameters_json_schema=tool.get("parameters"),
+                )
+                for tool in tools
+            ]
             config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
 
         config = types.GenerateContentConfig.model_validate(config_dict)
 
         async with self._client_factory() as client:
             stream = await client.models.generate_content_stream(
-                model=f"models/{self.model_name}",
+                model=self._format_model_name(),
                 contents=contents,
                 config=config,
             )
@@ -2333,20 +2344,60 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         self,
         messages: list[PlaygroundMessage],
     ) -> tuple[list["ContentType"], str]:
-        """Build Google messages following the standard pattern - process ALL messages."""
+        """Build Google messages with tool call and tool response support."""
         google_messages: list["ContentType"] = []
-        system_prompts = []
+        system_prompts: list[str] = []
+
+        # Build a mapping from tool_call_id to function name so TOOL messages
+        # can reference the correct function_response name.
+        tool_call_id_to_name: dict[str, str] = {}
+        for msg in messages:
+            for tc in msg.get("tool_calls") or ():
+                tc_id = tc.get("id", "")
+                fn_name = (tc.get("function") or {}).get("name", "")
+                if tc_id and fn_name:
+                    tool_call_id_to_name[tc_id] = fn_name
+
         for msg in messages:
             role = msg["role"]
             content = msg["content"]
+            tool_calls = msg.get("tool_calls")
+            tool_call_id = msg.get("tool_call_id")
+
             if role == ChatCompletionMessageRole.USER:
                 google_messages.append({"role": "user", "parts": [{"text": content}]})
             elif role == ChatCompletionMessageRole.AI:
-                google_messages.append({"role": "model", "parts": [{"text": content}]})
+                parts: list[dict[str, Any]] = []
+                if content:
+                    parts.append({"text": content})
+                if tool_calls:
+                    for tc in tool_calls:
+                        fn = tc.get("function") or {}
+                        fn_name = fn.get("name", "")
+                        fn_args = fn.get("arguments", {})
+                        if isinstance(fn_args, str):
+                            try:
+                                fn_args = json.loads(fn_args)
+                            except (json.JSONDecodeError, TypeError):
+                                fn_args = {}
+                        parts.append({"function_call": {"name": fn_name, "args": fn_args}})
+                if not parts:
+                    parts.append({"text": ""})
+                google_messages.append({"role": "model", "parts": parts})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
-                raise NotImplementedError
+                fn_name = tool_call_id_to_name.get(tool_call_id or "", "unknown")
+                try:
+                    response_data = json.loads(content) if content else {}
+                except (json.JSONDecodeError, TypeError):
+                    response_data = {"result": content}
+                if not isinstance(response_data, dict):
+                    response_data = {"result": response_data}
+                google_messages.append({
+                    "role": "user",
+                    "parts": [{"function_response": {"name": fn_name, "response": response_data}}],
+                })
             else:
                 assert_never(role)
 
@@ -2472,6 +2523,36 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             otel_context=otel_context,
         ):
             yield chunk
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=GEMINI_2_0_MODELS,
+)
+class VertexAIStreamingClient(GoogleStreamingClient):
+    def _format_model_name(self) -> str:
+        """Vertex AI uses bare model name without 'models/' prefix."""
+        return self.model_name
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=GEMINI_2_5_MODELS,
+)
+class VertexAI25StreamingClient(Gemini25GoogleStreamingClient):
+    def _format_model_name(self) -> str:
+        """Vertex AI uses bare model name without 'models/' prefix."""
+        return self.model_name
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=GEMINI_3_MODELS,
+)
+class VertexAI3StreamingClient(Gemini3GoogleStreamingClient):
+    def _format_model_name(self) -> str:
+        """Vertex AI uses bare model name without 'models/' prefix."""
+        return self.model_name
 
 
 def initialize_playground_clients() -> None:
@@ -2852,6 +2933,90 @@ async def _get_builtin_provider_client(
                 provider=provider,
             )
         return Gemini3GoogleStreamingClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.VERTEX_AI:
+        try:
+            from google.genai.client import Client as GoogleGenAIClient
+        except ImportError:
+            raise BadRequest("Google GenAI package not installed. Run: pip install google-genai")
+
+        # Try input credentials first
+        project_id = _get_credential_from_input(credentials, "GOOGLE_CLOUD_PROJECT")
+        location = _get_credential_from_input(credentials, "GOOGLE_CLOUD_LOCATION")
+        sa_json = _get_credential_from_input(credentials, "GOOGLE_APPLICATION_CREDENTIALS_JSON")
+
+        # Fall back to database secrets
+        if not project_id or not sa_json:
+            secrets = await _resolve_secrets(
+                session,
+                decrypt,
+                "GOOGLE_CLOUD_PROJECT",
+                "GOOGLE_CLOUD_LOCATION",
+                "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+            )
+            project_id = project_id or secrets.get("GOOGLE_CLOUD_PROJECT")
+            location = location or secrets.get("GOOGLE_CLOUD_LOCATION")
+            sa_json = sa_json or secrets.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+
+        # Fall back to environment variables
+        if not project_id:
+            project_id = getenv("GOOGLE_CLOUD_PROJECT")
+        if not location:
+            location = getenv("GOOGLE_CLOUD_LOCATION")
+        if not sa_json:
+            sa_json = getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+
+        if not project_id:
+            raise BadRequest(
+                "A GCP project ID is required for Vertex AI models. "
+                "Set the GOOGLE_CLOUD_PROJECT environment variable or use a custom provider."
+            )
+
+        # Build explicit credentials from service account JSON if provided,
+        # otherwise fall back to Application Default Credentials (ADC).
+        vertex_credentials = None
+        if sa_json:
+            try:
+                import json as _json
+
+                from google.oauth2 import service_account as _sa
+
+                sa_info = _json.loads(sa_json)
+                vertex_credentials = _sa.Credentials.from_service_account_info(
+                    sa_info,
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                )
+            except Exception as e:
+                raise BadRequest(f"Invalid service account JSON: {e}")
+
+        @asynccontextmanager
+        async def create_vertex_client() -> "AsyncIterator[GoogleAsyncClient]":
+            client_kwargs: dict[str, Any] = {"vertexai": True, "project": project_id}
+            if location:
+                client_kwargs["location"] = location
+            if vertex_credentials is not None:
+                client_kwargs["credentials"] = vertex_credentials
+            async with GoogleGenAIClient(**client_kwargs).aio as client:
+                yield client
+
+        client_factory = create_vertex_client
+        if model_name in GEMINI_2_0_MODELS:
+            return VertexAIStreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        if model_name in GEMINI_2_5_MODELS:
+            return VertexAI25StreamingClient(
+                client_factory=client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return VertexAI3StreamingClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,

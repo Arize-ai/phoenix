@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cf41790e838afd67cc3949fcfa408573>>
+ * @generated SignedSource<<7b444910726b507926314562b2b6b52c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "VERTEX_AI" | "XAI";
 export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type ModelsInput = {

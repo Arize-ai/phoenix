@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<932ad61f6559ee701f7086592ca6e51c>>
+ * @generated SignedSource<<59f7caac6b60548c58f205e249fa5813>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "VERTEX_AI" | "XAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 import { FragmentRefs } from "relay-runtime";
 export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {

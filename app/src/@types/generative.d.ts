@@ -4,6 +4,7 @@ declare type ModelProvider =
   | "AZURE_OPENAI"
   | "ANTHROPIC"
   | "GOOGLE"
+  | "VERTEX_AI"
   | "DEEPSEEK"
   | "XAI"
   | "OLLAMA"

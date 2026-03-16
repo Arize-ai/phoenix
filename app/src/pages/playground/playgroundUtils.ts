@@ -194,6 +194,7 @@ export function processAttributeToolCalls({
           } satisfies AnthropicToolCall;
         }
         // TODO(apowell): #5348 Add Google tool call
+        case "VERTEX_AI":
         case "GOOGLE":
           return {
             id: tool_call.id ?? "",
@@ -1026,6 +1027,7 @@ export const createToolCallForProvider = (
     case "ANTHROPIC":
       return createAnthropicToolCall();
     // TODO(apowell): #5348 Add Google tool call
+    case "VERTEX_AI":
     case "GOOGLE":
       return createOpenAIToolCall();
     default:

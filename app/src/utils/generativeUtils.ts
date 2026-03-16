@@ -11,6 +11,7 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "AZURE_OPENAI" ||
     provider === "ANTHROPIC" ||
     provider === "GOOGLE" ||
+    provider === "VERTEX_AI" ||
     provider === "DEEPSEEK" ||
     provider === "XAI" ||
     provider === "OLLAMA" ||
@@ -34,6 +35,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Anthropic";
     case "GOOGLE":
       return "Google";
+    case "VERTEX_AI":
+      return "Vertex AI";
     case "DEEPSEEK":
       return "DeepSeek";
     case "XAI":
@@ -73,6 +76,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
     case "ANTHROPIC":
       return LLMProvider.ANTHROPIC.toString();
     case "GOOGLE":
+      return LLMProvider.GOOGLE.toString();
+    case "VERTEX_AI":
       return LLMProvider.GOOGLE.toString();
     case "AWS":
       return LLMProvider.AWS.toString();

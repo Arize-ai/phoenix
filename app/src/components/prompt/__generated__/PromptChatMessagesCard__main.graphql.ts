@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0397af9632962d835acf8cbcd3ff7a31>>
+ * @generated SignedSource<<e0952c2b191f1e6c3d9c2a9e980ac667>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "VERTEX_AI" | "XAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";

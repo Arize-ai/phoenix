@@ -151,6 +151,7 @@ export function PlaygroundTool({
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
       case "AWS":
         return awsToolDefinitionJSONSchema as JSONSchema7;
+      case "VERTEX_AI":
       case "GOOGLE":
         return geminiToolDefinitionJSONSchema as JSONSchema7;
     }

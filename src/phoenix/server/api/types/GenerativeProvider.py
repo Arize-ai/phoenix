@@ -19,6 +19,7 @@ class GenerativeProviderKey(Enum):
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
     GOOGLE = "Google Gemini"
+    VERTEX_AI = "Vertex AI"
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
     OLLAMA = "Ollama"
@@ -42,6 +43,8 @@ class GenerativeProviderKey(Enum):
             return cls.ANTHROPIC
         elif model_provider is ModelProvider.GOOGLE:
             return cls.GOOGLE
+        elif model_provider is ModelProvider.VERTEX_AI:
+            return cls.VERTEX_AI
         elif model_provider is ModelProvider.DEEPSEEK:
             return cls.DEEPSEEK
         elif model_provider is ModelProvider.XAI:
@@ -73,6 +76,8 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.ANTHROPIC
         if self is GenerativeProviderKey.GOOGLE:
             return ModelProvider.GOOGLE
+        if self is GenerativeProviderKey.VERTEX_AI:
+            return ModelProvider.VERTEX_AI
         if self is GenerativeProviderKey.AWS:
             return ModelProvider.AWS
         if self is GenerativeProviderKey.DEEPSEEK:
@@ -103,6 +108,7 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         GenerativeProviderKey.ANTHROPIC: OpenInferenceLLMProviderValues.ANTHROPIC.value,
         GenerativeProviderKey.AWS: OpenInferenceLLMProviderValues.AWS.value,
         GenerativeProviderKey.GOOGLE: OpenInferenceLLMProviderValues.GOOGLE.value,
+        GenerativeProviderKey.VERTEX_AI: OpenInferenceLLMProviderValues.GOOGLE.value,
         GenerativeProviderKey.OLLAMA: "ollama",
         GenerativeProviderKey.DEEPSEEK: OpenInferenceLLMProviderValues.DEEPSEEK.value,
         GenerativeProviderKey.XAI: OpenInferenceLLMProviderValues.XAI.value,
@@ -144,6 +150,7 @@ class GenerativeProvider:
         GenerativeProviderKey.ANTHROPIC: ["claude"],
         GenerativeProviderKey.OPENAI: ["gpt", "o1"],
         GenerativeProviderKey.GOOGLE: ["gemini"],
+        GenerativeProviderKey.VERTEX_AI: ["gemini"],
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
         GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
@@ -190,6 +197,17 @@ class GenerativeProvider:
         ],
         GenerativeProviderKey.GOOGLE: [
             GenerativeProviderCredentialConfig(env_var_name="GEMINI_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.VERTEX_AI: [
+            GenerativeProviderCredentialConfig(
+                env_var_name="GOOGLE_CLOUD_PROJECT", is_required=True
+            ),
+            GenerativeProviderCredentialConfig(
+                env_var_name="GOOGLE_CLOUD_LOCATION", is_required=False
+            ),
+            GenerativeProviderCredentialConfig(
+                env_var_name="GOOGLE_APPLICATION_CREDENTIALS_JSON", is_required=False
+            ),
         ],
         GenerativeProviderKey.DEEPSEEK: [
             GenerativeProviderCredentialConfig(env_var_name="DEEPSEEK_API_KEY", is_required=True)

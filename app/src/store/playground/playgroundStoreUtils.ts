@@ -74,6 +74,7 @@ export const convertInstanceToolsToProvider = ({
           definition,
         };
       }
+      case "VERTEX_AI":
       case "GOOGLE": {
         const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
           tool.definition
@@ -144,6 +145,7 @@ export const convertMessageToolCallsToProvider = ({
           : toolCall;
       }
       // TODO(apowell): #5348 Add Google tool call
+      case "VERTEX_AI":
       case "GOOGLE":
         return toolCall;
       default:

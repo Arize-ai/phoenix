@@ -231,6 +231,7 @@ type ProviderToToolChoiceMap = {
   AZURE_OPENAI: OpenaiToolChoice;
   ANTHROPIC: AnthropicToolChoice;
   GOOGLE: GoogleToolChoice;
+  VERTEX_AI: GoogleToolChoice;
   DEEPSEEK: OpenaiToolChoice;
   XAI: OpenaiToolChoice;
   OLLAMA: OpenaiToolChoice;
@@ -301,6 +302,7 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
       return openAIToolChoiceToAnthropicToolChoice.parse(
         toolChoice
       ) as ProviderToToolChoiceMap[T];
+    case "VERTEX_AI":
     case "GOOGLE":
       return openAIToolChoiceToGoogleToolChoice.parse(
         toolChoice

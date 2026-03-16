@@ -53,6 +53,25 @@ const GoogleSVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const VertexAISVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Vertex AI</title>
+    <path
+      d="M12 2L2 19.5h20L12 2zm0 4.5l6.5 11.25h-13L12 6.5z"
+      fill="#4285F4"
+    ></path>
+    <path
+      d="M12 6.5l6.5 11.25h-13L12 6.5z"
+      fill="#669DF6"
+    ></path>
+  </svg>
+);
+
 const OpenAISVG = ({ height }: { height: number }) => (
   <svg
     fill="var(--global-text-color-900)"
@@ -258,6 +277,7 @@ const PROVIDER_ICONS: Record<
 > = {
   AZURE_OPENAI: AzureSVG,
   GOOGLE: GoogleSVG,
+  VERTEX_AI: VertexAISVG,
   OPENAI: OpenAISVG,
   ANTHROPIC: AnthropicSVG,
   DEEPSEEK: DeepSeekSVG,

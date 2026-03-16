@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01c6912fef167bbe76afd8d48238bf60>>
+ * @generated SignedSource<<d75b88985ff9335409d8a1098801ede7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "VERTEX_AI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type UpdateDatasetLLMEvaluatorInput = {

@@ -608,7 +608,7 @@ def validate_invocation_parameters(
                 invocation_parameters
             ),
         )
-    elif model_provider is ModelProvider.GOOGLE:
+    elif model_provider is ModelProvider.GOOGLE or model_provider is ModelProvider.VERTEX_AI:
         return PromptGoogleInvocationParameters(
             type="google",
             google=PromptGoogleInvocationParametersContent.model_validate(invocation_parameters),
@@ -696,7 +696,7 @@ def normalize_tools(
     elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
-    elif model_provider is ModelProvider.GOOGLE:
+    elif model_provider is ModelProvider.GOOGLE or model_provider is ModelProvider.VERTEX_AI:
         gemini_tools = [GeminiToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_gemini_to_prompt_tool(gemini_tool) for gemini_tool in gemini_tools]
     else:
@@ -725,7 +725,7 @@ def normalize_tools(
             ans.tool_choice = choice
             if disable_parallel_tool_calls is not None:
                 ans.disable_parallel_tool_calls = disable_parallel_tool_calls
-        elif model_provider is ModelProvider.GOOGLE:
+        elif model_provider is ModelProvider.GOOGLE or model_provider is ModelProvider.VERTEX_AI:
             ans.tool_choice = GoogleToolChoiceConversion.from_google(tool_choice)
     return ans
 
@@ -759,7 +759,7 @@ def denormalize_tools(
         if tools.tool_choice and tools.tool_choice.type != "none":
             tool_choice_value = AnthropicToolChoiceConversion.to_anthropic(tools.tool_choice)
             tool_choice = {"tool_choice": tool_choice_value}
-    elif model_provider is ModelProvider.GOOGLE:
+    elif model_provider is ModelProvider.GOOGLE or model_provider is ModelProvider.VERTEX_AI:
         denormalized_tools = [_prompt_to_gemini_tool(tool) for tool in tools.tools]
         if tools.tool_choice:
             tool_choice = {"tool_config": GoogleToolChoiceConversion.to_google(tools.tool_choice)}

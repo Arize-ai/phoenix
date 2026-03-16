@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<87a5aa1b63e7f56e074f58bb34e1f066>>
+ * @generated SignedSource<<185127dc760f5dbd95bb92a641b54991>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "VERTEX_AI" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {

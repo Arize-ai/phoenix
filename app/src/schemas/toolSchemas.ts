@@ -405,6 +405,7 @@ type ProviderToToolDefinitionMap = {
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
   GOOGLE: GeminiToolDefinition;
+  VERTEX_AI: GeminiToolDefinition;
   DEEPSEEK: OpenAIToolDefinition;
   XAI: OpenAIToolDefinition;
   OLLAMA: OpenAIToolDefinition;
@@ -473,6 +474,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAws.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
+    case "VERTEX_AI":
     case "GOOGLE":
       return openAIToolToGemini.parse(
         toolDefinition

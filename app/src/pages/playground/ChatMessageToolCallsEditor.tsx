@@ -105,6 +105,7 @@ export function ChatMessageToolCallsEditor({
       case "AWS":
         return awsToolCallsJSONSchema as JSONSchema7;
       // TODO(apowell): #5348 Add Google tool calls schema
+      case "VERTEX_AI":
       case "GOOGLE":
         return null;
     }

@@ -242,6 +242,7 @@ type ProviderToToolCallMap = {
   AWS: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
+  VERTEX_AI: JSONLiteral;
   GOOGLE: JSONLiteral;
 };
 
@@ -301,6 +302,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
       return openAIToolCallToAnthropic.parse(
         toolCall
       ) as ProviderToToolCallMap[T];
+    case "VERTEX_AI":
     case "GOOGLE":
       return toolCall as ProviderToToolCallMap[T];
     default:

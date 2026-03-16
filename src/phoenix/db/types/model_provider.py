@@ -61,6 +61,7 @@ class ModelProvider(Enum):
     AZURE_OPENAI = "AZURE_OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GOOGLE = "GOOGLE"
+    VERTEX_AI = "VERTEX_AI"
     DEEPSEEK = "DEEPSEEK"
     XAI = "XAI"
     OLLAMA = "OLLAMA"
@@ -101,7 +102,7 @@ def is_sdk_compatible_with_model_provider(
     if sdk == "anthropic":
         return model_provider is ModelProvider.ANTHROPIC
     if sdk == "google_genai":
-        return model_provider is ModelProvider.GOOGLE
+        return model_provider in (ModelProvider.GOOGLE, ModelProvider.VERTEX_AI)
     if sdk == "aws_bedrock":
         return model_provider is ModelProvider.AWS
     else:

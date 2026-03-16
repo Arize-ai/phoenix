@@ -45,6 +45,7 @@ export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   TOGETHER: ["required", "auto", "none"] as const,
   ANTHROPIC: ["any", "auto", "none"] as const,
   AWS: ["any", "auto", "none"] as const,
+  VERTEX_AI: ["any", "auto", "none"] as const,
   GOOGLE: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
@@ -101,6 +102,7 @@ export const findToolChoiceType = (
         return choice.type;
       }
       return choice;
+    case "VERTEX_AI":
     case "GOOGLE":
       if (isObject(choice) && "function_calling_config" in choice) {
         const functionCallingConfig = choice.function_calling_config;
@@ -313,6 +315,7 @@ export function ToolChoiceSelector<
                 })
               );
               break;
+            case "VERTEX_AI":
             case "GOOGLE":
               onChange(
                 makeGoogleToolChoice({
@@ -359,6 +362,7 @@ export function ToolChoiceSelector<
                 })
               );
               break;
+            case "VERTEX_AI":
             case "GOOGLE":
               onChange(
                 makeGoogleToolChoice({
