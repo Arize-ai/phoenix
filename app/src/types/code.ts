@@ -37,3 +37,27 @@ export function isPackageManager(value: unknown): value is PackageManager {
     packageManagers.includes(value as PackageManager)
   );
 }
+
+/**
+ * TypeGuard for Python package managers
+ */
+export function isPythonPackageManager(
+  value: unknown
+): value is PythonPackageManager {
+  return (
+    typeof value === "string" &&
+    (pythonPackageManagers as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * TypeGuard for TypeScript package managers
+ */
+export function isTypescriptPackageManager(
+  value: unknown
+): value is TypeScriptPackageManager {
+  return (
+    typeof value === "string" &&
+    (typescriptPackageManagers as readonly string[]).includes(value)
+  );
+}

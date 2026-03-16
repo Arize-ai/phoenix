@@ -19,8 +19,9 @@ import {
 import type { DisplayTimezone } from "@phoenix/store/preferencesStore";
 import { packageManagersByLanguage } from "@phoenix/store/preferencesStore";
 import {
-  isPackageManager,
   isProgrammingLanguage,
+  isPythonPackageManager,
+  isTypescriptPackageManager,
   programmingLanguages,
 } from "@phoenix/types/code";
 import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
@@ -33,18 +34,18 @@ export function ViewerPreferences() {
     setDisplayTimezone,
     programmingLanguage,
     setProgrammingLanguage,
-    packageManager,
+    pythonPackageManager,
+    typescriptPackageManager,
     setPackageManager,
   } = usePreferencesContext((state) => ({
     displayTimezone: state.displayTimezone,
     setDisplayTimezone: state.setDisplayTimezone,
     programmingLanguage: state.programmingLanguage,
     setProgrammingLanguage: state.setProgrammingLanguage,
-    packageManager: state.packageManagerByLanguage[state.programmingLanguage],
+    pythonPackageManager: state.packageManagerByLanguage["Python"],
+    typescriptPackageManager: state.packageManagerByLanguage["TypeScript"],
     setPackageManager: state.setPackageManager,
   }));
-
-  const packageManagerOptions = packageManagersByLanguage[programmingLanguage];
 
   const themeOptions = useMemo(() => {
     return [
@@ -160,17 +161,34 @@ export function ViewerPreferences() {
             ))}
           </ComboBox>
           <ComboBox
-            aria-label="Package Manager"
-            label="Package Manager"
-            description="Choose the default package manager for install commands"
-            selectedKey={packageManager}
+            aria-label="Python Package Manager"
+            label="Python Package Manager"
+            description="Choose the default package manager for Python install commands"
+            selectedKey={pythonPackageManager}
             onSelectionChange={(value) => {
-              if (value && isPackageManager(value)) {
-                setPackageManager(programmingLanguage, value);
+              if (value && isPythonPackageManager(value)) {
+                setPackageManager("Python", value);
               }
             }}
           >
-            {packageManagerOptions.map((pm) => (
+            {packageManagersByLanguage["Python"].map((pm) => (
+              <ComboBoxItem key={pm} id={pm} textValue={pm}>
+                <Text weight="heavy">{pm}</Text>
+              </ComboBoxItem>
+            ))}
+          </ComboBox>
+          <ComboBox
+            aria-label="TypeScript Package Manager"
+            label="TypeScript Package Manager"
+            description="Choose the default package manager for TypeScript install commands"
+            selectedKey={typescriptPackageManager}
+            onSelectionChange={(value) => {
+              if (value && isTypescriptPackageManager(value)) {
+                setPackageManager("TypeScript", value);
+              }
+            }}
+          >
+            {packageManagersByLanguage["TypeScript"].map((pm) => (
               <ComboBoxItem key={pm} id={pm} textValue={pm}>
                 <Text weight="heavy">{pm}</Text>
               </ComboBoxItem>
