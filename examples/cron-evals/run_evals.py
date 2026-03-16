@@ -6,6 +6,8 @@ back to Phoenix. This script is intended to run once a minute as a cron job.
 
 from datetime import datetime, timedelta
 
+from phoenix.client import Client
+from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
 from phoenix.evals import (
     HallucinationEvaluator,
     OpenAIModel,
@@ -14,15 +16,11 @@ from phoenix.evals import (
     run_evals,
 )
 
-import phoenix as px
-from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
-
-phoenix_client = px.Client()
+phoenix_client = Client()
 last_eval_run_time = datetime.now() - timedelta(
     minutes=1, seconds=10
 )  # add a few seconds to ensure all spans are captured
-qa_spans_df = get_qa_with_reference(phoenix_client, start_time=last_eval_run_time)
+qa_spans_df = get_input_output_context(phoenix_client, start_time=last_eval_run_time)
 retriever_spans_df = get_retrieved_documents(phoenix_client, start_time=last_eval_run_time)
 eval_model = OpenAIModel(
     model_name="gpt-4-turbo-preview",
@@ -38,9 +36,13 @@ relevance_evals_df = run_evals(
     retriever_spans_df,
     [relevance_evaluator],
 )[0]
-phoenix_client.log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_evals_df),
-    SpanEvaluations(eval_name="QA Correctness", dataframe=qa_correctness_evals_df),
-    DocumentEvaluations(eval_name="Relevance", dataframe=relevance_evals_df),
+phoenix_client.spans.log_span_annotations_dataframe(
+    dataframe=hallucination_evals_df, annotation_name="Hallucination", annotator_kind="LLM"
+)
+phoenix_client.spans.log_span_annotations_dataframe(
+    dataframe=qa_correctness_evals_df, annotation_name="QA Correctness", annotator_kind="LLM"
+)
+phoenix_client.spans.log_document_annotations_dataframe(
+    dataframe=relevance_evals_df, annotation_name="Relevance", annotator_kind="LLM"
 )
 print("Evaluations logged to Phoenix")

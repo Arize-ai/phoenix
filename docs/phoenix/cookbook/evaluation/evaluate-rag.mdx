@@ -352,15 +352,16 @@ Now that we have executed the queries, we can start validating whether or not th
 
 ```py
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 retrieved_documents_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
     .where("span_kind == 'RETRIEVER'")
-    .select(input="input.value")
+    .select("input.value")
     .explode("retrieval.documents", reference="document.content", document_score="document.score")
 )
+retrieved_documents_df = retrieved_documents_df.rename(columns={"input.value": "input"})
 retrieved_documents_df
 ```
 
@@ -471,8 +472,9 @@ Let's now view the results in a combined dataframe.
 
 ```py
 retrievals_df = client.spans.get_spans_dataframe(
-    query=SpanQuery().where("span_kind == 'RETRIEVER'").select(input="input.value")
+    query=SpanQuery().where("span_kind == 'RETRIEVER'").select("input.value")
 )
+retrievals_df = retrievals_df.rename(columns={"input.value": "input"})
 rag_evaluation_dataframe = pd.concat(
     [
         retrievals_df["attributes.input.value"],
@@ -534,18 +536,20 @@ The retrieval evaluations demonstrates that our RAG system is not perfect. Howev
 ```py
 import pandas as pd
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 root_spans_df = client.spans.get_spans_dataframe(
-    query=SpanQuery().where("parent_id is None").select(input="input.value", output="output.value")
+    query=SpanQuery().where("parent_id is None").select("input.value", "output.value")
 )
+root_spans_df = root_spans_df.rename(columns={"input.value": "input", "output.value": "output"})
 retriever_df = client.spans.get_spans_dataframe(
     query=SpanQuery()
     .where("span_kind == 'RETRIEVER'")
-    .select(span_id="parent_id")
+    .select("parent_id")
     .concat("retrieval.documents", reference="document.content")
 )
+retriever_df = retriever_df.rename(columns={"parent_id": "span_id"})
 qa_with_reference_df = pd.concat([root_spans_df, retriever_df], axis=1, join="inner")
 qa_with_reference_df
 ```

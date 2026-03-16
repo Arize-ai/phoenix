@@ -204,7 +204,7 @@ Create a task to evaluate.
 
     ```python
     from openai import OpenAI
-    from phoenix.experiments.types import Example
+    from phoenix.client.__generated__.v1 import DatasetExample as Example
 
     openai_client = OpenAI()
 
@@ -430,7 +430,7 @@ or LLMs.
   <Tab title="Python" icon="python">
 
     ```python
-    from phoenix.experiments.evaluators import create_evaluator
+    from phoenix.client.experiments import create_evaluator
     from typing import Any, Dict
 
     eval_prompt_template = """

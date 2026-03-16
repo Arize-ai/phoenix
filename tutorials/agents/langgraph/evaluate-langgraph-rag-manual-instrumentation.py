@@ -28,6 +28,7 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
+
 from phoenix.client import Client as _PhoenixClient
 from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
 from phoenix.evals import (
@@ -457,7 +458,7 @@ def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
         # Extract retrieved documents from traces
         retrieved_documents_df = get_retrieved_documents(
             phoenix_client, project_name=PHOENIX_PROJECT_NAME
-        )
+        ).rename(columns={"document": "reference"})
 
         if retrieved_documents_df.empty:
             print("⚠️  No retrieved documents found in traces")
@@ -501,6 +502,7 @@ def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
             print("⚠️  No Q&A interactions found in traces")
             return {}
 
+        qa_with_reference_df = qa_with_reference_df.rename(columns={"context": "reference"})
         print(f"Found {len(qa_with_reference_df)} Q&A interactions")
 
         # Run Q&A and hallucination evaluations

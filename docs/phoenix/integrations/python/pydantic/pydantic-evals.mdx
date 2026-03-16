@@ -177,17 +177,18 @@ Export the traces you want to evaluate:
 
 ```python
 import phoenix as px
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 query = SpanQuery().select(
-    input="llm.input_messages",
-    output="llm.output_messages",
+    "llm.input_messages",
+    "llm.output_messages",
 )
 
 # Query spans from Phoenix
 from phoenix.client import Client
 client = Client()
 spans = client.spans.get_spans_dataframe(query=query, project_name="pydantic-evals-tutorial")
+spans = spans.rename(columns={"llm.input_messages": "input", "llm.output_messages": "output"})
 spans["input"] = spans["input"].apply(lambda x: x[1].get("message").get("content"))
 spans["output"] = spans["output"].apply(lambda x: x[0].get("message").get("content"))
 ```
