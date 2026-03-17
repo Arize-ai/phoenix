@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a64d734c828215f807b23cb0fe1f530>>
+ * @generated SignedSource<<ccaf5668523fa847d24a4d5bdb6971a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type CreateChatPromptVersionInput = {
   promptId: string;
@@ -21,18 +22,18 @@ export type ChatPromptVersionInput = {
   description?: string | null;
   invocationParameters?: any;
   modelName: string;
-  modelProvider: ModelProvider;
-  responseFormat?: ResponseFormatInput | null;
+  modelProvider: GenerativeProviderKey;
+  responseFormat?: PromptResponseFormatJSONSchemaInput | null;
   template: PromptChatTemplateInput;
   templateFormat: PromptTemplateFormat;
-  tools?: ReadonlyArray<ToolDefinitionInput>;
+  tools?: PromptToolsInput | null;
 };
 export type PromptChatTemplateInput = {
   messages: ReadonlyArray<PromptMessageInput>;
 };
 export type PromptMessageInput = {
   content: ReadonlyArray<ContentPartInput>;
-  role: string;
+  role: PromptMessageRole;
 };
 export type ContentPartInput = {
   text?: TextContentValueInput | null;
@@ -55,11 +56,35 @@ export type ToolResultContentValueInput = {
   result: any;
   toolCallId: string;
 };
-export type ToolDefinitionInput = {
-  definition: any;
+export type PromptToolsInput = {
+  disableParallelToolCalls?: boolean | null;
+  toolChoice?: PromptToolChoiceInput | null;
+  tools: ReadonlyArray<PromptToolFunctionInput>;
 };
-export type ResponseFormatInput = {
-  definition: any;
+export type PromptToolFunctionInput = {
+  function: PromptToolFunctionDefinitionInput;
+};
+export type PromptToolFunctionDefinitionInput = {
+  description?: string | null;
+  name: string;
+  parameters?: any | null;
+  strict?: boolean | null;
+};
+export type PromptToolChoiceInput = {
+  functionName?: string | null;
+  none?: boolean | null;
+  oneOrMore?: boolean | null;
+  zeroOrMore?: boolean | null;
+};
+export type PromptResponseFormatJSONSchemaInput = {
+  jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput;
+  type: string;
+};
+export type PromptResponseFormatJSONSchemaDefinitionInput = {
+  description?: string | null;
+  name: string;
+  schema?: any | null;
+  strict?: boolean | null;
 };
 export type CreatePromptVersionTagInput = {
   description?: string | null;

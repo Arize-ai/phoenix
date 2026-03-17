@@ -29,9 +29,15 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.db.types.model_provider import (
-    ModelProvider,
-    is_sdk_compatible_with_model_provider,
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptInvocationParameters,
+    PromptTemplateFormat,
+    PromptTools,
+    RoleConversion,
+    TextContentPart,
+    get_raw_invocation_parameters,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
@@ -39,25 +45,9 @@ from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     get_playground_client,
 )
-from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplate,
-    PromptInvocationParameters,
-    PromptTemplateFormat,
-    PromptTools,
-    RoleConversion,
-    TextContentPart,
-    denormalize_tools,
-    get_raw_invocation_parameters,
-)
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.GenerativeCredentialInput import (
     GenerativeCredentialInput,
-)
-from phoenix.server.api.input_types.GenerativeModelInput import (
-    GenerativeModelBuiltinProviderInput,
-    GenerativeModelCustomProviderInput,
-    GenerativeModelInput,
-    OpenAIApiType,
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
     PromptChatTemplateInput,
@@ -65,7 +55,6 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
 
 logger = logging.getLogger(__name__)
@@ -344,11 +333,7 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     prompt_span.set_status(Status(StatusCode.OK))
 
-                denormalized_tools, denormalized_tool_choice = denormalize_tools(
-                    self._tools, self._model_provider
-                )
                 invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-                invocation_parameters.update(denormalized_tool_choice)
                 # Only pass params the client supports (e.g. Responses API has no temperature)
                 supported_names = {
                     p.invocation_name
@@ -363,7 +348,7 @@ class LLMEvaluator(BaseEvaluator):
 
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
-                    tools=denormalized_tools,
+                    tools=self._tools,
                     tracer=tracer_,
                     invocation_parameters=invocation_parameters,
                 ):
@@ -701,56 +686,10 @@ async def _get_llm_evaluators(
         if prompt is None:
             raise NotFound(f"Prompt not found for LLM evaluator '{llm_evaluator_node_id}'")
 
-        # Create model input based on whether a custom provider is configured
-        if prompt_version.custom_provider_id is not None:
-            # Use custom provider - construct GlobalID for the provider
-            from phoenix.server.api.types.GenerativeModelCustomProvider import (
-                GenerativeModelCustomProvider,
-            )
-
-            # Validate SDK compatibility at runtime. This catches cases where someone
-            # modified the custom provider's SDK in the database after it was attached
-            # to this prompt.
-            custom_provider = await session.get(
-                models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
-            )
-            if custom_provider is None:
-                raise NotFound(
-                    f"Custom provider with ID '{prompt_version.custom_provider_id}' not found"
-                )
-            if not is_sdk_compatible_with_model_provider(
-                custom_provider.sdk, prompt_version.model_provider
-            ):
-                raise BadRequest(
-                    f"Custom provider '{custom_provider.name}' has SDK '{custom_provider.sdk}' "
-                    f"which is not compatible with prompt's model provider "
-                    f"'{prompt_version.model_provider.value}'. The custom provider's SDK may have "
-                    f"been changed after it was attached to this prompt."
-                )
-
-            provider_global_id = GlobalID(
-                type_name=GenerativeModelCustomProvider.__name__,
-                node_id=str(prompt_version.custom_provider_id),
-            )
-            model_input = GenerativeModelInput(
-                custom=GenerativeModelCustomProviderInput(
-                    provider_id=provider_global_id,
-                    model_name=prompt_version.model_name,
-                )
-            )
-        else:
-            # Use built-in provider
-            provider_key = GenerativeProviderKey.from_model_provider(prompt_version.model_provider)
-            model_input = GenerativeModelInput(
-                builtin=GenerativeModelBuiltinProviderInput(
-                    provider_key=provider_key,
-                    name=prompt_version.model_name,
-                    openai_api_type=OpenAIApiType.CHAT_COMPLETIONS,
-                )
-            )
-
         llm_client = await get_playground_client(
-            model=model_input,
+            model_provider=prompt_version.model_provider,
+            model_name=prompt_version.model_name,
+            custom_provider_id=prompt_version.custom_provider_id,
             session=session,
             decrypt=decrypt,
             credentials=credentials,

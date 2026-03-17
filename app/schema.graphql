@@ -320,13 +320,20 @@ type BuiltInEvaluator implements Evaluator & Node {
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
 
+input BuiltinClientOptionsInput {
+  baseUrl: String
+  endpoint: String
+  region: String
+  customHeaders: JSON
+  openaiApiType: OpenAIApiType
+}
+
 enum CanonicalParameterName {
   TEMPERATURE
   MAX_COMPLETION_TOKENS
   STOP_SEQUENCES
   TOP_P
   RANDOM_SEED
-  TOOL_CHOICE
   RESPONSE_FORMAT
   REASONING_EFFORT
   ANTHROPIC_EXTENDED_THINKING
@@ -365,37 +372,13 @@ type ChatCompletionFunctionCall {
 }
 
 input ChatCompletionInput {
-  messages: [ChatCompletionMessageInput!]!
-  model: GenerativeModelInput!
+  promptVersion: ChatPromptVersionInput!
+  clientOptions: ModelClientOptionsInput = null
   credentials: [GenerativeCredentialInput!]
-  invocationParameters: [InvocationParameterInput!]! = []
-  tools: [JSON!]
   template: PromptTemplateOptions
   promptName: Identifier = null
   repetitions: Int!
   evaluators: [PlaygroundEvaluatorInput!]! = []
-}
-
-input ChatCompletionMessageInput {
-  role: ChatCompletionMessageRole!
-
-  """The content of the message as JSON to support various kinds of text"""
-  content: JSON! = ""
-
-  """The tool calls that were made in the message"""
-  toolCalls: [JSON!]
-
-  """
-  The ID that corresponds to a prior tool call. Used to link a tool message to a pre-existing tool call.
-  """
-  toolCallId: String
-}
-
-enum ChatCompletionMessageRole {
-  USER
-  SYSTEM
-  TOOL
-  AI
 }
 
 type ChatCompletionMutationPayload {
@@ -403,12 +386,9 @@ type ChatCompletionMutationPayload {
 }
 
 input ChatCompletionOverDatasetInput {
-  messages: [ChatCompletionMessageInput!]!
-  model: GenerativeModelInput!
+  promptVersion: ChatPromptVersionInput!
+  clientOptions: ModelClientOptionsInput = null
   credentials: [GenerativeCredentialInput!]
-  invocationParameters: [InvocationParameterInput!]! = []
-  tools: [JSON!]
-  templateFormat: PromptTemplateFormat! = MUSTACHE
   repetitions: Int!
   datasetId: ID!
   datasetVersionId: ID = null
@@ -488,9 +468,9 @@ input ChatPromptVersionInput {
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}
-  tools: [ToolDefinitionInput!]! = []
-  responseFormat: ResponseFormatInput = null
-  modelProvider: ModelProvider!
+  tools: PromptToolsInput = null
+  responseFormat: PromptResponseFormatJSONSchemaInput = null
+  modelProvider: GenerativeProviderKey!
   modelName: String!
   customProviderId: ID = null
 }
@@ -781,6 +761,10 @@ input CreateUserInput {
 }
 
 scalar CronExpression
+
+input CustomClientOptionsInput {
+  extraHeaders: JSON
+}
 
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
 
@@ -1729,16 +1713,6 @@ type GenerativeModel implements Node & ModelInterface {
   lastUsedAt: DateTime
 }
 
-input GenerativeModelBuiltinProviderInput {
-  providerKey: GenerativeProviderKey!
-  name: String!
-  baseUrl: String
-  endpoint: String
-  region: String
-  customHeaders: JSON
-  openaiApiType: OpenAIApiType
-}
-
 """A connection to a list of items."""
 type GenerativeModelConnection {
   """Pagination data for this connection"""
@@ -1798,12 +1772,6 @@ type GenerativeModelCustomProviderEdge {
   node: GenerativeModelCustomProvider!
 }
 
-input GenerativeModelCustomProviderInput {
-  providerId: ID!
-  modelName: String!
-  extraHeaders: JSON
-}
-
 input GenerativeModelCustomerProviderConfigInput @oneOf {
   openai: OpenAICustomProviderConfigInput
   azureOpenai: AzureOpenAICustomProviderConfigInput
@@ -1819,11 +1787,6 @@ type GenerativeModelEdge {
 
   """The item at the end of the edge"""
   node: GenerativeModel!
-}
-
-input GenerativeModelInput @oneOf {
-  builtin: GenerativeModelBuiltinProviderInput
-  custom: GenerativeModelCustomProviderInput
 }
 
 enum GenerativeModelKind {
@@ -1947,18 +1910,6 @@ interface InvocationParameterBase {
   required: Boolean!
 }
 
-input InvocationParameterInput {
-  invocationName: String!
-  canonicalName: CanonicalParameterName = null
-  valueInt: Int
-  valueFloat: Float
-  valueBool: Boolean
-  valueString: String
-  valueJson: JSON
-  valueStringList: [String!]
-  valueBoolean: Boolean
-}
-
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
@@ -2001,6 +1952,11 @@ type LabelFraction {
 enum MimeType {
   text
   json
+}
+
+input ModelClientOptionsInput @oneOf {
+  builtin: BuiltinClientOptionsInput
+  custom: CustomClientOptionsInput
 }
 
 interface ModelInterface {
@@ -2647,7 +2603,7 @@ type PromptMessage {
 }
 
 input PromptMessageInput {
-  role: String!
+  role: PromptMessageRole!
   content: [ContentPartInput!]!
 }
 
@@ -2656,6 +2612,29 @@ enum PromptMessageRole {
   SYSTEM
   AI
   TOOL
+}
+
+type PromptResponseFormatJSONSchema {
+  jsonSchema: PromptResponseFormatJSONSchemaDefinition!
+}
+
+type PromptResponseFormatJSONSchemaDefinition {
+  name: String!
+  description: String
+  schema: JSON
+  strict: Boolean
+}
+
+input PromptResponseFormatJSONSchemaDefinitionInput {
+  name: String!
+  description: String = null
+  schema: JSON = null
+  strict: Boolean = null
+}
+
+input PromptResponseFormatJSONSchemaInput {
+  type: String!
+  jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput!
 }
 
 type PromptStringTemplate {
@@ -2680,6 +2659,59 @@ enum PromptTemplateType {
   CHAT
 }
 
+type PromptToolChoice {
+  type: PromptToolChoiceType!
+  functionName: String
+}
+
+input PromptToolChoiceInput @oneOf {
+  none: Boolean
+  zeroOrMore: Boolean
+  oneOrMore: Boolean
+  functionName: String
+}
+
+enum PromptToolChoiceType {
+  NONE
+  ZERO_OR_MORE
+  ONE_OR_MORE
+  SPECIFIC_FUNCTION
+}
+
+type PromptToolFunction {
+  function: PromptToolFunctionDefinition!
+}
+
+type PromptToolFunctionDefinition {
+  name: String!
+  description: String
+  parameters: JSON
+  strict: Boolean
+}
+
+input PromptToolFunctionDefinitionInput {
+  name: String!
+  description: String = null
+  parameters: JSON = null
+  strict: Boolean = null
+}
+
+input PromptToolFunctionInput {
+  function: PromptToolFunctionDefinitionInput!
+}
+
+type PromptTools {
+  tools: [PromptToolFunction!]!
+  toolChoice: PromptToolChoice
+  disableParallelToolCalls: Boolean
+}
+
+input PromptToolsInput {
+  tools: [PromptToolFunctionInput!]!
+  toolChoice: PromptToolChoiceInput = null
+  disableParallelToolCalls: Boolean = null
+}
+
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2688,8 +2720,8 @@ type PromptVersion implements Node {
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
   invocationParameters: JSON
-  tools: [ToolDefinition!]!
-  responseFormat: ResponseFormat
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
   modelName: String!
   modelProvider: ModelProvider!
   metadata: JSON!
@@ -2799,14 +2831,6 @@ type RemoveAnnotationConfigFromProjectPayload {
 }
 
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
-
-type ResponseFormat {
-  definition: JSON!
-}
-
-input ResponseFormatInput {
-  definition: JSON!
-}
 
 enum RevisionKind {
   CREATE
@@ -3335,14 +3359,6 @@ input ToolCallFunctionInput {
   type: String = "function"
   name: String!
   arguments: String!
-}
-
-type ToolDefinition {
-  definition: JSON!
-}
-
-input ToolDefinitionInput {
-  definition: JSON!
 }
 
 type ToolResultContentPart {

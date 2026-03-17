@@ -78,19 +78,32 @@ async def main() -> None:
         },
     ]
 
+    # Build promptVersion (model identity + template); clientOptions optional.
+    messages = [
+        {"content": "You are a chatbot", "role": "SYSTEM"},
+        {"content": "{{question}}", "role": "USER"},
+    ]
+    prompt_version = {
+        "templateFormat": "MUSTACHE",
+        "template": {
+            "messages": [
+                {
+                    "role": m["role"],
+                    "content": [{"text": {"text": m["content"]}}],
+                }
+                for m in messages
+            ]
+        },
+        "modelProvider": "OPENAI",
+        "modelName": "gpt-4o-mini",
+        "invocationParameters": {},
+        "tools": None,
+        "responseFormat": None,
+    }
+
     variables = {
         "input": {
-            "messages": [
-                {"content": "You are a chatbot", "role": "SYSTEM"},
-                {"content": "{{question}}", "role": "USER"},
-            ],
-            "model": {
-                "builtin": {
-                    "providerKey": "OPENAI",
-                    "name": "gpt-4o-mini",
-                }
-            },
-            "invocationParameters": [],
+            "promptVersion": prompt_version,
             "repetitions": 1,
             "template": {
                 "variables": {"question": "who won the nba finals in 2015?"},

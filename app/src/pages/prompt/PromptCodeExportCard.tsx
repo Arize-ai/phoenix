@@ -47,10 +47,27 @@ export function PromptCodeExportCard({
         modelName
         modelProvider
         responseFormat {
-          definition
+          jsonSchema {
+            name
+            description
+            schema
+            strict
+          }
         }
         tools {
-          definition
+          tools {
+            function {
+              name
+              description
+              parameters
+              strict
+            }
+          }
+          toolChoice {
+            type
+            functionName
+          }
+          disableParallelToolCalls
         }
         template {
           __typename

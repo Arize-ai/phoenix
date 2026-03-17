@@ -43,10 +43,27 @@ class TestPromptMutations:
                 }
                 invocationParameters
                 tools {
-                  definition
+                  tools {
+                    function {
+                      name
+                      description
+                      parameters
+                      strict
+                    }
+                  }
+                  toolChoice {
+                    type
+                    functionName
+                  }
+                  disableParallelToolCalls
                 }
                 responseFormat {
-                  definition
+                  jsonSchema {
+                    name
+                    description
+                    schema
+                    strict
+                  }
                 }
                 modelName
                 modelProvider
@@ -88,10 +105,27 @@ class TestPromptMutations:
                 }
                 invocationParameters
                 tools {
-                  definition
+                  tools {
+                    function {
+                      name
+                      description
+                      parameters
+                      strict
+                    }
+                  }
+                  toolChoice {
+                    type
+                    functionName
+                  }
+                  disableParallelToolCalls
                 }
                 responseFormat {
-                  definition
+                  jsonSchema {
+                    name
+                    description
+                    schema
+                    strict
+                  }
                 }
                 modelName
                 modelProvider
@@ -136,10 +170,27 @@ class TestPromptMutations:
                 }
                 invocationParameters
                 tools {
-                  definition
+                  tools {
+                    function {
+                      name
+                      description
+                      parameters
+                      strict
+                    }
+                  }
+                  toolChoice {
+                    type
+                    functionName
+                  }
+                  disableParallelToolCalls
                 }
                 responseFormat {
-                  definition
+                  jsonSchema {
+                    name
+                    description
+                    schema
+                    strict
+                  }
                 }
                 modelName
                 modelProvider
@@ -151,7 +202,7 @@ class TestPromptMutations:
     """
 
     @pytest.mark.parametrize(
-        "variables",
+        "variables,expected_tools_output,expected_rf_output",
         [
             pytest.param(
                 {
@@ -175,6 +226,8 @@ class TestPromptMutations:
                         },
                     }
                 },
+                None,
+                None,
                 id="basic-input",
             ),
             pytest.param(
@@ -196,10 +249,9 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "type": "function",
+                            "tools": {
+                                "tools": [
+                                    {
                                         "function": {
                                             "name": "get_weather",
                                             "description": "Get current temperature for a given location.",
@@ -217,11 +269,37 @@ class TestPromptMutations:
                                             "strict": True,
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },
+                {
+                    "tools": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "description": "Get current temperature for a given location.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "City and country e.g. Bogotá, Colombia",
+                                        }
+                                    },
+                                    "required": ["location"],
+                                    "additionalProperties": False,
+                                },
+                                "strict": True,
+                            }
+                        }
+                    ],
+                    "toolChoice": None,
+                    "disableParallelToolCalls": None,
+                },
+                None,
                 id="with-tools",
             ),
             pytest.param(
@@ -243,10 +321,9 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "type": "function",
+                            "tools": {
+                                "tools": [
+                                    {
                                         "function": {
                                             "name": "get_weather",
                                             "parameters": {
@@ -255,11 +332,30 @@ class TestPromptMutations:
                                             },
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },
+                {
+                    "tools": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "description": None,
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {"location": {"type": "string"}},
+                                },
+                                "strict": None,
+                            }
+                        }
+                    ],
+                    "toolChoice": None,
+                    "disableParallelToolCalls": None,
+                },
+                None,
                 id="with-valid-openai-tools",
             ),
             pytest.param(
@@ -281,32 +377,64 @@ class TestPromptMutations:
                             "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "name": "get_weather",
-                                        "description": "Get the current weather in a given location",
-                                        "input_schema": {
-                                            "type": "object",
-                                            "properties": {
-                                                "location": {
-                                                    "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",
+                            "tools": {
+                                "tools": [
+                                    {
+                                        "function": {
+                                            "name": "get_weather",
+                                            "description": "Get the current weather in a given location",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "location": {
+                                                        "type": "string",
+                                                        "description": "The city and state, e.g. San Francisco, CA",
+                                                    },
+                                                    "unit": {
+                                                        "type": "string",
+                                                        "enum": ["celsius", "fahrenheit"],
+                                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
+                                                    },
                                                 },
-                                                "unit": {
-                                                    "type": "string",
-                                                    "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
-                                                },
+                                                "required": ["location"],
                                             },
-                                            "required": ["location"],
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },
+                {
+                    "tools": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "description": "Get the current weather in a given location",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "The city and state, e.g. San Francisco, CA",
+                                        },
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": ["celsius", "fahrenheit"],
+                                            "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
+                                        },
+                                    },
+                                    "required": ["location"],
+                                },
+                                "strict": None,
+                            }
+                        }
+                    ],
+                    "toolChoice": None,
+                    "disableParallelToolCalls": None,
+                },
+                None,
                 id="with-valid-anthropic-tools",
             ),
             pytest.param(
@@ -329,24 +457,36 @@ class TestPromptMutations:
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
-                                "definition": {
-                                    "type": "json_schema",
-                                    "json_schema": {
-                                        "name": "response",
-                                        "schema": {
-                                            "type": "object",
-                                            "properties": {
-                                                "foo": {"type": "string"},
-                                            },
-                                            "required": ["foo"],
-                                            "additionalProperties": False,
+                                "type": "json_schema",
+                                "jsonSchema": {
+                                    "name": "response",
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "foo": {"type": "string"},
                                         },
-                                        "strict": True,
+                                        "required": ["foo"],
+                                        "additionalProperties": False,
                                     },
-                                }
+                                    "strict": True,
+                                },
                             },
                         },
                     }
+                },
+                None,
+                {
+                    "jsonSchema": {
+                        "name": "response",
+                        "description": None,
+                        "schema": {
+                            "type": "object",
+                            "properties": {"foo": {"type": "string"}},
+                            "required": ["foo"],
+                            "additionalProperties": False,
+                        },
+                        "strict": True,
+                    },
                 },
                 id="with-output-schema",
             ),
@@ -377,6 +517,8 @@ class TestPromptMutations:
                         },
                     }
                 },
+                None,
+                None,
                 id="with-metadata",
             ),
         ],
@@ -386,6 +528,8 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
+        expected_tools_output: Any,
+        expected_rf_output: Any,
     ) -> None:
         result = await gql_client.execute(self.CREATE_CHAT_PROMPT_MUTATION, variables)
         assert not result.errors
@@ -411,10 +555,8 @@ class TestPromptMutations:
         assert prompt_version.pop("modelName") == expected_model_name
         expected_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
         assert prompt_version.pop("invocationParameters") == expected_invocation_parameters
-        expected_tools = variables["input"]["promptVersion"].get("tools", [])
-        assert prompt_version.pop("tools") == expected_tools
-        expected_response_format = variables["input"]["promptVersion"].get("responseFormat")
-        assert prompt_version.pop("responseFormat") == expected_response_format
+        assert prompt_version.pop("tools") == expected_tools_output
+        assert prompt_version.pop("responseFormat") == expected_rf_output
         assert isinstance(prompt_version.pop("createdAt"), str)
         assert isinstance(prompt_version.pop("id"), str)
 
@@ -484,9 +626,6 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
-                            "responseFormat": {
-                                "definition": {"type": "object"},
-                            },
                         },
                     }
                 },
@@ -576,7 +715,7 @@ class TestPromptMutations:
         assert result.data is None
 
     @pytest.mark.parametrize(
-        "variables",
+        "variables,expected_tools_output,expected_rf_output",
         [
             pytest.param(
                 {
@@ -599,6 +738,8 @@ class TestPromptMutations:
                         },
                     }
                 },
+                None,
+                None,
                 id="basic-input",
             ),
             pytest.param(
@@ -619,10 +760,9 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "type": "function",
+                            "tools": {
+                                "tools": [
+                                    {
                                         "function": {
                                             "name": "get_weather",
                                             "description": "Get current temperature for a given location.",
@@ -640,11 +780,37 @@ class TestPromptMutations:
                                             "strict": True,
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },
+                {
+                    "tools": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "description": "Get current temperature for a given location.",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "City and country e.g. Bogotá, Colombia",
+                                        }
+                                    },
+                                    "required": ["location"],
+                                    "additionalProperties": False,
+                                },
+                                "strict": True,
+                            }
+                        }
+                    ],
+                    "toolChoice": None,
+                    "disableParallelToolCalls": None,
+                },
+                None,
                 id="with-tools",
             ),
             pytest.param(
@@ -665,10 +831,9 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "type": "function",
+                            "tools": {
+                                "tools": [
+                                    {
                                         "function": {
                                             "name": "get_weather",
                                             "parameters": {
@@ -677,11 +842,30 @@ class TestPromptMutations:
                                             },
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },
+                {
+                    "tools": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "description": None,
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {"location": {"type": "string"}},
+                                },
+                                "strict": None,
+                            }
+                        }
+                    ],
+                    "toolChoice": None,
+                    "disableParallelToolCalls": None,
+                },
+                None,
                 id="with-valid-openai-tools",
             ),
             pytest.param(
@@ -703,24 +887,36 @@ class TestPromptMutations:
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
-                                "definition": {
-                                    "type": "json_schema",
-                                    "json_schema": {
-                                        "name": "response",
-                                        "schema": {
-                                            "type": "object",
-                                            "properties": {
-                                                "foo": {"type": "string"},
-                                            },
-                                            "required": ["foo"],
-                                            "additionalProperties": False,
+                                "type": "json_schema",
+                                "jsonSchema": {
+                                    "name": "response",
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "foo": {"type": "string"},
                                         },
-                                        "strict": True,
+                                        "required": ["foo"],
+                                        "additionalProperties": False,
                                     },
-                                }
+                                    "strict": True,
+                                },
                             },
                         },
                     }
+                },
+                None,
+                {
+                    "jsonSchema": {
+                        "name": "response",
+                        "description": None,
+                        "schema": {
+                            "type": "object",
+                            "properties": {"foo": {"type": "string"}},
+                            "required": ["foo"],
+                            "additionalProperties": False,
+                        },
+                        "strict": True,
+                    },
                 },
                 id="with-output-schema",
             ),
@@ -742,32 +938,64 @@ class TestPromptMutations:
                             "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "name": "get_weather",
-                                        "description": "Get the current weather in a given location",
-                                        "input_schema": {
-                                            "type": "object",
-                                            "properties": {
-                                                "location": {
-                                                    "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",
+                            "tools": {
+                                "tools": [
+                                    {
+                                        "function": {
+                                            "name": "get_weather",
+                                            "description": "Get the current weather in a given location",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "location": {
+                                                        "type": "string",
+                                                        "description": "The city and state, e.g. San Francisco, CA",
+                                                    },
+                                                    "unit": {
+                                                        "type": "string",
+                                                        "enum": ["celsius", "fahrenheit"],
+                                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
+                                                    },
                                                 },
-                                                "unit": {
-                                                    "type": "string",
-                                                    "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
-                                                },
+                                                "required": ["location"],
                                             },
-                                            "required": ["location"],
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },
+                {
+                    "tools": [
+                        {
+                            "function": {
+                                "name": "get_weather",
+                                "description": "Get the current weather in a given location",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "The city and state, e.g. San Francisco, CA",
+                                        },
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": ["celsius", "fahrenheit"],
+                                            "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
+                                        },
+                                    },
+                                    "required": ["location"],
+                                },
+                                "strict": None,
+                            }
+                        }
+                    ],
+                    "toolChoice": None,
+                    "disableParallelToolCalls": None,
+                },
+                None,
                 id="with-valid-anthropic-tools",
             ),
         ],
@@ -777,6 +1005,8 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
+        expected_tools_output: Any,
+        expected_rf_output: Any,
     ) -> None:
         # Create initial prompt
         create_prompt_result = await gql_client.execute(
@@ -828,10 +1058,8 @@ class TestPromptMutations:
         assert latest_prompt_version.pop("modelName") == expected_model_name
         expected_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
         assert latest_prompt_version.pop("invocationParameters") == expected_invocation_parameters
-        expected_tools = variables["input"]["promptVersion"].get("tools", [])
-        assert latest_prompt_version.pop("tools") == expected_tools
-        expected_response_format = variables["input"]["promptVersion"].get("responseFormat")
-        assert latest_prompt_version.pop("responseFormat") == expected_response_format
+        assert latest_prompt_version.pop("tools") == expected_tools_output
+        assert latest_prompt_version.pop("responseFormat") == expected_rf_output
         assert isinstance(latest_prompt_version.pop("id"), str)
 
         # Verify messages
@@ -937,31 +1165,34 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "anthropic",
+                            "modelProvider": "anthropic",  # lowercase → invalid enum
                             "modelName": "claude-2",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "name": "get_weather",
-                                        "description": "Get the current weather in a given location",
-                                        "input_schema": {
-                                            "type": "object",
-                                            "properties": {
-                                                "location": {
-                                                    "type": "string",
-                                                    "description": "The city and state, e.g. San Francisco, CA",
+                            "tools": {
+                                "tools": [
+                                    {
+                                        "function": {
+                                            "name": "get_weather",
+                                            "description": "Get the current weather in a given location",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "location": {
+                                                        "type": "string",
+                                                        "description": "The city and state, e.g. San Francisco, CA",
+                                                    },
+                                                    "unit": {
+                                                        "type": "string",
+                                                        "enum": ["celsius", "fahrenheit"],
+                                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
+                                                    },
                                                 },
-                                                "unit": {
-                                                    "type": "string",
-                                                    "enum": ["celsius", "fahrenheit"],
-                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',
-                                                },
+                                                "required": ["location"],
                                             },
-                                            "required": ["location"],
                                         },
                                     }
-                                }
-                            ],
+                                ],
+                                "toolChoice": None,
+                            },
                         },
                     }
                 },

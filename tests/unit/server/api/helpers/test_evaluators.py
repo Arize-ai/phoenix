@@ -27,6 +27,24 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptResponseFormatJSONSchema,
+    PromptResponseFormatJSONSchemaDefinition,
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptToolChoiceNone,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+    TextContentPart,
+)
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator,
     LLMEvaluator,
@@ -46,24 +64,6 @@ from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_configs,
 )
 from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
-from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplate,
-    PromptMessage,
-    PromptOpenAIInvocationParameters,
-    PromptOpenAIInvocationParametersContent,
-    PromptResponseFormatJSONSchema,
-    PromptResponseFormatJSONSchemaDefinition,
-    PromptTemplateFormat,
-    PromptTemplateType,
-    PromptToolChoiceNone,
-    PromptToolChoiceOneOrMore,
-    PromptToolChoiceSpecificFunctionTool,
-    PromptToolChoiceZeroOrMore,
-    PromptToolFunction,
-    PromptToolFunctionDefinition,
-    PromptTools,
-    TextContentPart,
-)
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -2662,17 +2662,19 @@ class TestLLMEvaluator:
         input_value = json.loads(attributes.pop(INPUT_VALUE))
         assert input_value.pop("messages") == [
             {
-                "role": "SYSTEM",
+                "role": "system",
                 "content": "You are an evaluator. Assess whether the output correctly answers the input question.",
             },
             {
-                "role": "USER",
+                "role": "user",
                 "content": "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?",
             },
         ]
-        assert input_value.pop("invocation_parameters") == {
+        assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
+        assert json.loads(invocation_parameters) == {
             "temperature": 0.0,
             "tool_choice": "required",
+            "stream_options": {"include_usage": True},
         }
         expected_tool = {
             "type": "function",
@@ -2694,15 +2696,11 @@ class TestLLMEvaluator:
                     },
                     "required": ["label", "explanation"],
                 },
+                "strict": None,
             },
         }
-        assert input_value.pop("tools") == [expected_tool]
-        assert not input_value
-        assert json.loads(attributes.pop(LLM_INVOCATION_PARAMETERS)) == {
-            "temperature": 0.0,
-            "tool_choice": "required",
-        }
-        assert json.loads(attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")) == expected_tool
+        assert isinstance(tool_schtemas := attributes.pop("llm.tools.0.tool.json_schema"), str)
+        assert json.loads(tool_schtemas) == expected_tool
         assert not attributes
 
         # Parse Eval Result span
@@ -3101,17 +3099,19 @@ class TestLLMEvaluator:
         input_value = json.loads(attributes.pop(INPUT_VALUE))
         assert input_value.pop("messages") == [
             {
-                "role": "SYSTEM",
+                "role": "system",
                 "content": "You are an evaluator. Assess whether the output correctly answers the input question.",
             },
             {
-                "role": "USER",
+                "role": "user",
                 "content": "Input: What is 2 + 2?\n\nOutput: 4\n\nIs this output correct?",
             },
         ]
-        assert input_value.pop("invocation_parameters") == {
+        assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
+        assert json.loads(invocation_parameters) == {
             "temperature": 0.0,
             "tool_choice": "required",
+            "stream_options": {"include_usage": True},
         }
         expected_tool = {
             "type": "function",
@@ -3133,15 +3133,11 @@ class TestLLMEvaluator:
                     },
                     "required": ["label", "explanation"],
                 },
+                "strict": None,
             },
         }
-        assert input_value.pop("tools") == [expected_tool]
-        assert not input_value
-        assert json.loads(attributes.pop(LLM_INVOCATION_PARAMETERS)) == {
-            "temperature": 0.0,
-            "tool_choice": "required",
-        }
-        assert json.loads(attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")) == expected_tool
+        assert isinstance(tool_schtemas := attributes.pop("llm.tools.0.tool.json_schema"), str)
+        assert json.loads(tool_schtemas) == expected_tool
         assert not attributes
 
     async def test_evaluate_with_no_tool_calls_records_error_on_chain_span(

@@ -7,16 +7,16 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptChatTemplate as PromptChatTemplateModel,
 )
-from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import PromptMessage as PromptMessageModel
+from phoenix.db.types.prompts import (
     PromptMessageRole,
     PromptTemplateType,
     RoleConversion,
 )
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptStringTemplate as PromptStringTemplateModel,
 )
 

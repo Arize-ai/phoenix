@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<87a5aa1b63e7f56e074f58bb34e1f066>>
+ * @generated SignedSource<<cb138f22d4f840f18b5fa16e509691ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,9 +23,13 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly promptVersion?: {
       readonly modelName: string;
       readonly modelProvider: ModelProvider;
-      readonly tools: ReadonlyArray<{
-        readonly definition: any;
-      }>;
+      readonly tools: {
+        readonly tools: ReadonlyArray<{
+          readonly function: {
+            readonly parameters: any | null;
+          };
+        }>;
+      } | null;
       readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main" | "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
     };
     readonly promptVersionTag?: {
@@ -87,40 +91,42 @@ v4 = {
   "name": "modelProvider",
   "storageKey": null
 },
-v5 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "definition",
-    "storageKey": null
-  }
-],
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "parameters",
+  "storageKey": null
+},
 v6 = {
   "alias": null,
   "args": null,
-  "concreteType": "ToolDefinition",
-  "kind": "LinkedField",
-  "name": "tools",
-  "plural": true,
-  "selections": (v5/*: any*/),
+  "kind": "ScalarField",
+  "name": "description",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "strict",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "toolCallId",
+  "name": "__typename",
   "storageKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "toolCallId",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -197,7 +203,40 @@ return {
               "selections": [
                 (v3/*: any*/),
                 (v4/*: any*/),
-                (v6/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptTools",
+                  "kind": "LinkedField",
+                  "name": "tools",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "PromptToolFunction",
+                      "kind": "LinkedField",
+                      "name": "tools",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptToolFunctionDefinition",
+                          "kind": "LinkedField",
+                          "name": "function",
+                          "plural": false,
+                          "selections": [
+                            (v5/*: any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
                 {
                   "kind": "InlineDataFragmentSpread",
                   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
@@ -225,11 +264,33 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "ResponseFormat",
+                      "concreteType": "PromptResponseFormatJSONSchema",
                       "kind": "LinkedField",
                       "name": "responseFormat",
                       "plural": false,
-                      "selections": (v5/*: any*/),
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptResponseFormatJSONSchemaDefinition",
+                          "kind": "LinkedField",
+                          "name": "jsonSchema",
+                          "plural": false,
+                          "selections": [
+                            (v1/*: any*/),
+                            (v6/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "schema",
+                              "storageKey": null
+                            },
+                            (v7/*: any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
                       "storageKey": null
                     },
                     {
@@ -240,7 +301,7 @@ return {
                       "name": "template",
                       "plural": false,
                       "selections": [
-                        (v7/*: any*/),
+                        (v8/*: any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -267,7 +328,7 @@ return {
                                   "name": "content",
                                   "plural": true,
                                   "selections": [
-                                    (v7/*: any*/),
+                                    (v8/*: any*/),
                                     {
                                       "kind": "InlineFragment",
                                       "selections": [
@@ -304,7 +365,7 @@ return {
                                           "name": "toolCall",
                                           "plural": false,
                                           "selections": [
-                                            (v8/*: any*/),
+                                            (v9/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -342,7 +403,7 @@ return {
                                           "name": "toolResult",
                                           "plural": false,
                                           "selections": [
-                                            (v8/*: any*/),
+                                            (v9/*: any*/),
                                             {
                                               "alias": null,
                                               "args": null,
@@ -384,7 +445,75 @@ return {
                       ],
                       "storageKey": null
                     },
-                    (v6/*: any*/)
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "PromptTools",
+                      "kind": "LinkedField",
+                      "name": "tools",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptToolFunction",
+                          "kind": "LinkedField",
+                          "name": "tools",
+                          "plural": true,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "PromptToolFunctionDefinition",
+                              "kind": "LinkedField",
+                              "name": "function",
+                              "plural": false,
+                              "selections": [
+                                (v1/*: any*/),
+                                (v6/*: any*/),
+                                (v5/*: any*/),
+                                (v7/*: any*/)
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "PromptToolChoice",
+                          "kind": "LinkedField",
+                          "name": "toolChoice",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "type",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "functionName",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "disableParallelToolCalls",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
                   ],
                   "args": null,
                   "argumentDefinitions": []
@@ -428,7 +557,7 @@ return {
           "kind": "InlineFragment",
           "selections": [
             (v1/*: any*/),
-            (v9/*: any*/),
+            (v10/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -462,7 +591,7 @@ return {
           "kind": "InlineFragment",
           "selections": [
             (v1/*: any*/),
-            (v9/*: any*/),
+            (v10/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -490,6 +619,6 @@ return {
 };
 })();
 
-(node as any).hash = "39cd18f3814bb32f8b9ae8e60b401346";
+(node as any).hash = "20f8bb8f0ce840a6a32db31bb27731dd";
 
 export default node;

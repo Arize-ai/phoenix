@@ -18,7 +18,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
@@ -26,14 +26,70 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
     TextContentPart,
-    denormalize_tools,
     get_raw_invocation_parameters,
-    normalize_tools,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+
+def _canonical_tools(
+    name: str,
+    description: str,
+    parameters: dict[str, Any],
+    tool_choice_name: str | None = None,
+) -> dict[str, Any]:
+    """Build a canonical PromptToolsInput dict for a single function tool."""
+    return dict(
+        tools=[
+            dict(
+                function=dict(
+                    name=name,
+                    description=description,
+                    parameters=parameters,
+                ),
+            )
+        ],
+        toolChoice=dict(functionName=tool_choice_name) if tool_choice_name else None,
+    )
+
+
+def _prompt_tools_to_canonical_input(tools: Any) -> dict[str, Any]:
+    """Convert a PromptTools DB model to canonical PromptToolsInput dict."""
+    from phoenix.db.types.prompts import (
+        PromptToolChoiceZeroOrMore,
+    )
+
+    tools_list = []
+    for t in tools.tools:
+        func: dict[str, Any] = {"name": t.function.name}
+        if t.function.description and bool(t.function.description):
+            func["description"] = t.function.description
+        if t.function.parameters and bool(t.function.parameters):
+            func["parameters"] = t.function.parameters
+        if isinstance(t.function.strict, bool):
+            func["strict"] = t.function.strict
+        tools_list.append({"function": func})
+
+    tool_choice: dict[str, Any] | None = None
+    if tools.tool_choice is not None:
+        tc = tools.tool_choice
+        if isinstance(tc, PromptToolChoiceZeroOrMore):
+            tool_choice = {"zeroOrMore": True}
+        elif isinstance(tc, PromptToolChoiceOneOrMore):
+            tool_choice = {"oneOrMore": True}
+        elif isinstance(tc, PromptToolChoiceSpecificFunctionTool):
+            tool_choice = {"functionName": tc.function_name}
+        else:
+            tool_choice = {"none": True}
+
+    return {"tools": tools_list, "toolChoice": tool_choice}
 
 
 class TestDatasetLLMEvaluatorMutations:
@@ -121,35 +177,23 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
                 ),
-                invocationParameters=dict(
-                    temperature=0.0,
-                    tool_choice=dict(
-                        type="function",
-                        function=dict(name="correctness"),
+                invocationParameters=dict(temperature=0.0),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test description",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test description",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -218,33 +262,23 @@ class TestDatasetLLMEvaluatorMutations:
                 description="anthropic version",
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Rate"))])]),
-                invocationParameters=dict(
-                    temperature=0.7,
-                    max_tokens=50,
-                    tool_choice=dict(
-                        type="tool",
-                        name="correctness",
+                invocationParameters=dict(temperature=0.7, max_tokens=50),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="anthropic",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            name="correctness",
-                            description="anthropic",
-                            input_schema=dict(
-                                type="object",
-                                properties=dict(
-                                    label=dict(
-                                        type="string",
-                                        enum=["correct", "incorrect"],
-                                        description="correctness",
-                                    )
-                                ),
-                                required=["label"],
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
@@ -280,33 +314,23 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Second"))])]
                 ),
-                invocationParameters=dict(
-                    temperature=0.5,
-                    max_tokens=100,
-                    tool_choice=dict(
-                        type="tool",
-                        name="correctness",
+                invocationParameters=dict(temperature=0.5, max_tokens=100),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="second",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            name="correctness",
-                            description="second",
-                            input_schema=dict(
-                                type="object",
-                                properties=dict(
-                                    label=dict(
-                                        type="string",
-                                        enum=["correct", "incorrect"],
-                                        description="correctness",
-                                    )
-                                ),
-                                required=["label"],
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="ANTHROPIC",
                 modelName="claude-3-opus-20240229",
             ),
@@ -347,35 +371,23 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
-                invocationParameters=dict(
-                    temperature=0.5,
-                    tool_choice=dict(
-                        type="function",
-                        function=dict(name="correctness"),
+                invocationParameters=dict(temperature=0.5),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -459,14 +471,15 @@ class TestDatasetLLMEvaluatorMutations:
                             type="openai",
                             openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
                         ),
-                        tools=normalize_tools(
-                            [
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "correctness",
-                                        "description": "original description",
-                                        "parameters": {
+                        tools=PromptTools(
+                            type="tools",
+                            tools=[
+                                PromptToolFunction(
+                                    type="function",
+                                    function=PromptToolFunctionDefinition(
+                                        name="correctness",
+                                        description="original description",
+                                        parameters={
                                             "type": "object",
                                             "properties": {
                                                 "correctness": {
@@ -476,14 +489,13 @@ class TestDatasetLLMEvaluatorMutations:
                                             },
                                             "required": ["correctness"],
                                         },
-                                    },
-                                }
+                                    ),
+                                )
                             ],
-                            ModelProvider.OPENAI,
-                            tool_choice={
-                                "type": "function",
-                                "function": {"name": "correctness"},
-                            },
+                            tool_choice=PromptToolChoiceSpecificFunctionTool(
+                                type="specific_function",
+                                function_name="correctness",
+                            ),
                         ),
                         response_format=None,
                         model_provider=ModelProvider.OPENAI,
@@ -515,35 +527,23 @@ class TestDatasetLLMEvaluatorMutations:
                         dict(role="USER", content=[dict(text=dict(text="Updated: {{input}}"))])
                     ]
                 ),
-                invocationParameters=dict(
-                    temperature=0.5,  # Different temperature
-                    tool_choice=dict(
-                        type="function",
-                        function=dict(name="correctness"),
+                invocationParameters=dict(temperature=0.5),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test description",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test description",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -624,35 +624,23 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="New: {{input}}"))])]
                 ),
-                invocationParameters=dict(
-                    temperature=0.0,
-                    tool_choice=dict(
-                        type="function",
-                        function=dict(name="correctness"),
+                invocationParameters=dict(temperature=0.0),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test description",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test description",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -736,14 +724,15 @@ class TestDatasetLLMEvaluatorMutations:
                             type="openai",
                             openai=PromptOpenAIInvocationParametersContent(temperature=0.5),
                         ),
-                        tools=normalize_tools(
-                            [
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "correctness",
-                                        "description": "test description",
-                                        "parameters": {
+                        tools=PromptTools(
+                            type="tools",
+                            tools=[
+                                PromptToolFunction(
+                                    type="function",
+                                    function=PromptToolFunctionDefinition(
+                                        name="correctness",
+                                        description="test description",
+                                        parameters={
                                             "type": "object",
                                             "properties": {
                                                 "label": {
@@ -754,14 +743,13 @@ class TestDatasetLLMEvaluatorMutations:
                                             },
                                             "required": ["label"],
                                         },
-                                    },
-                                }
+                                    ),
+                                )
                             ],
-                            ModelProvider.OPENAI,
-                            tool_choice={
-                                "type": "function",
-                                "function": {"name": "correctness"},
-                            },
+                            tool_choice=PromptToolChoiceSpecificFunctionTool(
+                                type="specific_function",
+                                function_name="correctness",
+                            ),
                         ),
                         response_format=None,
                         model_provider=ModelProvider.OPENAI,
@@ -793,35 +781,23 @@ class TestDatasetLLMEvaluatorMutations:
                         dict(role="USER", content=[dict(text=dict(text="Original: {{input}}"))])
                     ]
                 ),
-                invocationParameters=dict(
-                    temperature=0.5,  # Same temperature as existing
-                    tool_choice=dict(
-                        type="function",
-                        function=dict(name="correctness"),
+                invocationParameters=dict(temperature=0.5),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test description",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test description",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -887,29 +863,19 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="x"))])]),
-                invocationParameters=dict(
-                    tool_choice=dict(type="function", function=dict(name="out"))
+                invocationParameters=dict(),
+                tools=_canonical_tools(
+                    name="out",
+                    description="desc",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(type="string", enum=["a", "b"], description="out")
+                        ),
+                        required=["label"],
+                    ),
+                    tool_choice_name="out",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="out",
-                                description="desc",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string", enum=["a", "b"], description="out"
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -969,35 +935,23 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Test: {{input}}"))])]
                 ),
-                invocationParameters=dict(
-                    temperature=0.0,
-                    tool_choice=dict(
-                        type="function",
-                        function=dict(name="correctness"),
+                invocationParameters=dict(temperature=0.0),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test description",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
                     ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test description",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -1041,32 +995,23 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
                 ),
-                invocationParameters=dict(
-                    temperature=0.0,
-                    tool_choice=dict(type="function", function=dict(name="correctness")),
+                invocationParameters=dict(temperature=0.0),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="test description",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
+                    ),
+                    tool_choice_name="correctness",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="correctness",
-                                description="test description",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -1122,32 +1067,23 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
-                invocationParameters=dict(
-                    temperature=0.5,
-                    tool_choice=dict(type="function", function=dict(name="test")),
+                invocationParameters=dict(temperature=0.5),
+                tools=_canonical_tools(
+                    name="test",
+                    description="test",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
+                    ),
+                    tool_choice_name="test",
                 ),
-                tools=[
-                    dict(
-                        definition=dict(
-                            type="function",
-                            function=dict(
-                                name="test",
-                                description="test",
-                                parameters=dict(
-                                    type="object",
-                                    properties=dict(
-                                        label=dict(
-                                            type="string",
-                                            enum=["correct", "incorrect"],
-                                            description="correctness",
-                                        )
-                                    ),
-                                    required=["label"],
-                                ),
-                            ),
-                        )
-                    )
-                ],
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -1228,32 +1164,23 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.5,
-                            tool_choice=dict(type="function", function=dict(name="result")),
+                        invocationParameters=dict(temperature=0.5),
+                        tools=_canonical_tools(
+                            name="result",
+                            description="updated description",
+                            parameters=dict(
+                                type="object",
+                                properties=dict(
+                                    label=dict(
+                                        type="string",
+                                        enum=["good", "bad"],
+                                        description="result",
+                                    )
+                                ),
+                                required=["label"],
+                            ),
+                            tool_choice_name="result",
                         ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
-                                    function=dict(
-                                        name="result",
-                                        description="updated description",
-                                        parameters=dict(
-                                            type="object",
-                                            properties=dict(
-                                                label=dict(
-                                                    type="string",
-                                                    enum=["good", "bad"],
-                                                    description="result",
-                                                )
-                                            ),
-                                            required=["label"],
-                                        ),
-                                    ),
-                                )
-                            )
-                        ],
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -1320,17 +1247,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.5,
-                            tool_choice=dict(
-                                type="function",
-                                function=dict(name="quality"),
-                            ),
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.5),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="quality",
                                         description="multi output description",
@@ -1346,11 +1266,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                             required=["label"],
                                         ),
                                     ),
-                                )
-                            ),
-                            dict(
-                                definition=dict(
-                                    type="function",
+                                ),
+                                dict(
                                     function=dict(
                                         name="relevance",
                                         description="multi output description",
@@ -1366,9 +1283,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                             required=["label"],
                                         ),
                                     ),
-                                )
-                            ),
-                        ],
+                                ),
+                            ],
+                            toolChoice=dict(functionName="quality"),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -1476,14 +1394,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.7,
-                            tool_choice="required",
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.7),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="result",
                                         description="updated description",
@@ -1500,8 +1414,9 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                         ),
                                     ),
                                 )
-                            )
-                        ],
+                            ],
+                            toolChoice=dict(oneOrMore=True),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -1593,14 +1508,15 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                             type="openai",
                             openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
                         ),
-                        tools=normalize_tools(
-                            [
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": "result",
-                                        "description": "different",
-                                        "parameters": {
+                        tools=PromptTools(
+                            type="tools",
+                            tools=[
+                                PromptToolFunction(
+                                    type="function",
+                                    function=PromptToolFunctionDefinition(
+                                        name="result",
+                                        description="different",
+                                        parameters={
                                             "type": "object",
                                             "properties": {
                                                 "label": {
@@ -1611,11 +1527,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                             },
                                             "required": ["label"],
                                         },
-                                    },
-                                }
+                                    ),
+                                )
                             ],
-                            ModelProvider.OPENAI,
-                            tool_choice="required",
+                            tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
                         ),
                         response_format=None,
                         model_provider=ModelProvider.OPENAI,
@@ -1661,14 +1576,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.5,
-                            tool_choice="required",
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.5),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="result",
                                         description="updated description",
@@ -1685,8 +1596,9 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                         ),
                                     ),
                                 )
-                            )
-                        ],
+                            ],
+                            toolChoice=dict(oneOrMore=True),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -1777,14 +1689,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.8,  # Different temperature
-                            tool_choice="required",
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.8),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="result",
                                         description="updated description",
@@ -1801,8 +1709,9 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                         ),
                                     ),
                                 )
-                            )
-                        ],
+                            ],
+                            toolChoice=dict(oneOrMore=True),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -1875,14 +1784,9 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 current_prompt_version.invocation_parameters
             )
 
-            # Extract tools (convert to GraphQL format)
+            # Extract tools (convert to canonical GraphQL format)
             assert current_prompt_version.tools is not None
-            tool_schemas, tool_choice = denormalize_tools(
-                current_prompt_version.tools, current_prompt_version.model_provider
-            )
-            tools = [dict(definition=schema) for schema in tool_schemas]
-            # Add tool_choice back to invocation_parameters if present
-            raw_invocation_parameters.update(tool_choice)
+            tools = _prompt_tools_to_canonical_input(current_prompt_version.tools)
 
             dataset_evaluator = await session.scalar(
                 select(models.DatasetEvaluators).where(
@@ -1920,7 +1824,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                         template=dict(messages=template_messages),
                         invocationParameters=raw_invocation_parameters,
                         tools=tools,
-                        responseFormat=None,  # fixture has None
+                        responseFormat=None,
                         modelProvider=current_prompt_version.model_provider.value,
                         modelName=current_prompt_version.model_name,
                     ),
@@ -2000,14 +1904,15 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                     type="openai",
                     openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
                 ),
-                tools=normalize_tools(
-                    [
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": "correctness",
-                                "description": "updated description",
-                                "parameters": {
+                tools=PromptTools(
+                    type="tools",
+                    tools=[
+                        PromptToolFunction(
+                            type="function",
+                            function=PromptToolFunctionDefinition(
+                                name="correctness",
+                                description="updated description",
+                                parameters={
                                     "type": "object",
                                     "properties": {
                                         "label": {
@@ -2018,11 +1923,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                     },
                                     "required": ["label"],
                                 },
-                            },
-                        }
+                            ),
+                        )
                     ],
-                    ModelProvider.OPENAI,
-                    tool_choice="required",
+                    tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
                 ),
                 response_format=None,
                 model_provider=ModelProvider.OPENAI,
@@ -2065,14 +1969,10 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.0,  # Same as second_version
-                            tool_choice="required",
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.0),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="correctness",
                                         description="updated description",
@@ -2089,8 +1989,9 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                         ),
                                     ),
                                 )
-                            )
-                        ],
+                            ],
+                            toolChoice=dict(oneOrMore=True),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -2836,29 +2737,29 @@ async def llm_evaluator(
     evaluator_description = "test llm evaluator"
     annotation_name = "correctness"
 
-    # Create tools that match the evaluator's output config
-    tool_schema = {
-        "type": "function",
-        "function": {
-            "name": annotation_name,
-            "description": evaluator_description,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "label": {
-                        "type": "string",
-                        "enum": ["correct", "incorrect"],
-                        "description": annotation_name,
-                    }
-                },
-                "required": ["label"],
-            },
-        },
-    }
-    tools = normalize_tools(
-        schemas=[tool_schema],
-        model_provider=ModelProvider.OPENAI,
-        tool_choice="required",
+    tools = PromptTools(
+        type="tools",
+        tools=[
+            PromptToolFunction(
+                type="function",
+                function=PromptToolFunctionDefinition(
+                    name=annotation_name,
+                    description=evaluator_description,
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "enum": ["correct", "incorrect"],
+                                "description": annotation_name,
+                            }
+                        },
+                        "required": ["label"],
+                    },
+                ),
+            )
+        ],
+        tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
     )
 
     prompt = models.Prompt(
@@ -3645,17 +3546,10 @@ class TestMultiOutputEvaluators:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.0,
-                            tool_choice=dict(
-                                type="function",
-                                function=dict(name="quality"),
-                            ),
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.0),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="quality",
                                         description="multi-output evaluator description",
@@ -3671,11 +3565,8 @@ class TestMultiOutputEvaluators:
                                             required=["label"],
                                         ),
                                     ),
-                                )
-                            ),
-                            dict(
-                                definition=dict(
-                                    type="function",
+                                ),
+                                dict(
                                     function=dict(
                                         name="relevance",
                                         description="multi-output evaluator description",
@@ -3691,9 +3582,10 @@ class TestMultiOutputEvaluators:
                                             required=["label"],
                                         ),
                                     ),
-                                )
-                            ),
-                        ],
+                                ),
+                            ],
+                            toolChoice=dict(functionName="quality"),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),
@@ -3788,17 +3680,10 @@ class TestMultiOutputEvaluators:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(
-                            temperature=0.0,
-                            tool_choice=dict(
-                                type="function",
-                                function=dict(name="quality"),
-                            ),
-                        ),
-                        tools=[
-                            dict(
-                                definition=dict(
-                                    type="function",
+                        invocationParameters=dict(temperature=0.0),
+                        tools=dict(
+                            tools=[
+                                dict(
                                     function=dict(
                                         name="quality",
                                         description="duplicate config evaluator description",
@@ -3814,11 +3699,8 @@ class TestMultiOutputEvaluators:
                                             required=["label"],
                                         ),
                                     ),
-                                )
-                            ),
-                            dict(
-                                definition=dict(
-                                    type="function",
+                                ),
+                                dict(
                                     function=dict(
                                         name="quality",
                                         description="duplicate config evaluator description",
@@ -3834,9 +3716,10 @@ class TestMultiOutputEvaluators:
                                             required=["label"],
                                         ),
                                     ),
-                                )
-                            ),
-                        ],
+                                ),
+                            ],
+                            toolChoice=dict(functionName="quality"),
+                        ),
                         modelProvider="OPENAI",
                         modelName="gpt-4",
                     ),

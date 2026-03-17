@@ -17,7 +17,7 @@ from pystache.parser import (  # type: ignore[import-untyped]
 )
 from typing_extensions import assert_never
 
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
+from phoenix.db.types.prompts import PromptTemplateFormat
 
 
 @dataclass(frozen=True)

@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-import asyncio
 import importlib.util
-import inspect
 import json
-import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from functools import wraps
+from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from itertools import chain
 from secrets import token_hex
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterable,
     Generic,
     Hashable,
     Iterable,
@@ -32,7 +27,6 @@ import openinference.instrumentation as oi
 import sqlalchemy as sa
 import wrapt
 from openinference.instrumentation import (
-    get_input_attributes,
     get_llm_provider_attributes,
     get_llm_system_attributes,
     get_output_attributes,
@@ -57,44 +51,43 @@ from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.trace import Span as OTelSpan
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
 from phoenix.db import models
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
+    ModelProvider,
+    is_sdk_compatible_with_model_provider,
+)
+from phoenix.db.types.prompts import (
+    PromptResponseFormat,
+    PromptTools,
 )
 from phoenix.evals.models.rate_limiters import (
-    AsyncCallable,
-    GenericType,
-    ParameterSpec,
     RateLimiter,
-    RateLimitError,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-from phoenix.server.api.input_types.GenerativeModelInput import (
-    GenerativeModelBuiltinProviderInput,
-    GenerativeModelCustomProviderInput,
-    GenerativeModelInput,
-    OpenAIApiType,
-)
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
     CanonicalParameterName,
     FloatInvocationParameter,
     IntInvocationParameter,
     InvocationParameter,
-    InvocationParameterInput,
     JSONInvocationParameter,
     StringInvocationParameter,
     StringListInvocationParameter,
-    extract_parameter,
-    validate_invocation_parameters,
+)
+from phoenix.server.api.input_types.ModelClientOptionsInput import (
+    BuiltinClientOptionsInput,
+    CustomClientOptionsInput,
+    ModelClientOptionsInput,
+    OpenAIApiType,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
@@ -106,30 +99,35 @@ from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
     GenerativeProviderKey,
 )
-from phoenix.server.api.types.node import from_global_id
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
     import httpx
     from anthropic import AsyncAnthropic
+    from anthropic.lib.streaming import AsyncMessageStream, AsyncMessageStreamManager
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.generativeai.types import ContentType
-    from openai import AsyncOpenAI, AsyncStream
+    from google.genai.types import ContentDict, GenerateContentResponse
+    from openai import AsyncOpenAI
+    from openai._streaming import AsyncStream
+    from openai.lib.streaming.responses import AsyncResponseStream, AsyncResponseStreamManager
     from openai.types import CompletionUsage
     from openai.types.chat import (
+        ChatCompletionChunk as OpenAIChatCompletionChunk,
+    )
+    from openai.types.chat import (
         ChatCompletionMessageParam,
-        ChatCompletionMessageToolCallParam,
     )
     from openai.types.responses import (
-        FunctionToolParam,
         Response,
         ResponseInputItemParam,
-        ResponseStreamEvent,
-        ToolChoiceFunction,
-        ToolChoiceOptions,
     )
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
+    from types_aiobotocore_bedrock_runtime.type_defs import (
+        ContentBlockTypeDef,
+        ConverseStreamResponseTypeDef,
+        MessageTypeDef,
+    )
 
 # TypeVar for generic client type
 ClientT = TypeVar("ClientT")
@@ -138,117 +136,6 @@ SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
 ToolCallID: TypeAlias = str
-
-
-def _tools_chat_completions_to_responses_api(
-    tools: list[JSONScalarType],
-) -> list[FunctionToolParam]:
-    """
-    Convert tools from Chat Completions format (name/description/parameters under
-    a nested 'function' key) to Responses API format (flat type, name, description,
-    parameters at top level). Leaves non-function tools and already-flat tools
-    unchanged. Skips non-dict items.
-    """
-    from openai.types.responses import FunctionToolParam
-
-    result: list[FunctionToolParam] = []
-    for tool in tools:
-        if not isinstance(tool, dict):
-            continue
-        if "function" in tool:
-            fn = tool["function"]
-            if not isinstance(fn, dict):
-                continue
-            flat = FunctionToolParam(
-                type="function",
-                name=fn.get("name", ""),
-                parameters=fn.get("parameters"),
-                strict=fn.get("strict"),
-            )
-            if "description" in fn:
-                flat["description"] = fn["description"]
-            result.append(flat)
-        else:
-            result.append(cast(FunctionToolParam, tool))
-    return result
-
-
-# Parameters accepted by OpenAI Responses API responses.create.
-# Chat Completions uses different names; this mapping converts mixin params to Responses API.
-_RESPONSES_API_PARAM_NAMES = frozenset(
-    {
-        "max_output_tokens",
-        "reasoning",
-        "temperature",
-        "top_p",
-        "tool_choice",
-        "extra_body",
-    }
-)
-
-
-def _tool_choice_chat_completions_to_responses_api(
-    tool_choice: Any,
-) -> ToolChoiceOptions | ToolChoiceFunction:
-    """
-    Convert tool_choice from Chat Completions format to Responses API format.
-
-    Chat Completions uses ``{"type": "function", "function": {"name": "..."}}``
-    while Responses API expects ``{"type": "function", "name": "..."}``.
-    String values ("auto", "none", "required") and already-flat dicts are
-    passed through unchanged.
-    """
-    from openai.types.responses import ToolChoiceFunction, ToolChoiceOptions
-
-    if not isinstance(tool_choice, dict):
-        return cast(ToolChoiceOptions, tool_choice)
-    if "function" in tool_choice:
-        fn = tool_choice["function"]
-        if isinstance(fn, dict) and "name" in fn:
-            return ToolChoiceFunction(
-                type="function",
-                name=fn["name"],
-            )
-    return cast(ToolChoiceFunction, tool_choice)
-
-
-def _invocation_parameters_to_responses_api(
-    invocation_parameters: dict[str, Any],
-) -> dict[str, Any]:
-    """
-    Map Chat Completions-style invocation parameters to OpenAI Responses API
-    parameter names and shapes. responses.create() rejects unknown keyword
-    arguments, so we only pass known params and map names where they differ.
-    """
-    out: dict[str, Any] = {}
-    extra_body: dict[str, Any] = {}
-
-    for key, value in invocation_parameters.items():
-        if value is None:
-            continue
-        if key == "max_completion_tokens":
-            out["max_output_tokens"] = value
-        elif key == "reasoning_effort":
-            out["reasoning"] = {"effort": value}
-        elif key == "temperature":
-            out["temperature"] = value
-        elif key == "top_p":
-            out["top_p"] = value
-        elif key == "tool_choice":
-            out["tool_choice"] = _tool_choice_chat_completions_to_responses_api(value)
-        elif key == "extra_body":
-            if isinstance(value, dict):
-                extra_body.update(value)
-            else:
-                extra_body["extra_body"] = value
-        elif key in ("seed", "response_format"):
-            extra_body[key] = value
-        elif key in _RESPONSES_API_PARAM_NAMES:
-            out[key] = value
-
-    if extra_body:
-        out["extra_body"] = extra_body
-    return out
 
 
 class Dependency:
@@ -302,56 +189,6 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
             verbose=False,
         )
 
-    # TODO: update the rate limiter class in phoenix.evals to support decorated sync functions
-    def _alimit(
-        self, fn: Callable[ParameterSpec, GenericType]
-    ) -> AsyncCallable[ParameterSpec, GenericType]:
-        @wraps(fn)
-        async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-            self._initialize_async_primitives()
-            assert self._rate_limit_handling_lock is not None and isinstance(
-                self._rate_limit_handling_lock, asyncio.Lock
-            )
-            assert self._rate_limit_handling is not None and isinstance(
-                self._rate_limit_handling, asyncio.Event
-            )
-            try:
-                try:
-                    await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
-                except asyncio.TimeoutError:
-                    self._rate_limit_handling.set()  # Set the event as a failsafe
-                await self._throttler.async_wait_until_ready()
-                request_start_time = time.time()
-                maybe_coroutine = fn(*args, **kwargs)
-                if inspect.isawaitable(maybe_coroutine):
-                    return await maybe_coroutine  # type: ignore[no-any-return]
-                else:
-                    return maybe_coroutine
-            except self._rate_limit_error:
-                async with self._rate_limit_handling_lock:
-                    self._rate_limit_handling.clear()  # prevent new requests from starting
-                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
-                    try:
-                        for _attempt in range(self._max_rate_limit_retries):
-                            try:
-                                request_start_time = time.time()
-                                await self._throttler.async_wait_until_ready()
-                                maybe_coroutine = fn(*args, **kwargs)
-                                if inspect.isawaitable(maybe_coroutine):
-                                    return await maybe_coroutine  # type: ignore[no-any-return]
-                                else:
-                                    return maybe_coroutine
-                            except self._rate_limit_error:
-                                self._throttler.on_rate_limit_error(
-                                    request_start_time, verbose=self._verbose
-                                )
-                                continue
-                    finally:
-                        self._rate_limit_handling.set()  # allow new requests to start
-            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
-
-        return wrapper
-
 
 class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     _client_factory: Callable[[], AbstractAsyncContextManager[ClientT]]
@@ -394,8 +231,9 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     async def chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None = None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         tracer: Tracer | None = None,
         otel_context: OtelContext | None = None,
@@ -407,20 +245,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
                 llm_model_name(self.model_name),
                 get_llm_system_attributes(self.llm_system).items(),
                 get_llm_provider_attributes(self.provider).items(),
-                llm_tools(tools),
                 llm_input_messages(messages),
-                llm_invocation_parameters(invocation_parameters),
-                get_input_attributes(
-                    jsonify(
-                        {
-                            "messages": messages,
-                            "tools": tools,
-                            "invocation_parameters": _filter_invocation_parameters(
-                                invocation_parameters
-                            ),
-                        }
-                    )
-                ).items(),
             )
         )
 
@@ -442,6 +267,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             async for chunk in self._chat_completion_create(
                 messages=messages,
                 tools=tools,
+                response_format=response_format,
                 invocation_parameters=invocation_parameters,
                 span=span,
             ):
@@ -470,32 +296,12 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     def _chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
-
-    @classmethod
-    def construct_invocation_parameters(
-        cls, invocation_parameters: list[InvocationParameterInput]
-    ) -> dict[str, Any]:
-        supported_params = cls.supported_invocation_parameters()
-        params = {param.invocation_name: param for param in supported_params}
-
-        formatted_invocation_parameters = dict()
-
-        for param_input in invocation_parameters:
-            invocation_name = param_input.invocation_name
-            if invocation_name not in params:
-                raise ValueError(f"Unsupported invocation parameter: {invocation_name}")
-
-            param_def = params[invocation_name]
-            value = extract_parameter(param_def, param_input)
-            if value is not UNSET:
-                formatted_invocation_parameters[invocation_name] = value
-        validate_invocation_parameters(supported_params, formatted_invocation_parameters)
-        return formatted_invocation_parameters
 
     @classmethod
     def dependencies_are_installed(cls) -> bool:
@@ -584,56 +390,291 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 label="Seed",
             ),
             JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
-            JSONInvocationParameter(
-                invocation_name="response_format",
-                label="Response Format",
-                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
-            ),
-            JSONInvocationParameter(
                 invocation_name="extra_body",
                 label="Extra Body",
             ),
         ]
 
+    async def _openai_chat_completion_create(
+        self,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> AsyncStream[OpenAIChatCompletionChunk]:
+        from openai.types.chat import (
+            ChatCompletionFunctionToolParam,
+            ChatCompletionStreamOptionsParam,
+        )
+        from openai.types.chat.completion_create_params import CompletionCreateParamsBase
+        from openai.types.shared_params import ResponseFormatJSONSchema
+        from openai.types.shared_params.function_definition import FunctionDefinition
+        from openai.types.shared_params.response_format_json_schema import JSONSchema
+
+        openai_messages = []
+        for message in messages:
+            openai_message = self._to_openai_chat_completion_message_param(message)
+            if openai_message is not None:
+                openai_messages.append(openai_message)
+
+        params = CompletionCreateParamsBase(
+            messages=openai_messages,
+            model=self.model_name,
+        )
+
+        if tools:
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    params["tool_choice"] = "none"
+                elif tc.type == "zero_or_more":
+                    params["tool_choice"] = "auto"
+                elif tc.type == "one_or_more":
+                    params["tool_choice"] = "required"
+                elif tc.type == "specific_function":
+                    params["tool_choice"] = {
+                        "type": "function",
+                        "function": {"name": tc.function_name},
+                    }
+                else:
+                    assert_never(tc.type)
+            if tools.disable_parallel_tool_calls:
+                params["parallel_tool_calls"] = False
+            if dt := tools.tools:
+                tool_list: list[ChatCompletionFunctionToolParam] = []
+                for tool in dt:
+                    f = tool.function
+                    fn_def = FunctionDefinition(
+                        name=f.name,
+                        parameters=f.parameters if f.parameters else {},
+                        strict=f.strict if isinstance(f.strict, bool) else None,
+                    )
+                    if f.description is not UNDEFINED:
+                        fn_def["description"] = f.description
+                    tool_list.append(
+                        ChatCompletionFunctionToolParam(type="function", function=fn_def)
+                    )
+                params["tools"] = tool_list
+
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                json_schema: JSONSchema = {"name": js.name}
+                if js.description is not UNDEFINED:
+                    json_schema["description"] = js.description
+                if js.schema_ is not UNDEFINED:
+                    json_schema["schema"] = js.schema_
+                if isinstance(js.strict, bool):
+                    json_schema["strict"] = js.strict
+                params["response_format"] = ResponseFormatJSONSchema(
+                    type="json_schema", json_schema=json_schema
+                )
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        if invocation_parameters:
+            if "temperature" in invocation_parameters and isinstance(
+                invocation_parameters["temperature"], float
+            ):
+                params["temperature"] = invocation_parameters["temperature"]
+            if "max_completion_tokens" in invocation_parameters and isinstance(
+                invocation_parameters["max_completion_tokens"], int
+            ):
+                params["max_completion_tokens"] = invocation_parameters["max_completion_tokens"]
+            if "max_tokens" in invocation_parameters and isinstance(
+                invocation_parameters["max_tokens"], int
+            ):
+                params["max_completion_tokens"] = invocation_parameters["max_tokens"]
+            if "frequency_penalty" in invocation_parameters and isinstance(
+                invocation_parameters["frequency_penalty"], float
+            ):
+                params["frequency_penalty"] = invocation_parameters["frequency_penalty"]
+            if "presence_penalty" in invocation_parameters and isinstance(
+                invocation_parameters["presence_penalty"], float
+            ):
+                params["presence_penalty"] = invocation_parameters["presence_penalty"]
+            if "stop" in invocation_parameters and isinstance(invocation_parameters["stop"], list):
+                params["stop"] = invocation_parameters["stop"]
+            if "top_p" in invocation_parameters and isinstance(
+                invocation_parameters["top_p"], float
+            ):
+                params["top_p"] = invocation_parameters["top_p"]
+            if "seed" in invocation_parameters and isinstance(invocation_parameters["seed"], int):
+                params["seed"] = invocation_parameters["seed"]
+
+        params["stream_options"] = ChatCompletionStreamOptionsParam(include_usage=True)
+
+        extra_body: dict[str, Any] | None = None
+        if "extra_body" in invocation_parameters and isinstance(
+            invocation_parameters["extra_body"], dict
+        ):
+            extra_body = invocation_parameters["extra_body"]
+
+        if tool_params := params.get("tools"):
+            for i, tool_param in enumerate(tool_params):
+                span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
+        input_value = dict(params)
+        if extra_body:
+            input_value["extra_body"] = extra_body
+        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+
+        return await client.chat.completions.create(
+            **params,
+            extra_body=extra_body,
+            stream=True,
+        )
+
+    def _to_openai_response_stream_manager(
+        self,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> AsyncResponseStreamManager[Any]:
+        from openai.types.responses.function_tool_param import FunctionToolParam
+        from openai.types.responses.response_create_params import ResponseCreateParamsBase
+        from openai.types.responses.response_format_text_json_schema_config_param import (
+            ResponseFormatTextJSONSchemaConfigParam,
+        )
+        from openai.types.responses.response_text_config_param import (
+            ResponseTextConfigParam,
+        )
+        from openai.types.responses.tool_choice_function_param import ToolChoiceFunctionParam
+
+        params = ResponseCreateParamsBase(
+            input=self._to_openai_response_input_item_param(messages),
+            model=self.model_name,
+        )
+
+        if tools:
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    params["tool_choice"] = "none"
+                elif tc.type == "zero_or_more":
+                    params["tool_choice"] = "auto"
+                elif tc.type == "one_or_more":
+                    params["tool_choice"] = "required"
+                elif tc.type == "specific_function":
+                    params["tool_choice"] = ToolChoiceFunctionParam(
+                        type="function",
+                        name=tc.function_name,
+                    )
+                else:
+                    assert_never(tc.type)
+            if tools.disable_parallel_tool_calls:
+                params["parallel_tool_calls"] = False
+            if dt := tools.tools:
+                resp_tool_list: list[FunctionToolParam] = []
+                for tool in dt:
+                    f = tool.function
+                    t = FunctionToolParam(
+                        type="function",
+                        name=f.name,
+                        parameters=f.parameters if f.parameters is not UNDEFINED else None,
+                        strict=f.strict if isinstance(f.strict, bool) else None,
+                    )
+                    if f.description is not UNDEFINED:
+                        t["description"] = f.description
+                    resp_tool_list.append(t)
+                params["tools"] = resp_tool_list
+
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                fmt = ResponseFormatTextJSONSchemaConfigParam(
+                    type="json_schema",
+                    name=js.name,
+                    schema=js.schema_ if js.schema_ is not UNDEFINED else {},
+                )
+                if js.description is not UNDEFINED:
+                    fmt["description"] = js.description
+                if isinstance(js.strict, bool):
+                    fmt["strict"] = js.strict
+                params["text"] = ResponseTextConfigParam(format=fmt)
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        if invocation_parameters:
+            if "temperature" in invocation_parameters and isinstance(
+                invocation_parameters["temperature"], float
+            ):
+                params["temperature"] = invocation_parameters["temperature"]
+            if "max_completion_tokens" in invocation_parameters and isinstance(
+                invocation_parameters["max_completion_tokens"], int
+            ):
+                params["max_output_tokens"] = invocation_parameters["max_completion_tokens"]
+            if "top_p" in invocation_parameters and isinstance(
+                invocation_parameters["top_p"], float
+            ):
+                params["top_p"] = invocation_parameters["top_p"]
+            if "reasoning_effort" in invocation_parameters and isinstance(
+                invocation_parameters["reasoning_effort"], str
+            ):
+                from openai.types.shared_params.reasoning import Reasoning
+                from openai.types.shared_params.reasoning_effort import ReasoningEffort
+
+                params["reasoning"] = Reasoning(
+                    effort=cast(ReasoningEffort, invocation_parameters["reasoning_effort"])
+                )
+
+        extra_body: dict[str, Any] | None = None
+        if "extra_body" in invocation_parameters and isinstance(
+            invocation_parameters["extra_body"], dict
+        ):
+            extra_body = invocation_parameters["extra_body"]
+
+        if tool_params := params.get("tools"):
+            for i, tool_param in enumerate(tool_params):
+                span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
+        input_value = dict(params)
+        if extra_body:
+            input_value["extra_body"] = extra_body
+        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("input", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+
+        return client.responses.stream(
+            **params,
+            extra_body=extra_body,
+        )
+
     async def _chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import omit
-        from openai.types import chat
-
-        # Convert standard messages to OpenAI messages
-        openai_messages = []
-        for message in messages:
-            openai_message = self.to_openai_chat_completion_param(message)
-            if openai_message is not None:
-                openai_messages.append(openai_message)
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
-
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
             client._client = _HttpxClient(client._client, span=span)
-            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
-            stream = cast(
-                AsyncIterable[chat.ChatCompletionChunk],
-                await throttled_create(
-                    messages=openai_messages,
-                    model=self.model_name,
-                    stream=True,
-                    stream_options=chat.ChatCompletionStreamOptionsParam(include_usage=True),
-                    tools=tools or omit,
-                    **invocation_parameters,
-                ),
-            )
+            stream = await self.rate_limiter.limit(
+                lambda: self._openai_chat_completion_create(
+                    client=client,
+                    messages=messages,
+                    tools=tools,
+                    response_format=response_format,
+                    invocation_parameters=invocation_parameters,
+                    span=span,
+                )
+            )()
             async for chunk in stream:
                 if (usage := chunk.usage) is not None:
                     token_usage = usage
@@ -667,7 +708,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
     @staticmethod
     def _to_openai_response_input_item_param(
-        messages: list[PlaygroundMessage],
+        messages: Sequence[PlaygroundMessage],
     ) -> list["ResponseInputItemParam"]:
         from openai.types.responses.easy_input_message_param import EasyInputMessageParam
         from openai.types.responses.response_function_tool_call_param import (
@@ -732,8 +773,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     async def _responses_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -741,24 +783,23 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         OpenAI Responses API (responses.create) streaming. Yields TextChunk and
         ToolCallChunk; sets span attributes from the completed response at the end.
         """
-        from openai import omit
-
-        input_item_param = self._to_openai_response_input_item_param(messages)
         completed_response: Optional["Response"] = None
-        responses_tools = _tools_chat_completions_to_responses_api(tools) if tools else omit
-        responses_params = _invocation_parameters_to_responses_api(dict(invocation_parameters))
-
-        async with self._client_factory() as client:
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
             client._client = _HttpxClient(client._client, span=span)
-            throttled_create = self.rate_limiter._alimit(client.responses.create)
-            create_result = await throttled_create(
-                input=input_item_param,
-                model=self.model_name,
-                stream=True,
-                tools=cast(Any, responses_tools),
-                **cast(Any, responses_params),
+            stream_manager = self._to_openai_response_stream_manager(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
             )
-            stream = cast("AsyncStream[ResponseStreamEvent]", create_result)
+            stream_manager.__aenter__ = self.rate_limiter.alimit(stream_manager.__aenter__)  # type: ignore[method-assign]
+            stream: AsyncResponseStream[Any] = await self.rate_limiter.alimit(
+                stream_manager.__aenter__
+            )()
+            stack.push_async_exit(stream_manager)
             async for event in stream:
                 if event.type == "response.output_text.delta":
                     delta = event.delta
@@ -943,16 +984,18 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
             )
 
-    def to_openai_chat_completion_param(
+    def _to_openai_chat_completion_message_param(
         self,
         message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
+            ChatCompletionMessageToolCallParam,
             ChatCompletionSystemMessageParam,
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
         content = message["content"]
@@ -961,58 +1004,45 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
-                {
-                    "content": content,
-                    "role": "user",
-                }
+                content=content,
+                role="user",
             )
         if role is ChatCompletionMessageRole.SYSTEM:
             return ChatCompletionSystemMessageParam(
-                {
-                    "content": content,
-                    "role": "system",
-                }
+                content=content,
+                role="system",
             )
         if role is ChatCompletionMessageRole.AI:
             if tool_calls is None:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                    }
+                    content=content,
+                    role="assistant",
                 )
             else:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                        "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
-                        ],
-                    }
+                    content=content,
+                    role="assistant",
+                    tool_calls=[
+                        ChatCompletionMessageToolCallParam(
+                            type="function",
+                            id=tool_call["id"],
+                            function=Function(
+                                name=tool_call["function"]["name"],
+                                arguments=json.dumps(tool_call["function"]["arguments"]),
+                            ),
+                        )
+                        for tool_call in tool_calls
+                    ],
                 )
         if role is ChatCompletionMessageRole.TOOL:
             if tool_call_id is None:
                 raise ValueError("tool_call_id is required for tool messages")
             return ChatCompletionToolMessageParam(
-                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+                content=content,
+                role="tool",
+                tool_call_id=tool_call_id,
             )
         assert_never(role)
-
-    def to_openai_tool_call_param(
-        self,
-        tool_call: JSONScalarType,
-    ) -> "ChatCompletionMessageToolCallParam":
-        from openai.types.chat import ChatCompletionMessageToolCallParam
-
-        return ChatCompletionMessageToolCallParam(
-            id=tool_call.get("id", ""),
-            function={
-                "name": tool_call.get("function", {}).get("name", ""),
-                "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
-            },
-            type="function",
-        )
 
     @staticmethod
     def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
@@ -1273,90 +1303,155 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                 min_value=0.0,
                 max_value=1.0,
             ),
-            JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
         ]
 
     async def _chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._handle_converse_api(
             messages=messages,
             tools=tools,
+            response_format=response_format,
             span=span,
             invocation_parameters=invocation_parameters,
         ):
             yield chunk
 
+    async def _converse_stream(
+        self,
+        *,
+        client: BedrockRuntimeClient,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> ConverseStreamResponseTypeDef:
+        from types_aiobotocore_bedrock_runtime.type_defs import (
+            ConverseStreamRequestTypeDef,
+            InferenceConfigurationTypeDef,
+            JsonSchemaDefinitionTypeDef,
+            OutputConfigTypeDef,
+            OutputFormatStructureTypeDef,
+            OutputFormatTypeDef,
+            SpecificToolChoiceTypeDef,
+            ToolChoiceTypeDef,
+            ToolConfigurationTypeDef,
+            ToolInputSchemaTypeDef,
+            ToolSpecificationTypeDef,
+            ToolTypeDef,
+        )
+
+        request = ConverseStreamRequestTypeDef(modelId=self.model_name)
+
+        request["messages"] = self._build_converse_messages(messages)
+
+        system_prompt = self._extract_system_prompt(messages)
+        if system_prompt:
+            request["system"] = [{"text": system_prompt}]
+
+        inference_config = InferenceConfigurationTypeDef()
+        if "max_tokens" in invocation_parameters and isinstance(
+            invocation_parameters["max_tokens"], int
+        ):
+            inference_config["maxTokens"] = invocation_parameters["max_tokens"]
+        if "temperature" in invocation_parameters and isinstance(
+            invocation_parameters["temperature"], float
+        ):
+            inference_config["temperature"] = invocation_parameters["temperature"]
+        if "top_p" in invocation_parameters and isinstance(invocation_parameters["top_p"], float):
+            inference_config["topP"] = invocation_parameters["top_p"]
+        if inference_config:
+            request["inferenceConfig"] = inference_config
+
+        if tools:
+            tool_list: list[ToolTypeDef] = []
+            for tool in tools.tools:
+                fn = tool.function
+                tool_spec = ToolSpecificationTypeDef(
+                    name=fn.name,
+                    inputSchema=ToolInputSchemaTypeDef(
+                        json=fn.parameters if fn.parameters is not UNDEFINED else {}
+                    ),
+                )
+                if fn.description is not UNDEFINED:
+                    tool_spec["description"] = fn.description
+                tool_list.append(ToolTypeDef(toolSpec=tool_spec))
+
+            tool_config = ToolConfigurationTypeDef(tools=tool_list)
+
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    pass
+                elif tc.type == "zero_or_more":
+                    tool_config["toolChoice"] = ToolChoiceTypeDef(auto={})
+                elif tc.type == "one_or_more":
+                    tool_config["toolChoice"] = ToolChoiceTypeDef(any={})
+                elif tc.type == "specific_function":
+                    tool_config["toolChoice"] = ToolChoiceTypeDef(
+                        tool=SpecificToolChoiceTypeDef(name=tc.function_name)
+                    )
+                elif TYPE_CHECKING:
+                    assert_never(tc.type)
+
+            request["toolConfig"] = tool_config
+
+        if response_format:
+            json_schema = JsonSchemaDefinitionTypeDef(
+                schema=json.dumps(response_format.json_schema.schema_ or {}),
+            )
+            if response_format.json_schema.name:
+                json_schema["name"] = response_format.json_schema.name
+            if response_format.json_schema.description:
+                json_schema["description"] = response_format.json_schema.description
+            request["outputConfig"] = OutputConfigTypeDef(
+                textFormat=OutputFormatTypeDef(
+                    type="json_schema",
+                    structure=OutputFormatStructureTypeDef(jsonSchema=json_schema),
+                ),
+            )
+
+        input_value: dict[str, Any] = dict(request)
+        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("modelId", None)
+        if "toolConfig" in request:
+            if "tools" in request["toolConfig"]:
+                input_value["toolConfig"] = dict(request["toolConfig"])
+                for i, tool_param in enumerate(input_value["toolConfig"].pop("tools")):
+                    span.set_attribute(
+                        f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param)
+                    )
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+
+        response = await client.converse_stream(**request)
+        return response
+
     async def _handle_converse_api(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
-        invocation_parameters: Mapping[str, Any],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        """
-        Handle the converse API.
-        """
-        # Build messages in Converse API format
-        converse_messages = self._build_converse_messages(messages)
-
-        inference_config = {}
-        if (
-            "max_tokens" in invocation_parameters
-            and invocation_parameters["max_tokens"] is not None
-        ):
-            inference_config["maxTokens"] = invocation_parameters["max_tokens"]
-        if (
-            "temperature" in invocation_parameters
-            and invocation_parameters["temperature"] is not None
-        ):
-            inference_config["temperature"] = invocation_parameters["temperature"]
-        if "top_p" in invocation_parameters and invocation_parameters["top_p"] is not None:
-            inference_config["topP"] = invocation_parameters["top_p"]
-
-        # Build the request parameters for Converse API
-        converse_params: dict[str, Any] = {
-            "modelId": self.model_name,
-            "messages": converse_messages,
-            "inferenceConfig": inference_config,
-        }
-
-        # Add system prompt if available
-        system_prompt = self._extract_system_prompt(messages)
-        if system_prompt:
-            converse_params["system"] = [{"text": system_prompt}]
-
-        # Add tools if provided
-        if tools:
-            converse_params["toolConfig"] = {"tools": tools}
-            if (
-                "tool_choice" in invocation_parameters
-                and invocation_parameters["tool_choice"]["type"] != "none"
-            ):
-                converse_params["toolConfig"]["toolChoice"] = {}
-
-                if invocation_parameters["tool_choice"]["type"] == "auto":
-                    converse_params["toolConfig"]["toolChoice"]["auto"] = {}
-                elif invocation_parameters["tool_choice"]["type"] == "any":
-                    converse_params["toolConfig"]["toolChoice"]["any"] = {}
-                else:
-                    converse_params["toolConfig"]["toolChoice"]["tool"] = {
-                        "name": invocation_parameters["tool_choice"]["name"],
-                    }
-
-        # Make the streaming API call using async context manager
         async with self._client_factory() as client:
-            response = await client.converse_stream(**converse_params)
+            response = await self._converse_stream(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
 
             # Track active tool calls
             active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
@@ -1440,36 +1535,9 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                         }
                     )
 
-    def _build_bedrock_messages(
-        self,
-        messages: list[PlaygroundMessage],
-    ) -> tuple[list[dict[str, Any]], str]:
-        bedrock_messages = []
-        system_prompt = ""
-        for msg in messages:
-            role = msg["role"]
-            content = msg["content"]
-            if role == ChatCompletionMessageRole.USER:
-                bedrock_messages.append(
-                    {
-                        "role": "user",
-                        "content": content,
-                    }
-                )
-            elif role == ChatCompletionMessageRole.AI:
-                bedrock_messages.append(
-                    {
-                        "role": "assistant",
-                        "content": content,
-                    }
-                )
-            elif role == ChatCompletionMessageRole.SYSTEM:
-                system_prompt += content + "\n"
-        return bedrock_messages, system_prompt
-
     def _extract_system_prompt(
         self,
-        messages: list[PlaygroundMessage],
+        messages: Sequence[PlaygroundMessage],
     ) -> str:
         """Extract system prompt from messages."""
         system_prompts = []
@@ -1482,41 +1550,48 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
     def _build_converse_messages(
         self,
-        messages: list[PlaygroundMessage],
-    ) -> list[dict[str, Any]]:
+        messages: Sequence[PlaygroundMessage],
+    ) -> list[MessageTypeDef]:
         """Convert messages to Converse API format."""
-        converse_messages: list[dict[str, Any]] = []
+        from types_aiobotocore_bedrock_runtime.type_defs import (
+            ContentBlockTypeDef,
+            MessageTypeDef,
+            ToolResultBlockTypeDef,
+            ToolResultContentBlockTypeDef,
+        )
+
+        converse_messages: list[MessageTypeDef] = []
         for msg in messages:
             role = msg["role"]
             content = msg["content"]
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
-                converse_messages.append({"role": "user", "content": [{"text": content}]})
-            elif role == ChatCompletionMessageRole.TOOL:
                 converse_messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "toolResult": {
-                                    "toolUseId": tool_call_id,
-                                    "content": [{"json": json.loads(content)}],
-                                }
-                            }
-                        ],
-                    }
+                    MessageTypeDef(
+                        role="user",
+                        content=[ContentBlockTypeDef(text=content)],
+                    )
                 )
-
+            elif role == ChatCompletionMessageRole.TOOL:
+                tool_result = ToolResultBlockTypeDef(
+                    toolUseId=tool_call_id or "",
+                    content=[ToolResultContentBlockTypeDef(json=json.loads(content))],
+                )
+                converse_messages.append(
+                    MessageTypeDef(
+                        role="user", content=[ContentBlockTypeDef(toolResult=tool_result)]
+                    )
+                )
             elif role == ChatCompletionMessageRole.AI:
-                # Handle assistant messages with potential tool calls
-                message: dict[str, Any] = {"role": "assistant", "content": []}
+                blocks: list[ContentBlockTypeDef] = []
                 if content:
-                    message["content"].append({"text": content})
+                    blocks.append(ContentBlockTypeDef(text=content))
                 if tool_calls:
-                    for tool_call in tool_calls:
-                        message["content"].append(tool_call)
-                converse_messages.append(message)
+                    # tool_calls are already in Bedrock ContentBlock format
+                    # ({"toolUse": {...}}) from prior AI responses
+                    blocks.extend(cast(Any, tool_calls))
+                converse_messages.append(MessageTypeDef(role="assistant", content=blocks))
         return converse_messages
 
 
@@ -1620,16 +1695,6 @@ class OpenAIReasoningReasoningModelsMixin:
                 label="Seed",
             ),
             JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
-            JSONInvocationParameter(
-                invocation_name="response_format",
-                label="Response Format",
-                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
-            ),
-            JSONInvocationParameter(
                 invocation_name="extra_body",
                 label="Extra Body",
             ),
@@ -1654,14 +1719,16 @@ class OpenAIResponsesAPIStreamingClient(
     async def _chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._responses_create(
             messages=messages,
             tools=tools,
+            response_format=response_format,
             invocation_parameters=invocation_parameters,
             span=span,
         ):
@@ -1676,16 +1743,18 @@ class OpenAIReasoningNonStreamingClient(
     OpenAIReasoningReasoningModelsMixin,
     OpenAIStreamingClient,
 ):
-    def to_openai_chat_completion_param(
+    def _to_openai_chat_completion_param(
         self,
         message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionDeveloperMessageParam,
+            ChatCompletionMessageToolCallParam,
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
         content = message["content"]
@@ -1694,41 +1763,43 @@ class OpenAIReasoningNonStreamingClient(
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
-                {
-                    "content": content,
-                    "role": "user",
-                }
+                content=content,
+                role="user",
             )
         if role is ChatCompletionMessageRole.SYSTEM:
             return ChatCompletionDeveloperMessageParam(
-                {
-                    "content": content,
-                    "role": "developer",
-                }
+                content=content,
+                role="developer",
             )
         if role is ChatCompletionMessageRole.AI:
             if tool_calls is None:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                    }
+                    content=content,
+                    role="assistant",
                 )
             else:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                        "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
-                        ],
-                    }
+                    content=content,
+                    role="assistant",
+                    tool_calls=[
+                        ChatCompletionMessageToolCallParam(
+                            type="function",
+                            id=tool_call["id"],
+                            function=Function(
+                                name=tool_call["function"]["name"],
+                                arguments=json.dumps(tool_call["function"]["arguments"]),
+                            ),
+                        )
+                        for tool_call in tool_calls
+                    ],
                 )
         if role is ChatCompletionMessageRole.TOOL:
             if tool_call_id is None:
                 raise ValueError("tool_call_id is required for tool messages")
             return ChatCompletionToolMessageParam(
-                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+                content=content,
+                role="tool",
+                tool_call_id=tool_call_id,
             )
         assert_never(role)
 
@@ -1767,14 +1838,16 @@ class AzureOpenAIResponsesAPIStreamingClient(
     async def _chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._responses_create(
             messages=messages,
             tools=tools,
+            response_format=response_format,
             invocation_parameters=invocation_parameters,
             span=span,
         ):
@@ -1790,71 +1863,18 @@ class AzureOpenAIReasoningNonStreamingClient(
     AzureOpenAIStreamingClient,
 ):
     @override
-    async def _chat_completion_create(
-        self,
-        *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
-        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
-        span: OTelSpan,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import omit
-        from openai.types import chat
-
-        # Convert standard messages to OpenAI messages
-        openai_messages = []
-        for message in messages:
-            openai_message = self.to_openai_chat_completion_param(message)
-            if openai_message is not None:
-                openai_messages.append(openai_message)
-
-        async with self._client_factory() as client:
-            # Wrap httpx client for instrumentation (fresh client each request)
-            client._client = _HttpxClient(client._client, span=span)
-            throttled_create = self.rate_limiter._alimit(client.chat.completions.create)
-            response = cast(
-                chat.ChatCompletion,
-                await throttled_create(
-                    messages=openai_messages,
-                    model=self.model_name,
-                    stream=False,
-                    tools=tools or omit,
-                    **invocation_parameters,
-                ),
-            )
-
-        if response.usage is not None:
-            span.set_attributes(dict(self._llm_token_counts(response.usage)))
-
-        choice = response.choices[0]
-        if choice.message.content:
-            yield TextChunk(content=choice.message.content)
-
-        if choice.message.tool_calls:
-            for tool_call in choice.message.tool_calls:
-                if tool_call.type == "function":
-                    yield ToolCallChunk(
-                        id=tool_call.id,
-                        function=FunctionCallChunk(
-                            name=tool_call.function.name,
-                            arguments=tool_call.function.arguments,
-                        ),
-                    )
-                elif tool_call.type == "custom":
-                    raise NotImplementedError("custom tool calls are not supported")
-                else:
-                    assert_never(tool_call.type)
-
-    def to_openai_chat_completion_param(
+    def _to_openai_chat_completion_message_param(
         self,
         message: PlaygroundMessage,
-    ) -> Optional["ChatCompletionMessageParam"]:
+    ) -> ChatCompletionMessageParam | None:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionDeveloperMessageParam,
+            ChatCompletionMessageToolCallParam,
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 
         role = message["role"]
         content = message["content"]
@@ -1863,41 +1883,43 @@ class AzureOpenAIReasoningNonStreamingClient(
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
-                {
-                    "content": content,
-                    "role": "user",
-                }
+                content=content,
+                role="user",
             )
         if role is ChatCompletionMessageRole.SYSTEM:
             return ChatCompletionDeveloperMessageParam(
-                {
-                    "content": content,
-                    "role": "developer",
-                }
+                content=content,
+                role="developer",
             )
         if role is ChatCompletionMessageRole.AI:
             if tool_calls is None:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                    }
+                    content=content,
+                    role="assistant",
                 )
             else:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                        "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
-                        ],
-                    }
+                    content=content,
+                    role="assistant",
+                    tool_calls=[
+                        ChatCompletionMessageToolCallParam(
+                            type="function",
+                            id=tool_call["id"],
+                            function=Function(
+                                name=tool_call["function"]["name"],
+                                arguments=json.dumps(tool_call["function"]["arguments"]),
+                            ),
+                        )
+                        for tool_call in tool_calls
+                    ],
                 )
         if role is ChatCompletionMessageRole.TOOL:
             if tool_call_id is None:
                 raise ValueError("tool_call_id is required for tool messages")
             return ChatCompletionToolMessageParam(
-                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+                content=content,
+                role="tool",
+                tool_call_id=tool_call_id,
             )
         assert_never(role)
 
@@ -1963,104 +1985,210 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 min_value=0.0,
                 max_value=1.0,
             ),
-            JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
         ]
+
+    def _get_anthropic_message_stream_manager(
+        self,
+        *,
+        client: AsyncAnthropic,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> AsyncMessageStreamManager[Any]:
+        from anthropic.types import JSONOutputFormatParam, OutputConfigParam, ToolParam
+        from anthropic.types.message_create_params import MessageCreateParamsBase
+        from anthropic.types.thinking_config_param import ThinkingConfigParam
+        from anthropic.types.tool_choice_any_param import ToolChoiceAnyParam
+        from anthropic.types.tool_choice_auto_param import ToolChoiceAutoParam
+        from anthropic.types.tool_choice_none_param import ToolChoiceNoneParam
+        from anthropic.types.tool_choice_tool_param import ToolChoiceToolParam
+
+        anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+
+        params = MessageCreateParamsBase(
+            messages=anthropic_messages,
+            model=self.model_name,
+            max_tokens=invocation_parameters.get("max_tokens", 1024),
+        )
+
+        if system_prompt:
+            params["system"] = system_prompt
+
+        if tools:
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    params["tool_choice"] = ToolChoiceNoneParam(type="none")
+                elif tc.type == "zero_or_more":
+                    choice_auto = ToolChoiceAutoParam(type="auto")
+                    if tools.disable_parallel_tool_calls:
+                        choice_auto["disable_parallel_tool_use"] = True
+                    params["tool_choice"] = choice_auto
+                elif tc.type == "one_or_more":
+                    choice_any = ToolChoiceAnyParam(type="any")
+                    if tools.disable_parallel_tool_calls:
+                        choice_any["disable_parallel_tool_use"] = True
+                    params["tool_choice"] = choice_any
+                elif tc.type == "specific_function":
+                    choice_tool = ToolChoiceToolParam(type="tool", name=tc.function_name)
+                    if tools.disable_parallel_tool_calls:
+                        choice_tool["disable_parallel_tool_use"] = True
+                    params["tool_choice"] = choice_tool
+                else:
+                    assert_never(tc.type)
+            elif tools.disable_parallel_tool_calls:
+                params["tool_choice"] = ToolChoiceAutoParam(
+                    type="auto", disable_parallel_tool_use=True
+                )
+            if dt := tools.tools:
+                tool_list: list[ToolParam] = []
+                for tool in dt:
+                    f = tool.function
+                    t = ToolParam(
+                        input_schema=f.parameters if f.parameters is not UNDEFINED else {},
+                        name=f.name,
+                    )
+                    if f.description is not UNDEFINED:
+                        t["description"] = f.description
+                    tool_list.append(t)
+                params["tools"] = tool_list
+
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                params["output_config"] = OutputConfigParam(
+                    format=JSONOutputFormatParam(
+                        type="json_schema",
+                        schema=js.schema_ if js.schema_ is not UNDEFINED else {},
+                    )
+                )
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        if invocation_parameters:
+            if "temperature" in invocation_parameters and isinstance(
+                invocation_parameters["temperature"], float
+            ):
+                params["temperature"] = invocation_parameters["temperature"]
+            if "stop_sequences" in invocation_parameters and isinstance(
+                invocation_parameters["stop_sequences"], list
+            ):
+                params["stop_sequences"] = invocation_parameters["stop_sequences"]
+            if "top_p" in invocation_parameters and isinstance(
+                invocation_parameters["top_p"], float
+            ):
+                params["top_p"] = invocation_parameters["top_p"]
+            if "top_k" in invocation_parameters and isinstance(invocation_parameters["top_k"], int):
+                params["top_k"] = invocation_parameters["top_k"]
+            if "thinking" in invocation_parameters and isinstance(
+                invocation_parameters["thinking"], dict
+            ):
+                params["thinking"] = cast(ThinkingConfigParam, invocation_parameters["thinking"])
+
+        if "tools" in params:
+            for i, tool_param in enumerate(params["tools"]):
+                span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
+        input_value = dict(params)
+        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+
+        stream_manager = client.messages.stream(**params)
+        return stream_manager
 
     async def _chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
-        anthropic_params = {
-            "messages": anthropic_messages,
-            "model": self.model_name,
-            "system": system_prompt,
-            "tools": tools,
-            **invocation_parameters,
-        }
-
-        async with self._client_factory() as client:
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
             # Wrap httpx client for instrumentation (fresh client each request)
             client._client = _HttpxClient(client._client, span=span)
-            throttled_stream = self.rate_limiter._alimit(client.messages.stream)
-            async with await throttled_stream(**anthropic_params) as stream:
-                async for event in stream:
-                    if event.type == "message_start":
-                        usage = event.message.usage
-                        token_counts: dict[str, Any] = {}
-                        if prompt_tokens := (
-                            (usage.input_tokens or 0)
-                            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-                            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
-                        ):
-                            token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-                        if cache_creation_tokens := getattr(
-                            usage, "cache_creation_input_tokens", None
-                        ):
-                            if cache_creation_tokens is not None:
-                                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
-                                    cache_creation_tokens
-                                )
-                        if token_counts:
-                            span.set_attributes(token_counts)
-                    elif event.type == "text":
-                        yield TextChunk(content=event.text)
-                    elif event.type == "message_stop":
-                        usage = event.message.usage
-                        output_token_counts: dict[str, Any] = {}
-                        if usage.output_tokens:
-                            output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                        if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
-                            if cache_read_tokens is not None:
-                                output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                                    cache_read_tokens
-                                )
-                        if output_token_counts:
-                            span.set_attributes(output_token_counts)
-                    elif (
-                        event.type == "content_block_stop"
-                        and event.content_block.type == "tool_use"
+            stream_manager = self._get_anthropic_message_stream_manager(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
+            stream: AsyncMessageStream[Any] = await self.rate_limiter.alimit(
+                stream_manager.__aenter__
+            )()
+            stack.push_async_exit(stream_manager)
+            async for event in stream:
+                if event.type == "message_start":
+                    usage = event.message.usage
+                    token_counts: dict[str, Any] = {}
+                    if prompt_tokens := (
+                        (usage.input_tokens or 0)
+                        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
                     ):
-                        tool_call_chunk = ToolCallChunk(
-                            id=event.content_block.id,
-                            function=FunctionCallChunk(
-                                name=event.content_block.name,
-                                arguments=json.dumps(event.content_block.input),
-                            ),
-                        )
-                        yield tool_call_chunk
-                    elif event.type == "content_block_start":
-                        pass
-                    elif event.type == "content_block_delta":
-                        pass
-                    elif event.type == "message_delta":
-                        pass
-                    elif event.type == "content_block_stop":
-                        # non-tool_use case; tool_use already yielded above
-                        pass
-                    elif event.type == "input_json":
-                        # Incremental tool-call JSON; uses the complete block at content_block_stop
-                        pass
-                    elif event.type == "citation":
-                        pass
-                    elif event.type == "thinking":
-                        pass
-                    elif event.type == "signature":
-                        pass
-                    elif TYPE_CHECKING:
-                        assert_never(event)
+                        token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+                    if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
+                        if cache_creation_tokens is not None:
+                            token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
+                                cache_creation_tokens
+                            )
+                    if token_counts:
+                        span.set_attributes(token_counts)
+                elif event.type == "text":
+                    yield TextChunk(content=event.text)
+                elif event.type == "message_stop":
+                    usage = event.message.usage
+                    output_token_counts: dict[str, Any] = {}
+                    if usage.output_tokens:
+                        output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+                        if cache_read_tokens is not None:
+                            output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
+                                cache_read_tokens
+                            )
+                    if output_token_counts:
+                        span.set_attributes(output_token_counts)
+                elif event.type == "content_block_stop" and event.content_block.type == "tool_use":
+                    tool_call_chunk = ToolCallChunk(
+                        id=event.content_block.id,
+                        function=FunctionCallChunk(
+                            name=event.content_block.name,
+                            arguments=json.dumps(event.content_block.input),
+                        ),
+                    )
+                    yield tool_call_chunk
+                elif event.type == "content_block_start":
+                    pass
+                elif event.type == "content_block_delta":
+                    pass
+                elif event.type == "message_delta":
+                    pass
+                elif event.type == "content_block_stop":
+                    # non-tool_use case; tool_use already yielded above
+                    pass
+                elif event.type == "input_json":
+                    # Incremental tool-call JSON; uses the complete block at content_block_stop
+                    pass
+                elif event.type == "citation":
+                    pass
+                elif event.type == "thinking":
+                    pass
+                elif event.type == "signature":
+                    pass
+                elif TYPE_CHECKING:
+                    assert_never(event)
 
     def _build_anthropic_messages(
         self,
-        messages: list[PlaygroundMessage],
+        messages: Sequence[PlaygroundMessage],
     ) -> tuple[list["MessageParam"], str]:
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
@@ -2218,41 +2346,173 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                 invocation_name="top_k",
                 label="Top K",
             ),
-            JSONInvocationParameter(
-                invocation_name="tool_config",
-                label="Tool Config",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
         ]
 
-    async def _chat_completion_create(
+    async def _generate_content_stream(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        client: "GoogleAsyncClient",
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-    ) -> AsyncIterator[ChatCompletionChunk]:
+    ) -> AsyncIterator[GenerateContentResponse]:
         from google.genai import types
 
         contents, system_prompt = self._build_google_messages(messages)
 
-        config_dict = dict(invocation_parameters)
-
+        system_instruction: str | None = None
         if system_prompt:
-            config_dict["system_instruction"] = system_prompt
+            system_instruction = system_prompt
 
+        google_tools: list[types.Tool] | None = None
+        google_tool_config: types.ToolConfig | None = None
         if tools:
-            function_declarations = [types.FunctionDeclaration(**tool) for tool in tools]
-            config_dict["tools"] = [types.Tool(function_declarations=function_declarations)]
+            if dt := tools.tools:
+                function_declarations = []
+                for tool in dt:
+                    fn = tool.function
+                    fd_kwargs: dict[str, Any] = {"name": fn.name}
+                    if fn.description is not UNDEFINED:
+                        fd_kwargs["description"] = fn.description
+                    if fn.parameters is not UNDEFINED:
+                        fd_kwargs["parameters_json_schema"] = fn.parameters
+                    function_declarations.append(types.FunctionDeclaration(**fd_kwargs))
+                google_tools = [types.Tool(function_declarations=function_declarations)]
 
-        config = types.GenerateContentConfig.model_validate(config_dict)
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
+                elif tc.type == "zero_or_more":
+                    fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.AUTO)
+                elif tc.type == "one_or_more":
+                    fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.ANY)
+                elif tc.type == "specific_function":
+                    fcc = types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.ANY,
+                        allowed_function_names=[tc.function_name],
+                    )
+                else:
+                    assert_never(tc.type)
+                google_tool_config = types.ToolConfig(function_calling_config=fcc)
 
+        response_mime_type: str | None = None
+        response_json_schema: dict[str, Any] | None = None
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                response_mime_type = "application/json"
+                if js.schema_ is not UNDEFINED:
+                    response_json_schema = js.schema_
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        temperature: float | None = None
+        max_output_tokens: int | None = None
+        stop_sequences: list[str] | None = None
+        top_p: float | None = None
+        top_k: int | None = None
+        presence_penalty: float | None = None
+        frequency_penalty: float | None = None
+        thinking_config: types.ThinkingConfig | None = None
+        if invocation_parameters:
+            if "temperature" in invocation_parameters and isinstance(
+                invocation_parameters["temperature"], float
+            ):
+                temperature = invocation_parameters["temperature"]
+            if "max_output_tokens" in invocation_parameters and isinstance(
+                invocation_parameters["max_output_tokens"], int
+            ):
+                max_output_tokens = invocation_parameters["max_output_tokens"]
+            if "stop_sequences" in invocation_parameters and isinstance(
+                invocation_parameters["stop_sequences"], list
+            ):
+                stop_sequences = invocation_parameters["stop_sequences"]
+            if "top_p" in invocation_parameters and isinstance(
+                invocation_parameters["top_p"], float
+            ):
+                top_p = invocation_parameters["top_p"]
+            if "top_k" in invocation_parameters and isinstance(invocation_parameters["top_k"], int):
+                top_k = invocation_parameters["top_k"]
+            if "presence_penalty" in invocation_parameters and isinstance(
+                invocation_parameters["presence_penalty"], float
+            ):
+                presence_penalty = invocation_parameters["presence_penalty"]
+            if "frequency_penalty" in invocation_parameters and isinstance(
+                invocation_parameters["frequency_penalty"], float
+            ):
+                frequency_penalty = invocation_parameters["frequency_penalty"]
+            if "thinking_config" in invocation_parameters and isinstance(
+                invocation_parameters["thinking_config"], dict
+            ):
+                thinking_config = types.ThinkingConfig.model_validate(
+                    invocation_parameters["thinking_config"]
+                )
+
+        config = types.GenerateContentConfig(
+            tools=google_tools,
+            tool_config=google_tool_config,
+            system_instruction=system_instruction,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            stop_sequences=stop_sequences,
+            top_p=top_p,
+            top_k=top_k,
+            presence_penalty=presence_penalty,
+            frequency_penalty=frequency_penalty,
+            thinking_config=thinking_config,
+            response_mime_type=response_mime_type,
+            response_json_schema=response_json_schema,
+        )
+
+        if google_tools:
+            tool_idx = 0
+            for google_tool in google_tools:
+                if google_tool.function_declarations:
+                    for fn_decl in google_tool.function_declarations:
+                        span.set_attribute(
+                            f"llm.tools.{tool_idx}.tool.json_schema",
+                            safe_json_dumps(fn_decl.model_dump(exclude_none=True)),
+                        )
+                        tool_idx += 1
+
+        config_dict = config.model_dump(exclude_none=True)
+        input_value: dict[str, Any] = {
+            "model": self.model_name,
+            "contents": contents,
+            "config": config_dict,
+        }
+        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        config_dict.pop("tools", None)
+        config_dict.pop("system_instruction", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(config_dict))
+
+        stream = await client.models.generate_content_stream(
+            model=self.model_name,
+            contents=contents,
+            config=config,
+        )
+        return stream
+
+    async def _chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> AsyncIterator[ChatCompletionChunk]:
         async with self._client_factory() as client:
-            stream = await client.models.generate_content_stream(
-                model=f"models/{self.model_name}",
-                contents=contents,
-                config=config,
+            stream = await self._generate_content_stream(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
             )
             async for event in stream:
                 # Update token counts if usage_metadata is present
@@ -2331,10 +2591,10 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     def _build_google_messages(
         self,
-        messages: list[PlaygroundMessage],
-    ) -> tuple[list["ContentType"], str]:
+        messages: Sequence[PlaygroundMessage],
+    ) -> tuple[list["ContentDict"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
-        google_messages: list["ContentType"] = []
+        google_messages: list["ContentDict"] = []
         system_prompts = []
         for msg in messages:
             role = msg["role"]
@@ -2398,11 +2658,6 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
                 invocation_name="top_k",
                 label="Top K",
             ),
-            JSONInvocationParameter(
-                invocation_name="tool_config",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
         ]
 
 
@@ -2432,15 +2687,16 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
     async def chat_completion_create(
         self,
         *,
-        messages: list[PlaygroundMessage],
-        tools: list[JSONScalarType],
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None = None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         tracer: Tracer | None = None,
         otel_context: OtelContext | None = None,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
-        parameters = dict(invocation_parameters)
-        thinking_level = parameters.pop("thinking_level", None)
+        params = dict(invocation_parameters)
+        thinking_level = params.pop("thinking_level", None)
 
         if thinking_level:
             try:
@@ -2459,7 +2715,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             # but will eventually be added in a future version
             # we are purposefully allowing users to select medium knowing
             # it does not work.
-            parameters["thinking_config"] = {
+            params["thinking_config"] = {
                 "include_thoughts": True,
                 "thinking_level": thinking_level.upper(),
             }
@@ -2467,7 +2723,8 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
         async for chunk in super().chat_completion_create(
             messages=messages,
             tools=tools,
-            invocation_parameters=parameters,
+            response_format=response_format,
+            invocation_parameters=params,
             tracer=tracer,
             otel_context=otel_context,
         ):
@@ -2513,37 +2770,60 @@ class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
 
 async def get_playground_client(
     *,
-    model: GenerativeModelInput,
+    model_provider: ModelProvider,
+    model_name: str,
+    custom_provider_id: int | None = None,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
+    client_options: ModelClientOptionsInput | None = None,
 ) -> "PlaygroundStreamingClient[Any]":
     """
     Create a playground streaming client for the given model configuration.
 
-    Resolves credentials from multiple sources in priority order:
-    1. Explicitly provided credentials in the input
-    2. Encrypted secrets stored in the database
-    3. Environment variables
+    Resolves credentials and configuration, then returns a client ready for
+    chat completions.  This is the single public entry point; callers should
+    never need to call the builtin/custom helpers directly.
 
     Args:
-        model: The model configuration specifying either a builtin or custom provider.
-        db: Database session factory for loading secrets and custom provider configs.
-        decrypt: Function to decrypt encrypted values from the database.
-        credentials: Optional list of credentials to use for authentication.
-
-    Returns:
-        A configured PlaygroundStreamingClient ready for chat completions.
-
-    Raises:
-        BadRequest: If required credentials are missing or invalid.
-        NotFound: If a custom provider ID doesn't exist.
+        model_provider: Canonical model provider enum (DB-level type).
+        model_name: Model name (or Azure deployment name).
+        custom_provider_id: Raw DB primary key of the custom provider, or
+            None for a builtin provider.
+        session: Async database session (used for secret resolution and
+            custom-provider lookup).
+        decrypt: Decryption function for encrypted values in the database.
+        credentials: Optional explicit credentials (highest priority).
+        client_options: Optional connection overrides from the playground UI.
     """
-    if builtin := model.builtin:
-        return await _get_builtin_provider_client(builtin, session, decrypt, credentials)
-    if custom := model.custom:
-        return await _get_custom_provider_client(custom, session, decrypt)
-    raise BadRequest("Model input must specify either a builtin or custom provider")
+    if custom_provider_id is None:
+        builtin_opts = (client_options.builtin or None) if client_options else None
+        return await _get_builtin_provider_client(
+            model_provider=model_provider,
+            model_name=model_name,
+            client_options=builtin_opts,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+        )
+
+    provider_record = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
+    if not provider_record:
+        raise NotFound(f"Custom provider with ID {custom_provider_id} not found")
+
+    if not is_sdk_compatible_with_model_provider(provider_record.sdk, model_provider):
+        raise BadRequest(
+            f"Custom provider '{provider_record.name}' has SDK '{provider_record.sdk}' "
+            f"which is not compatible with model provider '{model_provider.value}'."
+        )
+
+    custom_opts = (client_options.custom or None) if client_options else None
+    return await _get_custom_provider_client(
+        provider_record=provider_record,
+        model_name=model_name,
+        client_options=custom_opts,
+        decrypt=decrypt,
+    )
 
 
 async def _resolve_secrets(
@@ -2642,7 +2922,9 @@ def get_openai_client_class(
 
 
 async def _get_builtin_provider_client(
-    obj: GenerativeModelBuiltinProviderInput,
+    model_provider: ModelProvider,
+    model_name: str,
+    client_options: BuiltinClientOptionsInput | None,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
@@ -2655,10 +2937,22 @@ async def _get_builtin_provider_client(
     2. Encrypted secrets in the database
     3. Environment variables
     """
-    headers = dict(obj.custom_headers) if obj.custom_headers else None
-    provider_key = obj.provider_key
-    model_name = obj.name
+    headers = (
+        dict(client_options.custom_headers)
+        if client_options and client_options.custom_headers
+        else None
+    )
+    provider_key = GenerativeProviderKey.from_model_provider(model_provider)
     provider = GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key]
+
+    base_url = client_options.base_url if client_options and client_options.base_url else None
+    endpoint = client_options.endpoint if client_options and client_options.endpoint else None
+    region = client_options.region if client_options and client_options.region else None
+    openai_api_type = (
+        client_options.openai_api_type
+        if client_options and client_options.openai_api_type
+        else None
+    )
 
     if provider_key == GenerativeProviderKey.OPENAI:
         try:
@@ -2671,7 +2965,7 @@ async def _get_builtin_provider_client(
             or (await _resolve_secrets(session, decrypt, "OPENAI_API_KEY")).get("OPENAI_API_KEY")
             or getenv("OPENAI_API_KEY")
         )
-        base_url = obj.base_url or getenv("OPENAI_BASE_URL")
+        base_url = base_url or getenv("OPENAI_BASE_URL")
 
         if not api_key:
             if not base_url:
@@ -2691,7 +2985,7 @@ async def _get_builtin_provider_client(
             )
 
         client_factory: ClientFactory = create_openai_client
-        client_class = get_openai_client_class(provider_key, model_name, obj.openai_api_type)
+        client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
         if client_class is None:
             raise BadRequest(f"No client found for OpenAI model: {model_name}")
         return client_class(
@@ -2713,7 +3007,7 @@ async def _get_builtin_provider_client(
             )
             or getenv("AZURE_OPENAI_API_KEY")
         )
-        endpoint = obj.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
+        endpoint = endpoint or getenv("AZURE_OPENAI_ENDPOINT")
 
         if not endpoint:
             raise BadRequest(
@@ -2759,7 +3053,7 @@ async def _get_builtin_provider_client(
                 )
 
             client_factory = create_client_with_token
-        client_class = get_openai_client_class(provider_key, model_name, obj.openai_api_type)
+        client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
         if client_class is None:
             raise BadRequest(f"No client found for Azure OpenAI model: {model_name}")
         return client_class(
@@ -2863,7 +3157,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("aioboto3 package not installed. Run: pip install aioboto3")
 
-        region = obj.region or getenv("AWS_REGION") or "us-east-1"
+        region = region or getenv("AWS_REGION") or "us-east-1"
 
         # Collect credentials from input
         aws_access_key_id = _get_credential_from_input(credentials, "AWS_ACCESS_KEY_ID")
@@ -2916,7 +3210,7 @@ async def _get_builtin_provider_client(
             )
             or getenv("DEEPSEEK_API_KEY")
         )
-        base_url = obj.base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
+        base_url = base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
 
         if not api_key:
             if base_url == "https://api.deepseek.com":
@@ -2952,7 +3246,7 @@ async def _get_builtin_provider_client(
             or (await _resolve_secrets(session, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
             or getenv("XAI_API_KEY")
         )
-        base_url = obj.base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
+        base_url = base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
 
         if not api_key:
             if base_url == "https://api.x.ai/v1":
@@ -2983,7 +3277,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        base_url = obj.base_url or getenv("OLLAMA_BASE_URL")
+        base_url = base_url or getenv("OLLAMA_BASE_URL")
         if not base_url:
             raise BadRequest(
                 "A base URL is required for Ollama models. "
@@ -3019,7 +3313,7 @@ async def _get_builtin_provider_client(
             )
             or getenv("CEREBRAS_API_KEY")
         )
-        base_url = obj.base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1"
+        base_url = base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1"
 
         if not api_key:
             if base_url == "https://api.cerebras.ai/v1":
@@ -3057,7 +3351,7 @@ async def _get_builtin_provider_client(
             or getenv("FIREWORKS_API_KEY")
         )
         base_url = (
-            obj.base_url or getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1"
+            base_url or getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1"
         )
 
         if not api_key:
@@ -3093,7 +3387,7 @@ async def _get_builtin_provider_client(
             or (await _resolve_secrets(session, decrypt, "GROQ_API_KEY")).get("GROQ_API_KEY")
             or getenv("GROQ_API_KEY")
         )
-        base_url = obj.base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
+        base_url = base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
 
         if not api_key:
             if base_url == "https://api.groq.com/openai/v1":
@@ -3130,7 +3424,7 @@ async def _get_builtin_provider_client(
             )
             or getenv("MOONSHOT_API_KEY")
         )
-        base_url = obj.base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
+        base_url = base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
 
         if not api_key:
             if base_url == "https://api.moonshot.ai/v1":
@@ -3167,7 +3461,7 @@ async def _get_builtin_provider_client(
             )
             or getenv("PERPLEXITY_API_KEY")
         )
-        base_url = obj.base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai"
+        base_url = base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai"
 
         if not api_key:
             if base_url == "https://api.perplexity.ai":
@@ -3204,7 +3498,7 @@ async def _get_builtin_provider_client(
             )
             or getenv("TOGETHER_API_KEY")
         )
-        base_url = obj.base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1"
+        base_url = base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1"
 
         if not api_key:
             if base_url == "https://api.together.xyz/v1":
@@ -3233,34 +3527,28 @@ async def _get_builtin_provider_client(
 
 
 async def _get_custom_provider_client(
-    obj: GenerativeModelCustomProviderInput,
-    session: AsyncSession,
+    provider_record: models.GenerativeModelCustomProvider,
+    model_name: str,
+    client_options: CustomClientOptionsInput | None,
     decrypt: Callable[[bytes], bytes],
 ) -> "PlaygroundStreamingClient[Any]":
     """
     Create a playground client from a custom provider stored in the database.
 
-    Loads the provider configuration, decrypts it, and creates the appropriate
-    SDK client based on the provider type.
+    Decrypts the provider configuration and creates the appropriate SDK client.
 
     Args:
-        obj: Custom provider input containing provider ID and model details.
-        session: Database session.
+        provider_record: The custom provider DB record (already fetched).
+        model_name: The model name to use.
+        client_options: Optional extra headers for the client.
         decrypt: Decryption function for the stored config.
 
     Returns:
         A configured PlaygroundStreamingClient.
 
     Raises:
-        NotFound: If the provider ID doesn't exist.
         BadRequest: If decryption or parsing fails, or client creation fails.
     """
-
-    _, provider_id = from_global_id(obj.provider_id)
-
-    provider_record = await session.get(models.GenerativeModelCustomProvider, provider_id)
-    if not provider_record:
-        raise NotFound(f"Custom provider with ID {obj.provider_id} not found")
 
     try:
         decrypted_data = decrypt(provider_record.config)
@@ -3272,9 +3560,12 @@ async def _get_custom_provider_client(
     except ValidationError:
         raise BadRequest("Failed to parse custom provider config")
 
-    model_name = obj.model_name
     provider = provider_record.provider
-    headers = dict(obj.extra_headers) if obj.extra_headers else None
+    headers = (
+        dict(client_options.extra_headers)
+        if client_options and client_options.extra_headers
+        else None
+    )
     cfg = config.root
 
     if cfg.type == "openai":
@@ -3400,7 +3691,7 @@ def llm_invocation_parameters(
             yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(filtered)
 
 
-def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
+def llm_tools(tools: list[dict[str, Any]]) -> Iterator[tuple[str, Any]]:
     for tool_index, tool in enumerate(tools):
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 

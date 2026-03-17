@@ -106,6 +106,7 @@ query GetExperiment($id: ID!) {
                                     label
                                     score
                                     explanation
+                                    error
                                     traceId
                                     trace {
                                         id
@@ -152,19 +153,26 @@ async def _run_subscription_with_evaluators(
     """
     variables = {
         "input": {
-            "messages": [
-                {"role": "SYSTEM", "content": "You are a helpful assistant."},
-                {"role": "USER", "content": "{{question}}"},
-            ],
-            "model": {
-                "custom": {
-                    "providerId": custom_provider_id,
-                    "modelName": "gpt-4o-mini",
-                }
+            "promptVersion": {
+                "templateFormat": "MUSTACHE",
+                "template": {
+                    "messages": [
+                        {
+                            "role": "SYSTEM",
+                            "content": [{"text": {"text": "You are a helpful assistant."}}],
+                        },
+                        {
+                            "role": "USER",
+                            "content": [{"text": {"text": "{{question}}"}}],
+                        },
+                    ]
+                },
+                "invocationParameters": {},
+                "modelProvider": "OPENAI",
+                "modelName": "gpt-4o-mini",
+                "customProviderId": custom_provider_id,
             },
-            "invocationParameters": [],
             "repetitions": 2,
-            "templateFormat": "MUSTACHE",
             "datasetId": dataset_id,
             "evaluators": [
                 {
@@ -284,11 +292,30 @@ async def _run_subscription_with_evaluators(
         raise AssertionError("Subscription timed out after 120 seconds")
 
 
+def _invocation_params_list_to_dict(
+    params: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Convert list of InvocationParameterInput dicts to a plain dict."""
+    if not params:
+        return {}
+    result: dict[str, Any] = {}
+    for p in params:
+        name = p.get("invocationName")
+        if name is None:
+            continue
+        for value_key in ("valueString", "valueInt", "valueFloat", "valueBool", "valueJson"):
+            if value_key in p and p[value_key] is not None:
+                result[name] = p[value_key]
+                break
+    return result
+
+
 async def _run_subscription_without_evaluators(
     client: httpx.AsyncClient,
     *,
     custom_provider_id: str,
     model_name: str,
+    model_provider: str,
     dataset_id: str,
     invocation_parameters: list[dict[str, Any]] | None = None,
 ) -> str:
@@ -297,21 +324,29 @@ async def _run_subscription_without_evaluators(
     Tests the primary prompt with a specific custom provider.
     Returns the experiment ID.
     """
+    invocation_params_dict = _invocation_params_list_to_dict(invocation_parameters)
     variables = {
         "input": {
-            "messages": [
-                {"role": "SYSTEM", "content": "You are a helpful assistant."},
-                {"role": "USER", "content": "{{question}}"},
-            ],
-            "model": {
-                "custom": {
-                    "providerId": custom_provider_id,
-                    "modelName": model_name,
-                }
+            "promptVersion": {
+                "templateFormat": "MUSTACHE",
+                "template": {
+                    "messages": [
+                        {
+                            "role": "SYSTEM",
+                            "content": [{"text": {"text": "You are a helpful assistant."}}],
+                        },
+                        {
+                            "role": "USER",
+                            "content": [{"text": {"text": "{{question}}"}}],
+                        },
+                    ]
+                },
+                "invocationParameters": invocation_params_dict,
+                "modelProvider": model_provider,
+                "modelName": model_name,
+                "customProviderId": custom_provider_id,
             },
-            "invocationParameters": invocation_parameters or [],
             "repetitions": 1,
-            "templateFormat": "MUSTACHE",
             "datasetId": dataset_id,
             "evaluators": [],
         }
@@ -471,7 +506,7 @@ class TestChatCompletionOverDataset:
 
                     # Verify annotation has label, score, and explanation
                     assert ann_node["label"] is not None, (
-                        f"Evaluator {ann_name} should have a label"
+                        f"Evaluator {ann_name} should have a label, error={ann_node.get('error')}"
                     )
                     assert ann_node["score"] is not None, (
                         f"Evaluator {ann_name} should have a score"
@@ -501,18 +536,21 @@ class TestChatCompletionOverDataset:
                     )
 
     @pytest.mark.parametrize(
-        "provider_key,model_name,invocation_params",
+        "provider_key,model_name,model_provider,invocation_params",
         [
-            pytest.param("openai", "gpt-4o-mini", [], id="openai"),
-            pytest.param("openai_responses", "gpt-4o-mini", [], id="openai_responses"),
+            pytest.param("openai", "gpt-4o-mini", "OPENAI", [], id="openai"),
+            pytest.param("openai_responses", "gpt-4o-mini", "OPENAI", [], id="openai_responses"),
             pytest.param(
                 "anthropic",
                 "claude-3-5-sonnet-latest",
+                "ANTHROPIC",
                 [{"invocationName": "max_tokens", "valueInt": 1024}],
                 id="anthropic",
             ),
-            pytest.param("google_genai", "gemini-2.0-flash", [], id="google_genai"),
-            pytest.param("bedrock", "anthropic.claude-3-haiku-20240307-v1:0", [], id="bedrock"),
+            pytest.param("google_genai", "gemini-2.0-flash", "GOOGLE", [], id="google_genai"),
+            pytest.param(
+                "bedrock", "anthropic.claude-3-haiku-20240307-v1:0", "AWS", [], id="bedrock"
+            ),
         ],
     )
     async def test_provider_without_evaluators(
@@ -522,6 +560,7 @@ class TestChatCompletionOverDataset:
         _dataset_id: str,
         provider_key: str,
         model_name: str,
+        model_provider: str,
         invocation_params: list[dict[str, Any]],
     ) -> None:
         """Test chatCompletionOverDataset with a provider on primary prompt.
@@ -538,6 +577,7 @@ class TestChatCompletionOverDataset:
                 client,
                 custom_provider_id=provider_id,
                 model_name=model_name,
+                model_provider=model_provider,
                 dataset_id=_dataset_id,
                 invocation_parameters=invocation_params,
             )

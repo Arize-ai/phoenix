@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -10,14 +10,12 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.context import Context
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
-    denormalize_response_format,
-    denormalize_tools,
     get_raw_invocation_parameters,
 )
+from phoenix.server.api.context import Context
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
@@ -27,8 +25,8 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     to_gql_template_from_orm,
 )
 
-from .ResponseFormat import ResponseFormat
-from .ToolDefinition import ToolDefinition
+from .ResponseFormat import PromptResponseFormatJSONSchema
+from .ToolDefinition import PromptTools
 
 if TYPE_CHECKING:
     from .User import User
@@ -45,8 +43,8 @@ class PromptVersion(Node):
     template_format: PromptTemplateFormat
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
-    tools: list[ToolDefinition]
-    response_format: Optional[ResponseFormat] = None
+    tools: PromptTools | None = None
+    response_format: PromptResponseFormatJSONSchema | None = None
     model_name: str
     model_provider: ModelProvider
     metadata: JSON
@@ -132,26 +130,13 @@ def to_gql_prompt_version(
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    tool_choice: dict[str, Any] = {}
-    if prompt_version.tools is not None:
-        tool_schemas, tool_choice = denormalize_tools(
-            prompt_version.tools, prompt_version.model_provider
-        )
-        tools = [ToolDefinition(definition=schema) for schema in tool_schemas]
-    else:
-        tools = []
+    tools = PromptTools.from_orm(prompt_version.tools) if prompt_version.tools is not None else None
     response_format = (
-        ResponseFormat(
-            definition=denormalize_response_format(
-                prompt_version.response_format,
-                prompt_version.model_provider,
-            )
-        )
+        PromptResponseFormatJSONSchema.from_orm(prompt_version.response_format)
         if prompt_version.response_format is not None
         else None
     )
     invocation_parameters = get_raw_invocation_parameters(prompt_version.invocation_parameters)
-    invocation_parameters.update(tool_choice)
     return PromptVersion(
         id_attr=prompt_version.id,
         prompt_id=prompt_version.prompt_id,

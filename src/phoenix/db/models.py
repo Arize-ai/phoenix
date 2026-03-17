@@ -67,12 +67,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.db.types.token_price_customization import (
-    TokenPriceCustomization,
-    TokenPriceCustomizationParser,
-)
-from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptInvocationParameters,
     PromptInvocationParametersRootModel,
     PromptResponseFormat,
@@ -85,6 +80,11 @@ from phoenix.server.api.helpers.prompts.models import (
     is_prompt_invocation_parameters,
     is_prompt_template,
 )
+from phoenix.db.types.token_price_customization import (
+    TokenPriceCustomization,
+    TokenPriceCustomizationParser,
+)
+from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
 from phoenix.server.encryption import is_encrypted
 from phoenix.trace.attributes import get_attribute_value
 

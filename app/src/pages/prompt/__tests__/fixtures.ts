@@ -20,10 +20,46 @@ export const BASE_MOCK_PROMPT_VERSION = {
   invocationParameters: {
     temperature: 0.7,
   },
-  tools: [],
+  tools: null,
   responseFormat: null,
 } satisfies FixturePromptVersion;
 
+export const TOOL_FUNCTION = {
+  name: "test",
+  description: "test function",
+  parameters: {
+    type: "object",
+    properties: {
+      foo: {
+        type: "string",
+      },
+    },
+    required: ["foo"],
+  },
+  strict: null,
+};
+
+export const TOOLS_FIXTURE = {
+  tools: [{ function: TOOL_FUNCTION }],
+  toolChoice: null,
+  disableParallelToolCalls: null,
+} satisfies NonNullable<FixturePromptVersion["tools"]>;
+
+export const RESPONSE_FORMAT_FIXTURE = {
+  jsonSchema: {
+    name: "test_format",
+    description: "test format",
+    schema: {
+      type: "object",
+      properties: {
+        format: { type: "string" },
+      },
+    },
+    strict: null,
+  },
+} satisfies NonNullable<FixturePromptVersion["responseFormat"]>;
+
+// Legacy raw provider-specific formats (kept for reference, not used as fixture data)
 export const OPENAI_TOOL = {
   type: "function",
   function: {
@@ -37,31 +73,6 @@ export const OPENAI_TOOL = {
         },
       },
       required: ["foo"],
-    },
-  },
-};
-
-export const ANTHROPIC_TOOL = {
-  name: "test",
-  description: "test function",
-  input: {
-    type: "object",
-    properties: {
-      foo: { type: "string" },
-    },
-  },
-};
-
-export const OPENAI_RESPONSE_FORMAT = {
-  type: "json_schema",
-  json_schema: {
-    name: "test_format",
-    description: "test format",
-    schema: {
-      type: "object",
-      properties: {
-        format: { type: "string" },
-      },
     },
   },
 };

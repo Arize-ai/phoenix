@@ -16,7 +16,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptStringTemplate,

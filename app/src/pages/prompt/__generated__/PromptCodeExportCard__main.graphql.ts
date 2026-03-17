@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c4740ae25699c3c01a9cab6be18e44b>>
+ * @generated SignedSource<<d80ce34c4214f1e3f7a94605a3ae67f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | 
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
+export type PromptToolChoiceType = "NONE" | "ONE_OR_MORE" | "SPECIFIC_FUNCTION" | "ZERO_OR_MORE";
 import { FragmentRefs } from "relay-runtime";
 export type PromptCodeExportCard__main$data = {
   readonly id: string;
@@ -20,7 +21,12 @@ export type PromptCodeExportCard__main$data = {
   readonly modelName: string;
   readonly modelProvider: ModelProvider;
   readonly responseFormat: {
-    readonly definition: any;
+    readonly jsonSchema: {
+      readonly description: string | null;
+      readonly name: string;
+      readonly schema: any | null;
+      readonly strict: boolean | null;
+    };
   } | null;
   readonly template: {
     readonly __typename: "PromptChatTemplate";
@@ -62,9 +68,21 @@ export type PromptCodeExportCard__main$data = {
   };
   readonly templateFormat: PromptTemplateFormat;
   readonly templateType: PromptTemplateType;
-  readonly tools: ReadonlyArray<{
-    readonly definition: any;
-  }>;
+  readonly tools: {
+    readonly disableParallelToolCalls: boolean | null;
+    readonly toolChoice: {
+      readonly functionName: string | null;
+      readonly type: PromptToolChoiceType;
+    } | null;
+    readonly tools: ReadonlyArray<{
+      readonly function: {
+        readonly description: string | null;
+        readonly name: string;
+        readonly parameters: any | null;
+        readonly strict: boolean | null;
+      };
+    }>;
+  } | null;
   readonly " $fragmentType": "PromptCodeExportCard__main";
 };
 export type PromptCodeExportCard__main$key = {
@@ -73,23 +91,35 @@ export type PromptCodeExportCard__main$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "definition",
-    "storageKey": null
-  }
-],
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
 v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "strict",
+  "storageKey": null
+},
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -133,21 +163,108 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "ResponseFormat",
+      "concreteType": "PromptResponseFormatJSONSchema",
       "kind": "LinkedField",
       "name": "responseFormat",
       "plural": false,
-      "selections": (v0/*: any*/),
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PromptResponseFormatJSONSchemaDefinition",
+          "kind": "LinkedField",
+          "name": "jsonSchema",
+          "plural": false,
+          "selections": [
+            (v0/*: any*/),
+            (v1/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "schema",
+              "storageKey": null
+            },
+            (v2/*: any*/)
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "ToolDefinition",
+      "concreteType": "PromptTools",
       "kind": "LinkedField",
       "name": "tools",
-      "plural": true,
-      "selections": (v0/*: any*/),
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PromptToolFunction",
+          "kind": "LinkedField",
+          "name": "tools",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "PromptToolFunctionDefinition",
+              "kind": "LinkedField",
+              "name": "function",
+              "plural": false,
+              "selections": [
+                (v0/*: any*/),
+                (v1/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "parameters",
+                  "storageKey": null
+                },
+                (v2/*: any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PromptToolChoice",
+          "kind": "LinkedField",
+          "name": "toolChoice",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "type",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "functionName",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "disableParallelToolCalls",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     },
     {
@@ -158,7 +275,7 @@ return {
       "name": "template",
       "plural": false,
       "selections": [
-        (v1/*: any*/),
+        (v3/*: any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -188,7 +305,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -214,7 +331,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -223,7 +340,7 @@ return {
                           "name": "toolCall",
                           "plural": false,
                           "selections": [
-                            (v2/*: any*/),
+                            (v4/*: any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -232,13 +349,7 @@ return {
                               "name": "toolCall",
                               "plural": false,
                               "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "name",
-                                  "storageKey": null
-                                },
+                                (v0/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -259,7 +370,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -268,7 +379,7 @@ return {
                           "name": "toolResult",
                           "plural": false,
                           "selections": [
-                            (v2/*: any*/),
+                            (v4/*: any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -330,6 +441,6 @@ return {
 };
 })();
 
-(node as any).hash = "3fa95713c234bb0cfa4c36e8e4f9cea0";
+(node as any).hash = "ff8e5b9568638ecc6bcdcd2371b3789e";
 
 export default node;

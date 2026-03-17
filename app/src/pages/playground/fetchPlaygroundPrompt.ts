@@ -11,20 +11,13 @@ import {
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import {
-  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  RESPONSE_FORMAT_PARAM_NAME,
-  TOOL_CHOICE_PARAM_CANONICAL_NAME,
-  TOOL_CHOICE_PARAM_NAME,
-} from "@phoenix/pages/playground/constants";
-import {
-  areInvocationParamsEqual,
-  toCamelCase,
-} from "@phoenix/pages/playground/invocationParameterUtils";
+import { toCamelCase } from "@phoenix/pages/playground/invocationParameterUtils";
 import {
   applyProviderInvocationParameterConstraints,
   getChatRole,
   normalizeInvocationParameters,
+  toCanonicalToolChoice,
+  toolToPromptToolFunctionInput,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type {
@@ -33,7 +26,6 @@ import type {
   ToolResultPart,
 } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
-import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 import {
   DEFAULT_INSTANCE_PARAMS,
@@ -167,7 +159,12 @@ export const promptVersionToInstance = ({
           name
         }
         responseFormat {
-          definition
+          jsonSchema {
+            name
+            description
+            schema
+            strict
+          }
         }
         template {
           __typename
@@ -204,7 +201,19 @@ export const promptVersionToInstance = ({
           }
         }
         tools {
-          definition
+          tools {
+            function {
+              name
+              description
+              parameters
+              strict
+            }
+          }
+          toolChoice {
+            type
+            functionName
+          }
+          disableParallelToolCalls
         }
       }
     `,
@@ -223,11 +232,19 @@ export const promptVersionToInstance = ({
 
   const modelName = promptVersion.modelName;
   const provider = promptVersion.modelProvider;
-  const toolChoice =
-    safelyConvertToolChoiceToProvider({
-      toolChoice: promptVersion.invocationParameters?.tool_choice,
-      targetProvider: provider,
-    }) ?? undefined;
+  const rawToolChoice = promptVersion.tools?.toolChoice;
+  const toolChoice = rawToolChoice
+    ? ({
+        type: rawToolChoice.type as
+          | "NONE"
+          | "ZERO_OR_MORE"
+          | "ONE_OR_MORE"
+          | "SPECIFIC_FUNCTION",
+        ...(rawToolChoice.functionName != null && {
+          functionName: rawToolChoice.functionName,
+        }),
+      } as const)
+    : undefined;
   return {
     ...newInstance,
     model: {
@@ -241,15 +258,14 @@ export const promptVersionToInstance = ({
           }
         : null,
       supportedInvocationParameters: supportedInvocationParameters || [],
+      responseFormat: promptVersion.responseFormat
+        ? {
+            type: "json_schema",
+            jsonSchema: promptVersion.responseFormat.jsonSchema,
+          }
+        : null,
       invocationParameters: objectToInvocationParameters(
-        {
-          ...promptVersion.invocationParameters,
-          ...(promptVersion.responseFormat?.definition
-            ? {
-                response_format: promptVersion.responseFormat.definition,
-              }
-            : {}),
-        },
+        promptVersion.invocationParameters,
         supportedInvocationParameters || []
       ),
     },
@@ -311,10 +327,15 @@ export const promptVersionToInstance = ({
             })
           : [],
     },
-    tools: promptVersion.tools.map((t) => ({
+    tools: (promptVersion.tools?.tools ?? []).map((t) => ({
       id: generateToolId(),
       editorType: "json",
-      definition: t.definition,
+      definition: {
+        name: t.function.name,
+        description: t.function.description ?? null,
+        parameters: t.function.parameters,
+        strict: t.function.strict ?? null,
+      },
     })),
     toolChoice,
   } satisfies Omit<PlaygroundInstance, "id">;
@@ -384,17 +405,6 @@ export const invocationParametersToObject = (
   );
 };
 
-const HIDDEN_INVOCATION_PARAMETERS = [
-  {
-    invocationName: TOOL_CHOICE_PARAM_NAME,
-    canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
-  },
-  {
-    invocationName: RESPONSE_FORMAT_PARAM_NAME,
-    canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  },
-] as const;
-
 /**
  * Converts a playground instance to a prompt version.
  *
@@ -452,41 +462,16 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     template: {
       messages: templateMessages,
     },
-    tools: instance.tools.map((tool) => ({
-      definition: tool.definition,
-    })),
-    responseFormat:
-      invocationParameters
-        .filter(
-          (invocationParameter) =>
-            invocationParameter.canonicalName ===
-              RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-            invocationParameter.invocationName === RESPONSE_FORMAT_PARAM_NAME
-        )
-        .map((invocationParameter) => ({
-          definition: invocationParameter.valueJson,
-        }))
-        .at(0) || undefined,
+    tools: instance.tools.length
+      ? {
+          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          toolChoice: toCanonicalToolChoice(instance.toolChoice),
+        }
+      : null,
+    responseFormat: instance.model.responseFormat ?? null,
     invocationParameters: invocationParametersToObject(
       applyProviderInvocationParameterConstraints(
-        invocationParameters
-          .filter(
-            (invocationParameter) =>
-              !HIDDEN_INVOCATION_PARAMETERS.some((hidden) =>
-                areInvocationParamsEqual(hidden, invocationParameter)
-              )
-          )
-          .concat(
-            instance.toolChoice
-              ? [
-                  {
-                    invocationName: TOOL_CHOICE_PARAM_NAME,
-                    valueJson: instance.toolChoice,
-                    canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
-                  },
-                ]
-              : []
-          ),
+        invocationParameters,
         instance.model.provider,
         instance.model.modelName
       ),
@@ -522,7 +507,12 @@ const fetchPlaygroundPromptQuery = graphql`
             promptVersionId
           }
           responseFormat {
-            definition
+            jsonSchema {
+              name
+              description
+              schema
+              strict
+            }
           }
           template {
             __typename
@@ -556,7 +546,19 @@ const fetchPlaygroundPromptQuery = graphql`
             }
           }
           tools {
-            definition
+            tools {
+              function {
+                name
+                description
+                parameters
+                strict
+              }
+            }
+            toolChoice {
+              type
+              functionName
+            }
+            disableParallelToolCalls
           }
         }
       }
