@@ -2685,7 +2685,7 @@ type PromptToolFunction {
 type PromptToolFunctionDefinition {
   name: String!
   description: String
-  parameters: JSON
+  parameters: JSON!
   strict: Boolean
 }
 

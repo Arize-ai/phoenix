@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c8034b9da94448cee1d66594dfef1e9>>
+ * @generated SignedSource<<af3411c80f6fd2820d8f6433aeeb0e2c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,7 +33,7 @@ export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
       readonly tools: {
         readonly tools: ReadonlyArray<{
           readonly function: {
-            readonly parameters: any | null;
+            readonly parameters: any;
           };
         }>;
       } | null;

@@ -1740,6 +1740,23 @@ export function buildPromptResponseFormatInput(
   return responseFormat ?? null;
 }
 
+/** When normalizing to canonical, store {} instead of { type: "object" } when it's the only key. */
+function canonicalParameters(parameters: unknown): unknown {
+  if (
+    parameters == null ||
+    typeof parameters !== "object" ||
+    Array.isArray(parameters)
+  ) {
+    return parameters;
+  }
+  const o = parameters as Record<string, unknown>;
+  const keys = Object.keys(o);
+  if (keys.length === 1 && keys[0] === "type" && o.type === "object") {
+    return {};
+  }
+  return parameters;
+}
+
 /**
  * Convert any provider-specific raw tool definition to the canonical form
  * stored on Tool.definition (hub of the hub-and-spoke).
@@ -1757,7 +1774,7 @@ export function toCanonicalToolDefinition(
     return {
       name: openai.data.function.name,
       description: openai.data.function.description ?? null,
-      parameters: openai.data.function.parameters,
+      parameters: canonicalParameters(openai.data.function.parameters),
       // strict lives at the function level in the actual API but isn't in
       // our looseObject schema — extract safely.
       strict: typeof fn.strict === "boolean" ? fn.strict : null,
@@ -1769,7 +1786,7 @@ export function toCanonicalToolDefinition(
     return {
       name: responses.data.name,
       description: responses.data.description ?? null,
-      parameters: responses.data.parameters,
+      parameters: canonicalParameters(responses.data.parameters),
       strict: responses.data.strict,
     };
   }
@@ -1779,7 +1796,7 @@ export function toCanonicalToolDefinition(
     return {
       name: anthropic.data.name,
       description: anthropic.data.description ?? null,
-      parameters: anthropic.data.input_schema,
+      parameters: canonicalParameters(anthropic.data.input_schema),
       strict: null,
     };
   }
@@ -1789,23 +1806,43 @@ export function toCanonicalToolDefinition(
     return {
       name: aws.data.toolSpec.name,
       description: aws.data.toolSpec.description ?? null,
-      parameters: aws.data.toolSpec.inputSchema.json,
+      parameters: canonicalParameters(aws.data.toolSpec.inputSchema.json),
       strict: null,
     };
   }
   // Gemini: { name, description?, parameters? | parameters_json_schema? }
   const gemini = geminiToolDefinitionSchema.safeParse(raw);
   if (gemini.success) {
-    const params = gemini.data.parameters ??
-      gemini.data.parameters_json_schema ?? { type: "object" as const };
+    const params =
+      gemini.data.parameters ?? gemini.data.parameters_json_schema ?? {};
     return {
       name: gemini.data.name,
       description: gemini.data.description ?? null,
-      parameters: params,
+      parameters: canonicalParameters(params),
       strict: null,
     };
   }
   return null;
+}
+
+/**
+ * For display in the JSON editor: ensure parameters/input_schema has "type": "object" when missing.
+ * Used for Anthropic (input_schema) and AWS (inputSchema.json) which require it.
+ * Not used for OpenAI: having only "type": "object" (and nothing else) is not allowed there.
+ */
+function parametersSchemaWithObjectType(
+  parameters: unknown
+): Record<string, unknown> {
+  const obj =
+    parameters != null &&
+    typeof parameters === "object" &&
+    !Array.isArray(parameters)
+      ? (parameters as Record<string, unknown>)
+      : {};
+  if (obj.type === undefined) {
+    return { ...obj, type: "object" };
+  }
+  return obj;
 }
 
 /**
@@ -1825,7 +1862,7 @@ export function getToolDefinitionDisplay(
       ...(toolDefinition.description != null && {
         description: toolDefinition.description,
       }),
-      input_schema: toolDefinition.parameters ?? { type: "object" },
+      input_schema: parametersSchemaWithObjectType(toolDefinition.parameters),
     };
   }
   if (provider === "AWS") {
@@ -1835,7 +1872,9 @@ export function getToolDefinitionDisplay(
         ...(toolDefinition.description != null && {
           description: toolDefinition.description,
         }),
-        inputSchema: { json: toolDefinition.parameters ?? { type: "object" } },
+        inputSchema: {
+          json: parametersSchemaWithObjectType(toolDefinition.parameters),
+        },
       },
     };
   }

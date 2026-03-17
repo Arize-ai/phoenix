@@ -17,15 +17,15 @@ if TYPE_CHECKING:
 class PromptToolFunctionDefinition:
     name: str
     description: str | None
-    parameters: JSON | None
+    parameters: JSON
     strict: bool | None
 
     @classmethod
     def from_orm(cls, d: orm.PromptToolFunctionDefinition) -> PromptToolFunctionDefinition:
         return cls(
             name=d.name,
-            description=d.description if d.description is not UNDEFINED else None,
-            parameters=d.parameters if d.parameters is not UNDEFINED else None,
+            description=d.description if d.description else None,
+            parameters=d.parameters,
             strict=d.strict if isinstance(d.strict, bool) else None,
         )
 

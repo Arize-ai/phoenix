@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d80ce34c4214f1e3f7a94605a3ae67f6>>
+ * @generated SignedSource<<6f21c759ff2c42800cbc9db8b6d5efa8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -78,7 +78,7 @@ export type PromptCodeExportCard__main$data = {
       readonly function: {
         readonly description: string | null;
         readonly name: string;
-        readonly parameters: any | null;
+        readonly parameters: any;
         readonly strict: boolean | null;
       };
     }>;

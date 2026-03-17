@@ -44,6 +44,54 @@ export const jsonSchemaZodSchema = z.looseObject({
 });
 
 /**
+ * Like jsonSchemaZodSchema but with type optional (no default).
+ * Accepts empty {} from SDKs/spans and leaves it as {} instead of injecting type.
+ */
+const toolParametersJsonSchema = z.looseObject({
+  type: z.enum(["object"]).optional(),
+  properties: z
+    .record(
+      z.string(),
+      z.union([
+        jsonSchemaPropertiesSchema,
+        z
+          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .describe("A list of possible parameter names to their definitions"),
+      ])
+    )
+    .optional(),
+  required: z.array(z.string()).optional().describe("The required parameters"),
+  additionalProperties: z
+    .boolean()
+    .optional()
+    .describe("Whether or not additional properties are allowed in the schema"),
+});
+
+/**
+ * Parameters schema with type defaulting to "object" when missing.
+ * Used for Anthropic (input_schema) and AWS (inputSchema.json) which require it.
+ */
+const parametersSchemaWithDefaultObjectType = z.looseObject({
+  type: z.enum(["object"]).optional().default("object"),
+  properties: z
+    .record(
+      z.string(),
+      z.union([
+        jsonSchemaPropertiesSchema,
+        z
+          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .describe("A list of possible parameter names to their definitions"),
+      ])
+    )
+    .optional(),
+  required: z.array(z.string()).optional().describe("The required parameters"),
+  additionalProperties: z
+    .boolean()
+    .optional()
+    .describe("Whether or not additional properties are allowed in the schema"),
+});
+
+/**
  * The schema for an OpenAI tool definition
  * @see https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
  *
@@ -60,7 +108,7 @@ export const openAIToolDefinitionSchema = z.looseObject({
         .string()
         .optional()
         .describe("A description of the function"),
-      parameters: jsonSchemaZodSchema
+      parameters: toolParametersJsonSchema
         .extend({
           strict: z
             .boolean()
@@ -100,7 +148,7 @@ export const openAIResponsesToolDefinitionSchema = z.looseObject({
     .literal("function")
     .describe("The type of the tool. Always `function`."),
   name: z.string().describe("The name of the function to call."),
-  parameters: jsonSchemaZodSchema
+  parameters: toolParametersJsonSchema
     .nullable()
     .describe(
       "A JSON schema object describing the parameters of the function."
@@ -133,7 +181,7 @@ export type OpenAIResponsesToolDefinition = z.infer<
 export const anthropicToolDefinitionSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  input_schema: jsonSchemaZodSchema,
+  input_schema: parametersSchemaWithDefaultObjectType,
 });
 
 /**
@@ -155,7 +203,7 @@ export const awsToolDefinitionSchema = z.object({
     name: z.string(),
     description: z.string().min(1).optional(),
     inputSchema: z.object({
-      json: jsonSchemaZodSchema,
+      json: parametersSchemaWithDefaultObjectType,
     }),
   }),
 });
@@ -171,16 +219,12 @@ export const awsToolDefinitionJSONSchema = z.toJSONSchema(
  * Google GenAI SDK uses `parameters_json_schema`; we accept both for spans
  * that store the raw FunctionDeclaration dump.
  */
-export const geminiToolDefinitionSchema = z
-  .object({
-    name: z.string(),
-    description: z.string().optional(),
-    parameters: jsonSchemaZodSchema.optional(),
-    parameters_json_schema: jsonSchemaZodSchema.optional(),
-  })
-  .refine((d) => d.parameters != null || d.parameters_json_schema != null, {
-    message: "Gemini tool must have parameters or parameters_json_schema",
-  });
+export const geminiToolDefinitionSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  parameters: toolParametersJsonSchema.optional(),
+  parameters_json_schema: toolParametersJsonSchema.optional(),
+});
 
 export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
 
