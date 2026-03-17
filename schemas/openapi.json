@@ -1272,6 +1272,10 @@
                     "type": "string",
                     "description": "Column name for span IDs to link examples back to spans"
                   },
+                  "example_id_key": {
+                    "type": "string",
+                    "description": "Column name for example IDs to use as stable public identifiers"
+                  },
                   "file": {
                     "type": "string",
                     "format": "binary"
