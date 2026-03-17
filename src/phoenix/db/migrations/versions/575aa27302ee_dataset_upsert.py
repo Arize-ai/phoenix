@@ -28,7 +28,7 @@ def upgrade() -> None:
         )
 
     with op.batch_alter_table("dataset_example_revisions") as batch_op:
-        batch_op.add_column(sa.Column("content_hash", sa.String(), nullable=True))
+        batch_op.add_column(sa.Column("content_hash", sa.LargeBinary(), nullable=True))
         batch_op.create_index("ix_dataset_example_revisions_content_hash", ["content_hash"])
 
 
