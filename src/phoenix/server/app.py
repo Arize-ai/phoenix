@@ -654,9 +654,8 @@ def _lifespan(
             import importlib.util
 
             from phoenix.server.sandbox import (
-                sync_sandbox_adapters,
                 sync_sandbox_default_configs,
-                sync_sandbox_settings,
+                sync_sandbox_providers,
             )
 
             if importlib.util.find_spec("wasmtime") is not None:
@@ -665,9 +664,8 @@ def _lifespan(
                 await ensure_wasm_binary(get_working_dir() / "sandbox")
 
             async with db() as session:
-                await sync_sandbox_adapters(session)
+                await sync_sandbox_providers(session)
                 await sync_sandbox_default_configs(session)
-                await sync_sandbox_settings(session)
 
             _warn_if_missing_aioboto3()
             yield {

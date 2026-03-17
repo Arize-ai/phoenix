@@ -1,47 +1,13 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.mutations.sandbox_config_mutations import compute_sandbox_config_hash
-from phoenix.server.sandbox import sync_sandbox_default_configs
+from phoenix.server.sandbox import sync_sandbox_default_configs, sync_sandbox_providers
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-
-
-class TestComputeSandboxConfigHash:
-    """Determinism and correctness tests for compute_sandbox_config_hash."""
-
-    def test_same_inputs_produce_same_hash(self) -> None:
-        h1 = compute_sandbox_config_hash("WASM", 30, {})
-        h2 = compute_sandbox_config_hash("WASM", 30, {})
-        assert h1 == h2
-
-    def test_different_backend_type_produces_different_hash(self) -> None:
-        h_wasm = compute_sandbox_config_hash("WASM", 30, {})
-        h_e2b = compute_sandbox_config_hash("E2B", 30, {})
-        assert h_wasm != h_e2b
-
-    def test_different_timeout_produces_different_hash(self) -> None:
-        h1 = compute_sandbox_config_hash("WASM", 30, {})
-        h2 = compute_sandbox_config_hash("WASM", 60, {})
-        assert h1 != h2
-
-    def test_different_config_produces_different_hash(self) -> None:
-        h1 = compute_sandbox_config_hash("E2B", 30, {"template": "base"})
-        h2 = compute_sandbox_config_hash("E2B", 30, {"template": "custom"})
-        assert h1 != h2
-
-    def test_config_key_ordering_does_not_affect_hash(self) -> None:
-        h1 = compute_sandbox_config_hash("E2B", 30, {"a": "1", "b": "2"})
-        h2 = compute_sandbox_config_hash("E2B", 30, {"b": "2", "a": "1"})
-        assert h1 == h2
-
-    def test_hash_length_is_16_hex_chars(self) -> None:
-        h = compute_sandbox_config_hash("WASM", 30, {})
-        assert len(h) == 16
-        assert all(c in "0123456789abcdef" for c in h)
 
 
 class TestUpdateCodeEvaluatorSandboxBackendType:
@@ -73,21 +39,42 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
     async def default_sandbox_configs(self, db: DbSessionFactory) -> None:
         """Ensure default SandboxConfig rows exist for configless backends (WASM, DENO, DAYTONA)."""
         async with db() as session:
+            # Seed language rows (created by alembic migration in prod, not create_all)
+            for lang in ("PYTHON", "TYPESCRIPT"):
+                existing = await session.scalar(
+                    select(models.Language).where(models.Language.name == lang)
+                )
+                if existing is None:
+                    session.add(models.Language(name=lang))
+            await session.flush()
+            await sync_sandbox_providers(session)
             await sync_sandbox_default_configs(session)
 
     @pytest.fixture
-    async def sandbox_config_e2b(self, db: DbSessionFactory) -> models.SandboxConfig:
-        """Create an E2B SandboxConfig for tests that need to resolve a non-WASM backend."""
-        instance = models.SandboxConfig(
-            backend_type="E2B",
-            name="test-e2b",
-            config={"api_key_env_var": "E2B_API_KEY"},
-            timeout=30,
-            config_hash="abc123def456gh01",
-        )
+    async def sandbox_config_e2b(
+        self, db: DbSessionFactory, default_sandbox_configs: None
+    ) -> models.SandboxConfig:
+        """Create an E2B SandboxConfig for tests that need a non-WASM backend."""
         async with db() as session:
+            provider_id = await session.scalar(
+                select(models.SandboxProvider.id).where(
+                    models.SandboxProvider.backend_type == "E2B"
+                )
+            )
+            assert provider_id is not None, "E2B provider should exist after sync"
+            language_id = await session.scalar(
+                select(models.Language.id).where(models.Language.name == "PYTHON")
+            )
+            instance = models.SandboxConfig(
+                provider_id=provider_id,
+                language_id=language_id,
+                name="test-e2b",
+                config={"api_key_env_var": "E2B_API_KEY"},
+                timeout=30,
+            )
             session.add(instance)
             await session.flush()
+            await session.refresh(instance)
         return instance
 
     @pytest.fixture
@@ -140,7 +127,6 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
             evaluator = await session.get(models.CodeEvaluator, evaluator_rowid)
             assert evaluator is not None
             assert evaluator.sandbox_config_id is not None
-            assert evaluator.sandbox_config_hash is not None
 
     async def test_update_sandbox_backend_type_e2b_sets_config(
         self,
@@ -149,7 +135,7 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
         code_evaluator_gid: str,
         sandbox_config_e2b: models.SandboxConfig,
     ) -> None:
-        """Setting sandbox_backend_type to E2B should set sandbox_config_id and hash."""
+        """Setting sandbox_backend_type to E2B should set sandbox_config_id."""
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
             {
@@ -167,7 +153,6 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
             evaluator = await session.get(models.CodeEvaluator, evaluator_rowid)
             assert evaluator is not None
             assert evaluator.sandbox_config_id == sandbox_config_e2b.id
-            assert evaluator.sandbox_config_hash == sandbox_config_e2b.config_hash
 
     async def test_update_sandbox_backend_type_unset_leaves_unchanged(
         self,
@@ -207,7 +192,6 @@ class TestUpdateCodeEvaluatorSandboxBackendType:
             assert evaluator is not None
             # sandbox_config_id should still be set to E2B config
             assert evaluator.sandbox_config_id == sandbox_config_e2b.id
-            assert evaluator.sandbox_config_hash == sandbox_config_e2b.config_hash
 
     async def test_update_sandbox_backend_type_nonexistent_config_errors(
         self,
@@ -347,40 +331,54 @@ class TestFullFlowSyncCreateExecute:
         db: DbSessionFactory,
     ) -> None:
         """Default configs created at sync time are used when creating evaluators."""
-        from sqlalchemy import select
-
-        from phoenix.server.sandbox import sync_sandbox_adapters, sync_sandbox_default_configs
-
         async with db() as session:
-            # Step 1: Sync adapters and default configs (mirrors startup)
-            await sync_sandbox_adapters(session)
+            # Seed language rows (done by alembic migration in prod, not create_all)
+            for lang in ("PYTHON", "TYPESCRIPT"):
+                existing = await session.scalar(
+                    select(models.Language).where(models.Language.name == lang)
+                )
+                if existing is None:
+                    session.add(models.Language(name=lang))
+            await session.flush()
+
+            # Step 1: Sync providers and default configs (mirrors startup)
+            await sync_sandbox_providers(session)
             await sync_sandbox_default_configs(session)
 
             # Step 2: Verify default configs exist for configless backends
-            configs = (
-                (
+            provider_map = {
+                row[0]: row[1]
+                for row in (
                     await session.execute(
-                        select(models.SandboxConfig).where(models.SandboxConfig.name == "Default")
+                        select(models.SandboxProvider.backend_type, models.SandboxProvider.id)
                     )
+                ).all()
+            }
+            configs = (
+                await session.execute(
+                    select(models.SandboxConfig, models.SandboxProvider.backend_type)
+                    .join(
+                        models.SandboxProvider,
+                        models.SandboxConfig.provider_id == models.SandboxProvider.id,
+                    )
+                    .where(models.SandboxConfig.name == "Default")
                 )
-                .scalars()
-                .all()
-            )
+            ).all()
             configless_types = {"WASM", "DENO", "DAYTONA"}
-            created_types = {c.backend_type for c in configs}
+            created_types = {backend_type for _, backend_type in configs}
             assert configless_types.issubset(created_types), (
                 f"Expected default configs for {configless_types}, got {created_types}"
             )
 
             # Step 3: Verify config-required backends did NOT get default rows
-            for config in configs:
-                assert config.backend_type not in {"E2B", "VERCEL"}, (
-                    f"Config-required backend {config.backend_type} should not have a default row"
+            for _, backend_type in configs:
+                assert backend_type not in {"E2B", "VERCEL"}, (
+                    f"Config-required backend {backend_type} should not have a default row"
                 )
 
-            # Step 4: Verify evaluator creation resolves to the default config
-            wasm_config = next(c for c in configs if c.backend_type == "WASM")
+            # Step 4: Verify WASM default config has expected shape
+            wasm_config = next(c for c, bt in configs if bt == "WASM")
             assert wasm_config.id is not None
-            assert wasm_config.config_hash is not None
             assert wasm_config.config == {}
             assert wasm_config.timeout == 30
+            assert wasm_config.provider_id == provider_map["WASM"]

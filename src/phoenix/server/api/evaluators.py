@@ -799,8 +799,17 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
                 if self._language == "TYPESCRIPT":
                     harness = self._build_typescript_harness(self._source_code, inputs)
-                else:
+                elif self._language == "PYTHON":
                     harness = self._build_python_harness(self._source_code, inputs)
+                else:
+                    end_time = datetime.now(timezone.utc)
+                    return self._make_error_result(
+                        name,
+                        f"Unsupported language: {self._language}",
+                        trace_id,
+                        start_time,
+                        end_time,
+                    )
 
                 with tracer_.start_as_current_span(
                     "Sandbox Execution",
@@ -1289,21 +1298,33 @@ async def get_evaluators(
                     f"Sandbox configuration for code evaluator '{code_eval.name}' was deleted. "
                     f"Please reconfigure the sandbox backend type."
                 )
+            provider = await session.get(models.SandboxProvider, sandbox_instance.provider_id)
+            if provider is None:
+                raise BadRequest(
+                    f"Sandbox provider for code evaluator '{code_eval.name}' was deleted. "
+                    f"Please reconfigure the sandbox backend type."
+                )
             backend = await get_or_create_backend(
-                sandbox_instance.backend_type,
+                provider.backend_type,
                 sandbox_instance.config or {},
                 session,
                 decrypt,
             )
+            lang_obj = (
+                await session.get(models.Language, code_eval.language_id)
+                if code_eval.language_id is not None
+                else None
+            )
+            language_name = lang_obj.name if lang_obj is not None else "PYTHON"
             evaluators.append(
                 CodeEvaluatorRunner(
                     name=str(code_eval.name),
                     description=code_eval.description,
                     source_code=code_eval.source_code,
-                    stored_input_schema=code_eval.input_schema,
+                    stored_input_schema={},
                     stored_output_configs=output_configs,
                     sandbox_backend=backend,
-                    language=code_eval.language,
+                    language=language_name,
                 )
             )
         else:

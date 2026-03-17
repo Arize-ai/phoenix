@@ -25,7 +25,6 @@ from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
-    derive_input_schema,
     validate_consistent_llm_evaluator_and_prompt_version,
     validate_unique_config_names,
 )
@@ -102,10 +101,10 @@ def _convert_output_config_inputs_to_pydantic(
 async def _resolve_sandbox_config(
     session: AsyncSession,
     backend_type: Optional[SandboxBackendType],
-) -> tuple[int, str]:
-    """Resolve sandbox config ID and hash from backend type.
+) -> int:
+    """Resolve sandbox config ID from backend type.
 
-    Queries sandbox_configs by backend_type and returns (id, config_hash).
+    Queries sandbox_configs via sandbox_providers by backend_type and returns the config id.
     Raises BadRequest if no row is found or backend_type is None.
     """
     if backend_type is None:
@@ -113,14 +112,26 @@ async def _resolve_sandbox_config(
             "sandbox_backend_type is required. Please select a sandbox backend in Settings."
         )
     instance = await session.scalar(
-        select(models.SandboxConfig).where(models.SandboxConfig.backend_type == backend_type.value)
+        select(models.SandboxConfig)
+        .join(models.SandboxProvider, models.SandboxConfig.provider_id == models.SandboxProvider.id)
+        .where(models.SandboxProvider.backend_type == backend_type.value)
     )
     if instance is None:
         raise BadRequest(
             f"No sandbox configuration found for backend type "
             f"'{backend_type.value}'. Please configure it in Settings first."
         )
-    return instance.id, instance.config_hash
+    return instance.id
+
+
+async def _resolve_language_id(session: AsyncSession, language: str) -> int:
+    """Look up language id by name. Raises BadRequest if not found."""
+    language_id = await session.scalar(
+        select(models.Language.id).where(models.Language.name == language)
+    )
+    if language_id is None:
+        raise BadRequest(f"Unknown language '{language}'. Expected PYTHON or TYPESCRIPT.")
+    return language_id
 
 
 async def _generate_unique_evaluator_name(
@@ -535,9 +546,10 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                sandbox_config_id, sandbox_config_hash = await _resolve_sandbox_config(
+                sandbox_config_id = await _resolve_sandbox_config(
                     session, input.sandbox_backend_type
                 )
+                language_id = await _resolve_language_id(session, input.language)
 
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
 
@@ -571,14 +583,12 @@ class EvaluatorMutationMixin:
                     description=input.description if input.description is not UNSET else None,
                     metadata_={},
                     source_code=input.source_code,
-                    language=input.language,
+                    language_id=language_id,
                     input_mapping=input_mapping,
                     output_configs=output_configs,
-                    input_schema=derive_input_schema(input.source_code, "evaluate"),
                     user_id=user_id,
                     dataset_evaluators=[dataset_evaluator_record],
                     sandbox_config_id=sandbox_config_id,
-                    sandbox_config_hash=sandbox_config_hash,
                 )
                 code_evaluator.updated_at = datetime.now(timezone.utc)
                 session.add(code_evaluator)
@@ -800,9 +810,10 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                sandbox_config_id, sandbox_config_hash = await _resolve_sandbox_config(
+                sandbox_config_id = await _resolve_sandbox_config(
                     session, input.sandbox_backend_type
                 )
+                language_id = await _resolve_language_id(session, input.language)
 
                 evaluator_name = await _generate_unique_evaluator_name(session, input.name)
                 code_evaluator = models.CodeEvaluator(
@@ -810,13 +821,11 @@ class EvaluatorMutationMixin:
                     description=input.description,
                     metadata_=input.metadata or {},
                     source_code=input.source_code,
-                    language=input.language,
+                    language_id=language_id,
                     input_mapping=input.input_mapping.to_orm(),
                     output_configs=output_configs,
-                    input_schema=derive_input_schema(input.source_code, "evaluate"),
                     user_id=user_id,
                     sandbox_config_id=sandbox_config_id,
-                    sandbox_config_hash=sandbox_config_hash,
                 )
                 code_evaluator.updated_at = datetime.now(timezone.utc)
                 session.add(code_evaluator)
@@ -861,10 +870,9 @@ class EvaluatorMutationMixin:
 
             if input.source_code is not UNSET and input.source_code is not None:
                 code_evaluator.source_code = input.source_code
-                code_evaluator.input_schema = derive_input_schema(input.source_code, "evaluate")
 
             if input.language is not UNSET and input.language is not None:
-                code_evaluator.language = input.language
+                code_evaluator.language_id = await _resolve_language_id(session, input.language)
 
             if input.input_mapping is not UNSET and input.input_mapping is not None:
                 code_evaluator.input_mapping = input.input_mapping.to_orm()
@@ -886,11 +894,9 @@ class EvaluatorMutationMixin:
                 code_evaluator.metadata_ = input.metadata
 
             if input.sandbox_backend_type is not UNSET:
-                config_id, config_hash = await _resolve_sandbox_config(
+                code_evaluator.sandbox_config_id = await _resolve_sandbox_config(
                     session, input.sandbox_backend_type
                 )
-                code_evaluator.sandbox_config_id = config_id
-                code_evaluator.sandbox_config_hash = config_hash
 
             code_evaluator.updated_at = datetime.now(timezone.utc)
             code_evaluator.user_id = user_id

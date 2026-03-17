@@ -206,19 +206,6 @@ class CodeEvaluator(Evaluator, Node):
         return val
 
     @strawberry.field
-    async def input_schema(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[JSON]:
-        if self.db_record:
-            val = self.db_record.input_schema
-        else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.input_schema),
-            )
-        return val
-
-    @strawberry.field
     async def input_mapping(
         self,
         info: Info[Context, None],
@@ -253,12 +240,16 @@ class CodeEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> str:
         if self.db_record:
-            val = self.db_record.language
+            language_id = self.db_record.language_id
         else:
-            val = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.language),
+            language_id = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.language_id),
             )
-        return val
+        if language_id is None:
+            return "PYTHON"
+        async with info.context.db() as session:
+            lang = await session.get(models.Language, language_id)
+        return lang.name if lang is not None else "PYTHON"
 
     @strawberry.field
     async def output_configs(
@@ -289,48 +280,45 @@ class CodeEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> SandboxBackendType:
-        if self.db_record:
-            config_id = self.db_record.sandbox_config_id
-            language = self.db_record.language
-        else:
-            config_id = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.sandbox_config_id),
-            )
-            language = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.language),
-            )
-        if config_id is None:
-            # Infer backend from language for local sandboxes
-            return SandboxBackendType.DENO if language == "TYPESCRIPT" else SandboxBackendType.WASM
-        async with info.context.db() as session:
-            config = await session.get(models.SandboxConfig, config_id)
-        if config is None:
-            # Fallback: infer from language
-            return SandboxBackendType.DENO if language == "TYPESCRIPT" else SandboxBackendType.WASM
-        return SandboxBackendType(config.backend_type)
+        from sqlalchemy import select
 
-    @strawberry.field
-    async def environment_mismatch(
-        self,
-        info: Info[Context, None],
-    ) -> bool:
         if self.db_record:
-            evaluator_hash = self.db_record.sandbox_config_hash
             config_id = self.db_record.sandbox_config_id
+            language_id = self.db_record.language_id
         else:
-            evaluator_hash = await info.context.data_loaders.code_evaluator_fields.load(
-                (self.id, models.CodeEvaluator.sandbox_config_hash),
-            )
             config_id = await info.context.data_loaders.code_evaluator_fields.load(
                 (self.id, models.CodeEvaluator.sandbox_config_id),
             )
-        if evaluator_hash is None or config_id is None:
-            return False
+            language_id = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.language_id),
+            )
         async with info.context.db() as session:
-            config = await session.get(models.SandboxConfig, config_id)
-        if config is None:
-            return True
-        return bool(config.config_hash != evaluator_hash)
+            if language_id is not None:
+                lang = await session.get(models.Language, language_id)
+                language_name = lang.name if lang is not None else "PYTHON"
+            else:
+                language_name = "PYTHON"
+            if config_id is None:
+                return (
+                    SandboxBackendType.DENO
+                    if language_name == "TYPESCRIPT"
+                    else SandboxBackendType.WASM
+                )
+            backend_type = await session.scalar(
+                select(models.SandboxProvider.backend_type)
+                .join(
+                    models.SandboxConfig,
+                    models.SandboxConfig.provider_id == models.SandboxProvider.id,
+                )
+                .where(models.SandboxConfig.id == config_id)
+            )
+        if backend_type is None:
+            return (
+                SandboxBackendType.DENO
+                if language_name == "TYPESCRIPT"
+                else SandboxBackendType.WASM
+            )
+        return SandboxBackendType(backend_type)
 
     @strawberry.field
     async def user(

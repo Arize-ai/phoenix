@@ -1773,9 +1773,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> bool:
-        async with info.context.db() as session:
-            settings = await session.get(models.SandboxSettings, 1)
-            return settings.enabled if settings is not None else True
+        return True
 
     @strawberry.field
     async def sandbox_backends(
@@ -1783,15 +1781,20 @@ class Query:
         info: Info[Context, None],
     ) -> list[SandboxAdapterInfo]:
         async with info.context.db() as session:
-            # Fetch parent sandbox_adapters (per-backend-type enabled flag)
-            parent_result = await session.execute(select(models.SandboxAdapter))
+            # Fetch sandbox_providers (per-backend-type enabled flag)
+            parent_result = await session.execute(select(models.SandboxProvider))
             db_parents = {row.backend_type: row for row in parent_result.scalars().all()}
 
-            # Fetch all sandbox configs grouped by backend_type
-            instance_result = await session.execute(select(models.SandboxConfig))
+            # Fetch all sandbox configs grouped by provider backend_type via join
+            configs_result = await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider.backend_type).join(
+                    models.SandboxProvider,
+                    models.SandboxConfig.provider_id == models.SandboxProvider.id,
+                )
+            )
             instances_by_type: dict[str, list[models.SandboxConfig]] = {}
-            for inst in instance_result.scalars().all():
-                instances_by_type.setdefault(inst.backend_type, []).append(inst)
+            for inst, backend_type in configs_result.all():
+                instances_by_type.setdefault(backend_type, []).append(inst)
 
             installed_adapters = dict(get_sandbox_adapters())
             adapter_infos: list[SandboxAdapterInfo] = []

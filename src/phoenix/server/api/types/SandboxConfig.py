@@ -38,7 +38,6 @@ class SandboxLanguage(Enum):
 class SandboxBackendStatus:
     backend_type: SandboxBackendType
     status: SandboxBackendStatusCode
-    config_hash: Optional[str] = None
 
 
 @strawberry.type
@@ -72,25 +71,21 @@ class SandboxAdapterInfo:
 
 
 @strawberry.type
-class SandboxAdapter:
+class SandboxProvider:
     id: strawberry.ID
     backend_type: SandboxBackendType
     config: JSON
-    timeout: int
-    config_hash: str
     enabled: bool
     created_at: datetime
     updated_at: datetime
 
 
-def to_gql_sandbox_adapter(row: "models.SandboxAdapter") -> "SandboxAdapter":
-    """Convert a DB SandboxAdapter row to the GraphQL SandboxAdapter type."""
-    return SandboxAdapter(
+def to_gql_sandbox_provider(row: "models.SandboxProvider") -> "SandboxProvider":
+    """Convert a DB SandboxProvider row to the GraphQL SandboxProvider type."""
+    return SandboxProvider(
         id=strawberry.ID(str(row.id)),
         backend_type=SandboxBackendType(row.backend_type),
         config=row.config,
-        timeout=row.timeout,
-        config_hash=row.config_hash,
         enabled=row.enabled,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -100,13 +95,13 @@ def to_gql_sandbox_adapter(row: "models.SandboxAdapter") -> "SandboxAdapter":
 @strawberry.type
 class SandboxConfig:
     id: strawberry.ID
-    backend_type: SandboxBackendType
+    provider_id: strawberry.ID
+    language_id: strawberry.ID
     name: str
     description: Optional[str]
     config: JSON
     timeout: int
     enabled: bool
-    config_hash: str
     created_at: datetime
     updated_at: datetime
 
@@ -117,35 +112,34 @@ def to_gql_sandbox_config(
     """Convert a DB SandboxConfig row to the GraphQL SandboxConfig type."""
     return SandboxConfig(
         id=strawberry.ID(str(row.id)),
-        backend_type=SandboxBackendType(row.backend_type),
+        provider_id=strawberry.ID(str(row.provider_id)),
+        language_id=strawberry.ID(str(row.language_id)),
         name=row.name,
         description=row.description,
         config=row.config,
         timeout=row.timeout,
         enabled=row.enabled,
-        config_hash=row.config_hash,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
 
 
 @strawberry.input
-class CreateSandboxAdapterInput:
+class CreateSandboxProviderInput:
     backend_type: SandboxBackendType
     config: JSON = strawberry.field(default_factory=dict)
-    timeout: int = 30
 
 
 @strawberry.input
-class UpdateSandboxAdapterInput:
+class UpdateSandboxProviderInput:
     id: strawberry.ID
     config: Optional[JSON] = None
-    timeout: Optional[int] = None
 
 
 @strawberry.input
 class CreateSandboxConfigInput:
-    backend_type: SandboxBackendType
+    provider_id: strawberry.ID
+    language_id: strawberry.ID
     name: str
     description: Optional[str] = None
     config: Optional[JSON] = None

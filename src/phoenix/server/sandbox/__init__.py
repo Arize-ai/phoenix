@@ -165,67 +165,77 @@ async def has_credentials(
     return True
 
 
-async def sync_sandbox_adapters(session: AsyncSession) -> None:
-    """Ensure one sandbox_configs row exists per known adapter type.
+async def sync_sandbox_providers(session: AsyncSession) -> None:
+    """Ensure one sandbox_providers row exists per known adapter type.
 
-    Iterates SANDBOX_ADAPTER_METADATA (all four adapters, always present)
-    so uninstalled adapters still get DB rows and appear in the Settings UI
+    Iterates SANDBOX_ADAPTER_METADATA (all adapters, always present) so
+    uninstalled adapters still get DB rows and appear in the Settings UI
     with NOT_INSTALLED status. Existing rows are not modified.
     """
-    from phoenix.db.models import SandboxAdapter
+    from phoenix.db.models import SandboxProvider
 
-    existing_result = await session.execute(select(SandboxAdapter.backend_type))
+    existing_result = await session.execute(select(SandboxProvider.backend_type))
     existing_types: set[str] = {row[0] for row in existing_result.fetchall()}
 
     for key in SANDBOX_ADAPTER_METADATA:
         if key not in existing_types:
-            session.add(SandboxAdapter(backend_type=key))
-            logger.info(f"Inserted default sandbox_adapters row for {key}")
+            session.add(SandboxProvider(backend_type=key))
+            logger.info(f"Inserted default sandbox_providers row for {key}")
 
     await session.flush()
 
 
 async def sync_sandbox_default_configs(session: AsyncSession) -> None:
-    """Ensure one default sandbox_configs row exists per configless backend type.
+    """Ensure one default sandbox_configs row exists per configless backend type per language.
 
-    Iterates SANDBOX_ADAPTER_METADATA and for each entry with config_required=False,
-    inserts a SandboxConfig(backend_type=key, name="Default", config={}, timeout=30,
-    enabled=True) if no row with that (backend_type, name) pair exists.
+    For each SANDBOX_ADAPTER_METADATA entry with config_required=False, inserts a
+    SandboxConfig(provider_id=<provider.id>, language_id=<language.id>, name="Default")
+    for each supported language if no such row exists.
     """
-    from phoenix.db.models import SandboxConfig
+    from phoenix.db.models import Language, SandboxConfig, SandboxProvider
 
+    # Load provider id map: backend_type -> id
+    providers_result = await session.execute(
+        select(SandboxProvider.backend_type, SandboxProvider.id)
+    )
+    provider_id_map: dict[str, int] = {row[0]: row[1] for row in providers_result.fetchall()}
+
+    # Load language id map: name -> id
+    languages_result = await session.execute(select(Language.name, Language.id))
+    language_id_map: dict[str, int] = {row[0]: row[1] for row in languages_result.fetchall()}
+
+    # Load existing (provider_id, language_id) pairs for "Default" configs
     existing_result = await session.execute(
-        select(SandboxConfig.backend_type, SandboxConfig.name).where(
+        select(SandboxConfig.provider_id, SandboxConfig.language_id).where(
             SandboxConfig.name == "Default"
         )
     )
-    existing_keys: set[str] = {row[0] for row in existing_result.fetchall()}
+    existing_pairs: set[tuple[int, int]] = {(row[0], row[1]) for row in existing_result.fetchall()}
 
     for key, meta in SANDBOX_ADAPTER_METADATA.items():
-        if not meta.config_required and key not in existing_keys:
-            session.add(
-                SandboxConfig(
-                    backend_type=key,
-                    name="Default",
-                    config={},
-                    timeout=30,
-                    enabled=True,
+        if meta.config_required:
+            continue
+        provider_id = provider_id_map.get(key)
+        if provider_id is None:
+            continue
+        for lang_name in meta.supported_languages:
+            language_id = language_id_map.get(lang_name)
+            if language_id is None:
+                continue
+            if (provider_id, language_id) not in existing_pairs:
+                session.add(
+                    SandboxConfig(
+                        provider_id=provider_id,
+                        language_id=language_id,
+                        name="Default",
+                        config={},
+                        timeout=30,
+                        enabled=True,
+                    )
                 )
-            )
-            logger.info(f"Inserted default sandbox_configs row for {key}")
+                logger.info(f"Inserted default sandbox_configs row for {key}/{lang_name}")
 
     await session.flush()
-
-
-async def sync_sandbox_settings(session: AsyncSession) -> None:
-    """Ensure the singleton SandboxSettings row (id=1) exists."""
-    from phoenix.db.models import SandboxSettings
-
-    existing = await session.get(SandboxSettings, 1)
-    if existing is None:
-        session.add(SandboxSettings(id=1))
-        logger.info("Inserted default sandbox_settings singleton row")
-        await session.flush()
 
 
 __all__ = [
@@ -239,9 +249,8 @@ __all__ = [
     "get_sandbox_adapters",
     "has_credentials",
     "register_sandbox_adapter",
-    "sync_sandbox_adapters",
+    "sync_sandbox_providers",
     "sync_sandbox_default_configs",
-    "sync_sandbox_settings",
 ]
 
 try:

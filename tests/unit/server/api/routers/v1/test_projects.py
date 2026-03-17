@@ -795,11 +795,25 @@ class TestProjects:
 
             from sqlalchemy import select
 
-            from phoenix.server.sandbox import sync_sandbox_default_configs
+            from phoenix.server.sandbox import sync_sandbox_default_configs, sync_sandbox_providers
 
+            # Seed languages and providers
+            for lang in ("PYTHON", "TYPESCRIPT"):
+                existing = await session.scalar(
+                    select(models.Language).where(models.Language.name == lang)
+                )
+                if existing is None:
+                    session.add(models.Language(name=lang))
+            await session.flush()
+            await sync_sandbox_providers(session)
             await sync_sandbox_default_configs(session)
             wasm_config = await session.scalar(
-                select(models.SandboxConfig).where(models.SandboxConfig.backend_type == "WASM")
+                select(models.SandboxConfig)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxConfig.provider_id == models.SandboxProvider.id,
+                )
+                .where(models.SandboxProvider.backend_type == "WASM")
             )
             assert wasm_config is not None
 
@@ -809,7 +823,6 @@ class TestProjects:
                 metadata_={},
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 sandbox_config_id=wasm_config.id,
-                sandbox_config_hash=wasm_config.config_hash,
             )
             session.add(code_evaluator)
             await session.flush()
