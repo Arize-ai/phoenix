@@ -21,6 +21,12 @@ from typing import Any, Dict, List, Literal, Optional, Protocol, TypedDict, Unio
 
 import pystache  # type: ignore
 from opentelemetry.trace import Tracer
+from pystache.parser import (  # type: ignore[import-untyped]
+    _EscapeNode,
+    _InvertedNode,
+    _LiteralNode,
+    _SectionNode,
+)
 
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
 
@@ -85,9 +91,35 @@ class TemplateFormatter(ABC):
         """
         pass
 
+    def extract_variables_with_types(
+        self, template: str
+    ) -> Dict[str, Literal["string", "section"]]:
+        """Extract variable names with type info from a template.
+
+        Default implementation treats all variables as "string" type.
+        Override in subclasses for richer type information (e.g., Mustache sections).
+
+        Args:
+            template (str): The template string to analyze.
+
+        Returns:
+            Dict mapping variable names to "string" or "section".
+        """
+        return {var: "string" for var in self.extract_variables(template)}
+
 
 class MustacheFormatter(TemplateFormatter):
-    """Formatter for mustache-style templates using pystache."""
+    """Formatter for mustache-style templates using pystache.
+
+    HTML escaping is disabled so that values are rendered as-is.  This is the
+    correct behaviour for LLM evaluation prompts, where ``{{var}}`` should
+    produce the raw value (e.g. a JSON string) rather than an HTML-escaped
+    version (e.g. ``&quot;`` instead of ``"``).
+    """
+
+    def __init__(self) -> None:
+        # Renderer with HTML escaping disabled — matches the server-side formatter.
+        self._renderer = pystache.Renderer(escape=lambda x: x)
 
     def render(self, template: str, variables: Dict[str, Any]) -> str:
         """Render a mustache template with variables.
@@ -97,9 +129,9 @@ class MustacheFormatter(TemplateFormatter):
             variables (Dict[str, Any]): The variables to substitute.
 
         Returns:
-            str: The rendered template.
+            str: The rendered template. Values are **not** HTML-escaped.
         """
-        return pystache.render(template, variables)  # type: ignore
+        return self._renderer.render(template, variables)  # type: ignore
 
     def extract_variables(self, template: str) -> List[str]:
         """Extract variable names from a mustache template.
@@ -110,31 +142,57 @@ class MustacheFormatter(TemplateFormatter):
         Returns:
             List[str]: A list of unique variable names found in the template.
         """
-        parsed = pystache.parse(template)
-        variables: List[str] = []
-        self._extract_from_parsed(parsed, variables)
-        return list(set(variables))
+        # Keep variable extraction aligned with type extraction so dotted paths
+        # like {{user.name}} are represented by their root ("user"), which is
+        # what callers can provide as an input key.
+        return list(self.extract_variables_with_types(template).keys())
 
-    def _extract_from_parsed(self, parsed: Any, variables: List[str]) -> None:
-        """Recursively extract variable names from parsed mustache template.
+    def extract_variables_with_types(
+        self, template: str
+    ) -> Dict[str, Literal["string", "section"]]:
+        """Extract variable names with type info from a mustache template.
+
+        Section variables (``{{#var}}`` / ``{{^var}}``) are typed as ``"section"``
+        and should accept any Python value (list, dict, etc.) so pystache can
+        iterate or conditionally render them. All other variables (``{{var}}``,
+        ``{{{var}}}``) are typed as ``"string"`` and will be JSON-serialized if
+        they are not already strings.
+
+        When the same variable name appears as both a section and a string node
+        (uncommon but valid), ``"section"`` takes precedence.
 
         Args:
-            parsed (Any): The parsed template object.
-            variables (List[str]): List to accumulate variable names in.
-        """
-        try:
-            # ParsedTemplate stores elements in _parse_tree attribute
-            elements = parsed
-            if hasattr(parsed, "_parse_tree"):
-                elements = parsed._parse_tree
+            template: The mustache template string.
 
-            for element in elements:
-                if hasattr(element, "key") and element.key:
-                    variables.append(element.key)
-                elif hasattr(element, "parsed") and element.parsed:
-                    self._extract_from_parsed(element.parsed, variables)
-        except (AttributeError, TypeError):
-            pass
+        Returns:
+            Dict mapping each top-level variable name to ``"string"`` or
+            ``"section"``.
+        """
+        parsed = pystache.parse(template)
+        parse_tree: List[Any] = []
+        if hasattr(parsed, "_parse_tree"):
+            parse_tree = parsed._parse_tree
+        elif isinstance(parsed, list):
+            parse_tree = parsed
+
+        variables: Dict[str, Literal["string", "section"]] = {}
+        for node in parse_tree:
+            if isinstance(node, (_SectionNode, _InvertedNode)):
+                key = getattr(node, "key", None)
+                if key and isinstance(key, str):
+                    root = key if key == "." else key.split(".")[0]
+                    variables[root] = "section"
+            elif isinstance(node, (_EscapeNode, _LiteralNode)):
+                key = getattr(node, "key", None)
+                if key and isinstance(key, str):
+                    root = key if key == "." else key.split(".")[0]
+                    # Dotted lookups (e.g. {{user.name}}) require the root
+                    # object to remain structured so Mustache can traverse it.
+                    if "." in key and key != ".":
+                        variables[root] = "section"
+                    else:
+                        variables.setdefault(root, "string")
+        return variables
 
 
 class FStringFormatter(TemplateFormatter):
@@ -286,6 +344,15 @@ class ContentPartTemplate(ABC):
         pass
 
     @abstractmethod
+    def variable_types(self) -> Dict[str, Literal["string", "section"]]:
+        """Extract variable names with type info from this content part template.
+
+        Returns:
+            Dict mapping variable names to ``"string"`` or ``"section"``.
+        """
+        pass
+
+    @abstractmethod
     def render(self, variables: Dict[str, Any]) -> ContentPart:
         """Render this template to a concrete ContentPart.
 
@@ -325,6 +392,14 @@ class TextContentPartTemplate(ContentPartTemplate):
     def variables(self) -> List[str]:
         """Extract variables from the text template."""
         return self._formatter.extract_variables(self.text)
+
+    def variable_types(self) -> Dict[str, Literal["string", "section"]]:
+        """Extract variables with type info from the text template.
+
+        Returns:
+            Dict mapping variable names to ``"string"`` or ``"section"``.
+        """
+        return self._formatter.extract_variables_with_types(self.text)
 
     def render(self, variables: Dict[str, Any]) -> TextContentPart:
         """Render the text template to a TextContentPart."""
@@ -493,6 +568,23 @@ class MessageTemplate:
             variables_set.update(template.variables())
         return list(variables_set)
 
+    def variable_types(self) -> Dict[str, Literal["string", "section"]]:
+        """Extract variable types across all content parts in this message.
+
+        Merges types from every content part, with ``"section"`` taking
+        precedence over ``"string"`` when the same variable name appears in
+        multiple parts.
+
+        Returns:
+            Dict mapping variable names to ``"string"`` or ``"section"``.
+        """
+        merged: Dict[str, Literal["string", "section"]] = {}
+        for template in self._content_templates:
+            for var, var_type in template.variable_types().items():
+                if var_type == "section" or var not in merged:
+                    merged[var] = var_type
+        return merged
+
     def render(self, variables: Dict[str, Any]) -> Message:
         """Render the message template with the given variables.
 
@@ -607,6 +699,7 @@ class PromptTemplate:
     _messages: List[MessageTemplate]
     _is_string: bool
     _variables: List[str]
+    _variable_types: Dict[str, Literal["string", "section"]]
     template_format: Optional[TemplateFormat]
 
     def __init__(
@@ -635,6 +728,7 @@ class PromptTemplate:
             self._messages = template._messages
             self._is_string = template._is_string
             self._variables = template._variables
+            self._variable_types = template._variable_types
             # Use provided template_format if given, otherwise preserve original
             self.template_format = (
                 template_format if template_format is not None else template.template_format
@@ -700,6 +794,14 @@ class PromptTemplate:
         else:
             raise TypeError(f"Template must be str or list, got {type(template)}")
 
+        # Cache variable type info (section vs string) from the message templates.
+        merged: Dict[str, Literal["string", "section"]] = {}
+        for msg_template in self._messages:
+            for var, var_type in msg_template.variable_types().items():
+                if var_type == "section" or var not in merged:
+                    merged[var] = var_type
+        self._variable_types = merged
+
     @property
     def template(self) -> PromptLike:
         """Get the raw template.
@@ -717,6 +819,24 @@ class PromptTemplate:
             List[str]: A list of variable names found in the template.
         """
         return self._variables
+
+    @property
+    def variable_types(self) -> Dict[str, Literal["string", "section"]]:
+        """Get the type classification for each template variable.
+
+        Section variables (``{{#var}}``, ``{{^var}}``) are classified as
+        ``"section"`` and accept any Python value (list, dict, bool, etc.) so
+        pystache can iterate or conditionally render them.  All other variables
+        are classified as ``"string"`` and will be JSON-serialised when a
+        non-string value is supplied.
+
+        When the same variable appears in multiple messages or content parts,
+        ``"section"`` takes precedence over ``"string"``.
+
+        Returns:
+            Dict mapping each variable name to ``"string"`` or ``"section"``.
+        """
+        return self._variable_types
 
     def render(self, variables: Dict[str, Any], tracer: Optional[Tracer] = None) -> List[Message]:
         """Render the template with the given variables.
