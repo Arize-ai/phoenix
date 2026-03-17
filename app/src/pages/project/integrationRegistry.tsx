@@ -1,9 +1,11 @@
 import { Icon, Icons } from "@phoenix/components";
 import {
+  LangChainSVG,
   LangGraphSVG,
   VercelSVG,
 } from "@phoenix/components/project/IntegrationIcons";
 import {
+  getLangchainCodeTypescript,
   getLanggraphCodePython,
   getLanggraphCodeTypescript,
   getOtelInitCodePython,
@@ -62,6 +64,27 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "@langchain/openai",
         ],
         getImplementationCode: getLanggraphCodeTypescript,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/langchain",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain",
+      },
+    },
+  },
+  {
+    id: "langchain",
+    name: "LangChain",
+    icon: <LangChainSVG />,
+    supportedLanguages: ["TypeScript"],
+    snippets: {
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-langchain",
+          "@langchain/core",
+          "@langchain/openai",
+        ],
+        getImplementationCode: getLangchainCodeTypescript,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/typescript/langchain",
         githubHref:

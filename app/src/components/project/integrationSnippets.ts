@@ -118,6 +118,35 @@ const result = await agent.invoke(
 await provider.forceFlush();`;
 }
 
+export function getLangchainCodeTypescript({
+  projectName,
+  isHosted,
+}: {
+  projectName: string;
+  isHosted: boolean;
+}): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
+import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
+import { ChatOpenAI } from "@langchain/openai";
+
+const provider = register({
+  projectName: "${projectName}",
+  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
+});
+
+// LangChain must be manually instrumented as it doesn't have
+// a traditional module structure
+const lcInstrumentation = new LangChainInstrumentation();
+lcInstrumentation.manuallyInstrument(CallbackManagerModule);
+
+const model = new ChatOpenAI({ model: "gpt-4o-mini" });
+const result = await model.invoke("Explain the theory of relativity in simple terms.");
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}
+
 export function getVercelAiSdkCodeTypescript({
   projectName,
   isHosted,
