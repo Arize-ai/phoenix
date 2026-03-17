@@ -147,6 +147,103 @@ const result = await model.invoke("Explain the theory of relativity in simple te
 await provider.forceFlush();`;
 }
 
+export function getOpenaiCodeTypescript({
+  projectName,
+  isHosted,
+}: {
+  projectName: string;
+  isHosted: boolean;
+}): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+import OpenAI from "openai";
+
+const provider = register({
+  projectName: "${projectName}",
+  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
+});
+
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.manuallyInstrument(OpenAI);
+
+const openai = new OpenAI();
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+});
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}
+
+export function getAnthropicCodeTypescript({
+  projectName,
+  isHosted,
+}: {
+  projectName: string;
+  isHosted: boolean;
+}): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
+import Anthropic from "@anthropic-ai/sdk";
+
+const provider = register({
+  projectName: "${projectName}",
+  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
+});
+
+const instrumentation = new AnthropicInstrumentation();
+instrumentation.manuallyInstrument(Anthropic);
+
+const anthropic = new Anthropic();
+const message = await anthropic.messages.create({
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+});
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}
+
+export function getMastraCodeTypescript({
+  projectName,
+  isHosted,
+}: {
+  projectName: string;
+  isHosted: boolean;
+}): string {
+  return `import { ArizeExporter } from "@mastra/arize";
+import { Agent } from "@mastra/core/agent";
+import { Mastra } from "@mastra/core/mastra";
+import { Observability } from "@mastra/observability";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+  model: openai("gpt-4o-mini"),
+});
+
+const mastra = new Mastra({
+  agents: { agent },
+  observability: new Observability({
+    configs: {
+      arize: {
+        serviceName: "${projectName}",
+        exporters: [
+          new ArizeExporter({
+            endpoint: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}/v1/traces",
+          }),
+        ],
+      },
+    },
+  }),
+});
+
+// Run via: mastra dev`;
+}
+
 export function getVercelAiSdkCodeTypescript({
   projectName,
   isHosted,
