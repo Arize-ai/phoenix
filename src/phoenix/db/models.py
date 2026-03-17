@@ -2321,13 +2321,16 @@ class LLMEvaluator(Evaluator):
     )
 
 
-class SandboxAdapter(HasId):
-    __tablename__ = "sandbox_adapters"
+class Language(HasId):
+    __tablename__ = "languages"
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+
+
+class SandboxProvider(HasId):
+    __tablename__ = "sandbox_providers"
     backend_type: Mapped[str] = mapped_column(nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
-    timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
-    config_hash: Mapped[str] = mapped_column(String(16), nullable=False, server_default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2337,28 +2340,22 @@ class SandboxAdapter(HasId):
 
 class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
-    backend_type: Mapped[str] = mapped_column(nullable=False)
+    provider_id: Mapped[int] = mapped_column(
+        ForeignKey("sandbox_providers.id", ondelete="CASCADE"), nullable=False
+    )
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
+    language_id: Mapped[int] = mapped_column(
+        ForeignKey("languages.id", ondelete="RESTRICT"), nullable=False
+    )
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
-    config_hash: Mapped[str] = mapped_column(String(16), nullable=False, server_default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (UniqueConstraint("backend_type", "name"),)
-
-
-class SandboxSettings(HasId):
-    __tablename__ = "sandbox_settings"
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-    __table_args__ = (CheckConstraint("id = 1", name="sandbox_settings_singleton"),)
+    __table_args__ = (UniqueConstraint("provider_id", "name"),)
 
 
 class CodeEvaluator(Evaluator):
@@ -2370,12 +2367,10 @@ class CodeEvaluator(Evaluator):
         nullable=False,
     )
     source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
-    language: Mapped[str] = mapped_column(
-        CheckConstraint(
-            "language IN ('PYTHON', 'TYPESCRIPT')", name="valid_code_evaluator_language"
-        ),
-        nullable=False,
-        server_default="PYTHON",
+    language_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("languages.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
     input_mapping: Mapped[InputMapping] = mapped_column(
         _InputMapping, nullable=False, server_default='{"literal_mapping": {}, "path_mapping": {}}'
@@ -2383,17 +2378,16 @@ class CodeEvaluator(Evaluator):
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
         _AnnotationConfigList, nullable=False, server_default="[]"
     )
-    input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     sandbox_config_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    sandbox_config_hash: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
+    language: Mapped[Optional["Language"]] = relationship("Language")
     sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship("SandboxConfig")
 
     __mapper_args__ = {
