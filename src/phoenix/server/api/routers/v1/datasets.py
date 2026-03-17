@@ -38,6 +38,7 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     InvalidDatasetExampleIDError,
     add_dataset_examples,
+    compute_content_hashes,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
@@ -546,11 +547,15 @@ async def upload_dataset(
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
+    # Pre-compute content hashes outside the DB session/lock to avoid holding
+    # the lock during CPU-bound hash computation (especially important for SQLite
+    # where an asyncio.Lock serializes all DB access).
+    examples_with_hashes = compute_content_hashes(list(examples))
     operation = cast(
         Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
             add_dataset_examples,
-            examples=examples,
+            examples_with_hashes=examples_with_hashes,
             action=action,
             name=name,
             description=description,
@@ -576,8 +581,6 @@ async def upload_dataset(
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:
-        if isinstance(examples, Coroutine):
-            examples.close()
         raise HTTPException(detail="Too many requests.", status_code=429)
     return None
 

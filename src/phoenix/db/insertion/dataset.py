@@ -53,6 +53,25 @@ class ExampleWithHash:
     content_hash: ContentHash
 
 
+def compute_content_hashes(examples: Sequence[ExampleContent]) -> list[ExampleWithHash]:
+    """Pre-compute content hashes for examples outside of a DB transaction.
+
+    This should be called before acquiring a database session/lock to avoid
+    holding the lock during CPU-bound hash computation.
+    """
+    return [
+        ExampleWithHash(
+            content=example,
+            content_hash=compute_example_content_hash(
+                input=example.input,
+                output=example.output,
+                metadata=example.metadata,
+            ),
+        )
+        for example in examples
+    ]
+
+
 @dataclass(frozen=True)
 class ExampleWithExternalID:
     content: ExampleContent
@@ -239,6 +258,7 @@ async def bulk_insert_dataset_example_revisions(
     dataset_version_id: DatasetVersionId,
     example_ids: Sequence[DatasetExampleId],
     examples: Sequence[ExampleContent],
+    content_hashes: Sequence[ContentHash],
     revision_kind: RevisionKind = RevisionKind.CREATE,
     created_at: Optional[datetime] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
@@ -251,6 +271,9 @@ async def bulk_insert_dataset_example_revisions(
         dataset_version_id: The version to add revisions to
         example_ids: List of example IDs (must match order of examples)
         examples: List of example content
+        content_hashes: Pre-computed content hashes (must match order of examples).
+            Should be computed outside the DB transaction to avoid holding locks
+            during CPU-bound work.
         revision_kind: The kind of revision (CREATE, PATCH, DELETE)
         created_at: Timestamp for all revisions
         batch_size: Number of records per batch insert
@@ -266,12 +289,19 @@ async def bulk_insert_dataset_example_revisions(
             f"example_ids and examples must have same length: {len(example_ids)} != {len(examples)}"
         )
 
+    if len(example_ids) != len(content_hashes):
+        raise ValueError(
+            f"example_ids and content_hashes must have same length: "
+            f"{len(example_ids)} != {len(content_hashes)}"
+        )
+
     all_ids: list[DatasetExampleRevisionId] = []
 
     # Process in batches
     for i in range(0, len(example_ids), batch_size):
         batch_example_ids = example_ids[i : i + batch_size]
         batch_examples = examples[i : i + batch_size]
+        batch_hashes = content_hashes[i : i + batch_size]
 
         records = [
             {
@@ -280,13 +310,13 @@ async def bulk_insert_dataset_example_revisions(
                 "input": example.input,
                 "output": example.output,
                 "metadata_": example.metadata,
-                "content_hash": compute_example_content_hash(
-                    input=example.input, output=example.output, metadata=example.metadata
-                ),
+                "content_hash": content_hash,
                 "revision_kind": revision_kind.value,
                 "created_at": created_at,
             }
-            for example_id, example in zip(batch_example_ids, batch_examples)
+            for example_id, example, content_hash in zip(
+                batch_example_ids, batch_examples, batch_hashes
+            )
         ]
 
         result = await session.execute(
@@ -493,13 +523,28 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
 async def add_dataset_examples(
     session: AsyncSession,
     name: str,
-    examples: Examples,
+    examples_with_hashes: Sequence[ExampleWithHash],
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
     splits_provided: bool = True,
 ) -> DatasetExampleAdditionEvent:
+    """Insert dataset examples into the database.
+
+    Args:
+        session: Database session (already inside a transaction).
+        name: Dataset name.
+        examples_with_hashes: Examples with pre-computed content hashes.
+            Hashes should be computed before acquiring the DB session/lock
+            via ``compute_content_hashes()`` to avoid holding locks during
+            CPU-bound work.
+        description: Optional dataset description.
+        metadata: Optional dataset metadata.
+        action: Whether to CREATE (upsert) or APPEND examples.
+        user_id: Optional user ID.
+        splits_provided: Whether split information is provided.
+    """
     created_at = datetime.now(timezone.utc)
 
     dataset_id: Optional[DatasetId] = await session.scalar(
@@ -523,7 +568,7 @@ async def add_dataset_examples(
         return await _upsert_dataset_examples(
             session=session,
             dataset_id=dataset_id,
-            examples=examples,
+            examples_with_hashes=examples_with_hashes,
             user_id=user_id,
             created_at=created_at,
             splits_provided=splits_provided,
@@ -540,8 +585,8 @@ async def add_dataset_examples(
         logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
 
-    # Collect all examples first to batch resolve span IDs
-    examples_list = list(examples)
+    examples_list = [ewh.content for ewh in examples_with_hashes]
+    content_hashes = [ewh.content_hash for ewh in examples_with_hashes]
 
     if not examples_list:
         return DatasetExampleAdditionEvent(
@@ -578,6 +623,7 @@ async def add_dataset_examples(
             dataset_version_id=dataset_version_id,
             example_ids=example_ids,
             examples=examples_list,
+            content_hashes=content_hashes,
             created_at=created_at,
         )
     except Exception:
@@ -684,7 +730,7 @@ class _ExampleMatcher:
 
 
 def _diff_examples(
-    incoming_examples: list[ExampleWithHash],
+    incoming_examples: Sequence[ExampleWithHash],
     previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]],
 ) -> UpsertDiff:
     """Diff incoming examples against the previous version to classify as CREATE, PATCH, or DELETE.
@@ -816,30 +862,19 @@ async def _rebuild_dataset_splits(
 async def _upsert_dataset_examples(
     session: AsyncSession,
     dataset_id: DatasetId,
-    examples: Examples,
+    examples_with_hashes: Sequence[ExampleWithHash],
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
     splits_provided: bool = True,
 ) -> DatasetExampleAdditionEvent:
-    examples_ = list(examples)
     if created_at is None:
         created_at = datetime.now(timezone.utc)
 
-    # Load previous state and hash incoming examples
+    # Load previous state (hashes were pre-computed outside the transaction)
     previous = await _get_external_ids_and_content_hashes_for_most_recent_version(
         session, dataset_id
     )
-    incoming_examples = [
-        ExampleWithHash(
-            content=example,
-            content_hash=compute_example_content_hash(
-                input=example.input,
-                output=example.output,
-                metadata=example.metadata,
-            ),
-        )
-        for example in examples_
-    ]
+    incoming_examples = examples_with_hashes
 
     # Diff incoming vs previous → creates, patches, deletes
     diff = _diff_examples(incoming_examples, previous)
