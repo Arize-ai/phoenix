@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { authFetch } from "@phoenix/authFetch";
 import { Icon, Icons, View } from "@phoenix/components";
+import { Shimmer } from "@phoenix/components/ai/shimmer";
 import { MessageBar } from "@phoenix/components/chat";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
@@ -154,7 +155,7 @@ function EmptyState() {
 }
 
 function Loading() {
-  return <p className="chat__loading">...</p>;
+  return <Shimmer size="M">Thinking...</Shimmer>;
 }
 
 function ErrorMessage({ error }: { error: Error }) {

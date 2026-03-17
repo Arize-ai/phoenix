@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback } from "react";
+import { Panel, PanelGroup } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
+import { AgentChatPanel } from "@phoenix/components/agent";
 import {
   Brand,
   DocsLink,
@@ -76,11 +78,16 @@ export function Layout() {
           <SideNavToggleButton />
           <NavBreadcrumb />
         </TopNavbar>
-        <div data-testid="content" css={contentCSS}>
-          <Suspense fallback={<Loading />}>
-            <Outlet />
-          </Suspense>
-        </div>
+        <PanelGroup direction="horizontal">
+          <Panel>
+            <div data-testid="content" css={contentCSS}>
+              <Suspense fallback={<Loading />}>
+                <Outlet />
+              </Suspense>
+            </div>
+          </Panel>
+          <AgentChatPanel />
+        </PanelGroup>
       </div>
     </div>
   );
