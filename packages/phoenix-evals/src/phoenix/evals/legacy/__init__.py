@@ -81,5 +81,3 @@ from .templates import (
 from .utils import NOT_PARSABLE, download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")
-
-__all__: list[str] = []

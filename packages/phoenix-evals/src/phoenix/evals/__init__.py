@@ -15,7 +15,7 @@ from .evaluators import (
     create_evaluator,
     evaluate_dataframe,
 )
-from .legacy import (  # noqa: F401
+from .legacy import (  # type: ignore[attr-defined]  # noqa: F401
     CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE,
     CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
     CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
