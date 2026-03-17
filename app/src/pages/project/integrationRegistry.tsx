@@ -155,7 +155,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         docsHref:
           "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
         githubHref:
-          "https://github.com/Arize-ai/phoenix/tree/main/tutorials/agents/mastra/example-agent",
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
       },
     },
   },
