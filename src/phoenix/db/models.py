@@ -430,6 +430,26 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
 
+class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[AnnotationConfigType]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            return None
+        return [AnnotationConfigModel(root=config).model_dump() for config in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[AnnotationConfigType]]:
+        if value is None:
+            return None
+        return [AnnotationConfigModel.model_validate(config).root for config in value]
+
+
 class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
