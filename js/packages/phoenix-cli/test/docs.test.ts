@@ -1,6 +1,5 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
-
 import { describe, expect, it } from "vitest";
 
 import type { DocEntry } from "../src/commands/docs";
@@ -14,10 +13,7 @@ import {
 } from "../src/commands/docs";
 
 // Read the real Phoenix llms.txt via symlink
-const LLMS_TXT = readFileSync(
-  resolve(__dirname, "fixtures/llms.txt"),
-  "utf-8"
-);
+const LLMS_TXT = readFileSync(resolve(__dirname, "fixtures/llms.txt"), "utf-8");
 
 describe("docs", () => {
   describe("parseLlmsTxt", () => {
@@ -31,6 +27,8 @@ describe("docs", () => {
         description: expect.any(String),
         section: "Overview",
       });
+      // Verify we parse a reasonable number of entries
+      expect(entries.length).toBeGreaterThan(50);
     });
 
     it("should assign subsection entries to parent ## section", () => {
@@ -74,7 +72,7 @@ describe("docs", () => {
 
     it("should handle entries without descriptions", () => {
       const content =
-        "## Section\n- Title: `https://arize.com/docs/phoenix/page`\n";
+        "## Section\n- [Title](https://arize.com/docs/phoenix/page)\n";
       const entries = parseLlmsTxt(content);
       expect(entries).toEqual([
         {

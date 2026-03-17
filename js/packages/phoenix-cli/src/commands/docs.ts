@@ -60,10 +60,10 @@ const DEFAULT_WORKFLOWS = [
 /**
  * Parse an llms.txt file into doc entries.
  *
- * The real Phoenix llms.txt format uses:
+ * The Phoenix llms.txt follows the llmstxt.org standard format:
  *   ## Section           — top-level sections
  *   ### Subsection       — subsections (inherit parent ## section)
- *   - Title: `url` - Description
+ *   - [Title](url): Description
  */
 export function parseLlmsTxt(content: string): DocEntry[] {
   const entries: DocEntry[] = [];
@@ -79,9 +79,9 @@ export function parseLlmsTxt(content: string): DocEntry[] {
       continue;
     }
 
-    // Parse: - Title: `url` - Description
+    // Parse: - [Title](url): Description
     const entryMatch = line.match(
-      /^-\s+(.+?):\s+`(https?:\/\/[^`]+)`(?:\s+-\s+(.*))?$/
+      /^-\s+\[([^\]]+)\]\((https?:\/\/[^)]+)\)(?::\s+(.*))?$/
     );
     if (entryMatch) {
       entries.push({
