@@ -29,48 +29,38 @@ export function getEnvironmentVariables({
 // -- Implementation code --
 
 export function getOtelInitCodePython({
-  isHosted,
   projectName,
 }: {
-  isHosted: boolean;
   projectName: string;
 }): string {
   return `from phoenix.otel import register\n
 tracer_provider = register(
   project_name="${projectName}",
-  endpoint="${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
   auto_instrument=True
 )`;
 }
 
 export function getOtelInitCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from '@arizeai/phoenix-otel';
 
 register({
   projectName: '${projectName}',
-  url: '${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}',
-  apiKey: process.env.PHOENIX_API_KEY,
 });`;
 }
 
 export function getLanggraphCodePython({
-  isHosted,
   projectName,
 }: {
-  isHosted: boolean;
   projectName: string;
 }): string {
   return `from phoenix.otel import register
 
 tracer_provider = register(
   project_name="${projectName}",
-  endpoint="${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
   auto_instrument=True
 )
 
@@ -87,10 +77,8 @@ result = agent.invoke(
 
 export function getLanggraphCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
@@ -100,7 +88,6 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 // LangChain must be manually instrumented as it doesn't have
@@ -120,10 +107,8 @@ await provider.forceFlush();`;
 
 export function getLangchainCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
@@ -132,7 +117,6 @@ import { ChatOpenAI } from "@langchain/openai";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 // LangChain must be manually instrumented as it doesn't have
@@ -149,10 +133,8 @@ await provider.forceFlush();`;
 
 export function getOpenaiCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
@@ -160,7 +142,6 @@ import OpenAI from "openai";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 const instrumentation = new OpenAIInstrumentation();
@@ -178,10 +159,8 @@ await provider.forceFlush();`;
 
 export function getAnthropicCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
@@ -189,7 +168,6 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 const instrumentation = new AnthropicInstrumentation();
@@ -208,10 +186,8 @@ await provider.forceFlush();`;
 
 export function getMastraCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { ArizeExporter } from "@mastra/arize";
 import { Agent } from "@mastra/core/agent";
@@ -233,7 +209,8 @@ const mastra = new Mastra({
         serviceName: "${projectName}",
         exporters: [
           new ArizeExporter({
-            endpoint: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}/v1/traces",
+            endpoint: \`\${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces\`,
+            projectName: "${projectName}",
           }),
         ],
       },
@@ -246,10 +223,8 @@ const mastra = new Mastra({
 
 export function getVercelAiSdkCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { generateText } from "ai";
@@ -257,7 +232,6 @@ import { openai } from "@ai-sdk/openai";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 const result = await generateText({
