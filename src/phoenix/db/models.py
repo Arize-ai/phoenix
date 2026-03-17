@@ -1423,7 +1423,7 @@ class DatasetExampleRevision(HasId):
     input: Mapped[dict[str, Any]]
     output: Mapped[dict[str, Any]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    content_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    content_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True, index=True)
     revision_kind: Mapped[str] = mapped_column(
         CheckConstraint(
             "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
