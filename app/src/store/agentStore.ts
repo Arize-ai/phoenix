@@ -4,30 +4,52 @@ import { devtools, persist } from "zustand/middleware";
 
 import type { ModelConfig } from "./playground/types";
 
+/**
+ * Layout position of the agent panel.
+ * - "detached": floating overlay window
+ * - "pinned": docked to the side of the viewport
+ */
 export type AgentPosition = "detached" | "pinned";
 
+/**
+ * A single message within an agent conversation.
+ */
 export type AgentMessage = {
   id: number;
   role: string;
   content: unknown;
 };
 
+/**
+ * An agent conversation session containing messages, context references,
+ * and its own model configuration (initially cloned from the default).
+ */
 export type AgentSession = {
   id: string;
+  /** Brief human-readable summary of the conversation so far. */
   shortSummary: string;
+  /** Ordered list of message IDs belonging to this session. */
   messageIds: number[];
+  /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
+  /** Model configuration scoped to this session. */
   modelConfig: ModelConfig;
 };
 
+/** Auto-incrementing session ID counter. */
 let agentSessionId = 0;
+/** Returns the next unique session ID. */
 export const generateSessionId = () => agentSessionId++;
+/** Resets the session ID counter. Test-only. */
 export const _resetSessionId = () => {
   agentSessionId = 0;
 };
 
+/** Auto-incrementing message ID counter. */
 let agentMessageId = 1;
+/** Returns the next unique message ID. */
 export const generateAgentMessageId = () => agentMessageId++;
+/** Resets the message ID counter. Test-only. */
 export const _resetAgentMessageId = () => {
   agentMessageId = 1;
 };
@@ -39,16 +61,31 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
   supportedInvocationParameters: [],
 };
 
+/**
+ * Serializable properties that define the agent's state.
+ * These are the values persisted to local storage.
+ */
 export interface AgentProps {
+  /** Whether the agent panel is currently visible. */
   isOpen: boolean;
+  /** Current layout position of the agent panel. */
   position: AgentPosition;
+  /** Ordered list of session IDs. */
   sessions: string[];
+  /** ID of the currently active session, or null if none. */
   activeSessionId: string | null;
+  /** Lookup table of sessions by their ID. */
   sessionMap: Record<string, AgentSession>;
+  /** Lookup table of messages by their ID (shared across all sessions). */
   messageMap: Record<number, AgentMessage>;
+  /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
 }
 
+/**
+ * Full agent state including props and all mutation actions.
+ * Consumed via the AgentContext / useAgentContext hook.
+ */
 export interface AgentState extends AgentProps {
   setIsOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
@@ -70,6 +107,15 @@ export interface AgentState extends AgentProps {
   clearAllSessions: () => void;
 }
 
+/**
+ * Creates a Zustand store for managing agent UI state and conversation sessions.
+ *
+ * The store is wrapped with devtools (for Redux DevTools inspection) and
+ * persist (to local storage under "arize-phoenix-agent"). The `isOpen`
+ * property is excluded from persistence so the panel always starts closed.
+ *
+ * @param initialProps - Optional overrides for the default store properties.
+ */
 export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   const agentStore: StateCreator<
     AgentState,
