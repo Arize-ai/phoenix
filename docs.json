@@ -165,7 +165,8 @@
                 "group": "Agent Evaluation Framework",
                 "pages": [
                   "docs/phoenix/evaluation/agent-evaluation-framework",
-                  "docs/phoenix/evaluation/agent-evaluation-framework/agent-failure-taxonomy"
+                  "docs/phoenix/evaluation/agent-evaluation-framework/agent-failure-taxonomy",
+                  "docs/phoenix/evaluation/agent-evaluation-framework/reliability-and-confidence"
                 ]
               },
               {

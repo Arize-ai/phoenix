@@ -1,0 +1,198 @@
+---
+title: "Reliability and Confidence in Agent Evaluation"
+description: "Why single-run evaluations mislead, how pass@k and pass^k capture different dimensions of agent quality, and how to use evaluator variance as a confidence signal."
+---
+
+AI agents are non-deterministic systems. The same agent, given the same task, may succeed on one run and fail on the next. Yet most teams evaluate agents with a single run per task—drawing conclusions from what is effectively a coin flip.
+
+This page makes the case for **repetition as a first-class evaluation strategy**. Non-determinism isn't just noise to be eliminated; it's a signal to be measured. We'll cover two complementary perspectives: repeating the agent under test to measure reliability, and repeating the evaluator itself to measure confidence in your scores.
+
+## The Two Layers of Non-Determinism
+
+When you run an agent evaluation, non-determinism enters at two distinct levels:
+
+1. **The agent under test.** Given the same task, an LLM-powered agent may take different actions, call tools in a different order, or reason differently across runs. A task that passes on one trial may fail on the next—not because the agent changed, but because model sampling introduces variation.
+
+2. **The evaluator.** If you use an LLM-as-a-judge to grade agent outputs, the judge itself is non-deterministic. The same transcript may receive different scores across runs, particularly for subjective or ambiguous criteria.
+
+A single evaluation run compounds both sources of variance. You don't know whether a failure reflects a genuine agent limitation or an unlucky sample—and you don't know whether your evaluator's score is stable or an artifact of a single judge invocation.
+
+Addressing these two layers requires different strategies, but both start with the same insight: **run it more than once.**
+
+## Measuring Agent Reliability: pass@k and pass^k
+
+Two metrics have emerged as the standard for characterizing agent performance under non-determinism. Both originate from code generation research and have been adopted by major agent benchmarks including SWE-bench, τ-bench, and WebArena.
+
+### pass@k: Can the Agent Solve This at All?
+
+**pass@k** measures the probability that an agent produces **at least one correct solution** in _k_ attempts. As _k_ increases, pass@k rises—more shots on goal means higher odds of at least one success.
+
+Formally, for a task with per-trial success probability _p_:
+
+$$
+\text{pass@k} = 1 - (1 - p)^k
+$$
+
+**When to use it:** pass@k answers the question _"Is this task within the agent's capability?"_ It's the right metric when you care about whether the agent _can_ solve a problem, not whether it _will_ on any given attempt. This applies to scenarios where the user can retry, where you generate multiple candidates and select the best, or where you're assessing capability ceilings during development.
+
+### pass^k: Will the Agent Solve This Every Time?
+
+**pass^k** measures the probability that **all _k_ trials succeed**. As _k_ increases, pass^k _falls_—demanding consistency across more trials is a harder bar to clear.
+
+Formally:
+
+$$
+\text{pass\^{}k} = p^k
+$$
+
+**When to use it:** pass^k answers the question _"Can I trust this agent to succeed reliably?"_ It's the right metric for production systems where users expect consistent behavior—customer-facing agents, autonomous workflows, safety-critical applications. A 75% per-trial success rate sounds acceptable until you realize that across 5 consecutive interactions, the probability of zero failures is only $(0.75)^5 \approx 24\%$.
+
+### How They Diverge
+
+At _k_ = 1, both metrics are identical—they equal the per-trial success rate. But as _k_ increases, they tell **opposite stories**:
+
+| Per-trial success rate (_p_) | k | pass@k | pass^k |
+|:--|:--|:--|:--|
+| 75% | 1 | 75.0% | 75.0% |
+| 75% | 3 | 98.4% | 42.2% |
+| 75% | 5 | 99.9% | 23.7% |
+| 75% | 10 | ≈100% | 5.6% |
+| 50% | 1 | 50.0% | 50.0% |
+| 50% | 3 | 87.5% | 12.5% |
+| 50% | 5 | 96.9% | 3.1% |
+| 50% | 10 | 99.9% | 0.1% |
+
+By _k_ = 10, an agent with a 75% success rate looks nearly perfect under pass@k (≈100%) but deeply unreliable under pass^k (5.6%). **The gap between these two numbers is your reliability gap**—the distance between what your agent _can_ do and what it _will_ do consistently.
+
+This divergence has practical implications for how you interpret benchmark results. When a benchmark reports "pass@3 = 98%," it means the agent can solve most tasks if given three chances. It does _not_ mean the agent will reliably succeed in production, where each user interaction is a single trial.
+
+### A Worked Example
+
+Consider a customer support agent evaluated on 100 tasks across 3 trials each:
+
+| Task | Trial 1 | Trial 2 | Trial 3 | pass@3 | pass^3 |
+|:--|:--|:--|:--|:--|:--|
+| Refund request | ✓ | ✗ | ✓ | 1 | 0 |
+| Order status | ✓ | ✓ | ✓ | 1 | 1 |
+| Address change | ✗ | ✗ | ✓ | 1 | 0 |
+| Escalation | ✗ | ✗ | ✗ | 0 | 0 |
+
+Across the full suite, suppose 92 of 100 tasks have at least one success (pass@3 = 92%) but only 61 have all three succeed (pass^3 = 61%). That 31-point gap reveals that nearly a third of the agent's "capabilities" are unreliable—tasks it can sometimes solve but will frequently fail.
+
+**Reporting both metrics together** gives stakeholders a complete picture. pass@k sets the ceiling (what's achievable), pass^k sets the floor (what's dependable), and the gap between them quantifies the reliability work remaining.
+
+## Measuring Evaluator Confidence: The Noise Is the Signal
+
+The same logic that applies to agent non-determinism also applies to evaluator non-determinism. When an LLM judge scores an agent's output, that score is itself a sample from a distribution. Running the judge once gives you a point estimate; running it multiple times reveals the distribution.
+
+### Why Evaluator Variance Matters
+
+Most teams treat evaluator non-determinism as a nuisance—something to suppress by setting temperature to zero. But research suggests this is exactly wrong.
+
+An empirical study by Yamauchi et al. ("An Empirical Study of LLM-as-a-Judge: How Design Choices Impact Evaluation Reliability," 2025) found that **non-deterministic scoring with score averaging consistently outperforms greedy (deterministic) decoding** in alignment with human judgments. Across multiple evaluator models (GPT-4o and LLaMA-3.1-70B), evaluation designs, and reasoning strategies, sampling multiple scores and averaging them produced higher correlation with human evaluators than taking a single deterministic output.
+
+The key results:
+
+| Evaluator | Greedy (deterministic) | Mean of 5 samples |
+|:--|:--|:--|
+| GPT-4o | 0.635 correlation | 0.666 correlation |
+| LLaMA-3.1-70B | 0.593 correlation | 0.641 correlation |
+
+The improvement is consistent and meaningful. Score averaging captures nuance that a single deterministic score cannot—when a model is "torn" between a 4 and a 5, the average of 4.4 is more informative than being forced to choose one.
+
+### Variance as a Diagnostic Tool
+
+Beyond improving accuracy, evaluator variance is a powerful **diagnostic signal**. When you run an evaluator repeatedly on the same example:
+
+- **Low variance** (scores cluster tightly) → The evaluator is confident. The example is unambiguous for the given criteria.
+- **High variance** (scores spread widely) → The evaluator is uncertain. This indicates either:
+  - A **genuinely ambiguous example** where reasonable judges might disagree, or
+  - A **prompt clarity issue** where the evaluation criteria are underspecified.
+
+This is the insight captured in the phrase **"the noise is the signal."** High variance doesn't mean your evaluator is broken—it means it's surfacing information that a single deterministic call would hide.
+
+**Practical application:** Run your evaluator 10–50 times on the same set of examples with sampling enabled. Sort examples by score variance. The high-variance examples are your priority for:
+- Human review (to establish ground truth on ambiguous cases)
+- Prompt refinement (to clarify criteria that the evaluator finds confusing)
+- Identifying edge cases in your evaluation rubric
+
+This technique requires **no human annotations**—it's a zero-label method for auditing evaluator quality. It complements the classifier-based meta-evaluation approach described in our [meta-evaluation methodology](/docs/phoenix/evaluation/agent-evaluation-framework/meta-evaluation) guide.
+
+## Practical Guidance: How Many Repetitions?
+
+The right number of repetitions depends on your goals, budget, and the maturity of your evaluation suite.
+
+### For Agent Evaluation
+
+| Goal | Recommended trials per task | Rationale |
+|:--|:--|:--|
+| Development iteration | 3–5 | Enough to distinguish reliable passes from lucky ones. A task that passes 1 out of 3 trials is clearly less reliable than one that passes 3 out of 3. |
+| Pre-deployment validation | 5–10 | Gives meaningful pass^k estimates. With 5 trials, you can distinguish a 90% success rate from a 60% success rate with reasonable confidence. |
+| Benchmark reporting | 10+ | Standard in research benchmarks. τ-bench uses pass^k with k=5 as its primary metric. SWE-bench reports pass@1 as the standard. |
+| Safety-critical applications | 20+ | For applications where failures have significant consequences, more trials provide tighter confidence intervals on the true success rate. |
+
+### For Evaluator Calibration
+
+| Goal | Recommended runs per example | Rationale |
+|:--|:--|:--|
+| Quick confidence check | 5–10 | Identifies the highest-variance examples for review. Cheap enough to run on your full evaluation set. |
+| Evaluator benchmarking | 10–20 | Produces stable mean scores for correlation analysis against human labels. |
+| Stress testing | 50+ | Recommended for validating evaluators before production deployment. Reveals the full score distribution for each example. |
+
+### Cost Considerations
+
+Repetition multiplies cost linearly. A 100-task evaluation suite with 5 trials per task costs 5× a single run. Strategies to manage cost:
+
+- **Stratify your repetitions.** Run more trials on tasks with high variance or borderline scores, fewer on tasks that consistently pass or fail.
+- **Use evaluator repetition selectively.** Run your evaluator multiple times only during calibration and auditing phases, not on every evaluation run.
+- **Separate capability and reliability measurement.** Use pass@k with fewer trials during rapid development. Switch to pass^k with more trials for release decisions.
+- **Leverage cost differences.** If your evaluator uses an LLM judge, score averaging with 5 samples of a smaller model may be cheaper and more accurate than a single call to a larger model.
+
+## Reporting Results: A Template
+
+When reporting agent evaluation results, include enough information for readers to assess both capability and reliability:
+
+```
+Evaluation Summary
+──────────────────
+Suite: Customer Support Agent v2.3
+Tasks: 100 | Trials per task: 5
+Model: Claude Sonnet 4 | Temperature: 1.0
+
+Aggregate Results
+  pass@1: 78.0%    (single-attempt capability)
+  pass@5: 96.0%    (capability ceiling)
+  pass^5: 42.0%    (strict reliability)
+  Mean success rate: 81.2% (averaged per-trial rate across tasks)
+
+Reliability Distribution
+  100% reliable (5/5): 42 tasks
+  80% reliable  (4/5): 26 tasks
+  60% reliable  (3/5): 14 tasks
+  40% reliable  (2/5):  9 tasks
+  20% reliable  (1/5):  5 tasks
+  0% reliable   (0/5):  4 tasks
+
+Evaluator Confidence
+  Mean score variance: 0.12 (across 10 evaluator runs)
+  High-variance examples (>1σ): 8 tasks flagged for review
+```
+
+This format gives stakeholders the full picture: the agent can solve 96% of tasks (pass@5) but will reliably succeed on only 42% (pass^5). The reliability distribution shows where improvement efforts should focus—the 28 tasks in the 40–80% reliability range represent the highest-leverage targets for prompt engineering or tool improvements.
+
+## Key Takeaways
+
+<CardGroup cols={2}>
+  <Card title="Run More Than Once" icon="repeat">
+    Single-run evaluations are statistically unreliable for non-deterministic systems. Even 3 trials per task dramatically improves the signal quality of your evaluation suite.
+  </Card>
+  <Card title="Report Both Metrics" icon="chart-line">
+    pass@k measures capability (can the agent solve this?). pass^k measures reliability (will it solve this consistently?). The gap between them quantifies your reliability debt.
+  </Card>
+  <Card title="Embrace Evaluator Variance" icon="wave-pulse">
+    Non-deterministic evaluator scoring with score averaging outperforms deterministic scoring for alignment with human judgment. Variance is diagnostic, not just noise.
+  </Card>
+  <Card title="Budget Repetitions Strategically" icon="calculator">
+    Start with 3–5 trials during development, scale to 10+ for release decisions. Use evaluator repetition selectively during calibration phases.
+  </Card>
+</CardGroup>
