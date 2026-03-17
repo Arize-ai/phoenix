@@ -6,8 +6,7 @@ from typing import Any
 import pandas as pd
 from phoenix.client import Client
 from phoenix.client.experiments import create_evaluator
-
-from phoenix.experiments.types import ExampleInput
+from phoenix.client.resources.experiments.types import ExampleInput
 
 phoenix_client = Client()
 

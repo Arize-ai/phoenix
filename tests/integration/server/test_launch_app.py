@@ -13,10 +13,9 @@ from _pytest.tmpdir import TempPathFactory
 from faker import Faker
 from opentelemetry.trace import format_span_id, format_trace_id
 from pandas.core.dtypes.common import is_datetime64_any_dtype
+from phoenix.client import Client as _PhoenixClient
+from phoenix.client.types.spans import SpanQuery
 from sqlalchemy import URL
-
-import phoenix as px
-from phoenix.trace.dsl import SpanQuery
 
 from .._helpers import (
     _ADMIN_ONLY_ENDPOINTS,
@@ -163,9 +162,11 @@ class TestLaunchApp:
                 assert gql_span_names == span_names
 
                 q = SpanQuery()
-                results = px.Client(endpoint=app.base_url).query_spans(
-                    q, q, project_name=project_name
-                )
+                _client = _PhoenixClient(base_url=app.base_url)
+                results = [
+                    _client.spans.get_spans_dataframe(query=q, project_name=project_name),
+                    _client.spans.get_spans_dataframe(query=q, project_name=project_name),
+                ]
                 assert isinstance(results, list)
                 assert len(results) == 2
                 for df in results:
