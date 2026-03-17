@@ -29,6 +29,12 @@ export async function handleAgentToolCall({
       });
       return;
     default:
+      await addToolOutput({
+        state: "output-error",
+        tool: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
+        errorText: `Unknown tool: ${toolCall.toolName}`,
+      });
       return;
   }
 }

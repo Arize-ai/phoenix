@@ -5,6 +5,5 @@ export interface BashToolCommandResult {
 }
 
 export interface BashToolRuntime {
-  cwd: string;
   executeCommand: (command: string) => Promise<BashToolCommandResult>;
 }

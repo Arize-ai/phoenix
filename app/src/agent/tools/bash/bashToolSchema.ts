@@ -21,7 +21,8 @@ export interface BashToolInput {
 
 export const bashToolDefinition = {
   name: "bash",
-  description: "Run a shell command in the browser virtual filesystem",
+  description:
+    "Run a shell command in the browser virtual filesystem. Files persist across invocations, but the working directory resets between commands.",
   parameters: {
     type: "object",
     properties: {

@@ -10,9 +10,8 @@ export async function createBashToolRuntime(): Promise<BashToolRuntime> {
   });
 
   return {
-    cwd: DEFAULT_BASH_TOOL_CWD,
     executeCommand: async (command): Promise<BashToolCommandResult> => {
-      const result = await bash.exec(command, { cwd: DEFAULT_BASH_TOOL_CWD });
+      const result = await bash.exec(command);
 
       return {
         stdout: result.stdout,
