@@ -53,6 +53,7 @@ export async function getDatasetExamples({
     versionId: examplesData.version_id,
     examples: examplesData.examples.map((example) => ({
       ...example,
+      nodeId: example.node_id,
       updatedAt: new Date(example.updated_at),
     })),
   };

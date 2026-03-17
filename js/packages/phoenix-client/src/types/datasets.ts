@@ -58,12 +58,22 @@ export interface Example {
    * in the Phoenix UI, enabling traceability from datasets back to traces.
    */
   spanId?: string | null;
+  /**
+   * Optional stable ID for this example.
+   * When provided, used as the example's stable public ID,
+   * enabling upsert behaviour across dataset versions.
+   */
+  id?: string | null;
 }
 
 /**
  * An example that has been synced to the server
  */
-export interface ExampleWithId extends Example, Node {
+export interface ExampleWithId extends Example {
+  /** The stable public ID of this example. */
+  id: string;
+  /** Internal Phoenix node ID. */
+  nodeId: string;
   updatedAt: Date;
 }
 

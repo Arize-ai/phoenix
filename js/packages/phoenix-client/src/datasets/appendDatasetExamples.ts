@@ -36,6 +36,7 @@ export type AppendDatasetExamplesResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
+ *   - `id`: Optional stable ID for the example, enabling upsert across dataset versions
  *
  * @returns A promise that resolves to the dataset ID
  *
@@ -73,6 +74,12 @@ export async function appendDatasetExamples({
   // Only include span_ids in the request if at least one example has a span ID
   const hasSpanIds = spanIds.some((id) => id !== null);
 
+  // Extract IDs from examples, preserving null/undefined as null
+  const exampleIds = examples.map((example) => example?.id ?? null);
+
+  // Only include example_ids in the request if at least one example has an ID
+  const hasExampleIds = exampleIds.some((id) => id !== null);
+
   let datasetName: string;
   if ("datasetName" in dataset) {
     datasetName = dataset.datasetName;
@@ -97,6 +104,7 @@ export async function appendDatasetExamples({
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
+      ...(hasExampleIds ? { example_ids: exampleIds } : {}),
     },
   });
   invariant(appendResponse.data?.data, "Failed to append dataset examples");

@@ -513,7 +513,7 @@ function runTaskWithExamples({
             },
           },
           body: {
-            dataset_example_id: example.id,
+            dataset_example_id: example.nodeId,
             output: thisRun.output,
             repetition_number: repetitionNumber,
             start_time: thisRun.startTime.toISOString(),

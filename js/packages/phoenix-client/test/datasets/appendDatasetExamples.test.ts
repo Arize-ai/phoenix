@@ -322,6 +322,110 @@ describe("appendDatasetExamples", () => {
     });
   });
 
+  it("should append examples with IDs", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await appendDatasetExamples({
+      dataset: { datasetName: "test-dataset" },
+      examples: [
+        {
+          input: { question: "What is AI?" },
+          output: { answer: "Artificial Intelligence" },
+          id: "example-ai",
+        },
+        {
+          input: { question: "What is ML?" },
+          output: { answer: "Machine Learning" },
+          id: "example-ml",
+        },
+      ],
+    });
+
+    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
+      params: { query: { sync: true } },
+      body: {
+        name: "test-dataset",
+        action: "append",
+        inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
+        outputs: [
+          { answer: "Artificial Intelligence" },
+          { answer: "Machine Learning" },
+        ],
+        metadata: [{}, {}],
+        splits: [null, null],
+        example_ids: ["example-ai", "example-ml"],
+      },
+    });
+  });
+
+  it("should append examples with mixed IDs (some null)", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await appendDatasetExamples({
+      dataset: { datasetName: "test-dataset" },
+      examples: [
+        {
+          input: { question: "What is AI?" },
+          id: "example-ai",
+        },
+        {
+          input: { question: "What is ML?" },
+          // No id
+        },
+        {
+          input: { question: "What is DL?" },
+          id: null,
+        },
+      ],
+    });
+
+    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
+      params: { query: { sync: true } },
+      body: expect.objectContaining({
+        example_ids: ["example-ai", null, null],
+      }),
+    });
+  });
+
+  it("should not include example_ids when no examples have IDs", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await appendDatasetExamples({
+      dataset: { datasetName: "test-dataset" },
+      examples: [
+        { input: { question: "What is AI?" } },
+        { input: { question: "What is ML?" }, id: null },
+      ],
+    });
+
+    const callBody = mockPost.mock.calls[0][1].body;
+    expect(callBody).not.toHaveProperty("example_ids");
+  });
+
   it("should throw error when response data is missing", async () => {
     mockPost.mockResolvedValue({
       data: null,
