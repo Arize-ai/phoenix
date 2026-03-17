@@ -1,65 +1,63 @@
 import { css } from "@emotion/react";
-import { useState } from "react";
+import { useCallback } from "react";
 import { Panel, PanelResizeHandle } from "react-resizable-panels";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Heading, Icon, IconButton, Icons } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
-import {
-  AGENT_MODEL_LOCAL_STORAGE_KEY,
-  Chat,
-  DEFAULT_MODEL_MENU_VALUE,
-  getAgentModelConfigFromLocalStorage,
-  toAgentModelConfig,
-  toModelMenuValue,
-} from ".";
+import { Chat } from ".";
 
 const panelHeaderCSS = css`
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  border-bottom: 1px solid var(--global-color-gray-200);
-  font-weight: 600;
-  font-size: var(--global-font-size-s);
-`;
-
-const closeButtonCSS = css`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--global-text-color-900);
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  border-radius: var(--global-rounding-small);
-
-  &:hover {
-    background-color: var(--global-color-gray-200);
-  }
+  border-bottom: 1px solid var(--global-border-color-subtle);
 `;
 
 const panelContentCSS = css`
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   height: 100%;
   overflow: hidden;
-  background-color: var(--global-color-gray-75);
+  border-top: 1px solid var(--global-border-color-subtle);
 `;
 
 export function AgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
+  const defaultModelConfig = useAgentContext(
+    (state) => state.defaultModelConfig
+  );
+  const setDefaultModelConfig = useAgentContext(
+    (state) => state.setDefaultModelConfig
+  );
 
-  const [menuValue, setMenuValue] = useState<ModelMenuValue>(() => {
-    const config = getAgentModelConfigFromLocalStorage();
-    return config ? toModelMenuValue(config) : DEFAULT_MODEL_MENU_VALUE;
-  });
+  const menuValue: ModelMenuValue = {
+    provider: defaultModelConfig.provider,
+    modelName: defaultModelConfig.modelName ?? "",
+    ...(defaultModelConfig.customProvider && {
+      customProvider: defaultModelConfig.customProvider,
+    }),
+  };
+
+  const handleModelChange = useCallback(
+    (model: ModelMenuValue) => {
+      setDefaultModelConfig({
+        ...defaultModelConfig,
+        provider: model.provider,
+        modelName: model.modelName,
+        customProvider: model.customProvider ?? null,
+      });
+    },
+    [defaultModelConfig, setDefaultModelConfig]
+  );
 
   if (!isAgentsEnabled || !isOpen) {
     return null;
@@ -73,14 +71,6 @@ export function AgentChatPanel() {
   });
   const chatApiUrl = prependBasename(`/chat?${params}`);
 
-  const handleModelChange = (model: ModelMenuValue) => {
-    setMenuValue(model);
-    localStorage.setItem(
-      AGENT_MODEL_LOCAL_STORAGE_KEY,
-      JSON.stringify(toAgentModelConfig(model))
-    );
-  };
-
   return (
     <>
       <PanelResizeHandle css={compactResizeHandleCSS} />
@@ -89,15 +79,15 @@ export function AgentChatPanel() {
           <div css={panelHeaderCSS}>
             <Flex direction="row" alignItems="center" gap="size-50">
               <Icon svg={<Icons.Robot />} />
-              <span>PXI</span>
+              <Heading weight="heavy">PXI</Heading>
             </Flex>
-            <button
-              css={closeButtonCSS}
-              onClick={() => setIsOpen(false)}
+            <IconButton
+              size="S"
               aria-label="Close agent chat"
+              onPress={() => setIsOpen(false)}
             >
               <Icon svg={<Icons.CloseOutline />} />
-            </button>
+            </IconButton>
           </div>
           <Chat
             key={chatApiUrl}

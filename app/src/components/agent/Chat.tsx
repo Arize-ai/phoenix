@@ -124,6 +124,7 @@ export function Chat({
               onSendMessage={(text) => sendMessage({ text })}
               isSending={status === "submitted" || status === "streaming"}
               placeholder="Send a message…"
+              icon={<Icon svg={<Icons.ArrowUpwardOutline />} />}
             />
             <div className="chat__input-toolbar">
               <ModelMenu

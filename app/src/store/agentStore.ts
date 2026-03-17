@@ -349,19 +349,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      partialize: (state) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { isOpen, ...rest } = state;
-        // Only persist data props, not actions
-        return {
-          position: rest.position,
-          sessions: rest.sessions,
-          activeSessionId: rest.activeSessionId,
-          sessionMap: rest.sessionMap,
-          messageMap: rest.messageMap,
-          defaultModelConfig: rest.defaultModelConfig,
-        };
-      },
+      partialize: (state) => ({
+        isOpen: state.isOpen,
+        position: state.position,
+        sessions: state.sessions,
+        activeSessionId: state.activeSessionId,
+        sessionMap: state.sessionMap,
+        messageMap: state.messageMap,
+        defaultModelConfig: state.defaultModelConfig,
+      }),
     })
   );
 };
