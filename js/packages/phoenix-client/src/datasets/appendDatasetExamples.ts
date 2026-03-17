@@ -18,8 +18,7 @@ export type AppendDatasetExamplesParams = ClientFn & {
 
 export type AppendDatasetExamplesResponse = {
   datasetId: string;
-  // TODO: respond with the versionId
-  // versionId: string;
+  versionId: string;
 };
 
 /**
@@ -36,13 +35,14 @@ export type AppendDatasetExamplesResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
+ *   - `externalId`: Optional external ID for the example
  *
- * @returns A promise that resolves to the dataset ID
+ * @returns A promise that resolves to the dataset ID and version ID
  *
  * @example
  * ```ts
  * // Append examples with span links to an existing dataset
- * const { datasetId } = await appendDatasetExamples({
+ * const { datasetId, versionId } = await appendDatasetExamples({
  *   dataset: { datasetName: "qa-dataset" },
  *   examples: [
  *     {
@@ -60,18 +60,27 @@ export async function appendDatasetExamples({
   examples,
 }: AppendDatasetExamplesParams): Promise<AppendDatasetExamplesResponse> {
   const client = _client || createClient();
-  const inputs = examples.map((example) => example.input);
-  const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
-  const metadata = examples.map((example) => example.metadata ?? {});
-  const splits = examples.map((example) =>
-    example.splits !== undefined ? example.splits : null
-  );
+  const inputs: Record<string, unknown>[] = [];
+  const outputs: Record<string, unknown>[] = [];
+  const metadata: Record<string, unknown>[] = [];
+  const splits: (string | string[] | null)[] = [];
+  const spanIds: (string | null)[] = [];
+  const externalIds: (string | null)[] = [];
+  let hasSpanIds = false;
+  let hasExternalIds = false;
 
-  // Extract span IDs from examples, preserving null/undefined as null
-  const spanIds = examples.map((example) => example?.spanId ?? null);
-
-  // Only include span_ids in the request if at least one example has a span ID
-  const hasSpanIds = spanIds.some((id) => id !== null);
+  for (const example of examples) {
+    inputs.push(example.input);
+    outputs.push(example.output ?? {}); // Treat null as an empty object
+    metadata.push(example.metadata ?? {});
+    splits.push(example.splits !== undefined ? example.splits : null);
+    const spanId = example.spanId ?? null;
+    spanIds.push(spanId);
+    if (spanId !== null) hasSpanIds = true;
+    const externalId = example.externalId ?? null;
+    externalIds.push(externalId);
+    if (externalId !== null) hasExternalIds = true;
+  }
 
   let datasetName: string;
   if ("datasetName" in dataset) {
@@ -97,11 +106,14 @@ export async function appendDatasetExamples({
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
+      ...(hasExternalIds ? { external_ids: externalIds } : {}),
     },
   });
   invariant(appendResponse.data?.data, "Failed to append dataset examples");
   const datasetId = appendResponse.data.data.dataset_id;
+  const versionId = appendResponse.data.data.version_id;
   return {
     datasetId,
+    versionId,
   };
 }
