@@ -453,6 +453,7 @@ async def get_incomplete_evaluations(
                     ),
                     dataset_example=DatasetExample(
                         id=str(example_globalid),
+                        node_id=str(example_globalid),
                         input=revision.input,
                         output=revision.output,
                         metadata=revision.metadata_,

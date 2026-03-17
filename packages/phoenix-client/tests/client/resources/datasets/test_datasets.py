@@ -446,6 +446,7 @@ class TestHelperFunctions:
 
         assert name == "dataframe.csv"
         assert content_type == "text/csv"
+        assert headers == {"Content-Encoding": "gzip"}
 
         file_obj.seek(0)
         decompressed = gzip.decompress(file_obj.read()).decode()
