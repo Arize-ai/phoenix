@@ -19,14 +19,13 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
+from phoenix.server.api.types.PromptResponseFormat import PromptResponseFormatJSONSchema
+from phoenix.server.api.types.PromptTools import PromptTools
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
 )
-
-from .ResponseFormat import PromptResponseFormatJSONSchema
-from .ToolDefinition import PromptTools
 
 if TYPE_CHECKING:
     from .User import User

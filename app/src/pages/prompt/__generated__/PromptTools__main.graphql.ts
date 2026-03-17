@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67b98669b327e924298aa7b6facdf40a>>
+ * @generated SignedSource<<f3a0304950e6934472cfc37a67c6f6d1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type PromptTools__main$data = {
       readonly function: {
         readonly description: string | null;
         readonly name: string;
-        readonly parameters: any | null;
+        readonly parameters: any;
         readonly strict: boolean | null;
       };
     }>;

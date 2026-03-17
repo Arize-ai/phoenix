@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b5040d21d36416e2e9773b6a1c8544f>>
+ * @generated SignedSource<<31714d8fb5e4bee80e36603fe8ec2494>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -91,7 +91,7 @@ export type fetchPlaygroundPromptQuery$data = {
           readonly function: {
             readonly description: string | null;
             readonly name: string;
-            readonly parameters: any | null;
+            readonly parameters: any;
             readonly strict: boolean | null;
           };
         }>;

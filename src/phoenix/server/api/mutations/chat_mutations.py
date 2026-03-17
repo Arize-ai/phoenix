@@ -3,7 +3,7 @@ import logging
 from dataclasses import field
 from datetime import datetime, timezone
 from itertools import islice
-from typing import Any, Iterable, Iterator, Optional, TypeVar, Union, cast
+from typing import Any, Iterable, Iterator, Optional, TypeVar, Union
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
@@ -697,7 +697,7 @@ class ChatCompletionMutationMixin:
         if appended_messages:
             messages.extend(appended_messages)
 
-        invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+        invocation_parameters = dict(input.prompt_version.invocation_parameters)
 
         tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
         response_format = (

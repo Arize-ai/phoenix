@@ -1188,16 +1188,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             }
             const repetition = instance.repetitions[repetitionNumber];
             const toolCalls = repetition?.toolCalls ?? {};
+            const existingToolCall = toolCalls[partialToolCall.id];
             const updatedToolCalls =
               partialToolCall.id in toolCalls
                 ? {
                     ...toolCalls,
                     [partialToolCall.id]: {
-                      ...toolCalls[partialToolCall.id],
+                      ...existingToolCall,
                       function: {
-                        ...partialToolCall.function,
+                        name:
+                          existingToolCall.function?.name ??
+                          partialToolCall.function.name,
                         arguments:
-                          toolCalls[partialToolCall.id].function.arguments +
+                          (existingToolCall.function?.arguments ?? "") +
                           partialToolCall.function.arguments,
                       },
                     },

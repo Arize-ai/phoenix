@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<003a17cfe91ed3f9643484f1b729d962>>
+ * @generated SignedSource<<44e9479ad34b7cf3f7a33993f420ee11>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -78,7 +78,7 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
       readonly function: {
         readonly description: string | null;
         readonly name: string;
-        readonly parameters: any | null;
+        readonly parameters: any;
         readonly strict: boolean | null;
       };
     }>;

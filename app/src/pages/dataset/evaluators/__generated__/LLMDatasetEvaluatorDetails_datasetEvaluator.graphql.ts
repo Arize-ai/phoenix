@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb138f22d4f840f18b5fa16e509691ae>>
+ * @generated SignedSource<<11c44e74ccd63a0bda610b23c7758f40>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,7 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly tools: {
         readonly tools: ReadonlyArray<{
           readonly function: {
-            readonly parameters: any | null;
+            readonly parameters: any;
           };
         }>;
       } | null;

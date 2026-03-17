@@ -56,7 +56,6 @@ from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
 from phoenix.db import models
-from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
@@ -451,7 +450,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                         parameters=f.parameters if f.parameters else {},
                         strict=f.strict if isinstance(f.strict, bool) else None,
                     )
-                    if f.description is not UNDEFINED:
+                    if f.description:
                         fn_def["description"] = f.description
                     tool_list.append(
                         ChatCompletionFunctionToolParam(type="function", function=fn_def)
@@ -462,9 +461,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             if response_format.type == "json_schema":
                 js = response_format.json_schema
                 json_schema: JSONSchema = {"name": js.name}
-                if js.description is not UNDEFINED:
+                if js.description:
                     json_schema["description"] = js.description
-                if js.schema_ is not UNDEFINED:
+                if js.schema_:
                     json_schema["schema"] = js.schema_
                 if isinstance(js.strict, bool):
                     json_schema["strict"] = js.strict
@@ -518,12 +517,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         input_value = dict(params)
         if extra_body:
             input_value["extra_body"] = extra_body
-        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)
         input_value.pop("model", None)
         input_value.pop("tools", None)
-        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
         return await client.chat.completions.create(
             **params,
@@ -580,10 +579,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     t = FunctionToolParam(
                         type="function",
                         name=f.name,
-                        parameters=f.parameters if f.parameters is not UNDEFINED else None,
+                        parameters=f.parameters if f.parameters else None,
                         strict=f.strict if isinstance(f.strict, bool) else None,
                     )
-                    if f.description is not UNDEFINED:
+                    if f.description:
                         t["description"] = f.description
                     resp_tool_list.append(t)
                 params["tools"] = resp_tool_list
@@ -594,9 +593,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 fmt = ResponseFormatTextJSONSchemaConfigParam(
                     type="json_schema",
                     name=js.name,
-                    schema=js.schema_ if js.schema_ is not UNDEFINED else {},
+                    schema=js.schema_ if js.schema_ else {},
                 )
-                if js.description is not UNDEFINED:
+                if js.description:
                     fmt["description"] = js.description
                 if isinstance(js.strict, bool):
                     fmt["strict"] = js.strict
@@ -639,12 +638,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         input_value = dict(params)
         if extra_body:
             input_value["extra_body"] = extra_body
-        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("input", None)
         input_value.pop("model", None)
         input_value.pop("tools", None)
-        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
         return client.responses.stream(
             **params,
@@ -1028,7 +1027,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                             id=tool_call["id"],
                             function=Function(
                                 name=tool_call["function"]["name"],
-                                arguments=json.dumps(tool_call["function"]["arguments"]),
+                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
                             ),
                         )
                         for tool_call in tool_calls
@@ -1377,10 +1376,10 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                 tool_spec = ToolSpecificationTypeDef(
                     name=fn.name,
                     inputSchema=ToolInputSchemaTypeDef(
-                        json=fn.parameters if fn.parameters is not UNDEFINED else {}
+                        json=fn.parameters if fn.parameters else {"type": "object"}
                     ),
                 )
-                if fn.description is not UNDEFINED:
+                if fn.description:
                     tool_spec["description"] = fn.description
                 tool_list.append(ToolTypeDef(toolSpec=tool_spec))
 
@@ -1404,7 +1403,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
-                schema=json.dumps(response_format.json_schema.schema_ or {}),
+                schema=safe_json_dumps(response_format.json_schema.schema_ or {}),
             )
             if response_format.json_schema.name:
                 json_schema["name"] = response_format.json_schema.name
@@ -1418,7 +1417,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             )
 
         input_value: dict[str, Any] = dict(request)
-        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)
         input_value.pop("modelId", None)
@@ -1429,7 +1428,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                     span.set_attribute(
                         f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param)
                     )
-        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
         response = await client.converse_stream(**request)
         return response
@@ -1787,7 +1786,7 @@ class OpenAIReasoningNonStreamingClient(
                             id=tool_call["id"],
                             function=Function(
                                 name=tool_call["function"]["name"],
-                                arguments=json.dumps(tool_call["function"]["arguments"]),
+                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
                             ),
                         )
                         for tool_call in tool_calls
@@ -1907,7 +1906,7 @@ class AzureOpenAIReasoningNonStreamingClient(
                             id=tool_call["id"],
                             function=Function(
                                 name=tool_call["function"]["name"],
-                                arguments=json.dumps(tool_call["function"]["arguments"]),
+                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
                             ),
                         )
                         for tool_call in tool_calls
@@ -2046,10 +2045,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 for tool in dt:
                     f = tool.function
                     t = ToolParam(
-                        input_schema=f.parameters if f.parameters is not UNDEFINED else {},
+                        input_schema=f.parameters if f.parameters else {"type": "object"},
                         name=f.name,
                     )
-                    if f.description is not UNDEFINED:
+                    if f.description:
                         t["description"] = f.description
                     tool_list.append(t)
                 params["tools"] = tool_list
@@ -2060,7 +2059,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 params["output_config"] = OutputConfigParam(
                     format=JSONOutputFormatParam(
                         type="json_schema",
-                        schema=js.schema_ if js.schema_ is not UNDEFINED else {},
+                        schema=js.schema_ if js.schema_ else {},
                     )
                 )
             elif TYPE_CHECKING:
@@ -2090,12 +2089,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             for i, tool_param in enumerate(params["tools"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
         input_value = dict(params)
-        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)
         input_value.pop("model", None)
         input_value.pop("tools", None)
-        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
         stream_manager = client.messages.stream(**params)
         return stream_manager
@@ -2161,7 +2160,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                         id=event.content_block.id,
                         function=FunctionCallChunk(
                             name=event.content_block.name,
-                            arguments=json.dumps(event.content_block.input),
+                            arguments=safe_json_dumps(event.content_block.input),
                         ),
                     )
                     yield tool_call_chunk
@@ -2374,9 +2373,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                 for tool in dt:
                     fn = tool.function
                     fd_kwargs: dict[str, Any] = {"name": fn.name}
-                    if fn.description is not UNDEFINED:
+                    if fn.description:
                         fd_kwargs["description"] = fn.description
-                    if fn.parameters is not UNDEFINED:
+                    if fn.parameters:
                         fd_kwargs["parameters_json_schema"] = fn.parameters
                     function_declarations.append(types.FunctionDeclaration(**fd_kwargs))
                 google_tools = [types.Tool(function_declarations=function_declarations)]
@@ -2403,7 +2402,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             if response_format.type == "json_schema":
                 js = response_format.json_schema
                 response_mime_type = "application/json"
-                if js.schema_ is not UNDEFINED:
+                if js.schema_:
                     response_json_schema = js.schema_
             elif TYPE_CHECKING:
                 assert_never(response_format.type)
@@ -2483,11 +2482,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             "contents": contents,
             "config": config_dict,
         }
-        span.set_attribute(SpanAttributes.INPUT_VALUE, json.dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         config_dict.pop("tools", None)
         config_dict.pop("system_instruction", None)
-        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(config_dict))
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(config_dict))
 
         stream = await client.models.generate_content_stream(
             model=self.model_name,
@@ -2583,7 +2582,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                                     id=function_call.id or token_hex(4),
                                     function=FunctionCallChunk(
                                         name=function_call.name or "",
-                                        arguments=json.dumps(function_call.args or {}),
+                                        arguments=safe_json_dumps(function_call.args or {}),
                                     ),
                                 )
                             elif text := part.text:
@@ -3660,42 +3659,6 @@ def llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
-def _filter_invocation_parameters(
-    invocation_parameters: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Filter out sensitive keys (api_key, apiKey, credentials) from invocation parameters."""
-    disallowed_keys = {"api_key", "apikey", "credentials"}
-    result: dict[str, Any] = {}
-    for k, v in invocation_parameters.items():
-        key_lower = str(k).lower()
-        if key_lower in disallowed_keys:
-            continue
-        if isinstance(v, dict):
-            result[k] = _filter_invocation_parameters(v)
-        elif isinstance(v, list):
-            result[k] = [
-                _filter_invocation_parameters(item) if isinstance(item, dict) else item
-                for item in v
-            ]
-        else:
-            result[k] = v
-    return result
-
-
-def llm_invocation_parameters(
-    invocation_parameters: Mapping[str, Any],
-) -> Iterator[tuple[str, Any]]:
-    if invocation_parameters:
-        filtered = _filter_invocation_parameters(invocation_parameters)
-        if filtered:
-            yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(filtered)
-
-
-def llm_tools(tools: list[dict[str, Any]]) -> Iterator[tuple[str, Any]]:
-    for tool_index, tool in enumerate(tools):
-        yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
-
-
 def llm_input_messages(
     messages: Iterable[PlaygroundMessage],
 ) -> Iterator[tuple[str, Any]]:
@@ -3727,7 +3690,7 @@ def _playground_tool_call_to_oi_tool_call(tool_call: PlaygroundToolCall) -> oi.T
         if (name := function.get("name")) is not None:
             oi_tool_call_function["name"] = name
         if (arguments := function.get("arguments")) is not None:
-            oi_tool_call_function["arguments"] = json.dumps(arguments)
+            oi_tool_call_function["arguments"] = safe_json_dumps(arguments)
         if oi_tool_call_function:
             oi_tool_call["function"] = oi_tool_call_function
     return oi_tool_call

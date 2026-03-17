@@ -145,7 +145,7 @@ const stringToInvocationParametersSchema = z
     const { json } = safelyParseJSON(s);
     if (!isObject(json)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "The invocation parameters must be a valid JSON object",
       });
       return z.NEVER;
@@ -154,7 +154,7 @@ const stringToInvocationParametersSchema = z
     const { success, data } = invocationParameterSchema.safeParse(json);
     if (!success) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "The invocation parameters must be a valid JSON object",
       });
       return z.NEVER;
@@ -285,7 +285,7 @@ export const toolJSONSchemaSchema = z
 
     if (json == null || !isObject(json)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "The tool JSON schema must be a valid JSON object",
       });
       return z.NEVER;
@@ -297,7 +297,7 @@ export const toolJSONSchemaSchema = z
 
     if (!success) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "The tool JSON schema must be a valid tool schema",
       });
       return z.NEVER;
@@ -388,7 +388,7 @@ const promptTemplateVariablesSchema = z.string().transform((s, ctx) => {
   const { json } = safelyParseJSON(s);
   if (!isStringKeyedObject(json)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       message: "The prompt template variables must be a valid JSON object",
     });
     return z.NEVER;

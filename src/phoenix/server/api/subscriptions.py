@@ -124,7 +124,7 @@ async def _stream_single_chat_completion(
                 template_variables=template_options.variables,
             )
         )
-    invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+    invocation_parameters = dict(input.prompt_version.invocation_parameters)
 
     tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
     response_format = (
@@ -587,7 +587,7 @@ async def _stream_chat_completion_over_dataset_example(
     evaluator_project_ids: list[int],
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+    invocation_parameters = dict(input.prompt_version.invocation_parameters)
     tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
     response_format = (
         input.prompt_version.response_format.to_orm()

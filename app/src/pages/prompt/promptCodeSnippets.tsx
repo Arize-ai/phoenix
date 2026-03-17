@@ -284,12 +284,16 @@ const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
 type ToolEntry = NonNullable<
   NonNullable<Parameters<PromptToSDKSnippetFn>[0]["tools"]>["tools"]
 >[number];
+type ToolChoiceEntry = NonNullable<
+  NonNullable<Parameters<PromptToSDKSnippetFn>[0]["tools"]>["toolChoice"]
+>;
 type ResponseFormat = NonNullable<
   Parameters<PromptToSDKSnippetFn>[0]["responseFormat"]
 >;
 
 type PreparePromptOptions = {
   serializeTool?: (tool: ToolEntry) => unknown;
+  serializeToolChoice?: (toolChoice: ToolChoiceEntry) => unknown;
   serializeResponseFormat?: (rf: ResponseFormat) => unknown;
 };
 
@@ -310,6 +314,42 @@ const defaultSerializeResponseFormat = (rf: ResponseFormat): unknown => {
   if (jsonSchema.schema != null) jsonSchemaDef.schema = jsonSchema.schema;
   if (jsonSchema.strict != null) jsonSchemaDef.strict = jsonSchema.strict;
   return { type: "json_schema", json_schema: jsonSchemaDef };
+};
+
+/** OpenAI: "none" | "auto" | "required" | { type: "function", function: { name } } */
+const openAISerializeToolChoice = (tc: ToolChoiceEntry): unknown => {
+  switch (tc.type) {
+    case "NONE":
+      return "none";
+    case "ZERO_OR_MORE":
+      return "auto";
+    case "ONE_OR_MORE":
+      return "required";
+    case "SPECIFIC_FUNCTION":
+      return tc.functionName
+        ? { type: "function", function: { name: tc.functionName } }
+        : "auto";
+    default:
+      return "auto";
+  }
+};
+
+/** Anthropic: { type: "none"|"auto"|"any"|"tool", name? } */
+const anthropicSerializeToolChoice = (tc: ToolChoiceEntry): unknown => {
+  switch (tc.type) {
+    case "NONE":
+      return { type: "none" };
+    case "ZERO_OR_MORE":
+      return { type: "auto" };
+    case "ONE_OR_MORE":
+      return { type: "any" };
+    case "SPECIFIC_FUNCTION":
+      return tc.functionName
+        ? { type: "tool" as const, name: tc.functionName }
+        : { type: "auto" as const };
+    default:
+      return { type: "auto" };
+  }
 };
 
 const preparePromptData = (
@@ -371,6 +411,17 @@ const preparePromptData = (
     args.push(`tools${assignmentOperator}${fmt}`);
   }
 
+  const { serializeToolChoice } = options;
+  if (prompt.tools?.toolChoice && serializeToolChoice) {
+    const toolChoiceObj = serializeToolChoice(prompt.tools.toolChoice);
+    const fmt = jsonFormatter({
+      json: toolChoiceObj,
+      level: 1,
+      removeKeyQuotes,
+    });
+    args.push(`tool_choice${assignmentOperator}${fmt}`);
+  }
+
   if (prompt.responseFormat) {
     const fmt = jsonFormatter({
       json: serializeResponseFormat(prompt.responseFormat),
@@ -425,7 +476,9 @@ export const promptSDKCodeSnippets: Record<
           ),
         },
       };
-      const { args, messages } = preparePromptData(convertedPrompt, config);
+      const { args, messages } = preparePromptData(convertedPrompt, config, {
+        serializeToolChoice: openAISerializeToolChoice,
+      });
       return config.sdkTemplate({
         tab: TAB,
         args,
@@ -442,6 +495,7 @@ export const promptSDKCodeSnippets: Record<
           if (fn.parameters != null) tool.input_schema = fn.parameters;
           return tool;
         },
+        serializeToolChoice: anthropicSerializeToolChoice,
       });
       return config.sdkTemplate({
         tab: TAB,
@@ -462,7 +516,9 @@ export const promptSDKCodeSnippets: Record<
           ),
         },
       };
-      const { args, messages } = preparePromptData(convertedPrompt, config);
+      const { args, messages } = preparePromptData(convertedPrompt, config, {
+        serializeToolChoice: openAISerializeToolChoice,
+      });
       return config.sdkTemplate({
         tab: TAB,
         args,
@@ -479,6 +535,7 @@ export const promptSDKCodeSnippets: Record<
           if (fn.parameters != null) tool.input_schema = fn.parameters;
           return tool;
         },
+        serializeToolChoice: anthropicSerializeToolChoice,
       });
       return config.sdkTemplate({
         tab: TAB,
@@ -502,7 +559,7 @@ export const promptClientCodeSnippets: Record<
       });
     },
     anthropic: (prompt) => {
-      const config = languageConfigs.python.openai;
+      const config = languageConfigs.python.anthropic;
       return config.clientTemplate({
         tab: TAB,
         versionId: prompt.versionId,
