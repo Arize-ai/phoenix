@@ -4,41 +4,41 @@
 
 ## Overview
 
-- [Main page](https://arize.com/docs/phoenix): Phoenix features, quick starts, and getting started
-- [User Guide](https://arize.com/docs/phoenix/user-guide): Development, production, and optimization workflows
-- [Production Guide](https://arize.com/docs/phoenix/production-guide): Best practices for deploying Phoenix in production
-- [Environments](https://arize.com/docs/phoenix/environments): Development, staging, and production deployment configurations
+- [Main page](https://arize.com/docs/phoenix): Install Phoenix and choose a deployment option
+- [User Guide](https://arize.com/docs/phoenix/user-guide): End-to-end workflows for development, production, and optimization
+- [Production Guide](https://arize.com/docs/phoenix/production-guide): Deploy Phoenix in production with best practices for scale and reliability
+- [Environments](https://arize.com/docs/phoenix/environments): Configure Phoenix across development, staging, and production environments
 
 ## Quick Start
 
-- [Get Started Overview](https://arize.com/docs/phoenix/get-started): Introduction to the complete Phoenix workflow
-- [Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing): Send traces from your application to see execution flow
-- [Evaluations](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Measure output quality with evaluators
-- [Prompt Playground](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground): Iterate on prompts using real examples
-- [Datasets and Experiments](https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments): Test changes systematically with experiments
-- [TypeScript: Tracing](https://arize.com/docs/phoenix/get-started/ts-get-started-tracing): Send traces from a TypeScript application
-- [TypeScript: Evaluations](https://arize.com/docs/phoenix/get-started/ts-get-started-evaluations): Measure output quality with TypeScript evaluators
-- [TypeScript: Prompt Playground](https://arize.com/docs/phoenix/get-started/ts-get-started-prompt-playground): Test and iterate on prompts in TypeScript
-- [TypeScript: Datasets and Experiments](https://arize.com/docs/phoenix/get-started/ts-get-started-datasets-and-experiments): Run systematic experiments in TypeScript
+- [Get Started Overview](https://arize.com/docs/phoenix/get-started): Walk through the full Phoenix workflow from tracing to experiments
+- [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing): Instrument an app and send your first traces to Phoenix
+- [Evaluations Quickstart](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Run your first LLM evaluator and view results
+- [Playground Quickstart](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground): Test prompt variations against real examples in the Playground
+- [Experiments Quickstart](https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments): Create a dataset and run a comparative experiment
+- [TS: Tracing Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-tracing): Instrument a TypeScript app and send traces to Phoenix
+- [TS: Evaluations Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-evaluations): Run evaluators in TypeScript with @arizeai/phoenix-evals
+- [TS: Playground Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-prompt-playground): Test prompt variations in TypeScript
+- [TS: Experiments Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-datasets-and-experiments): Create datasets and run experiments in TypeScript
 
 ## Tracing
 
-- [Features Overview](https://arize.com/docs/phoenix/tracing/features-tracing): Auto-instrumentation, manual spans, annotations, and sessions
+- [Tracing Features](https://arize.com/docs/phoenix/tracing/features-tracing): Discover tracing capabilities — auto-instrumentation, manual spans, annotations, sessions
 
 ### Tutorial
 
 - [Tracing Tutorial](https://arize.com/docs/phoenix/tracing/tutorial): Build a fully observable AI agent from scratch
 - [Your First Traces](https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces): Instrument and view your first traces
 - [Annotations and Evaluations](https://arize.com/docs/phoenix/tracing/tutorial/annotations-and-evaluations): Add quality signals to traces
-- [Sessions](https://arize.com/docs/phoenix/tracing/tutorial/sessions): Track multi-turn conversations
+- [Sessions Tutorial](https://arize.com/docs/phoenix/tracing/tutorial/sessions): Track multi-turn conversations
 
 ### Core Concepts
 
-- [LLM Traces](https://arize.com/docs/phoenix/tracing/llm-traces): Traces, spans, LLM calls, tool execution, retrieval operations
+- [LLM Traces](https://arize.com/docs/phoenix/tracing/llm-traces): Understand how traces and spans model LLM calls, tool execution, and retrieval
 - [Projects](https://arize.com/docs/phoenix/tracing/llm-traces/projects): Organize traces by environment, application, or team
-- [Sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group traces into conversational sessions
-- [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Add feedback, labels, scores to traces
-- [Metrics](https://arize.com/docs/phoenix/tracing/llm-traces/metrics): Latency, token usage, cost, error rates
+- [Sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group related traces into multi-turn conversational sessions
+- [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Attach feedback, labels, and scores to traces for quality tracking
+- [Metrics](https://arize.com/docs/phoenix/tracing/llm-traces/metrics): Monitor latency, token usage, cost, and error rates across traces
 
 ### Setup
 
@@ -54,15 +54,15 @@
 - [Customize Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans): Add session IDs, user IDs, metadata via OTel context
 - [Prompt Templates](https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables): Capture prompt templates and variables in traces
 - [Annotate Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations): Add scores, labels, human feedback, LLM evaluations
-- [Annotating Auto-Instrumented Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans): Annotate spans from auto-instrumentation
-- [Annotating in the UI](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui): Manually annotate traces in the Phoenix UI
-- [Capture Feedback](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback): Collect end-user feedback programmatically
-- [Evaluating Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces): Run LLM evaluations on existing traces
-- [LLM Evaluations on Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations): Auto-annotate traces with LLM-as-judge scores
+- [Annotating Auto-Instrumented Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans): Add annotations to spans generated by auto-instrumentation libraries
+- [Annotating in the UI](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui): Use the Phoenix web UI to label and score traces manually
+- [Capture Feedback](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback): Collect end-user thumbs-up/down feedback and attach it to traces via SDK
+- [Evaluating Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces): Run batch LLM evaluations over existing traces in a project
+- [LLM Evaluations on Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations): Set up continuous LLM-as-judge scoring on incoming traces
 
 ### Import & Export
 
-- [Importing & Exporting](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces): Move trace data in and out of Phoenix
+- [Importing & Exporting](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces): Import, export, and migrate trace data between Phoenix instances
 - [Exporting Annotated Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans): Export spans with annotations
 - [Extract Data from Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans): Query span attributes via Phoenix client
 - [Importing Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces): Import traces from external sources
@@ -71,7 +71,7 @@
 ### Advanced Tracing
 
 - [Cost Tracking](https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking): Monitor LLM token usage and cost trends
-- [Advanced Configuration](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Batching, gRPC, custom instrumentation, performance tuning
+- [Advanced Configuration](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Configure batching, gRPC transport, custom instrumentation, and performance tuning
 - [Masking Span Attributes](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes): Hide sensitive data in traces via environment variables
 - [Modifying Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans): Use SpanProcessors to filter or enrich spans
 - [Multimodal Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Capture image, audio, and multimodal data in traces
@@ -91,7 +91,7 @@
 
 ### How-to
 
-- [How to Evals](https://arize.com/docs/phoenix/evaluation/how-to-evals): Comprehensive evaluation guide
+- [How to Evals](https://arize.com/docs/phoenix/evaluation/how-to-evals): Set up and run evaluations end-to-end
 - [Custom LLM Evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators): Build evaluators with custom prompts and scoring logic
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
@@ -111,10 +111,10 @@
 
 ### Server-Side Evaluations
 
-- [Overview](https://arize.com/docs/phoenix/evaluation/server-evals/overview): Server-side evaluators that run automatically on incoming traces
+- [Server Evals Overview](https://arize.com/docs/phoenix/evaluation/server-evals/overview): Attach evaluators to datasets so they run server-side on every Playground experiment
 - [LLM Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators): Configure LLM-as-judge evaluators server-side
 - [Built-in Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators): Pre-built server-side evaluators
-- [Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to evaluator inputs
+- [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
 - [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool selection/invocation
 
 ## Datasets & Experiments
@@ -130,7 +130,7 @@
 
 ### Datasets
 
-- [Overview](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets): Datasets as collections of examples for systematic testing
+- [Datasets Overview](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets): Understand datasets as versioned collections of examples with inputs and expected outputs
 - [Creating Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets): Build from traces, code, CSV, or curated examples
 - [Exporting Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets): Export datasets in JSONL and CSV formats
 
@@ -146,15 +146,15 @@
 
 ### Tutorial
 
-- [Tutorial](https://arize.com/docs/phoenix/prompt-engineering/tutorial): Complete prompt optimization workflow
-- [Identify and Edit Prompts](https://arize.com/docs/phoenix/prompt-engineering/tutorial/identify-and-edit-prompts): Find and fix prompts in traces
-- [Test at Scale](https://arize.com/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale): Evaluate prompts across datasets
-- [Compare Versions](https://arize.com/docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions): Compare prompt iterations
-- [Auto-Optimize](https://arize.com/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically): Automated prompt optimization
+- [Prompt Engineering Tutorial](https://arize.com/docs/phoenix/prompt-engineering/tutorial): Walk through the full prompt optimization lifecycle
+- [Identify and Edit Prompts](https://arize.com/docs/phoenix/prompt-engineering/tutorial/identify-and-edit-prompts): Find underperforming prompts in traces and iterate on them
+- [Test Prompts at Scale](https://arize.com/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale): Evaluate prompt variants across a dataset
+- [Compare Prompt Versions](https://arize.com/docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions): Diff outputs between prompt iterations side-by-side
+- [Auto-Optimize Prompts](https://arize.com/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically): Use DSPy-style optimizers to improve prompts programmatically
 
 ### Overview
 
-- [Prompts Overview](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts): Templates, parameters, tools, response formats
+- [Prompts Overview](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts): Understand prompt templates, invocation parameters, tool definitions, and response formats
 - [Prompt Management](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management): Version, store, deploy, and track prompt changes
 - [Prompt Playground](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground): Interactive testing with variations, models, and tools
 - [Span Replay](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/span-replay): Replay LLM calls with different prompts to debug failures
@@ -176,8 +176,7 @@
 ### Developer Tools
 
 - [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
-- [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants via Model Context Protocol
-- [MCP Overview](https://arize.com/docs/phoenix/integrations/model-context-protocol): Model Context Protocol integration overview
+- [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via Model Context Protocol
 
 ### LLM Providers
 
@@ -265,20 +264,20 @@
 
 ### Tracing
 
-- [What Are Traces](https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces): Traces as request paths, spans as units of work
-- [How Tracing Works](https://arize.com/docs/phoenix/tracing/concepts-tracing/how-tracing-works): Phoenix tracing architecture and OpenTelemetry integration
-- [Annotations](https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts): Scores, labels, feedback attached to traces
-- [Translating Conventions](https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions): Map framework conventions to Phoenix trace structure
-- [Tracing FAQs](https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing): Common tracing questions and configuration
+- [What Are Traces](https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces): Understand how traces model request paths and spans model units of work
+- [How Tracing Works](https://arize.com/docs/phoenix/tracing/concepts-tracing/how-tracing-works): Learn how Phoenix collects traces via OpenTelemetry and processes them
+- [Annotations Concepts](https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts): Understand how scores, labels, and feedback attach to traces as quality signals
+- [Translating Conventions](https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions): Map framework-specific conventions to Phoenix's trace structure
+- [Tracing FAQs](https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing): Troubleshoot trace collection, local vs remote setup, and common configuration issues
 
 ### Prompts
 
-- [Prompts Concepts](https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts): Templates, parameters, versioning, and tagging
-- [Context Engineering](https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics): Structure and optimize context for LLM inputs
+- [Prompts Concepts](https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts): Understand prompt templates, versioning, tagging, and invocation parameters
+- [Context Engineering](https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics): Structure and optimize the context window for better LLM outputs
 
 ### Datasets
 
-- [Datasets Concepts](https://arize.com/docs/phoenix/datasets-and-experiments/concepts-datasets): Examples, reference outputs, and systematic testing
+- [Datasets Concepts](https://arize.com/docs/phoenix/datasets-and-experiments/concepts-datasets): Understand how datasets organize examples with inputs and expected outputs for testing
 
 ### Evaluation
 
@@ -287,11 +286,11 @@
 - [Evaluation Types](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation-types): Categorical vs score evaluations
 - [Building Your Own Evals](https://arize.com/docs/phoenix/evaluation/concepts-evals/building-your-own-evals): Design custom evaluator templates
 - [Evaluating Multi-Agent Systems](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems): Multi-agent evaluation strategies
-- [Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Map inputs to evaluator schemas
+- [Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Understand how evaluators transform complex data structures into input variables
 
 ## Resources
 
-- [FAQs](https://arize.com/docs/phoenix/resources/frequently-asked-questions): Common questions and answers
+- [General FAQs](https://arize.com/docs/phoenix/resources/frequently-asked-questions): Common questions about Phoenix features, pricing, and compatibility
 - [Contribute](https://arize.com/docs/phoenix/resources/contribute-to-phoenix): Open-source contribution guide
 - [Phoenix to Arize AX Migration](https://arize.com/docs/phoenix/resources/phoenix-to-arize-ax-migration): Migration guide from Phoenix to Arize AX
 
@@ -301,43 +300,43 @@
 
 ## SDK & API Reference
 
-- [SDK Overview](https://arize.com/docs/phoenix/sdk-api-reference): All SDKs and APIs
+- [SDK Overview](https://arize.com/docs/phoenix/sdk-api-reference): Navigate all Phoenix SDK and API reference docs
 
 ### Python
 
-- [Phoenix Client](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client): arize-phoenix-client library reference
-- [Phoenix Evals](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals): arize-phoenix-evals library reference
-- [Phoenix OTEL](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel): arize-phoenix-otel integration reference
+- [Phoenix Client (Python)](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-client): Manage traces, datasets, experiments, and prompts via arize-phoenix-client
+- [Phoenix Evals (Python)](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-evals): Run LLM and code evaluators via arize-phoenix-evals
+- [Phoenix OTEL (Python)](https://arize.com/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel): Configure OpenTelemetry tracing via arize-phoenix-otel
 
 ### TypeScript
 
-- [TypeScript Overview](https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview): TypeScript SDK overview
-- [TypeScript API Reference](https://arize-ai.github.io/phoenix/modules.html): Full TypeScript API docs
-- [Phoenix Client](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client): @arizeai/phoenix-client
-- [Phoenix Evals](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals): @arizeai/phoenix-evals
-- [Phoenix OTEL](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel): @arizeai/phoenix-otel
-- [OpenInference Core](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core): @arizeai/openinference-core
-- [MCP Server](https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server): Model Context Protocol server
-- [Phoenix CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli): Command-line interface
+- [TypeScript SDK Overview](https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview): Install and configure the Phoenix TypeScript SDK
+- [TypeScript API Reference](https://arize-ai.github.io/phoenix/modules.html): Full auto-generated TypeScript API docs
+- [Phoenix Client (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client): Manage traces, datasets, and prompts via @arizeai/phoenix-client
+- [Phoenix Evals (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals): Run LLM and code evaluators via @arizeai/phoenix-evals
+- [Phoenix OTEL (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel): Configure OpenTelemetry tracing via @arizeai/phoenix-otel
+- [OpenInference Core (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core): Semantic conventions and span utilities via @arizeai/openinference-core
+- [MCP Server SDK](https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server): Build MCP servers that expose Phoenix data to AI assistants
+- [Phoenix CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli): Fetch docs, manage traces, and run experiments from the terminal
 
 ### REST API
 
-- [REST API Overview](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/overview): REST API introduction
-- [API Reference](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference): Full REST API documentation
+- [REST API Overview](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/overview): Authenticate and call the Phoenix REST API
+- [API Reference](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference): Endpoint docs for annotations, datasets, experiments, traces, spans, prompts, projects
 - [OpenAPI Spec](https://raw.githubusercontent.com/Arize-ai/phoenix/refs/heads/main/schemas/openapi.json): Machine-readable OpenAPI 3 specification
 
 ### OpenInference
 
-- [Python](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python): OpenInference Python SDK
-- [Java](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java): OpenInference Java SDK
-- [JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): OpenInference JavaScript SDK
+- [OpenInference Python](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python): Build custom Python instrumentors with OpenInference semantic conventions
+- [OpenInference Java](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java): Build custom Java instrumentors with OpenInference semantic conventions
+- [OpenInference JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): Build custom JS instrumentors with OpenInference semantic conventions
 
 ## Self-Hosting
 
-- [Overview](https://arize.com/docs/phoenix/self-hosting): Self-hosting options
-- [Architecture](https://arize.com/docs/phoenix/self-hosting/architecture): System components, data flow, infrastructure
-- [License](https://arize.com/docs/phoenix/self-hosting/license): Licensing and usage terms
-- [Configuration](https://arize.com/docs/phoenix/self-hosting/configuration): Environment variables, database, deployment settings
+- [Self-Hosting Overview](https://arize.com/docs/phoenix/self-hosting): Choose a self-hosting deployment option and get started
+- [Architecture](https://arize.com/docs/phoenix/self-hosting/architecture): Understand Phoenix components, data flow, and infrastructure requirements
+- [License](https://arize.com/docs/phoenix/self-hosting/license): Review licensing terms for self-hosted Phoenix instances
+- [Configuration](https://arize.com/docs/phoenix/self-hosting/configuration): Set environment variables, database connections, and deployment parameters
 - [Amazon Aurora](https://arize.com/docs/phoenix/self-hosting/configuration/using-amazon-aurora): Aurora/RDS IAM database authentication
 
 ### Deployment
@@ -360,7 +359,7 @@
 
 - [Migrations](https://arize.com/docs/phoenix/self-hosting/upgrade/migrations): Database migration guide
 - [Privacy](https://arize.com/docs/phoenix/self-hosting/security/privacy): Privacy and data protection
-- [FAQs](https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions): Common self-hosting questions
+- [Self-Hosting FAQs](https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions): Troubleshoot common self-hosting issues
 
 ## Phoenix Cloud
 

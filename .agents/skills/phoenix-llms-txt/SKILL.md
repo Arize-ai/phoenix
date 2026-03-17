@@ -123,14 +123,23 @@ Some false positives are expected — directory URLs that resolve via the docs f
 13. **Phoenix Cloud** — managed service
 14. **Cookbooks** — example notebooks
 
+## Writing good titles
+
+Titles are the primary signal an LLM uses to decide whether to fetch a page.
+
+- **Be specific** — titles must be unambiguous when read outside their section context. "Overview" or "Tutorial" alone is meaningless; prefer "Server Evals Overview" or "Tracing Tutorial".
+- **No duplicate titles** — every `[Title]` in the file must be unique. If two pages would both be called "Overview", prefix with the topic.
+
 ## Writing good descriptions
 
 Descriptions help LLMs decide whether to fetch a page. They should:
 
-- State **what the page teaches you to do**, not just what it's about
-- Mention package names, frameworks, or providers for integration/SDK pages
-- Be 10–25 words
-- Avoid filler like "learn more about" or "information about"
+- **Be action-oriented** — state what the page teaches you to *do*, not what it's *about*. Use imperative verbs: "Configure…", "Instrument…", "Run…", "Build…". Never use noun-only lists like "Latency, token usage, cost" — instead write "Monitor latency, token usage, and cost across traces".
+- **Differentiate from the title** — the description must add information the title does not already convey. If the description just restates the title in different words, it wastes tokens and helps no one. Bad: title "Auto-Optimize", description "Automated prompt optimization". Good: title "Auto-Optimize", description "Use DSPy-style optimizers to improve prompts programmatically".
+- **Mention package names** for integration/SDK pages — e.g., "openinference-instrumentation-openai", "@arizeai/phoenix-client".
+- **Be 5–20 words** — shorter is better. Cut every word that doesn't help an LLM decide whether to fetch.
+- **No filler** — never use "comprehensive", "complete", "learn more about", "information about", "overview of". These words carry zero signal.
+- **SDK reference entries** must describe what the package *does*, not just repeat the package name. Bad: "@arizeai/phoenix-evals". Good: "Run LLM and code evaluators in TypeScript".
 
 ## Verification
 
