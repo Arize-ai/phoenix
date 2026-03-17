@@ -62,3 +62,10 @@ DATASET_UPLOAD_EXAMPLE_IDS = ParameterRequirement(
     route="POST /v1/datasets/upload",
     min_server_version=Version(15, 0, 0),
 )
+
+DATASET_UPLOAD_EXAMPLE_ID_KEY = ParameterRequirement(
+    parameter_name="example_id_key",
+    parameter_location="body",
+    route="POST /v1/datasets/upload",
+    min_server_version=Version(15, 0, 0),
+)

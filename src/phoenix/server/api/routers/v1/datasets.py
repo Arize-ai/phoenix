@@ -1089,6 +1089,7 @@ async def _parse_form_data(
 
 class DatasetExample(V1RoutesBaseModel):
     id: str
+    node_id: str
     input: dict[str, Any]
     output: dict[str, Any]
     metadata: dict[str, Any]
@@ -1242,18 +1243,19 @@ async def get_dataset_examples(
                 .distinct()
             )
 
-        examples = [
-            DatasetExample(
-                id=example.external_id
-                if isinstance(example.external_id, str)
-                else str(GlobalID("DatasetExample", str(example.id))),
-                input=revision.input,
-                output=revision.output,
-                metadata=revision.metadata_,
-                updated_at=revision.created_at,
+        examples = []
+        async for example, revision in await session.stream(query):
+            node_id = str(GlobalID("DatasetExample", str(example.id)))
+            examples.append(
+                DatasetExample(
+                    id=example.external_id if isinstance(example.external_id, str) else node_id,
+                    node_id=node_id,
+                    input=revision.input,
+                    output=revision.output,
+                    metadata=revision.metadata_,
+                    updated_at=revision.created_at,
+                )
             )
-            async for example, revision in await session.stream(query)
-        ]
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),

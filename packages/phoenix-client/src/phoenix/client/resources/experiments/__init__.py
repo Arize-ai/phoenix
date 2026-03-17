@@ -1768,7 +1768,7 @@ class Experiments:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
-            "dataset_example_id": example["id"],
+            "dataset_example_id": example["node_id"],
             "output": output,
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
@@ -3518,7 +3518,7 @@ class AsyncExperiments:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
-            "dataset_example_id": example["id"],
+            "dataset_example_id": example["node_id"],
             "output": output,
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
