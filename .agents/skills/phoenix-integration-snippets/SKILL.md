@@ -36,6 +36,8 @@ Copy this checklist and track progress:
 
 **Step 4: Test.** For each supported language, install deps, run the snippet, and confirm traces appear in Phoenix. Use a dedicated project name per language (e.g., `my-integration-python-test`, `my-integration-ts-test`). If traces don't appear: check the Phoenix logs, verify the endpoint URL, and re-run. Only proceed to wiring into the UI when traces are confirmed.
 
+**Step 5: Wire into the onboarding UI.** After adding `docsHref` and `githubHref`, verify every URL returns HTTP 200 before committing. For GitHub links, prefer the OpenInference repo (`https://github.com/Arize-ai/openinference/tree/main/...`).
+
 **Step 6: Report.** Provide clickable links to the Phoenix project pages (e.g., `http://localhost:6006/projects/<base64-id>/traces`).
 
 ## Snippet Format
@@ -120,10 +122,14 @@ Import your function and add an entry to `ONBOARDING_INTEGRATIONS`. Pass snippet
     Python: {
       packages: ["arize-phoenix-otel", "openinference-instrumentation-my-sdk", "my-sdk"],
       getImplementationCode: getMyIntegrationCodePython,
+      docsHref: "https://arize.com/docs/phoenix/integrations/...",
+      githubHref: "https://github.com/Arize-ai/openinference/tree/main/...",
     },
     TypeScript: {
       packages: ["@arizeai/phoenix-otel", "@arizeai/openinference-instrumentation-my-sdk", "my-sdk"],
       getImplementationCode: getMyIntegrationCodeTypescript,
+      docsHref: "https://arize.com/docs/phoenix/integrations/...",
+      githubHref: "https://github.com/Arize-ai/openinference/tree/main/...",
     },
   },
 }
