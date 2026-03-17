@@ -28,7 +28,7 @@ DatasetExampleId: TypeAlias = int
 DatasetExampleRevisionId: TypeAlias = int
 SpanRowId: TypeAlias = int
 ExternalID: TypeAlias = str
-ContentHash: TypeAlias = str
+ContentHash: TypeAlias = bytes
 SplitName: TypeAlias = str
 DatasetSplitId: TypeAlias = int
 SplitAssignment: TypeAlias = tuple[DatasetExampleId, DatasetSplitId]
@@ -161,7 +161,7 @@ async def insert_dataset_example_revision(
     output: dict[str, Any],
     metadata: dict[str, Any],
     revision_kind: RevisionKind = RevisionKind.CREATE,
-    content_hash: Optional[str] = None,
+    content_hash: Optional[bytes] = None,
     created_at: Optional[datetime] = None,
 ) -> DatasetExampleRevisionId:
     id_ = await session.scalar(
