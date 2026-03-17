@@ -1,0 +1,54 @@
+name: Weekly llms.txt Audit
+
+on:
+  schedule:
+    # Every Wednesday at 15:00 UTC (1 hour after release notes)
+    - cron: "0 15 * * 3"
+  workflow_dispatch:
+
+concurrency:
+  group: llms-txt
+  cancel-in-progress: true
+
+jobs:
+  llms-txt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - name: Create branch
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="claude/llms-txt-$DATE"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          model: claude-opus-4-6
+          prompt: |
+            /phoenix-llms-txt
+
+            Audit llms.txt for coverage against the docs tree. Add missing pages, remove stale entries, and verify descriptions are concise.
+
+            If there are no changes needed, exit without making changes.
+
+            When done, commit all changes, push the branch, and open a PR via `gh pr create`.
+            Title the PR: "docs: Audit and update llms.txt"
+          claude_args: '--allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(find:*)","Bash(comm:*)","Bash(sort:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
