@@ -8,11 +8,13 @@ from typing import Any, Optional, cast
 
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.utilities.content_hashing import compute_example_content_hash
 
 # Batch size for bulk inserts - tuned for good performance across SQLite and PostgreSQL
@@ -68,6 +70,11 @@ class ExistingExampleInfo:
 class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
+
+
+class InvalidDatasetExampleIDError(ValueError):
+    """Raised when example_ids that look like DatasetExample node IDs
+    do not match any existing examples."""
 
 
 class RevisionKind(Enum):
@@ -631,26 +638,49 @@ class UpsertDiff:
         return bool(self.patch_examples or self.create_examples or self.delete_example_ids)
 
 
-def _find_match(
-    *,
-    incoming: ExampleWithHash,
-    example_info_by_external_id: dict[ExternalID, ExistingExampleInfo],
-    example_ids_by_content_hash: dict[ContentHash, list[DatasetExampleId]],
-    already_matched: set[DatasetExampleId],
-) -> Optional[ExistingExampleInfo]:
-    """Find an existing example that matches this incoming example.
-
-    Priority: external_id match > content_hash match > no match.
-    Returns the matched ExistingExample (with its previous content_hash),
-    or None if no match found.
+def _get_dataset_example_node_id(s: str) -> Optional[DatasetExampleId]:
     """
-    ext_id = incoming.content.external_id
-    if ext_id is not None and ext_id in example_info_by_external_id:
-        return example_info_by_external_id[ext_id]
-    for candidate_id in example_ids_by_content_hash.get(incoming.content_hash, []):
-        if candidate_id not in already_matched:
-            return ExistingExampleInfo(candidate_id, incoming.content_hash)
-    return None
+    Decode a string as a DatasetExample GlobalID (base64-encoded 'DatasetExample:{id}').
+
+    Returns the numeric DB ID if successful, None otherwise.
+    """
+
+    try:
+        return from_global_id_with_expected_type(GlobalID.from_id(s), "DatasetExample")
+    except Exception:
+        return None
+
+
+class _ExampleMatcher:
+    """Indexes previous examples and matches incoming examples against them.
+
+    Priority: node_id match > external_id match > content_hash match > no match.
+    """
+
+    def __init__(self, previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]]) -> None:
+        self._example_info_by_external_id: dict[ExternalID, ExistingExampleInfo] = {}
+        self._example_info_by_db_id: dict[DatasetExampleId, ExistingExampleInfo] = {}
+        self._example_ids_by_content_hash: dict[ContentHash, list[DatasetExampleId]] = {}
+        for example_id, external_id, content_hash in previous:
+            info = ExistingExampleInfo(example_id, content_hash)
+            self._example_info_by_db_id[example_id] = info
+            if external_id is not None:
+                self._example_info_by_external_id[external_id] = info
+            self._example_ids_by_content_hash.setdefault(content_hash, []).append(example_id)
+        self._already_matched: set[DatasetExampleId] = set()
+
+    def find_match(self, incoming: ExampleWithHash) -> Optional[ExistingExampleInfo]:
+        external_id = incoming.content.external_id
+        if external_id is not None:
+            db_id = _get_dataset_example_node_id(external_id)
+            if db_id is not None:
+                return self._example_info_by_db_id.get(db_id)
+            if external_id in self._example_info_by_external_id:
+                return self._example_info_by_external_id[external_id]
+        for candidate_id in self._example_ids_by_content_hash.get(incoming.content_hash, []):
+            if candidate_id not in self._already_matched:
+                return ExistingExampleInfo(candidate_id, incoming.content_hash)
+        return None
 
 
 def _diff_examples(
@@ -670,29 +700,17 @@ def _diff_examples(
       - Unmatched incoming           → CREATE
       - Unmatched previous           → DELETE
     """
-    example_info_by_external_id: dict[ExternalID, ExistingExampleInfo] = {}
-    example_ids_by_content_hash: dict[ContentHash, list[DatasetExampleId]] = {}
-    for example_id, external_id, content_hash in previous:
-        if external_id is not None:
-            example_info_by_external_id[external_id] = ExistingExampleInfo(example_id, content_hash)
-        example_ids_by_content_hash.setdefault(content_hash, []).append(example_id)
-
-    matched_ids: set[DatasetExampleId] = set()
+    matcher = _ExampleMatcher(previous)
     examples_to_create: list[ExampleWithHash] = []
     examples_to_patch: list[ExampleWithExternalID] = []
     examples_unchanged: list[ExampleWithExternalID] = []
 
     for incoming in incoming_examples:
-        match = _find_match(
-            incoming=incoming,
-            example_info_by_external_id=example_info_by_external_id,
-            example_ids_by_content_hash=example_ids_by_content_hash,
-            already_matched=matched_ids,
-        )
+        match = matcher.find_match(incoming)
         if match is None:
             examples_to_create.append(incoming)
             continue
-        matched_ids.add(match.example_id)
+        matcher._already_matched.add(match.example_id)
         if incoming.content_hash != match.content_hash:
             examples_to_patch.append(
                 ExampleWithExternalID(
@@ -711,7 +729,9 @@ def _diff_examples(
             )
 
     all_previous_ids = {example_id for example_id, _, _ in previous}
-    delete_ids = [example_id for example_id in all_previous_ids if example_id not in matched_ids]
+    delete_ids = [
+        example_id for example_id in all_previous_ids if example_id not in matcher._already_matched
+    ]
 
     return UpsertDiff(
         create_examples=examples_to_create,
@@ -861,6 +881,22 @@ async def _upsert_dataset_examples(
             )
 
         if diff.create_examples:
+            node_ids_without_example_record: list[str] = []
+            for example in diff.create_examples:
+                external_id = example.content.external_id
+                if external_id is None:
+                    continue
+                is_node_id_without_example_record = (
+                    _get_dataset_example_node_id(external_id) is not None
+                )
+                if is_node_id_without_example_record:
+                    node_ids_without_example_record.append(external_id)
+            if node_ids_without_example_record:
+                raise InvalidDatasetExampleIDError(
+                    "Example IDs that look like DatasetExample node IDs "
+                    "must match existing examples, but the following do correspond to any existing "
+                    f"example IDs: {node_ids_without_example_record}"
+                )
             create_external_ids = [
                 example.content.external_id
                 for example in diff.create_examples
@@ -872,14 +908,14 @@ async def _upsert_dataset_examples(
             span_ids_to_resolve = [r.content.span_id for r in diff.create_examples]
             span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
             for new_revision in diff.create_examples:
-                example = new_revision.content
+                content = new_revision.content
                 span_rowid = None
-                if example.span_id:
-                    span_rowid = span_id_to_rowid.get(example.span_id)
+                if content.span_id:
+                    span_rowid = span_id_to_rowid.get(content.span_id)
 
                 existing_example_id = (
-                    external_id_to_existing_example_id.get(example.external_id)
-                    if example.external_id is not None
+                    external_id_to_existing_example_id.get(content.external_id)
+                    if content.external_id is not None
                     else None
                 )
                 if existing_example_id is not None:
@@ -889,23 +925,23 @@ async def _upsert_dataset_examples(
                         session=session,
                         dataset_id=dataset_id,
                         span_rowid=span_rowid,
-                        external_id=example.external_id,
+                        external_id=content.external_id,
                         created_at=created_at,
                     )
                 await insert_dataset_example_revision(
                     session=session,
                     dataset_version_id=dataset_version_id,
                     dataset_example_id=example_id,
-                    input=example.input,
-                    output=example.output,
-                    metadata=example.metadata,
+                    input=content.input,
+                    output=content.output,
+                    metadata=content.metadata,
                     revision_kind=RevisionKind.CREATE,
                     content_hash=new_revision.content_hash,
                     created_at=created_at,
                 )
                 created_examples.append(
                     ExampleWithExternalID(
-                        content=example,
+                        content=content,
                         example_id=example_id,
                         content_hash=new_revision.content_hash,
                     )

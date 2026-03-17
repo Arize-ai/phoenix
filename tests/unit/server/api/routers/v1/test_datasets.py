@@ -2792,3 +2792,325 @@ async def test_create_revived_example_preserves_old_span_rowid(
     revived = next(e for e in examples if e.external_id == "e1")
     # Old DatasetExample row is reused — span_rowid is the original value
     assert revived.span_rowid == span_rowid_1
+
+
+# ---------------------------------------------------------------------------
+# Node ID round-trip matching
+# ---------------------------------------------------------------------------
+
+
+async def test_node_id_roundtrip_unchanged(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Example without external_id, re-sent with its node ID and same content → no new version."""
+    name = "node-id-unchanged"
+    ex = ExampleContent(input={"a": 1}, output={"b": 2})
+    await _append(httpx_client, name, [ex])
+
+    # Get the node ID assigned by the server
+    examples = await _get_examples(db, name)
+    node_id = str(GlobalID("DatasetExample", str(examples[0].id)))
+
+    # Re-create with the node ID as external_id, same content
+    await _create(
+        httpx_client, name, [ExampleContent(input={"a": 1}, output={"b": 2}, external_id=node_id)]
+    )
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+    assert len(versions) == 1  # no new version — unchanged
+    assert [r.revision_kind for r in revisions] == ["CREATE"]
+    # external_id in DB should still be None (node ID not persisted)
+    db_examples = await _get_examples(db, name)
+    assert db_examples[0].external_id is None
+
+
+async def test_node_id_roundtrip_patch(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Example without external_id, re-sent with its node ID and changed content → PATCH."""
+    name = "node-id-patch"
+    ex = ExampleContent(input={"a": 1}, output={"b": 2})
+    await _append(httpx_client, name, [ex])
+
+    examples = await _get_examples(db, name)
+    node_id = str(GlobalID("DatasetExample", str(examples[0].id)))
+
+    # Re-create with same node ID but different content
+    await _create(
+        httpx_client,
+        name,
+        [ExampleContent(input={"a": 1}, output={"b": 999}, external_id=node_id)],
+    )
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+    assert len(versions) == 2
+    assert [r.revision_kind for r in revisions] == ["CREATE", "PATCH"]
+    # external_id stays None
+    db_examples = await _get_examples(db, name)
+    assert db_examples[0].external_id is None
+
+
+async def test_node_id_roundtrip_delete(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Example without external_id, omitted from next create → DELETE."""
+    name = "node-id-delete"
+    ex1 = ExampleContent(input={"a": 1}, output={})
+    ex2 = ExampleContent(input={"b": 1}, output={})
+    await _append(httpx_client, name, [ex1, ex2])
+
+    examples = await _get_examples(db, name)
+    keep_node_id = str(GlobalID("DatasetExample", str(examples[0].id)))
+
+    # Re-create keeping only the first example (by node ID), dropping the second
+    await _create(
+        httpx_client,
+        name,
+        [ExampleContent(input={"a": 1}, output={}, external_id=keep_node_id)],
+    )
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds.count("CREATE") == 2
+    assert kinds.count("DELETE") == 1
+
+
+async def test_node_id_without_example_record_rejected(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """A node ID that doesn't match any existing example is rejected with 422."""
+    name = "node-id-without-example-record"
+    ex = ExampleContent(input={"a": 1}, output={})
+    await _append(httpx_client, name, [ex])
+
+    # Use a non-existent DB ID AND different content so neither node ID
+    # nor content hash matches — the example lands in create_examples
+    # with a node-ID-shaped external_id, which must be rejected.
+    fake_node_id = str(GlobalID("DatasetExample", "99999"))
+    response = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"completely": "different"}],
+            "example_ids": [fake_node_id],
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_node_id_not_persisted_as_external_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """When a node ID is used for matching, the DB external_id stays NULL."""
+    name = "node-id-no-persist"
+    await _append(
+        httpx_client,
+        name,
+        [ExampleContent(input={"a": 1}, output={}), ExampleContent(input={"b": 1}, output={})],
+    )
+
+    examples_before = await _get_examples(db, name)
+    assert all(e.external_id is None for e in examples_before)
+
+    # Re-create with node IDs, patching one
+    node_ids = [str(GlobalID("DatasetExample", str(e.id))) for e in examples_before]
+    await _create(
+        httpx_client,
+        name,
+        [
+            ExampleContent(input={"a": 1}, output={}, external_id=node_ids[0]),  # unchanged
+            ExampleContent(input={"b": 999}, output={}, external_id=node_ids[1]),  # patch
+        ],
+    )
+
+    examples_after = await _get_examples(db, name)
+    # external_id must still be None for both
+    assert all(e.external_id is None for e in examples_after)
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive upsert roundtrip (all 8 cases in a single test)
+# ---------------------------------------------------------------------------
+
+
+async def test_upsert_roundtrip_all_eight_cases(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """
+    Exercises all 8 upsert cases across two versions in a single test.
+
+    Version 1 creates 8 examples (one per case). Version 2 re-creates with a
+    subset, triggering every combination of match-strategy × outcome:
+
+      Explicit id:
+        1. Unchanged — same content, matched by external_id → no revision in v2
+        2. Patch     — content changed, matched by external_id → PATCH in v2
+        3. Delete    — removed from v2 list → DELETE in v2
+
+      Content hash (no id):
+        4. Unchanged — identical content, matched by content hash → no revision in v2
+        5. Delete    — removed from v2 list → DELETE in v2
+
+      Node id round-trip (server-assigned GlobalID sent back):
+        6. Unchanged — same content, matched by decoded node ID → no revision in v2
+        7. Patch     — content changed, matched by decoded node ID → PATCH in v2
+        8. Delete    — removed from v2 list → DELETE in v2
+    """
+    name = "roundtrip-8-cases"
+
+    # --- v1: create 8 examples -----------------------------------------------
+    v1_examples = [
+        # Explicit id
+        ExampleContent(  # case 1: unchanged
+            input={"question": "Capital of Japan?"},
+            output={"answer": "Tokyo"},
+            metadata={"category": "geography"},
+            external_id="capital-japan",
+        ),
+        ExampleContent(  # case 2: will be patched
+            input={"question": "Capital of Germany?"},
+            output={"answer": "Munich"},  # wrong — fixed in v2
+            metadata={"category": "geography"},
+            external_id="capital-germany",
+        ),
+        ExampleContent(  # case 3: will be deleted
+            input={"question": "Capital of France?"},
+            output={"answer": "Paris"},
+            metadata={"category": "geography"},
+            external_id="capital-france",
+        ),
+        # Content hash (no id)
+        ExampleContent(  # case 4: unchanged
+            input={"question": "Boiling point of water?"},
+            output={"answer": "100C"},
+            metadata={"category": "science"},
+        ),
+        ExampleContent(  # case 5: will be deleted
+            input={"question": "Largest ocean?"},
+            output={"answer": "Pacific"},
+            metadata={"category": "geography"},
+        ),
+        # Node id round-trip (no external id — will be assigned server IDs)
+        ExampleContent(  # case 6: unchanged
+            input={"question": "Speed of light?"},
+            output={"answer": "299792458 m/s"},
+            metadata={"category": "physics"},
+        ),
+        ExampleContent(  # case 7: will be patched
+            input={"question": "Fastest land animal?"},
+            output={"answer": "Cheetah"},
+            metadata={"category": "biology"},
+        ),
+        ExampleContent(  # case 8: will be deleted
+            input={"question": "Tallest mountain?"},
+            output={"answer": "Everest"},
+            metadata={"category": "geography"},
+        ),
+    ]
+    await _append(httpx_client, name, v1_examples)
+
+    # --- verify v1 -----------------------------------------------------------
+    v1_versions = await _get_versions(db, name)
+    v1_revisions = await _get_revisions(db, name)
+    assert len(v1_versions) == 1
+    assert len(v1_revisions) == 8
+    assert all(r.revision_kind == "CREATE" for r in v1_revisions)
+
+    # Grab server-assigned DB rows so we can build node IDs for cases 6–8.
+    # DatasetExample doesn't have `input` — match via revisions or external_id.
+    db_examples = await _get_examples(db, name)
+    rev_by_example_id = {r.dataset_example_id: r for r in v1_revisions}
+    example_by_question: dict[str, models.DatasetExample] = {}
+    for ex in db_examples:
+        rev = rev_by_example_id[ex.id]
+        example_by_question[rev.input.get("question", "")] = ex
+
+    # Explicit-id examples should preserve external_id.
+    assert example_by_question["Capital of Japan?"].external_id == "capital-japan"
+    assert example_by_question["Capital of Germany?"].external_id == "capital-germany"
+    assert example_by_question["Capital of France?"].external_id == "capital-france"
+
+    # Node-id examples have no external_id.
+    assert example_by_question["Speed of light?"].external_id is None
+    assert example_by_question["Fastest land animal?"].external_id is None
+    assert example_by_question["Tallest mountain?"].external_id is None
+
+    # Build node IDs for cases 6, 7.
+    node_id_6 = str(GlobalID("DatasetExample", str(example_by_question["Speed of light?"].id)))
+    node_id_7 = str(GlobalID("DatasetExample", str(example_by_question["Fastest land animal?"].id)))
+
+    # --- v2: upsert with 5 kept, 3 deleted -----------------------------------
+    v2_examples = [
+        # Case 1: explicit id, unchanged
+        ExampleContent(
+            input={"question": "Capital of Japan?"},
+            output={"answer": "Tokyo"},
+            metadata={"category": "geography"},
+            external_id="capital-japan",
+        ),
+        # Case 2: explicit id, patched (fix answer)
+        ExampleContent(
+            input={"question": "Capital of Germany?"},
+            output={"answer": "Berlin"},
+            metadata={"category": "geography"},
+            external_id="capital-germany",
+        ),
+        # Case 3: OMITTED → DELETE
+        # Case 4: no id, unchanged (content hash match)
+        ExampleContent(
+            input={"question": "Boiling point of water?"},
+            output={"answer": "100C"},
+            metadata={"category": "science"},
+        ),
+        # Case 5: OMITTED → DELETE
+        # Case 6: node id, unchanged
+        ExampleContent(
+            input={"question": "Speed of light?"},
+            output={"answer": "299792458 m/s"},
+            metadata={"category": "physics"},
+            external_id=node_id_6,
+        ),
+        # Case 7: node id, patched (add metadata)
+        ExampleContent(
+            input={"question": "Fastest land animal?"},
+            output={"answer": "Cheetah"},
+            metadata={"category": "biology", "fun_fact": "Up to 70 mph"},
+            external_id=node_id_7,
+        ),
+        # Case 8: OMITTED → DELETE
+    ]
+    await _create(httpx_client, name, v2_examples)
+
+    # --- verify v2 -----------------------------------------------------------
+    v2_versions = await _get_versions(db, name)
+    v2_revisions = await _get_revisions(db, name)
+
+    assert len(v2_versions) == 2, f"Expected 2 versions, got {len(v2_versions)}"
+
+    # v2 revisions only (exclude v1 CREATEs)
+    v2_version_id = v2_versions[1].id
+    v2_only = [r for r in v2_revisions if r.dataset_version_id == v2_version_id]
+
+    patch_count = sum(1 for r in v2_only if r.revision_kind == "PATCH")
+    delete_count = sum(1 for r in v2_only if r.revision_kind == "DELETE")
+    create_count = sum(1 for r in v2_only if r.revision_kind == "CREATE")
+
+    assert patch_count == 2, f"Expected 2 PATCHes, got {patch_count}"
+    assert delete_count == 3, f"Expected 3 DELETEs, got {delete_count}"
+    assert create_count == 0, f"Expected 0 CREATEs in v2, got {create_count}"
+
+    # Verify patched content in DB
+    germany = next(e for e in db_examples if e.external_id == "capital-germany")
+    germany_rev = next(r for r in v2_only if r.dataset_example_id == germany.id)
+    assert germany_rev.output == {"answer": "Berlin"}

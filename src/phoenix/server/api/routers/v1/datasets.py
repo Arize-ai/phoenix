@@ -36,6 +36,7 @@ from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
     ExampleContent,
+    InvalidDatasetExampleIDError,
     add_dataset_examples,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
@@ -558,10 +559,13 @@ async def upload_dataset(
         ),
     )
     if sync:
-        async with request.app.state.db() as session:
-            event = await operation(session)
-            dataset_id = event.dataset_id
-            version_id = event.dataset_version_id
+        try:
+            async with request.app.state.db() as session:
+                event = await operation(session)
+                dataset_id = event.dataset_id
+                version_id = event.dataset_version_id
+        except InvalidDatasetExampleIDError as e:
+            raise HTTPException(detail=str(e), status_code=422)
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
             data=UploadDatasetData(
