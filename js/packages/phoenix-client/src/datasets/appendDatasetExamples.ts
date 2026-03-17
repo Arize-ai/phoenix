@@ -30,6 +30,7 @@ export type AppendDatasetExamplesResponse = {
  * @param params.client - Optional Phoenix client instance
  * @param params.dataset - The dataset to append examples to (by ID or name)
  * @param params.examples - The examples to append. Each example can include:
+ *   - `id`: Optional stable ID for the example, used to reference or update it later
  *   - `input`: Required input data for the example
  *   - `output`: Optional expected output data
  *   - `metadata`: Optional metadata for the example
@@ -40,7 +41,6 @@ export type AppendDatasetExamplesResponse = {
  *
  * @example
  * ```ts
- * // Append examples with span links to an existing dataset
  * const { datasetId, versionId } = await appendDatasetExamples({
  *   dataset: { datasetName: "qa-dataset" },
  *   examples: [
@@ -48,6 +48,11 @@ export type AppendDatasetExamplesResponse = {
  *       input: { question: "What is deep learning?" },
  *       output: { answer: "Deep learning is..." },
  *       spanId: "span123abc" // Links to the source span
+ *     },
+ *     {
+ *       id: "my-stable-id", // Stable ID for referencing this example later
+ *       input: { question: "What is a transformer?" },
+ *       output: { answer: "A transformer is..." },
  *     }
  *   ]
  * });
