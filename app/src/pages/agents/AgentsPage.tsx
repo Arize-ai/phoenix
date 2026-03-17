@@ -49,6 +49,7 @@ export function AgentsPage() {
       </View>
       <Chat
         key={chatApiUrl}
+        sessionId={null}
         chatApiUrl={chatApiUrl}
         modelMenuValue={menuValue}
         onModelChange={handleChange}

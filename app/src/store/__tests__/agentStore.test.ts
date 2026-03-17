@@ -1,13 +1,10 @@
-import {
-  _resetAgentMessageId,
-  _resetSessionId,
-  createAgentStore,
-} from "../agentStore";
+import type { UIMessage } from "ai";
+
+import { createAgentStore } from "../agentStore";
 
 describe("agentStore", () => {
   beforeEach(() => {
-    _resetSessionId();
-    _resetAgentMessageId();
+    localStorage.removeItem("arize-phoenix-agent");
   });
 
   describe("createSession", () => {
@@ -24,23 +21,30 @@ describe("agentStore", () => {
       expect(state.sessionMap[sessionId].modelConfig.modelName).toBe(
         "claude-opus-4-6"
       );
-      expect(state.sessionMap[sessionId].messageIds).toEqual([]);
+      expect(state.sessionMap[sessionId].messages).toEqual([]);
       expect(state.sessionMap[sessionId].context).toEqual([]);
+    });
+
+    it("generates unique UUIDs for each session", () => {
+      const store = createAgentStore();
+      const sessionId1 = store.getState().createSession();
+      const sessionId2 = store.getState().createSession();
+      expect(sessionId1).not.toBe(sessionId2);
+      // UUID format check
+      expect(sessionId1).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      );
     });
   });
 
   describe("deleteSession", () => {
-    it("removes session and cascades message cleanup, updates activeSessionId", () => {
+    it("removes session and updates activeSessionId", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
-      const messageId = store
-        .getState()
-        .addMessage(sessionId, { role: "user", content: "hello" });
       store.getState().deleteSession(sessionId);
       const state = store.getState();
       expect(state.sessions).toEqual([]);
       expect(state.sessionMap[sessionId]).toBeUndefined();
-      expect(state.messageMap[messageId]).toBeUndefined();
       expect(state.activeSessionId).toBeNull();
     });
 
@@ -90,47 +94,31 @@ describe("agentStore", () => {
     });
   });
 
-  describe("addMessage", () => {
-    it("creates message in messageMap and appends ID to session messageIds", () => {
+  describe("setSessionMessages", () => {
+    it("replaces messages on the session", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
-      const messageId = store
-        .getState()
-        .addMessage(sessionId, { role: "user", content: "hello" });
-      const state = store.getState();
-      expect(state.messageMap[messageId]).toEqual({
-        id: messageId,
-        role: "user",
-        content: "hello",
-      });
-      expect(state.sessionMap[sessionId].messageIds).toEqual([messageId]);
+      const messages: UIMessage[] = [
+        {
+          id: "msg-1",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "hi there" }],
+        },
+      ];
+      store.getState().setSessionMessages(sessionId, messages);
+      expect(store.getState().sessionMap[sessionId].messages).toEqual(messages);
     });
-  });
 
-  describe("updateMessage", () => {
-    it("patches message fields", () => {
+    it("no-ops for unknown session", () => {
       const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      const messageId = store
-        .getState()
-        .addMessage(sessionId, { role: "user", content: "hello" });
-      store.getState().updateMessage(messageId, { content: "updated" });
-      expect(store.getState().messageMap[messageId].content).toBe("updated");
-      expect(store.getState().messageMap[messageId].role).toBe("user");
-    });
-  });
-
-  describe("deleteMessage", () => {
-    it("removes from messageMap and session messageIds", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      const messageId = store
-        .getState()
-        .addMessage(sessionId, { role: "user", content: "hello" });
-      store.getState().deleteMessage(sessionId, messageId);
-      const state = store.getState();
-      expect(state.messageMap[messageId]).toBeUndefined();
-      expect(state.sessionMap[sessionId].messageIds).toEqual([]);
+      const before = store.getState();
+      store.getState().setSessionMessages("nonexistent", []);
+      expect(store.getState().sessionMap).toBe(before.sessionMap);
     });
   });
 
@@ -150,17 +138,21 @@ describe("agentStore", () => {
   });
 
   describe("clearAllSessions", () => {
-    it("resets sessions, sessionMap, messageMap, activeSessionId", () => {
+    it("resets sessions, sessionMap, activeSessionId", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
-      store
-        .getState()
-        .addMessage(sessionId, { role: "user", content: "hello" });
+      const messages: UIMessage[] = [
+        {
+          id: "msg-1",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+        },
+      ];
+      store.getState().setSessionMessages(sessionId, messages);
       store.getState().clearAllSessions();
       const state = store.getState();
       expect(state.sessions).toEqual([]);
       expect(state.sessionMap).toEqual({});
-      expect(state.messageMap).toEqual({});
       expect(state.activeSessionId).toBeNull();
     });
   });

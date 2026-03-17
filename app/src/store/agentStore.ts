@@ -1,3 +1,4 @@
+import type { UIMessage } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -12,15 +13,6 @@ import type { ModelConfig } from "./playground/types";
 export type AgentPosition = "detached" | "pinned";
 
 /**
- * A single message within an agent conversation.
- */
-export type AgentMessage = {
-  id: number;
-  role: string;
-  content: unknown;
-};
-
-/**
  * An agent conversation session containing messages, context references,
  * and its own model configuration (initially cloned from the default).
  */
@@ -28,30 +20,12 @@ export type AgentSession = {
   id: string;
   /** Brief human-readable summary of the conversation so far. */
   shortSummary: string;
-  /** Ordered list of message IDs belonging to this session. */
-  messageIds: number[];
+  /** Messages in AI SDK UIMessage format. */
+  messages: UIMessage[];
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
   modelConfig: ModelConfig;
-};
-
-/** Auto-incrementing session ID counter. */
-let agentSessionId = 0;
-/** Returns the next unique session ID. */
-export const generateSessionId = () => agentSessionId++;
-/** Resets the session ID counter. Test-only. */
-export const _resetSessionId = () => {
-  agentSessionId = 0;
-};
-
-/** Auto-incrementing message ID counter. */
-let agentMessageId = 1;
-/** Returns the next unique message ID. */
-export const generateAgentMessageId = () => agentMessageId++;
-/** Resets the message ID counter. Test-only. */
-export const _resetAgentMessageId = () => {
-  agentMessageId = 1;
 };
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -76,8 +50,6 @@ export interface AgentProps {
   activeSessionId: string | null;
   /** Lookup table of sessions by their ID. */
   sessionMap: Record<string, AgentSession>;
-  /** Lookup table of messages by their ID (shared across all sessions). */
-  messageMap: Record<number, AgentMessage>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
 }
@@ -100,9 +72,7 @@ export interface AgentState extends AgentProps {
   ) => void;
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
-  addMessage: (sessionId: string, message: Omit<AgentMessage, "id">) => number;
-  updateMessage: (messageId: number, patch: Partial<AgentMessage>) => void;
-  deleteMessage: (sessionId: string, messageId: number) => void;
+  setSessionMessages: (sessionId: string, messages: UIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   clearAllSessions: () => void;
 }
@@ -126,7 +96,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     sessions: [],
     activeSessionId: null,
     sessionMap: {},
-    messageMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
@@ -140,13 +109,13 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       set({ position }, false, { type: "setPosition" });
     },
     createSession: () => {
-      const sessionId = String(generateSessionId());
+      const sessionId = crypto.randomUUID();
       set(
         (state) => {
           const session: AgentSession = {
             id: sessionId,
             shortSummary: "",
-            messageIds: [],
+            messages: [],
             context: [],
             modelConfig: { ...state.defaultModelConfig },
           };
@@ -166,11 +135,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         (state) => {
           const session = state.sessionMap[sessionId];
           if (!session) return state;
-          const messageIdsToRemove = new Set(session.messageIds);
-          const newMessageMap = { ...state.messageMap };
-          for (const messageId of messageIdsToRemove) {
-            delete newMessageMap[messageId];
-          }
           const newSessionMap = { ...state.sessionMap };
           delete newSessionMap[sessionId];
           const newSessions = state.sessions.filter((id) => id !== sessionId);
@@ -181,7 +145,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             sessions: newSessions,
             sessionMap: newSessionMap,
-            messageMap: newMessageMap,
             activeSessionId: newActiveSessionId,
           };
         },
@@ -265,65 +228,20 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "removeSessionContext" }
       );
     },
-    addMessage: (sessionId, message) => {
-      const messageId = generateAgentMessageId();
+    setSessionMessages: (sessionId, messages) => {
       set(
         (state) => {
           const session = state.sessionMap[sessionId];
           if (!session) return state;
-          const newMessage: AgentMessage = { ...message, id: messageId };
           return {
-            messageMap: { ...state.messageMap, [messageId]: newMessage },
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: {
-                ...session,
-                messageIds: [...session.messageIds, messageId],
-              },
+              [sessionId]: { ...session, messages },
             },
           };
         },
         false,
-        { type: "addMessage" }
-      );
-      return messageId;
-    },
-    updateMessage: (messageId, patch) => {
-      set(
-        (state) => {
-          const message = state.messageMap[messageId];
-          if (!message) return state;
-          return {
-            messageMap: {
-              ...state.messageMap,
-              [messageId]: { ...message, ...patch, id: messageId },
-            },
-          };
-        },
-        false,
-        { type: "updateMessage" }
-      );
-    },
-    deleteMessage: (sessionId, messageId) => {
-      set(
-        (state) => {
-          const session = state.sessionMap[sessionId];
-          if (!session) return state;
-          const newMessageMap = { ...state.messageMap };
-          delete newMessageMap[messageId];
-          return {
-            messageMap: newMessageMap,
-            sessionMap: {
-              ...state.sessionMap,
-              [sessionId]: {
-                ...session,
-                messageIds: session.messageIds.filter((id) => id !== messageId),
-              },
-            },
-          };
-        },
-        false,
-        { type: "deleteMessage" }
+        { type: "setSessionMessages" }
       );
     },
     setDefaultModelConfig: (config) => {
@@ -337,7 +255,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           sessions: [],
           activeSessionId: null,
           sessionMap: {},
-          messageMap: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -355,7 +272,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
-        messageMap: state.messageMap,
         defaultModelConfig: state.defaultModelConfig,
       }),
     })

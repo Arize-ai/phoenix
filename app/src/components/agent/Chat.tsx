@@ -9,6 +9,7 @@ import { Shimmer } from "@phoenix/components/ai/shimmer";
 import { MessageBar } from "@phoenix/components/chat";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 
@@ -82,17 +83,48 @@ const chatCSS = css`
 `;
 
 export function Chat({
+  sessionId,
   chatApiUrl,
   modelMenuValue,
   onModelChange,
 }: {
+  sessionId: string | null;
   chatApiUrl: string;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
 }) {
+  const store = useAgentStore();
+
+  // LOAD: read stored messages for this session
+  const initialMessages = sessionId
+    ? store.getState().sessionMap[sessionId]?.messages
+    : undefined;
+
+  // INIT: seed useChat with stored messages and session ID
   const { messages, sendMessage, status, error } = useChat({
+    id: sessionId ?? undefined,
+    messages: initialMessages,
     transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
+    // SAVE: persist after each assistant response completes
+    onFinish: ({ messages: finalMessages }) => {
+      if (sessionId && finalMessages) {
+        store.getState().setSessionMessages(sessionId, finalMessages);
+      }
+    },
   });
+
+  // Keep a ref to messages for the unmount cleanup (avoids stale closure)
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  // SAVE on unmount (covers model change remount, tab close)
+  useEffect(() => {
+    return () => {
+      if (sessionId && messagesRef.current.length > 0) {
+        store.getState().setSessionMessages(sessionId, messagesRef.current);
+      }
+    };
+  }, [sessionId, store]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { Panel, PanelResizeHandle } from "react-resizable-panels";
 
 import { Flex, Heading, Icon, IconButton, Icons } from "@phoenix/components";
@@ -32,12 +32,21 @@ export function AgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
+  const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const createSession = useAgentContext((state) => state.createSession);
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
   );
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
+
+  // Auto-create a session when the panel opens without one
+  useEffect(() => {
+    if (isOpen && activeSessionId === null) {
+      createSession();
+    }
+  }, [isOpen, activeSessionId, createSession]);
 
   const menuValue: ModelMenuValue = {
     provider: defaultModelConfig.provider,
@@ -90,7 +99,8 @@ export function AgentChatPanel() {
             </IconButton>
           </div>
           <Chat
-            key={chatApiUrl}
+            key={`${activeSessionId}-${chatApiUrl}`}
+            sessionId={activeSessionId}
             chatApiUrl={chatApiUrl}
             modelMenuValue={menuValue}
             onModelChange={handleModelChange}
