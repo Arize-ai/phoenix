@@ -87,7 +87,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T2.1
 - Blocks: T7.2
 
-### T2.3 Disable network and configure execution limits
+### T2.3 Disable network and configure execution limits [done]
 
 - Ensure network access is disabled by default.
 - Set command/loop/time limits to prevent runaway execution.
@@ -103,6 +103,15 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Deliverable: structured runtime telemetry for debugging.
 - Depends on: T2.1
 - Blocks: T1.4, T7.1
+
+### T2.4a Add cancel-on-submit behavior for in-flight agent work
+
+- When the submit button is pressed while the agent is loading, cancel the active model request.
+- Also cancel any in-flight client tool executions tied to that turn.
+- Ensure the UI exits the loading state cleanly and the user can immediately submit a replacement message.
+- Deliverable: one-click interruption for active agent/tool execution.
+- Depends on: T1.3, T2.3
+- Blocks: T7.1
 
 ### T2.5 Plan and implement bash session cleanup + persistence
 

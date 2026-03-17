@@ -12,6 +12,7 @@ export {
 export {
   createBashToolRuntime,
   DEFAULT_BASH_TOOL_CWD,
+  DEFAULT_BASH_TOOL_EXECUTION_LIMITS,
 } from "./bashToolRuntime";
 export type { BashToolFilesystemPolicy } from "./bashToolFilesystemPolicy";
 export type { BashToolInput } from "./bashToolSchema";

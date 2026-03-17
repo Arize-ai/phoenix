@@ -5,5 +5,10 @@ export interface BashToolCommandResult {
 }
 
 export interface BashToolRuntime {
-  executeCommand: (command: string) => Promise<BashToolCommandResult>;
+  executeCommand: (
+    command: string,
+    options?: {
+      signal?: AbortSignal;
+    }
+  ) => Promise<BashToolCommandResult>;
 }
