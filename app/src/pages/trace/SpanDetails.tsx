@@ -739,44 +739,44 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
           {hasPromptTemplateObject && (
             <LazyTabPanel id="prompt-template">
-              <View padding="size-200">
-                <Flex direction="column" gap="size-100">
-                  {promptTemplateObject.template != null && (
-                    <View
-                      borderRadius="medium"
-                      borderWidth="thin"
-                      borderColor="default"
-                      padding="size-200"
+              <DisclosureGroup
+                defaultExpandedKeys={["prompt-template", "template-variables"]}
+              >
+                {promptTemplateObject.template != null && (
+                  <Disclosure id="prompt-template">
+                    <DisclosureTrigger
+                      arrowPosition="start"
+                      justifyContent="space-between"
                     >
-                      <CopyToClipboard text={promptTemplateObject.template}>
-                        <Text color="text-700" fontStyle="italic">
-                          prompt template
-                        </Text>
-                        <PreBlock>{promptTemplateObject.template}</PreBlock>
-                      </CopyToClipboard>
-                    </View>
-                  )}
-                  {promptTemplateObject.variables != null && (
-                    <View
-                      borderRadius="medium"
-                      borderColor="default"
-                      borderWidth="thin"
-                      padding="size-200"
+                      <Text>Prompt Template</Text>
+                      <CopyToClipboardButton
+                        text={promptTemplateObject.template}
+                      />
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <PreBlock>{promptTemplateObject.template}</PreBlock>
+                    </DisclosurePanel>
+                  </Disclosure>
+                )}
+                {promptTemplateObject.variables != null && (
+                  <Disclosure id="template-variables">
+                    <DisclosureTrigger
+                      arrowPosition="start"
+                      justifyContent="space-between"
                     >
-                      <CopyToClipboard
+                      <Text>Template Variables</Text>
+                      <CopyToClipboardButton
                         text={JSON.stringify(promptTemplateObject.variables)}
-                      >
-                        <Text color="text-700" fontStyle="italic">
-                          template variables
-                        </Text>
-                        <ReadonlyJSONBlock>
-                          {JSON.stringify(promptTemplateObject.variables)}
-                        </ReadonlyJSONBlock>
-                      </CopyToClipboard>
-                    </View>
-                  )}
-                </Flex>
-              </View>
+                      />
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <ReadonlyJSONBlock>
+                        {JSON.stringify(promptTemplateObject.variables)}
+                      </ReadonlyJSONBlock>
+                    </DisclosurePanel>
+                  </Disclosure>
+                )}
+              </DisclosureGroup>
             </LazyTabPanel>
           )}
 
@@ -1391,8 +1391,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       css={
                         idx === 0
                           ? css`
-                              border-top: 1px solid
-                                var(--global-border-color-default);
+                              border-top: 1px solid var(--global-border-color-default);
                             `
                           : null
                       }

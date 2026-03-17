@@ -90,7 +90,7 @@ export const cardCSS = (style?: CSSProperties) => css`
   /* Collapsible behavior */
   &[data-collapsible="true"] {
     & > header:hover {
-      background-color: rgba(255, 255, 255, 0.1);
+      background-color: var(--global-card-header-background-color-hover);
     }
   }
 

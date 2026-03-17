@@ -45,7 +45,7 @@ export const tableCSS = css`
           display: inline-block;
         }
         &:hover .resizer {
-          background: var(--global-color-gray-300);
+          background: var(--hover-background);
         }
         div.resizer {
           display: inline-block;

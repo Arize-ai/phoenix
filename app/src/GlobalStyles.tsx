@@ -914,7 +914,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
-    --hover-background: var(--global-color-gray-200);
+    --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
 
     // Text
@@ -975,6 +975,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Style for cards
     --global-card-header-height: 46px;
+    --global-card-header-background-color-hover: var(
+      --global-color-primary-100
+    );
 
     // Style for popovers
     --global-popover-border-color: var(--global-color-gray-300);
