@@ -467,8 +467,8 @@ import nest_asyncio
 from phoenix.client import Client
 from phoenix.evals import TOOL_CALLING_PROMPT_TEMPLATE, OpenAIModel, llm_classify
 from phoenix.client.experiments import evaluate_experiment, run_experiment
-from phoenix.experiments.evaluators import create_evaluator
-from phoenix.experiments.types import Example
+from phoenix.client.experiments import create_evaluator
+from phoenix.client.__generated__.v1 import DatasetExample as Example
 from phoenix.client.types.spans import SpanQuery
 
 nest_asyncio.apply()
@@ -496,11 +496,12 @@ query = (
     .where(
         "span_kind == 'LLM'",
     )
-    .select(question="input.value", output_messages="llm.output_messages")
+    .select("input.value", "llm.output_messages")
 )
 
 # The Phoenix Client can take this query and return the dataframe.
 tool_calls_df = px_client.spans.get_spans_dataframe(query=query, project_identifier=project_name, timeout=None)
+tool_calls_df = tool_calls_df.rename(columns={"input.value": "question", "llm.output_messages": "output_messages"})
 tool_calls_df.dropna(subset=["output_messages"], inplace=True)
 
 
@@ -586,9 +587,9 @@ agent_tool_responses = {
 
 
 tool_calling_df = pd.DataFrame(agent_tool_responses.items(), columns=["question", "tool_calls"])
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=tool_calling_df,
-    dataset_name=f"tool_calling_ground_truth_{id}",
+    name=f"tool_calling_ground_truth_{id}",
     input_keys=["question"],
     output_keys=["tool_calls"],
 )
@@ -627,8 +628,8 @@ def tools_match(expected: str, output: str) -> bool:
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_router_step,
+    dataset=dataset,
+    task=run_router_step,
     evaluators=[tools_match],
     experiment_name="Tool Calling Eval",
     experiment_description="Evaluating the tool calling step of the agent",
@@ -675,9 +676,9 @@ display(questions_df)
 ```
 
 ```python
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=questions_df,
-    dataset_name=f"sales_db_lookup_questions_{id}",
+    name=f"sales_db_lookup_questions_{id}",
     input_keys=["question"],
     output_keys=["expected_result"],
 )
@@ -699,8 +700,8 @@ def evaluate_sql_result(output: str, expected: str) -> bool:
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_sql_query,
+    dataset=dataset,
+    task=run_sql_query,
     evaluators=[evaluate_sql_result],
     experiment_name="SQL Query Eval",
     experiment_description="Evaluating the SQL query generation step of the agent",
@@ -743,9 +744,9 @@ code_generation_df = pd.DataFrame(
     }
 )
 
-dataset = px_client.upload_dataset(
+dataset = px_client.datasets.create_dataset(
     dataframe=code_generation_df,
-    dataset_name=f"code_generation_questions_{id}",
+    name=f"code_generation_questions_{id}",
     input_keys=["question", "example_data", "chart_configs"],
 )
 ```
@@ -785,8 +786,8 @@ def evaluate_chart_config(output: str, expected: str) -> bool:
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_code_generation,
+    dataset=dataset,
+    task=run_code_generation,
     evaluators=[code_is_runnable, evaluate_chart_config],
     experiment_name="Code Generation Eval",
     experiment_description="Evaluating the code generation step of the agent",
@@ -837,8 +838,8 @@ convergence_questions = [
 
 convergence_df = pd.DataFrame({"question": convergence_questions})
 
-dataset = px_client.upload_dataset(
-    dataframe=convergence_df, dataset_name="convergence_questions", input_keys=["question"]
+dataset = px_client.datasets.create_dataset(
+    dataframe=convergence_df, name="convergence_questions", input_keys=["question"]
 )
 ```
 
@@ -924,8 +925,8 @@ def run_agent_messages(messages):
 
 ```python
 experiment = run_experiment(
-    dataset,
-    run_agent_and_track_path,
+    dataset=dataset,
+    task=run_agent_and_track_path,
     experiment_name="Convergence Eval",
     experiment_description="Evaluating the convergence of the agent",
 )
@@ -955,7 +956,7 @@ def evaluate_path_length(output: str) -> float:
 ```
 
 ```python
-experiment = evaluate_experiment(experiment, evaluators=[evaluate_path_length])
+experiment = evaluate_experiment(experiment=experiment, evaluators=[evaluate_path_length])
 ```
 
 ## Advanced - Combining all the evals into our experiment
@@ -1119,7 +1120,7 @@ print(overall_experiment_questions[6])
 
 # overall_experiment_df = pd.DataFrame(overall_experiment_questions)
 
-# dataset = px_client.upload_dataset(dataframe=overall_experiment_df, dataset_name="overall_experiment_questions_all", input_keys=["question"], output_keys=["sql_result"])
+# dataset = px_client.datasets.create_dataset(dataframe=overall_experiment_df, name="overall_experiment_questions_all", input_keys=["question"], output_keys=["sql_result"])
 ```
 
 ```python
@@ -1327,8 +1328,8 @@ def run_overall_experiment(example: Example) -> str:
 
 
 experiment = run_experiment(
-    dataset,
-    run_overall_experiment,
+    dataset=dataset,
+    task=run_overall_experiment,
     evaluators=[
         function_calling_eval,
         evaluate_sql_result,

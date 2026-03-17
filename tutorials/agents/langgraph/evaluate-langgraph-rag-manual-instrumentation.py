@@ -28,6 +28,8 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
+from phoenix.client import Client as _PhoenixClient
+from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
 from phoenix.evals import (
     HallucinationEvaluator,
     OpenAIModel,
@@ -38,10 +40,6 @@ from phoenix.evals import (
 
 # Phoenix tracing and evaluation imports
 from phoenix.otel import register
-
-import phoenix as px
-from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
-from phoenix.trace import DocumentEvaluations
 
 nest_asyncio.apply()
 
@@ -459,7 +457,7 @@ def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
         # Extract retrieved documents from traces
         retrieved_documents_df = get_retrieved_documents(
             phoenix_client, project_name=PHOENIX_PROJECT_NAME
-        )
+        ).rename(columns={"document": "reference"})
 
         if retrieved_documents_df.empty:
             print("⚠️  No retrieved documents found in traces")
@@ -495,14 +493,15 @@ def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
 
     try:
         # Extract Q&A with reference from traces
-        qa_with_reference_df = get_qa_with_reference(
+        qa_with_reference_df = get_input_output_context(
             phoenix_client, project_name=PHOENIX_PROJECT_NAME
         )
 
-        if qa_with_reference_df.empty:
+        if qa_with_reference_df is None or qa_with_reference_df.empty:
             print("⚠️  No Q&A interactions found in traces")
             return {}
 
+        qa_with_reference_df = qa_with_reference_df.rename(columns={"context": "reference"})
         print(f"Found {len(qa_with_reference_df)} Q&A interactions")
 
         # Run Q&A and hallucination evaluations
@@ -562,13 +561,13 @@ async def main():
 
     if "PHOENIX_API_KEY" in os.environ:
         tracer_provider = register(project_name=PHOENIX_PROJECT_NAME)
-        phoenix_client = px.Client()
+        phoenix_client = _PhoenixClient()
     else:
         # Use local Phoenix
         tracer_provider = register(
             endpoint="http://127.0.0.1:6006/v1/traces", project_name=PHOENIX_PROJECT_NAME
         )
-        phoenix_client = px.Client(endpoint="http://127.0.0.1:6006")
+        phoenix_client = _PhoenixClient(base_url="http://127.0.0.1:6006")
 
     # Get tracer for manual instrumentation
     tracer = tracer_provider.get_tracer(__name__)
@@ -637,17 +636,15 @@ async def main():
     # Log evaluations back to Phoenix
     print("\n📤 Logging evaluation results back to Phoenix...")
     if retrieval_results and "retrieval_relevance" in retrieval_results:
-        px.Client().log_evaluations(
-            DocumentEvaluations(
-                eval_name="Retrieval Relevance", dataframe=retrieval_results["retrieval_relevance"]
-            )
+        phoenix_client.spans.log_document_annotations_dataframe(
+            dataframe=retrieval_results["retrieval_relevance"],
+            annotation_name="Retrieval Relevance",
+            annotator_kind="LLM",
         )
         print("✅ Logged retrieval relevance evaluations")
 
     if qa_results:
-        from phoenix.client import Client
-
-        px_client = Client()
+        px_client = phoenix_client
         if "qa_correctness" in qa_results:
             px_client.spans.log_span_annotations_dataframe(
                 dataframe=qa_results["qa_correctness"],

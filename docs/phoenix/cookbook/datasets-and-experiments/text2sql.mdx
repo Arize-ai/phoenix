@@ -225,7 +225,7 @@ def task(input):
 
 
 experiment = run_experiment(
-    ds, task=task, evaluators=[no_error, has_results], experiment_metadata=CONFIG
+    dataset=ds, task=task, evaluators=[no_error, has_results], experiment_metadata=CONFIG
 )
 ```
 
@@ -295,7 +295,7 @@ Looking much better! Finally, let's add a scoring function that compares the res
 
 ```py
 experiment = run_experiment(
-    ds, task=task, evaluators=[has_results, no_error], experiment_metadata=CONFIG
+    dataset=ds, task=task, evaluators=[has_results, no_error], experiment_metadata=CONFIG
 )
 ```
 
@@ -307,8 +307,8 @@ import json
 from openai import OpenAI
 
 from phoenix.client.experiments import evaluate_experiment
-from phoenix.experiments.evaluators import create_evaluator
-from phoenix.experiments.types import EvaluationResult
+from phoenix.client.experiments import create_evaluator
+from phoenix.client.resources.experiments.types import ExperimentEvaluation as EvaluationResult
 
 openai_client = OpenAI()
 
@@ -365,7 +365,7 @@ def qa_correctness(input, output):
     return EvaluationResult(score=score, label=label, explanation=explanation)
 
 
-evaluate_experiment(experiment, evaluators=[qa_correctness])
+evaluate_experiment(experiment=experiment, evaluators=[qa_correctness])
 ```
 
 The LLM judge's scoring closely matches our manual evaluation, demonstrating its effectiveness as an automated evaluation method. This approach is particularly valuable when traditional rule-based scoring functions are difficult to implement.
@@ -474,7 +474,7 @@ synthetic_dataset = px_client.datasets.create_dataset(
 
 ```py
 exp = run_experiment(
-    synthetic_dataset, task=task, evaluators=[no_error, has_results], experiment_metadata=CONFIG
+    dataset=synthetic_dataset, task=task, evaluators=[no_error, has_results], experiment_metadata=CONFIG
 )
 ```
 
