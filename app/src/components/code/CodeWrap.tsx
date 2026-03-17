@@ -9,7 +9,7 @@ export function CodeWrap({
 }: { children: ReactNode } & ViewProps) {
   return (
     <View
-      borderColor="light"
+      borderColor="default"
       borderWidth="thin"
       borderRadius="small"
       {...props}

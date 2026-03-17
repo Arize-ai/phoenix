@@ -55,9 +55,8 @@ export const AnnotationConfigSelectionToolbar = ({
       `}
     >
       <View
-        backgroundColor="light"
         padding="size-200"
-        borderColor="light"
+        borderColor="default"
         borderWidth="thin"
         borderRadius="medium"
         minWidth="size-6000"
@@ -104,7 +103,7 @@ export const AnnotationConfigSelectionToolbar = ({
                         <View
                           paddingX="size-200"
                           paddingY="size-100"
-                          borderTopColor="dark"
+                          borderTopColor="default"
                           borderTopWidth="thin"
                         >
                           <Flex gap="size-100" justifyContent="end">

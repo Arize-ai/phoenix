@@ -56,7 +56,7 @@ const listBoxCSS = css`
     }
     &[data-hovered],
     &[data-active] {
-      background: var(--global-background-color-light-hover);
+      background: var(--global-menu-item-background-color-hover);
     }
   }
 `;

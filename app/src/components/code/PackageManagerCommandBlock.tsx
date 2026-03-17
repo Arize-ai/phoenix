@@ -28,7 +28,7 @@ const installCommandByPackageManager: Record<PackageManager, string> = {
 
 const packageManagerCommandBlockCSS = css`
   border-radius: var(--global-rounding-small);
-  border: 1px solid var(--global-border-color-light);
+  border: 1px solid var(--global-border-color-default);
   overflow: hidden;
 
   .package-manager-command__header {

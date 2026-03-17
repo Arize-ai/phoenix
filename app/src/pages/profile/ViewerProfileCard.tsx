@@ -147,7 +147,7 @@ export function ViewerProfileCard() {
             paddingBottom="size-100"
             paddingStart="size-200"
             paddingEnd="size-200"
-            borderTopColor="dark"
+            borderTopColor="default"
             borderTopWidth="thin"
           >
             <Flex direction="row" gap="size-100" justifyContent="end">

@@ -196,7 +196,7 @@ function DatasetLabelList({
         padding="size-100"
         paddingTop="size-50"
         borderBottomWidth="thin"
-        borderColor="dark"
+        borderColor="default"
         minWidth={300}
       >
         <Flex direction="column" gap="size-50">
@@ -254,7 +254,11 @@ function DatasetLabelList({
           >
             {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
           </ListBox>
-          <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+          <View
+            padding="size-100"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
             <LinkButton variant="quiet" size="S" to="/settings/datasets">
               Edit Labels
             </LinkButton>

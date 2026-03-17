@@ -87,7 +87,7 @@ function DatasetsList(props: {
 
   return (
     <Autocomplete filter={contains}>
-      <View padding="size-100" borderBottomWidth="thin" borderColor="dark">
+      <View padding="size-100" borderBottomWidth="thin" borderColor="default">
         <Flex direction="column" gap="size-50">
           <Flex
             direction="row"

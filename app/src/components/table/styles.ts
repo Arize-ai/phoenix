@@ -18,7 +18,6 @@ export const tableCSS = css`
       th {
         padding: var(--global-dimension-size-100)
           var(--global-dimension-size-200);
-        background-color: var(--global-color-gray-100);
         position: relative;
         text-align: left;
         user-select: none;
@@ -46,7 +45,7 @@ export const tableCSS = css`
           display: inline-block;
         }
         &:hover .resizer {
-          background: var(--global-color-gray-300);
+          background: var(--hover-background);
         }
         div.resizer {
           display: inline-block;
@@ -150,17 +149,20 @@ export function getCommonPinningStyles<Row>(
     isPinned === "right" && column.getIsFirstColumn("right");
 
   return {
-    filter: isLastLeftPinnedColumn
-      ? "drop-shadow(4px 0 4px rgba(0, 0, 0, 0.1))"
-      : isFirstRightPinnedColumn
-        ? "drop-shadow(-4px 0 4px rgba(0, 0, 0, 0.1))"
-        : undefined,
+    borderRight: isLastLeftPinnedColumn
+      ? "1px solid var(--global-border-color-default)"
+      : undefined,
+    borderLeft: isFirstRightPinnedColumn
+      ? "1px solid var(--global-border-color-default)"
+      : undefined,
     left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
     right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
-    opacity: isPinned ? 0.95 : 1,
+    opacity: 1,
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
-    backgroundColor: isPinned ? "var(--global-color-gray-100)" : undefined,
+    backgroundColor: isPinned
+      ? "var(--global-table-pinned-column-background-color)"
+      : undefined,
   };
 }

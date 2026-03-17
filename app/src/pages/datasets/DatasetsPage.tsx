@@ -43,7 +43,7 @@ export function DatasetsPageContent() {
         padding="size-200"
         flex="none"
         borderBottomWidth="thin"
-        borderBottomColor="dark"
+        borderBottomColor="default"
       >
         <Flex
           direction="row"

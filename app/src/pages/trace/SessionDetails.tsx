@@ -37,7 +37,7 @@ function SessionDetailsHeader({
     <View
       padding="size-200"
       borderBottomWidth={"thin"}
-      borderBottomColor={"dark"}
+      borderBottomColor="default"
     >
       <Flex direction={"row"} gap={"size-400"}>
         <Flex direction={"column"}>

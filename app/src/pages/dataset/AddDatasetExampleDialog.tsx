@@ -54,8 +54,6 @@ export type AddDatasetExampleDialogProps = {
 };
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };
 
@@ -338,7 +336,7 @@ function AddExampleDialogContent(props: AddExampleDialogContentProps) {
           </View>
         </Flex>
       </div>
-      <View padding="size-200" borderTopColor="light" borderTopWidth="thin">
+      <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
         <Flex direction="row" justifyContent="space-between" gap="size-100">
           <Checkbox isSelected={createMore} onChange={setCreateMore}>
             Create more

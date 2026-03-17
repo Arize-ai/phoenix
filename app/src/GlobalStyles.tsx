@@ -908,19 +908,13 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-color-primary-50: rgba(var(--global-color-gray-900-rgb), 0.05);
 
     --global-background-color-default: var(--global-color-gray-100);
-    --global-background-color-light: var(--global-color-gray-200);
-    --global-background-color-light-hover: var(--global-color-gray-300);
-    --global-background-color-dark: var(--global-color-gray-100);
-    --global-background-color-danger: var(--global-color-danger);
 
     --global-border-color-default: var(--global-color-gray-300);
-    --global-border-color-light: var(--global-color-gray-400);
-    --global-border-color-dark: var(--global-color-gray-300);
     --global-border-color-subtle: var(--global-color-gray-200);
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
-    --hover-background: var(--global-color-gray-200);
+    --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
 
     // Text
@@ -981,6 +975,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Style for cards
     --global-card-header-height: 46px;
+    --global-card-header-background-color-hover: var(
+      --global-color-primary-100
+    );
 
     // Style for popovers
     --global-popover-border-color: var(--global-color-gray-300);
@@ -992,6 +989,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-rounding-large: var(--global-dimension-static-size-200);
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
+
+    // Table tokens
+    --global-table-pinned-column-background-color: var(--global-color-gray-75);
 
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);

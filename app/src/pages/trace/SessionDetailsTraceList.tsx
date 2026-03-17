@@ -59,7 +59,7 @@ function RootSpanMessage({
     <View
       alignSelf={role === "HUMAN" ? "start" : "end"}
       borderRadius={"medium"}
-      borderColor={"dark"}
+      borderColor="default"
       borderWidth={"thin"}
       padding="size-200"
       maxWidth={"70%"}
@@ -275,14 +275,14 @@ export function SessionDetailsTraceList({
     >
       {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
         <View
-          borderBottomColor={"dark"}
+          borderBottomColor="default"
           borderBottomWidth={"thin"}
           key={rootSpan.spanId}
         >
           <Flex direction={"row"}>
             <View
               borderRightWidth={"thin"}
-              borderEndColor={"dark"}
+              borderEndColor="default"
               padding="size-200"
               flex={"1 1 auto"}
             >
@@ -300,7 +300,7 @@ export function SessionDetailsTraceList({
       ))}
       {isLoadingNext && (
         <View
-          borderBottomColor={"dark"}
+          borderBottomColor="default"
           borderBottomWidth={"thin"}
           padding="size-200"
         >

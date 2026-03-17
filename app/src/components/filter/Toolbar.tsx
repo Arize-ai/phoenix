@@ -23,7 +23,7 @@ export function Toolbar(props: ToolbarProps) {
         justify-content: space-between;
         align-items: center;
         gap: var(--global-dimension-static-size-100);
-        border-bottom: 1px solid var(--global-border-color-dark);
+        border-bottom: 1px solid var(--global-border-color-default);
         flex: none;
         min-height: 29px;
         .toolbar__main {

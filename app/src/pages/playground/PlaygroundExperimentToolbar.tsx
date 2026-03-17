@@ -49,10 +49,9 @@ export function PlaygroundExperimentToolbar({
   return (
     <View
       flex="none"
-      backgroundColor={"dark"}
       paddingX="size-200"
       paddingY={"size-100"}
-      borderBottomColor={"light"}
+      borderBottomColor={"default"}
       borderBottomWidth={"thin"}
       height={50}
     >

@@ -98,7 +98,7 @@ export function MetadataTooltip({
             </Flex>
           </Flex>
           <View
-            borderColor="dark"
+            borderColor="default"
             paddingStart="size-200"
             paddingEnd="size-100"
             marginStart="size-200"

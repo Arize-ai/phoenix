@@ -114,7 +114,7 @@ function ColumnSelectorMenu<T extends object>(
     >
       <View padding="size-50">
         <View
-          borderBottomColor="dark"
+          borderBottomColor="default"
           borderBottomWidth="thin"
           paddingBottom="size-50"
         >
@@ -200,7 +200,7 @@ function EvaluationColumnSelector<T extends object>({
       <View
         paddingTop="size-50"
         paddingBottom="size-50"
-        borderColor="dark"
+        borderColor="default"
         borderTopWidth="thin"
       >
         <div css={columCheckboxItemCSS}>

@@ -22,7 +22,7 @@ export function SupportPage() {
   return (
     <main>
       <Flex direction="column" width="100%">
-        <View borderBottomColor="dark" borderBottomWidth="thin">
+        <View borderBottomColor="default" borderBottomWidth="thin">
           <PageHeader
             title="Support"
             subTitle="We are here to help. Pick a channel below to get in touch with us."
@@ -68,10 +68,9 @@ export function SupportPage() {
 const supportItemCSS = css`
   padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
     var(--global-dimension-size-200);
-  border: var(--global-border-size-thin) solid var(--global-border-color-dark);
+  border: var(--global-border-size-thin) solid var(--global-border-color-default);
   border-radius: var(--global-dimension-size-100);
   cursor: pointer;
-  background-color: var(--global-background-color-dark);
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);

@@ -91,7 +91,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
-        <View borderBottomColor="dark" borderBottomWidth="thin">
+        <View borderBottomColor="default" borderBottomWidth="thin">
           <PageHeader
             title="Playground"
             extra={

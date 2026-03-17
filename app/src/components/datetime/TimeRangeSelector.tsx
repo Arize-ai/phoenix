@@ -176,7 +176,7 @@ function CustomTimeRangeWrap({
     >
       <View
         borderEndWidth="thin"
-        borderColor="light"
+        borderColor="default"
         padding="size-200"
         height="100%"
       >

@@ -204,7 +204,7 @@ export function ModelParametersConfigButton(
             </Suspense>
           </div>
         </View>
-        <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+        <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
           <SaveModelConfigButton
             playgroundInstanceId={playgroundInstanceId}
             variant="quiet"

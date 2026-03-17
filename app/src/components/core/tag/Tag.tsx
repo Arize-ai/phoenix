@@ -5,7 +5,7 @@ import type { TagProps } from "react-aria-components";
 import { Tag as AriaTag } from "react-aria-components";
 
 const tagCSS = css`
-  border: 1px solid var(--global-border-color-light);
+  border: 1px solid var(--global-border-color-default);
   forced-color-adjust: none;
   border-radius: var(--global-rounding-small);
   padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
@@ -18,7 +18,7 @@ const tagCSS = css`
   transition: all 200ms;
 
   &[data-hovered] {
-    border-color: var(--global-border-color-dark);
+    border-color: var(--global-border-color-default);
   }
 
   &[data-focus-visible] {

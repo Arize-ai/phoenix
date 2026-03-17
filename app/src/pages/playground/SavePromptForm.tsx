@@ -299,7 +299,7 @@ export function SavePromptForm({
           paddingEnd="size-200"
           paddingTop="size-100"
           paddingBottom="size-100"
-          borderTopColor="light"
+          borderTopColor="default"
           borderTopWidth="thin"
         >
           <Flex direction="row" justifyContent="end">

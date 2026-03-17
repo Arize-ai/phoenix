@@ -182,7 +182,7 @@ export function ExperimentComparePage() {
         paddingX="size-200"
         paddingTop="size-100"
         paddingBottom="size-200"
-        borderBottomColor="dark"
+        borderBottomColor="default"
         borderBottomWidth="thin"
         flex="none"
       >

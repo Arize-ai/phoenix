@@ -175,7 +175,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
           is traces.
         </Text>
       </View>
-      <View borderColor="dark" borderWidth="thin" borderRadius="medium">
+      <View borderColor="default" borderWidth="thin" borderRadius="medium">
         <Tabs>
           <TabList>
             <Tab id="instrumentation">Instrumentation</Tab>

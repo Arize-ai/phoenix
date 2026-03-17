@@ -170,7 +170,7 @@ export function CreateAPIKeyDialog(props: {
               paddingEnd="size-200"
               paddingTop="size-100"
               paddingBottom="size-100"
-              borderColor="dark"
+              borderColor="default"
               borderTopWidth="thin"
             >
               <Flex direction="row" gap="size-100" justifyContent="end">

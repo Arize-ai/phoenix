@@ -134,7 +134,7 @@ function ExampleDetailsDialogSkeleton() {
             paddingEnd="size-200"
             paddingTop="size-100"
             paddingBottom="size-100"
-            borderBottomColor="dark"
+            borderBottomColor="default"
             borderBottomWidth="thin"
             flex="none"
           >
@@ -350,7 +350,7 @@ function ExampleDetailsDialogContent({
               paddingEnd="size-200"
               paddingTop="size-100"
               paddingBottom="size-100"
-              borderBottomColor="dark"
+              borderBottomColor="default"
               borderBottomWidth="thin"
               flex="none"
             >
@@ -409,7 +409,5 @@ export function ExampleDetailsDialog({
 }
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };

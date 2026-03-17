@@ -60,7 +60,7 @@ export type DialogHeaderProps = HTMLAttributes<HTMLDivElement>;
 export const dialogHeaderCSS = css`
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   border-bottom: var(--global-border-size-thin) solid
-    var(--global-border-color-dark);
+    var(--global-border-color-default);
   flex-shrink: 0;
 `;
 
@@ -122,7 +122,8 @@ export type DialogFooterProps = HTMLAttributes<HTMLDivElement>;
 
 const dialogFooterCSS = css`
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-  border-top: var(--global-border-size-thin) solid var(--global-border-color-dark);
+  border-top: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   flex-shrink: 0;
 `;
 

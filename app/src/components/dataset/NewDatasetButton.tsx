@@ -48,11 +48,7 @@ export function NewDatasetButton({
           border: none;
         `}
       >
-        <Card
-          title="Create New Dataset"
-          borderColor="light"
-          backgroundColor="light"
-        >
+        <Card title="Create New Dataset" borderColor="default">
           <View width="500px">
             {error ? <Alert variant="danger">{error}</Alert> : null}
             <CreateDatasetForm

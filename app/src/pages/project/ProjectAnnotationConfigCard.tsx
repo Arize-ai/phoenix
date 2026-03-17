@@ -60,7 +60,7 @@ export const ProjectAnnotationConfigCard = (
         paddingX="size-200"
         paddingY="size-100"
         borderTopWidth="thin"
-        borderColor="dark"
+        borderColor="default"
       >
         <Flex direction="row" justifyContent="end">
           <Link to="/settings/annotations">Configure Annotation Configs</Link>

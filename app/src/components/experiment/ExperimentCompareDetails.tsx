@@ -382,7 +382,7 @@ export function ExperimentRunOutputs() {
           <View
             paddingX="size-200"
             paddingY="size-100"
-            borderBottomColor="dark"
+            borderBottomColor="default"
             borderBottomWidth="thin"
             flex="none"
           >
@@ -870,7 +870,7 @@ function ExperimentRepetitionsSidebarItems({
 }
 
 const experimentItemCSS = css`
-  border: 1px solid var(--global-border-color-dark);
+  border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   box-shadow: 0px 8px 8px rgba(0 0 0 / 0.05);
   overflow: hidden;

@@ -134,7 +134,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                 paddingEnd="size-200"
                 paddingTop="size-100"
                 paddingBottom="size-100"
-                borderBottomColor="dark"
+                borderBottomColor="default"
                 borderBottomWidth="thin"
                 flex="none"
               >
@@ -148,7 +148,7 @@ export function PlaygroundExperimentRunDetailsDialog({
                 `}
               >
                 <View
-                  borderColor="dark"
+                  borderColor="default"
                   borderWidth="thin"
                   borderRadius="small"
                 >
@@ -229,7 +229,5 @@ function RunError({ error }: { error: string }) {
 }
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };

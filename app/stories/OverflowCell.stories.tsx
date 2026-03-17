@@ -61,15 +61,15 @@ type Story = StoryObj<typeof OverflowCell>;
 const shortContent =
   "This is a short piece of content that fits within the cell.";
 
-const longContent = `This is a much longer piece of content that will definitely overflow the cell boundaries. 
-It contains multiple paragraphs of text to demonstrate how the OverflowCell component handles content 
+const longContent = `This is a much longer piece of content that will definitely overflow the cell boundaries.
+It contains multiple paragraphs of text to demonstrate how the OverflowCell component handles content
 that exceeds the specified height.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore 
-et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut 
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore
+et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
 aliquip ex ea commodo consequat.
 
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
 Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 This final paragraph ensures we have plenty of content to overflow and demonstrate the expand functionality.`;
@@ -165,8 +165,8 @@ const ControlledTemplate = () => {
     <View>
       <View
         padding="size-100"
+        borderBottomColor="default"
         borderBottomWidth="thin"
-        borderBottomColor="dark"
       >
         <Text color="text-700">
           Controlled state: {isExpanded ? "Expanded" : "Collapsed"}

@@ -29,8 +29,6 @@ import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 import type { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
 
 const defaultCardProps: Partial<CardProps> = {
-  backgroundColor: "light",
-  borderColor: "light",
   collapsible: true,
 };
 

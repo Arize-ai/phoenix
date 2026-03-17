@@ -377,7 +377,7 @@ const Template: Story = (args) => {
   );
 
   return (
-    <View borderColor="light" borderWidth="thin">
+    <View borderColor="default" borderWidth="thin">
       <ExperimentCompareDetailsProvider
         baseExperimentId={args.baseExperimentId}
         compareExperimentIds={args.compareExperimentIds}

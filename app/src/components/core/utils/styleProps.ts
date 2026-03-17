@@ -231,7 +231,7 @@ function backgroundColorValue(value: BackgroundColorValue) {
 function borderColorValue(value: BorderColorValue) {
   // TODO support default color
   if (value === "default") {
-    return "var(--global-border-color)";
+    return "var(--global-border-color-default)";
   }
 
   return `var(--global-border-color-${value}, ${colorValue(

@@ -81,7 +81,7 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
           paddingY="size-100"
           paddingX="size-100"
           borderBottomWidth="thin"
-          borderColor="dark"
+          borderColor="default"
           width="100%"
           flex="none"
         >
@@ -297,7 +297,7 @@ function AnnotationList(props: AnnotationListProps) {
         refetchKey={refetchKey}
       />
 
-      <View padding="size-100" borderTopWidth="thin" borderTopColor="dark">
+      <View padding="size-100" borderTopWidth="thin" borderTopColor="default">
         <Button
           variant="quiet"
           size="S"

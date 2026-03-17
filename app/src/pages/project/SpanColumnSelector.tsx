@@ -111,7 +111,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
     >
       <View padding="size-50">
         <View
-          borderBottomColor="dark"
+          borderBottomColor="default"
           borderBottomWidth="thin"
           paddingBottom="size-50"
         >
@@ -197,7 +197,7 @@ function EvaluationColumnSelector({
       <View
         paddingTop="size-50"
         paddingBottom="size-50"
-        borderColor="dark"
+        borderColor="default"
         borderTopWidth="thin"
       >
         <div css={columCheckboxItemCSS}>

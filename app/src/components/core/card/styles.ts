@@ -10,7 +10,6 @@ export const cardCSS = (style?: CSSProperties) => css`
 
   display: flex;
   flex-direction: column;
-  background-color: var(--global-background-color-dark);
   color: var(--global-text-color-900);
   border-radius: var(--global-rounding-medium);
   border: 1px solid var(--scope-border-color);
@@ -91,7 +90,7 @@ export const cardCSS = (style?: CSSProperties) => css`
   /* Collapsible behavior */
   &[data-collapsible="true"] {
     & > header:hover {
-      background-color: rgba(255, 255, 255, 0.1);
+      background-color: var(--global-card-header-background-color-hover);
     }
   }
 

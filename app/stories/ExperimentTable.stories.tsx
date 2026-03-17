@@ -501,7 +501,7 @@ function SimpleExperimentTable({
   return (
     <View
       backgroundColor="gray-50"
-      borderColor="light"
+      borderColor="default"
       borderWidth="thin"
       borderRadius="medium"
       overflow="hidden"

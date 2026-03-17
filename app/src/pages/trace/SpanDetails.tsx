@@ -739,46 +739,44 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
           {hasPromptTemplateObject && (
             <LazyTabPanel id="prompt-template">
-              <View padding="size-200">
-                <Flex direction="column" gap="size-100">
-                  {promptTemplateObject.template != null && (
-                    <View
-                      borderRadius="medium"
-                      borderColor="light"
-                      backgroundColor="light"
-                      borderWidth="thin"
-                      padding="size-200"
+              <DisclosureGroup
+                defaultExpandedKeys={["prompt-template", "template-variables"]}
+              >
+                {promptTemplateObject.template != null && (
+                  <Disclosure id="prompt-template">
+                    <DisclosureTrigger
+                      arrowPosition="start"
+                      justifyContent="space-between"
                     >
-                      <CopyToClipboard text={promptTemplateObject.template}>
-                        <Text color="text-700" fontStyle="italic">
-                          prompt template
-                        </Text>
-                        <PreBlock>{promptTemplateObject.template}</PreBlock>
-                      </CopyToClipboard>
-                    </View>
-                  )}
-                  {promptTemplateObject.variables != null && (
-                    <View
-                      borderRadius="medium"
-                      borderColor="light"
-                      backgroundColor="light"
-                      borderWidth="thin"
-                      padding="size-200"
+                      <Text>Prompt Template</Text>
+                      <CopyToClipboardButton
+                        text={promptTemplateObject.template}
+                      />
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <PreBlock>{promptTemplateObject.template}</PreBlock>
+                    </DisclosurePanel>
+                  </Disclosure>
+                )}
+                {promptTemplateObject.variables != null && (
+                  <Disclosure id="template-variables">
+                    <DisclosureTrigger
+                      arrowPosition="start"
+                      justifyContent="space-between"
                     >
-                      <CopyToClipboard
+                      <Text>Template Variables</Text>
+                      <CopyToClipboardButton
                         text={JSON.stringify(promptTemplateObject.variables)}
-                      >
-                        <Text color="text-700" fontStyle="italic">
-                          template variables
-                        </Text>
-                        <ReadonlyJSONBlock>
-                          {JSON.stringify(promptTemplateObject.variables)}
-                        </ReadonlyJSONBlock>
-                      </CopyToClipboard>
-                    </View>
-                  )}
-                </Flex>
-              </View>
+                      />
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <ReadonlyJSONBlock>
+                        {JSON.stringify(promptTemplateObject.variables)}
+                      </ReadonlyJSONBlock>
+                    </DisclosurePanel>
+                  </Disclosure>
+                )}
+              </DisclosureGroup>
             </LazyTabPanel>
           )}
 
@@ -915,7 +913,7 @@ function RetrieverSpanInfo(props: {
           >
             {hasDocumentRetrievalMetrics && (
               <View
-                borderColor="light"
+                borderColor="default"
                 borderBottomWidth="thin"
                 padding="size-200"
               >
@@ -1227,9 +1225,8 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 paddingEnd="size-200"
                 paddingTop="size-100"
                 paddingBottom="size-100"
-                borderBottomColor="dark"
+                borderBottomColor="default"
                 borderBottomWidth="thin"
-                backgroundColor="light"
               >
                 <Flex direction="column" alignItems="start" gap="size-50">
                   <Text color="text-700" fontStyle="italic">
@@ -1245,7 +1242,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 paddingEnd="size-200"
                 paddingTop="size-100"
                 paddingBottom="size-100"
-                borderBottomColor="dark"
+                borderBottomColor="default"
                 borderBottomWidth="thin"
               >
                 <Flex direction="column" alignItems="start" width="100%">

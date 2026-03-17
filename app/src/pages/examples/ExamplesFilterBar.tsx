@@ -24,7 +24,7 @@ export const ExamplesFilterBar = () => {
       // TODO: refactor the dataset page layout css to not have to do this
       minHeight={54}
       borderBottomWidth="thin"
-      borderBottomColor="dark"
+      borderBottomColor="default"
     >
       <Flex
         width="100%"

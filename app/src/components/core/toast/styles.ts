@@ -22,7 +22,6 @@ export const toastCss = css`
   width: 400px;
   position: relative;
   --toast-border: 1px solid var(--global-border-color-default);
-  --toast-background-color: var(--global-background-color-dark);
   --toast-color: var(--global-static-color-900);
   &[data-theme="light"] {
     --toast-border: 1px solid
