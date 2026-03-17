@@ -58,7 +58,7 @@ We create an LLM as a Judge evaluator that assesses whether the agent's response
 ```python Python
 # Define LLM Judge Evaluator checking for Actionable Responses
 from phoenix.evals import create_classifier, LLM
-from phoenix.experiments.types import EvaluationResult
+from phoenix.client.resources.experiments.types import EvaluationResult
 
 # Define Prompt Template
 support_response_actionability_judge = """
@@ -159,11 +159,11 @@ Run the experiment on your dataset.
 <CodeGroup>
 
 ```python Python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
-    dataset,
-    my_support_agent_task,
+    dataset=dataset,
+    task=my_support_agent_task,
     evaluators=[call_actionability_judge],
     experiment_name="support agent",
     experiment_description="Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",

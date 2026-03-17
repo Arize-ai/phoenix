@@ -177,15 +177,18 @@ Export the traces you want to evaluate:
 
 ```python
 import phoenix as px
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 query = SpanQuery().select(
-    input="llm.input_messages",
-    output="llm.output_messages",
+    "llm.input_messages",
+    "llm.output_messages",
 )
 
 # Query spans from Phoenix
-spans = px.Client().query_spans(query, project_name="pydantic-evals-tutorial")
+from phoenix.client import Client
+client = Client()
+spans = client.spans.get_spans_dataframe(query=query, project_name="pydantic-evals-tutorial")
+spans = spans.rename(columns={"llm.input_messages": "input", "llm.output_messages": "output"})
 spans["input"] = spans["input"].apply(lambda x: x[1].get("message").get("content"))
 spans["output"] = spans["output"].apply(lambda x: x[0].get("message").get("content"))
 ```
@@ -320,20 +323,11 @@ fuzzy_label_spans["score"] = fuzzy_label_spans["label"].apply(lambda x: 1 if x =
 llm_label_spans["score"] = llm_label_spans["label"].apply(lambda x: 1 if x == "True" else 0)
 
 # Upload to Phoenix
-px.Client().log_evaluations(
-    SpanEvaluations(
-        dataframe=meo_spans,
-        eval_name="Direct Match Eval",
-    ),
-    SpanEvaluations(
-        dataframe=fuzzy_label_spans,
-        eval_name="Fuzzy Match Eval",
-    ),
-    SpanEvaluations(
-        dataframe=llm_label_spans,
-        eval_name="LLM Match Eval",
-    ),
-)
+from phoenix.client import Client
+client = Client()
+client.spans.log_span_annotations_dataframe(dataframe=meo_spans, annotation_name="Direct Match Eval", annotator_kind="CODE")
+client.spans.log_span_annotations_dataframe(dataframe=fuzzy_label_spans, annotation_name="Fuzzy Match Eval", annotator_kind="CODE")
+client.spans.log_span_annotations_dataframe(dataframe=llm_label_spans, annotation_name="LLM Match Eval", annotator_kind="LLM")
 ```
 
 ### Custom Evaluation Workflows

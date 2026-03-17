@@ -240,7 +240,7 @@ Evaluators are passed as a list to the `evaluators` parameter in `run_experiment
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 from phoenix.evals import create_evaluator
 
 @create_evaluator(name="has_greeting", kind="code")
