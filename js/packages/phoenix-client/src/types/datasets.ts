@@ -59,17 +59,16 @@ export interface Example {
    */
   spanId?: string | null;
   /**
-   * External ID for deduplication during upsert operations.
-   * When provided, examples with matching external IDs will be updated
-   * rather than creating duplicates.
+   * Stable public ID for this example. When provided, it is used as the
+   * example's ID and can be used to reference or update the example later.
    */
-  externalId?: string | null;
+  id?: string;
 }
 
 /**
  * An example that has been synced to the server
  */
-export interface ExampleWithId extends Example, Node {
+export interface ExampleWithId extends Omit<Example, "id">, Node {
   updatedAt: Date;
 }
 

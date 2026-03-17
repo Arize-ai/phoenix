@@ -28,9 +28,7 @@ export type CreateDatasetResponse = {
  * Create a new dataset with examples.
  *
  * Uses upsert semantics: if the dataset does not exist it will be created; if
- * it already exists, examples are merged with the previous version via
- * `externalId` matching (or content-hash matching when no `externalId` is
- * given).
+ * it already exists, the dataset will be updated to reflect the state.
  *
  * @experimental this interface may change in the future
  *
@@ -39,18 +37,17 @@ export type CreateDatasetResponse = {
  * @param params.name - The name of the dataset
  * @param params.description - The description of the dataset
  * @param params.examples - The examples to create in the dataset. Each example can include:
+ *   - `id`: Optional stable ID for the example, used to reference or update it later
  *   - `input`: Required input data for the example
  *   - `output`: Optional expected output data
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
- *   - `externalId`: Optional external ID for deduplication across dataset versions
  *
  * @returns A promise that resolves to the dataset ID and version ID
  *
  * @example
  * ```ts
- * // Create a dataset with external IDs for deduplication
  * const { datasetId, versionId } = await createDataset({
  *   name: "qa-dataset",
  *   description: "Q&A examples",
@@ -58,8 +55,18 @@ export type CreateDatasetResponse = {
  *     {
  *       input: { question: "What is AI?" },
  *       output: { answer: "Artificial Intelligence is..." },
- *       externalId: "q-ai-1",
+ *       spanId: "abc123def456" // Links to the source span
  *     },
+ *     {
+ *       input: { question: "Explain ML" },
+ *       output: { answer: "Machine Learning is..." },
+ *       spanId: "789ghi012jkl"
+ *     },
+ *     {
+ *       id: "my-stable-id", // Stable ID for referencing this example later
+ *       input: { question: "What is a neural network?" },
+ *       output: { answer: "A neural network is..." },
+ *     }
  *   ]
  * });
  * ```
@@ -76,9 +83,9 @@ export async function createDataset({
   const metadata: Record<string, unknown>[] = [];
   const splits: (string | string[] | null)[] = [];
   const spanIds: (string | null)[] = [];
-  const externalIds: (string | null)[] = [];
+  const exampleIds: (string | null)[] = [];
   let hasSpanIds = false;
-  let hasExternalIds = false;
+  let hasExampleIds = false;
 
   for (const example of examples) {
     inputs.push(example.input);
@@ -88,9 +95,9 @@ export async function createDataset({
     const spanId = example.spanId ?? null;
     spanIds.push(spanId);
     if (spanId !== null) hasSpanIds = true;
-    const externalId = example.externalId ?? null;
-    externalIds.push(externalId);
-    if (externalId !== null) hasExternalIds = true;
+    const exampleId = example.id ?? null;
+    exampleIds.push(exampleId);
+    if (exampleId !== null) hasExampleIds = true;
   }
 
   const createDatasetResponse = await client.POST("/v1/datasets/upload", {
@@ -102,13 +109,13 @@ export async function createDataset({
     body: {
       name,
       description,
-      action: "upsert",
+      action: "create",
       inputs,
       outputs,
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
-      ...(hasExternalIds ? { external_ids: externalIds } : {}),
+      ...(hasExampleIds ? { example_ids: exampleIds } : {}),
     },
   });
   invariant(createDatasetResponse.data?.data, "Failed to create dataset");

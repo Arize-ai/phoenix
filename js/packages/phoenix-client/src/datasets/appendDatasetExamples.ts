@@ -35,7 +35,6 @@ export type AppendDatasetExamplesResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
- *   - `externalId`: Optional external ID for the example
  *
  * @returns A promise that resolves to the dataset ID and version ID
  *
@@ -65,9 +64,9 @@ export async function appendDatasetExamples({
   const metadata: Record<string, unknown>[] = [];
   const splits: (string | string[] | null)[] = [];
   const spanIds: (string | null)[] = [];
-  const externalIds: (string | null)[] = [];
+  const exampleIds: (string | null)[] = [];
   let hasSpanIds = false;
-  let hasExternalIds = false;
+  let hasExampleIds = false;
 
   for (const example of examples) {
     inputs.push(example.input);
@@ -77,9 +76,9 @@ export async function appendDatasetExamples({
     const spanId = example.spanId ?? null;
     spanIds.push(spanId);
     if (spanId !== null) hasSpanIds = true;
-    const externalId = example.externalId ?? null;
-    externalIds.push(externalId);
-    if (externalId !== null) hasExternalIds = true;
+    const exampleId = example.id ?? null;
+    exampleIds.push(exampleId);
+    if (exampleId !== null) hasExampleIds = true;
   }
 
   let datasetName: string;
@@ -106,7 +105,7 @@ export async function appendDatasetExamples({
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
-      ...(hasExternalIds ? { external_ids: externalIds } : {}),
+      ...(hasExampleIds ? { example_ids: exampleIds } : {}),
     },
   });
   invariant(appendResponse.data?.data, "Failed to append dataset examples");
