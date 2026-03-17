@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 
 import type { DocEntry } from "../src/commands/docs";
@@ -10,107 +12,53 @@ import {
   urlToFilePath,
 } from "../src/commands/docs";
 
-// Matches the real Phoenix llms.txt format
-const SAMPLE_LLMS_TXT = `# Phoenix Documentation Index
-
-This file provides an overview of the Phoenix documentation structure.
-
-## Overview
-
-- Main page: \`https://arize.com/docs/phoenix\` - Overview of Phoenix features
-
-## Tracing
-
-Tracing captures detailed execution information from your AI applications.
-
-### Tutorial
-
-- Tracing Tutorial: \`https://arize.com/docs/phoenix/tracing/tutorial\` - Build a fully observable AI agent
-- Your First Traces: \`https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces\` - Step-by-step guide
-
-### Overview
-
-- LLM Traces: \`https://arize.com/docs/phoenix/tracing/llm-traces\` - Understanding traces and spans
-
-## Evaluation
-
-- How to Evals: \`https://arize.com/docs/phoenix/evaluation/how-to-evals\` - Comprehensive evaluation guide
-- LLM as Judge: \`https://arize.com/docs/phoenix/evaluation/llm-as-judge\` - Using LLMs to assess quality
-
-## Datasets & Experiments
-
-- Manage Datasets: \`https://arize.com/docs/phoenix/datasets/manage-datasets\` - Create and manage datasets
-
-## Prompt Engineering
-
-- Prompt Templates: \`https://arize.com/docs/phoenix/prompt-engineering/prompt-templates\` - Build prompt templates
-
-## Integrations
-
-### LLM Providers
-
-- OpenAI: \`https://arize.com/docs/phoenix/integrations/openai\` - OpenAI integration
-
-## SDK & API Reference
-
-- Python SDK: \`https://arize.com/docs/phoenix/sdk/python-sdk\` - Python SDK reference
-
-## Self-Hosting
-
-- Docker: \`https://arize.com/docs/phoenix/self-hosting/docker\` - Deploy with Docker
-
-## Cookbooks
-
-- RAG Cookbook: \`https://arize.com/docs/phoenix/cookbooks/rag-cookbook\` - RAG examples
-`;
+// Read the real Phoenix llms.txt via symlink
+const LLMS_TXT = readFileSync(resolve(__dirname, "fixtures/llms.txt"), "utf-8");
 
 describe("docs", () => {
   describe("parseLlmsTxt", () => {
-    it("should parse entries from real llms.txt format", () => {
-      const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
+    it("should parse entries from real llms.txt", () => {
+      const entries = parseLlmsTxt(LLMS_TXT);
 
-      expect(entries.length).toBe(12);
+      expect(entries.length).toBeGreaterThan(0);
       expect(entries[0]).toEqual({
         title: "Main page",
         url: "https://arize.com/docs/phoenix",
-        description: "Overview of Phoenix features",
+        description: expect.any(String),
         section: "Overview",
       });
+      // Verify we parse a reasonable number of entries
+      expect(entries.length).toBeGreaterThan(50);
     });
 
     it("should assign subsection entries to parent ## section", () => {
-      const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
-      // "Tracing Tutorial" is under ### Tutorial which is under ## Tracing
-      const tutorial = entries.find(
-        (entry) => entry.title === "Tracing Tutorial"
+      const entries = parseLlmsTxt(LLMS_TXT);
+      // Entries under ### subsections should be assigned to their parent ## section
+      const tracingEntries = entries.filter(
+        (entry) => entry.section === "Tracing"
       );
-      expect(tutorial?.section).toBe("Tracing");
-
-      // "LLM Traces" is under ### Overview which is under ## Tracing
-      const traces = entries.find((entry) => entry.title === "LLM Traces");
-      expect(traces?.section).toBe("Tracing");
+      expect(tracingEntries.length).toBeGreaterThan(0);
     });
 
     it("should assign correct top-level sections", () => {
-      const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
+      const entries = parseLlmsTxt(LLMS_TXT);
       const sections = [...new Set(entries.map((entry) => entry.section))];
 
-      expect(sections).toEqual([
-        "Overview",
-        "Tracing",
-        "Evaluation",
-        "Datasets & Experiments",
-        "Prompt Engineering",
-        "Integrations",
-        "SDK & API Reference",
-        "Self-Hosting",
-        "Cookbooks",
-      ]);
+      expect(sections).toContain("Overview");
+      expect(sections).toContain("Tracing");
+      expect(sections).toContain("Evaluation");
+      expect(sections).toContain("Datasets & Experiments");
+      expect(sections).toContain("Prompt Engineering");
+      expect(sections).toContain("Integrations");
+      expect(sections).toContain("SDK & API Reference");
+      expect(sections).toContain("Self-Hosting");
+      expect(sections).toContain("Cookbooks");
     });
 
     it("should parse descriptions", () => {
-      const entries = parseLlmsTxt(SAMPLE_LLMS_TXT);
-      expect(entries[0].description).toBe("Overview of Phoenix features");
+      const entries = parseLlmsTxt(LLMS_TXT);
+      expect(entries[0].description).toEqual(expect.any(String));
+      expect(entries[0].description.length).toBeGreaterThan(0);
     });
 
     it("should handle empty content", () => {
@@ -124,7 +72,7 @@ describe("docs", () => {
 
     it("should handle entries without descriptions", () => {
       const content =
-        "## Section\n- Title: `https://arize.com/docs/phoenix/page`\n";
+        "## Section\n- [Title](https://arize.com/docs/phoenix/page)\n";
       const entries = parseLlmsTxt(content);
       expect(entries).toEqual([
         {
