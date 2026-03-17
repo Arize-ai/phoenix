@@ -213,59 +213,59 @@ class TestDatasetKeys:
         assert keys.split == frozenset()
         assert set(keys) == {"a", "b", "c"}
 
-    def test_valid_keys_with_example_id_key(self) -> None:
+    def test_valid_keys_with_id_key(self) -> None:
         keys = DatasetKeys(
             input_keys=frozenset(["a"]),
             output_keys=frozenset(["b"]),
             metadata_keys=frozenset(["c"]),
-            example_id_key="ext_id",
+            id_key="ext_id",
         )
         assert keys.example_id == "ext_id"
         assert "ext_id" in set(keys)
 
-    def test_example_id_key_overlap_with_input(self) -> None:
-        with pytest.raises(ValueError, match="example_id_key"):
+    def test_id_key_overlap_with_input(self) -> None:
+        with pytest.raises(ValueError, match="id_key"):
             DatasetKeys(
                 input_keys=frozenset(["a", "ext_id"]),
                 output_keys=frozenset(["b"]),
                 metadata_keys=frozenset(["c"]),
-                example_id_key="ext_id",
+                id_key="ext_id",
             )
 
-    def test_example_id_key_overlap_with_output(self) -> None:
-        with pytest.raises(ValueError, match="example_id_key"):
+    def test_id_key_overlap_with_output(self) -> None:
+        with pytest.raises(ValueError, match="id_key"):
             DatasetKeys(
                 input_keys=frozenset(["a"]),
                 output_keys=frozenset(["b", "ext_id"]),
                 metadata_keys=frozenset(["c"]),
-                example_id_key="ext_id",
+                id_key="ext_id",
             )
 
-    def test_example_id_key_overlap_with_metadata(self) -> None:
-        with pytest.raises(ValueError, match="example_id_key"):
+    def test_id_key_overlap_with_metadata(self) -> None:
+        with pytest.raises(ValueError, match="id_key"):
             DatasetKeys(
                 input_keys=frozenset(["a"]),
                 output_keys=frozenset(["b"]),
                 metadata_keys=frozenset(["c", "ext_id"]),
-                example_id_key="ext_id",
+                id_key="ext_id",
             )
 
-    def test_example_id_key_overlap_with_split(self) -> None:
-        with pytest.raises(ValueError, match="example_id_key"):
+    def test_id_key_overlap_with_split(self) -> None:
+        with pytest.raises(ValueError, match="id_key"):
             DatasetKeys(
                 input_keys=frozenset(["a"]),
                 output_keys=frozenset(["b"]),
                 metadata_keys=frozenset(["c"]),
                 split_keys=frozenset(["ext_id"]),
-                example_id_key="ext_id",
+                id_key="ext_id",
             )
 
-    def test_check_differences_with_example_id_key(self) -> None:
+    def test_check_differences_with_id_key(self) -> None:
         keys = DatasetKeys(
             input_keys=frozenset(["a"]),
             output_keys=frozenset(["b"]),
             metadata_keys=frozenset(["c"]),
-            example_id_key="ext_id",
+            id_key="ext_id",
         )
         keys.check_differences(frozenset(["a", "b", "c", "ext_id", "extra"]))
 
@@ -427,7 +427,7 @@ class TestHelperFunctions:
         with pytest.raises(ValueError, match="DataFrame has no data"):
             _prepare_dataframe_as_csv(df, keys)
 
-    def test_prepare_dataframe_as_csv_with_example_id_key(self) -> None:
+    def test_prepare_dataframe_as_csv_with_id_key(self) -> None:
         df = pd.DataFrame(
             {
                 "input": ["a", "b"],
@@ -439,7 +439,7 @@ class TestHelperFunctions:
             input_keys=frozenset(["input"]),
             output_keys=frozenset(["output"]),
             metadata_keys=frozenset(),
-            example_id_key="ext_id",
+            id_key="ext_id",
         )
 
         name, file_obj, content_type, headers = _prepare_dataframe_as_csv(df, keys)
