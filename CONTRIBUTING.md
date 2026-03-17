@@ -84,6 +84,46 @@ A PR description is a public record of what change is being made and why it was 
 - Videos and screenshots: Highlight the changes in the UI. These should be supplemental to the text description, not a replacement for it.
 - Code Snippets: If the PR is changing an API, include code snippets to highlight the changes. This will expedite a reader's ability to construct the right API calls if they are interested in doing so. These should be supplemental to the text description, not a replacement for it.
 
+### Small Simple Pull Requests
+
+Small, simple pull requests are important because they are:
+
+- Reviewed more quickly
+- Reviewed more thoroughly
+- Less likely to introduce bugs
+- Easier to merge.
+- Easier to design well
+- Less blocking on reviews
+- Simpler to roll back
+
+Note that reviewers have discretion to reject your change outright for the sole reason of it being too large. Usually they will thank you for your contribution but request that you somehow make it into a series of smaller changes. It can be a lot of work to split up a change after you've already written it, or require lots of time arguing about why the reviewer should accept your large change. It's easier to just write small PRs in the first place.
+
+For a comprehensive guide on how to write small PRs, see this [guide](https://github.com/google/eng-practices/blob/master/review/developer/small-cls.md)
+
+## Code Reviews
+
+A code review is a process where someone other than the author(s) of a piece of code examines that code. Code committed to the codebase is both the responsibility of the author and the reviewer. Code reviews should look at:
+
+- Design: Is the code well-designed and appropriate for your system?
+- Functionality: Does the code behave as the author likely intended? Is the way the code behaves good for its users?
+- Complexity: Could the code be made simpler? Would another developer be able to easily understand and use this code when they come across it in the future? Beware of over-engineering. The code should solve problems that need to be solved _now_, and not problems that the code author speculates _might_ need to be solved in the future.
+- Tests: Does the code have correct and well-designed automated tests?
+- Naming: Did the developer choose clear names for variables, classes, methods, etc.?
+- Comments: Are the comments clear and useful? Note that comments are most useful when they explain _why_ the code exists.
+- Style: Does the code follow our style guides? Note, in most cases, style nits should be avoided and be enforced entirely by automated tooling. However some stylistic decisions can be discussed if it impacts readability and complexity.
+- Documentation: Did the developer also update relevant documentation?
+
+All of the above are grounds for a reviewer to request changes in a PR. Consensus should be reached to the best of the abilities of the author(s) and reviewer. However, if consensus cannot be reached between the two parties, the review should be escalated to the technical lead.
+
+### Code Review Conduct
+
+- Be kind.
+- Explain your reasoning.
+- Balance giving explicit directions with just pointing out problems and letting the developer decide.
+- Encourage developers to simplify code or add code comments instead of just explaining the complexity to you.
+
+Remember that you are both on the same team and are working towards the same goal. The goal is not to make the code perfect, but to make it better. Make sure your review comments are constructive and actionable. Treat the code contribution as a communal artifact under construction rather than a personal creation under evaluation. For a comprehensive guide on how to provide effective PR feedback, see this [guide](https://google.github.io/eng-practices/review/reviewer/comments.html).
+
 ## Contributor License Agreement (CLA)
 
 In order to accept your pull request, we need you to submit a CLA. You only need to do this once. Simply reply to your first pull request with `I have read the CLA Document and I hereby sign the CLA`. Your signature will be recorded automatically in the `cla` branch.
