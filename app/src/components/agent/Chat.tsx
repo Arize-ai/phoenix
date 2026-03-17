@@ -140,6 +140,8 @@ export function Chat({
         return;
       }
 
+      // Avoid awaiting tool execution inside the AI SDK's current update job.
+      // `addToolOutput` schedules its own update job, so deferring prevents a queue deadlock.
       queueMicrotask(() => {
         void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
       });
