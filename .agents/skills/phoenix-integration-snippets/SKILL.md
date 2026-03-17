@@ -10,7 +10,7 @@ description: >
 license: Apache-2.0
 metadata:
   author: oss@arize.com
-  version: "1.0.0"
+  version: "2.0.0"
   languages: Python, TypeScript
   internal: true
 ---
@@ -34,7 +34,9 @@ Copy this checklist and track progress:
 
 **Step 1: Research.** Read the relevant file in `docs/phoenix/integrations/` for the framework. Also check the OpenInference repo for example code: https://github.com/Arize-ai/openinference
 
-**Step 4: Test.** For each supported language, install deps, run the snippet, and confirm traces appear in Phoenix. Use a dedicated project name per language (e.g., `my-integration-python-test`, `my-integration-ts-test`). If traces don't appear: check the Phoenix logs, verify the endpoint URL, and re-run. Only proceed to wiring into the UI when traces are confirmed.
+**Step 4: Test.** See [Testing](#testing) below. Only proceed to wiring into the UI when traces are confirmed.
+
+**Step 5: Wire into the onboarding UI.** After adding `docsHref` and `githubHref`, verify every URL returns HTTP 200 before committing. For GitHub links, prefer the OpenInference repo (`https://github.com/Arize-ai/openinference/tree/main/...`).
 
 **Step 6: Report.** Provide clickable links to the Phoenix project pages (e.g., `http://localhost:6006/projects/<base64-id>/traces`).
 
@@ -52,96 +54,40 @@ Each snippet has two parts:
 
 **File:** `app/src/components/project/integrationSnippets.ts`
 
-**Python pattern:**
+The onboarding UI already displays env vars (including `PHOENIX_COLLECTOR_ENDPOINT`) in a separate section before the code snippet. Both `phoenix.otel.register` (Python) and `@arizeai/phoenix-otel` `register` (TypeScript) read this env var automatically. Do NOT pass `endpoint`/`url` in the snippet code — rely on the env var.
 
-```python
-export function get<Name>CodePython({
-  projectName,
-  isHosted,
-}: {
-  projectName: string;
-  isHosted: boolean;
-}): string {
-  return `from phoenix.otel import register
+**Python:** Use `auto_instrument=True` — no manual instrumentor calls. SDK imports must come _after_ `register()`.
 
-tracer_provider = register(
-  project_name="${projectName}",
-  endpoint="${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
-  auto_instrument=True
-)
-
-# SDK imports must come after register() so auto-instrumentation can patch them
-...`;
-}
-```
-
-**TypeScript pattern:**
-
-```typescript
-export function get<Name>CodeTypescript({
-  projectName,
-  isHosted,
-}: {
-  projectName: string;
-  isHosted: boolean;
-}): string {
-  return `import { register } from "@arizeai/phoenix-otel";
-import ...
-
-const provider = register({
-  projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
-});
-
-...
-
-await provider.forceFlush();`;
-}
-```
-
-Use `isHosted` to select the endpoint URL:
-
-- `isHosted` → `HOSTED_PHOENIX_URL` (imported from `./hosting`)
-- not hosted → `BASE_URL` (imported from `@phoenix/config`)
+**TypeScript:** ESM imports are hoisted so import ordering doesn't matter. `await provider.forceFlush()` is required in short-lived scripts.
 
 ### 2. Register the integration
 
 **File:** `app/src/pages/project/integrationRegistry.tsx`
 
-Import your function and add an entry to `ONBOARDING_INTEGRATIONS`. Pass snippet functions as direct references (they match the `getImplementationCode` type in `integrationDefinitions.ts`):
+Import your function and add an entry to `ONBOARDING_INTEGRATIONS`. Pass snippet functions as direct references (they match the `getImplementationCode` type in `integrationDefinitions.ts`).
 
-```typescript
-{
-  id: "my-integration",
-  name: "My Integration",
-  icon: <MyIcon />,
-  supportedLanguages: ["Python", "TypeScript"],
-  snippets: {
-    Python: {
-      packages: ["arize-phoenix-otel", "openinference-instrumentation-my-sdk", "my-sdk"],
-      getImplementationCode: getMyIntegrationCodePython,
-    },
-    TypeScript: {
-      packages: ["@arizeai/phoenix-otel", "@arizeai/openinference-instrumentation-my-sdk", "my-sdk"],
-      getImplementationCode: getMyIntegrationCodeTypescript,
-    },
-  },
-}
-```
+## Testing
 
-## Gotchas
+Test snippets **as written** — the exact code the user will see in the onboarding UI. If any modification is required to make a snippet work, that is a bug.
 
-### Both languages
+### Isolated test environments
 
-- **Hosted URL:** All snippet functions must use `isHosted` to select between `HOSTED_PHOENIX_URL` and `BASE_URL`. Never hardcode `BASE_URL` alone.
-- **Comments:** Only add comments for non-obvious behavior (e.g., import ordering in Python, flush requirement, manual instrumentation).
+Create a **fresh environment per integration** with only the packages from that snippet's `packages` array. This prevents false positives from cross-contamination (e.g., an installed `openinference-instrumentation-openai` producing extra traces when testing a LangChain snippet).
 
-### Python
+Set `PHOENIX_COLLECTOR_ENDPOINT` and run the snippet code verbatim.
 
-- Use `from phoenix.otel import register` with `auto_instrument=True` — no manual instrumentor calls needed.
-- SDK imports must come _after_ `register()` so auto-instrumentation can patch them.
+### Validation checklist
 
-### TypeScript
+For each snippet, verify:
 
-- ESM `import` statements are hoisted — placing them after runtime code has no effect. Put all imports at the top. (Import ordering only matters in Python.)
-- `await provider.forceFlush()` is required in short-lived scripts — not needed in long-running servers.
+- No export errors (no `405`, no `Failed to export span batch`)
+- Traces appear in Phoenix under the expected project name
+- Trace kind and structure match expectations (e.g., LangChain shows `chain` spans, not just bare `llm` spans)
+- Only one top-level trace per invocation (multiple top-level traces suggest instrumentor cross-contamination)
+
+### When a snippet doesn't work as-is
+
+If you must modify the snippet code to get traces flowing, **do not silently work around it and continue**. Instead:
+
+1. **Fix the snippet** if the change is small and clearly correct (e.g., a typo, missing import)
+2. **Flag to the user** if the fix requires a design decision (e.g., the SDK doesn't support env-var-based config, or auto-instrumentation doesn't work for this framework)

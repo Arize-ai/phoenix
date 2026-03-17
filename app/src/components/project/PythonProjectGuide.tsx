@@ -150,9 +150,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       </View>
       <View paddingBottom="size-100">
         <CodeWrap>
-          <PythonBlockWithCopy
-            value={getOtelInitCodePython({ projectName, isHosted })}
-          />
+          <PythonBlockWithCopy value={getOtelInitCodePython({ projectName })} />
         </CodeWrap>
       </View>
       {!isHosted ? (

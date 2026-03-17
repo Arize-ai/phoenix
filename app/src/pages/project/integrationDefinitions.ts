@@ -7,10 +7,7 @@ import type { ProgrammingLanguage } from "@phoenix/types/code";
  */
 export type IntegrationSnippets = {
   packages: readonly string[];
-  getImplementationCode: (params: {
-    projectName: string;
-    isHosted: boolean;
-  }) => string;
+  getImplementationCode: (params: { projectName: string }) => string;
   docsHref?: string;
   githubHref?: string;
 };

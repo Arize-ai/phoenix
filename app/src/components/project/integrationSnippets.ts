@@ -29,48 +29,38 @@ export function getEnvironmentVariables({
 // -- Implementation code --
 
 export function getOtelInitCodePython({
-  isHosted,
   projectName,
 }: {
-  isHosted: boolean;
   projectName: string;
 }): string {
   return `from phoenix.otel import register\n
 tracer_provider = register(
   project_name="${projectName}",
-  endpoint="${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
   auto_instrument=True
 )`;
 }
 
 export function getOtelInitCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from '@arizeai/phoenix-otel';
 
 register({
   projectName: '${projectName}',
-  url: '${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}',
-  apiKey: process.env.PHOENIX_API_KEY,
 });`;
 }
 
 export function getLanggraphCodePython({
-  isHosted,
   projectName,
 }: {
-  isHosted: boolean;
   projectName: string;
 }): string {
   return `from phoenix.otel import register
 
 tracer_provider = register(
   project_name="${projectName}",
-  endpoint="${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
   auto_instrument=True
 )
 
@@ -87,10 +77,8 @@ result = agent.invoke(
 
 export function getLanggraphCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
@@ -100,7 +88,6 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 // LangChain must be manually instrumented as it doesn't have
@@ -118,12 +105,126 @@ const result = await agent.invoke(
 await provider.forceFlush();`;
 }
 
-export function getVercelAiSdkCodeTypescript({
+export function getLangchainCodeTypescript({
   projectName,
-  isHosted,
 }: {
   projectName: string;
-  isHosted: boolean;
+}): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+import { LangChainInstrumentation } from "@arizeai/openinference-instrumentation-langchain";
+import * as CallbackManagerModule from "@langchain/core/callbacks/manager";
+import { ChatOpenAI } from "@langchain/openai";
+
+const provider = register({
+  projectName: "${projectName}",
+});
+
+// LangChain must be manually instrumented as it doesn't have
+// a traditional module structure
+const lcInstrumentation = new LangChainInstrumentation();
+lcInstrumentation.manuallyInstrument(CallbackManagerModule);
+
+const model = new ChatOpenAI({ model: "gpt-4o-mini" });
+const result = await model.invoke("Explain the theory of relativity in simple terms.");
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}
+
+export function getOpenaiCodeTypescript({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+import OpenAI from "openai";
+
+const provider = register({
+  projectName: "${projectName}",
+});
+
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.manuallyInstrument(OpenAI);
+
+const openai = new OpenAI();
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+});
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}
+
+export function getAnthropicCodeTypescript({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `import { register } from "@arizeai/phoenix-otel";
+import { AnthropicInstrumentation } from "@arizeai/openinference-instrumentation-anthropic";
+import Anthropic from "@anthropic-ai/sdk";
+
+const provider = register({
+  projectName: "${projectName}",
+});
+
+const instrumentation = new AnthropicInstrumentation();
+instrumentation.manuallyInstrument(Anthropic);
+
+const anthropic = new Anthropic();
+const message = await anthropic.messages.create({
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+});
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
+}
+
+export function getMastraCodeTypescript({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `import { ArizeExporter } from "@mastra/arize";
+import { Agent } from "@mastra/core/agent";
+import { Mastra } from "@mastra/core/mastra";
+import { Observability } from "@mastra/observability";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+  model: openai("gpt-4o-mini"),
+});
+
+const mastra = new Mastra({
+  agents: { agent },
+  observability: new Observability({
+    configs: {
+      arize: {
+        serviceName: "${projectName}",
+        exporters: [
+          new ArizeExporter({
+            endpoint: \`\${process.env.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces\`,
+            projectName: "${projectName}",
+          }),
+        ],
+      },
+    },
+  }),
+});
+
+// Run via: mastra dev`;
+}
+
+export function getVercelAiSdkCodeTypescript({
+  projectName,
+}: {
+  projectName: string;
 }): string {
   return `import { register } from "@arizeai/phoenix-otel";
 import { generateText } from "ai";
@@ -131,7 +232,6 @@ import { openai } from "@ai-sdk/openai";
 
 const provider = register({
   projectName: "${projectName}",
-  url: "${isHosted ? HOSTED_PHOENIX_URL : BASE_URL}",
 });
 
 const result = await generateText({

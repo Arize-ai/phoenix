@@ -342,11 +342,11 @@ export const AnthropicSVG = () => (
   >
     <path
       d="M18.2835 6L26.4963 26.5994H31L22.7873 6H18.2835Z"
-      fill="var(--global-text-color-900)"
+      fill="currentColor"
     />
     <path
       d="M8.75587 18.4479L11.566 11.2087L14.3762 18.4479H8.75587ZM9.21147 6L1 26.5994H5.59136L7.27074 22.2735H15.8616L17.5407 26.5994H22.132L13.9206 6H9.21147Z"
-      fill="var(--global-text-color-900)"
+      fill="currentColor"
     />
   </svg>
 );

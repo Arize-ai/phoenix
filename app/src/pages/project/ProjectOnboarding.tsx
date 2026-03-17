@@ -10,7 +10,6 @@ import {
   Tabs,
   Text,
 } from "@phoenix/components";
-import { IS_HOSTED_DEPLOYMENT } from "@phoenix/components/project/hosting";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
@@ -67,7 +66,6 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
   const implementationCode =
     languageSnippets?.getImplementationCode({
       projectName,
-      isHosted: IS_HOSTED_DEPLOYMENT,
     }) ?? "";
   const docsHref = languageSnippets?.docsHref;
   const githubHref = languageSnippets?.githubHref;
