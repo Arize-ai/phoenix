@@ -4142,6 +4142,8 @@ export interface operations {
                     "flatten_keys[]"?: string[];
                     /** @description Column name for span IDs to link examples back to spans */
                     span_id_key?: string;
+                    /** @description Column name for example IDs to use as stable public identifiers */
+                    example_id_key?: string;
                     /** Format: binary */
                     file: string;
                 };
