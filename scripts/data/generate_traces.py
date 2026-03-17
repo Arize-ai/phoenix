@@ -41,7 +41,6 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 from opentelemetry.util import types
 from typing_extensions import TypeAlias
 
-import phoenix as px
 import phoenix.trace.v1 as pb
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
 
@@ -380,29 +379,36 @@ def _send_eval_pyarrow(
     endpoint: str,
     cls: Type[Evaluations],
 ) -> None:
-    client = px.Client(endpoint=endpoint)
+    from phoenix.client import Client as _PhoenixClient
+
+    client = _PhoenixClient(base_url=endpoint)
+    is_document_evals = cls is DocumentEvaluations
     tables: DefaultDict[EvalName, List[Dict[str, Any]]] = defaultdict(list)
+
+    def _flush() -> None:
+        for eval_name, rows in tables.items():
+            try:
+                df = pd.DataFrame(rows)
+                if is_document_evals:
+                    client.spans.log_document_annotations_dataframe(
+                        dataframe=df, annotation_name=eval_name, annotator_kind="LLM"
+                    )
+                else:
+                    client.spans.log_span_annotations_dataframe(
+                        dataframe=df, annotation_name=eval_name, annotator_kind="LLM"
+                    )
+            except Exception as e:
+                print(e)
+        tables.clear()
+
     while (item := queue.get()) is not END_OF_QUEUE:
         name, row = item
         tables[name].append(row)
         if random() < 0.01:
             sleep(random())
-            payloads = []
-            for name, rows in tables.items():
-                try:
-                    payloads.append(cls(name, pd.DataFrame(rows)))
-                except Exception as e:
-                    print(e)
-            client.log_evaluations(*payloads)
-            tables.clear()
+            _flush()
     sleep(random())
-    payloads = []
-    for name, rows in tables.items():
-        try:
-            payloads.append(cls(name, pd.DataFrame(rows)))
-        except Exception as e:
-            print(e)
-    client.log_evaluations(*payloads)
+    _flush()
 
 
 def _send_eval_protos(

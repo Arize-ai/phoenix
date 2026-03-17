@@ -114,9 +114,11 @@ dataset_df = pd.DataFrame(
     }
 )
 
-dataset = px.Client().upload_dataset(
+from phoenix.client import Client
+
+dataset = Client().datasets.create_dataset(
+    name="math-questions",
     dataframe=dataset_df,
-    dataset_name="math-questions",
     input_keys=["question"],
     output_keys=["final_output"],
 )
@@ -125,10 +127,10 @@ dataset = px.Client().upload_dataset(
 Finally, we run our experiment and view the results in Phoenix.
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 experiment = run_experiment(
-    dataset, task=solve_math_problem, evaluators=[goal_evaluator, tool_call_evaluator]
+    dataset=dataset, task=solve_math_problem, evaluators=[goal_evaluator, tool_call_evaluator]
 )
 ```
 
