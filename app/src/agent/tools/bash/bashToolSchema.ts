@@ -19,10 +19,12 @@ export interface BashToolInput {
   command: string;
 }
 
+// This description follows the same capability-guidance approach used by bash-tool,
+// adapted for PXI's browser-only just-bash environment.
 export const bashToolDefinition = {
   name: "bash",
   description:
-    "Run a shell command in the browser virtual filesystem. Files persist across invocations, but the working directory resets between commands.",
+    "Run a shell command in the browser virtual filesystem. Files persist across invocations, but the working directory resets between commands. Network is disabled by default, and this environment should be used for local file inspection and data parsing rather than package installation or host-level system setup.",
   parameters: {
     type: "object",
     properties: {
