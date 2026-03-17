@@ -1662,3 +1662,132 @@ class TestIncompleteEvaluations:
         assert normal_result["status_code"] == 200, (
             "Database should still be functional after SQL injection attempts"
         )
+
+
+async def test_create_experiment_run_with_external_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """POST /experiments/{id}/runs accepts a plain external_id string as dataset_example_id."""
+    upload = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": "ext-id-run-test",
+            "inputs": [{"q": "hello"}],
+            "outputs": [{"a": "world"}],
+            "example_ids": ["my-example"],
+        },
+    )
+    upload.raise_for_status()
+    dataset_id = upload.json()["data"]["dataset_id"]
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = experiment["id"]
+
+    now = datetime.now(timezone.utc).isoformat()
+    response = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs",
+        json={
+            "dataset_example_id": "my-example",
+            "output": "result",
+            "repetition_number": 1,
+            "start_time": now,
+            "end_time": now,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["id"]
+
+
+async def test_create_experiment_run_with_nonexistent_external_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """POST /experiments/{id}/runs returns 404 when the external_id does not exist."""
+    upload = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": "ext-id-missing-test",
+            "inputs": [{"q": "hello"}],
+            "outputs": [{"a": "world"}],
+        },
+    )
+    upload.raise_for_status()
+    dataset_id = upload.json()["data"]["dataset_id"]
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = experiment["id"]
+
+    now = datetime.now(timezone.utc).isoformat()
+    response = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs",
+        json={
+            "dataset_example_id": "does-not-exist",
+            "output": "result",
+            "repetition_number": 1,
+            "start_time": now,
+            "end_time": now,
+        },
+    )
+    assert response.status_code == 404
+
+
+async def test_create_experiment_run_with_node_id_and_external_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Both external_id strings and GlobalID node IDs are accepted as dataset_example_id."""
+    upload = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": "mixed-id-run-test",
+            "inputs": [{"q": "one"}, {"q": "two"}],
+            "outputs": [{}, {}],
+            "example_ids": ["ext-1", None],
+        },
+    )
+    upload.raise_for_status()
+    dataset_id = upload.json()["data"]["dataset_id"]
+
+    experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_id}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = experiment["id"]
+
+    # Fetch both examples to get the node GlobalID for the one without an external_id.
+    examples = (await httpx_client.get(f"v1/datasets/{dataset_id}/examples")).json()["data"][
+        "examples"
+    ]
+    # ext-1 returns "ext-1"; the other returns a GlobalID string.
+    ids_by_value = {e["id"]: e for e in examples}
+    node_id = next(v["id"] for v in ids_by_value.values() if v["id"] != "ext-1")
+
+    now = datetime.now(timezone.utc).isoformat()
+    base_payload = {"output": "result", "start_time": now, "end_time": now}
+
+    r1 = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs",
+        json={"dataset_example_id": "ext-1", "repetition_number": 1, **base_payload},
+    )
+    assert r1.status_code == 200
+
+    r2 = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs",
+        json={"dataset_example_id": node_id, "repetition_number": 1, **base_payload},
+    )
+    assert r2.status_code == 200
+
+    assert r1.json()["data"]["id"] != r2.json()["data"]["id"]

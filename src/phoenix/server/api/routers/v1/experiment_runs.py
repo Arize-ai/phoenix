@@ -85,14 +85,12 @@ async def create_experiment_run(
             status_code=404,
         )
 
-    example_gid = GlobalID.from_id(request_body.dataset_example_id)
+    dataset_example_id: Optional[int] = None
     try:
+        example_gid = GlobalID.from_id(request_body.dataset_example_id)
         dataset_example_id = from_global_id_with_expected_type(example_gid, "DatasetExample")
-    except ValueError:
-        raise HTTPException(
-            detail=f"DatasetExample with ID {example_gid} does not exist",
-            status_code=404,
-        )
+    except Exception:
+        pass  # not a valid GlobalID — will fall back to external_id lookup
 
     trace_id = request_body.trace_id
     task_output = request_body.output
@@ -102,6 +100,22 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
+        if dataset_example_id is None:
+            dataset_example_id = await session.scalar(
+                select(models.DatasetExample.id)
+                .join(
+                    models.Experiment,
+                    models.Experiment.dataset_id == models.DatasetExample.dataset_id,
+                )
+                .where(models.Experiment.id == experiment_rowid)
+                .where(models.DatasetExample.external_id == request_body.dataset_example_id)
+            )
+            if dataset_example_id is None:
+                raise HTTPException(
+                    detail=f"DatasetExample '{request_body.dataset_example_id}' does not exist",
+                    status_code=404,
+                )
+
         # Check if a record already exists
         existing_run = await session.scalar(
             select(models.ExperimentRun)
