@@ -88,9 +88,10 @@ spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="rec
 annotations_df = client.spans.get_span_annotations_dataframe(spans_dataframe = spans_df, project_identifier="receipt-classification")
 full_df = annotations_df.join(spans_df, how = "inner")
 
-dataset = px.Client().upload_dataset(
+from phoenix.client import Client
+dataset = Client().datasets.create_dataset(
+    name="annotated-receipts",
     dataframe=full_df,
-    dataset_name="annotated-receipts",
     input_keys=["attributes.input.value"],
     output_keys=["attributes.llm.output_messages"],
     metadata_keys=["result.label", "result.score", "result.explanation"],
@@ -170,12 +171,13 @@ def evaluate_response(output, metadata):
     return 1 if expected_label == predicted_label else 0
 ```
 ```py
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
-dataset = px.Client().get_dataset(name="annotated-receipts")
+from phoenix.client import Client
+dataset = Client().datasets.get_dataset(dataset="annotated-receipts")
 
 initial_experiment = run_experiment(
-    dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
+    dataset=dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
 )
 ```
 
@@ -217,7 +219,7 @@ INPUT RECEIPT: """,
 
 ```py
 initial_experiment = run_experiment(
-    dataset, task=task_function, evaluators=[evaluate_response], experiment_name="improved template"
+    dataset=dataset, task=task_function, evaluators=[evaluate_response], experiment_name="improved template"
 )
 ```
 

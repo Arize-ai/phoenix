@@ -120,9 +120,9 @@ client = Client()
 # replace "correctness" if you chose to annotate on different criteria
 query = spans.SpanQuery().where("annotations['correctness']")
 spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="my-annotations-app")
-dataset = px.Client().upload_dataset(
+dataset = client.datasets.create_dataset(
+    name="annotated-rhymes",
     dataframe=spans_df,
-    dataset_name="annotated-rhymes",
     input_keys=["attributes.input.value"],
     output_keys=["attributes.llm.output_messages"],
 )
@@ -203,7 +203,7 @@ Here, we expect to see improvements in our experiment. The evaluator should flag
 
 ```javascript
 experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=updated_task,
     evaluators=[evaluate_response],
     experiment_name="updated system prompt",

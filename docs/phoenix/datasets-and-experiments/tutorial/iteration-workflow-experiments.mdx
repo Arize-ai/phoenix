@@ -32,12 +32,12 @@ Run an experiment with the improved agent using the same dataset and evaluator t
 
 ```python Python
 # Run experiment with improved agent to compare actionability scores
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 # Get the dataset
 improved_experiment = run_experiment(
-    dataset,
-    improved_support_agent_task,
+    dataset=dataset,
+    task=improved_support_agent_task,
     evaluators=[call_actionability_judge],
     experiment_name="improved support agent",
     experiment_description="Agent with enhanced instructions to improve actionability - emphasizes specific, concrete responses with clear next steps"

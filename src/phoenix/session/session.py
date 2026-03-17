@@ -5,7 +5,6 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
-from datetime import datetime
 from enum import Enum
 from importlib.util import find_spec
 from itertools import chain
@@ -15,7 +14,6 @@ from typing import TYPE_CHECKING, Awaitable, Callable, NamedTuple, Optional, Uni
 from urllib.parse import urljoin
 
 import pandas as pd
-from typing_extensions import deprecated
 
 from phoenix.config import (
     ENV_NOTEBOOK_ENV,
@@ -40,12 +38,8 @@ from phoenix.server.app import (
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
-from phoenix.session.client import Client
-from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.settings import Settings
-from phoenix.trace import Evaluations
-from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
 
 logger = logging.getLogger(__name__)
@@ -74,7 +68,7 @@ class NotebookEnvironment(Enum):
     DATABRICKS = "databricks"
 
 
-class Session(TraceDataExtractor, ABC):
+class Session(ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
     trace_dataset: Optional[TraceDataset]
@@ -108,100 +102,6 @@ class Session(TraceDataExtractor, ABC):
             if not self.root_path.startswith("/"):
                 self.root_path = f"/{self.root_path}"
             self.root_path = self.root_path.rstrip("/")
-        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-        self._client = Client(
-            endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
-        )
-
-    @deprecated("Migrate to using client.spans.get_spans_dataframe via arize-phoenix-client")
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        limit: Optional[int] = DEFAULT_SPAN_LIMIT,
-        root_spans_only: Optional[bool] = None,
-        project_name: Optional[str] = None,
-        # Deprecated fields
-        stop_time: Optional[datetime] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
-        """
-        .. deprecated::
-            This method is deprecated. Use ``client.spans.get_spans_dataframe()`` via
-            arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
-
-        Queries the spans in the project based on the provided parameters.
-
-        Parameters
-        ----------
-            queries : *SpanQuery
-                Variable-length argument list of SpanQuery objects representing
-                the queries to be executed.
-
-            start_time : datetime, optional
-                 datetime representing the start time of the query.
-
-            end_time : datetime, optional
-                datetime representing the end time of the query.
-
-            root_spans_only : boolean, optional
-                whether to include only root spans in the results.
-
-            project_name : string, optional
-                name of the project to query. Defaults to the project name set
-                in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
-
-        Returns:
-            results : DataFrame
-                DataFrame or list of DataFrames containing the query results.
-        """
-        if stop_time is not None:
-            warnings.warn(
-                "The `stop_time` parameter is deprecated and will be removed in a future release. "
-                "Please use `end_time` instead.",
-                DeprecationWarning,
-            )
-            end_time = stop_time
-        return self._client.query_spans(
-            *queries,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit,
-            root_spans_only=root_spans_only,
-            project_name=project_name,
-        )
-
-    @deprecated("Migrate to using client.spans.get_span_annotations via arize-phoenix-client")
-    def get_evaluations(
-        self,
-        project_name: Optional[str] = None,
-    ) -> list[Evaluations]:
-        """
-        .. deprecated::
-            This method is deprecated. Use ``client.spans.get_span_annotations()`` via
-            arize-phoenix-client instead.
-            See https://arize-phoenix.readthedocs.io/projects/client/en/latest/
-
-        Get the evaluations for a project.
-
-        Parameters
-        ----------
-            project_name :  str, optional
-                The name of the project. If not provided, the project name set
-                in the environment variable `PHOENIX_PROJECT_NAME` will be used.
-                Otherwise, 'default' will be used.
-
-        Returns
-        -------
-            evaluations : list[Evaluations]
-                A list of evaluations for the specified project.
-
-        """
-        return self._client.get_evaluations(
-            project_name=project_name,
-        )
 
     @abstractmethod
     def end(self) -> None:

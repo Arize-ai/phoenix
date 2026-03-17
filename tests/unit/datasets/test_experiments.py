@@ -10,7 +10,6 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
-from phoenix import Client
 from phoenix.db import models
 from phoenix.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import (
@@ -323,13 +322,3 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
 
     evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "evaluates against named args in any order"
-
-
-async def test_get_experiment_client_method(
-    legacy_px_client: Client,
-    simple_dataset_with_one_experiment_run: Any,
-) -> None:
-    experiment_gid = GlobalID("Experiment", "0")
-    experiment = legacy_px_client.get_experiment(experiment_id=str(experiment_gid))
-    assert experiment
-    assert isinstance(experiment, Experiment)
