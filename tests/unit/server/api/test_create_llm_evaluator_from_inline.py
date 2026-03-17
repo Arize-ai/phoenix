@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock
 
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.evaluators import create_llm_evaluator_from_inline
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
@@ -12,6 +11,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
+from phoenix.server.api.evaluators import create_llm_evaluator_from_inline
 
 
 def _make_prompt_version_orm() -> MagicMock:

@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback } from "react";
+import { Panel, PanelGroup } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
+import { AgentChatPanel } from "@phoenix/components/agent";
 import {
   Brand,
   DocsLink,
@@ -44,8 +46,8 @@ const contentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border-left: 1px solid var(--global-color-gray-200);
-  border-top: 1px solid var(--global-color-gray-200);
+  border-left: 1px solid var(--global-border-color-subtle);
+  border-top: 1px solid var(--global-border-color-subtle);
   border-radius: var(--global-rounding-medium) 0 0 0;
   /* Fill the background of the content */
   box-shadow: 0 0 10px 10px var(--global-color-gray-100);
@@ -76,11 +78,16 @@ export function Layout() {
           <SideNavToggleButton />
           <NavBreadcrumb />
         </TopNavbar>
-        <div data-testid="content" css={contentCSS}>
-          <Suspense fallback={<Loading />}>
-            <Outlet />
-          </Suspense>
-        </div>
+        <PanelGroup direction="horizontal">
+          <Panel>
+            <div data-testid="content" css={contentCSS}>
+              <Suspense fallback={<Loading />}>
+                <Outlet />
+              </Suspense>
+            </div>
+          </Panel>
+          <AgentChatPanel />
+        </PanelGroup>
       </div>
     </div>
   );

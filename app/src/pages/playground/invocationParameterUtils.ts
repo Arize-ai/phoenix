@@ -1,5 +1,32 @@
 import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
-import type { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
+
+// These types are no longer generated from GraphQL (since neither ChatCompletionInput
+// nor ChatCompletionOverDatasetInput exposes invocationParameters as a list anymore).
+// They are defined here as the canonical source for the frontend.
+export type CanonicalParameterName =
+  | "ANTHROPIC_EXTENDED_THINKING"
+  | "MAX_COMPLETION_TOKENS"
+  | "RANDOM_SEED"
+  | "REASONING_EFFORT"
+  | "RESPONSE_FORMAT"
+  | "STOP_SEQUENCES"
+  | "TEMPERATURE"
+  | "TOP_P";
+
+export type InvocationParameterInput = {
+  canonicalName?: CanonicalParameterName | null;
+  invocationName: string;
+  valueBool?: boolean | null;
+  valueBoolean?: boolean | null;
+  valueFloat?: number | null;
+  valueInt?: number | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  valueJson?: any | null;
+  valueString?: string | null;
+  valueStringList?: ReadonlyArray<string> | null;
+};
+
+export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 
 /**
  * Check if two invocation parameters are equal by comparing their invocation name and canonical name

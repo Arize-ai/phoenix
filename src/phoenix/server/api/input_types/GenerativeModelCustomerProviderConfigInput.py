@@ -23,7 +23,7 @@ from phoenix.db.types.model_provider import (
     OpenAICustomProviderConfig,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 
 
 @strawberry.input

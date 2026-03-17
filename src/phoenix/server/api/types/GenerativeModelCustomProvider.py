@@ -14,7 +14,7 @@ from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:

@@ -1,6 +1,52 @@
 # Contributing to Arize-Phoenix
 
-`arize-phoenix` is an open source project that is under active development that is being used by Arize AI customers as well as the larger AI community. This document aims to make it easy for anyone to contribute to the project.
+## Read This First
+
+We are not actively accepting feature contributions right now.
+
+You can still open an issue or PR, but please do so knowing there is a good chance we close it or never get to it.
+
+We appreciate the impulse to contribute. This project is used by many people and we are trying to keep scope, quality, and direction tightly controlled. Limiting what we accept is how we do that.
+
+## What We Are Most Likely To Accept
+
+- Small, focused bug fixes.
+- Small reliability fixes.
+- Small performance improvements.
+- Tightly scoped maintenance work that clearly improves the project without changing its direction.
+
+## What We Are Least Likely To Accept
+
+- Large PRs.
+- Drive-by feature work.
+- Opinionated rewrites.
+- Anything that expands product scope without us asking for it first.
+
+A 1,000+ line PR full of new features is very likely to be closed without review. Please don't put yourself through that.
+
+## Opening A PR
+
+- Keep it small.
+- Explain exactly what changed.
+- Explain exactly why the change should exist.
+- Do not mix unrelated fixes together.
+- If the PR makes anything resembling a UI change, include clear before/after images.
+- If the change depends on motion, timing, transitions, or interaction details, include a short video.
+- If we have to guess what changed, we are much less likely to review it.
+
+## Issues First
+
+If you are thinking about a non-trivial change, open an issue first.
+
+That does not guarantee we will want the PR, but it gives us a chance to align before you invest the effort.
+
+An open issue is not an invitation to submit a PR. Even if an issue is labeled or acknowledged, please wait for explicit confirmation from a maintainer before starting work on it. We track many issues we are not yet ready to address, and unsolicited PRs for them will likely be closed.
+
+## Expectations
+
+Opening a PR does not create an obligation on our side. We may close it, ask you to shrink it, or reimplement the idea ourselves later.
+
+We know that can be frustrating. We would rather be upfront about it than waste your time with false encouragement.
 
 ## Code of Conduct
 
@@ -14,29 +60,27 @@ Code that lands in `main` must be compatible with the latest stable release. It 
 
 ## Bugs
 
-We use GitHub issues to track bugs. We keep a close eye on this and try to make it clear when we have an internal fix in progress. Before filing a new task, try to make sure your problem doesn’t already exist.
+We use GitHub issues to track bugs. We keep a close eye on this and try to make it clear when we have an internal fix in progress. Before filing a new task, try to make sure your problem doesn't already exist.
 
 ## Pull Requests
 
-The core team is monitoring for pull requests. We will review your pull request and either merge it, request changes to it, or close it with an explanation.
-
-Before submitting a pull request, please make sure the following is done. We expect code authors to test their pull requests well-enough that they work correctly by the time they get to code review. (Note that `npm` commands below are run under the `./app` directory.)
+Before submitting a pull request, please make sure the following is done:
 
 - Fork the repository and create your branch from `main`.
 - Follow the [development guide](./DEVELOPMENT.md) to setup your local environment.
 - If you've fixed a bug or added code that should be tested, add tests!
 - Ensure test suite passes (`tox run -e unit_tests` and `npm run test` for app changes)
 - Make sure your code is formatted with `tox run -e ruff` and `pnpm --dir app run fmt` for app changes.
-- Make sure to your code lints with `npm run lint` for app changes.
+- Make sure your code lints with `pnpm lint` for app changes.
 - Run type checking with `make typecheck-python` and `npm run typecheck` for app changes.
 
 ### Pull Request (PR) Descriptions
 
 A PR description is a public record of what change is being made and why it was made. It will become a permanent part of our version control history, and will possibly be read by many people other than your reviewers over the years. Follow the following guidelines when writing a PR description:
 
-- Title: The tile must conform to [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format and must sufficiently describe the change. Since PR titles are used to form release notes, titles with generic or non-descriptive content (“Fix build.”, “Add patch.”) are not allowed.
+- Title: The title must conform to [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format and must sufficiently describe the change. Since PR titles are used to form release notes, titles with generic or non-descriptive content ("Fix build.", "Add patch.") are not allowed.
 - Issue: The first line of the description should contain a reference to the issue that the PR is solving. For example, `fixes #1234` or `resolves #1234`. While this is not required for urgent fixes, it is required for all other PRs so that the issue is clearly tracked and triaged by a core team member.
-- Description: The first line should be a short, focused summary, while the rest of the description should fill in the details and include any supplemental information a reader needs to understand the change holistically. It might include a brief description of the problem that’s being solved, and why this is the best approach. If there are any shortcomings to the approach, they should be mentioned.
+- Description: The first line should be a short, focused summary, while the rest of the description should fill in the details and include any supplemental information a reader needs to understand the change holistically. It might include a brief description of the problem that's being solved, and why this is the best approach. If there are any shortcomings to the approach, they should be mentioned.
 - Videos and screenshots: Highlight the changes in the UI. These should be supplemental to the text description, not a replacement for it.
 - Code Snippets: If the PR is changing an API, include code snippets to highlight the changes. This will expedite a reader's ability to construct the right API calls if they are interested in doing so. These should be supplemental to the text description, not a replacement for it.
 
@@ -55,10 +99,6 @@ Small, simple pull requests are important because they are:
 Note that reviewers have discretion to reject your change outright for the sole reason of it being too large. Usually they will thank you for your contribution but request that you somehow make it into a series of smaller changes. It can be a lot of work to split up a change after you've already written it, or require lots of time arguing about why the reviewer should accept your large change. It's easier to just write small PRs in the first place.
 
 For a comprehensive guide on how to write small PRs, see this [guide](https://github.com/google/eng-practices/blob/master/review/developer/small-cls.md)
-
-## Contributor License Agreement (CLA)
-
-In order to accept your pull request, we need you to submit a CLA. You only need to do this once. Simply reply to your first pull request with `I have read the CLA Document and I hereby sign the CLA`. Your signature will be recorded automatically in the `cla` branch.
 
 ## Code Reviews
 
@@ -83,3 +123,7 @@ All of the above are grounds for a reviewer to request changes in a PR. Consensu
 - Encourage developers to simplify code or add code comments instead of just explaining the complexity to you.
 
 Remember that you are both on the same team and are working towards the same goal. The goal is not to make the code perfect, but to make it better. Make sure your review comments are constructive and actionable. Treat the code contribution as a communal artifact under construction rather than a personal creation under evaluation. For a comprehensive guide on how to provide effective PR feedback, see this [guide](https://google.github.io/eng-practices/review/reviewer/comments.html).
+
+## Contributor License Agreement (CLA)
+
+In order to accept your pull request, we need you to submit a CLA. You only need to do this once. Simply reply to your first pull request with `I have read the CLA Document and I hereby sign the CLA`. Your signature will be recorded automatically in the `cla` branch.

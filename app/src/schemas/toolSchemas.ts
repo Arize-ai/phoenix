@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { assertUnreachable, isObject } from "@phoenix/typeUtils";
-
 import { jsonLiteralSchema } from "./jsonLiteralSchema";
 
 const jsonSchemaPropertiesSchema = z
@@ -46,6 +44,54 @@ export const jsonSchemaZodSchema = z.looseObject({
 });
 
 /**
+ * Like jsonSchemaZodSchema but with type optional (no default).
+ * Accepts empty {} from SDKs/spans and leaves it as {} instead of injecting type.
+ */
+const toolParametersJsonSchema = z.looseObject({
+  type: z.enum(["object"]).optional(),
+  properties: z
+    .record(
+      z.string(),
+      z.union([
+        jsonSchemaPropertiesSchema,
+        z
+          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .describe("A list of possible parameter names to their definitions"),
+      ])
+    )
+    .optional(),
+  required: z.array(z.string()).optional().describe("The required parameters"),
+  additionalProperties: z
+    .boolean()
+    .optional()
+    .describe("Whether or not additional properties are allowed in the schema"),
+});
+
+/**
+ * Parameters schema with type defaulting to "object" when missing.
+ * Used for Anthropic (input_schema) and AWS (inputSchema.json) which require it.
+ */
+const parametersSchemaWithDefaultObjectType = z.looseObject({
+  type: z.enum(["object"]).optional().default("object"),
+  properties: z
+    .record(
+      z.string(),
+      z.union([
+        jsonSchemaPropertiesSchema,
+        z
+          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .describe("A list of possible parameter names to their definitions"),
+      ])
+    )
+    .optional(),
+  required: z.array(z.string()).optional().describe("The required parameters"),
+  additionalProperties: z
+    .boolean()
+    .optional()
+    .describe("Whether or not additional properties are allowed in the schema"),
+});
+
+/**
  * The schema for an OpenAI tool definition
  * @see https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
  *
@@ -62,7 +108,7 @@ export const openAIToolDefinitionSchema = z.looseObject({
         .string()
         .optional()
         .describe("A description of the function"),
-      parameters: jsonSchemaZodSchema
+      parameters: toolParametersJsonSchema
         .extend({
           strict: z
             .boolean()
@@ -102,7 +148,7 @@ export const openAIResponsesToolDefinitionSchema = z.looseObject({
     .literal("function")
     .describe("The type of the tool. Always `function`."),
   name: z.string().describe("The name of the function to call."),
-  parameters: jsonSchemaZodSchema
+  parameters: toolParametersJsonSchema
     .nullable()
     .describe(
       "A JSON schema object describing the parameters of the function."
@@ -135,7 +181,7 @@ export type OpenAIResponsesToolDefinition = z.infer<
 export const anthropicToolDefinitionSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  input_schema: jsonSchemaZodSchema,
+  input_schema: parametersSchemaWithDefaultObjectType,
 });
 
 /**
@@ -157,7 +203,7 @@ export const awsToolDefinitionSchema = z.object({
     name: z.string(),
     description: z.string().min(1).optional(),
     inputSchema: z.object({
-      json: jsonSchemaZodSchema,
+      json: parametersSchemaWithDefaultObjectType,
     }),
   }),
 });
@@ -168,19 +214,16 @@ export const awsToolDefinitionJSONSchema = z.toJSONSchema(
   awsToolDefinitionSchema
 );
 
-export type AnyProviderToolDefinition =
-  | OpenAIToolDefinition
-  | OpenAIResponsesToolDefinition
-  | AnthropicToolDefinition
-  | AwsToolDefinition;
-
 /**
- * The zod schema for a Gemini tool definition
+ * The zod schema for a Gemini tool definition.
+ * Google GenAI SDK uses `parameters_json_schema`; we accept both for spans
+ * that store the raw FunctionDeclaration dump.
  */
 export const geminiToolDefinitionSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  parameters: jsonSchemaZodSchema,
+  parameters: toolParametersJsonSchema.optional(),
+  parameters_json_schema: toolParametersJsonSchema.optional(),
 });
 
 export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
@@ -191,115 +234,6 @@ export type GeminiToolDefinition = z.infer<typeof geminiToolDefinitionSchema>;
 export const geminiToolDefinitionJSONSchema = z.toJSONSchema(
   geminiToolDefinitionSchema
 );
-
-/**
- * --------------------------------
- * Conversion Schemas
- * --------------------------------
- */
-
-export const awsToolToOpenAI = awsToolDefinitionSchema.transform(
-  (aws): OpenAIToolDefinition => ({
-    type: "function",
-    function: {
-      name: aws.toolSpec.name,
-      ...(aws.toolSpec.description != null && {
-        description: aws.toolSpec.description,
-      }),
-      parameters: aws.toolSpec.inputSchema.json,
-    },
-  })
-);
-
-export const openAIToolToAws = openAIToolDefinitionSchema.transform(
-  (openai): AwsToolDefinition => ({
-    toolSpec: {
-      name: openai.function.name,
-      ...(openai.function.description != null && {
-        description: openai.function.description,
-      }),
-      inputSchema: {
-        json: openai.function.parameters,
-      },
-    },
-  })
-);
-
-/**
- * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
- */
-export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
-  (anthropic): OpenAIToolDefinition => ({
-    type: "function",
-    function: {
-      name: anthropic.name,
-      ...(anthropic.description != null && {
-        description: anthropic.description,
-      }),
-      parameters: anthropic.input_schema,
-    },
-  })
-);
-
-/**
- * Parse incoming object as an OpenAI tool call and immediately convert to Anthropic format
- */
-export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
-  (openai): AnthropicToolDefinition => ({
-    name: openai.function.name,
-    ...(openai.function.description != null && {
-      description: openai.function.description,
-    }),
-    input_schema: openai.function.parameters,
-  })
-);
-
-/**
- * Parse incoming object as a Gemini tool and immediately convert to OpenAI format
- */
-export const geminiToolToOpenAI = geminiToolDefinitionSchema.transform(
-  (gemini): OpenAIToolDefinition => ({
-    type: "function",
-    function: {
-      name: gemini.name,
-      description: gemini.description,
-      parameters: gemini.parameters,
-    },
-  })
-);
-
-/**
- * Parse incoming object as an OpenAI Responses API tool and immediately convert to
- * OpenAI Chat Completions format
- */
-export const openAIResponsesToOpenAI =
-  openAIResponsesToolDefinitionSchema.transform(
-    (responses): OpenAIToolDefinition => ({
-      type: "function",
-      function: {
-        name: responses.name,
-        description: responses.description,
-        parameters: responses.parameters ?? { type: "object" },
-      },
-    })
-  );
-
-/**
- * Parse incoming object as an OpenAI tool and immediately convert to Gemini format
- */
-export const openAIToolToGemini = openAIToolDefinitionSchema.transform(
-  (openai): GeminiToolDefinition => ({
-    name: openai.function.name,
-    description: openai.function.description,
-    parameters: openai.function.parameters,
-  })
-);
-
-/**
- * --------------------------------
- * Conversion Helpers
- * --------------------------------
- */
 
 /**
  * Union of all tool call formats
@@ -320,298 +254,3 @@ export const llmProviderToolDefinitionSchema = z.union([
 export type LlmProviderToolDefinition = z.infer<
   typeof llmProviderToolDefinitionSchema
 >;
-
-type ToolDefinitionWithProvider =
-  | {
-      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
-      validatedToolDefinition: OpenAIToolDefinition;
-    }
-  | {
-      provider: Extract<ModelProvider, "ANTHROPIC">;
-      validatedToolDefinition: AnthropicToolDefinition;
-    }
-  | {
-      provider: Extract<ModelProvider, "AWS">;
-      validatedToolDefinition: AwsToolDefinition;
-    }
-  | {
-      provider: Extract<ModelProvider, "GOOGLE">;
-      validatedToolDefinition: GeminiToolDefinition;
-    }
-  | {
-      provider: "UNKNOWN";
-      validatedToolDefinition: null;
-    };
-
-/**
- * Detect the provider of a tool call object
- */
-export const detectToolDefinitionProvider = (
-  toolDefinition: unknown
-): ToolDefinitionWithProvider => {
-  const { success: openaiSuccess, data: openaiData } =
-    openAIToolDefinitionSchema.safeParse(toolDefinition);
-  if (openaiSuccess) {
-    return {
-      // we cannot disambiguate between azure openai and openai here
-      provider: "OPENAI",
-      validatedToolDefinition: openaiData,
-    };
-  }
-
-  // Responses API has top-level type: "function" + name + parameters (no nested `function` key).
-  // Detected as OPENAI and normalized to Chat Completions format for internal use.
-  const { success: openaiResponsesSuccess, data: openaiResponsesConverted } =
-    openAIResponsesToOpenAI.safeParse(toolDefinition);
-  if (openaiResponsesSuccess) {
-    return {
-      provider: "OPENAI",
-      validatedToolDefinition: openaiResponsesConverted,
-    };
-  }
-
-  const { success: anthropicSuccess, data: anthropicData } =
-    anthropicToolDefinitionSchema.safeParse(toolDefinition);
-  if (anthropicSuccess) {
-    return {
-      provider: "ANTHROPIC",
-      validatedToolDefinition: anthropicData,
-    };
-  }
-
-  const { success: awsSuccess, data: awsData } =
-    awsToolDefinitionSchema.safeParse(toolDefinition);
-  if (awsSuccess) {
-    return {
-      provider: "AWS",
-      validatedToolDefinition: awsData,
-    };
-  }
-
-  const { success: geminiSuccess, data: geminiData } =
-    geminiToolDefinitionSchema.safeParse(toolDefinition);
-  if (geminiSuccess) {
-    return {
-      provider: "GOOGLE",
-      validatedToolDefinition: geminiData,
-    };
-  }
-
-  return { provider: "UNKNOWN", validatedToolDefinition: null };
-};
-
-type ProviderToToolDefinitionMap = {
-  OPENAI: OpenAIToolDefinition;
-  AZURE_OPENAI: OpenAIToolDefinition;
-  ANTHROPIC: AnthropicToolDefinition;
-  GOOGLE: GeminiToolDefinition;
-  DEEPSEEK: OpenAIToolDefinition;
-  XAI: OpenAIToolDefinition;
-  OLLAMA: OpenAIToolDefinition;
-  CEREBRAS: OpenAIToolDefinition;
-  FIREWORKS: OpenAIToolDefinition;
-  GROQ: OpenAIToolDefinition;
-  MOONSHOT: OpenAIToolDefinition;
-  PERPLEXITY: OpenAIToolDefinition;
-  TOGETHER: OpenAIToolDefinition;
-  AWS: AwsToolDefinition;
-};
-
-/**
- * Convert from any tool call format to OpenAI format if possible
- */
-export const toOpenAIToolDefinition = (
-  toolDefinition: LlmProviderToolDefinition
-): OpenAIToolDefinition | null => {
-  const { provider, validatedToolDefinition } =
-    detectToolDefinitionProvider(toolDefinition);
-  switch (provider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-      return validatedToolDefinition;
-    case "ANTHROPIC":
-      return anthropicToolToOpenAI.parse(validatedToolDefinition);
-    case "AWS":
-      return awsToolToOpenAI.parse(validatedToolDefinition);
-    case "GOOGLE":
-      return geminiToolToOpenAI.parse(validatedToolDefinition);
-    case "UNKNOWN":
-      return null;
-    default:
-      assertUnreachable(provider);
-  }
-};
-
-/**
- * Convert from OpenAI tool call format to any other format
- */
-export const fromOpenAIToolDefinition = <T extends ModelProvider>({
-  toolDefinition,
-  targetProvider,
-}: {
-  toolDefinition: OpenAIToolDefinition;
-  targetProvider: T;
-}): ProviderToToolDefinitionMap[T] => {
-  switch (targetProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-    case "DEEPSEEK":
-    case "XAI":
-    case "OLLAMA":
-    case "CEREBRAS":
-    case "FIREWORKS":
-    case "GROQ":
-    case "MOONSHOT":
-    case "PERPLEXITY":
-    case "TOGETHER":
-      return toolDefinition as ProviderToToolDefinitionMap[T];
-    case "ANTHROPIC":
-      return openAIToolToAnthropic.parse(
-        toolDefinition
-      ) as ProviderToToolDefinitionMap[T];
-    case "AWS":
-      return openAIToolToAws.parse(
-        toolDefinition
-      ) as ProviderToToolDefinitionMap[T];
-    case "GOOGLE":
-      return openAIToolToGemini.parse(
-        toolDefinition
-      ) as ProviderToToolDefinitionMap[T];
-    default:
-      assertUnreachable(targetProvider);
-  }
-};
-
-/**
- * Creates an OpenAI tool definition
- * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
- * @returns an OpenAI tool definition
- */
-export function createOpenAIToolDefinition(
-  toolNumber: number
-): OpenAIToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: `new_function_${toolNumber}`,
-      description: "a description",
-      parameters: {
-        type: "object",
-        properties: {
-          new_arg: {
-            type: "string",
-          },
-        },
-        required: [],
-      },
-    },
-  };
-}
-
-/**
- * Creates an Anthropic tool definition
- * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
- * @returns an Anthropic tool definition
- */
-export function createAnthropicToolDefinition(
-  toolNumber: number
-): AnthropicToolDefinition {
-  return {
-    name: `new_function_${toolNumber}`,
-    description: "a description",
-    input_schema: {
-      type: "object",
-      properties: {
-        new_arg: {
-          type: "string",
-        },
-      },
-      required: [],
-    },
-  };
-}
-
-export function createAwsToolDefinition(toolNumber: number): AwsToolDefinition {
-  return {
-    toolSpec: {
-      name: `new_function_${toolNumber}`,
-      description: "a description",
-      inputSchema: {
-        json: {
-          type: "object",
-          properties: {
-            new_arg: {
-              type: "string",
-            },
-          },
-          required: [],
-        },
-      },
-    },
-  };
-}
-
-export function createGeminiToolDefinition(
-  toolNumber: number
-): GeminiToolDefinition {
-  return {
-    name: `new_function_${toolNumber}`,
-    description: "a description",
-    parameters: {
-      type: "object",
-      properties: {
-        new_arg: {
-          type: "string",
-        },
-      },
-      required: [],
-    },
-  };
-}
-
-export const findToolDefinitionName = (toolDefinition: unknown) => {
-  const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
-  if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
-    return null;
-  }
-
-  if (
-    "function" in parsed.data &&
-    isObject(parsed.data.function) &&
-    "name" in parsed.data.function &&
-    typeof parsed.data.function.name === "string"
-  ) {
-    return parsed.data.function.name;
-  }
-
-  if ("name" in parsed.data && typeof parsed.data.name === "string") {
-    return parsed.data.name;
-  }
-
-  return null;
-};
-
-export const findToolDefinitionDescription = (toolDefinition: unknown) => {
-  const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
-  if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
-    return null;
-  }
-
-  if (
-    "function" in parsed.data &&
-    isObject(parsed.data.function) &&
-    "description" in parsed.data.function &&
-    typeof parsed.data.function.description === "string"
-  ) {
-    return parsed.data.function.description;
-  }
-
-  if (
-    "description" in parsed.data &&
-    typeof parsed.data.description === "string"
-  ) {
-    return parsed.data.description;
-  }
-
-  return null;
-};

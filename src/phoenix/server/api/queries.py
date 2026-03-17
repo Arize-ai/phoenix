@@ -30,6 +30,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
+from phoenix.db.types.prompts import PromptMessageRole
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -52,7 +53,6 @@ from phoenix.server.api.helpers.playground_clients import (
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
@@ -61,8 +61,8 @@ from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
     GenerativeModelCustomerProviderConfigInput,
 )
-from phoenix.server.api.input_types.GenerativeModelInput import OpenAIApiType
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort

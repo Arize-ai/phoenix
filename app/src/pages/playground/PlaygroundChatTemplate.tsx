@@ -52,11 +52,6 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
-import {
-  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-  RESPONSE_FORMAT_PARAM_NAME,
-} from "./constants";
-import { areInvocationParamsEqual } from "./invocationParameterUtils";
 import type { AIMessageMode, MessageMode } from "./MessageContentRadioGroup";
 import { AIMessageContentRadioGroup } from "./MessageContentRadioGroup";
 import { MessageRoleSelect } from "./MessageRoleSelect";
@@ -93,14 +88,9 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   }
 
   const hasTools = !props.disableTools && playgroundInstance.tools.length > 0;
+  const supportsResponseFormat = !props.disableResponseFormat;
   const hasResponseFormat =
-    !props.disableResponseFormat &&
-    playgroundInstance.model.invocationParameters.find((p) =>
-      areInvocationParamsEqual(p, {
-        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-        invocationName: RESPONSE_FORMAT_PARAM_NAME,
-      })
-    ) != null;
+    supportsResponseFormat && playgroundInstance.model.responseFormat != null;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
@@ -115,7 +105,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     })
   );
 
-  const { disableResponseFormat, disableNewTool } = props;
+  const { disableNewTool } = props;
 
   return (
     <DndContext
@@ -177,7 +167,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         <PlaygroundChatTemplateFooter
           instanceId={id}
           hasResponseFormat={hasResponseFormat}
-          disableResponseFormat={disableResponseFormat}
+          supportsResponseFormat={supportsResponseFormat}
           disableNewTool={disableNewTool}
         />
       </View>

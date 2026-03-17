@@ -281,9 +281,81 @@ const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
   },
 };
 
+type ToolEntry = NonNullable<
+  NonNullable<Parameters<PromptToSDKSnippetFn>[0]["tools"]>["tools"]
+>[number];
+type ToolChoiceEntry = NonNullable<
+  NonNullable<Parameters<PromptToSDKSnippetFn>[0]["tools"]>["toolChoice"]
+>;
+type ResponseFormat = NonNullable<
+  Parameters<PromptToSDKSnippetFn>[0]["responseFormat"]
+>;
+
+type PreparePromptOptions = {
+  serializeTool?: (tool: ToolEntry) => unknown;
+  serializeToolChoice?: (toolChoice: ToolChoiceEntry) => unknown;
+  serializeResponseFormat?: (rf: ResponseFormat) => unknown;
+};
+
+const defaultSerializeTool = (t: ToolEntry): unknown => {
+  const fn = t.function;
+  const functionDef: Record<string, unknown> = { name: fn.name };
+  if (fn.description != null) functionDef.description = fn.description;
+  if (fn.parameters != null) functionDef.parameters = fn.parameters;
+  if (fn.strict != null) functionDef.strict = fn.strict;
+  return { type: "function", function: functionDef };
+};
+
+const defaultSerializeResponseFormat = (rf: ResponseFormat): unknown => {
+  const { jsonSchema } = rf;
+  const jsonSchemaDef: Record<string, unknown> = { name: jsonSchema.name };
+  if (jsonSchema.description != null)
+    jsonSchemaDef.description = jsonSchema.description;
+  if (jsonSchema.schema != null) jsonSchemaDef.schema = jsonSchema.schema;
+  if (jsonSchema.strict != null) jsonSchemaDef.strict = jsonSchema.strict;
+  return { type: "json_schema", json_schema: jsonSchemaDef };
+};
+
+/** OpenAI: "none" | "auto" | "required" | { type: "function", function: { name } } */
+const openAISerializeToolChoice = (tc: ToolChoiceEntry): unknown => {
+  switch (tc.type) {
+    case "NONE":
+      return "none";
+    case "ZERO_OR_MORE":
+      return "auto";
+    case "ONE_OR_MORE":
+      return "required";
+    case "SPECIFIC_FUNCTION":
+      return tc.functionName
+        ? { type: "function", function: { name: tc.functionName } }
+        : "auto";
+    default:
+      return "auto";
+  }
+};
+
+/** Anthropic: { type: "none"|"auto"|"any"|"tool", name? } */
+const anthropicSerializeToolChoice = (tc: ToolChoiceEntry): unknown => {
+  switch (tc.type) {
+    case "NONE":
+      return { type: "none" };
+    case "ZERO_OR_MORE":
+      return { type: "auto" };
+    case "ONE_OR_MORE":
+      return { type: "any" };
+    case "SPECIFIC_FUNCTION":
+      return tc.functionName
+        ? { type: "tool" as const, name: tc.functionName }
+        : { type: "auto" as const };
+    default:
+      return { type: "auto" };
+  }
+};
+
 const preparePromptData = (
   prompt: Parameters<PromptToSDKSnippetFn>[0],
-  config: LanguageConfig
+  config: LanguageConfig,
+  options: PreparePromptOptions = {}
 ) => {
   if (!("messages" in prompt.template)) {
     throw new Error("Prompt template does not contain messages");
@@ -291,6 +363,10 @@ const preparePromptData = (
 
   const args: string[] = [];
   const { assignmentOperator, removeKeyQuotes, stringQuote } = config;
+  const {
+    serializeTool = defaultSerializeTool,
+    serializeResponseFormat = defaultSerializeResponseFormat,
+  } = options;
 
   if (prompt.modelName) {
     args.push(
@@ -325,18 +401,30 @@ const preparePromptData = (
     args.push(assignmentOperator === "=" ? "messages=messages" : "messages");
   }
 
-  if (prompt.tools && prompt.tools.length > 0) {
+  if (prompt.tools && prompt.tools.tools.length > 0) {
+    const toolDefs = prompt.tools.tools.map(serializeTool);
     const fmt = jsonFormatter({
-      json: prompt.tools.map((tool) => tool.definition),
+      json: toolDefs,
       level: 1,
       removeKeyQuotes,
     });
     args.push(`tools${assignmentOperator}${fmt}`);
   }
 
-  if (prompt.responseFormat && "definition" in prompt.responseFormat) {
+  const { serializeToolChoice } = options;
+  if (prompt.tools?.toolChoice && serializeToolChoice) {
+    const toolChoiceObj = serializeToolChoice(prompt.tools.toolChoice);
     const fmt = jsonFormatter({
-      json: prompt.responseFormat.definition,
+      json: toolChoiceObj,
+      level: 1,
+      removeKeyQuotes,
+    });
+    args.push(`tool_choice${assignmentOperator}${fmt}`);
+  }
+
+  if (prompt.responseFormat) {
+    const fmt = jsonFormatter({
+      json: serializeResponseFormat(prompt.responseFormat),
       level: 1,
       removeKeyQuotes,
     });
@@ -388,7 +476,9 @@ export const promptSDKCodeSnippets: Record<
           ),
         },
       };
-      const { args, messages } = preparePromptData(convertedPrompt, config);
+      const { args, messages } = preparePromptData(convertedPrompt, config, {
+        serializeToolChoice: openAISerializeToolChoice,
+      });
       return config.sdkTemplate({
         tab: TAB,
         args,
@@ -397,7 +487,16 @@ export const promptSDKCodeSnippets: Record<
     },
     anthropic: (prompt) => {
       const config = languageConfigs.python.anthropic;
-      const { args, messages } = preparePromptData(prompt, config);
+      const { args, messages } = preparePromptData(prompt, config, {
+        serializeTool: (t) => {
+          const fn = t.function;
+          const tool: Record<string, unknown> = { name: fn.name };
+          if (fn.description != null) tool.description = fn.description;
+          if (fn.parameters != null) tool.input_schema = fn.parameters;
+          return tool;
+        },
+        serializeToolChoice: anthropicSerializeToolChoice,
+      });
       return config.sdkTemplate({
         tab: TAB,
         args,
@@ -417,7 +516,9 @@ export const promptSDKCodeSnippets: Record<
           ),
         },
       };
-      const { args, messages } = preparePromptData(convertedPrompt, config);
+      const { args, messages } = preparePromptData(convertedPrompt, config, {
+        serializeToolChoice: openAISerializeToolChoice,
+      });
       return config.sdkTemplate({
         tab: TAB,
         args,
@@ -426,7 +527,16 @@ export const promptSDKCodeSnippets: Record<
     },
     anthropic: (prompt) => {
       const config = languageConfigs.typescript.anthropic;
-      const { args, messages } = preparePromptData(prompt, config);
+      const { args, messages } = preparePromptData(prompt, config, {
+        serializeTool: (t) => {
+          const fn = t.function;
+          const tool: Record<string, unknown> = { name: fn.name };
+          if (fn.description != null) tool.description = fn.description;
+          if (fn.parameters != null) tool.input_schema = fn.parameters;
+          return tool;
+        },
+        serializeToolChoice: anthropicSerializeToolChoice,
+      });
       return config.sdkTemplate({
         tab: TAB,
         args,
@@ -449,7 +559,7 @@ export const promptClientCodeSnippets: Record<
       });
     },
     anthropic: (prompt) => {
-      const config = languageConfigs.python.openai;
+      const config = languageConfigs.python.anthropic;
       return config.clientTemplate({
         tab: TAB,
         versionId: prompt.versionId,

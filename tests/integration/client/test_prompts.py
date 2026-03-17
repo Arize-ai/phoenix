@@ -7,6 +7,7 @@ from random import randint, random
 from secrets import token_hex
 from types import MappingProxyType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Iterable,
@@ -43,7 +44,8 @@ from openai.types.chat.completion_create_params import CompletionCreateParamsBas
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from typing_extensions import assert_never
 
 import phoenix as px
 
@@ -76,12 +78,34 @@ class PromptChatTemplateInput(BaseModel):
     messages: list[PromptMessageInput]
 
 
-class ToolDefinitionInput(BaseModel):
-    definition: dict[str, Any]
+class PromptToolFunctionDefinitionInput(BaseModel):
+    name: str
+    description: str | None = None
+    parameters: dict[str, Any] | None = None
+    strict: bool | None = None
+
+
+class PromptToolFunctionInput(BaseModel):
+    function: PromptToolFunctionDefinitionInput
+
+
+class PromptToolsInput(BaseModel):
+    tools: list[PromptToolFunctionInput]
+    toolChoice: dict[str, Any] | None = None
+
+
+class PromptResponseFormatJSONSchemaDefinitionInput(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    description: str | None = None
+    schema_: dict[str, Any] | None = Field(default=None, alias="schema")
+    strict: bool | None = None
 
 
 class ResponseFormatInput(BaseModel):
-    definition: dict[str, Any]
+    type: str
+    jsonSchema: PromptResponseFormatJSONSchemaDefinitionInput
 
 
 class ChatPromptVersionInput(BaseModel):
@@ -90,7 +114,7 @@ class ChatPromptVersionInput(BaseModel):
     invocationParameters: dict[str, Any] = {}
     modelProvider: str
     modelName: str
-    tools: list[ToolDefinitionInput] = []
+    tools: PromptToolsInput | None = None
     responseFormat: ResponseFormatInput | None = None
 
 
@@ -111,6 +135,38 @@ class TestUserMessage:
         messages = prompt.format(variables={"x": x}).messages
         assert not DeepDiff(expected, messages)
         _can_recreate_via_client(_app, prompt, api_key)
+
+
+def _openai_tool_choice_to_canonical(tc: ChatCompletionToolChoiceOptionParam) -> dict[str, Any]:
+    """Map an OpenAI tool-choice value to the canonical PromptToolChoiceInput OneOf dict."""
+    if tc == "none":
+        return {"none": True}
+    if tc == "auto":
+        return {"zeroOrMore": True}
+    if tc == "required":
+        return {"oneOrMore": True}
+    if tc["type"] == "function":
+        return {"functionName": tc["function"]["name"]}
+    if tc["type"] == "allowed_tools":
+        raise NotImplementedError("Allowed tools tool choice is not supported")
+    if tc["type"] == "custom":
+        raise NotImplementedError("Custom tool choice is not supported")
+    if TYPE_CHECKING:
+        assert_never(tc)
+
+
+def _anthropic_tool_choice_to_canonical(tc: ToolChoiceParam) -> dict[str, Any]:
+    """Map an Anthropic tool-choice value to the canonical PromptToolChoiceInput OneOf dict."""
+    if tc["type"] == "auto":
+        return {"zeroOrMore": True}
+    if tc["type"] == "any":
+        return {"oneOrMore": True}
+    if tc["type"] == "tool":
+        return {"functionName": tc["name"]}
+    if tc["type"] == "none":
+        return {"none": True}
+    if TYPE_CHECKING:
+        assert_never(tc)
 
 
 class _GetWeather(BaseModel):
@@ -173,7 +229,19 @@ class TestTools:
             )
             for t in types_
         }
-        tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
+        tools = PromptToolsInput(
+            tools=[
+                PromptToolFunctionInput(
+                    function=PromptToolFunctionDefinitionInput(
+                        name=v["function"]["name"],
+                        description=v["function"].get("description"),
+                        parameters=v["function"].get("parameters"),
+                        strict=v["function"].get("strict"),
+                    )
+                )
+                for v in expected.values()
+            ]
+        )
         prompt = _create_chat_prompt(_app, api_key, tools=tools)
         kwargs = prompt.format().kwargs
         assert "tools" in kwargs
@@ -204,7 +272,18 @@ class TestTools:
             )
             for t in types_
         }
-        tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
+        tools = PromptToolsInput(
+            tools=[
+                PromptToolFunctionInput(
+                    function=PromptToolFunctionDefinitionInput(
+                        name=v["name"],
+                        description=v.get("description"),
+                        parameters=v.get("input_schema"),
+                    )
+                )
+                for v in expected.values()
+            ]
+        )
         prompt = _create_chat_prompt(
             _app,
             api_key,
@@ -237,14 +316,23 @@ class TestToolChoice:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-        tools = [
-            ToolDefinitionInput(definition=json.loads(json.dumps(pydantic_function_tool(t))))
-            for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
-        ]
-        invocation_parameters = {"tool_choice": expected}
-        prompt = _create_chat_prompt(
-            _app, api_key, tools=tools, invocation_parameters=invocation_parameters
+        tools = PromptToolsInput(
+            tools=[
+                PromptToolFunctionInput(
+                    function=PromptToolFunctionDefinitionInput(
+                        name=t["function"]["name"],
+                        description=t["function"].get("description"),
+                        parameters=t["function"].get("parameters"),
+                    )
+                )
+                for t in [
+                    json.loads(json.dumps(pydantic_function_tool(cls)))
+                    for cls in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+                ]
+            ],
+            toolChoice=_openai_tool_choice_to_canonical(expected),
         )
+        prompt = _create_chat_prompt(_app, api_key, tools=tools)
         kwargs = prompt.format().kwargs
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
@@ -265,13 +353,19 @@ class TestToolChoice:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-        tools = [
-            ToolDefinitionInput(
-                definition=dict(ToolParam(name=t.__name__, input_schema=t.model_json_schema()))
-            )
-            for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
-        ]
-        invocation_parameters = {"max_tokens": 1024, "tool_choice": expected}
+        tools = PromptToolsInput(
+            tools=[
+                PromptToolFunctionInput(
+                    function=PromptToolFunctionDefinitionInput(
+                        name=t.__name__,
+                        parameters=t.model_json_schema(),
+                    )
+                )
+                for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+            ],
+            toolChoice=_anthropic_tool_choice_to_canonical(expected),
+        )
+        invocation_parameters = {"max_tokens": 1024}
         prompt = _create_chat_prompt(
             _app,
             api_key,
@@ -326,7 +420,16 @@ class TestResponseFormat:
     ) -> None:
         api_key = _app.admin_secret
         expected = cast(ResponseFormatJSONSchema, type_to_response_format_param(type_))
-        response_format = ResponseFormatInput(definition=dict(expected))
+        json_schema = expected["json_schema"]
+        response_format = ResponseFormatInput(
+            type=expected["type"],
+            jsonSchema=PromptResponseFormatJSONSchemaDefinitionInput(
+                name=json_schema["name"],
+                description=json_schema.get("description"),
+                schema=json_schema.get("schema"),
+                strict=json_schema.get("strict"),
+            ),
+        )
         prompt = _create_chat_prompt(_app, api_key, response_format=response_format)
         kwargs = prompt.format().kwargs
         assert "response_format" in kwargs
@@ -437,7 +540,7 @@ def _create_chat_prompt(
     ] = "OPENAI",
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
-    tools: Sequence[ToolDefinitionInput] = (),
+    tools: PromptToolsInput | None = None,
     invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "NONE",
 ) -> PromptVersion:
@@ -453,14 +556,14 @@ def _create_chat_prompt(
         invocationParameters=dict(invocation_parameters),
         modelProvider=model_provider,
         modelName=model_name or token_hex(16),
-        tools=list(tools),
+        tools=tools,
         responseFormat=response_format,
     )
     variables = {
         "input": CreateChatPromptInput(
             name=token_hex(16),
             promptVersion=version,
-        ).model_dump(exclude_unset=True)
+        ).model_dump(exclude_unset=True, by_alias=True)
     }
     response, _ = _gql(app, api_key, query=_CREATE_CHAT_PROMPT, variables=variables)
     prompt_id = response["data"]["createChatPrompt"]["id"]
@@ -1287,7 +1390,6 @@ class TestPromptFiltering:
             invocationParameters={},
             modelProvider="OPENAI",
             modelName=token_hex(8),
-            tools=[],
             responseFormat=None,
         )
 
@@ -1295,7 +1397,7 @@ class TestPromptFiltering:
             "input": CreateChatPromptInput(
                 name=name,
                 promptVersion=version,
-            ).model_dump(exclude_unset=True)
+            ).model_dump(exclude_unset=True, by_alias=True)
         }
 
         response, _ = _gql(app, app.admin_secret, query=create_prompt_mutation, variables=variables)

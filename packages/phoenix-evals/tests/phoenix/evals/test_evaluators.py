@@ -1,4 +1,5 @@
 # type: ignore
+import json
 import warnings
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
@@ -8,9 +9,11 @@ import pytest
 
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
+    EnforcedString,
     Evaluator,
     LLMEvaluator,
     Score,
+    SmartString,
     create_classifier,
     create_evaluator,
     evaluate_dataframe,
@@ -1777,3 +1780,212 @@ class TestTracedEvaluator:
         assert result[0].name == "test_eval"
         assert result[0].score == 0.8
         assert result[0].kind == "code"
+
+
+# ---------------------------------------------------------------------------
+# SmartString coercion
+# ---------------------------------------------------------------------------
+
+
+class TestSmartString:
+    """SmartString coerces non-strings to JSON, not Python repr."""
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            pytest.param("hello", "hello", id="string passthrough"),
+            pytest.param("", "", id="empty string passthrough"),
+            pytest.param(42, "42", id="integer → JSON number string"),
+            pytest.param(3.14, "3.14", id="float → JSON number string"),
+            pytest.param(True, "true", id="bool True → JSON 'true'"),
+            pytest.param(False, "false", id="bool False → JSON 'false'"),
+            pytest.param(
+                {"key": "value"},
+                '{"key": "value"}',
+                id="dict → JSON object (not Python repr)",
+            ),
+            pytest.param(
+                [1, 2, 3],
+                "[1, 2, 3]",
+                id="list → JSON array (not Python repr)",
+            ),
+            pytest.param(
+                {"nested": {"a": 1}},
+                '{"nested": {"a": 1}}',
+                id="nested dict → JSON",
+            ),
+            pytest.param(None, "null", id="None → JSON null"),
+        ],
+    )
+    def test_coercion(self, value: Any, expected: str) -> None:
+        from pydantic import BaseModel
+
+        class M(BaseModel):
+            v: SmartString
+
+        m = M(v=value)
+        assert m.v == expected
+
+    def test_dict_is_json_not_python_repr(self) -> None:
+        """Verify SmartString produces valid JSON, unlike EnforcedString (str())."""
+        from pydantic import BaseModel
+
+        d = {"key": "value"}
+
+        class S(BaseModel):
+            v: SmartString
+
+        class E(BaseModel):
+            v: EnforcedString
+
+        assert S(v=d).v == json.dumps(d)  # valid JSON
+        assert E(v=d).v == str(d)  # Python repr — different!
+        assert S(v=d).v != E(v=d).v
+
+
+# ---------------------------------------------------------------------------
+# LLMEvaluator schema generation — type-aware field definitions
+# ---------------------------------------------------------------------------
+
+
+class TestLLMEvaluatorSchemaGeneration:
+    """Auto-generated input_schema uses Any for section vars, SmartString for string vars."""
+
+    def _make_evaluator(self, template: str) -> LLMEvaluator:
+        """Create a concrete LLMEvaluator subclass with the given template."""
+        llm = MagicMock(spec=LLM)
+
+        class ConcreteEvaluator(LLMEvaluator):
+            def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+                return []
+
+        return ConcreteEvaluator(name="test", llm=llm, prompt_template=template)
+
+    def test_string_var_field_coerces_dict_to_json(self) -> None:
+        evaluator = self._make_evaluator("Rate: {{query}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        # Providing a dict for a string var → JSON string
+        result = schema.model_validate({"query": {"a": 1}})
+        assert result.query == '{"a": 1}'  # type: ignore[attr-defined]
+
+    def test_string_var_field_passes_through_string_unchanged(self) -> None:
+        evaluator = self._make_evaluator("Rate: {{query}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        result = schema.model_validate({"query": "my query"})
+        assert result.query == "my query"  # type: ignore[attr-defined]
+
+    def test_section_var_field_passes_through_list(self) -> None:
+        evaluator = self._make_evaluator("Docs: {{#docs}}{{.}}{{/docs}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        docs_list = ["doc1", "doc2"]
+        result = schema.model_validate({"docs": docs_list})
+        assert result.docs == docs_list  # type: ignore[attr-defined]
+
+    def test_section_var_field_passes_through_dict(self) -> None:
+        evaluator = self._make_evaluator("{{#obj}}{{key}}{{/obj}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        d = {"key": "val"}
+        result = schema.model_validate({"obj": d})
+        assert result.obj == d  # type: ignore[attr-defined]
+
+    def test_mixed_template_correct_field_types(self) -> None:
+        evaluator = self._make_evaluator("Query: {{query}}\n{{#docs}}{{.}}{{/docs}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        docs = ["d1", "d2"]
+        result = schema.model_validate({"query": "what?", "docs": docs})
+        assert result.query == "what?"  # type: ignore[attr-defined]
+        assert result.docs == docs  # type: ignore[attr-defined]
+
+    def test_explicit_input_schema_still_respected(self) -> None:
+        from pydantic import BaseModel
+
+        class MySchema(BaseModel):
+            query: str
+            docs: List[str]
+
+        llm = MagicMock(spec=LLM)
+
+        class ConcreteEvaluator(LLMEvaluator):
+            def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+                return []
+
+        evaluator = ConcreteEvaluator(
+            name="test",
+            llm=llm,
+            prompt_template="{{query}} {{#docs}}{{.}}{{/docs}}",
+            input_schema=MySchema,
+        )
+        assert evaluator.input_schema is MySchema
+
+    def test_backward_compat_string_only_inputs_unchanged(self) -> None:
+        """Pure-string inputs behave identically before and after this change."""
+        evaluator = self._make_evaluator("{{query}} vs {{reference}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        result = schema.model_validate({"query": "q", "reference": "r"})
+        assert result.query == "q"  # type: ignore[attr-defined]
+        assert result.reference == "r"  # type: ignore[attr-defined]
+
+    def test_dotted_mustache_var_uses_root_object_in_schema(self) -> None:
+        evaluator = self._make_evaluator("User: {{user.name}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        assert set(schema.model_fields.keys()) == {"user"}
+        result = schema.model_validate({"user": {"name": "Alice"}})
+        assert result.user == {"name": "Alice"}  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: section var iterates, string var JSON-serialised in prompt
+# ---------------------------------------------------------------------------
+
+
+class TestLLMEvaluatorStructuredInputEndToEnd:
+    """Verify the rendered prompt contains correctly formatted structured inputs."""
+
+    def _render_prompt(self, template: str, eval_input: Dict[str, Any]) -> str:
+        """Helper: validate input through schema and render the prompt."""
+        llm = MagicMock(spec=LLM)
+
+        class ConcreteEvaluator(LLMEvaluator):
+            def _evaluate(self, eval_input_: Dict[str, Any]) -> List[Score]:
+                return []
+
+        evaluator = ConcreteEvaluator(name="test", llm=llm, prompt_template=template)
+        schema = evaluator.input_schema
+        assert schema is not None
+        validated = schema.model_validate(eval_input)
+        rendered = evaluator.prompt_template.render(validated.model_dump())
+        return rendered[0]["content"]
+
+    def test_list_input_to_section_var_iterates(self) -> None:
+        """A list passed to a section var is iterated by pystache, not stringified."""
+        template = "Docs:\n{{#docs}}- {{.}}\n{{/docs}}"
+        rendered = self._render_prompt(template, {"docs": ["alpha", "beta", "gamma"]})
+        assert "- alpha" in rendered
+        assert "- beta" in rendered
+        assert "- gamma" in rendered
+        # Should NOT contain Python list repr
+        assert "['alpha'" not in rendered
+
+    def test_dict_input_to_string_var_is_json(self) -> None:
+        """A dict passed to a string var is JSON-serialised, not Python repr."""
+        template = "Context: {{context}}"
+        rendered = self._render_prompt(template, {"context": {"key": "val"}})
+        assert rendered == 'Context: {"key": "val"}'
+        assert "{'key'" not in rendered  # no Python repr
+
+    def test_string_input_to_string_var_unchanged(self) -> None:
+        template = "Query: {{query}}"
+        rendered = self._render_prompt(template, {"query": "find me"})
+        assert rendered == "Query: find me"
+
+    def test_dotted_mustache_var_renders_from_root_object(self) -> None:
+        template = "User: {{user.name}}"
+        rendered = self._render_prompt(template, {"user": {"name": "Alice"}})
+        assert rendered == "User: Alice"

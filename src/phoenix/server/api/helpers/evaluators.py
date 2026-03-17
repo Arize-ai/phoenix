@@ -14,7 +14,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OutputConfigType,
 )
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptResponseFormat,
     PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
