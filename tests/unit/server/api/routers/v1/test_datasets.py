@@ -1508,6 +1508,150 @@ async def test_post_dataset_upload_append_with_splits(
 
 
 # =============================================================================
+# Tests for example_id_key (stable external IDs via file upload)
+# =============================================================================
+
+
+async def test_post_dataset_upload_csv_with_example_id_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """CSV upload with example_id_key populates external_id on DatasetExample."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"question,answer,my_id\nQ1,A1,ext-1\nQ2,A2,ext-2\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "my_id",
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(
+                    models.DatasetExample.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(examples) == 2
+    assert examples[0].external_id == "ext-1"
+    assert examples[1].external_id == "ext-2"
+
+
+async def test_post_dataset_upload_jsonl_with_example_id_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """JSONL upload with example_id_key populates external_id on DatasetExample."""
+    name = inspect.stack()[0][3]
+    jsonl_content = (
+        b'{"question": "Q1", "answer": "A1", "my_id": "ext-1"}\n'
+        b'{"question": "Q2", "answer": "A2", "my_id": "ext-2"}\n'
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "my_id",
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(
+                    models.DatasetExample.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(examples) == 2
+    assert examples[0].external_id == "ext-1"
+    assert examples[1].external_id == "ext-2"
+
+
+async def test_post_dataset_upload_pyarrow_with_example_id_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """PyArrow upload with example_id_key populates external_id on DatasetExample."""
+    name = inspect.stack()[0][3]
+    df = pd.read_csv(StringIO("question,answer,my_id\nQ1,A1,ext-1\nQ2,A2,ext-2\n"))
+    table = pa.Table.from_pandas(df)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    file = BytesIO(sink.getvalue().to_pybytes())
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "my_id",
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(
+                    models.DatasetExample.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(examples) == 2
+    assert examples[0].external_id == "ext-1"
+    assert examples[1].external_id == "ext-2"
+
+
+async def test_post_dataset_upload_example_id_key_not_found_in_columns(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Upload with example_id_key that doesn't exist in the file returns 422."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"question,answer\nQ1,A1\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "nonexistent_id",
+        },
+    )
+    assert response.status_code == 422
+    assert "nonexistent_id" in response.text
+
+
+# =============================================================================
 # Tests for flatten_keys (collapse top-level keys feature)
 # =============================================================================
 
