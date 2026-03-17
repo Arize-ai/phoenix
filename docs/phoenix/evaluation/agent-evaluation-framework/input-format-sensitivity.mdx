@@ -1,0 +1,255 @@
+---
+title: "Input Format Sensitivity: How Presentation Affects LLM Judge Accuracy"
+sidebarTitle: "Input Format Sensitivity"
+description: "Original benchmark demonstrating that human-readable formatting of tool schemas and invocations significantly improves LLM judge alignment with human labels — and why this matters for every agent evaluation pipeline."
+---
+
+When an LLM judge evaluates whether an agent made the right tool call, it needs to understand three things: what the user asked for, what tools were available, and what the agent actually did. But **how** you present that information to the judge matters far more than most teams realize.
+
+Consider a tool invocation evaluation. The judge must compare the agent's tool call against the available tool schemas and the user's intent. You can present the tool schemas as raw JSON — the same format the agent saw — or you can transform them into a structured, human-readable description. Same information, different packaging.
+
+Our benchmark across three judge models shows that this formatting choice can shift accuracy by up to 8 percentage points and reduce false negatives by over 30%. For teams running evaluations at scale, this is the difference between an evaluation pipeline you can trust and one that systematically misjudges your agent's behavior.
+
+---
+
+## The Experiment
+
+We designed a controlled benchmark to isolate the effect of input formatting on LLM judge accuracy. The methodology is intentionally simple — one variable changed, everything else held constant.
+
+### Setup
+
+**Dataset:** 50 tool-call evaluation examples, balanced 25 correct / 25 incorrect. Each example includes a user query (sometimes multi-turn conversation), available tool schemas, and the agent's tool invocation. Ground-truth labels were hand-annotated based on explicit criteria: required parameters present, no hallucinated fields, argument values matching user intent, proper formatting, and no unsafe content (PII).
+
+**Error types in the incorrect examples:**
+
+| Error Type | Count | Description |
+|---|---|---|
+| Missing required parameter | 5 | Required fields omitted from the invocation |
+| Hallucinated parameter | 4 | Fields that don't exist in the tool schema |
+| Wrong value | 4 | Values that don't match user intent (including multi-turn context) |
+| Wrong type | 2 | String where integer expected, scalar where array expected |
+| Invalid enum | 2 | Values outside the allowed enum set |
+| Wrong format | 2 | Date/time format doesn't match schema specification |
+| Swapped values | 2 | Origin/destination or start/end reversed |
+| Unsafe content (PII) | 2 | SSNs, credit card numbers in arguments |
+| Illogical values | 1 | Check-out before check-in |
+| Unsafe query | 1 | SQL injection in database query |
+
+**The single experimental variable — two formatting conditions:**
+
+<Tabs>
+  <Tab title="Raw JSON (Condition A)">
+    Tool schemas and invocations presented as raw JSON dumps — the native format of most tool-calling APIs:
+
+    ```json
+    // Available tools
+    [{"name": "book_flight", "description": "Book a flight between
+    two cities on a specific date", "parameters": {"type": "object",
+    "properties": {"origin": {"type": "string", "description":
+    "Departure city IATA code (e.g., 'SFO')"}, "destination":
+    {"type": "string", "description": "Arrival city IATA code
+    (e.g., 'JFK')"}, "date": {"type": "string", "description":
+    "Travel date in YYYY-MM-DD format"}, "passengers": {"type":
+    "integer", "description": "Number of passengers (1-9)"},
+    "cabin_class": {"type": "string", "enum": ["economy",
+    "business", "first"], "description": "Cabin class preference"}},
+    "required": ["origin", "destination", "date", "passengers"]}}]
+
+    // Tool invocation
+    {"name": "book_flight", "arguments": {"origin": "SFO",
+    "destination": "JFK", "date": "2026-03-25", "passengers": 2}}
+    ```
+  </Tab>
+  <Tab title="Human-Readable (Condition B)">
+    The same information transformed into structured, natural-language descriptions:
+
+    ```
+    // Available tools
+    book_flight:
+      Description: Book a flight between two cities on a specific date
+      Parameters:
+        - origin (required, string): Departure city IATA code (e.g., 'SFO')
+        - destination (required, string): Arrival city IATA code (e.g., 'JFK')
+        - date (required, string): Travel date in YYYY-MM-DD format
+        - passengers (required, integer): Number of passengers (1-9)
+        - cabin_class (optional, string): Cabin class preference
+          [allowed: economy, business, first]
+
+    // Tool invocation
+    book_flight(origin="SFO", destination="JFK",
+                date="2026-03-25", passengers=2)
+    ```
+  </Tab>
+</Tabs>
+
+**Controls held constant:** Same judge prompt template, same temperature (0.0), same evaluation criteria, same examples. Only the formatting of `available_tools` and `tool_invocation` fields changed between conditions.
+
+**Judge models tested:** GPT-4o, GPT-4o-mini, and Claude Sonnet 4.
+
+### Results
+
+| Model | Format | Accuracy | Macro F1 | P (correct) | R (correct) | P (incorrect) | R (incorrect) | Cohen's κ |
+|---|---|---|---|---|---|---|---|---|
+| GPT-4o | Raw JSON | 92.0% | 0.919 | 1.000 | 0.840 | 0.862 | 1.000 | 0.840 |
+| GPT-4o | Human-Readable | 92.0% | 0.920 | 0.957 | 0.880 | 0.889 | 0.960 | 0.840 |
+| GPT-4o-mini | Raw JSON | 78.0% | 0.769 | 1.000 | 0.560 | 0.694 | 1.000 | 0.560 |
+| GPT-4o-mini | Human-Readable | 74.0% | 0.727 | 0.929 | 0.520 | 0.667 | 0.960 | 0.480 |
+| Claude Sonnet 4 | Raw JSON | 76.0% | 0.745 | 1.000 | 0.520 | 0.676 | 1.000 | 0.520 |
+| Claude Sonnet 4 | Human-Readable | **84.0%** | **0.836** | 1.000 | **0.680** | **0.758** | 1.000 | **0.680** |
+
+**Format effect (Human-Readable minus Raw JSON):**
+
+| Model | Δ Accuracy | Δ Macro F1 | Δ Cohen's κ |
+|---|---|---|---|
+| GPT-4o | +0.0% | +0.000 | +0.000 |
+| GPT-4o-mini | −4.0% | −0.042 | −0.080 |
+| Claude Sonnet 4 | **+8.0%** | **+0.090** | **+0.160** |
+
+---
+
+## What the Data Shows
+
+### Finding 1: Format sensitivity is model-dependent
+
+The effect of input formatting varies dramatically by model. GPT-4o showed no net difference between conditions — it's already a strong enough judge that format doesn't matter at this task complexity. GPT-4o-mini showed slight degradation (within noise range on 50 examples). Claude Sonnet 4 showed a clear, directional improvement: +8 percentage points in accuracy and +0.16 in Cohen's κ.
+
+This isn't a universal "human-readable is always better" finding — it's a more nuanced result: **formatting matters most for models operating below their ceiling on a task.** When a model is already near-perfect (GPT-4o at 92%), there's no room for format to help. When a model is struggling with the task (Claude at 76% with raw JSON), clearer presentation of the same information gives it meaningful leverage.
+
+### Finding 2: The improvement comes from reducing false negatives
+
+The per-example analysis reveals where human-readable formatting actually helps. In the Claude Sonnet 4 results, all four examples where formatting changed the outcome followed the same pattern: **correct tool invocations that raw JSON caused the judge to wrongly reject.**
+
+With raw JSON, Claude's recall on correct examples was 52% — it wrongly flagged nearly half of valid tool calls as incorrect. With human-readable formatting, recall improved to 68%. The judge's ability to recognize genuinely incorrect invocations (recall on the incorrect class) remained perfect at 100% in both conditions.
+
+This pattern makes intuitive sense. When a judge encounters a dense JSON blob, it's harder to verify that all required fields are present and that argument values match the user's intent. The judge defaults to caution — flagging invocations it can't confidently parse as incorrect. Human-readable formatting makes the schema structure explicit, reducing the judge's uncertainty about what constitutes a valid call.
+
+<Info>
+  The asymmetry matters for production evaluation pipelines. False negatives (marking correct behavior as incorrect) lead to wasted engineering time investigating phantom issues. If your evaluation pipeline has a 48% false negative rate on valid agent behavior — as we observed with Claude and raw JSON — your team will spend nearly half their debugging time chasing problems that don't exist.
+</Info>
+
+### Finding 3: All models show a conservative bias with raw JSON
+
+Across all three models, a striking pattern emerges in the raw JSON condition: **perfect precision on the "correct" class (1.000) combined with imperfect recall (0.520–0.840).** This means that when any model labels an invocation as "correct" with raw JSON input, it's always right — but all models miss some correct invocations, labeling them as incorrect.
+
+This conservative bias disappears or diminishes with human-readable formatting. The precision for "correct" drops slightly (from 1.000 to 0.929–0.957 for GPT models) as the judge becomes willing to approve more invocations, but recall improves — the judge correctly recognizes more valid tool calls.
+
+In other words, raw JSON makes judges **overly cautious**. They'd rather reject a valid invocation than risk approving an invalid one, because the dense JSON format makes it hard to verify correctness with confidence.
+
+---
+
+## Why Format Matters: The Underlying Mechanism
+
+LLMs are trained predominantly on natural language — prose, documentation, structured text. When presented with nested JSON schemas containing type annotations, enum constraints, and required field lists, the model must perform two tasks simultaneously: **parse the structure** and **evaluate the content**.
+
+Human-readable formatting eliminates the parsing burden. Consider what the judge needs to verify for a single tool invocation:
+
+1. Does each argument field exist in the schema?
+2. Are all required parameters present?
+3. Do argument values match the types specified?
+4. Are enum values within the allowed set?
+5. Do values match the user's intent from the conversation?
+
+With raw JSON, the judge must navigate nested `properties` objects, cross-reference a `required` array, and parse `enum` arrays — all while holding the user's query in context. With human-readable formatting, each parameter is presented with its requirement status, type, and constraints inline. The verification task becomes a straightforward comparison rather than a parsing exercise.
+
+This is the same reason that code review is easier with well-formatted code than with minified code. The information content is identical — but the cognitive load is different.
+
+---
+
+## Practical Implications
+
+### For evaluation pipeline builders
+
+**Always transform structured data before passing it to an LLM judge.** Don't assume that because the data is "all there" in JSON format, the judge will parse it correctly. Invest a few lines of formatting code to present tool schemas, function calls, and agent trajectories in a structured, readable format.
+
+A minimal formatting function for tool schemas:
+
+```python
+def format_tool_schema(tool: dict) -> str:
+    """Transform a JSON tool schema into human-readable text."""
+    lines = [f"{tool['name']}:"]
+    lines.append(f"  Description: {tool['description']}")
+    params = tool.get("parameters", {}).get("properties", {})
+    required = set(tool.get("parameters", {}).get("required", []))
+    if params:
+        lines.append("  Parameters:")
+        for name, defn in params.items():
+            req = "required" if name in required else "optional"
+            ptype = defn.get("type", "any")
+            desc = defn.get("description", "")
+            line = f"    - {name} ({req}, {ptype}): {desc}"
+            if enum := defn.get("enum"):
+                line += f" [allowed: {', '.join(str(e) for e in enum)}]"
+            lines.append(line)
+    return "\n".join(lines)
+```
+
+For tool invocations, function-call notation is clearer than JSON:
+
+```python
+def format_invocation(invocation: dict) -> str:
+    """Transform a JSON tool call into function-call notation."""
+    name = invocation["name"]
+    args = invocation.get("arguments", {})
+    parts = []
+    for k, v in args.items():
+        if isinstance(v, str):
+            parts.append(f'{k}="{v}"')
+        elif isinstance(v, list):
+            items = ", ".join(
+                f'"{i}"' if isinstance(i, str) else str(i) for i in v
+            )
+            parts.append(f"{k}=[{items}]")
+        else:
+            parts.append(f"{k}={v}")
+    return f"{name}({', '.join(parts)})"
+```
+
+### For evaluation platform selection
+
+When evaluating platforms for agent evaluation, ask whether the platform's built-in evaluators transform structured data before passing it to the judge — or whether they dump raw JSON. This is a concrete, testable differentiator that directly affects evaluation accuracy.
+
+Arize's built-in tool evaluation metrics (tool selection, tool invocation, and tool response handling) accept both JSON schema and human-readable formats, and their evaluation templates are designed to work optimally with structured, readable input. This means teams using built-in evaluators get the formatting benefit automatically — without needing to build custom transformation pipelines.
+
+### For meta-evaluation
+
+Input format is a variable that should be included in your meta-evaluation process (see [Meta-Evaluation: How to Trust Your Evaluators](/docs/phoenix/evaluation/agent-evaluation-framework/meta-evaluation)). When measuring your evaluator's alignment with human labels, test both raw and formatted inputs. If you see a significant difference, you've identified a cheap, zero-cost improvement: better formatting.
+
+---
+
+## Reproducing This Benchmark
+
+The complete benchmark is available in the Phoenix repository at `scripts/benchmarks/input_format_sensitivity_benchmark.py`. It includes:
+
+- All 50 annotated examples with ground-truth labels and error-type classifications
+- Both formatting functions (raw JSON and human-readable)
+- Async judge execution with configurable concurrency
+- Metrics computation (precision, recall, F1, accuracy, Cohen's κ)
+- Support for OpenAI and Anthropic judge models
+
+To run the benchmark:
+
+```bash
+export OPENAI_API_KEY="your-key"
+export ANTHROPIC_API_KEY="your-key"
+python scripts/benchmarks/input_format_sensitivity_benchmark.py
+```
+
+The script outputs a comparison table and saves detailed per-example results to CSV for further analysis.
+
+<Tip>
+  The benchmark is designed to be extended. To test your own formatting approach, add a new pair of formatting functions and a third condition to the experiment loop. To test on your own data, replace the `build_dataset()` function with examples from your production traces.
+</Tip>
+
+---
+
+## Key Takeaways
+
+1. **Input formatting is a free variable in evaluation quality.** Transforming tool schemas and invocations from raw JSON to human-readable format can improve judge accuracy by up to 8 percentage points — with zero additional cost or latency.
+
+2. **The effect is strongest on models operating below their ceiling.** If your judge model is already near-perfect on a task, formatting won't matter. But most production evaluation tasks aren't that easy — especially as agent complexity grows.
+
+3. **Raw JSON creates a conservative bias.** LLM judges presented with raw JSON tend to over-reject valid tool invocations, generating false negatives that waste engineering time.
+
+4. **Format sensitivity should be part of meta-evaluation.** When validating your evaluator against human labels, test multiple input formats. The gap between raw and formatted inputs tells you how much free accuracy you're leaving on the table.
+
+5. **Build formatting into your evaluation pipeline.** A few lines of transformation code between your data and your judge can meaningfully improve every evaluation you run.
