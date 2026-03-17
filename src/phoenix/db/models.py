@@ -1323,7 +1323,15 @@ class DatasetExample(HasId):
         index=True,
         nullable=True,
     )
+    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id",
+            "external_id",
+        ),
+    )
 
     span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
@@ -1334,6 +1342,8 @@ class DatasetExample(HasId):
         "ExperimentDatasetExample",
         back_populates="dataset_example",
     )
+
+    __table_args__ = (UniqueConstraint("dataset_id", "external_id"),)
 
 
 class DatasetExampleRevision(HasId):
@@ -1348,6 +1358,7 @@ class DatasetExampleRevision(HasId):
     input: Mapped[dict[str, Any]]
     output: Mapped[dict[str, Any]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    content_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     revision_kind: Mapped[str] = mapped_column(
         CheckConstraint(
             "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
