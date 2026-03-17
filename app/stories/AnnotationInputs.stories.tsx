@@ -58,7 +58,7 @@ const freeformConfig: AnnotationConfigFreeform = {
 
 export const Default: Story = {
   render: () => (
-    <FocusScope autoFocus contain>
+    <FocusScope contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput annotationConfig={categoricalConfig} />
@@ -79,7 +79,7 @@ export const Default: Story = {
 
 export const WithValidation: Story = {
   render: () => (
-    <FocusScope autoFocus contain>
+    <FocusScope contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -106,7 +106,7 @@ export const WithValidation: Story = {
 
 export const Disabled: Story = {
   render: () => (
-    <FocusScope autoFocus contain>
+    <FocusScope contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -136,7 +136,7 @@ export const Disabled: Story = {
 
 export const WithDefaultValues: Story = {
   render: () => (
-    <FocusScope autoFocus contain>
+    <FocusScope contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -163,7 +163,7 @@ export const WithDefaultValues: Story = {
 
 export const MixedSizes: Story = {
   render: () => (
-    <FocusScope autoFocus contain>
+    <FocusScope contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput

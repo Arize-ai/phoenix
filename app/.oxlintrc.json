@@ -38,5 +38,13 @@
     ]
   },
 
+  // TODO: Enable jsx-a11y globally after the remaining app violations are addressed.
+  "overrides": [
+    {
+      "files": ["stories/**/*.stories.tsx"],
+      "plugins": ["react", "typescript", "jsx-a11y"]
+    }
+  ],
+
   "ignorePatterns": ["playwright-report/**", "test-results/**"]
 }
