@@ -1,5 +1,12 @@
 # @arizeai/phoenix-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- c0836c3: Add `px docs fetch` command to download Phoenix documentation markdown for coding agents.
+  Fetches from the llms.txt index with workflow filtering, concurrent downloads, and auto-generated index files.
+
 ## 0.8.0
 
 ### Minor Changes
