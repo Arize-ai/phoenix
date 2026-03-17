@@ -25,8 +25,6 @@ import {
   getOtelInitCodeTypescript,
   getOpenaiCodeTypescript,
   getVercelAiSdkCodeTypescript,
-  PYTHON_PACKAGES,
-  TYPESCRIPT_PACKAGES,
 } from "@phoenix/components/project/integrationSnippets";
 
 import type { OnboardingIntegration } from "./integrationDefinitions";
@@ -41,11 +39,11 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     supportedLanguages: ["Python", "TypeScript"],
     snippets: {
       Python: {
-        packages: PYTHON_PACKAGES,
+        packages: ["arize-phoenix-otel"],
         getImplementationCode: getOtelInitCodePython,
       },
       TypeScript: {
-        packages: TYPESCRIPT_PACKAGES,
+        packages: ["@arizeai/phoenix-otel"],
         getImplementationCode: getOtelInitCodeTypescript,
       },
     },
