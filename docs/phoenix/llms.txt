@@ -198,9 +198,87 @@
 ## Integrations
 
 - [Integrations Overview](https://arize.com/docs/phoenix/integrations): All Phoenix integrations — LLM providers, frameworks, platforms
-- [Evaluation Integrations](https://arize.com/docs/phoenix/integrations/evaluation-integrations): Third-party evaluation libraries (Cleanlab, Ragas, UQLM, MLflow)
+
+### Developer Tools
+
 - [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
 - [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants via Model Context Protocol
+- [MCP Overview](https://arize.com/docs/phoenix/integrations/model-context-protocol): Model Context Protocol integration overview
+
+### LLM Providers
+
+- [OpenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-tracing): Auto-instrument OpenAI Python SDK with openinference-instrumentation-openai
+- [OpenAI Agents SDK Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing): Trace OpenAI Agents SDK workflows including tool calls and handoffs
+- [OpenAI Evals](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-evals): Use OpenAI models as evaluation judges
+- [OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk): Instrument OpenAI calls in TypeScript/Node.js
+- [Anthropic Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing): Auto-instrument Anthropic Python SDK
+- [Anthropic Evals](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-evals): Use Claude models as evaluation judges
+- [Anthropic TypeScript SDK](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript): Instrument Anthropic calls in TypeScript
+- [Amazon Bedrock Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing): Auto-instrument Bedrock SDK with openinference-instrumentation-bedrock
+- [Amazon Bedrock Agents Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing): Trace Bedrock agent orchestration workflows
+- [Amazon Bedrock Evals](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-evals): Use Bedrock models as evaluation judges
+- [Amazon Bedrock Agent Runtime JS](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js): Instrument Bedrock Agent Runtime in TypeScript
+- [Amazon Bedrock SDK JS](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js): Instrument Bedrock SDK in TypeScript
+- [Google GenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing): Auto-instrument Google GenAI SDK
+- [Gemini Evals](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals): Use Gemini models as evaluation judges
+- [Google GenAI Evals](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals): Configure Google GenAI as eval provider
+- [Google ADK Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-adk/google-adk-tracing): Trace Google Agent Development Kit workflows
+- [Groq Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing): Auto-instrument Groq SDK
+- [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
+- [LiteLLM Evals](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-evals): Use LiteLLM as eval model proxy
+- [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
+- [MistralAI Evals](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-evals): Use MistralAI as evaluation judge
+- [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
+- [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
+- [VertexAI Evals](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-evals): Use VertexAI as evaluation judge
+
+### Python Frameworks
+
+- [Agno Tracing](https://arize.com/docs/phoenix/integrations/python/agno/agno-tracing): Auto-instrument Agno agent workflows
+- [AgentSpec Tracing](https://arize.com/docs/phoenix/integrations/python/agentspec/agentspec-tracing): Auto-instrument AgentSpec agents
+- [AutoGen Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-tracing): Auto-instrument AutoGen conversations
+- [AutoGen AgentChat Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-agentchat-tracing): Trace AutoGen AgentChat multi-agent conversations
+- [BeeAI Tracing (Python)](https://arize.com/docs/phoenix/integrations/python/beeai/beeai-tracing-python): Auto-instrument BeeAI agent workflows
+- [Claude Agent SDK (Python)](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk): Instrument Claude Agent SDK with OpenInference
+- [CrewAI Tracing](https://arize.com/docs/phoenix/integrations/python/crewai/crewai-tracing): Auto-instrument CrewAI agent crews
+- [DSPy Tracing](https://arize.com/docs/phoenix/integrations/python/dspy/dspy-tracing): Auto-instrument DSPy modules and optimizers
+- [Google ADK Tracing (Python)](https://arize.com/docs/phoenix/integrations/python/google-adk/google-adk-tracing): Auto-instrument Google ADK agents
+- [Graphite Integration](https://arize.com/docs/phoenix/integrations/python/graphite/graphite-integration-guide): Integrate Graphite knowledge graphs with Phoenix
+- [Guardrails AI Tracing](https://arize.com/docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing): Auto-instrument Guardrails AI validation
+- [Haystack Tracing](https://arize.com/docs/phoenix/integrations/python/haystack/haystack-tracing): Auto-instrument Haystack pipelines
+- [smolagents Tracing](https://arize.com/docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing): Auto-instrument Hugging Face smolagents
+- [Instructor Tracing](https://arize.com/docs/phoenix/integrations/python/instructor/instructor-tracing): Auto-instrument Instructor structured outputs
+- [LangChain Tracing](https://arize.com/docs/phoenix/integrations/python/langchain/langchain-tracing): Auto-instrument LangChain chains and agents
+- [LangGraph Tracing](https://arize.com/docs/phoenix/integrations/python/langgraph/langgraph-tracing): Auto-instrument LangGraph stateful workflows
+- [LlamaIndex Tracing](https://arize.com/docs/phoenix/integrations/python/llamaindex/llamaindex-tracing): Auto-instrument LlamaIndex queries and pipelines
+- [LlamaIndex Workflows Tracing](https://arize.com/docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing): Trace LlamaIndex workflow orchestration
+- [MCP Tracing (Python)](https://arize.com/docs/phoenix/integrations/python/mcp-tracing): Trace MCP client and server interactions
+- [NeMo Agent Tracing](https://arize.com/docs/phoenix/integrations/python/nvidia/nemo-agent-tracing): Trace NVIDIA NeMo agent workflows
+- [Portkey Tracing](https://arize.com/docs/phoenix/integrations/python/portkey/portkey-tracing): Auto-instrument Portkey gateway calls
+- [Pydantic AI Tracing](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-tracing): Auto-instrument Pydantic AI agents
+- [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework
+
+### TypeScript Frameworks
+
+- [BeeAI Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/beeai/beeai-tracing-js): Auto-instrument BeeAI in TypeScript
+- [Claude Agent SDK (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/claude-agent-sdk): Instrument Claude Agent SDK in TypeScript
+- [LangChain.js Tracing](https://arize.com/docs/phoenix/integrations/typescript/langchain/langchain-js): Auto-instrument LangChain.js chains and agents
+- [Mastra Tracing](https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing): Auto-instrument Mastra agent workflows
+- [MCP Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript): Trace MCP interactions in TypeScript
+- [Vercel AI SDK Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js): Auto-instrument Vercel AI SDK
+
+### Java Frameworks
+
+- [Arconia Tracing](https://arize.com/docs/phoenix/integrations/java/arconia/arconia-tracing): Auto-instrument Arconia Java applications
+- [LangChain4j Tracing](https://arize.com/docs/phoenix/integrations/java/langchain4j/langchain4j-tracing): Auto-instrument LangChain4j chains and agents
+- [Spring AI Tracing](https://arize.com/docs/phoenix/integrations/java/springai/springai-tracing): Auto-instrument Spring AI applications
+
+### Platforms
+
+- [Dify Tracing](https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing): Send traces from Dify workflows
+- [Flowise Tracing](https://arize.com/docs/phoenix/integrations/platforms/flowise/flowise-tracing): Send traces from Flowise flows
+- [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
+- [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
 
 ## Settings
 

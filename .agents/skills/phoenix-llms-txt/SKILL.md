@@ -34,7 +34,13 @@ Sections use `##` headings, subsections use `###`. Subsections inherit their par
 - REST API endpoints — the `api-reference` overview is sufficient
 - Legacy evaluation pages
 - Cookbooks — link to the cookbook index page only, since individual cookbook pages are typically Colab notebooks that agents cannot parse
-- 3rd-party integrations — link to the integrations overview and evaluation-integrations index (`https://arize.com/docs/phoenix/integrations/evaluation-integrations`) only; do NOT list individual provider, framework, or platform pages (e.g., OpenAI, LangChain, Anthropic). These change frequently and the overview page already links to all sub-pages.
+- Evaluation integrations — link to the evaluation-integrations index (`https://arize.com/docs/phoenix/integrations/evaluation-integrations`) only; do NOT list individual 3rd-party eval library pages (e.g., Ragas, Cleanlab, UQLM, MLflow). These are thin wrappers around external tools and change frequently.
+
+**Include as individual entries under Integrations:**
+- All LLM provider pages (OpenAI, Anthropic, Bedrock, Google GenAI, etc.) and their tracing/evals sub-pages
+- All framework integration pages (LangChain, LlamaIndex, Vercel AI SDK, etc.) and their tracing sub-pages
+- All platform integration pages (Dify, Flowise, LangFlow, etc.)
+- Developer tools (Coding Agents, MCP Server)
 
 **Exclude — content agents cannot use or does not help them:**
 - Agent-assisted setup page — this is for AI coding agents, not for human developers or LLM documentation consumers
