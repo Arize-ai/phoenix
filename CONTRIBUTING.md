@@ -2,7 +2,7 @@
 
 ## Read This First
 
-We are not actively accepting contributions right now.
+We are not actively accepting feature contributions right now.
 
 You can still open an issue or PR, but please do so knowing there is a good chance we close it or never get to it.
 
