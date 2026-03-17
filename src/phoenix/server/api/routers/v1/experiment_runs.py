@@ -100,6 +100,8 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
+        # todo: this fallback lookup is intended as a stopgap while users migrate to newer versions
+        # of the client that use the explicit node id field for this route
         if dataset_example_id is None:
             dataset_example_id = await session.scalar(
                 select(models.DatasetExample.id)
