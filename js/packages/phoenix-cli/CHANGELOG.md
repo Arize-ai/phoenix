@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 0.9.1
+
+### Patch Changes
+
+- d320b93: Migrate llms.txt parser to standard llmstxt.org markdown link format (`- [Title](url): Description`)
+
 ## 0.9.0
 
 ### Minor Changes
