@@ -1,8 +1,12 @@
 import { Bash } from "just-bash";
 
+import {
+  applyBashToolFilesystemPolicy,
+  BASH_TOOL_WORKSPACE_ROOT,
+} from "./bashToolFilesystemPolicy";
 import type { BashToolCommandResult, BashToolRuntime } from "./bashToolTypes";
 
-export const DEFAULT_BASH_TOOL_CWD = "/home/user/workspace";
+export const DEFAULT_BASH_TOOL_CWD = BASH_TOOL_WORKSPACE_ROOT;
 
 export async function createBashToolRuntime(): Promise<BashToolRuntime> {
   // We execute just-bash directly in the browser for now.
@@ -11,6 +15,7 @@ export async function createBashToolRuntime(): Promise<BashToolRuntime> {
   const bash = new Bash({
     cwd: DEFAULT_BASH_TOOL_CWD,
   });
+  applyBashToolFilesystemPolicy(bash.fs);
 
   return {
     executeCommand: async (command): Promise<BashToolCommandResult> => {
