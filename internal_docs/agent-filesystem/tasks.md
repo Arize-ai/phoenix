@@ -31,9 +31,9 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 1: End-to-end client bash tool
 
-### T1.1 Add `bash-tool` dependency to the frontend app [done]
+### T1.1 Add browser bash runtime dependencies to the frontend app [done]
 
-- Add `bash-tool` and any required peer/runtime dependencies under `app/package.json`.
+- Add the browser `bash` runtime dependencies under `app/package.json`.
 - Verify the package builds in the current frontend toolchain.
 - Deliverable: dependency added and install succeeds.
 - Depends on: T0.1
@@ -71,14 +71,14 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ### T2.1 Create a per-session bash runtime/provider [done]
 
-- Build a client runtime around `bash-tool` / `just-bash`.
+- Build a client runtime around `just-bash`.
 - Scope one runtime per agent session so filesystem state persists across turns.
 - Expose access through a React provider or equivalent session registry.
 - Deliverable: reusable runtime abstraction available to chat components.
 - Depends on: T0.2, T1.1
 - Blocks: T1.3, T2.2, T2.3, T2.4
 
-### T2.2 Enforce filesystem write policy
+### T2.2 Enforce filesystem write policy [done]
 
 - Make `/phoenix/**` read-only.
 - Make `/home/user/workspace/**` writable.

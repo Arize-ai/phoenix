@@ -3,12 +3,12 @@
 ## Goal
 
 - Add a hybrid tools architecture where Phoenix can expose tools to the LLM while executing some on the client and some on the server.
-- Start with a client-executed `bash` tool using `bash-tool`/`just-bash`.
+- Start with a client-executed `bash` tool using `just-bash` directly in the browser.
 - Materialize Phoenix context into a predictable virtual filesystem so the agent can use `ls`, `find`, `grep`, `cat`, and `jq` instead of bespoke retrieval tools.
 
 ## Key Decisions
 
-- Use `bash-tool` on the client.
+- Use a Phoenix-owned client `bash` tool schema and runtime wrapper.
 - Execute `bash` on the client through AI SDK `onToolCall` + `addToolOutput`.
 - Keep the backend as the model + streaming authority; it forwards tool definitions and tool calls.
 - Default context injection strategy: page-context adapter with lazy tables.
@@ -39,7 +39,7 @@
 ### Client Bash Runtime
 
 - Create a per-agent-session browser-side `just-bash` runtime so virtual filesystem state persists across turns.
-- Use `bash-tool` as the wrapper around a browser-executed `just-bash` instance, not a remote VM sandbox.
+- Use a Phoenix-owned wrapper around a browser-executed `just-bash` instance, not a remote VM sandbox.
 - Execute tool calls through AI SDK client hooks:
   - define `bash` as a client tool
   - handle calls in `onToolCall`
@@ -229,7 +229,7 @@ Because refresh overwrites in place, `context.json` and `MANIFEST.md` should inc
 
 ### Phase 2: Bash Runtime + Safety
 
-- Add per-session `bash-tool` runtime.
+- Add per-session `just-bash` runtime.
 - Enforce FS write boundaries.
 - Disable network.
 - Add command instrumentation and execution limits.
