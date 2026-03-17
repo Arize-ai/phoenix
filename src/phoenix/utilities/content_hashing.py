@@ -9,4 +9,4 @@ def compute_example_content_hash(
 ) -> bytes:
     data = {"input": input, "metadata": metadata, "output": output}
     canonical: bytes = canonicalize(data)  # type: ignore[no-untyped-call]
-    return hashlib.sha256(canonical).digest()
+    return hashlib.sha256(canonical).digest()[:16]
