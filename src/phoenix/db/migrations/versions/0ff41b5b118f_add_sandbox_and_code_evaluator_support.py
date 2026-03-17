@@ -51,8 +51,25 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # D4: Create languages reference table seeded with PYTHON and TYPESCRIPT
+    languages_table = op.create_table(
+        "languages",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column("name", sa.String, nullable=False, unique=True),
+    )
+    op.bulk_insert(
+        languages_table,
+        [
+            {"name": "PYTHON"},
+            {"name": "TYPESCRIPT"},
+        ],
+    )
+
+    # D1: sandbox_adapters → sandbox_providers
+    # D2: drop timeout
+    # D3: drop config_hash
     op.create_table(
-        "sandbox_adapters",
+        "sandbox_providers",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "backend_type",
@@ -60,9 +77,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
-        sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -78,21 +93,30 @@ def upgrade() -> None:
         sa.UniqueConstraint("backend_type"),
     )
 
+    # D5: backend_type → provider_id FK
+    # D6: language → language_id FK
+    # D3: drop config_hash
+    # UniqueConstraint becomes (provider_id, name)
     op.create_table(
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
-            "backend_type",
-            sa.String,
+            "provider_id",
+            _Integer,
+            sa.ForeignKey("sandbox_providers.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("language", sa.String, nullable=False),
+        sa.Column(
+            "language_id",
+            _Integer,
+            sa.ForeignKey("languages.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -105,13 +129,12 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("backend_type", "name"),
-        sa.CheckConstraint(
-            "language IN ('PYTHON', 'TYPESCRIPT')",
-            name="valid_sandbox_config_language",
-        ),
+        sa.UniqueConstraint("provider_id", "name"),
     )
 
+    # D6: language → language_id FK
+    # D8: drop input_schema
+    # D3: drop sandbox_config_hash
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -123,10 +146,10 @@ def upgrade() -> None:
         )
         batch_op.add_column(
             sa.Column(
-                "language",
-                sa.String,
-                server_default="PYTHON",
-                nullable=False,
+                "language_id",
+                _Integer,
+                sa.ForeignKey("languages.id", ondelete="RESTRICT"),
+                nullable=True,
             ),
         )
         batch_op.add_column(
@@ -147,66 +170,32 @@ def upgrade() -> None:
         )
         batch_op.add_column(
             sa.Column(
-                "input_schema",
-                JSON_,
-                server_default="{}",
-                nullable=False,
-            ),
-        )
-        batch_op.add_column(
-            sa.Column(
                 "sandbox_config_id",
                 _Integer,
                 sa.ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
                 nullable=True,
             ),
         )
-        batch_op.add_column(
-            sa.Column(
-                "sandbox_config_hash",
-                sa.String(16),
-                nullable=True,
-            ),
-        )
-        batch_op.create_check_constraint(
-            constraint_name="valid_code_evaluator_language",
-            condition="language IN ('PYTHON', 'TYPESCRIPT')",
-        )
+        batch_op.create_index("ix_code_evaluators_language_id", ["language_id"])
         batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
-
-    op.create_table(
-        "sandbox_settings",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.CheckConstraint("id = 1", name="sandbox_settings_singleton"),
-    )
 
 
 def downgrade() -> None:
-    op.drop_table("sandbox_settings")
-
+    # Remove columns/indexes from code_evaluators first (before dropping referenced tables)
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.drop_index("ix_code_evaluators_sandbox_config_id")
-        batch_op.drop_constraint("valid_code_evaluator_language", type_="check")
-        batch_op.drop_column("sandbox_config_hash")
+        batch_op.drop_index("ix_code_evaluators_language_id")
         batch_op.drop_column("sandbox_config_id")
-        batch_op.drop_column("input_schema")
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
-        batch_op.drop_column("language")
+        batch_op.drop_column("language_id")
         batch_op.drop_column("source_code")
 
+    # Drop sandbox_configs (FKs to sandbox_providers and languages)
     op.drop_table("sandbox_configs")
-    op.drop_table("sandbox_adapters")
+
+    # Drop sandbox_providers (renamed from sandbox_adapters by D1)
+    op.drop_table("sandbox_providers")
+
+    # Drop languages table (created by D4)
+    op.drop_table("languages")
