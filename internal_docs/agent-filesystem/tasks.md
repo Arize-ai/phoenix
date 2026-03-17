@@ -114,6 +114,15 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T2.1
 - Blocks: T7.2, T8.1
 
+### T2.6 Surface bash sandbox capabilities to the model
+
+- Define the canonical capability description for the browser-side bash runtime.
+- Include limits such as browser execution, disabled network, writable vs read-only paths, and unsupported host/package-manager assumptions.
+- Wire that capability description into the `bash` tool definition, the system prompt, or both.
+- Deliverable: the model receives accurate sandbox constraints before it plans tool usage.
+- Depends on: T1.2, T2.1, T2.3
+- Blocks: T7.2
+
 ## Milestone 3: Adapter framework
 
 ### T3.1 Define adapter types and result contracts
@@ -232,6 +241,27 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Deliverable: side-by-side alternate time-range context.
 - Depends on: T4.1, T5.1
 - Blocks: T7.2, T8.1
+
+## Milestone 6.5: Session metadata and navigation
+
+### T6.4 Generate short session summaries from the first user turn
+
+- Create a short summary from the first user message when a session is first used.
+- Persist that summary in the agent store.
+- Add created/updated timestamps to the agent session metadata.
+- Deliverable: sessions have stable summary/date metadata for UI display.
+- Depends on: T1.3
+- Blocks: T6.5
+
+### T6.5 Add a session list UI with switch + delete controls
+
+- Render all sessions in the agent UI with short summary and date metadata.
+- Allow clicking a session to switch the active conversation.
+- Allow deleting a session from the list with an explicit affordance.
+- Keep the quick new-session affordance.
+- Deliverable: multi-session navigation and cleanup is available in the chat UI.
+- Depends on: T6.4
+- Blocks: T8.1
 
 ## Milestone 7: Integrated verification
 

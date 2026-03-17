@@ -22,6 +22,9 @@
 - Disable network by default.
 - Show tool execution in a toggleable panel.
 - Support refresh via auto-refresh on navigation/time-range changes and a literal `/refresh` chat command.
+- Surface the active bash sandbox capabilities to the model so it does not attempt unavailable package managers, network installs, or host-level system mutations.
+- Generate a short session summary from the first user message and use it anywhere the UI lists sessions.
+- Treat agent sessions as first-class UI objects with summary/date metadata, switching, and deletion controls.
 
 ## Architecture
 
@@ -42,6 +45,8 @@
   - handle calls in `onToolCall`
   - return results with `addToolOutput`
   - continue automatically with `lastAssistantMessageIsCompleteWithToolCalls`
+- Expose runtime capability metadata to the LLM on every turn, either through the tool description, the system prompt, or both.
+- The capability description must explicitly call out browser-only execution, writable paths, disabled network, and unsupported package-management assumptions.
 
 ### Filesystem Contract
 
@@ -203,6 +208,15 @@ Because refresh overwrites in place, `context.json` and `MANIFEST.md` should inc
   - duration
 - Keep the panel collapsed by default.
 - Add manifest visibility so developers can inspect what the agent actually received.
+- Add a session list UI that shows each session's short summary and created/updated date.
+- Allow switching sessions directly from that list.
+- Allow deleting sessions directly from that list.
+
+## Session Metadata
+
+- Generate a short session summary from the first user message when a session transitions from empty to active.
+- Store the summary and session timestamps in the persisted agent store.
+- Reuse that metadata for any session picker, list, or future recents UX.
 
 ## Implementation Phases
 
