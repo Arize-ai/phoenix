@@ -1651,6 +1651,138 @@ async def test_post_dataset_upload_example_id_key_not_found_in_columns(
     assert "nonexistent_id" in response.text
 
 
+async def test_post_dataset_upload_csv_with_mixed_example_id_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """CSV rows with a blank example_id_key column get external_id=None; filled rows get the value."""
+    name = inspect.stack()[0][3]
+    # Row 1: has id, Row 2: blank id, Row 3: has id, Row 4: blank id
+    file = gzip.compress(
+        b"task_id,question,answer\ntask-101,Q1,A1\n,Q2,A2\ntask-103,Q3,A3\n,Q4,A4\n"
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "task_id",
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(
+                    models.DatasetExample.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(examples) == 4
+    assert examples[0].external_id == "task-101"
+    assert examples[1].external_id is None
+    assert examples[2].external_id == "task-103"
+    assert examples[3].external_id is None
+
+
+async def test_post_dataset_upload_jsonl_with_mixed_example_id_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """JSONL rows with a blank/missing example_id_key field get external_id=None."""
+    name = inspect.stack()[0][3]
+    jsonl_content = (
+        b'{"task_id": "task-101", "question": "Q1", "answer": "A1"}\n'
+        b'{"task_id": "", "question": "Q2", "answer": "A2"}\n'  # empty string -> None
+        b'{"task_id": "task-103", "question": "Q3", "answer": "A3"}\n'
+        b'{"question": "Q4", "answer": "A4"}\n'  # missing key -> None
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "task_id",
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(
+                    models.DatasetExample.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(examples) == 4
+    assert examples[0].external_id == "task-101"
+    assert examples[1].external_id is None
+    assert examples[2].external_id == "task-103"
+    assert examples[3].external_id is None
+
+
+async def test_post_dataset_upload_pyarrow_with_mixed_example_id_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """PyArrow rows with NaN in the example_id_key column get external_id=None."""
+    name = inspect.stack()[0][3]
+    # pandas represents missing string values as NaN; _get_external_id must treat these as None
+    df = pd.read_csv(
+        StringIO("task_id,question,answer\ntask-101,Q1,A1\n,Q2,A2\ntask-103,Q3,A3\n,Q4,A4\n")
+    )
+    table = pa.Table.from_pandas(df)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    file = BytesIO(sink.getvalue().to_pybytes())
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "example_id_key": "task_id",
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    async with db() as session:
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(
+                    models.DatasetExample.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+                )
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(examples) == 4
+    assert examples[0].external_id == "task-101"
+    assert examples[1].external_id is None
+    assert examples[2].external_id == "task-103"
+    assert examples[3].external_id is None
+
+
 # =============================================================================
 # Tests for flatten_keys (collapse top-level keys feature)
 # =============================================================================
