@@ -52,9 +52,9 @@ Each snippet has two parts:
 
 ### 1. Add implementation function
 
-**File:** `app/src/components/project/integrationSnippets.ts`
+**Directory:** `app/src/components/project/integrationSnippets/` — read existing files to match conventions.
 
-The onboarding UI already displays env vars (including `PHOENIX_COLLECTOR_ENDPOINT`) in a separate section before the code snippet. Both `phoenix.otel.register` (Python) and `@arizeai/phoenix-otel` `register` (TypeScript) read this env var automatically. Do NOT pass `endpoint`/`url` in the snippet code — rely on the env var.
+Do NOT pass `endpoint`/`url` in snippet code — the onboarding UI displays env vars (including `PHOENIX_COLLECTOR_ENDPOINT`) separately, and both `register` functions read it automatically.
 
 **Python:** Use `auto_instrument=True` — no manual instrumentor calls. SDK imports must come _after_ `register()`.
 
