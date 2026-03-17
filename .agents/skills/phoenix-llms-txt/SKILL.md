@@ -28,13 +28,13 @@ Sections use `##` headings, subsections use `###`. Subsections inherit their par
 - SDK and API reference pages
 - Self-hosting and deployment guides
 - Quick start guides (Python and TypeScript)
-- Pre-built evaluation metrics (each metric page)
 - Server-side evaluation pages
 **Index-level only (one entry, not every sub-page):**
 - REST API endpoints — the `api-reference` overview is sufficient
 - Legacy evaluation pages
 - Cookbooks — link to the cookbook index page only, since individual cookbook pages are typically Colab notebooks that agents cannot parse
 - Evaluation integrations — link to the evaluation-integrations index (`https://arize.com/docs/phoenix/integrations/evaluation-integrations`) only; do NOT list individual 3rd-party eval library pages (e.g., Ragas, Cleanlab, UQLM, MLflow). These are thin wrappers around external tools and change frequently.
+- Pre-built evaluation metrics — link to the pre-built-metrics index page and the server-evals pre-built-metrics index only; do NOT list each individual metric page (e.g., faithfulness, toxicity, hallucination). The index pages enumerate all available metrics.
 
 **Include as individual entries under Integrations:**
 - All LLM provider pages (OpenAI, Anthropic, Bedrock, Google GenAI, etc.) and their tracing/evals sub-pages

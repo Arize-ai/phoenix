@@ -107,25 +107,7 @@
 
 ### Pre-Built Metrics
 
-- [Overview](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): Index of all pre-built evaluators
-- [Conciseness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness): Evaluate response brevity
-- [Correctness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness): Assess factual accuracy against reference answers
-- [Document Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance): Measure retrieved document relevance in RAG
-- [Exact Match](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match): Exact string match evaluation
-- [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Detect hallucinations in grounded responses
-- [Hallucination](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination): Identify fabricated information not in source context
-- [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Validate output format with regex patterns
-- [Precision, Recall, F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Classification and extraction metrics
-- [Q&A on Retrieved Data](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data): Evaluate QA quality over retrieved context
-- [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect LLM refusal to answer
-- [Retrieval (RAG) Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance): Assess retrieval chunk relevance in RAG
-- [SQL Generation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval): Evaluate LLM-generated SQL correctness
-- [Summarization](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval): Assess summary completeness and accuracy
-- [Tool Calling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval): Evaluate tool call accuracy and arguments
-- [Tool Invocation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation): Assess tool invocation decisions
-- [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate tool result processing
-- [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate correct tool selection
-- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Detect toxic or offensive content
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, hallucination, toxicity, RAG relevance, tool calling, and more
 
 ### Server-Side Evaluations
 
@@ -133,15 +115,7 @@
 - [LLM Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators): Configure LLM-as-judge evaluators server-side
 - [Built-in Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators): Pre-built server-side evaluators
 - [Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to evaluator inputs
-- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): Code-based metrics for server-side evaluation
-- [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check output for specified strings
-- [Correctness](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness): Server-side correctness check
-- [Exact Match](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/exact-match): Server-side exact string match
-- [JSON Distance](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/json-distance): Measure structural similarity between JSON objects
-- [Levenshtein Distance](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/levenshtein-distance): Edit distance for fuzzy matching
-- [Regex](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/regex): Server-side regex pattern matching
-- [Tool Invocation](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation): Server-side tool invocation evaluation
-- [Tool Selection](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection): Server-side tool selection evaluation
+- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool selection/invocation
 
 ## Datasets & Experiments
 
