@@ -9,7 +9,7 @@ import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
-import { Chat } from ".";
+import { Chat } from "./Chat";
 
 const panelHeaderCSS = css`
   display: flex;
