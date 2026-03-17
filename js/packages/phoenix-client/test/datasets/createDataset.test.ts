@@ -51,7 +51,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A test dataset",
-        action: "upsert",
+        action: "create",
         inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
         outputs: [
           { answer: "Artificial Intelligence" },
@@ -64,7 +64,6 @@ describe("createDataset", () => {
 
     expect(result).toEqual({
       datasetId: "dataset-123",
-      versionId: "version-456",
     });
   });
 
@@ -105,7 +104,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with span links",
-        action: "upsert",
+        action: "create",
         inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
         outputs: [
           { answer: "Artificial Intelligence" },
@@ -119,154 +118,7 @@ describe("createDataset", () => {
 
     expect(result).toEqual({
       datasetId: "dataset-123",
-      versionId: "version-456",
     });
-  });
-
-  it("should create a dataset with external IDs", async () => {
-    const mockResponse = {
-      dataset_id: "dataset-123",
-      version_id: "version-456",
-    };
-
-    mockPost.mockResolvedValue({
-      data: { data: mockResponse },
-      error: null,
-    });
-
-    const result = await createDataset({
-      name: "test-dataset",
-      description: "A dataset with external IDs",
-      examples: [
-        {
-          input: { question: "What is AI?" },
-          output: { answer: "Artificial Intelligence" },
-          externalId: "q-ai-1",
-        },
-        {
-          input: { question: "What is ML?" },
-          output: { answer: "Machine Learning" },
-          externalId: "q-ml-1",
-        },
-      ],
-    });
-
-    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
-      params: {
-        query: {
-          sync: true,
-        },
-      },
-      body: {
-        name: "test-dataset",
-        description: "A dataset with external IDs",
-        action: "upsert",
-        inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
-        outputs: [
-          { answer: "Artificial Intelligence" },
-          { answer: "Machine Learning" },
-        ],
-        metadata: [{}, {}],
-        splits: [null, null],
-        external_ids: ["q-ai-1", "q-ml-1"],
-      },
-    });
-
-    expect(result).toEqual({
-      datasetId: "dataset-123",
-      versionId: "version-456",
-    });
-  });
-
-  it("should create a dataset with mixed external IDs (some null)", async () => {
-    const mockResponse = {
-      dataset_id: "dataset-123",
-      version_id: "version-456",
-    };
-
-    mockPost.mockResolvedValue({
-      data: { data: mockResponse },
-      error: null,
-    });
-
-    await createDataset({
-      name: "test-dataset",
-      description: "A dataset with partial external IDs",
-      examples: [
-        {
-          input: { question: "What is AI?" },
-          output: { answer: "Artificial Intelligence" },
-          externalId: "q-ai-1",
-        },
-        {
-          input: { question: "What is ML?" },
-          output: { answer: "Machine Learning" },
-          // No externalId
-        },
-        {
-          input: { question: "What is DL?" },
-          output: { answer: "Deep Learning" },
-          externalId: null,
-        },
-      ],
-    });
-
-    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
-      params: {
-        query: {
-          sync: true,
-        },
-      },
-      body: {
-        name: "test-dataset",
-        description: "A dataset with partial external IDs",
-        action: "upsert",
-        inputs: [
-          { question: "What is AI?" },
-          { question: "What is ML?" },
-          { question: "What is DL?" },
-        ],
-        outputs: [
-          { answer: "Artificial Intelligence" },
-          { answer: "Machine Learning" },
-          { answer: "Deep Learning" },
-        ],
-        metadata: [{}, {}, {}],
-        splits: [null, null, null],
-        external_ids: ["q-ai-1", null, null],
-      },
-    });
-  });
-
-  it("should not include external_ids when no examples have external IDs", async () => {
-    const mockResponse = {
-      dataset_id: "dataset-123",
-      version_id: "version-456",
-    };
-
-    mockPost.mockResolvedValue({
-      data: { data: mockResponse },
-      error: null,
-    });
-
-    await createDataset({
-      name: "test-dataset",
-      description: "A dataset without external IDs",
-      examples: [
-        {
-          input: { question: "What is AI?" },
-          output: { answer: "Artificial Intelligence" },
-        },
-        {
-          input: { question: "What is ML?" },
-          output: { answer: "Machine Learning" },
-          externalId: null,
-        },
-      ],
-    });
-
-    const callBody = mockPost.mock.calls[0][1].body;
-    expect(callBody).not.toHaveProperty("external_ids");
   });
 
   it("should create a dataset with mixed span IDs (some null)", async () => {
@@ -311,7 +163,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with partial span links",
-        action: "upsert",
+        action: "create",
         inputs: [
           { question: "What is AI?" },
           { question: "What is ML?" },
@@ -399,7 +251,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with splits and span links",
-        action: "upsert",
+        action: "create",
         inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
         outputs: [
           { answer: "Artificial Intelligence" },
@@ -445,7 +297,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with metadata",
-        action: "upsert",
+        action: "create",
         inputs: [{ question: "What is AI?" }],
         outputs: [{ answer: "Artificial Intelligence" }],
         metadata: [{ source: "wikipedia", difficulty: "easy" }],
@@ -502,7 +354,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with null outputs",
-        action: "upsert",
+        action: "create",
         inputs: [{ question: "What is AI?" }],
         outputs: [{}], // null is converted to empty object
         metadata: [{}],

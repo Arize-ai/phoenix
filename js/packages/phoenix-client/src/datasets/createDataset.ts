@@ -21,16 +21,10 @@ export type CreateDatasetParams = ClientFn & {
 
 export type CreateDatasetResponse = {
   datasetId: string;
-  versionId: string;
 };
 
 /**
  * Create a new dataset with examples.
- *
- * Uses upsert semantics: if the dataset does not exist it will be created; if
- * it already exists, examples are merged with the previous version via
- * `externalId` matching (or content-hash matching when no `externalId` is
- * given).
  *
  * @experimental this interface may change in the future
  *
@@ -44,22 +38,26 @@ export type CreateDatasetResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
- *   - `externalId`: Optional external ID for deduplication across dataset versions
  *
- * @returns A promise that resolves to the dataset ID and version ID
+ * @returns A promise that resolves to the created dataset ID
  *
  * @example
  * ```ts
- * // Create a dataset with external IDs for deduplication
- * const { datasetId, versionId } = await createDataset({
+ * // Create a dataset with span links
+ * const { datasetId } = await createDataset({
  *   name: "qa-dataset",
- *   description: "Q&A examples",
+ *   description: "Q&A examples from traces",
  *   examples: [
  *     {
  *       input: { question: "What is AI?" },
  *       output: { answer: "Artificial Intelligence is..." },
- *       externalId: "q-ai-1",
+ *       spanId: "abc123def456" // Links to the source span
  *     },
+ *     {
+ *       input: { question: "Explain ML" },
+ *       output: { answer: "Machine Learning is..." },
+ *       spanId: "789ghi012jkl"
+ *     }
  *   ]
  * });
  * ```
@@ -71,51 +69,40 @@ export async function createDataset({
   examples,
 }: CreateDatasetParams): Promise<CreateDatasetResponse> {
   const client = _client || createClient();
-  const inputs: Record<string, unknown>[] = [];
-  const outputs: Record<string, unknown>[] = [];
-  const metadata: Record<string, unknown>[] = [];
-  const splits: (string | string[] | null)[] = [];
-  const spanIds: (string | null)[] = [];
-  const externalIds: (string | null)[] = [];
-  let hasSpanIds = false;
-  let hasExternalIds = false;
+  const inputs = examples.map((example) => example.input);
+  const outputs = examples.map((example) => example?.output ?? {}); // Treat null as an empty object
+  const metadata = examples.map((example) => example?.metadata ?? {});
+  const splits = examples.map((example) =>
+    example?.splits !== undefined ? example.splits : null
+  );
 
-  for (const example of examples) {
-    inputs.push(example.input);
-    outputs.push(example.output ?? {}); // Treat null as an empty object
-    metadata.push(example.metadata ?? {});
-    splits.push(example.splits !== undefined ? example.splits : null);
-    const spanId = example.spanId ?? null;
-    spanIds.push(spanId);
-    if (spanId !== null) hasSpanIds = true;
-    const externalId = example.externalId ?? null;
-    externalIds.push(externalId);
-    if (externalId !== null) hasExternalIds = true;
-  }
+  // Extract span IDs from examples, preserving null/undefined as null
+  const spanIds = examples.map((example) => example?.spanId ?? null);
+
+  // Only include span_ids in the request if at least one example has a span ID
+  const hasSpanIds = spanIds.some((id) => id !== null);
 
   const createDatasetResponse = await client.POST("/v1/datasets/upload", {
     params: {
       query: {
+        // TODO: parameterize this
         sync: true,
       },
     },
     body: {
       name,
       description,
-      action: "upsert",
+      action: "create",
       inputs,
       outputs,
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
-      ...(hasExternalIds ? { external_ids: externalIds } : {}),
     },
   });
   invariant(createDatasetResponse.data?.data, "Failed to create dataset");
   const datasetId = createDatasetResponse.data.data.dataset_id;
-  const versionId = createDatasetResponse.data.data.version_id;
   return {
     datasetId,
-    versionId,
   };
 }
