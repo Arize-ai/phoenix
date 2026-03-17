@@ -745,6 +745,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     <View
                       borderRadius="medium"
                       borderWidth="thin"
+                      borderColor="default"
                       padding="size-200"
                     >
                       <CopyToClipboard text={promptTemplateObject.template}>
@@ -758,8 +759,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   {promptTemplateObject.variables != null && (
                     <View
                       borderRadius="medium"
-                      borderColor="gray-100"
-                      backgroundColor="gray-100"
+                      borderColor="default"
                       borderWidth="thin"
                       padding="size-200"
                     >
@@ -1391,7 +1391,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       css={
                         idx === 0
                           ? css`
-                              border-top: 1px solid var(--global-border-color-default);
+                              border-top: 1px solid
+                                var(--global-border-color-default);
                             `
                           : null
                       }

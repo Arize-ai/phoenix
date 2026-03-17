@@ -163,7 +163,11 @@ const ControlledTemplate = () => {
 
   return (
     <View>
-      <View padding="size-100" borderBottomWidth="thin">
+      <View
+        padding="size-100"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+      >
         <Text color="text-700">
           Controlled state: {isExpanded ? "Expanded" : "Collapsed"}
         </Text>

@@ -200,7 +200,7 @@ export const darkThemeCSS = css`
     --global-color-gray-900-rgb: 255, 255, 255;
     --global-color-gray-900: rgb(var(--global-color-gray-900-rgb));
 
-    --global-color purple-100-rgb: 87, 0, 0;
+    --global-color-red-100-rgb: 87, 0, 0;
     --global-color-red-100: rgb(var(--global-color-red-100-rgb));
     --global-color-red-200-rgb: 110, 0, 0;
     --global-color-red-200: rgb(var(--global-color-red-200-rgb));

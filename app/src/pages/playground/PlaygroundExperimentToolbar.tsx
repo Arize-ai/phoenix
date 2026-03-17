@@ -51,7 +51,7 @@ export function PlaygroundExperimentToolbar({
       flex="none"
       paddingX="size-200"
       paddingY={"size-100"}
-      borderBottomColor={"gray-100"}
+      borderBottomColor={"default"}
       borderBottomWidth={"thin"}
       height={50}
     >
