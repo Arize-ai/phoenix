@@ -243,3 +243,128 @@ const result = await generateText({
 // Flush pending traces before the process exits
 await provider.forceFlush();`;
 }
+
+export function getLangchainCodePython({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="${projectName}",
+  auto_instrument=True
+)
+
+# SDK imports must come after register() so auto-instrumentation can patch them
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+
+prompt = ChatPromptTemplate.from_template("Explain {topic} in simple terms.")
+chain = prompt | ChatOpenAI(model="gpt-4o-mini")
+response = chain.invoke({"topic": "the theory of relativity"})`;
+}
+
+export function getOpenaiCodePython({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="${projectName}",
+  auto_instrument=True
+)
+
+# SDK imports must come after register() so auto-instrumentation can patch them
+import openai
+
+client = openai.OpenAI()
+response = client.chat.completions.create(
+  model="gpt-4o-mini",
+  messages=[{"role": "user", "content": "Explain the theory of relativity in simple terms."}],
+)`;
+}
+
+export function getLlamaIndexCodePython({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="${projectName}",
+  auto_instrument=True
+)
+
+# SDK imports must come after register() so auto-instrumentation can patch them
+from llama_index.core.llms import ChatMessage
+from llama_index.llms.openai import OpenAI
+
+llm = OpenAI(model="gpt-4o-mini")
+response = llm.chat([ChatMessage(role="user", content="Explain the theory of relativity in simple terms.")])`;
+}
+
+export function getAgnoCodePython({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="${projectName}",
+  auto_instrument=True
+)
+
+# SDK imports must come after register() so auto-instrumentation can patch them
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+
+agent = Agent(model=OpenAIChat(id="gpt-4o-mini"))
+agent.print_response("Explain the theory of relativity in simple terms.")`;
+}
+
+export function getOpenaiAgentsCodePython({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="${projectName}",
+  auto_instrument=True
+)
+
+# SDK imports must come after register() so auto-instrumentation can patch them
+from agents import Agent, Runner
+
+agent = Agent(name="Assistant", instructions="You are a helpful assistant.")
+result = Runner.run_sync(agent, "Explain the theory of relativity in simple terms.")`;
+}
+
+export function getAnthropicCodePython({
+  projectName,
+}: {
+  projectName: string;
+}): string {
+  return `from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="${projectName}",
+  auto_instrument=True
+)
+
+# SDK imports must come after register() so auto-instrumentation can patch them
+import anthropic
+
+client = anthropic.Anthropic()
+message = client.messages.create(
+  model="claude-sonnet-4-20250514",
+  max_tokens=1024,
+  messages=[{"role": "user", "content": "Explain the theory of relativity in simple terms."}],
+)`;
+}

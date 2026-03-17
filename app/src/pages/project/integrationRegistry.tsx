@@ -1,18 +1,26 @@
 import { Icon, Icons } from "@phoenix/components";
 import {
+  AgnoSVG,
   AnthropicSVG,
   LangChainSVG,
   LangGraphSVG,
+  LlamaIndexSVG,
   MastraSVG,
   OpenAISVG,
   VercelSVG,
 } from "@phoenix/components/project/IntegrationIcons";
 import {
+  getAgnoCodePython,
+  getAnthropicCodePython,
   getAnthropicCodeTypescript,
+  getLangchainCodePython,
   getLangchainCodeTypescript,
   getLanggraphCodePython,
   getLanggraphCodeTypescript,
+  getLlamaIndexCodePython,
   getMastraCodeTypescript,
+  getOpenaiAgentsCodePython,
+  getOpenaiCodePython,
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
   getOpenaiCodeTypescript,
@@ -81,8 +89,20 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "langchain",
     name: "LangChain",
     icon: <LangChainSVG />,
-    supportedLanguages: ["TypeScript"],
+    supportedLanguages: ["Python", "TypeScript"],
     snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-langchain",
+          "langchain-openai",
+        ],
+        getImplementationCode: getLangchainCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-langchain",
+      },
       TypeScript: {
         packages: [
           "@arizeai/phoenix-otel",
@@ -102,8 +122,20 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "openai",
     name: "OpenAI",
     icon: <OpenAISVG />,
-    supportedLanguages: ["TypeScript"],
+    supportedLanguages: ["Python", "TypeScript"],
     snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getOpenaiCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
       TypeScript: {
         packages: [
           "@arizeai/phoenix-otel",
@@ -119,11 +151,85 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
+    id: "llama-index",
+    name: "LlamaIndex",
+    icon: <LlamaIndexSVG />,
+    supportedLanguages: ["Python"],
+    snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-llama-index",
+          "llama-index",
+          "llama-index-llms-openai",
+        ],
+        getImplementationCode: getLlamaIndexCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-llama-index",
+      },
+    },
+  },
+  {
+    id: "agno",
+    name: "Agno",
+    icon: <AgnoSVG />,
+    supportedLanguages: ["Python"],
+    snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-agno",
+          "agno",
+          "openai",
+        ],
+        getImplementationCode: getAgnoCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/agno",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-agno",
+      },
+    },
+  },
+  {
+    id: "openai-agents",
+    name: "OpenAI Agents",
+    icon: <OpenAISVG />,
+    supportedLanguages: ["Python"],
+    snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai-agents",
+          "openai-agents",
+        ],
+        getImplementationCode: getOpenaiAgentsCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents",
+      },
+    },
+  },
+  {
     id: "anthropic",
     name: "Anthropic",
     icon: <AnthropicSVG />,
-    supportedLanguages: ["TypeScript"],
+    supportedLanguages: ["Python", "TypeScript"],
     snippets: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-anthropic",
+          "anthropic",
+        ],
+        getImplementationCode: getAnthropicCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic",
+      },
       TypeScript: {
         packages: [
           "@arizeai/phoenix-otel",
