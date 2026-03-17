@@ -1,0 +1,113 @@
+---
+title: "Harbor"
+sidebarTitle: "Harbor"
+description: Import traces from Harbor agent evaluations into Phoenix for observability and analysis
+---
+
+[![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-harbor.svg)](https://pypi.python.org/pypi/openinference-instrumentation-harbor)
+
+[Harbor](https://harborframework.com) is an agent evaluation framework that runs agents in sandboxed Docker containers and produces [ATIF (Agent Trajectory Interchange Format)](https://harborframework.com/docs/agents/trajectory-format) trajectory files. This package converts those trajectories into OpenInference spans so you can visualize agent evaluations in Phoenix.
+
+<Note>
+Harbor sandboxes typically lack network access, so real-time OTLP export isn't possible during evaluation. This integration converts ATIF trajectory files **after** evaluation completes — a post-hoc workflow rather than auto-instrumentation.
+</Note>
+
+## Install
+
+```bash
+pip install openinference-instrumentation-harbor
+```
+
+## Quick Start
+
+After running a Harbor evaluation, trajectory files are saved at `jobs/<job-id>/<trial>/agent/trajectory.json`. Convert and import them into Phoenix:
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    # Convert and push directly to Phoenix
+    harbor-to-otel trajectory.json --phoenix http://localhost:6006
+
+    # Or convert to OTLP JSON file first
+    harbor-to-otel trajectory.json -o traces.json
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from openinference.instrumentation.harbor import (
+        convert_trajectory_file,
+        phoenix_import_spans,
+    )
+
+    # Convert ATIF trajectory to OTel spans
+    spans = convert_trajectory_file("trajectory.json")
+
+    # Push to Phoenix
+    phoenix_import_spans(spans, endpoint="http://localhost:6006")
+    ```
+  </Tab>
+</Tabs>
+
+## Full Workflow Example
+
+A typical Harbor evaluation workflow with Phoenix observability:
+
+```python expandable
+from pathlib import Path
+from openinference.instrumentation.harbor import (
+    convert_trajectory_file,
+    phoenix_import_spans,
+)
+
+# After running: harbor run --dataset terminal-bench@2.0 --agent claude-code
+# Trajectories are saved under jobs/
+
+for trajectory in Path("jobs").rglob("trajectory.json"):
+    spans = convert_trajectory_file(trajectory)
+    phoenix_import_spans(spans, endpoint="http://localhost:6006")
+    print(f"Imported {len(spans)} spans from {trajectory.parent.parent.name}")
+```
+
+## What You'll See in Phoenix
+
+Each ATIF trajectory becomes a trace with this hierarchy:
+
+- **AGENT** root span — the full trajectory with session ID, agent name, and aggregate token counts
+- **LLM** spans — one per agent step, with per-call token counts, model name, and accumulated conversation context
+- **TOOL** spans — nested under the LLM step that invoked them, with tool parameters and results
+
+Each LLM span shows the input context (user messages + prior agent outputs + tool results) and the agent's response, making it easy to trace the agent's reasoning through a multi-step evaluation.
+
+## Offline / Sandbox Workflow
+
+When running evaluations in sandboxed environments without network access:
+
+1. **During evaluation**: Harbor automatically writes `trajectory.json` files
+2. **After evaluation**: Copy the trajectory files out of the sandbox
+3. **Import into Phoenix**: Use the CLI or Python API to convert and import
+
+```bash
+# Convert to OTLP JSON (no network needed)
+harbor-to-otel trajectory.json -o traces.json
+
+# Later, import into Phoenix
+harbor-to-otel traces.json --phoenix http://localhost:6006
+```
+
+Or use the file import API directly:
+
+```python
+from openinference.instrumentation.harbor import phoenix_import
+
+# Import previously exported OTLP JSON files
+phoenix_import("traces.json", endpoint="http://localhost:6006")
+
+# Or import a directory of files
+phoenix_import("traces_dir/", endpoint="http://localhost:6006")
+```
+
+## Resources
+
+- [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-harbor)
+- [Harbor documentation](https://harborframework.com)
+- [ATIF specification](https://harborframework.com/docs/agents/trajectory-format)

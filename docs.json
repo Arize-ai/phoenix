@@ -606,6 +606,7 @@
                   "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing"
                 ]
               },
+              "docs/phoenix/integrations/python/harbor",
               {
                 "group": "Haystack",
                 "pages": [
