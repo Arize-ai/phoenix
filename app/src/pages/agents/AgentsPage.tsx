@@ -2,17 +2,16 @@ import { css } from "@emotion/react";
 import { useState } from "react";
 
 import { PageHeader, View } from "@phoenix/components";
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import { prependBasename } from "@phoenix/utils/routingUtils";
-
 import {
   AGENT_MODEL_LOCAL_STORAGE_KEY,
+  Chat,
   DEFAULT_MODEL_MENU_VALUE,
   getAgentModelConfigFromLocalStorage,
   toAgentModelConfig,
   toModelMenuValue,
-} from "./agentModelConfig";
-import { Chat } from "./Chat";
+} from "@phoenix/components/agent";
+import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 export function AgentsPage() {
   const [menuValue, setMenuValue] = useState<ModelMenuValue>(() => {
@@ -50,6 +49,7 @@ export function AgentsPage() {
       </View>
       <Chat
         key={chatApiUrl}
+        sessionId={null}
         chatApiUrl={chatApiUrl}
         modelMenuValue={menuValue}
         onModelChange={handleChange}
