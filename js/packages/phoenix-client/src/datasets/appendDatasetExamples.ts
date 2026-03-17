@@ -61,24 +61,27 @@ export async function appendDatasetExamples({
   examples,
 }: AppendDatasetExamplesParams): Promise<AppendDatasetExamplesResponse> {
   const client = _client || createClient();
-  const inputs = examples.map((example) => example.input);
-  const outputs = examples.map((example) => example.output ?? {}); // Treat null as an empty object
-  const metadata = examples.map((example) => example.metadata ?? {});
-  const splits = examples.map((example) =>
-    example.splits !== undefined ? example.splits : null
-  );
+  const inputs = [];
+  const outputs = [];
+  const metadata = [];
+  const splits: (string | string[] | null)[] = [];
+  const spanIds: (string | null)[] = [];
+  const exampleIds: (string | null)[] = [];
+  let hasSpanIds = false;
+  let hasExampleIds = false;
 
-  // Extract span IDs from examples, preserving null/undefined as null
-  const spanIds = examples.map((example) => example?.spanId ?? null);
-
-  // Only include span_ids in the request if at least one example has a span ID
-  const hasSpanIds = spanIds.some((id) => id !== null);
-
-  // Extract IDs from examples, preserving null/undefined as null
-  const exampleIds = examples.map((example) => example?.id ?? null);
-
-  // Only include example_ids in the request if at least one example has an ID
-  const hasExampleIds = exampleIds.some((id) => id !== null);
+  for (const example of examples) {
+    inputs.push(example.input);
+    outputs.push(example.output ?? {});
+    metadata.push(example.metadata ?? {});
+    splits.push(example.splits !== undefined ? example.splits : null);
+    const spanId = example?.spanId ?? null;
+    spanIds.push(spanId);
+    if (spanId !== null) hasSpanIds = true;
+    const exampleId = example?.id ?? null;
+    exampleIds.push(exampleId);
+    if (exampleId !== null) hasExampleIds = true;
+  }
 
   let datasetName: string;
   if ("datasetName" in dataset) {
