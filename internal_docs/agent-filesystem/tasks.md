@@ -9,7 +9,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 0: Contracts and scaffolding
 
-### T0.1 Define frontend tool contract for hybrid execution
+### T0.1 Define frontend tool contract for hybrid execution [done]
 
 - Decide where tool execution location is represented in frontend code (`client` vs `server`, or equivalent local-only convention).
 - Confirm the request payload sent to `/chat` can include the `bash` tool definition on every turn.
@@ -18,7 +18,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: none
 - Blocks: T1.1, T1.2, T1.3
 
-### T0.2 Create module locations and naming for bash runtime + adapters
+### T0.2 Create module locations and naming for bash runtime + adapters [done]
 
 - Choose initial file/module placement for:
   - client bash runtime/provider
