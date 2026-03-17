@@ -1,8 +1,15 @@
+import type { Chat as AIChat } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
-import { DefaultChatTransport } from "ai";
+import type { UIMessage } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import { useEffect, useRef } from "react";
 
+import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { authFetch } from "@phoenix/authFetch";
 import { Icon, Icons, View } from "@phoenix/components";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
@@ -14,13 +21,15 @@ import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 
 const chatCSS = css`
-  position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 
   .chat__scroll {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
   }
 
@@ -31,19 +40,17 @@ const chatCSS = css`
     flex-direction: column;
     gap: var(--global-dimension-size-100);
     padding: var(--global-dimension-size-200);
-    padding-bottom: var(--global-dimension-size-1200);
+    padding-bottom: var(--global-dimension-size-200);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }
 
   .chat__input {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    flex-shrink: 0;
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
+    padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-200);
     background-color: var(--global-color-gray-75);
   }
@@ -94,6 +101,9 @@ export function Chat({
   onModelChange: (model: ModelMenuValue) => void;
 }) {
   const store = useAgentStore();
+  const addToolOutputRef = useRef<AIChat<UIMessage>["addToolOutput"] | null>(
+    null
+  );
 
   // LOAD: read stored messages for this session
   const initialMessages = sessionId
@@ -101,10 +111,40 @@ export function Chat({
     : undefined;
 
   // INIT: seed useChat with stored messages and session ID
-  const { messages, sendMessage, status, error } = useChat({
+  const chat = useChat<UIMessage>({
     id: sessionId ?? undefined,
     messages: initialMessages,
-    transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
+    transport: new DefaultChatTransport({
+      api: chatApiUrl,
+      fetch: authFetch,
+      prepareSendMessagesRequest: ({
+        body,
+        id,
+        messages,
+        trigger,
+        messageId,
+      }) => ({
+        body: buildAgentChatRequestBody({
+          body,
+          id,
+          messages,
+          trigger,
+          messageId,
+        }),
+      }),
+    }),
+    onToolCall: ({ toolCall }) => {
+      const addToolOutput = addToolOutputRef.current;
+
+      if (!addToolOutput) {
+        return;
+      }
+
+      queueMicrotask(() => {
+        void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
+      });
+    },
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     // SAVE: persist after each assistant response completes
     onFinish: ({ messages: finalMessages }) => {
       if (sessionId && finalMessages) {
@@ -112,6 +152,8 @@ export function Chat({
       }
     },
   });
+  const { messages, sendMessage, status, error, addToolOutput } = chat;
+  addToolOutputRef.current = addToolOutput;
 
   // Keep a ref to messages for the unmount cleanup (avoids stale closure)
   const messagesRef = useRef(messages);

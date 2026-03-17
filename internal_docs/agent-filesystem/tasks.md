@@ -31,7 +31,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 1: End-to-end client bash tool
 
-### T1.1 Add `bash-tool` dependency to the frontend app
+### T1.1 Add `bash-tool` dependency to the frontend app [done]
 
 - Add `bash-tool` and any required peer/runtime dependencies under `app/package.json`.
 - Verify the package builds in the current frontend toolchain.
@@ -39,7 +39,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T0.1
 - Blocks: T2.1
 
-### T1.2 Update chat to send a client-side `bash` tool definition
+### T1.2 Update chat to send a client-side `bash` tool definition [done]
 
 - Extend agent chat request construction so each chat turn includes the `bash` tool schema.
 - Keep the schema minimal and stable for v1.
@@ -47,7 +47,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T0.1
 - Blocks: T1.3
 
-### T1.3 Implement client-side tool execution in `Chat.tsx`
+### T1.3 Implement client-side tool execution in `Chat.tsx` [done]
 
 - Use AI SDK client hooks:
   - `onToolCall`
@@ -58,7 +58,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T0.1, T1.2, T2.1
 - Blocks: T1.4, T7.1
 
-### T1.4 Render tool execution in the UI
+### T1.4 Render tool execution in the UI [done]
 
 - Extend chat message rendering to support tool parts.
 - Add a toggleable panel for tool execution details.
@@ -69,7 +69,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 2: Bash runtime and safety boundaries
 
-### T2.1 Create a per-session bash runtime/provider
+### T2.1 Create a per-session bash runtime/provider [done]
 
 - Build a client runtime around `bash-tool` / `just-bash`.
 - Scope one runtime per agent session so filesystem state persists across turns.
@@ -103,6 +103,16 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Deliverable: structured runtime telemetry for debugging.
 - Depends on: T2.1
 - Blocks: T1.4, T7.1
+
+### T2.5 Plan and implement bash session cleanup + persistence
+
+- Define the lifecycle for browser-side bash runtimes after session deletion, session reset, and page reload.
+- Decide what should remain in-memory only vs. what should be serialized and rehydrated.
+- Add cleanup hooks so unused runtimes do not accumulate indefinitely.
+- If persistence is desired, define and implement a filesystem snapshot/restore path keyed by agent session id.
+- Deliverable: explicit lifecycle policy plus implementation for cleanup and, if approved by the chosen design, persistence/rehydration.
+- Depends on: T2.1
+- Blocks: T7.2, T8.1
 
 ## Milestone 3: Adapter framework
 

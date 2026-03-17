@@ -35,8 +35,8 @@
 
 ### Client Bash Runtime
 
-- Create a per-agent-session sandbox instance so filesystem state persists across turns.
-- Use `bash-tool` as the wrapper around `just-bash`.
+- Create a per-agent-session browser-side `just-bash` runtime so virtual filesystem state persists across turns.
+- Use `bash-tool` as the wrapper around a browser-executed `just-bash` instance, not a remote VM sandbox.
 - Execute tool calls through AI SDK client hooks:
   - define `bash` as a client tool
   - handle calls in `onToolCall`
