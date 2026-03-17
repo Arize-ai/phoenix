@@ -61,7 +61,7 @@ def upgrade() -> None:
         ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
-        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
         sa.Column(
             "created_at",
@@ -88,9 +88,10 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column("language", sa.String, nullable=False),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
-        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("config_hash", sa.String(16), nullable=False, server_default=""),
         sa.Column(
             "created_at",
@@ -105,6 +106,10 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("backend_type", "name"),
+        sa.CheckConstraint(
+            "language IN ('PYTHON', 'TYPESCRIPT')",
+            name="valid_sandbox_config_language",
+        ),
     )
 
     with op.batch_alter_table("code_evaluators") as batch_op:
@@ -172,7 +177,7 @@ def upgrade() -> None:
     op.create_table(
         "sandbox_settings",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("1")),
+        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

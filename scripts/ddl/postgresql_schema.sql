@@ -188,6 +188,59 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_l
     USING btree (prompt_label_id);
 
 
+-- Table: sandbox_adapters
+-- -----------------------
+CREATE TABLE public.sandbox_adapters (
+    id bigserial NOT NULL,
+    backend_type VARCHAR NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    timeout INTEGER NOT NULL DEFAULT 30,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    config_hash VARCHAR(16) NOT NULL DEFAULT ''::character varying,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_sandbox_adapters PRIMARY KEY (id),
+    CONSTRAINT uq_sandbox_adapters_backend_type
+        UNIQUE (backend_type)
+);
+
+
+-- Table: sandbox_configs
+-- ----------------------
+CREATE TABLE public.sandbox_configs (
+    id bigserial NOT NULL,
+    backend_type VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    language VARCHAR NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    timeout INTEGER NOT NULL DEFAULT 30,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    config_hash VARCHAR(16) NOT NULL DEFAULT ''::character varying,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
+    CONSTRAINT uq_sandbox_configs_backend_type_name
+        UNIQUE (backend_type, name),
+    CHECK (((language)::text = ANY ((ARRAY[
+            'PYTHON'::character varying,
+            'TYPESCRIPT'::character varying
+        ])::text[])))
+);
+
+
+-- Table: sandbox_settings
+-- -----------------------
+CREATE TABLE public.sandbox_settings (
+    id bigserial NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_sandbox_settings PRIMARY KEY (id),
+    CHECK ((id = 1))
+);
+
+
 -- Table: token_prices
 -- -------------------
 CREATE TABLE public.token_prices (
@@ -713,13 +766,32 @@ CREATE TABLE public.code_evaluators (
     id BIGINT NOT NULL,
     kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    source_code VARCHAR NOT NULL DEFAULT ''::character varying,
+    language VARCHAR NOT NULL DEFAULT 'PYTHON'::character varying,
+    input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
+    output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
+    input_schema JSONB NOT NULL DEFAULT '{}'::jsonb,
+    sandbox_config_id BIGINT,
+    sandbox_config_hash VARCHAR(16),
     CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
+    CHECK (((language)::text = ANY ((ARRAY[
+            'PYTHON'::character varying,
+            'TYPESCRIPT'::character varying
+        ])::text[]))),
     CHECK (((kind)::text = 'CODE'::text)),
     CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
         (kind, id)
         REFERENCES public.evaluators (kind, id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_code_evaluators_sandbox_config_id_sandbox_configs
+        FOREIGN KEY
+        (sandbox_config_id)
+        REFERENCES public.sandbox_configs (id)
+        ON DELETE SET NULL
 );
+
+CREATE INDEX ix_code_evaluators_sandbox_config_id ON public.code_evaluators
+    USING btree (sandbox_config_id);
 
 
 -- Table: dataset_evaluators

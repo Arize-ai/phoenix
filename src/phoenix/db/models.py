@@ -2381,7 +2381,7 @@ class SandboxAdapter(HasId):
     backend_type: Mapped[str] = mapped_column(nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     config_hash: Mapped[str] = mapped_column(String(16), nullable=False, server_default="")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -2395,20 +2395,26 @@ class SandboxConfig(HasId):
     backend_type: Mapped[str] = mapped_column(nullable=False)
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
+    language: Mapped[str] = mapped_column(nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     config_hash: Mapped[str] = mapped_column(String(16), nullable=False, server_default="")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (UniqueConstraint("backend_type", "name"),)
+    __table_args__ = (
+        UniqueConstraint("backend_type", "name"),
+        CheckConstraint(
+            "language IN ('PYTHON', 'TYPESCRIPT')", name="valid_sandbox_config_language"
+        ),
+    )
 
 
 class SandboxSettings(HasId):
     __tablename__ = "sandbox_settings"
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("1"))
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
