@@ -1,0 +1,32 @@
+---
+title: "Agent Evaluation Framework"
+sidebarTitle: "Overview"
+description: "A research-backed framework for understanding how AI agents fail and how to systematically evaluate them — from failure taxonomy to tiered evaluation methodology."
+---
+
+Evaluating AI agents requires fundamentally different approaches than evaluating standalone LLM calls. Agents operate across multiple steps, use tools, maintain state, and make decisions that compound — meaning failures are more varied, harder to detect, and more consequential than in single-turn systems.
+
+This guide provides a practical, research-backed framework for agent evaluation — from understanding failure modes to building layered evaluation systems that catch issues at every level.
+
+## Guide Contents
+
+<CardGroup cols={2}>
+  <Card title="Agent Failure Taxonomy & Evaluation Framework" icon="sitemap" href="/docs/phoenix/evaluation/agent-evaluation-framework/agent-failure-taxonomy">
+    A comprehensive taxonomy of how agents fail, and a tiered evaluation approach that maps each failure mode to the right evaluation strategy.
+  </Card>
+  <Card title="Reliability & Confidence Through Repetition" icon="arrows-rotate" href="/docs/phoenix/evaluation/agent-evaluation-framework/reliability-and-confidence">
+    Why running agent evaluations once is never enough — pass@k vs pass^k, evaluator variance as signal, and how repetition builds confidence in results.
+  </Card>
+  <Card title="Meta-Evaluation: How to Trust Your Evaluators" icon="scale-balanced" href="/docs/phoenix/evaluation/agent-evaluation-framework/meta-evaluation">
+    Treating your LLM evaluator as a classifier — measuring precision, recall, and F1 against human labels, and iterating until your evaluator is trustworthy.
+  </Card>
+  <Card title="Input Format Sensitivity Benchmark" icon="flask" href="/docs/phoenix/evaluation/agent-evaluation-framework/input-format-sensitivity">
+    Original research showing that human-readable formatting of tool calls and agent traces significantly improves LLM judge alignment with human annotations.
+  </Card>
+</CardGroup>
+
+## Who This Guide Is For
+
+This guide is designed for teams building, deploying, or procuring AI agent systems — including ML engineers designing evaluation pipelines, technical program managers defining acceptance criteria, and engineering leaders making build-vs-buy decisions about agent infrastructure.
+
+The framework is tool-agnostic: while examples reference Arize's evaluation platform, the methodology applies to any agent evaluation workflow.
