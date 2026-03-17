@@ -58,6 +58,12 @@ export interface Example {
    * in the Phoenix UI, enabling traceability from datasets back to traces.
    */
   spanId?: string | null;
+  /**
+   * External ID for deduplication during upsert operations.
+   * When provided, examples with matching external IDs will be updated
+   * rather than creating duplicates.
+   */
+  externalId?: string | null;
 }
 
 /**
