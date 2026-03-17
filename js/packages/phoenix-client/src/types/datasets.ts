@@ -59,9 +59,8 @@ export interface Example {
    */
   spanId?: string | null;
   /**
-   * Optional stable ID for this example.
-   * When provided, used as the example's stable public ID,
-   * enabling upsert behaviour across dataset versions.
+   * Optional user-provided ID for this example.
+   * If not provided, the server will generate an ID.
    */
   id?: string | null;
 }
@@ -70,9 +69,9 @@ export interface Example {
  * An example that has been synced to the server
  */
 export interface ExampleWithId extends Example {
-  /** The stable public ID of this example. */
+  /** The user-provided or server-generated ID for this example. */
   id: string;
-  /** Internal Phoenix node ID. */
+  /** Server-generated ID for this example. */
   nodeId: string;
   updatedAt: Date;
 }

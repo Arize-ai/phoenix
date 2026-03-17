@@ -808,6 +808,8 @@ class Datasets:
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
+            id_key: Optional column name containing user-provided IDs for examples.
+                If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -950,6 +952,8 @@ class Datasets:
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
+            id_key: Optional column name containing user-provided IDs for examples.
+                If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1656,6 +1660,8 @@ class AsyncDatasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
+            id_key: Optional column name containing user-provided IDs for examples.
+                If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1773,6 +1779,8 @@ class AsyncDatasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
+            id_key: Optional column name containing user-provided IDs for examples.
+                If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
