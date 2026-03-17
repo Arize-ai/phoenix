@@ -1,13 +1,12 @@
+import gzip
 import logging
-import shutil
 from binascii import hexlify
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from io import StringIO
+from io import BytesIO, StringIO
 from random import getrandbits
-from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import (
     NamedTuple,
@@ -18,11 +17,13 @@ from urllib.parse import urljoin
 
 import httpx
 import pandas as pd
+import pyarrow as pa
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from httpx import ConnectError, HTTPStatusError
+from pyarrow import Table
 
 import phoenix.trace.v1 as pb
-from phoenix.session.client import Client
+from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import (
@@ -30,6 +31,43 @@ from phoenix.trace.utils import (
     json_lines_to_df,
     parse_file_extension,
 )
+
+
+def _prepare_pyarrow(
+    df: pd.DataFrame,
+    keys: DatasetKeys,
+) -> tuple[str, BytesIO, str, dict[str, str]]:
+    if df.empty:
+        raise ValueError("dataframe has no data")
+    (header, freq), *_ = Counter(df.columns).most_common(1)
+    if freq > 1:
+        raise ValueError(f"Duplicated column header in file: {header}")
+    keys.check_differences(frozenset(df.columns))
+    table = Table.from_pandas(df.loc[:, list(keys)])
+    sink = pa.BufferOutputStream()
+    options = pa.ipc.IpcWriteOptions(compression="lz4")
+    with pa.ipc.new_stream(sink, table.schema, options=options) as writer:
+        writer.write_table(table)
+    return "pandas", BytesIO(sink.getvalue().to_pybytes()), "application/x-pandas-pyarrow", {}
+
+
+def _prepare_csv_bytes(
+    csv_content: StringIO,
+    name: str,
+    keys: DatasetKeys,
+) -> tuple[str, BytesIO, str, dict[str, str]]:
+    raw = csv_content.read().encode("utf-8")
+    lines = raw.splitlines()
+    if len(lines) < 2:
+        raise ValueError("csv file has no data")
+    column_headers = tuple(line.decode("utf-8") for line in lines[0].split(b","))
+    (header, freq), *_ = Counter(column_headers).most_common(1)
+    if freq > 1:
+        raise ValueError(f"Duplicated column header in CSV file: {header}")
+    keys.check_differences(frozenset(column_headers))
+    compressed = BytesIO(gzip.compress(raw))
+    return name, compressed, "text/csv", {"Content-Encoding": "gzip"}
+
 
 logger = logging.getLogger(__name__)
 
@@ -408,34 +446,33 @@ def send_dataset_fixtures(
             print(str(e))
             raise
         break
-    client = Client(endpoint=endpoint)
+    upload_url = urljoin(endpoint, "v1/datasets/upload")
     for i, fixture in enumerate(fixtures):
+        keys = DatasetKeys(
+            frozenset(fixture.input_keys),
+            frozenset(fixture.output_keys),
+            frozenset(fixture.metadata_keys),
+        )
         try:
             if i % 2:
-                client.upload_dataset(
-                    dataset_name=fixture.name,
-                    dataframe=fixture.dataframe,
-                    input_keys=fixture.input_keys,
-                    output_keys=fixture.output_keys,
-                    metadata_keys=fixture.metadata_keys,
-                    dataset_description=fixture.description,
-                )
+                fname, fdata, ftype, fheaders = _prepare_pyarrow(fixture.dataframe, keys)
             else:
-                with NamedTemporaryFile() as tf:
-                    with open(tf.name, "w") as f:
-                        shutil.copyfileobj(fixture.csv, f)
-                        f.flush()
-                    client.upload_dataset(
-                        dataset_name=fixture.name,
-                        csv_file_path=tf.name,
-                        input_keys=fixture.input_keys,
-                        output_keys=fixture.output_keys,
-                        metadata_keys=fixture.metadata_keys,
-                        dataset_description=fixture.description,
-                    )
+                fname, fdata, ftype, fheaders = _prepare_csv_bytes(fixture.csv, fixture.name, keys)
+            httpx.post(
+                url=upload_url,
+                files={"file": (fname, fdata, ftype, fheaders)},
+                data={
+                    "action": "create",
+                    "name": fixture.name,
+                    "description": fixture.description,
+                    "input_keys[]": sorted(keys.input),
+                    "output_keys[]": sorted(keys.output),
+                    "metadata_keys[]": sorted(keys.metadata),
+                },
+                params={"sync": True},
+            ).raise_for_status()
         except HTTPStatusError as e:
             print(e.response.content.decode())
-            pass
         else:
             name, df = fixture.name, fixture.dataframe
             print(f"Dataset sent: {name=}, {len(df)=}")

@@ -8,6 +8,7 @@ import json
 from datetime import datetime, timedelta
 
 import pandas as pd
+from phoenix.client import Client
 from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
 from phoenix.evals import bind_evaluator, evaluate_dataframe
 from phoenix.evals.llm import LLM
@@ -17,10 +18,7 @@ from phoenix.evals.metrics import (
     FaithfulnessEvaluator,
 )
 
-import phoenix as px
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
-
-phoenix_client = px.Client()
+phoenix_client = Client()
 last_eval_run_time = datetime.now() - timedelta(
     minutes=1, seconds=10
 )  # add a few seconds to ensure all spans are captured
@@ -57,15 +55,15 @@ if qa_df is not None:
         dataframe=qa_df,
         evaluators=[faithfulness_evaluator, correctness_evaluator],
     )
-    phoenix_client.log_evaluations(
-        SpanEvaluations(
-            eval_name="Hallucination",
-            dataframe=_score_dataframe(qa_results_df, score_name="faithfulness"),
-        ),
-        SpanEvaluations(
-            eval_name="QA Correctness",
-            dataframe=_score_dataframe(qa_results_df, score_name="correctness"),
-        ),
+    phoenix_client.spans.log_span_annotations_dataframe(
+        dataframe=_score_dataframe(qa_results_df, score_name="faithfulness"),
+        annotation_name="Hallucination",
+        annotator_kind="LLM",
+    )
+    phoenix_client.spans.log_span_annotations_dataframe(
+        dataframe=_score_dataframe(qa_results_df, score_name="correctness"),
+        annotation_name="QA Correctness",
+        annotator_kind="LLM",
     )
 
 if retriever_spans_df is not None:
@@ -73,11 +71,10 @@ if retriever_spans_df is not None:
         dataframe=retriever_spans_df,
         evaluators=[document_relevance_evaluator],
     )
-    phoenix_client.log_evaluations(
-        DocumentEvaluations(
-            eval_name="Relevance",
-            dataframe=_score_dataframe(relevance_results_df, score_name="document_relevance"),
-        ),
+    phoenix_client.spans.log_document_annotations_dataframe(
+        dataframe=_score_dataframe(relevance_results_df, score_name="document_relevance"),
+        annotation_name="Relevance",
+        annotator_kind="LLM",
     )
 
 print("Evaluations logged to Phoenix")

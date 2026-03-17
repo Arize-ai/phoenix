@@ -7,20 +7,13 @@ import pandas as pd
 from openai import OpenAI
 from phoenix.client import Client
 from phoenix.client.experiments import create_evaluator
-from phoenix.evals.models import OpenAIModel
+from phoenix.client.resources.experiments.types import ExampleInput
 from phoenix.otel import register
-
-from phoenix.experiments.evaluators import (
-    ConcisenessEvaluator,
-    ContainsAnyKeyword,
-)
-from phoenix.experiments.types import ExampleInput
 
 register(auto_instrument=True)
 
 httpx_client = httpx.Client()
 phoenix_client = Client()
-contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 openai_client = OpenAI()
 
 df = pd.DataFrame(
@@ -105,10 +98,6 @@ def task(input: ExampleInput, template: str) -> str:
         model="gpt-4o", messages=[{"role": "user", "content": message_content}]
     )
     return response.choices[0].message.content or ""
-
-
-model = OpenAIModel(model="gpt-4o")
-conciseness = ConcisenessEvaluator(model=model)
 
 
 def jaccard_similarity(output: str, expected: dict[str, Any]) -> float:

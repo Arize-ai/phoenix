@@ -42,12 +42,11 @@ from openai.types.chat import (
 )
 from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.shared_params import ResponseFormatJSONSchema
+from phoenix.client import Client as _PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from typing_extensions import assert_never
-
-import phoenix as px
 
 from .._helpers import (
     _MEMBER,
@@ -448,7 +447,7 @@ class TestUserId:
     ) -> None:
         u = _get_user(_app, _MEMBER).log_in(_app)
         api_key = str(u.create_api_key(_app))
-        prompt = px.Client(endpoint=_app.base_url, api_key=api_key).prompts.create(
+        prompt = _PhoenixClient(base_url=_app.base_url, api_key=api_key).prompts.create(
             name=token_hex(8),
             version=PromptVersion.from_openai(
                 CompletionCreateParamsBase(
@@ -514,15 +513,17 @@ class TestMetadata:
 def _can_recreate_via_client(_app: _AppInfo, version: PromptVersion, api_key: str) -> None:
     new_name = token_hex(8)
     base_url = _app.base_url
-    a = px.Client(endpoint=base_url, api_key=api_key).prompts.create(name=new_name, version=version)
+    a = _PhoenixClient(base_url=base_url, api_key=api_key).prompts.create(
+        name=new_name, version=version
+    )
     assert version.id != a.id
     expected = version._dumps()
     assert not DeepDiff(expected, a._dumps())
-    b = px.Client(endpoint=base_url, api_key=api_key).prompts.get(prompt_identifier=new_name)
+    b = _PhoenixClient(base_url=base_url, api_key=api_key).prompts.get(prompt_identifier=new_name)
     assert a.id == b.id
     assert not DeepDiff(expected, b._dumps())
     same_name = new_name
-    c = px.Client(endpoint=base_url, api_key=api_key).prompts.create(
+    c = _PhoenixClient(base_url=base_url, api_key=api_key).prompts.create(
         name=same_name, version=version
     )
     assert a.id != c.id
@@ -567,7 +568,7 @@ def _create_chat_prompt(
     }
     response, _ = _gql(app, api_key, query=_CREATE_CHAT_PROMPT, variables=variables)
     prompt_id = response["data"]["createChatPrompt"]["id"]
-    return px.Client(endpoint=app.base_url, api_key=api_key).prompts.get(
+    return _PhoenixClient(base_url=app.base_url, api_key=api_key).prompts.get(
         prompt_identifier=prompt_id
     )
 

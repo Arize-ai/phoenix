@@ -13,10 +13,8 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
+from phoenix.client import Client as _PhoenixClient
 from phoenix.client.__generated__ import v1
-
-import phoenix as px
-from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 
 from .._helpers import (
     _SYSTEM_USER_GID,
@@ -3147,41 +3145,43 @@ class TestSendingAnnotationsBeforeSpan:
                 sync=False,
             )
 
-            px.Client(endpoint=_app.base_url, api_key=api_key).log_evaluations(
-                SpanEvaluations(
-                    eval_name=span_eval_name,
-                    dataframe=pd.DataFrame(
-                        {
-                            "span_id": [span_id],
-                            "label": [span_eval_labels[-1]],
-                            "score": [span_eval_scores[-1]],
-                            "explanation": [span_eval_explanations[-1]],
-                        }
-                    ),
+            _eval_client = _PhoenixClient(base_url=_app.base_url, api_key=api_key)
+            _eval_client.spans.log_span_annotations_dataframe(
+                dataframe=pd.DataFrame(
+                    {
+                        "span_id": [span_id],
+                        "label": [span_eval_labels[-1]],
+                        "score": [span_eval_scores[-1]],
+                        "explanation": [span_eval_explanations[-1]],
+                    }
                 ),
-                TraceEvaluations(
-                    eval_name=trace_eval_name,
-                    dataframe=pd.DataFrame(
-                        {
-                            "trace_id": [trace_id],
-                            "label": [trace_eval_labels[-1]],
-                            "score": [trace_eval_scores[-1]],
-                            "explanation": [trace_eval_explanations[-1]],
-                        }
-                    ),
+                annotation_name=span_eval_name,
+                annotator_kind="LLM",
+            )
+            _eval_client.traces.log_trace_annotations_dataframe(
+                dataframe=pd.DataFrame(
+                    {
+                        "trace_id": [trace_id],
+                        "label": [trace_eval_labels[-1]],
+                        "score": [trace_eval_scores[-1]],
+                        "explanation": [trace_eval_explanations[-1]],
+                    }
                 ),
-                DocumentEvaluations(
-                    eval_name=doc_eval_name,
-                    dataframe=pd.DataFrame(
-                        {
-                            "span_id": [span_id],
-                            "document_position": [document_position],
-                            "label": [doc_eval_labels[-1]],
-                            "score": [doc_eval_scores[-1]],
-                            "explanation": [doc_eval_explanations[-1]],
-                        }
-                    ),
+                annotation_name=trace_eval_name,
+                annotator_kind="LLM",
+            )
+            _eval_client.spans.log_document_annotations_dataframe(
+                dataframe=pd.DataFrame(
+                    {
+                        "span_id": [span_id],
+                        "document_position": [document_position],
+                        "label": [doc_eval_labels[-1]],
+                        "score": [doc_eval_scores[-1]],
+                        "explanation": [doc_eval_explanations[-1]],
+                    }
                 ),
+                annotation_name=doc_eval_name,
+                annotator_kind="LLM",
             )
             # Use a significant sleep duration to verify that annotations sent before
             # span ingestion are properly processed in chronological order
@@ -3462,41 +3462,43 @@ class TestSendingAnnotationsBeforeSpan:
             sync=False,
         )
 
-        px.Client(endpoint=_app.base_url, api_key=api_key).log_evaluations(
-            SpanEvaluations(
-                eval_name=span_eval_name,
-                dataframe=pd.DataFrame(
-                    {
-                        "span_id": [span_id],
-                        "label": [new_span_eval_label],
-                        "score": [new_span_eval_score],
-                        "explanation": [new_span_eval_explanation],
-                    }
-                ),
+        _eval_client = _PhoenixClient(base_url=_app.base_url, api_key=api_key)
+        _eval_client.spans.log_span_annotations_dataframe(
+            dataframe=pd.DataFrame(
+                {
+                    "span_id": [span_id],
+                    "label": [new_span_eval_label],
+                    "score": [new_span_eval_score],
+                    "explanation": [new_span_eval_explanation],
+                }
             ),
-            TraceEvaluations(
-                eval_name=trace_eval_name,
-                dataframe=pd.DataFrame(
-                    {
-                        "trace_id": [trace_id],
-                        "label": [new_trace_eval_label],
-                        "score": [new_trace_eval_score],
-                        "explanation": [new_trace_eval_explanation],
-                    }
-                ),
+            annotation_name=span_eval_name,
+            annotator_kind="LLM",
+        )
+        _eval_client.traces.log_trace_annotations_dataframe(
+            dataframe=pd.DataFrame(
+                {
+                    "trace_id": [trace_id],
+                    "label": [new_trace_eval_label],
+                    "score": [new_trace_eval_score],
+                    "explanation": [new_trace_eval_explanation],
+                }
             ),
-            DocumentEvaluations(
-                eval_name=doc_eval_name,
-                dataframe=pd.DataFrame(
-                    {
-                        "span_id": [span_id],
-                        "document_position": [document_position],
-                        "label": [new_doc_eval_label],
-                        "score": [new_doc_eval_score],
-                        "explanation": [new_doc_eval_explanation],
-                    }
-                ),
+            annotation_name=trace_eval_name,
+            annotator_kind="LLM",
+        )
+        _eval_client.spans.log_document_annotations_dataframe(
+            dataframe=pd.DataFrame(
+                {
+                    "span_id": [span_id],
+                    "document_position": [document_position],
+                    "label": [new_doc_eval_label],
+                    "score": [new_doc_eval_score],
+                    "explanation": [new_doc_eval_explanation],
+                }
             ),
+            annotation_name=doc_eval_name,
+            annotator_kind="LLM",
         )
 
         # Check updated annotations
