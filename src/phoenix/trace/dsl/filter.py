@@ -400,6 +400,10 @@ def _cast_as(
     )
 
 
+def _is_string_name(node: typing.Any) -> bool:
+    return isinstance(node, ast.Name) and node.id in _STRING_NAMES
+
+
 def _is_string(node: typing.Any) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Name)
@@ -487,8 +491,18 @@ class _FilterTranslator(_ProjectionTranslator):
                 _as_bool_attribute(right) if _is_bool_constant(left) else _cast_as("String", right)
             )
         if _is_float(left) and not _is_float(right):
+            if _is_string_name(right):
+                raise SyntaxError(
+                    f"type mismatch: string field '{ast.unparse(right)}'"
+                    " cannot be compared to a numeric value"
+                )
             right = _cast_as("Float", right)
         elif not _is_float(left) and _is_float(right):
+            if _is_string_name(left):
+                raise SyntaxError(
+                    f"type mismatch: string field '{ast.unparse(left)}'"
+                    " cannot be compared to a numeric value"
+                )
             left = _cast_as("Float", left)
         if isinstance(op, (ast.In, ast.NotIn)):
             if _is_string_attribute(right) or ast.unparse(right) in _NAMES:

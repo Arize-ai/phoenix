@@ -185,6 +185,22 @@ async def test_filter_translated(
 
 
 @pytest.mark.parametrize(
+    "expression",
+    [
+        pytest.param("name == 1", id="string-field-eq-int"),
+        pytest.param("name == 1.5", id="string-field-eq-float"),
+        pytest.param("1 == name", id="int-eq-string-field"),
+        pytest.param("span_id == 42", id="span_id-eq-int"),
+        pytest.param("status_code == 0", id="status_code-eq-int"),
+        pytest.param("latency_ms == name", id="float-field-eq-string-field"),
+    ],
+)
+def test_filter_raises_on_string_numeric_type_mismatch(expression: str) -> None:
+    with pytest.raises(SyntaxError, match="type mismatch"):
+        SpanFilter(expression)
+
+
+@pytest.mark.parametrize(
     "filter_condition,expected",
     [
         pytest.param(
