@@ -18,7 +18,7 @@ import {
 } from "@phoenix/components";
 import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
-import type { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
+import type { PromptVersionLoaderData } from "@phoenix/pages/prompt/promptVersionLoader";
 import { promptVersionLoaderQuery } from "@phoenix/pages/prompt/promptVersionLoader";
 
 import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersionButton";
@@ -30,8 +30,7 @@ import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export function PromptVersionDetailsPage() {
-  const loaderData = useLoaderData<typeof promptVersionLoader>();
-  invariant(loaderData, "loaderData is required");
+  const loaderData = useLoaderData<PromptVersionLoaderData>();
   const data = usePreloadedQuery<PromptVersionLoaderQuery>(
     promptVersionLoaderQuery,
     loaderData.queryRef

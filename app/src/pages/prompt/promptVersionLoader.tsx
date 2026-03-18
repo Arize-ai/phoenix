@@ -7,7 +7,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { promptVersionLoaderQuery as PromptVersionLoaderQuery } from "./__generated__/promptVersionLoaderQuery.graphql";
 
 /**
- * The loadQuery graphql query node to be used for render-as-you-fetch.
+ * Query for prompt version loader.
  */
 export const promptVersionLoaderQuery = graphql`
   query promptVersionLoaderQuery($id: ID!) {

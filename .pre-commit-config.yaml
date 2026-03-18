@@ -26,13 +26,13 @@ repos:
         stages: [pre-commit]
       - id: oxfmt-app
         name: oxfmt (app)
-        entry: pnpm --dir app run fmt:check
+        entry: pnpm --dir app run fmt
         language: system
         files: ^app/.*\.(jsx?|tsx?|css|md|json|ya?ml)$
         pass_filenames: false
       - id: oxfmt-js
         name: oxfmt (js)
-        entry: pnpm --dir js run fmt:check
+        entry: pnpm --dir js run fmt
         language: system
         files: ^js/.*\.(jsx?|tsx?|md|json|ya?ml)$
         pass_filenames: false
