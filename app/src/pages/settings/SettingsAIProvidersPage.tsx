@@ -1,6 +1,5 @@
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
-import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
 import { CustomProvidersCard } from "@phoenix/pages/settings/CustomProvidersCard";
@@ -13,10 +12,7 @@ import {
 import type { settingsAIProvidersPageLoaderQuery as settingsAIProvidersPageLoaderQueryType } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
 
 export function SettingsAIProvidersPage() {
-  const loaderData = useLoaderData() as
-    | SettingsAIProvidersLoaderData
-    | undefined;
-  invariant(loaderData, "loaderData is required");
+  const loaderData = useLoaderData<SettingsAIProvidersLoaderData>();
   const data = usePreloadedQuery<settingsAIProvidersPageLoaderQueryType>(
     settingsAIProvidersPageLoaderQuery,
     loaderData.queryRef
