@@ -1,4 +1,3 @@
-import type { Chat as AIChat } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
 import type { UIMessage } from "ai";
@@ -101,18 +100,15 @@ export function Chat({
   onModelChange: (model: ModelMenuValue) => void;
 }) {
   const store = useAgentStore();
-  const addToolOutputRef = useRef<AIChat<UIMessage>["addToolOutput"] | null>(
-    null
-  );
 
-  // LOAD: read stored messages for this session
+  // read stored messages for this session
   const initialMessages = sessionId
     ? store.getState().sessionMap[sessionId]?.messages
     : undefined;
 
-  // INIT: seed useChat with stored messages and session ID
   const chat = useChat<UIMessage>({
     id: sessionId ?? undefined,
+    // seed useChat with stored messages and session ID
     messages: initialMessages,
     transport: new DefaultChatTransport({
       api: chatApiUrl,
@@ -134,34 +130,30 @@ export function Chat({
       }),
     }),
     onToolCall: ({ toolCall }) => {
-      const addToolOutput = addToolOutputRef.current;
-
-      if (!addToolOutput) {
-        return;
-      }
-
-      // Avoid awaiting tool execution inside the AI SDK's current update job.
-      // `addToolOutput` schedules its own update job, so deferring prevents a queue deadlock.
-      queueMicrotask(() => {
-        void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
-      });
+      // AI SDK docs recommend not awaiting `addToolOutput` inside `onToolCall`
+      // when using `sendAutomaticallyWhen`, because it can deadlock the chat
+      // update loop. We follow that guidance here by kicking off tool handling
+      // without awaiting it and letting the helper manage tool output updates.
+      // See: ai/docs/04-ai-sdk-ui/03-chatbot-tool-usage.mdx and
+      // ai/docs/08-migration-guides/26-migration-guide-5-0.mdx in this repo's
+      // installed AI SDK package.
+      void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    // SAVE: persist after each assistant response completes
     onFinish: ({ messages: finalMessages }) => {
       if (sessionId && finalMessages) {
+        // persist after each assistant response completes
         store.getState().setSessionMessages(sessionId, finalMessages);
       }
     },
   });
   const { messages, sendMessage, status, error, addToolOutput } = chat;
-  addToolOutputRef.current = addToolOutput;
 
   // Keep a ref to messages for the unmount cleanup (avoids stale closure)
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  // SAVE on unmount (covers model change remount, tab close)
+  // persist messages on unmount (covers model change remount, tab close)
   useEffect(() => {
     return () => {
       if (sessionId && messagesRef.current.length > 0) {
