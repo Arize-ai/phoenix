@@ -92,6 +92,127 @@ describe("getSpans", () => {
     expect(result.spans).toHaveLength(1);
   });
 
+  describe("filter parameters (name, spanKind, statusCode)", () => {
+    it("should send name as array when given a single string", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        name: "my-span",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              name: ["my-span"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send name as array when given an array", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        name: ["span-a", "span-b"],
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              name: ["span-a", "span-b"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send span_kind as array when given a single string", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        spanKind: "LLM",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              span_kind: ["LLM"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send span_kind as array when given an array", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        spanKind: ["LLM", "CHAIN"],
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              span_kind: ["LLM", "CHAIN"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send status_code as array when given a single string", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        statusCode: "ERROR",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              status_code: ["ERROR"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send status_code as array when given an array", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        statusCode: ["OK", "ERROR"],
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              status_code: ["OK", "ERROR"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should not send filter params when undefined", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query).not.toHaveProperty("name");
+      expect(callArgs.params.query).not.toHaveProperty("span_kind");
+      expect(callArgs.params.query).not.toHaveProperty("status_code");
+    });
+  });
+
   describe("parentId parameter", () => {
     it('should send parent_id="null" to get root spans only', async () => {
       await getSpans({

@@ -1,6 +1,9 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
-import { GET_SPANS_TRACE_IDS } from "../constants/serverRequirements";
+import {
+  GET_SPANS_FILTERS,
+  GET_SPANS_TRACE_IDS,
+} from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
@@ -24,6 +27,12 @@ export interface GetSpansParams extends ClientFn {
   traceIds?: string[] | null;
   /** Filter by parent span ID. Use `null` or the string `"null"` to get root spans only. */
   parentId?: string | null;
+  /** Filter by span name(s) */
+  name?: string | string[] | null;
+  /** Filter by span kind(s) (LLM, CHAIN, TOOL, etc.) */
+  spanKind?: string | string[] | null;
+  /** Filter by status code(s) (OK, ERROR, UNSET) */
+  statusCode?: string | string[] | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -103,10 +112,16 @@ export async function getSpans({
   endTime,
   traceIds,
   parentId,
+  name,
+  spanKind,
+  statusCode,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
   if (traceIds) {
     await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
+  }
+  if (name || spanKind || statusCode) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
   }
   const projectIdentifier = resolveProjectIdentifier(project);
 
@@ -133,6 +148,18 @@ export async function getSpans({
 
   if (parentId !== undefined) {
     params.parent_id = parentId === null ? "null" : parentId;
+  }
+
+  if (name) {
+    params.name = Array.isArray(name) ? name : [name];
+  }
+
+  if (spanKind) {
+    params.span_kind = Array.isArray(spanKind) ? spanKind : [spanKind];
+  }
+
+  if (statusCode) {
+    params.status_code = Array.isArray(statusCode) ? statusCode : [statusCode];
   }
 
   const { data, error } = await client.GET(
