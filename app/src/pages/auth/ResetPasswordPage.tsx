@@ -3,7 +3,7 @@ import { useLoaderData } from "react-router";
 
 import { Flex, View } from "@phoenix/components";
 
-import type { resetPasswordLoaderQuery as resetPasswordLoaderQueryType } from "./__generated__/resetPasswordLoaderQuery.graphql";
+import type { resetPasswordLoaderQuery as ResetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQuery.graphql";
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";
 import { ResetPasswordForm } from "./ResetPasswordForm";
@@ -12,7 +12,7 @@ import { resetPasswordLoaderQuery } from "./resetPasswordLoader";
 
 export function ResetPasswordPage() {
   const loaderData = useLoaderData<ResetPasswordLoaderData>();
-  const data = usePreloadedQuery<resetPasswordLoaderQueryType>(
+  const data = usePreloadedQuery<ResetPasswordLoaderQuery>(
     resetPasswordLoaderQuery,
     loaderData.queryRef
   );

@@ -26,7 +26,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import type { dashboardsLoaderQuery as DashboardsLoaderQueryType } from "./__generated__/dashboardsLoaderQuery.graphql";
+import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
 import type { DashboardsLoaderData } from "./dashboardsLoader";
 import { dashboardsLoaderQuery } from "./dashboardsLoader";
 import { ProjectDashboardsTable } from "./ProjectDashboardsTable";
@@ -140,7 +140,7 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
 export function DashboardsPage() {
   "use no memo";
   const loaderData = useLoaderData<DashboardsLoaderData>();
-  const data = usePreloadedQuery<DashboardsLoaderQueryType>(
+  const data = usePreloadedQuery<DashboardsLoaderQuery>(
     dashboardsLoaderQuery,
     loaderData.queryRef
   );
