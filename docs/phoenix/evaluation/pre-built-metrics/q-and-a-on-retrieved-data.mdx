@@ -16,29 +16,32 @@ This Eval evaluates whether a question was correctly answered by the system base
 
 ## Q\&A Eval Template
 
-```bash
+```
 You are given a question, an answer and reference text. You must determine whether the
-given answer correctly answers the question based on the reference text. Here is the data:
-    [BEGIN DATA]
-    ************
-    [Question]: {input}
-    ************
-    [Reference]: {reference}
-    ************
-    [Answer]: {output}
-    [END DATA]
+given answer correctly answers the question based on the reference text.
+
+<data>
+
+<question>
+{input}
+</question>
+
+<reference>
+{reference}
+</reference>
+
+<answer>
+{output}
+</answer>
+
+</data>
+
 Your response must be a single word, either "correct" or "incorrect",
 and should not contain any text or characters aside from that word.
 "correct" means that the question is correctly and fully answered by the answer.
 "incorrect" means that the question is not correctly or only partially answered by the
 answer.
 ```
-
-<Info>
-  We are continually iterating our templates, view the most up-to-date template
-  [on
-  GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/legacy/span_templates.py#L104).
-</Info>
 
 ## How To Run the Q\&A Eval
 
@@ -47,15 +50,24 @@ from phoenix.evals import ClassificationEvaluator
 from phoenix.evals.llm import LLM
 
 QA_TEMPLATE = """You are given a question, an answer and reference text. You must determine whether the
-given answer correctly answers the question based on the reference text. Here is the data:
-    [BEGIN DATA]
-    ************
-    [Question]: {input}
-    ************
-    [Reference]: {reference}
-    ************
-    [Answer]: {output}
-    [END DATA]
+given answer correctly answers the question based on the reference text.
+
+<data>
+
+<question>
+{input}
+</question>
+
+<reference>
+{reference}
+</reference>
+
+<answer>
+{output}
+</answer>
+
+</data>
+
 "correct" means that the question is correctly and fully answered by the answer.
 "incorrect" means that the question is not correctly or only partially answered by the answer."""
 
