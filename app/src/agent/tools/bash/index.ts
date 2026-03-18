@@ -16,4 +16,12 @@ export {
 } from "./bashToolRuntime";
 export type { BashToolFilesystemPolicy } from "./bashToolFilesystemPolicy";
 export type { BashToolInput } from "./bashToolSchema";
-export type { BashToolCommandResult, BashToolRuntime } from "./bashToolTypes";
+export {
+  getBashToolCommandDisplayResult,
+  isBashToolCommandResult,
+} from "./bashToolTypes";
+export type {
+  BashToolCommandDisplayResult,
+  BashToolCommandResult,
+  BashToolRuntime,
+} from "./bashToolTypes";
