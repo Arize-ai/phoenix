@@ -999,6 +999,10 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
     --global-table-bordered-cell-border-color: var(--global-color-gray-100);
     --global-table-pagination-border-color: var(--global-color-gray-300);
+    --global-table-cell-controls-offset: var(
+      --global-dimension-static-size-200
+    );
+    --global-table-cell-controls-gap: var(--global-dimension-static-size-100);
 
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);

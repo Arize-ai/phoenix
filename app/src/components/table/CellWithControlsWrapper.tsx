@@ -7,8 +7,8 @@ const cellWithControlsWrapCSS = css`
   min-height: 100%;
   .controls {
     transition: opacity 0.2s ease-in-out;
-    opacity: 0;
-    display: none;
+    // opacity: 0;
+    //display: none;
     z-index: 1;
   }
   &:hover .controls {
@@ -23,11 +23,11 @@ const cellWithControlsWrapCSS = css`
 
 const cellControlsCSS = css`
   position: absolute;
-  top: calc(-1 * var(--global-dimension-static-size-200));
-  right: var(--global-dimension-static-size-200);
+  top: calc(-1 * var(--global-table-cell-controls-offset));
+  right: var(--global-table-cell-controls-offset);
   display: flex;
   flex-direction: row;
-  gap: var(--global-dimension-static-size-100);
+  gap: var(--global-table-cell-controls-gap);
 `;
 
 /**
