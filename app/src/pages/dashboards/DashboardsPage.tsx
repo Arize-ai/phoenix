@@ -139,7 +139,7 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
 
 export function DashboardsPage() {
   "use no memo";
-  const loaderData = useLoaderData() as DashboardsLoaderData;
+  const loaderData = useLoaderData<DashboardsLoaderData>();
   const data = usePreloadedQuery<DashboardsLoaderQueryType>(
     dashboardsLoaderQuery,
     loaderData.queryRef
