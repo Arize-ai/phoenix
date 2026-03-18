@@ -17,36 +17,32 @@ async function searchApi(query: string): Promise<string | null> {
     );
   }
 
-  try {
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: tavilyKey,
-        query: query,
-        max_results: 3,
-        search_depth: "basic",
-        include_answer: true,
-      }),
-    });
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key: tavilyKey,
+      query: query,
+      max_results: 3,
+      search_depth: "basic",
+      include_answer: true,
+    }),
+  });
 
-    if (!response.ok) {
-      throw new Error(
-        `Tavily API error: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = (await response.json()) as {
-      answer?: string;
-      results?: Array<{ content?: string }>;
-    };
-    const answer = data.answer || "";
-    const snippets = (data.results || []).map((r) => r.content || "").join(" ");
-    const combined = `${answer} ${snippets}`.trim();
-    return combined.slice(0, 400) || null;
-  } catch (error) {
-    throw error;
+  if (!response.ok) {
+    throw new Error(
+      `Tavily API error: ${response.status} ${response.statusText}`
+    );
   }
+
+  const data = (await response.json()) as {
+    answer?: string;
+    results?: Array<{ content?: string }>;
+  };
+  const answer = data.answer || "";
+  const snippets = (data.results || []).map((r) => r.content || "").join(" ");
+  const combined = `${answer} ${snippets}`.trim();
+  return combined.slice(0, 400) || null;
 }
 
 const destinationSchema = z.string().min(1, "Destination is required").max(100);
