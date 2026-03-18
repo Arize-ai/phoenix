@@ -121,7 +121,7 @@ export async function getSpans({
   if (traceIds) {
     await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
   }
-  if (name || spanKind || statusCode) {
+  if (name != null || spanKind != null || statusCode != null) {
     await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
   }
   const projectIdentifier = resolveProjectIdentifier(project);
