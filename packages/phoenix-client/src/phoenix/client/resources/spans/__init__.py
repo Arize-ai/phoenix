@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.constants.server_requirements import GET_SPANS_TRACE_IDS
+from phoenix.client.constants.server_requirements import GET_SPANS_FILTERS, GET_SPANS_TRACE_IDS
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
@@ -439,6 +439,9 @@ class Spans:
         end_time: Optional[datetime] = None,
         trace_ids: Optional[Sequence[str]] = None,
         parent_id: Optional[str] = None,
+        name: Optional[Union[str, Sequence[str]]] = None,
+        span_kind: Optional[Union[str, Sequence[str]]] = None,
+        status_code: Optional[Union[str, Sequence[str]]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -455,6 +458,12 @@ class Spans:
                 Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
+            name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
+                Requires Phoenix server >= 13.15.0.
+            span_kind (Optional[Union[str, Sequence[str]]]): Optional span kind(s) to filter
+                by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
+            status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
+                filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -466,6 +475,8 @@ class Spans:
         """
         if trace_ids:
             self._guard.require(GET_SPANS_TRACE_IDS)
+        if name or span_kind or status_code:
+            self._guard.require(GET_SPANS_FILTERS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -486,6 +497,14 @@ class Spans:
                 params["trace_id"] = list(trace_ids)
             if parent_id is not None:
                 params["parent_id"] = parent_id
+            if name:
+                params["name"] = [name] if isinstance(name, str) else list(name)
+            if span_kind:
+                params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
+            if status_code:
+                params["status_code"] = (
+                    [status_code] if isinstance(status_code, str) else list(status_code)
+                )
             if cursor:
                 params["cursor"] = cursor
 
@@ -1682,6 +1701,9 @@ class AsyncSpans:
         end_time: Optional[datetime] = None,
         trace_ids: Optional[Sequence[str]] = None,
         parent_id: Optional[str] = None,
+        name: Optional[Union[str, Sequence[str]]] = None,
+        span_kind: Optional[Union[str, Sequence[str]]] = None,
+        status_code: Optional[Union[str, Sequence[str]]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1698,6 +1720,12 @@ class AsyncSpans:
                 Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
+            name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
+                Requires Phoenix server >= 13.15.0.
+            span_kind (Optional[Union[str, Sequence[str]]]): Optional span kind(s) to filter
+                by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
+            status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
+                filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -1709,6 +1737,8 @@ class AsyncSpans:
         """
         if trace_ids:
             await self._guard.require(GET_SPANS_TRACE_IDS)
+        if name or span_kind or status_code:
+            await self._guard.require(GET_SPANS_FILTERS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1729,6 +1759,14 @@ class AsyncSpans:
                 params["trace_id"] = list(trace_ids)
             if parent_id is not None:
                 params["parent_id"] = parent_id
+            if name:
+                params["name"] = [name] if isinstance(name, str) else list(name)
+            if span_kind:
+                params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
+            if status_code:
+                params["status_code"] = (
+                    [status_code] if isinstance(status_code, str) else list(status_code)
+                )
             if cursor:
                 params["cursor"] = cursor
 
