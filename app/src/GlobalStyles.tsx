@@ -992,6 +992,13 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Table tokens
     --global-table-pinned-column-background-color: var(--global-color-gray-75);
+    --global-table-header-background-color: var(--global-color-gray-75);
+    --global-table-row-border-color: var(--global-color-gray-200);
+    --global-table-row-selected-background-color: var(
+      --global-color-primary-100
+    );
+    --global-table-bordered-cell-border-color: var(--global-color-gray-100);
+    --global-table-pagination-border-color: var(--global-color-gray-300);
 
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);
