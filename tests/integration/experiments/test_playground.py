@@ -436,7 +436,8 @@ class TestChatCompletionOverDataset:
         and attaches evaluators using all 4 custom providers (OpenAI, Anthropic,
         Google GenAI, Bedrock).
         """
-        async with httpx.AsyncClient(base_url=_app.base_url) as client:
+        # Long timeout so stream() read doesn't hit default 5s during slow CI
+        async with httpx.AsyncClient(base_url=_app.base_url, timeout=120.0) as client:
             # Run subscription with all evaluators
             experiment_id = await _run_subscription_with_evaluators(
                 client,
@@ -571,7 +572,8 @@ class TestChatCompletionOverDataset:
         # Look up provider ID from the fixture
         provider_id = getattr(_custom_providers, provider_key)
 
-        async with httpx.AsyncClient(base_url=_app.base_url) as client:
+        # Long timeout so stream() read doesn't hit default 5s during slow CI
+        async with httpx.AsyncClient(base_url=_app.base_url, timeout=60.0) as client:
             # Run subscription without evaluators
             experiment_id = await _run_subscription_without_evaluators(
                 client,
