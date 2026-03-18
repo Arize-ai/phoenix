@@ -10,6 +10,10 @@ import {
   Tabs,
   Text,
 } from "@phoenix/components";
+import {
+  PythonSVG,
+  TypeScriptSVG,
+} from "@phoenix/components/project/LanguageIcons";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
@@ -42,6 +46,12 @@ const awaitingTracesCSS = css`
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   background-color: var(--global-color-gray-100);
   border-radius: var(--global-rounding-medium);
+`;
+
+const languageTabCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
 `;
 
 export function ProjectOnboarding({ projectName }: { projectName: string }) {
@@ -98,10 +108,20 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
           >
             <TabList>
               {integration.supportedLanguages.includes("Python") && (
-                <Tab id="Python">Python</Tab>
+                <Tab id="Python">
+                  <span css={languageTabCSS}>
+                    <PythonSVG />
+                    Python
+                  </span>
+                </Tab>
               )}
               {integration.supportedLanguages.includes("TypeScript") && (
-                <Tab id="TypeScript">TypeScript</Tab>
+                <Tab id="TypeScript">
+                  <span css={languageTabCSS}>
+                    <TypeScriptSVG />
+                    TypeScript
+                  </span>
+                </Tab>
               )}
             </TabList>
             {integration.supportedLanguages.includes("Python") && (
