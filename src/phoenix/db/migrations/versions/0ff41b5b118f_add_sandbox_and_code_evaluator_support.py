@@ -51,7 +51,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # D4: Create languages reference table seeded with PYTHON and TYPESCRIPT
     languages_table = op.create_table(
         "languages",
         sa.Column("id", _Integer, primary_key=True),
@@ -65,9 +64,6 @@ def upgrade() -> None:
         ],
     )
 
-    # D1: sandbox_adapters → sandbox_providers
-    # D2: drop timeout
-    # D3: drop config_hash
     op.create_table(
         "sandbox_providers",
         sa.Column("id", _Integer, primary_key=True),
@@ -93,15 +89,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("backend_type"),
     )
 
-    # D5: backend_type → provider_id FK
-    # D6: language → language_id FK
-    # D3: drop config_hash
-    # UniqueConstraint becomes (provider_id, name)
     op.create_table(
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
-            "provider_id",
+            "sandbox_provider_id",
             _Integer,
             sa.ForeignKey("sandbox_providers.id", ondelete="CASCADE"),
             nullable=False,
@@ -129,12 +121,9 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("provider_id", "name"),
+        sa.UniqueConstraint("sandbox_provider_id", "name"),
     )
 
-    # D6: language → language_id FK
-    # D8: drop input_schema
-    # D3: drop sandbox_config_hash
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -194,8 +183,5 @@ def downgrade() -> None:
     # Drop sandbox_configs (FKs to sandbox_providers and languages)
     op.drop_table("sandbox_configs")
 
-    # Drop sandbox_providers (renamed from sandbox_adapters by D1)
     op.drop_table("sandbox_providers")
-
-    # Drop languages table (created by D4)
     op.drop_table("languages")

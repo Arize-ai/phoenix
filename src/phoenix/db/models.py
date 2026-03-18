@@ -574,7 +574,7 @@ class _InputMapping(TypeDecorator[InputMapping]):
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[InputMapping]:
         if value is None:
-            return None
+            raise ValueError("Input mapping cannot be None")
         return InputMapping.model_validate(value)
 
 
@@ -2395,7 +2395,7 @@ class SandboxProvider(HasId):
 
 class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
-    provider_id: Mapped[int] = mapped_column(
+    sandbox_provider_id: Mapped[int] = mapped_column(
         ForeignKey("sandbox_providers.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(nullable=False)
@@ -2410,7 +2410,7 @@ class SandboxConfig(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (UniqueConstraint("provider_id", "name"),)
+    __table_args__ = (UniqueConstraint("sandbox_provider_id", "name"),)
 
 
 class CodeEvaluator(Evaluator):

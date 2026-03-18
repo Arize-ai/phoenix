@@ -218,7 +218,7 @@ CREATE TABLE public.sandbox_providers (
 -- ----------------------
 CREATE TABLE public.sandbox_configs (
     id bigserial NOT NULL,
-    provider_id BIGINT NOT NULL,
+    sandbox_provider_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     language_id BIGINT NOT NULL,
@@ -228,15 +228,15 @@ CREATE TABLE public.sandbox_configs (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
-    CONSTRAINT uq_sandbox_configs_provider_id_name
-        UNIQUE (provider_id, name),
+    CONSTRAINT uq_sandbox_configs_sandbox_provider_id_name
+        UNIQUE (sandbox_provider_id, name),
     CONSTRAINT fk_sandbox_configs_language_id_languages FOREIGN KEY
         (language_id)
         REFERENCES public.languages (id)
         ON DELETE RESTRICT,
-    CONSTRAINT fk_sandbox_configs_provider_id_sandbox_providers
+    CONSTRAINT fk_sandbox_configs_sandbox_provider_id_sandbox_providers
         FOREIGN KEY
-        (provider_id)
+        (sandbox_provider_id)
         REFERENCES public.sandbox_providers (id)
         ON DELETE CASCADE
 );
