@@ -2,6 +2,7 @@ import { Icon, Icons } from "@phoenix/components";
 import {
   AgnoSVG,
   AnthropicSVG,
+  BedrockSVG,
   LangChainSVG,
   LangGraphSVG,
   LlamaIndexSVG,
@@ -37,7 +38,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Trace directly from app",
     icon: <Icon svg={<Icons.Trace />} />,
     supportedLanguages: ["Python", "TypeScript"],
-    snippets: {
+    languages: {
       Python: {
         packages: ["arize-phoenix-otel"],
         getImplementationCode: getOtelInitCodePython,
@@ -53,7 +54,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "LangGraph",
     icon: <LangGraphSVG />,
     supportedLanguages: ["Python", "TypeScript"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -88,7 +89,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "LangChain",
     icon: <LangChainSVG />,
     supportedLanguages: ["Python", "TypeScript"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -121,7 +122,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "OpenAI",
     icon: <OpenAISVG />,
     supportedLanguages: ["Python", "TypeScript"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -153,7 +154,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "LlamaIndex",
     icon: <LlamaIndexSVG />,
     supportedLanguages: ["Python"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -174,7 +175,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Agno",
     icon: <AgnoSVG />,
     supportedLanguages: ["Python"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -195,7 +196,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "OpenAI Agents",
     icon: <OpenAISVG />,
     supportedLanguages: ["Python"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -215,7 +216,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Anthropic",
     icon: <AnthropicSVG />,
     supportedLanguages: ["Python", "TypeScript"],
-    snippets: {
+    languages: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -247,7 +248,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Mastra",
     icon: <MastraSVG />,
     supportedLanguages: ["TypeScript"],
-    snippets: {
+    languages: {
       TypeScript: {
         packages: [
           "@mastra/arize",
@@ -268,7 +269,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Vercel AI SDK",
     icon: <VercelSVG />,
     supportedLanguages: ["TypeScript"],
-    snippets: {
+    languages: {
       TypeScript: {
         packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
         getImplementationCode: getVercelAiSdkCodeTypescript,
@@ -276,6 +277,26 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
+      },
+    },
+  },
+  {
+    id: "bedrock",
+    name: "Bedrock",
+    icon: <BedrockSVG />,
+    supportedLanguages: ["Python", "TypeScript"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-bedrock",
+      },
+      TypeScript: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-bedrock",
       },
     },
   },

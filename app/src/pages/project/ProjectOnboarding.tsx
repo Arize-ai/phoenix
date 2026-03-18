@@ -14,9 +14,10 @@ import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
+import { hasSnippets } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
 import { IntegrationSelectButtonGroup } from "./IntegrationSelectButtonGroup";
-import { OnboardingSteps } from "./OnboardingSteps";
+import { DocsOnlyOnboardingView, OnboardingSteps } from "./OnboardingSteps";
 
 const onboardingCSS = css`
   overflow-y: auto;
@@ -61,14 +62,8 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
       ? selectedLanguage
       : integration.supportedLanguages[0];
 
-  const languageSnippets = integration.snippets[effectiveLanguage];
-  const packages = languageSnippets?.packages ?? [];
-  const implementationCode =
-    languageSnippets?.getImplementationCode({
-      projectName,
-    }) ?? "";
-  const docsHref = languageSnippets?.docsHref;
-  const githubHref = languageSnippets?.githubHref;
+  const languageConfig = integration.languages[effectiveLanguage];
+  const isDocsOnly = languageConfig && !hasSnippets(languageConfig);
 
   return (
     <div css={onboardingCSS}>
@@ -111,28 +106,62 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
             </TabList>
             {integration.supportedLanguages.includes("Python") && (
               <TabPanel id="Python">
-                <OnboardingSteps
-                  language="Python"
-                  packages={packages}
-                  implementationCode={implementationCode}
-                  docsHref={docsHref}
-                  githubHref={githubHref}
-                  generatedApiKey={generatedApiKey}
-                  onApiKeyGenerated={setGeneratedApiKey}
-                />
+                {isDocsOnly ? (
+                  <DocsOnlyOnboardingView
+                    docsHref={languageConfig.docsHref}
+                    githubHref={languageConfig.githubHref}
+                    generatedApiKey={generatedApiKey}
+                    onApiKeyGenerated={setGeneratedApiKey}
+                  />
+                ) : (
+                  <OnboardingSteps
+                    language="Python"
+                    packages={
+                      languageConfig && hasSnippets(languageConfig)
+                        ? languageConfig.packages
+                        : []
+                    }
+                    implementationCode={
+                      languageConfig && hasSnippets(languageConfig)
+                        ? languageConfig.getImplementationCode({ projectName })
+                        : ""
+                    }
+                    docsHref={languageConfig?.docsHref}
+                    githubHref={languageConfig?.githubHref}
+                    generatedApiKey={generatedApiKey}
+                    onApiKeyGenerated={setGeneratedApiKey}
+                  />
+                )}
               </TabPanel>
             )}
             {integration.supportedLanguages.includes("TypeScript") && (
               <TabPanel id="TypeScript">
-                <OnboardingSteps
-                  language="TypeScript"
-                  packages={packages}
-                  implementationCode={implementationCode}
-                  docsHref={docsHref}
-                  githubHref={githubHref}
-                  generatedApiKey={generatedApiKey}
-                  onApiKeyGenerated={setGeneratedApiKey}
-                />
+                {isDocsOnly ? (
+                  <DocsOnlyOnboardingView
+                    docsHref={languageConfig.docsHref}
+                    githubHref={languageConfig.githubHref}
+                    generatedApiKey={generatedApiKey}
+                    onApiKeyGenerated={setGeneratedApiKey}
+                  />
+                ) : (
+                  <OnboardingSteps
+                    language="TypeScript"
+                    packages={
+                      languageConfig && hasSnippets(languageConfig)
+                        ? languageConfig.packages
+                        : []
+                    }
+                    implementationCode={
+                      languageConfig && hasSnippets(languageConfig)
+                        ? languageConfig.getImplementationCode({ projectName })
+                        : ""
+                    }
+                    docsHref={languageConfig?.docsHref}
+                    githubHref={languageConfig?.githubHref}
+                    generatedApiKey={generatedApiKey}
+                    onApiKeyGenerated={setGeneratedApiKey}
+                  />
+                )}
               </TabPanel>
             )}
           </Tabs>

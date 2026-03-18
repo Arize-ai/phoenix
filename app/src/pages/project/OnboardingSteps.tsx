@@ -1,4 +1,6 @@
-import { ExternalLink, Flex, Heading, View } from "@phoenix/components";
+import { css } from "@emotion/react";
+
+import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
 import { IsAuthenticated } from "@phoenix/components/auth";
 import { GenerateAPIKeyButton } from "@phoenix/components/auth";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
@@ -10,6 +12,79 @@ import { getEnvironmentVariables } from "@phoenix/components/project/integration
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
 import { ImplementationCodeBlock } from "./ImplementationCodeBlock";
+
+const docsOnlyContainerCSS = css`
+  border: 1px solid var(--global-color-gray-400);
+  border-radius: var(--global-rounding-small);
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-250);
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+`;
+
+export function DocsOnlyOnboardingView({
+  docsHref,
+  githubHref,
+  generatedApiKey,
+  onApiKeyGenerated,
+}: {
+  docsHref: string;
+  githubHref?: string;
+  generatedApiKey: string | null;
+  onApiKeyGenerated: (key: string) => void;
+}) {
+  const isHosted = IS_HOSTED_DEPLOYMENT;
+  const isAuthEnabled = window.Config.authenticationEnabled;
+  const envVars = getEnvironmentVariables({
+    isAuthEnabled,
+    isHosted,
+    apiKey: generatedApiKey ?? undefined,
+  });
+
+  return (
+    <View paddingTop="size-200">
+      <View paddingBottom="size-200">
+        <View paddingBottom="size-100">
+          <Heading level={3} weight="heavy">
+            Environment variables
+          </Heading>
+        </View>
+        {isAuthEnabled ? (
+          <View paddingBottom="size-100">
+            <IsAuthenticated>
+              <GenerateAPIKeyButton
+                onApiKeyGenerated={onApiKeyGenerated}
+                keyName="project-setup-generated"
+              />
+            </IsAuthenticated>
+          </View>
+        ) : null}
+        <CodeWrap>
+          <BashBlockWithCopy value={envVars} />
+        </CodeWrap>
+      </View>
+      <View paddingBottom="size-200">
+        <View paddingBottom="size-100">
+          <Heading level={3} weight="heavy">
+            Setup guide
+          </Heading>
+        </View>
+        <div css={docsOnlyContainerCSS}>
+          <Text>
+            Follow the documentation to set up tracing for this integration.
+          </Text>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <ExternalLink href={docsHref}>Documentation</ExternalLink>
+            {githubHref && <Separator orientation="vertical" />}
+            {githubHref && (
+              <ExternalLink href={githubHref}>Github</ExternalLink>
+            )}
+          </Flex>
+        </div>
+      </View>
+    </View>
+  );
+}
 
 export function OnboardingSteps({
   language,
