@@ -1,3 +1,4 @@
+import warnings
 from importlib.metadata import version
 
 from . import llm, metrics, templating, tracing, utils
@@ -15,80 +16,102 @@ from .evaluators import (
     create_evaluator,
     evaluate_dataframe,
 )
-from .legacy import (  # type: ignore[attr-defined]  # noqa: F401
-    CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE,
-    CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
-    CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
-    CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    CODE_READABILITY_PROMPT_BASE_TEMPLATE,
-    CODE_READABILITY_PROMPT_RAILS_MAP,
-    CODE_READABILITY_PROMPT_TEMPLATE,
-    CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    HALLUCINATION_PROMPT_BASE_TEMPLATE,
-    HALLUCINATION_PROMPT_RAILS_MAP,
-    HALLUCINATION_PROMPT_TEMPLATE,
-    HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    HALLUCINATION_SPAN_PROMPT_TEMPLATE,
-    HUMAN_VS_AI_PROMPT_BASE_TEMPLATE,
-    HUMAN_VS_AI_PROMPT_RAILS_MAP,
-    HUMAN_VS_AI_PROMPT_TEMPLATE,
-    HUMAN_VS_AI_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    NOT_PARSABLE,
-    QA_PROMPT_BASE_TEMPLATE,
-    QA_PROMPT_RAILS_MAP,
-    QA_PROMPT_TEMPLATE,
-    QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    QA_SPAN_PROMPT_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE,
-    REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP,
-    REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE,
-    REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    SQL_GEN_EVAL_PROMPT_BASE_TEMPLATE,
-    SQL_GEN_EVAL_PROMPT_RAILS_MAP,
-    SQL_GEN_EVAL_PROMPT_TEMPLATE,
-    SQL_GEN_EVAL_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    TOOL_CALLING_BASE_TEMPLATE,
-    TOOL_CALLING_PROMPT_RAILS_MAP,
-    TOOL_CALLING_PROMPT_TEMPLATE,
-    TOOL_CALLING_SPAN_PROMPT_TEMPLATE,
-    TOOL_CALLING_TEMPLATE_WITH_EXPLANATION,
-    TOXICITY_PROMPT_RAILS_MAP,
-    TOXICITY_PROMPT_TEMPLATE,
-    TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
-    TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    USER_FRUSTRATION_PROMPT_BASE_TEMPLATE,
-    USER_FRUSTRATION_PROMPT_RAILS_MAP,
-    USER_FRUSTRATION_PROMPT_TEMPLATE,
-    USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
-    AnthropicModel,
-    BedrockModel,
-    ClassificationTemplate,
-    GeminiModel,
-    GoogleGenAIModel,
-    HallucinationEvaluator,
-    LiteLLMModel,
-    MistralAIModel,
-    OpenAIModel,
-    PromptTemplate,
-    QAEvaluator,
-    RelevanceEvaluator,
-    SQLEvaluator,
-    SummarizationEvaluator,
-    ToxicityEvaluator,
-    VertexAIModel,
-    compute_precisions_at_k,
-    download_benchmark_dataset,
-    llm_classify,
-    llm_generate,
-    run_evals,
-)
 from .llm import LLM, phoenix_prompt_to_prompt_template
 
 __version__ = version("arize-phoenix-evals")
+
+_LEGACY_NAMES = {
+    # Model classes
+    "OpenAIModel",
+    "AnthropicModel",
+    "GeminiModel",
+    "GoogleGenAIModel",
+    "VertexAIModel",
+    "BedrockModel",
+    "LiteLLMModel",
+    "MistralAIModel",
+    # Template classes
+    "PromptTemplate",
+    "ClassificationTemplate",
+    # Functions
+    "llm_classify",
+    "llm_generate",
+    "run_evals",
+    # Evaluator classes
+    "HallucinationEvaluator",
+    "QAEvaluator",
+    "RelevanceEvaluator",
+    "SQLEvaluator",
+    "SummarizationEvaluator",
+    "ToxicityEvaluator",
+    # Utilities
+    "compute_precisions_at_k",
+    "download_benchmark_dataset",
+    "NOT_PARSABLE",
+    # Prompt template constants
+    "CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE",
+    "CODE_FUNCTIONALITY_PROMPT_RAILS_MAP",
+    "CODE_FUNCTIONALITY_PROMPT_TEMPLATE",
+    "CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "CODE_READABILITY_PROMPT_BASE_TEMPLATE",
+    "CODE_READABILITY_PROMPT_RAILS_MAP",
+    "CODE_READABILITY_PROMPT_TEMPLATE",
+    "CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "HALLUCINATION_PROMPT_BASE_TEMPLATE",
+    "HALLUCINATION_PROMPT_RAILS_MAP",
+    "HALLUCINATION_PROMPT_TEMPLATE",
+    "HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
+    "HUMAN_VS_AI_PROMPT_BASE_TEMPLATE",
+    "HUMAN_VS_AI_PROMPT_RAILS_MAP",
+    "HUMAN_VS_AI_PROMPT_TEMPLATE",
+    "HUMAN_VS_AI_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "QA_PROMPT_BASE_TEMPLATE",
+    "QA_PROMPT_RAILS_MAP",
+    "QA_PROMPT_TEMPLATE",
+    "QA_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "QA_SPAN_PROMPT_TEMPLATE",
+    "RAG_RELEVANCY_PROMPT_BASE_TEMPLATE",
+    "RAG_RELEVANCY_PROMPT_RAILS_MAP",
+    "RAG_RELEVANCY_PROMPT_TEMPLATE",
+    "RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE",
+    "REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP",
+    "REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE",
+    "REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "SQL_GEN_EVAL_PROMPT_BASE_TEMPLATE",
+    "SQL_GEN_EVAL_PROMPT_RAILS_MAP",
+    "SQL_GEN_EVAL_PROMPT_TEMPLATE",
+    "SQL_GEN_EVAL_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "TOOL_CALLING_BASE_TEMPLATE",
+    "TOOL_CALLING_PROMPT_RAILS_MAP",
+    "TOOL_CALLING_PROMPT_TEMPLATE",
+    "TOOL_CALLING_SPAN_PROMPT_TEMPLATE",
+    "TOOL_CALLING_TEMPLATE_WITH_EXPLANATION",
+    "TOXICITY_PROMPT_RAILS_MAP",
+    "TOXICITY_PROMPT_TEMPLATE",
+    "TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE",
+    "TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION",
+    "USER_FRUSTRATION_PROMPT_BASE_TEMPLATE",
+    "USER_FRUSTRATION_PROMPT_RAILS_MAP",
+    "USER_FRUSTRATION_PROMPT_TEMPLATE",
+    "USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION",
+}
+
+
+def __getattr__(name: str) -> object:
+    if name in _LEGACY_NAMES:
+        warnings.warn(
+            f"phoenix.evals.{name} is deprecated and will be removed in "
+            "arize-phoenix-evals 3.0. See the migration guide: "
+            "https://arize.com/docs/phoenix/evaluation",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from . import legacy
+
+        return getattr(legacy, name)
+    raise AttributeError(f"module 'phoenix.evals' has no attribute {name!r}")
 
 
 __all__ = [
