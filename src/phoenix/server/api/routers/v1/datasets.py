@@ -449,7 +449,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                             },
                             "id_key": {
                                 "type": "string",
-                                "description": "Column name for example IDs to use as stable public identifiers",  # noqa: E501
+                                "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes.",  # noqa: E501
                             },
                             "file": {"type": "string", "format": "binary"},
                         },
