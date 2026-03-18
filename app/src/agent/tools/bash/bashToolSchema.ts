@@ -1,4 +1,5 @@
 import type { FrontendToolDefinition } from "@phoenix/agent/tools/types";
+
 import { BASH_TOOL_CAPABILITY_DESCRIPTION } from "./bashToolCapabilities";
 
 export interface BashToolInput {
