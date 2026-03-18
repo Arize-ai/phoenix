@@ -8,8 +8,12 @@ from typing import Any, Sequence
 
 import pandas as pd
 import pytest
+from phoenix.client import AsyncClient
+from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
+
+from phoenix.experiments.functions import run_experiment
 
 from .._helpers import _AppInfo, _await_or_return, _ExistingSpan, _gql
 
@@ -24,9 +28,6 @@ class TestDatasetIntegration:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -68,9 +69,6 @@ class TestDatasetIntegration:
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_dataset_{token_hex(4)}"
@@ -106,9 +104,6 @@ class TestDatasetIntegration:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -151,9 +146,6 @@ class TestDatasetIntegration:
         tmp_path: Path,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -246,9 +238,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         df = pd.DataFrame(
@@ -283,9 +272,6 @@ Capital of Germany?,Berlin,geography,validation
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -345,9 +331,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Create source dataset
@@ -361,7 +344,7 @@ Capital of Germany?,Berlin,geography,validation
             )
         )
 
-        # Create target dataset with single example from source (strip id to copy cross-dataset)
+        # Create target dataset with single example from source
         target_name = f"test_target_{token_hex(4)}"
         example = source[0]
         target = await _await_or_return(
@@ -467,9 +450,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_flex_{token_hex(4)}"
@@ -519,9 +499,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Test dataset not found
@@ -550,9 +527,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         """Test that dataset.examples can be passed directly to add_examples_to_dataset."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -614,7 +588,7 @@ Capital of Germany?,Berlin,geography,validation
             assert target_example["output"] == source_example["output"]
             assert target_example["metadata"] == source_example["metadata"]
 
-        # Also test passing a subset of examples (strip id to copy cross-dataset)
+        # Also test passing a subset of examples
         subset_target_name = f"test_subset_{token_hex(4)}"
         subset_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -644,9 +618,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         monkeypatch.setenv("PHOENIX_API_KEY", api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_legacy_compat_{token_hex(4)}"
@@ -671,8 +642,6 @@ Capital of Germany?,Berlin,geography,validation
                 ],
             )
         )
-
-        from phoenix.experiments.functions import run_experiment
 
         def simple_task(input: dict[str, Any]) -> str:
             return f"Answer: {input['question']}"
@@ -714,10 +683,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         """Test that Dataset.to_dict() and Dataset.from_dict() work correctly for round-tripping."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.resources.datasets import Dataset
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -841,9 +806,6 @@ Capital of Germany?,Berlin,geography,validation
         - Type safety with proper v1.Dataset annotations
         """  # noqa: E501
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1061,9 +1023,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         api_key_str = str(api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_splits_{token_hex(4)}"
@@ -1211,9 +1170,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         api_key_str = str(api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_splits_dedup_{token_hex(4)}"
@@ -1360,8 +1316,6 @@ Capital of Germany?,Berlin,geography,validation
         tmp_path: Path,
     ) -> None:
         """Test creating dataset with span_id_key parameter from CSV."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1442,8 +1396,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id_key parameter from DataFrame."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1520,8 +1472,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id in examples parameter (JSON path)."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1610,8 +1560,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test adding examples with span_id to existing dataset."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1697,8 +1645,6 @@ What is NLP?,Natural Language Processing,
         when they have no meaningful values. The server should handle missing
         keys and create examples with default values.
         """
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1772,11 +1718,7 @@ What is NLP?,Natural Language Processing,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """Calling create_dataset twice with identical content should not create a new version."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1807,11 +1749,7 @@ What is NLP?,Natural Language Processing,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """Calling create_dataset with changed content should create a new version with updated examples."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1843,11 +1781,7 @@ What is NLP?,Natural Language Processing,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """Examples omitted from a subsequent create_dataset call should no longer appear."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1881,11 +1815,7 @@ What is NLP?,Natural Language Processing,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """A new example in a subsequent create_dataset call should be added to the dataset."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -1921,9 +1851,6 @@ What is NLP?,Natural Language Processing,
         """The id field on an example should pin it to an existing example across calls."""
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         name = f"test_extid_{token_hex(4)}"
@@ -1934,7 +1861,7 @@ What is NLP?,Natural Language Processing,
                 examples=[
                     {
                         "input": {"question": "Capital of Germany?"},
-                        "output": {"answer": "Munich"},
+                        "output": {"answer": "Munich"},  # incorrect
                         "id": "germany",
                     },
                     {
@@ -1948,14 +1875,13 @@ What is NLP?,Natural Language Processing,
 
         assert len(v1) == 2
 
-        # Fix the wrong answer; japan is unchanged
         v2 = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=name,
                 examples=[
                     {
                         "input": {"question": "Capital of Germany?"},
-                        "output": {"answer": "Berlin"},
+                        "output": {"answer": "Berlin"},  # correct
                         "id": "germany",
                     },
                     {
@@ -1975,16 +1901,12 @@ What is NLP?,Natural Language Processing,
         assert v2_by_question["Capital of Japan?"]["output"]["answer"] == "Tokyo"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_create_dataset_node_id_matching(
+    async def test_upsert_using_server_assigned_node_id(
         self,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """A server-assigned GlobalID passed back as the id field should patch the example in-place."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -2002,9 +1924,8 @@ What is NLP?,Natural Language Processing,
             )
         )
 
-        node_id = v1[0]["id"]  # server-assigned GlobalID
+        node_id = v1[0]["id"]
 
-        # Add metadata — content hash changes, but node_id pins the match
         v2 = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=name,
@@ -2020,20 +1941,16 @@ What is NLP?,Natural Language Processing,
         )
 
         assert v2.version_id != v1.version_id
-        assert len(v2) == 1  # no duplicate created
+        assert len(v2) == 1
         assert v2[0]["metadata"]["fun_fact"] == "Up to 70 mph"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_create_dataset_rebuilds_splits(
+    async def test_create_dataset_updates_splits_when_provided(
         self,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """When splits are provided, a subsequent create_dataset call replaces all split assignments."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -2075,20 +1992,16 @@ What is NLP?,Natural Language Processing,
         assert len(alpha_v2) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_create_dataset_preserves_splits_when_not_provided(
+    async def test_create_dataset_clears_splits_when_not_provided(
         self,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
-        """When no splits are provided, existing split assignments should be left intact."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
-        name = f"test_preserve_splits_{token_hex(4)}"
+        name = f"test_clear_splits_{token_hex(4)}"
 
         v1 = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
@@ -2121,19 +2034,17 @@ What is NLP?,Natural Language Processing,
                 dataset=v2.id, splits=["train"]
             )
         )
-        assert len(train_v2) == 1  # split assignment survived
+        assert len(train_v2) == 0  # splits cleared when not provided
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_create_dataset_all_cases(
+    async def test_create_dataset_with_many_examples(
         self,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
         """
-        Exercises all 8 cases through the Python client create_dataset method.
-
         V1 creates 8 examples. V2 re-creates with 5, triggering every combination
-        of match strategy × outcome:
+        of match strategy x outcome:
 
           Explicit id:
             1. Unchanged — same content, matched by id → no new revision
@@ -2150,9 +2061,6 @@ What is NLP?,Natural Language Processing,
             8. Delete    — omitted from v2
         """
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 

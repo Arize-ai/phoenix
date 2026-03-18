@@ -473,10 +473,9 @@ async def upload_dataset(
             status_code=400,
         )
     examples: Examples
-    splits_provided = True
     if request_content_type.startswith("application/json"):
         try:
-            examples, action, name, description, splits_provided = await run_in_threadpool(
+            examples, action, name, description = await run_in_threadpool(
                 _process_json, await request.json()
             )
         except ValueError as e:
@@ -568,7 +567,6 @@ async def upload_dataset(
             name=name,
             description=description,
             user_id=user_id,
-            splits_provided=splits_provided,
         ),
     )
     if sync:
@@ -705,7 +703,7 @@ def _build_flatten_plans(
 
 def _process_json(
     data: Mapping[str, Any],
-) -> tuple[Examples, DatasetAction, Name, Description, SplitsProvided]:
+) -> tuple[Examples, DatasetAction, Name, Description]:
     name = data.get("name")
     if not name:
         raise ValueError("Dataset name is required")
@@ -819,7 +817,7 @@ def _process_json(
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
-    return iter(examples), action, name, description, splits is not None
+    return iter(examples), action, name, description
 
 
 async def _process_csv(

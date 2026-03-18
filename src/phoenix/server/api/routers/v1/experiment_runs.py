@@ -90,7 +90,7 @@ async def create_experiment_run(
         example_gid = GlobalID.from_id(request_body.dataset_example_id)
         dataset_example_id = from_global_id_with_expected_type(example_gid, "DatasetExample")
     except Exception:
-        pass  # not a valid GlobalID — will fall back to external_id lookup
+        pass
 
     trace_id = request_body.trace_id
     task_output = request_body.output

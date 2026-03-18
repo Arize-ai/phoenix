@@ -2761,11 +2761,11 @@ async def test_create_removes_split_assignments_when_splits_empty(
         assert example.dataset_splits_dataset_examples == []
 
 
-async def test_create_preserves_split_assignments_when_splits_not_provided(
+async def test_create_clears_split_assignments_when_splits_not_provided(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """Create without splits parameter preserves existing splits; deleted examples cascade."""
+    """Create without splits parameter clears all existing split assignments."""
     name = "ds"
     # Initial create: e1 -> train, e2 -> test, e3 -> val
     await _create(
@@ -2784,10 +2784,10 @@ async def test_create_preserves_split_assignments_when_splits_not_provided(
         ],
     )
 
-    # Second create: no splits parameter provided.
-    #   e1: content changed (PATCH) — splits should remain {train}
-    #   e2: content unchanged — splits should remain {test}
-    #   e3: omitted (DELETE) — cascade deletes its split assignments
+    # Second create: no splits parameter provided — all split assignments should be cleared.
+    #   e1: content changed (PATCH) — splits cleared
+    #   e2: content unchanged — splits cleared
+    #   e3: omitted (DELETE)
     #   e4: new example (CREATE) — no splits
     await _create(
         httpx_client,
@@ -2813,15 +2813,11 @@ async def test_create_preserves_split_assignments_when_splits_not_provided(
         )
         examples = list(result.unique())
         by_ext = {e.external_id: e for e in examples}
-        # e1 patched: splits preserved
-        assert {j.dataset_split.name for j in by_ext["e1"].dataset_splits_dataset_examples} == {
-            "train"
-        }
-        # e2 unchanged: splits preserved
-        assert {j.dataset_split.name for j in by_ext["e2"].dataset_splits_dataset_examples} == {
-            "test"
-        }
-        # e3 deleted (soft): split assignments removed
+        # e1 patched: splits cleared
+        assert by_ext["e1"].dataset_splits_dataset_examples == []
+        # e2 unchanged: splits cleared
+        assert by_ext["e2"].dataset_splits_dataset_examples == []
+        # e3 deleted (soft): no longer in latest version's examples
         assert by_ext["e3"].dataset_splits_dataset_examples == []
         # e4 created with no splits
         assert by_ext["e4"].dataset_splits_dataset_examples == []
