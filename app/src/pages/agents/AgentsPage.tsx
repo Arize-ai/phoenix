@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
+import { useCurrentAgentPageContext } from "@phoenix/agent/context/pageContext";
+import { refreshAgentSessionContext } from "@phoenix/agent/context/refreshAgentContext";
 import { PageHeader, View } from "@phoenix/components";
 import {
   AGENT_MODEL_LOCAL_STORAGE_KEY,
@@ -18,6 +20,7 @@ export function AgentsPage() {
     const config = getAgentModelConfigFromLocalStorage();
     return config ? toModelMenuValue(config) : DEFAULT_MODEL_MENU_VALUE;
   });
+  const pageContext = useCurrentAgentPageContext();
 
   const params = new URLSearchParams({
     model_name: menuValue.modelName,
@@ -34,6 +37,14 @@ export function AgentsPage() {
       JSON.stringify(toAgentModelConfig(model))
     );
   };
+
+  const handleRefreshContext = useCallback(async () => {
+    await refreshAgentSessionContext({
+      sessionId: null,
+      pageContext,
+      refreshReason: "manual",
+    });
+  }, [pageContext]);
 
   return (
     <div
@@ -53,6 +64,7 @@ export function AgentsPage() {
         chatApiUrl={chatApiUrl}
         modelMenuValue={menuValue}
         onModelChange={handleChange}
+        onRefreshContext={handleRefreshContext}
       />
     </div>
   );
