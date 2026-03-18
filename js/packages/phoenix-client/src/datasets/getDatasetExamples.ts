@@ -51,10 +51,12 @@ export async function getDatasetExamples({
   const examplesData = response.data.data;
   return {
     versionId: examplesData.version_id,
-    examples: examplesData.examples.map((example) => ({
-      ...example,
-      nodeId: example.node_id,
-      updatedAt: new Date(example.updated_at),
-    })),
+    examples: examplesData.examples.map(
+      ({ node_id, updated_at, ...example }) => ({
+        ...example,
+        nodeId: node_id,
+        updatedAt: new Date(updated_at),
+      })
+    ),
   };
 }
