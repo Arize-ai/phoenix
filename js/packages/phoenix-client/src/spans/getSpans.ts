@@ -1,3 +1,5 @@
+import { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
+
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import {
@@ -8,6 +10,17 @@ import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
+
+/**
+ * Status codes for spans.
+ */
+export type SpanStatusCode = "OK" | "ERROR" | "UNSET";
+
+/**
+ * Span kind filter value. Accepts well-known OpenInference span kinds
+ * as well as arbitrary strings for forward-compatibility.
+ */
+export type SpanKindFilter = OpenInferenceSpanKind | (string & {});
 
 /**
  * Parameters to get spans from a project using auto-generated types
@@ -29,10 +42,10 @@ export interface GetSpansParams extends ClientFn {
   parentId?: string | null;
   /** Filter by span name(s) */
   name?: string | string[] | null;
-  /** Filter by span kind(s) (LLM, CHAIN, TOOL, etc.) */
-  spanKind?: string | string[] | null;
+  /** Filter by span kind(s) (LLM, CHAIN, TOOL, RETRIEVER, etc.) */
+  spanKind?: SpanKindFilter | SpanKindFilter[] | null;
   /** Filter by status code(s) (OK, ERROR, UNSET) */
-  statusCode?: string | string[] | null;
+  statusCode?: SpanStatusCode | SpanStatusCode[] | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
