@@ -2,7 +2,14 @@ import { css } from "@emotion/react";
 import { useCallback, useEffect } from "react";
 import { Panel, PanelResizeHandle } from "react-resizable-panels";
 
-import { Flex, Heading, Icon, IconButton, Icons } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  IconButton,
+  Icons,
+} from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
@@ -90,13 +97,18 @@ export function AgentChatPanel() {
               <Icon svg={<Icons.Robot />} />
               <Heading weight="heavy">PXI</Heading>
             </Flex>
-            <IconButton
-              size="S"
-              aria-label="Close agent chat"
-              onPress={() => setIsOpen(false)}
-            >
-              <Icon svg={<Icons.CloseOutline />} />
-            </IconButton>
+            <Flex direction="row" alignItems="center" gap="size-50">
+              <Button size="S" variant="quiet" onPress={() => createSession()}>
+                New chat
+              </Button>
+              <IconButton
+                size="S"
+                aria-label="Close agent chat"
+                onPress={() => setIsOpen(false)}
+              >
+                <Icon svg={<Icons.CloseOutline />} />
+              </IconButton>
+            </Flex>
           </div>
           <Chat
             key={`${activeSessionId}-${chatApiUrl}`}

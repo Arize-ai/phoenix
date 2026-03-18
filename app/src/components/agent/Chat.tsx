@@ -1,8 +1,14 @@
 import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
-import { DefaultChatTransport } from "ai";
+import type { UIMessage } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import { useEffect, useRef } from "react";
 
+import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { authFetch } from "@phoenix/authFetch";
 import { Icon, Icons, View } from "@phoenix/components";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
@@ -14,13 +20,15 @@ import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 
 const chatCSS = css`
-  position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 
   .chat__scroll {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
   }
 
@@ -31,19 +39,17 @@ const chatCSS = css`
     flex-direction: column;
     gap: var(--global-dimension-size-100);
     padding: var(--global-dimension-size-200);
-    padding-bottom: var(--global-dimension-size-1200);
+    padding-bottom: var(--global-dimension-size-200);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }
 
   .chat__input {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    flex-shrink: 0;
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
+    padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-200);
     background-color: var(--global-color-gray-75);
   }
@@ -95,29 +101,59 @@ export function Chat({
 }) {
   const store = useAgentStore();
 
-  // LOAD: read stored messages for this session
+  // read stored messages for this session
   const initialMessages = sessionId
     ? store.getState().sessionMap[sessionId]?.messages
     : undefined;
 
-  // INIT: seed useChat with stored messages and session ID
-  const { messages, sendMessage, status, error } = useChat({
+  const chat = useChat<UIMessage>({
     id: sessionId ?? undefined,
+    // seed useChat with stored messages and session ID
     messages: initialMessages,
-    transport: new DefaultChatTransport({ api: chatApiUrl, fetch: authFetch }),
-    // SAVE: persist after each assistant response completes
+    transport: new DefaultChatTransport({
+      api: chatApiUrl,
+      fetch: authFetch,
+      prepareSendMessagesRequest: ({
+        body,
+        id,
+        messages,
+        trigger,
+        messageId,
+      }) => ({
+        body: buildAgentChatRequestBody({
+          body,
+          id,
+          messages,
+          trigger,
+          messageId,
+        }),
+      }),
+    }),
+    onToolCall: ({ toolCall }) => {
+      // AI SDK docs recommend not awaiting `addToolOutput` inside `onToolCall`
+      // when using `sendAutomaticallyWhen`, because it can deadlock the chat
+      // update loop. We follow that guidance here by kicking off tool handling
+      // without awaiting it and letting the helper manage tool output updates.
+      // See: ai/docs/04-ai-sdk-ui/03-chatbot-tool-usage.mdx and
+      // ai/docs/08-migration-guides/26-migration-guide-5-0.mdx in this repo's
+      // installed AI SDK package.
+      void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
+    },
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onFinish: ({ messages: finalMessages }) => {
       if (sessionId && finalMessages) {
+        // persist after each assistant response completes
         store.getState().setSessionMessages(sessionId, finalMessages);
       }
     },
   });
+  const { messages, sendMessage, status, error, addToolOutput } = chat;
 
   // Keep a ref to messages for the unmount cleanup (avoids stale closure)
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  // SAVE on unmount (covers model change remount, tab close)
+  // persist messages on unmount (covers model change remount, tab close)
   useEffect(() => {
     return () => {
       if (sessionId && messagesRef.current.length > 0) {
