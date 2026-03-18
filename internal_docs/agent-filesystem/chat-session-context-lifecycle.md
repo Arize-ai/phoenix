@@ -111,27 +111,27 @@ flowchart LR
   end
 
   subgraph Context[Phoenix Context Lifecycle]
-    P0[No /phoenix tree for this session key]
+    P0[No Phoenix context tree for this session key]
     P1[Refresh requested]
     P2[Page context snapshot]
     P3[Materialized file set]
     P4[Runtime exists]
-    P5[Fresh /phoenix snapshot ready]
+    P5[Fresh Phoenix context snapshot ready]
     P6[Tool result returned]
     P7[New refresh requested]
     P8[Old snapshot replaced]
     P9[Manual refresh requested]
     P10[Fresh snapshot replaced]
-    P11[New session-scoped runtime/snapshot]
-    P12[Runtime/snapshot still retained]
-    P13[/phoenix discarded with runtime]
+    P11[New session-scoped runtime and snapshot]
+    P12[Runtime and snapshot still retained]
+    P13[Phoenix context discarded with runtime]
 
     P0 --> P1
     P1 -->|"build current page context"| P2
     P2 -->|"fetch GraphQL data"| P3
     P3 -->|"get or create bash runtime"| P4
-    P4 -->|"replace /phoenix"| P5
-    P5 -->|"bash reads current /phoenix"| P6
+    P4 -->|"replace Phoenix context tree"| P5
+    P5 -->|"bash reads current Phoenix context"| P6
     P7 -->|"fetch and materialize again<br/>stale-check before replace"| P8
     P9 --> P10
   end
@@ -139,7 +139,7 @@ flowchart LR
   C -.->|"initial auto-refresh"| P1
   E -.->|"execute command in runtime"| P6
   F -.->|"navigation or time-range change"| P7
-  F -.->|"manual /refresh"| P9
+  F -.->|"manual refresh command"| P9
   G -.->|"switch to new session runtime"| P11
   H -.-> P12
   I -.-> P13
