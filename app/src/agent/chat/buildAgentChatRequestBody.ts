@@ -10,6 +10,10 @@ type BuildAgentChatRequestBodyOptions = {
   messageId: string | undefined;
 };
 
+/**
+ * Merges the AI SDK transport payload with the frontend tool definitions that
+ * the agent chat API expects for client-side tool execution.
+ */
 export function buildAgentChatRequestBody({
   body,
   id,

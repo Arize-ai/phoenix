@@ -11,6 +11,8 @@ type HandleBashToolCallOptions = {
     toolCallId: string;
     input: unknown;
   };
+  // The active agent session can briefly be null; the bash runtime registry
+  // falls back to a shared default session key in that case.
   sessionId: string | null;
   addToolOutput: AddToolOutput;
 };

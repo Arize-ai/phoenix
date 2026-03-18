@@ -1,26 +1,15 @@
-type FrontendToolDefinition = {
-  name: string;
-  description: string;
-  parameters: {
-    type: "object";
-    properties: Record<
-      string,
-      {
-        type: string;
-        description: string;
-      }
-    >;
-    required: string[];
-    additionalProperties: boolean;
-  };
-};
+/**
+ * Client-side tool descriptor sent with agent chat requests so the backend can
+ * advertise frontend-executable tools to the model.
+ */
+import type { FrontendToolDefinition } from "@phoenix/agent/tools/types";
 
 export interface BashToolInput {
   command: string;
 }
 
-// This description follows the same capability-guidance approach used by bash-tool,
-// adapted for PXI's browser-only just-bash environment.
+// This description follows the same capability-guidance approach used by
+// bash-tool, adapted for the browser-only just-bash environment.
 export const bashToolDefinition = {
   name: "bash",
   description:
