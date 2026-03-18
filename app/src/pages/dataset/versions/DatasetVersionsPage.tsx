@@ -1,22 +1,20 @@
 import { Suspense } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
-import invariant from "tiny-invariant";
 
 import { DatasetHistoryTable } from "@phoenix/pages/dataset/DatasetHistoryTable";
 
-import type { datasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
-import type { datasetVersionsLoader } from "./datasetVersionsLoader";
-import { datasetVersionsLoaderQueryNode } from "./datasetVersionsLoader";
+import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQueryType } from "./__generated__/datasetVersionsLoaderQuery.graphql";
+import type { DatasetVersionsLoaderData } from "./datasetVersionsLoader";
+import { datasetVersionsLoaderQuery } from "./datasetVersionsLoader";
 
 /**
  * Dataset-specific history page that lists dataset version history.
  */
 export function DatasetVersionsPage() {
-  const loaderData = useLoaderData<typeof datasetVersionsLoader>();
-  invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<datasetVersionsLoaderQuery>(
-    datasetVersionsLoaderQueryNode,
+  const loaderData = useLoaderData<DatasetVersionsLoaderData>();
+  const data = usePreloadedQuery<DatasetVersionsLoaderQueryType>(
+    datasetVersionsLoaderQuery,
     loaderData.queryRef
   );
   return (
