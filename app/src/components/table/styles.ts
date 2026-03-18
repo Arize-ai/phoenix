@@ -14,6 +14,7 @@ export const tableCSS = css`
     position: sticky;
     top: 0;
     z-index: 2;
+    background-color: var(--global-table-header-background-color);
     tr {
       th {
         padding: var(--global-dimension-size-100)
@@ -78,7 +79,7 @@ export const tableCSS = css`
       height: 100%;
       &:not(:last-of-type) {
         & > td {
-          border-bottom: 1px solid var(--global-color-gray-200);
+          border-bottom: 1px solid var(--global-table-row-border-color);
         }
       }
       & > td {
@@ -86,7 +87,7 @@ export const tableCSS = css`
           var(--global-dimension-size-200);
       }
       &[data-selected="true"] {
-        background-color: var(--global-color-primary-100);
+        background-color: var(--global-table-row-selected-background-color);
       }
     }
   }
@@ -96,10 +97,10 @@ export const borderedTableCSS = css`
   tbody:not(.is-empty) {
     tr {
       & > td {
-        border-bottom: 1px solid var(--global-color-gray-100);
+        border-bottom: 1px solid var(--global-table-bordered-cell-border-color);
       }
       & > td:not(:last-of-type) {
-        border-right: 1px solid var(--global-color-gray-100);
+        border-right: 1px solid var(--global-table-bordered-cell-border-color);
       }
     }
   }
@@ -133,7 +134,7 @@ export const paginationCSS = css`
   align-items: center;
   padding: var(--global-dimension-size-100);
   gap: var(--global-dimension-size-50);
-  border-top: 1px solid var(--global-color-gray-300);
+  border-top: 1px solid var(--global-table-pagination-border-color);
 `;
 
 //These are the important styles to make sticky column pinning work!

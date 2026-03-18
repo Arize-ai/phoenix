@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { startTransition } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -9,6 +8,7 @@ import {
   Icons,
   KeyboardToken,
   Tooltip,
+  TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
 
@@ -60,14 +60,8 @@ export const ExampleDetailsPaginator = ({
           onPress={handleNext}
           leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
         ></Button>
-        <Tooltip
-          offset={4}
-          css={css`
-            border-color: var(--global-border-color-default);
-            border-radius: var(--global-rounding-medium);
-            padding: var(--global-dimension-static-size-100);
-          `}
-        >
+        <Tooltip offset={4}>
+          <TooltipArrow />
           <Flex direction="row" gap="size-100" alignItems="center">
             <span>Next</span>
             <KeyboardToken>{NEXT_EXAMPLE_HOTKEY}</KeyboardToken>
@@ -82,14 +76,8 @@ export const ExampleDetailsPaginator = ({
           onPress={handlePrevious}
           leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
         ></Button>
-        <Tooltip
-          offset={4}
-          css={css`
-            border-color: var(--global-border-color-default);
-            border-radius: var(--global-rounding-medium);
-            padding: var(--global-dimension-static-size-100);
-          `}
-        >
+        <Tooltip offset={4}>
+          <TooltipArrow />
           <Flex direction="row" gap="size-100" alignItems="center">
             <span>Previous</span>
             <KeyboardToken>{PREVIOUS_EXAMPLE_HOTKEY}</KeyboardToken>
