@@ -2,7 +2,10 @@ import { css } from "@emotion/react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 
-import { getBashToolInput } from "@phoenix/agent/tools/bash";
+import {
+  getBashToolCommandDisplayResult,
+  getBashToolInput,
+} from "@phoenix/agent/tools/bash";
 
 const userMessageCSS = css`
   align-self: flex-end;
@@ -138,21 +141,10 @@ function ToolPart({
 
   const toolName = getToolName(part);
   const bashInput = toolName === "bash" ? getBashToolInput(part.input) : null;
+  const bashResult =
+    toolName === "bash" ? getBashToolCommandDisplayResult(part.output) : null;
   const command = bashInput?.command ?? stringifyToolValue(part.input);
   const isError = part.state === "output-error";
-  const result = part.state === "output-available" ? part.output : null;
-  const stdout =
-    result && typeof result === "object" && "stdout" in result
-      ? stringifyToolValue(result.stdout)
-      : "";
-  const stderr =
-    result && typeof result === "object" && "stderr" in result
-      ? stringifyToolValue(result.stderr)
-      : "";
-  const exitCode =
-    result && typeof result === "object" && "exitCode" in result
-      ? stringifyToolValue(result.exitCode)
-      : "";
 
   return (
     <details css={toolPartCSS}>
@@ -173,11 +165,27 @@ function ToolPart({
         {part.state === "output-available" ? (
           <>
             <span className="tool-part__label">Exit code</span>
-            <pre>{exitCode || "0"}</pre>
+            <pre>{bashResult?.exitCode ?? "0"}</pre>
+            {bashResult?.durationText ? (
+              <>
+                <span className="tool-part__label">Duration</span>
+                <pre>{bashResult.durationText}</pre>
+              </>
+            ) : null}
             <span className="tool-part__label">Stdout</span>
-            <pre>{stdout || "(no output)"}</pre>
+            <pre>
+              {bashResult?.stdout || "(no output)"}
+              {bashResult?.stdoutBytesText
+                ? `\n\n[${bashResult.stdoutBytesText}]`
+                : ""}
+            </pre>
             <span className="tool-part__label">Stderr</span>
-            <pre>{stderr || "(no output)"}</pre>
+            <pre>
+              {bashResult?.stderr || "(no output)"}
+              {bashResult?.stderrBytesText
+                ? `\n\n[${bashResult.stderrBytesText}]`
+                : ""}
+            </pre>
           </>
         ) : null}
         {part.state === "output-error" ? (

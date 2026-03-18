@@ -1,3 +1,5 @@
+import type { InitialFiles } from "just-bash";
+
 import { createBashToolRuntime } from "./bashToolRuntime";
 import type { BashToolRuntime } from "./bashToolTypes";
 
@@ -20,6 +22,19 @@ export function getOrCreateBashToolRuntime(sessionId: string | null) {
   const runtime = createBashToolRuntime();
   bashToolSessionRegistry.set(sessionKey, runtime);
   return runtime;
+}
+
+export async function replaceBashToolPhoenixContext(
+  sessionId: string | null,
+  initialFiles: InitialFiles
+) {
+  const sessionKey = getBashToolSessionKey(sessionId);
+  const runtime = await getOrCreateBashToolRuntime(sessionId);
+  await runtime.replacePhoenixFiles(initialFiles);
+
+  const runtimePromise = Promise.resolve(runtime);
+  bashToolSessionRegistry.set(sessionKey, runtimePromise);
+  return runtimePromise;
 }
 
 export function clearBashToolRuntime(sessionId: string | null) {
