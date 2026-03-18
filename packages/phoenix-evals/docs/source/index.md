@@ -58,7 +58,6 @@ The main evaluation functions that power the package:
 - **`create_evaluator`**: Create custom evaluators from functions
 - **`bind_evaluator`**: Bind evaluators with input mappings
 - **`evaluate_dataframe`**: Evaluate dataframes with multiple evaluators
-- **Legacy functions**: `llm_classify`, `llm_generate`, and `run_evals` (available in `phoenix.evals.legacy`)
 
 ## Usage Examples
 
@@ -113,7 +112,6 @@ print(results_df.head())
 :caption: API Reference
 
 api/evals
-api/legacy
 ```
 
 ## Indices and tables

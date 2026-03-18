@@ -3,28 +3,67 @@ title: "Summarization"
 ---
 
 <Warning>
-**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and is not available as a built-in metric in evals 2.0. You can still use these templates with older versions of the library (see [API Reference](https://arize-phoenix.readthedocs.io/projects/evals/)), or migrate them to custom evaluators as shown below.
+**Legacy Evaluator:** This evaluator is from phoenix-evals 1.x and will be removed in a future version. You can migrate the template to a custom evaluator as shown below.
 </Warning>
 
-<Accordion title="Using this template with evals 2.0">
-You can use the legacy template with a custom `ClassificationEvaluator`:
+## When To Use Summarization Eval Template
+
+This Eval helps evaluate the summarization results of a summarization task. The template variables are:
+
+- **document**: The document text to summarize
+- **summary**: The summary of the document
+
+## Summarization Eval Template
+
+```
+You are comparing a summary to its original document and trying to determine
+if the summary is good. Here is the data:
+
+<data>
+
+<summary>
+{output}
+</summary>
+
+<original_document>
+{input}
+</original_document>
+
+</data>
+
+Compare the summary above to the original document and determine if the summary is
+comprehensive, concise, coherent, and independent relative to the original document.
+Your response must be a single word, either "good" or "bad", and should not contain any text
+or characters aside from that. "bad" means that the summary is not comprehensive,
+concise, coherent, and independent relative to the original document. "good" means the
+summary is comprehensive, concise, coherent, and independent relative to the original document.
+```
+
+## How To Run the Summarization Eval
 
 ```python
 from phoenix.evals import ClassificationEvaluator
 from phoenix.evals.llm import LLM
 
-SUMMARIZATION_TEMPLATE = """You are comparing the summary text and it's original document and trying to determine
+SUMMARIZATION_TEMPLATE = """You are comparing a summary to its original document and trying to determine
 if the summary is good. Here is the data:
-    [BEGIN DATA]
-    ************
-    [Summary]: {output}
-    ************
-    [Original Document]: {input}
-    [END DATA]
-Compare the Summary above to the Original Document and determine if the Summary is
-comprehensive, concise, coherent, and independent relative to the Original Document.
-"bad" means that the Summary is not comprehensive, concise, coherent, and independent relative to the Original Document.
-"good" means the Summary is comprehensive, concise, coherent, and independent relative to the Original Document."""
+
+<data>
+
+<summary>
+{output}
+</summary>
+
+<original_document>
+{input}
+</original_document>
+
+</data>
+
+Compare the summary above to the original document and determine if the summary is
+comprehensive, concise, coherent, and independent relative to the original document.
+"bad" means that the summary is not comprehensive, concise, coherent, and independent relative to the original document.
+"good" means the summary is comprehensive, concise, coherent, and independent relative to the original document."""
 
 summarization_evaluator = ClassificationEvaluator(
     name="summarization",
@@ -37,67 +76,6 @@ result = summarization_evaluator.evaluate({
     "input": "Original document text here...",
     "output": "Summary text here..."
 })
-```
-</Accordion>
-
-## When To Use Summarization Eval Template
-
-This Eval helps evaluate the summarization results of a summarization task. The template variables are:
-
-- **document**: The document text to summarize
-- **summary**: The summary of the document
-
-## Summarization Eval Template
-
-```bash
-You are comparing the summary text and it's original document and trying to determine
-if the summary is good. Here is the data:
-    [BEGIN DATA]
-    ************
-    [Summary]: {output}
-    ************
-    [Original Document]: {input}
-    [END DATA]
-Compare the Summary above to the Original Document and determine if the Summary is
-comprehensive, concise, coherent, and independent relative to the Original Document.
-Your response must be a single word, either "good" or "bad", and should not contain any text
-or characters aside from that. "bad" means that the Summary is not comprehensive,
-concise, coherent, and independent relative to the Original Document. "good" means the
-Summary is comprehensive, concise, coherent, and independent relative to the Original Document.
-```
-
-<Info>
-  We are continually iterating our templates, view the most up-to-date template
-  [on
-  GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/docs/phoenix/evals/default_templates.py#L289).
-</Info>
-
-## How To Run the Summarization Eval
-
-```python
-import phoenix.evals.default_templates as templates
-from phoenix.evals import (
-    OpenAIModel,
-    download_benchmark_dataset,
-    llm_classify,
-)
-
-model = OpenAIModel(
-    model="gpt-4",
-    temperature=0.0,
-)
-
-#The rails are used to hold the output to specific values based on the template
-#It will remove text such as ",,," or "..."
-#Will ensure the binary value expected from the template is returned
-rails = list(templates.SUMMARIZATION_PROMPT_RAILS_MAP.values())
-summarization_classifications = llm_classify(
-    dataframe=df_sample,
-    template=templates.SUMMARIZATION_PROMPT_TEMPLATE,
-    model=model,
-    rails=rails,
-    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
-)
 ```
 
 The above shows how to use the summarization Eval template.
