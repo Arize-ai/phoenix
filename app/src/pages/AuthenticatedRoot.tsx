@@ -19,7 +19,7 @@ import { AppAlerts } from "./AppAlerts";
 export function AuthenticatedRoot() {
   // Redirects are handled by React Router before the component mounts, so the
   // loader data here is always the non-redirect branch.
-  const loaderData = useLoaderData() as AuthenticatedRootLoaderDataResolved;
+  const loaderData = useLoaderData<AuthenticatedRootLoaderDataResolved>();
   invariant(loaderData, "loaderData is required");
 
   const queryData = usePreloadedQuery<AuthenticatedRootLoaderQueryType>(

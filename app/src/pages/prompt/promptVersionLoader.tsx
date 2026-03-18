@@ -1,5 +1,6 @@
 import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -38,12 +39,11 @@ export const promptVersionLoaderQueryNode = graphql`
  */
 export function promptVersionLoader(args: LoaderFunctionArgs) {
   const { versionId } = args.params;
+  invariant(versionId, "versionId is required");
   const queryRef = loadQuery<promptVersionLoaderQuery>(
     RelayEnvironment,
     promptVersionLoaderQueryNode,
-    {
-      id: versionId as string,
-    }
+    { id: versionId }
   );
   return { queryRef };
 }

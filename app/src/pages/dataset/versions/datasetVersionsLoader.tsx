@@ -7,8 +7,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
 
 /**
- * The query node for the dataset versions loader, exported so the consuming component
- * can reference it in usePreloadedQuery.
+ * The query node for the dataset versions loader.
  */
 export const datasetVersionsLoaderQuery = graphql`
   query datasetVersionsLoaderQuery($id: ID!) {

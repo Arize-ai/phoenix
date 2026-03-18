@@ -11,7 +11,7 @@ import type { ResetPasswordLoaderData } from "./resetPasswordLoader";
 import { resetPasswordLoaderQuery } from "./resetPasswordLoader";
 
 export function ResetPasswordPage() {
-  const loaderData = useLoaderData() as ResetPasswordLoaderData;
+  const loaderData = useLoaderData<ResetPasswordLoaderData>();
   const data = usePreloadedQuery<resetPasswordLoaderQueryType>(
     resetPasswordLoaderQuery,
     loaderData.queryRef
