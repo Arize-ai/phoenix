@@ -4,6 +4,7 @@ Start here when resuming this work in a new agent session: read `plan.md`, then 
 
 - `plan.md`: finalized product and architecture plan for the agent filesystem + bash work.
 - `tasks.md`: implementation task breakdown with dependencies and suggested execution order.
+- `chat-session-context-lifecycle.md`: dual lifecycle diagram for chat sessions and `/phoenix` context generation.
 - `t0.1-tool-contract.md`: v1 frontend contract for client-executed tools in agent chat.
 - `t0.2-module-layout.md`: chosen frontend file layout for the bash runtime and context adapters.
 
