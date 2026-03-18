@@ -9,32 +9,26 @@ import {
   applyBashToolFilesystemPolicy,
   BASH_TOOL_READONLY_ROOT,
   BASH_TOOL_WORKSPACE_ROOT,
+  captureBashToolFilesystemMutationMethods,
+  type BashToolFilesystemMutationMethods,
 } from "./bashToolFilesystemPolicy";
 import type { BashToolCommandResult, BashToolRuntime } from "./bashToolTypes";
 
+/**
+ * Default working directory for the browser bash runtime scratch space.
+ */
 export const DEFAULT_BASH_TOOL_CWD = BASH_TOOL_WORKSPACE_ROOT;
 const PHOENIX_CONTEXT_HEREDOC_PREFIX = "__PHOENIX_CONTEXT_";
 
 type BashExecutionLimits = NonNullable<BashOptions["executionLimits"]>;
 
-type WritableMutationMethods = Pick<
-  InMemoryFs,
-  | "appendFile"
-  | "chmod"
-  | "cp"
-  | "link"
-  | "mkdir"
-  | "mv"
-  | "rm"
-  | "symlink"
-  | "utimes"
-  | "writeFile"
->;
-
 type CreateBashToolRuntimeOptions = {
   initialFiles?: InitialFiles;
 };
 
+/**
+ * Guardrails applied to each just-bash runtime to bound work and output size.
+ */
 export const DEFAULT_BASH_TOOL_EXECUTION_LIMITS = {
   maxCallDepth: 50,
   maxCommandCount: 200,
@@ -90,24 +84,9 @@ async function executeInternalShellCommand(bash: Bash, command: string) {
   }
 }
 
-function getWritableMutationMethods(bash: Bash): WritableMutationMethods {
-  return {
-    appendFile: bash.fs.appendFile.bind(bash.fs),
-    chmod: bash.fs.chmod.bind(bash.fs),
-    cp: bash.fs.cp.bind(bash.fs),
-    link: bash.fs.link.bind(bash.fs),
-    mkdir: bash.fs.mkdir.bind(bash.fs),
-    mv: bash.fs.mv.bind(bash.fs),
-    rm: bash.fs.rm.bind(bash.fs),
-    symlink: bash.fs.symlink.bind(bash.fs),
-    utimes: bash.fs.utimes.bind(bash.fs),
-    writeFile: bash.fs.writeFile.bind(bash.fs),
-  };
-}
-
 async function withPolicyDisabled<T>(
   bash: Bash,
-  originalMutationMethods: WritableMutationMethods,
+  originalMutationMethods: BashToolFilesystemMutationMethods,
   callback: () => Promise<T>
 ) {
   Object.assign(bash.fs, originalMutationMethods);
@@ -141,7 +120,7 @@ function buildPhoenixFileWriteCommand({
 
 async function writeInitialFiles(
   bash: Bash,
-  originalMutationMethods: WritableMutationMethods,
+  originalMutationMethods: BashToolFilesystemMutationMethods,
   files: InitialFiles
 ) {
   await withPolicyDisabled(bash, originalMutationMethods, async () => {
@@ -201,6 +180,10 @@ function createInstrumentedCommandResult({
   };
 }
 
+/**
+ * Creates an instrumented just-bash runtime with Phoenix filesystem policy and
+ * support for replacing generated context files between refreshes.
+ */
 export async function createBashToolRuntime({
   initialFiles,
 }: CreateBashToolRuntimeOptions = {}): Promise<BashToolRuntime> {
@@ -211,7 +194,9 @@ export async function createBashToolRuntime({
     cwd: DEFAULT_BASH_TOOL_CWD,
     executionLimits: DEFAULT_BASH_TOOL_EXECUTION_LIMITS,
   });
-  const originalMutationMethods = getWritableMutationMethods(bash);
+  const originalMutationMethods = captureBashToolFilesystemMutationMethods(
+    bash.fs as InMemoryFs
+  );
   applyBashToolFilesystemPolicy(bash.fs);
 
   const runtime: BashToolRuntime = {
