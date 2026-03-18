@@ -266,6 +266,114 @@ Capital of Germany?,Berlin,geography,validation
         assert dataset[2]["metadata"]["rating"] == "5"
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_from_dataframe_with_id_key(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        df = pd.DataFrame(
+            {
+                "prompt": ["Write a poem", "Tell a joke", "Explain gravity"],
+                "response": ["Roses are red...", "Why did the chicken...", "Gravity is a force..."],
+                "example_id": ["poem-1", "joke-1", "gravity-1"],
+            }
+        )
+
+        unique_name = f"test_df_id_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                dataframe=df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                id_key="example_id",
+            )
+        )
+
+        assert len(dataset) == 3
+        example_ids = {ex["id"] for ex in dataset.examples}
+        assert example_ids == {"poem-1", "joke-1", "gravity-1"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_from_dataframe_with_id_key(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_upsert_df_{token_hex(4)}"
+
+        # v1: 3 examples with stable IDs
+        v1_df = pd.DataFrame(
+            {
+                "prompt": ["Q1", "Q2", "Q3"],
+                "response": ["A1", "A2-old", "A3"],
+                "row_id": ["id-1", "id-2", "id-3"],
+            }
+        )
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                dataframe=v1_df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                id_key="row_id",
+            )
+        )
+
+        assert len(v1) == 3
+        assert {ex["id"] for ex in v1.examples} == {"id-1", "id-2", "id-3"}
+
+        # v2: id-2 patched, id-3 omitted (deleted), id-4 added
+        v2_df = pd.DataFrame(
+            {
+                "prompt": ["Q1", "Q2-updated", "Q4"],
+                "response": ["A1", "A2-new", "A4"],
+                "row_id": ["id-1", "id-2", "id-4"],
+            }
+        )
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                dataframe=v2_df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                id_key="row_id",
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 3
+
+        v2_by_id = {ex["id"]: ex for ex in v2.examples}
+        assert set(v2_by_id.keys()) == {"id-1", "id-2", "id-4"}
+
+        # id-1: unchanged
+        assert v2_by_id["id-1"]["input"]["prompt"] == "Q1"
+        assert v2_by_id["id-1"]["output"]["response"] == "A1"
+
+        # id-2: patched
+        assert v2_by_id["id-2"]["input"]["prompt"] == "Q2-updated"
+        assert v2_by_id["id-2"]["output"]["response"] == "A2-new"
+
+        # id-3: deleted
+        assert "id-3" not in v2_by_id
+
+        # id-4: new
+        assert v2_by_id["id-4"]["input"]["prompt"] == "Q4"
+        assert v2_by_id["id-4"]["output"]["response"] == "A4"
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_dataset_to_dataframe_round_trip(
         self,
         is_async: bool,
