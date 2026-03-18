@@ -1652,7 +1652,6 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 model_version=model_id,
             )
             self._send_genai_chunk(response)
-            time.sleep(0.01)
 
         # Final chunk with finish_reason
         output_tokens = _estimate_tokens(response_text)
