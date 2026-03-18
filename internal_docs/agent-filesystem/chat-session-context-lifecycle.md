@@ -100,18 +100,18 @@ flowchart LR
     H[UI hidden, session persists]
     I[Store/runtime lost from memory]
 
-    A -->|open PXI panel| B
-    B -->|auto-create session| C
-    C -->|user sends message| D
-    D -->|model emits bash(...)| E
-    E -->|tool output appended<br/>auto-resubmit| F
-    F -->|click New chat| G
-    G -->|close panel| H
-    H -->|page reload / tab close| I
+    A -->|"open PXI panel"| B
+    B -->|"auto-create session"| C
+    C -->|"user sends message"| D
+    D -->|"model emits bash tool call"| E
+    E -->|"tool output appended<br/>auto-resubmit"| F
+    F -->|"click New chat"| G
+    G -->|"close panel"| H
+    H -->|"page reload or tab close"| I
   end
 
-  subgraph Context[/phoenix Context Lifecycle]
-    P0[/phoenix absent for this session key/]
+  subgraph Context[Phoenix Context Lifecycle]
+    P0[No /phoenix tree for this session key]
     P1[Refresh requested]
     P2[Page context snapshot]
     P3[Materialized file set]
@@ -124,23 +124,23 @@ flowchart LR
     P10[Fresh snapshot replaced]
     P11[New session-scoped runtime/snapshot]
     P12[Runtime/snapshot still retained]
-    P13[/phoenix discarded with runtime/]
+    P13[/phoenix discarded with runtime]
 
     P0 --> P1
-    P1 -->|build current page context| P2
-    P2 -->|fetch GraphQL data| P3
-    P3 -->|get or create bash runtime| P4
-    P4 -->|replace /phoenix| P5
-    P5 -->|bash reads current /phoenix| P6
-    P7 -->|fetch + materialize again<br/>stale-check before replace| P8
+    P1 -->|"build current page context"| P2
+    P2 -->|"fetch GraphQL data"| P3
+    P3 -->|"get or create bash runtime"| P4
+    P4 -->|"replace /phoenix"| P5
+    P5 -->|"bash reads current /phoenix"| P6
+    P7 -->|"fetch and materialize again<br/>stale-check before replace"| P8
     P9 --> P10
   end
 
-  C -.->|initial auto-refresh| P1
-  E -.->|execute command in runtime| P6
-  F -.->|navigation / time-range change| P7
-  F -.->|/refresh| P9
-  G -.->|switch to new session runtime| P11
+  C -.->|"initial auto-refresh"| P1
+  E -.->|"execute command in runtime"| P6
+  F -.->|"navigation or time-range change"| P7
+  F -.->|"manual /refresh"| P9
+  G -.->|"switch to new session runtime"| P11
   H -.-> P12
   I -.-> P13
 ```
