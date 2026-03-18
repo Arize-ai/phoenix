@@ -1,13 +1,12 @@
 import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
-import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
 
 /**
- * The query node for the dataset versions loader.
+ * The query for the dataset versions loader.
  */
 export const datasetVersionsLoaderQuery = graphql`
   query datasetVersionsLoaderQuery($id: ID!) {
@@ -26,11 +25,10 @@ export const datasetVersionsLoaderQuery = graphql`
  */
 export function datasetVersionsLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
-  invariant(datasetId, "datasetId is required");
   const queryRef = loadQuery<DatasetVersionsLoaderQuery>(
     RelayEnvironment,
     datasetVersionsLoaderQuery,
-    { id: datasetId }
+    { id: datasetId as string }
   );
   return { queryRef };
 }

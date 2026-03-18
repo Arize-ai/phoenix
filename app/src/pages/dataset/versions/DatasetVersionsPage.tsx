@@ -4,7 +4,7 @@ import { Outlet, useLoaderData } from "react-router";
 
 import { DatasetHistoryTable } from "@phoenix/pages/dataset/DatasetHistoryTable";
 
-import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQueryType } from "./__generated__/datasetVersionsLoaderQuery.graphql";
+import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
 import type { DatasetVersionsLoaderData } from "./datasetVersionsLoader";
 import { datasetVersionsLoaderQuery } from "./datasetVersionsLoader";
 
@@ -13,7 +13,7 @@ import { datasetVersionsLoaderQuery } from "./datasetVersionsLoader";
  */
 export function DatasetVersionsPage() {
   const loaderData = useLoaderData<DatasetVersionsLoaderData>();
-  const data = usePreloadedQuery<DatasetVersionsLoaderQueryType>(
+  const data = usePreloadedQuery<DatasetVersionsLoaderQuery>(
     datasetVersionsLoaderQuery,
     loaderData.queryRef
   );

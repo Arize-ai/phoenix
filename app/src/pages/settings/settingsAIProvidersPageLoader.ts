@@ -2,7 +2,7 @@ import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { settingsAIProvidersPageLoaderQuery as settingsAIProvidersPageLoaderQueryType } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
+import type { settingsAIProvidersPageLoaderQuery as SettingsAIProvidersPageLoaderQuery } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
 
 export const settingsAIProvidersPageLoaderQuery = graphql`
   query settingsAIProvidersPageLoaderQuery {
@@ -12,7 +12,7 @@ export const settingsAIProvidersPageLoaderQuery = graphql`
 `;
 
 export function settingsAIProvidersPageLoader() {
-  const queryRef = loadQuery<settingsAIProvidersPageLoaderQueryType>(
+  const queryRef = loadQuery<SettingsAIProvidersPageLoaderQuery>(
     RelayEnvironment,
     settingsAIProvidersPageLoaderQuery,
     {}

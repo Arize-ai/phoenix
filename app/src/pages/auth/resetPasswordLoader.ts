@@ -3,17 +3,14 @@ import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { resetPasswordLoaderQuery as resetPasswordLoaderQueryType } from "./__generated__/resetPasswordLoaderQuery.graphql";
+import type { resetPasswordLoaderCheckQuery as ResetPasswordLoaderCheckQuery } from "./__generated__/resetPasswordLoaderCheckQuery.graphql";
+import type { resetPasswordLoaderQuery as ResetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQuery.graphql";
 
 /**
- * The loadQuery graphql query node to be used for render-as-you-fetch.
+ * Query for the reset password loader.
  */
 export const resetPasswordLoaderQuery = graphql`
   query resetPasswordLoaderQuery {
-    viewer {
-      id
-      email
-    }
     ...ResetPasswordFormQuery
   }
 `;
@@ -22,16 +19,21 @@ export const resetPasswordLoaderQuery = graphql`
  * Makes sure the user is logged in
  */
 export async function resetPasswordLoader() {
-  const queryRef = loadQuery<resetPasswordLoaderQueryType>(
+  const queryRef = loadQuery<ResetPasswordLoaderQuery>(
     RelayEnvironment,
     resetPasswordLoaderQuery,
     {}
   );
 
-  // Fetch scalar fields needed for the redirect check
-  const data = await fetchQuery<resetPasswordLoaderQueryType>(
+  const data = await fetchQuery<ResetPasswordLoaderCheckQuery>(
     RelayEnvironment,
-    resetPasswordLoaderQuery,
+    graphql`
+      query resetPasswordLoaderCheckQuery {
+        viewer {
+          id
+        }
+      }
+    `,
     {}
   ).toPromise();
 
@@ -44,5 +46,5 @@ export async function resetPasswordLoader() {
 }
 
 export type ResetPasswordLoaderData = {
-  queryRef: ReturnType<typeof loadQuery<resetPasswordLoaderQueryType>>;
+  queryRef: ReturnType<typeof loadQuery<ResetPasswordLoaderQuery>>;
 };

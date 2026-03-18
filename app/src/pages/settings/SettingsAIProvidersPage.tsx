@@ -9,11 +9,11 @@ import {
   type SettingsAIProvidersLoaderData,
 } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 
-import type { settingsAIProvidersPageLoaderQuery as settingsAIProvidersPageLoaderQueryType } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
+import type { settingsAIProvidersPageLoaderQuery as SettingsAIProvidersPageLoaderQuery } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
 
 export function SettingsAIProvidersPage() {
   const loaderData = useLoaderData<SettingsAIProvidersLoaderData>();
-  const data = usePreloadedQuery<settingsAIProvidersPageLoaderQueryType>(
+  const data = usePreloadedQuery<SettingsAIProvidersPageLoaderQuery>(
     settingsAIProvidersPageLoaderQuery,
     loaderData.queryRef
   );

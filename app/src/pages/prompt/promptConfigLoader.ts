@@ -3,9 +3,9 @@ import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { promptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
+import type { promptConfigLoaderQuery as PromptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
 
-export const promptConfigLoaderQueryNode = graphql`
+export const promptConfigLoaderQuery = graphql`
   query promptConfigLoaderQuery($id: ID!) {
     prompt: node(id: $id) {
       ... on Prompt {
@@ -21,9 +21,9 @@ export const promptConfigLoader = ({ params }: LoaderFunctionArgs) => {
     throw new Error("Prompt ID is required");
   }
 
-  const queryRef = loadQuery<promptConfigLoaderQuery>(
+  const queryRef = loadQuery<PromptConfigLoaderQuery>(
     RelayEnvironment,
-    promptConfigLoaderQueryNode,
+    promptConfigLoaderQuery,
     { id: promptId }
   );
 

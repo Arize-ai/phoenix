@@ -4,16 +4,16 @@ import invariant from "tiny-invariant";
 
 import { Flex, View } from "@phoenix/components";
 import type { promptConfigLoader } from "@phoenix/pages/prompt/promptConfigLoader";
-import { promptConfigLoaderQueryNode } from "@phoenix/pages/prompt/promptConfigLoader";
+import { promptConfigLoaderQuery } from "@phoenix/pages/prompt/promptConfigLoader";
 
-import type { promptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
+import type { promptConfigLoaderQuery as PromptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
 import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
 
 export function PromptConfigPage() {
   const loaderData = useLoaderData<typeof promptConfigLoader>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<promptConfigLoaderQuery>(
-    promptConfigLoaderQueryNode,
+  const data = usePreloadedQuery<PromptConfigLoaderQuery>(
+    promptConfigLoaderQuery,
     loaderData.queryRef
   );
 
