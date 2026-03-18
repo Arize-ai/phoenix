@@ -96,7 +96,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T2.1
 - Blocks: T7.2
 
-### T2.4 Add runtime instrumentation hooks
+### T2.4 Add runtime instrumentation hooks [done]
 
 - Capture command text, duration, exit code, and output sizes.
 - Feed instrumentation into the tool execution UI.
@@ -123,7 +123,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T2.1
 - Blocks: T7.2, T8.1
 
-### T2.6 Surface bash sandbox capabilities to the model
+### T2.6 Surface bash sandbox capabilities to the model [done]
 
 - Define the canonical capability description for the browser-side bash runtime.
 - Include limits such as browser execution, disabled network, writable vs read-only paths, and unsupported host/package-manager assumptions.
@@ -193,7 +193,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 5: Context adapters
 
-### T5.1 Implement the page-context adapter
+### T5.1 Implement the page-context adapter [done]
 
 - Use current route params and UI time range as primary inputs.
 - Materialize the current page's relevant data under stable `/phoenix/...` paths.
@@ -201,6 +201,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Deliverable: default v1 adapter.
 - Depends on: T3.1, T3.2, T4.1, T4.2
 - Blocks: T6.1, T6.2, T7.2
+- Status note: v1 currently supports project and trace pages plus a generic fallback. Dataset/experiment/evaluator/prompt pages still fall back to generic context and need follow-up work.
 
 ### T5.2 Implement experimental adapters behind the same contract
 
@@ -222,7 +223,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 6: Refresh and time-range flows
 
-### T6.1 Auto-refresh on navigation and UI time-range changes
+### T6.1 Auto-refresh on navigation and UI time-range changes [done]
 
 - Re-run default context injection when route params change.
 - Re-run default context injection when UI time range changes.
@@ -232,7 +233,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T4.1, T5.1
 - Blocks: T7.2
 
-### T6.2 Support literal `/refresh` chat command
+### T6.2 Support literal `/refresh` chat command [done]
 
 - Intercept `/refresh` in the chat flow.
 - Re-run injection and overwrite current context.
@@ -274,7 +275,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 
 ## Milestone 7: Integrated verification
 
-### T7.1 Verify end-to-end client tool calling
+### T7.1 Verify end-to-end client tool calling [done]
 
 - Confirm the model can call `bash`, the client executes it, tool output renders, and the conversation continues.
 - Verify common happy paths and failure states.
@@ -282,7 +283,7 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Depends on: T1.3, T1.4, T2.4
 - Blocks: T8.2
 
-### T7.2 Verify context FS behavior and safety
+### T7.2 Verify context FS behavior and safety [done]
 
 - Confirm injected context is readable under `/phoenix/**`.
 - Confirm writes to `/phoenix/**` fail.
@@ -290,6 +291,56 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 - Confirm refresh behavior works for navigation, `/refresh`, and alternate time ranges.
 - Deliverable: verified FS contract.
 - Depends on: T2.2, T2.3, T5.1, T6.1, T6.2, T6.3
+- Blocks: T8.2
+- Status note: verification currently covers project/trace context injection, `/phoenix` write denial, workspace writes, runtime refresh, and instrumented bash tool calling. Dataset/experiment context coverage is still missing because those page types are not yet materialized.
+
+## Milestone 5.5: Dataset and experiment context follow-up
+
+### T5.4 Add dataset page-kind detection and route parsing
+
+- Extend page-context classification to recognize dataset pages instead of falling back to `generic`.
+- Extract `datasetId` from routes such as `/datasets/:datasetId` and `/datasets/:datasetId/experiments`.
+- Include dataset metadata in `_meta/context.json`.
+- Deliverable: dataset routes produce `pageKind: dataset` with a stable `datasetId`.
+- Depends on: T5.1
+- Blocks: T5.5, T5.6, T7.3
+
+### T5.5 Implement the dataset page-context adapter
+
+- Materialize active dataset metadata under `/phoenix/datasets/<datasetId>/dataset.json`.
+- Populate `/phoenix/datasets/<datasetId>/INDEX.json` and make `/phoenix/datasets/INDEX.json` advertise the active dataset.
+- Preserve the v1 design where `/phoenix/**` is page-scoped and overwritten on navigation/refresh.
+- Deliverable: dataset pages expose a stable dataset subtree instead of generic-only context.
+- Depends on: T5.4, T3.2, T4.1, T4.2
+- Blocks: T5.6, T7.3
+
+### T5.6 Materialize dataset examples and experiment-adjacent data
+
+- Export dataset examples under stable table paths such as `/phoenix/datasets/<datasetId>/tables/examples.jsonl`.
+- Add schema/index metadata for those tables.
+- For `/datasets/:datasetId/experiments`, expose experiment-facing context under a stable nested layout, preferably `/phoenix/datasets/<datasetId>/experiments/...`.
+- Deliverable: the agent can inspect the dataset examples and experiment context visible in the UI.
+- Depends on: T5.5
+- Blocks: T7.3, T8.1
+
+### T5.7 Generalize manifest fallback messaging for unsupported page types
+
+- Replace project/trace-specific fallback copy with page-type-agnostic messaging.
+- Ensure the manifest clearly distinguishes between "unsupported page type" and "supported page with no records in range".
+- Deliverable: manifest output is accurate for dataset and future adapters.
+- Depends on: T5.1
+- Blocks: T7.3
+
+## Milestone 7.5: Extended context verification
+
+### T7.3 Verify dataset and experiment filesystem behavior
+
+- Confirm dataset pages inject readable dataset metadata under `/phoenix/datasets/**`.
+- Confirm dataset examples and experiment-adjacent files are materialized when visible on the page.
+- Confirm top-level dataset indexes advertise the active dataset rather than remaining empty.
+- Confirm refresh behavior works for dataset navigation and `/refresh` without regressing workspace persistence or `/phoenix` write protection.
+- Deliverable: verified FS contract for dataset/experiment pages.
+- Depends on: T5.4, T5.5, T5.6, T5.7, T6.1, T6.2
 - Blocks: T8.2
 
 ## Milestone 8: Developer ergonomics and polish
@@ -329,11 +380,15 @@ This task list turns `internal_docs/specs/agent-filesystem-bash-plan.md` into an
 13. T6.1, T6.2
 14. T6.3
 15. T7.1, T7.2
-16. T5.2, T5.3
-17. T8.1, T8.2
+16. T5.4, T5.5, T5.6, T5.7
+17. T7.3
+18. T5.2, T5.3
+19. T8.1, T8.2
 
 ## Notes
 
 - The product-facing default remains page-context + lazy tables.
 - Experimental adapters exist to help developers compare context injection quality, not as a user-facing configuration surface.
 - The stable filesystem layout matters more than the adapter internals; agent workflows should continue to work as adapters change.
+- Current intended behavior: `/phoenix/**` is page-scoped context, not a cross-page cache. Navigation and `/refresh` overwrite it in place while `/home/user/workspace/**` persists per agent session.
+- Current known gap: dataset/experiment pages visible in the UI still fall back to generic context and need explicit adapter support.
