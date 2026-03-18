@@ -65,6 +65,8 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     projectId: initialProps.projectId,
     columnVisibility: {
       metadata: false,
+      spanId: false,
+      traceId: false,
     },
     columnSizing: {
       metadata: 200,
