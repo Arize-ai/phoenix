@@ -570,11 +570,9 @@ class _InputMapping(TypeDecorator[InputMapping]):
             raise ValueError("Input mapping cannot be None")
         return value.model_dump()
 
-    def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[InputMapping]:
+    def process_result_value(self, value: Optional[dict[str, Any]], _: Dialect) -> InputMapping:
         if value is None:
-            raise ValueError("Input mapping cannot be None")
+            return InputMapping(literal_mapping={}, path_mapping={})
         return InputMapping.model_validate(value)
 
 
