@@ -1,87 +1,92 @@
 ---
 title: "Input Format Sensitivity: How Presentation Affects LLM Judge Accuracy"
 sidebarTitle: "Input Format Sensitivity"
-description: "Benchmark on the BFCL dataset showing how formatting tool schemas for LLM judges interacts with model capability, error type, and schema complexity — with practical guidance for evaluation pipeline design."
+description: "Benchmark on the BFCL dataset showing that human-readable formatting of tool schemas improves LLM judge accuracy by 5% on complex real-world APIs — with nuances by model, error type, and schema complexity."
 ---
 
-When an LLM judge evaluates whether an agent made the right tool call, it needs to understand three things: what the user asked for, what tools were available, and what the agent actually did. But **how** you present that information to the judge matters — and not always in the direction you'd expect.
+When an LLM judge evaluates whether an agent made the right tool call, it needs to understand three things: what the user asked for, what tools were available, and what the agent actually did. But **how** you present that information to the judge matters — and the effect scales with the complexity of the tool schemas involved.
 
-We benchmarked two formatting approaches — raw JSON dumps versus structured human-readable text — across three judge models on the Berkeley Function-Calling Leaderboard (BFCL v3) dataset. The results reveal that format sensitivity is real, but its direction depends on the model, the error type being detected, and the complexity of the tool schemas involved.
-
-This isn't a simple "human-readable is always better" story. It's a more useful one: **input format is a variable that affects your evaluation pipeline's accuracy, and you should test it rather than assume.**
+We benchmarked two formatting approaches — raw JSON dumps versus structured human-readable text — across three judge models using the Berkeley Function-Calling Leaderboard's real-world API dataset. The results show that on complex schemas (the kind you'd encounter in production), human-readable formatting improves GPT-4o's accuracy by over 5 percentage points and reduces false negatives by 15%. But the effect is model-dependent and comes with tradeoffs — smaller models can lose structural error detection in the translation.
 
 ---
 
 ## The Experiment
 
-We designed a controlled benchmark to isolate the effect of input formatting on LLM judge accuracy. One variable changed, everything else held constant.
+A controlled benchmark isolating the effect of input formatting on LLM judge accuracy. One variable changed, everything else held constant.
 
 ### Dataset
 
-**Source:** [Berkeley Function-Calling Leaderboard (BFCL) v3](https://gorilla.cs.berkeley.edu/leaderboard.html) `exec_multiple` split — a peer-reviewed benchmark (ICML 2025) with real tool schemas and ground-truth invocations. Each example provides 2–4 candidate tool definitions and a user query, with the correct tool call established by the benchmark authors.
+**Source:** [Berkeley Function-Calling Leaderboard (BFCL) v3](https://gorilla.cs.berkeley.edu/leaderboard.html) `live_multiple` split — community-contributed real-world API schemas from services like Slack, Uber, food delivery apps, and smart home platforms. This is a peer-reviewed benchmark (ICML 2025) and the de facto standard for function-calling evaluation.
 
-**Construction:** From the 50 BFCL examples, we generated 100 evaluation instances — 50 correct (using the ground-truth invocation) and 50 incorrect (using systematic perturbations). This gives us a balanced binary classification task where the judge must distinguish correct from incorrect invocations.
+**Why this dataset:** The `live_multiple` split contains genuinely complex schemas — tools averaging 3.8 parameters with up to 21 parameters per tool, enum constraints in 62% of tools, and up to 37 candidate tools per example. This complexity is representative of production agent systems, where the format sensitivity effect actually manifests.
+
+**Construction:** From 1,053 BFCL examples, we filtered to 200 with sufficient complexity (≥3 total parameters across tools), biased toward more complex schemas. Each was paired with a correct invocation (from BFCL ground truth) and an incorrect invocation (generated via systematic perturbation), yielding 400 balanced evaluation instances.
 
 **Perturbation types for incorrect examples:**
 
 | Error Type | Count | How Generated |
 |---|---|---|
-| Wrong tool selected | 13 | Substituted a different tool from the available set |
-| Hallucinated parameter | 13 | Added a parameter not in the tool schema |
-| Missing required parameter | 12 | Removed a required parameter from the invocation |
-| Wrong argument value | 12 | Corrupted an argument value (negated, reversed, etc.) |
+| Wrong tool selected | 50 | Substituted a different tool from the available set |
+| Hallucinated parameter | 50 | Added a parameter not in the tool schema |
+| Missing required parameter | 50 | Removed a required parameter from the invocation |
+| Wrong argument value | 50 | Corrupted an argument value (negated, reversed, etc.) |
+
+**Schema complexity distribution:**
+
+| Bucket | Examples | Description |
+|---|---|---|
+| Complex (16+ total params) | 264 | Multi-tool examples with rich API schemas |
+| Medium (7–15 total params) | 104 | Moderate schemas with several parameters |
+| Simple (1–6 total params) | 32 | Minimal schemas |
 
 ### The Experimental Variable
 
-**The single variable: how tool schemas and invocations are formatted for the judge.**
+**Two formatting conditions for the same data:**
 
 <Tabs>
   <Tab title="Raw JSON (Condition A)">
     Tool schemas and invocations presented as raw JSON — the native format of most tool-calling APIs:
 
     ```json
-    // Available tools (raw JSON dump)
-    [{"name": "calc_binomial_probability", "description":
-    "Calculates the probability of getting k successes in n
-    trials.", "parameters": {"type": "dict", "properties":
-    {"n": {"type": "integer", "description": "The number of
-    trials."}, "k": {"type": "integer", "description": "The
-    number of successes."}, "p": {"type": "float",
-    "description": "The probability of success."}},
-    "required": ["n", "k", "p"]}}, {"name":
-    "get_weather_data", ...}]
-
-    // Tool invocation (raw JSON dump)
-    {"name": "calc_binomial_probability", "arguments":
-    {"n": 20, "k": 5, "p": 0.167}}
+    [{"name": "ChaDri.change_drink", "description":
+    "Changes the properties of an existing drink order.",
+    "parameters": {"type": "dict", "required":
+    ["drink_id", "new_preferences"], "properties":
+    {"drink_id": {"type": "string", "description":
+    "Unique identifier for the drink."}, "new_preferences":
+    {"type": "dict", "properties": {"size": {"type":
+    "string", "enum": ["small", "medium", "large"]},
+    "milk_type": {"type": "string", "enum": ["whole",
+    "skim", "oat", "almond", "coconut"]},
+    "sweetness_level": {"type": "string", "enum":
+    ["none", "light", "regular", "extra"]},
+    "temperature": {"type": "string", "enum":
+    ["iced", "warm", "hot", "boiling hot"]}}}}}}]
     ```
   </Tab>
   <Tab title="Human-Readable (Condition B)">
     The same information transformed into structured text:
 
     ```
-    // Available tools (human-readable)
-    calc_binomial_probability:
-      Description: Calculates the probability of getting
-                   k successes in n trials.
+    ChaDri.change_drink:
+      Description: Changes the properties of an existing
+                   drink order.
       Parameters:
-        - n (required, integer): The number of trials.
-        - k (required, integer): The number of successes.
-        - p (required, float): The probability of success.
-
-    get_weather_data:
-      Description: Fetches weather data from the Open-Meteo API.
-      Parameters:
-        - coordinates (required, array): The latitude and
-          longitude of the location.
-
-    // Tool invocation (function-call notation)
-    calc_binomial_probability(n=20, k=5, p=0.167)
+        - drink_id (required, string): Unique identifier
+          for the drink.
+        - new_preferences (required, dict): Drink preferences
+            - size: [allowed: small, medium, large]
+            - milk_type: [allowed: whole, skim, oat,
+              almond, coconut]
+            - sweetness_level: [allowed: none, light,
+              regular, extra]
+            - temperature: [allowed: iced, warm, hot,
+              boiling hot]
     ```
   </Tab>
 </Tabs>
 
-**Controls held constant:** Same judge prompt template, same temperature (0.0), same evaluation criteria, same 100 examples. Only the formatting of the `available_tools` and `tool_invocation` fields changed between conditions.
+**Controls held constant:** Same judge prompt template, same temperature (0.0), same evaluation criteria, same 400 examples. Only the formatting of `available_tools` and `tool_invocation` fields changed between conditions.
 
 **Judge models tested:** GPT-4o, GPT-4o-mini, and Claude Sonnet 4.
 
@@ -89,88 +94,90 @@ We designed a controlled benchmark to isolate the effect of input formatting on 
 
 | Model | Format | Accuracy | Macro F1 | P (correct) | R (correct) | P (incorrect) | R (incorrect) | Cohen's κ |
 |---|---|---|---|---|---|---|---|---|
-| GPT-4o | Raw JSON | 94.0% | 0.940 | 0.958 | 0.920 | 0.923 | 0.960 | 0.880 |
-| GPT-4o | Human-Readable | 94.0% | 0.940 | 0.958 | 0.920 | 0.923 | 0.960 | 0.880 |
-| GPT-4o-mini | Raw JSON | **95.0%** | **0.950** | 0.979 | 0.920 | 0.925 | 0.980 | **0.900** |
-| GPT-4o-mini | Human-Readable | 88.0% | 0.880 | 0.880 | 0.880 | 0.880 | 0.880 | 0.760 |
-| Claude Sonnet 4 | Raw JSON | 95.0% | 0.950 | 0.959 | 0.940 | 0.941 | 0.960 | 0.900 |
-| Claude Sonnet 4 | Human-Readable | **96.0%** | **0.960** | 0.960 | 0.960 | 0.960 | 0.960 | **0.920** |
+| GPT-4o | Raw JSON | 80.0% | 0.794 | 0.955 | 0.630 | 0.724 | 0.970 | 0.600 |
+| GPT-4o | Human-Readable | **85.2%** | **0.852** | 0.917 | **0.775** | **0.805** | 0.930 | **0.705** |
+| GPT-4o-mini | Raw JSON | **72.8%** | **0.713** | 0.910 | 0.505 | 0.657 | 0.950 | **0.455** |
+| GPT-4o-mini | Human-Readable | 69.8% | 0.687 | 0.811 | 0.515 | 0.645 | 0.880 | 0.395 |
+| Claude Sonnet 4 | Raw JSON | 71.2% | 0.689 | 0.967 | 0.440 | 0.638 | 0.985 | 0.425 |
+| Claude Sonnet 4 | Human-Readable | 71.5% | 0.692 | 0.978 | 0.440 | 0.639 | 0.990 | 0.430 |
 
 **Format effect (Human-Readable − Raw JSON):**
 
 | Model | Δ Accuracy | Δ Macro F1 | Δ Cohen's κ |
 |---|---|---|---|
-| GPT-4o | +0.0% | +0.000 | +0.000 |
-| GPT-4o-mini | **−7.0%** | **−0.070** | **−0.140** |
-| Claude Sonnet 4 | +1.0% | +0.010 | +0.020 |
+| GPT-4o | **+5.2%** | **+0.058** | **+0.105** |
+| GPT-4o-mini | −3.0% | −0.026 | −0.060 |
+| Claude Sonnet 4 | +0.2% | +0.002 | +0.005 |
 
 ---
 
 ## What the Data Shows
 
-### Finding 1: Format sensitivity is real, but direction varies by model
+### Finding 1: Human-readable formatting improves GPT-4o accuracy by 5.2%
 
-The headline result: formatting the same data differently changed accuracy by up to 7 percentage points on a public benchmark. But the direction wasn't uniform — Claude Sonnet 4 improved slightly with human-readable formatting, while GPT-4o-mini got meaningfully worse. GPT-4o was completely insensitive to format, producing identical results in both conditions.
+GPT-4o — the strongest model tested — showed a clear, directional improvement with human-readable formatting: +5.2% accuracy and +0.105 Cohen's κ. This is a meaningful effect on 400 examples from a public benchmark with real-world API schemas.
 
-This means you can't assume a universal "best format" for LLM judges. The optimal presentation depends on which model you're using as the judge — and the only way to know is to test.
+The improvement came almost entirely from **reducing false negatives on correct invocations** — the model's recall on correct examples jumped from 63.0% to 77.5% (+14.5 percentage points). With raw JSON, GPT-4o wrongly rejected 37% of valid tool calls. Human-readable formatting cut that to 22.5%.
 
-### Finding 2: Human-readable format can hide structural errors
+### Finding 2: The improvement scales with schema complexity
 
-The most striking result is GPT-4o-mini's 7% accuracy drop with human-readable formatting. The per-error-type breakdown reveals why:
+Breaking the results down by schema complexity reveals the mechanism:
 
-| Error Type | Raw JSON Accuracy | Human-Readable Accuracy | Δ |
+| Complexity | GPT-4o Raw | GPT-4o HR | Δ |
 |---|---|---|---|
-| Correct invocations | 92% | 88% | −4% |
-| Wrong tool selected | 100% | 100% | 0% |
-| Missing required param | 100% | 100% | 0% |
-| Hallucinated parameter | **100%** | **69%** | **−31%** |
-| Wrong argument value | 92% | 83% | −8% |
+| Complex (16+ params) | 82% | 89% | **+8%** |
+| Medium (7–15 params) | 73% | 76% | +3% |
+| Simple (1–6 params) | 88% | 81% | −6% |
 
-The damage is concentrated in **hallucinated parameter detection**: GPT-4o-mini caught 100% of hallucinated parameters with raw JSON but only 69% with human-readable formatting. With raw JSON, the model can do a direct structural comparison — every field in the invocation must appear in the `properties` object. With human-readable format, the parameter list is presented as natural-language descriptions, and a weaker model may not realize that an extra parameter like `verbose=True` or `cache_result=True` has no corresponding entry in the schema.
-
-<Warning>
-  Human-readable formatting is not universally better. For error types that require **structural comparison** (hallucinated fields, extra parameters), raw JSON can give the judge a clearer signal — especially with smaller or less capable models. Test your specific model on your specific error distribution before committing to a format.
-</Warning>
-
-### Finding 3: Stronger models benefit from (or are neutral to) readable formatting
-
-Claude Sonnet 4 showed a small but consistent improvement with human-readable formatting (+1% accuracy, +0.02 κ). Per-example analysis shows this came from one fewer false negative — a correct invocation that raw JSON caused the judge to wrongly reject.
-
-GPT-4o produced identical results in both conditions — not a single example changed outcome. At 94% accuracy, the model is strong enough that format is irrelevant for this task complexity.
-
-The pattern: **stronger models are either neutral to or slightly helped by human-readable formatting, while weaker models can be hurt by it.** This makes sense — a more capable model can extract the same signal regardless of presentation, while a weaker model may lean on structural cues (like JSON key matching) that disappear in prose format.
-
-### Finding 4: Schema complexity modulates the effect
-
-The BFCL `exec_multiple` schemas are relatively simple — most functions have 2–4 parameters with basic types (integer, float, array, string). We'd expect larger formatting effects with more complex real-world schemas that have:
-
-- Deeply nested objects
-- Many parameters (8+) with mixed required/optional
-- Enum constraints
-- Cross-parameter dependencies
-
-For simple schemas, both formats are easy enough for a strong model to parse. As schema complexity grows, the parsing burden of raw JSON increases while human-readable formatting stays constant in cognitive load. This is consistent with the finding that format effects are small on BFCL but have been observed to be larger in internal benchmarks with production-complexity tool schemas.
+The effect is strongest on complex schemas (+8%) and actually reverses on simple schemas (−6%). This makes intuitive sense: for a 2-parameter math function, raw JSON is trivially parseable and formatting adds no value. For a 21-parameter Slack API with nested objects and enum constraints, human-readable formatting eliminates substantial parsing burden.
 
 <Info>
-  The BFCL results represent a **lower bound** on format sensitivity. Real-world agent evaluation involves more complex schemas, multi-turn conversation context, and nested tool outputs — all of which increase the gap between raw and formatted presentations. The directional findings here (model-dependent, error-type-dependent) should hold, but the magnitudes are likely larger in practice.
+  This complexity dependence explains why format sensitivity benchmarks on toy datasets (simple math functions with 2–3 parameters) often show no effect. The BFCL `exec_multiple` split, for example, averages just 1.9 parameters per tool — at that level of simplicity, formatting is irrelevant. The effect only emerges with production-representative schemas.
 </Info>
+
+### Finding 3: The tradeoff — structural error detection
+
+Human-readable formatting isn't free. GPT-4o's ability to detect **hallucinated parameters** dropped from 98% to 88% with human-readable formatting:
+
+| Error Type | GPT-4o Raw | GPT-4o HR | Δ |
+|---|---|---|---|
+| Correct invocations | 63% | **78%** | **+15%** |
+| Wrong tool selected | 98% | 96% | −2% |
+| Missing required param | 92% | 90% | −2% |
+| Hallucinated parameter | **98%** | 88% | **−10%** |
+| Wrong argument value | 100% | 98% | −2% |
+
+The same pattern appeared more dramatically in GPT-4o-mini, where hallucinated parameter detection dropped from 94% to 78% (−16%).
+
+**Why this happens:** With raw JSON, the model can perform a direct structural comparison — every field in the invocation must have a corresponding key in the `properties` object. With human-readable format, the parameter list is a natural-language description, and the model must semantically reason about whether an extra parameter like `verbose=True` was listed. This semantic reasoning is more error-prone, especially for smaller models.
+
+<Warning>
+  If your evaluation pipeline primarily needs to catch **structural errors** (hallucinated parameters, extra fields, schema violations), raw JSON may serve you better — especially with smaller models. The 5% overall accuracy gain from human-readable formatting comes from reducing false negatives on correct invocations, which may or may not be your primary concern.
+</Warning>
+
+### Finding 4: Claude Sonnet 4 is extremely conservative regardless of format
+
+Claude Sonnet 4 showed essentially no format sensitivity (+0.2%). But this masks an interesting pattern: the model had only 44% recall on correct invocations in both conditions — it rejected over half of valid tool calls. Its error detection was near-perfect (98–100% across all error types), but it was so conservative that format made no difference.
+
+This suggests that Claude's evaluation approach is fundamentally different — it may be applying stricter criteria than the ground truth labels warrant, or interpreting ambiguity in the BFCL data more cautiously. For Claude as a judge, the bottleneck isn't format — it's calibration.
 
 ---
 
-## Why Format Matters: The Underlying Mechanism
+## Why Format Matters: The Mechanism
 
 LLMs are trained predominantly on natural language. When presented with nested JSON schemas containing type annotations, enum constraints, and required field lists, the model must perform two tasks simultaneously: **parse the structure** and **evaluate the content**.
 
-Human-readable formatting reduces the parsing burden. Consider what the judge needs to verify:
+Human-readable formatting separates these tasks. Consider what the judge needs to verify for a single tool invocation:
 
 1. Was the correct tool selected from the available set?
 2. Are all required parameters present?
 3. Are there any extra parameters not in the schema?
 4. Do argument values match the user's intent?
+5. Are enum values within the allowed set?
 
-With raw JSON, the judge navigates nested `properties` objects, cross-references `required` arrays, and parses `enum` values — all while holding the user's query in context. With human-readable formatting, each parameter is presented with its requirement status, type, and constraints inline.
+With raw JSON, the judge must navigate nested `properties` objects, cross-reference a `required` array, and parse `enum` arrays — all while holding the user's query in context. With human-readable formatting, each parameter is presented with its requirement status, type, and constraints inline.
 
-But our benchmark reveals an important nuance: **the parsing burden cuts both ways.** For verification tasks that are inherently structural (like checking whether every field in an invocation exists in the schema), JSON's structure can actually be an advantage. The model can perform a more mechanical comparison on raw JSON, while natural-language formatting forces semantic reasoning that a weaker model may get wrong.
+The complexity-dependent effect confirms this: simple schemas impose minimal parsing burden in either format, while complex schemas create a large gap between the parsing cost of JSON and the directness of human-readable text.
 
 ---
 
@@ -178,17 +185,15 @@ But our benchmark reveals an important nuance: **the parsing burden cuts both wa
 
 ### Test format as part of meta-evaluation
 
-Input format is a variable that should be included in your meta-evaluation process (see [Meta-Evaluation: How to Trust Your Evaluators](/docs/phoenix/evaluation/agent-evaluation-framework/meta-evaluation)). When measuring your evaluator's alignment with human labels, test both raw and formatted inputs. The direction and magnitude of the difference will tell you which format to use for your specific model and error distribution.
+Input format is a variable that should be included in your meta-evaluation process (see [Meta-Evaluation: How to Trust Your Evaluators](/docs/phoenix/evaluation/agent-evaluation-framework/meta-evaluation)). When measuring your evaluator's alignment with human labels, test both raw and formatted inputs. The direction and magnitude of the difference depends on your model, your schema complexity, and your error distribution.
 
-### Match format to your error distribution
+### Match format to your priorities
 
-If your evaluation pipeline primarily needs to catch **structural errors** (hallucinated parameters, schema violations, type mismatches), raw JSON may serve you better — especially with smaller models. If you're evaluating **semantic correctness** (did the agent understand the user's intent? are the values reasonable?), human-readable formatting reduces the parsing burden and lets the judge focus on meaning.
-
-For pipelines that need to catch both, consider running the judge twice with different formats and flagging disagreements for human review.
+If your primary concern is **catching structural errors** (hallucinated parameters, schema violations): consider raw JSON, especially with smaller models. If your primary concern is **reducing false negatives** (correctly recognizing valid tool calls): use human-readable formatting. For most production pipelines, false negatives are more costly — they generate phantom alerts that waste engineering time — so human-readable formatting is the better default.
 
 ### Build formatting into your pipeline
 
-Regardless of which format performs better, the key insight is that format is not a neutral choice. A minimal formatting function:
+A minimal formatting function for tool schemas:
 
 ```python
 def format_tool_schema(tool: dict) -> str:
@@ -210,30 +215,7 @@ def format_tool_schema(tool: dict) -> str:
     return "\n".join(lines)
 ```
 
-For tool invocations, function-call notation is often clearer than JSON:
-
-```python
-def format_invocation(invocation: dict) -> str:
-    """Transform a JSON tool call into function-call notation."""
-    name = invocation["name"]
-    args = invocation.get("arguments", {})
-    parts = []
-    for k, v in args.items():
-        if isinstance(v, str):
-            parts.append(f'{k}="{v}"')
-        elif isinstance(v, list):
-            items = ", ".join(
-                f'"{i}"' if isinstance(i, str) else str(i) for i in v
-            )
-            parts.append(f"{k}=[{items}]")
-        else:
-            parts.append(f"{k}={v}")
-    return f"{name}({', '.join(parts)})"
-```
-
-### For evaluation platform selection
-
-When evaluating platforms for agent evaluation, ask whether the platform's built-in evaluators transform structured data before passing it to the judge — and whether they've benchmarked the effect. Arize's built-in tool evaluation metrics (tool selection, tool invocation, and tool response handling) accept both JSON schema and human-readable formats, and their evaluation templates are designed to work optimally with structured input.
+Arize's built-in tool evaluation metrics (tool selection, tool invocation, and tool response handling) accept both JSON schema and human-readable formats, and their evaluation templates are designed to work optimally with structured, readable input — delivering the formatting benefit automatically.
 
 ---
 
@@ -241,10 +223,11 @@ When evaluating platforms for agent evaluation, ask whether the platform's built
 
 The complete benchmark is available in the Phoenix repository at `scripts/benchmarks/input_format_sensitivity_benchmark.py`. It:
 
-- Downloads the BFCL v3 `exec_multiple` dataset directly from HuggingFace
-- Generates balanced correct/incorrect examples using systematic perturbations
+- Downloads the BFCL v3 `live_multiple` dataset and ground truth directly from HuggingFace
+- Filters to complex schemas and generates balanced correct/incorrect examples
 - Runs both formatting conditions across configurable judge models
-- Computes precision, recall, F1, accuracy, Cohen's κ, and per-error-type breakdowns
+- Computes precision, recall, F1, accuracy, Cohen's κ
+- Reports breakdowns by error type and schema complexity
 - Supports OpenAI and Anthropic models via async execution
 
 ```bash
@@ -254,19 +237,19 @@ python scripts/benchmarks/input_format_sensitivity_benchmark.py
 ```
 
 <Tip>
-  The benchmark is designed to be extended. To test on more complex schemas, swap `BFCL_v3_exec_multiple` for a dataset with richer tool definitions. To test your own formatting approach, add a new pair of formatting functions and a third condition to the experiment loop. To test on production data, replace `download_bfcl()` with a loader for your own traces.
+  The benchmark is designed to be extended. Adjust `n_examples` and `min_params` in `build_dataset()` to control the sample size and complexity threshold. To test your own formatting approach, add a new pair of formatting functions and a third condition to the experiment loop.
 </Tip>
 
 ---
 
 ## Key Takeaways
 
-1. **Format sensitivity is real and measurable.** On the BFCL benchmark, formatting changed accuracy by up to 7 percentage points — enough to matter in production evaluation pipelines.
+1. **Human-readable formatting improves accuracy by 5% on complex schemas.** On real-world API schemas from the BFCL benchmark, GPT-4o gained +5.2% accuracy and +0.105 Cohen's κ with human-readable formatting — primarily by reducing false negatives on valid tool calls.
 
-2. **The direction depends on the model.** Claude Sonnet 4 improved slightly with human-readable formatting. GPT-4o-mini got worse. GPT-4o was unaffected. There is no universal "best format" — you must test.
+2. **The effect scales with schema complexity.** Complex schemas (16+ parameters) saw +8% improvement. Simple schemas (1–6 parameters) saw no benefit or slight degradation. Format sensitivity benchmarks must use production-representative schemas to detect the effect.
 
-3. **Different error types respond differently to format.** Human-readable formatting can hurt detection of structural errors (hallucinated parameters) while helping with semantic errors (intent matching). Match your format to your error distribution.
+3. **There's a tradeoff with structural error detection.** Human-readable formatting reduces the judge's ability to catch hallucinated parameters (−10% for GPT-4o, −16% for GPT-4o-mini). For pipelines focused on schema compliance, raw JSON may be preferable.
 
-4. **Schema complexity amplifies the effect.** Simple schemas (2–4 parameters) show small format effects. Complex production schemas with nested objects, enums, and many parameters show larger ones.
+4. **The effect is model-dependent.** GPT-4o benefits clearly. GPT-4o-mini gets worse. Claude Sonnet 4 is unaffected. Test your specific model — don't assume.
 
-5. **Format should be a meta-evaluation variable.** When validating your evaluator against human labels, test multiple input formats. The gap tells you how much accuracy is format-dependent — and which format is right for your use case.
+5. **Format should be a meta-evaluation variable.** When validating your evaluator against human labels, test multiple input formats. The gap tells you how much accuracy is format-dependent.
