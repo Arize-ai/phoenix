@@ -140,6 +140,7 @@ function buildIncompleteEvaluation(
     },
     datasetExample: {
       id: apiResponse.dataset_example.id,
+      nodeId: apiResponse.dataset_example.node_id,
       input: apiResponse.dataset_example.input,
       output: apiResponse.dataset_example.output ?? null,
       metadata: apiResponse.dataset_example.metadata || {},

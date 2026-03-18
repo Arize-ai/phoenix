@@ -136,6 +136,7 @@ function buildExampleFromApiResponse(
 ): ExampleWithId {
   return {
     id: apiExample.id,
+    nodeId: apiExample.node_id,
     input: apiExample.input,
     output: apiExample.output || null,
     metadata: apiExample.metadata || {},
