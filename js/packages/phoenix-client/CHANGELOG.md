@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.5.1
+
+### Patch Changes
+
+- 91949d7: Add name, spanKind, and statusCode filter parameters to getSpans
+
 ## 6.5.0
 
 ### Minor Changes
