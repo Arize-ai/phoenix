@@ -1,53 +1,16 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from .prompts import PromptLike
 
 __all__ = [
-    "PromptPartContentType",
-    "PromptPart",
-    "MultimodalPrompt",
     "ObjectGenerationMethod",
     "BaseLLMAdapter",
     "AdapterRegistration",
     "ProviderRegistration",
 ]
-
-
-class PromptPartContentType(str, Enum):
-    TEXT = "text"
-    AUDIO = "audio"
-    IMAGE = "image"
-
-
-@dataclass
-class PromptPart:
-    content_type: PromptPartContentType
-    content: str
-
-
-@dataclass
-class MultimodalPrompt:
-    parts: List[PromptPart]
-
-    @staticmethod
-    def from_string(string_prompt: str) -> "MultimodalPrompt":
-        return MultimodalPrompt(
-            parts=[PromptPart(content_type=PromptPartContentType.TEXT, content=string_prompt)]
-        )
-
-    def to_text_only_prompt(self) -> str:
-        if any(part.content_type != PromptPartContentType.TEXT for part in self.parts):
-            raise ValueError("This model does not support multimodal prompts")
-
-        return "\n\n".join(
-            [part.content for part in self.parts if part.content_type == PromptPartContentType.TEXT]
-        )
-
-    def __str__(self) -> str:
-        return "\n\n".join([part.content for part in self.parts])
 
 
 class ObjectGenerationMethod(str, Enum):
@@ -82,7 +45,7 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Generate text response from the model.
 
         Args:
@@ -91,9 +54,7 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Async version of generate_text.
 
         Args:
@@ -104,7 +65,7 @@ class BaseLLMAdapter(ABC):
     @abstractmethod
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -128,7 +89,7 @@ class BaseLLMAdapter(ABC):
     @abstractmethod
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
