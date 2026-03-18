@@ -36,7 +36,7 @@ export type AppendDatasetExamplesResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
- *   - `id`: Optional stable ID for the example, enabling upsert across dataset versions
+ *   - `id`: Optional user-provided ID for the example. If not provided, an ID will be generated.
  *
  * @returns A promise that resolves to the dataset ID
  *
