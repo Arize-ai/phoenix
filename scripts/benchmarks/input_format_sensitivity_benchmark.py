@@ -6,9 +6,10 @@ Input Format Sensitivity Benchmark
 Measures how input formatting affects LLM-as-a-judge alignment with
 human labels when evaluating agent tool calls.
 
-Uses the Berkeley Function-Calling Leaderboard (BFCL v3) dataset —
-a peer-reviewed benchmark (ICML 2025) with real tool schemas and
-ground-truth invocations.
+Uses the BFCL v3 live_multiple dataset — real-world API schemas from
+the Berkeley Function-Calling Leaderboard (ICML 2025) with community-
+contributed tool definitions averaging 3.8 params/tool and up to 21
+params, with enum constraints in 62% of tools.
 
 Two conditions:
   1. Raw JSON: Tool schemas and invocations as raw JSON dumps
@@ -27,7 +28,6 @@ import asyncio
 import json
 import os
 import random
-import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -47,87 +47,60 @@ from sklearn.metrics import (
 random.seed(42)
 
 # ---------------------------------------------------------------------------
-# 1. LOAD BFCL DATASET
+# 1. LOAD BFCL v3 live_multiple DATASET
 # ---------------------------------------------------------------------------
 
-BFCL_MULTIPLE_URL = (
-    "https://huggingface.co/datasets/"
-    "gorilla-llm/Berkeley-Function-Calling-Leaderboard/"
-    "resolve/main/BFCL_v3_exec_multiple.json"
+HF_BASE = (
+    "https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard/resolve/main"
 )
+DATA_URL = f"{HF_BASE}/BFCL_v3_live_multiple.json"
+GT_URL = f"{HF_BASE}/possible_answer/BFCL_v3_live_multiple.json"
 
 
-def download_bfcl() -> list[dict[str, Any]]:
-    """Download BFCL v3 exec_multiple dataset (50 examples)."""
-    print("Downloading BFCL v3 exec_multiple dataset...")
-    resp = requests.get(BFCL_MULTIPLE_URL, timeout=30)
-    resp.raise_for_status()
-    data = [json.loads(line) for line in resp.text.strip().splitlines()]
-    print(f"  Downloaded {len(data)} examples")
-    return data
+def download_bfcl_live_multiple() -> tuple[list[dict[str, Any]], dict[str, list[Any]]]:
+    """Download BFCL v3 live_multiple + ground truth."""
+    print("Downloading BFCL v3 live_multiple...")
+    data_r = requests.get(DATA_URL, timeout=60)
+    data_r.raise_for_status()
+    data = [json.loads(line) for line in data_r.text.strip().splitlines()]
+
+    print("Downloading ground truth labels...")
+    gt_r = requests.get(GT_URL, timeout=60)
+    gt_r.raise_for_status()
+    gt_raw = [json.loads(line) for line in gt_r.text.strip().splitlines()]
+    gt_by_id = {g["id"]: g["ground_truth"] for g in gt_raw}
+
+    print(f"  {len(data)} examples, {len(gt_by_id)} with GT")
+    return data, gt_by_id
 
 
-def parse_ground_truth_call(gt_str: str) -> dict[str, Any]:
-    """Parse a BFCL ground truth string like 'func(a=1, b="x")'
-    into {"name": "func", "arguments": {"a": 1, "b": "x"}}."""
-    # Extract function name and args string
-    match = re.match(r"(\w+)\((.*)\)$", gt_str, re.DOTALL)
-    if not match:
-        return {"name": gt_str, "arguments": {}}
+def gt_to_invocation(gt_entry: list[dict[str, Any]]) -> dict[str, Any]:
+    """Convert BFCL ground truth format to invocation dict.
 
-    name = match.group(1)
-    args_str = match.group(2).strip()
+    BFCL GT format: [{"func_name": {"param": [possible_values]}}]
+    We take the first possible value for each param.
+    """
+    if not gt_entry:
+        return {"name": "", "arguments": {}}
 
-    if not args_str:
-        return {"name": name, "arguments": {}}
+    first_call = gt_entry[0]
+    func_name = list(first_call.keys())[0]
+    raw_args = first_call[func_name]
 
-    # Parse keyword arguments — use Python's ast for safety
-    import ast
+    # Each arg value is a list of possible correct values;
+    # take the first one
+    args = {}
+    for k, v in raw_args.items():
+        if isinstance(v, list) and len(v) > 0:
+            args[k] = v[0]
+        else:
+            args[k] = v
 
-    # Build a dict expression from kwargs
-    # Handle nested structures by wrapping in dict()
-    try:
-        # Try direct eval with ast.literal_eval on a dict
-        dict_str = "dict(" + args_str + ")"
-        args = eval(dict_str)  # noqa: S307
-    except Exception:
-        # Fallback: try to parse as JSON-like
-        args = {}
-        for part in _split_kwargs(args_str):
-            if "=" in part:
-                key, val = part.split("=", 1)
-                key = key.strip()
-                val = val.strip()
-                try:
-                    args[key] = ast.literal_eval(val)
-                except Exception:
-                    args[key] = val
-
-    return {"name": name, "arguments": args}
-
-
-def _split_kwargs(s: str) -> list[str]:
-    """Split comma-separated kwargs respecting brackets/parens."""
-    parts: list[str] = []
-    depth = 0
-    current: list[str] = []
-    for ch in s:
-        if ch in "([{":
-            depth += 1
-        elif ch in ")]}":
-            depth -= 1
-        elif ch == "," and depth == 0:
-            parts.append("".join(current).strip())
-            current = []
-            continue
-        current.append(ch)
-    if current:
-        parts.append("".join(current).strip())
-    return parts
+    return {"name": func_name, "arguments": args}
 
 
 # ---------------------------------------------------------------------------
-# 2. GENERATE INCORRECT INVOCATIONS (perturbations)
+# 2. GENERATE INCORRECT INVOCATIONS
 # ---------------------------------------------------------------------------
 
 
@@ -141,30 +114,28 @@ def generate_incorrect_invocation(
     args = dict(correct.get("arguments", {}))
 
     if perturbation_type == "wrong_tool":
-        # Pick a different tool from available tools
         other_tools = [t for t in all_tools if t["name"] != name]
         if other_tools:
             wrong = random.choice(other_tools)
             return {"name": wrong["name"], "arguments": args}
-        # Fallback: hallucinate a tool name
         return {"name": name + "_v2", "arguments": args}
 
     elif perturbation_type == "hallucinated_param":
-        # Add a parameter that doesn't exist in the schema
         fake_params = [
             ("verbose", True),
-            ("timeout", 30),
+            ("timeout_seconds", 30),
             ("cache_result", True),
             ("api_version", "v2"),
             ("retry_count", 3),
-            ("format", "json"),
+            ("output_format", "json"),
+            ("debug_mode", False),
+            ("max_retries", 5),
         ]
         fake_key, fake_val = random.choice(fake_params)
         args[fake_key] = fake_val
         return {"name": name, "arguments": args}
 
     elif perturbation_type == "missing_required":
-        # Remove a required parameter
         tool_def = next((t for t in all_tools if t["name"] == name), None)
         if tool_def and args:
             required = set(tool_def.get("parameters", {}).get("required", []))
@@ -172,13 +143,11 @@ def generate_incorrect_invocation(
             if removable:
                 del args[random.choice(removable)]
                 return {"name": name, "arguments": args}
-        # Fallback: remove any param
         if args:
             del args[random.choice(list(args.keys()))]
         return {"name": name, "arguments": args}
 
     elif perturbation_type == "wrong_value":
-        # Swap or corrupt an argument value
         if args:
             key = random.choice(list(args.keys()))
             val = args[key]
@@ -190,10 +159,11 @@ def generate_incorrect_invocation(
                 args[key] = list(reversed(val)) if len(val) > 1 else [0]
             elif isinstance(val, bool):
                 args[key] = not val
+            elif isinstance(val, dict):
+                args[key] = {"invalid": "data"}
         return {"name": name, "arguments": args}
 
     else:
-        # Default: wrong tool
         return generate_incorrect_invocation(
             correct,
             all_tools,
@@ -202,7 +172,7 @@ def generate_incorrect_invocation(
 
 
 # ---------------------------------------------------------------------------
-# 3. BUILD BENCHMARK DATASET FROM BFCL
+# 3. BUILD BENCHMARK DATASET
 # ---------------------------------------------------------------------------
 
 
@@ -212,23 +182,66 @@ class BenchmarkExample:
     query: str
     tools: list[dict[str, Any]]
     invocation: dict[str, Any]
-    ground_truth: str  # "correct" or "incorrect"
+    ground_truth: str
     error_type: str | None = None
-    source: str = "bfcl_v3"
+    source: str = "bfcl_v3_live_multiple"
+    schema_complexity: int = 0  # total params across tools
 
 
-def build_dataset_from_bfcl(
+def build_dataset(
     bfcl_data: list[dict[str, Any]],
+    gt_by_id: dict[str, list[Any]],
+    n_examples: int = 200,
+    min_params: int = 3,
 ) -> list[BenchmarkExample]:
-    """Build balanced benchmark from BFCL data.
+    """Build balanced benchmark from BFCL live_multiple.
 
-    For each BFCL example:
-    - Create one "correct" example using the ground-truth invocation
-    - Create one "incorrect" example using a perturbation
-
-    This gives us N correct + N incorrect = 2N total examples.
+    Filters to examples with sufficient schema complexity,
+    then samples n_examples and creates correct + incorrect
+    pairs.
     """
-    examples: list[BenchmarkExample] = []
+    # Filter to examples with GT and sufficient complexity
+    candidates = []
+    for entry in bfcl_data:
+        eid = entry.get("id", "")
+        if eid not in gt_by_id:
+            continue
+        tools = entry.get("function", [])
+        if not tools:
+            continue
+
+        # Compute total params across all tools
+        total_params = sum(len(t.get("parameters", {}).get("properties", {})) for t in tools)
+        if total_params < min_params:
+            continue
+
+        gt = gt_by_id[eid]
+        invocation = gt_to_invocation(gt)
+        if not invocation["name"]:
+            continue
+
+        # Verify the GT tool actually exists in the tool list
+        tool_names = {t["name"] for t in tools}
+        if invocation["name"] not in tool_names:
+            continue
+
+        candidates.append((entry, invocation, total_params))
+
+    print(f"  {len(candidates)} candidates after filtering (min_params={min_params})")
+
+    # Sample up to n_examples, favoring complex schemas
+    if len(candidates) > n_examples:
+        # Sort by complexity and sample with bias toward complex
+        candidates.sort(key=lambda x: x[2], reverse=True)
+        # Take top half by complexity + random sample from rest
+        top_half = candidates[: n_examples // 2]
+        rest = candidates[n_examples // 2 :]
+        random.shuffle(rest)
+        sampled = top_half + rest[: n_examples - len(top_half)]
+    else:
+        sampled = candidates
+
+    random.shuffle(sampled)
 
     perturbation_types = [
         "wrong_tool",
@@ -237,57 +250,53 @@ def build_dataset_from_bfcl(
         "wrong_value",
     ]
 
-    for i, entry in enumerate(bfcl_data):
+    examples: list[BenchmarkExample] = []
+    for i, (entry, correct_inv, complexity) in enumerate(sampled):
+        eid = entry.get("id", f"live_{i}")
         query = entry["question"][0][0]["content"]
-        tools = entry.get("function", [])
-        gt_calls = entry.get("ground_truth", [])
-
-        if not gt_calls or not tools:
-            continue
-
-        # Parse ground truth
-        gt_str = gt_calls[0]  # Take first GT call
-        correct_invocation = parse_ground_truth_call(gt_str)
-
-        if not correct_invocation["name"]:
-            continue
+        tools = entry["function"]
 
         # CORRECT example
         examples.append(
             BenchmarkExample(
-                id=f"bfcl_{i}_correct",
+                id=f"{eid}_correct",
                 query=query,
                 tools=tools,
-                invocation=correct_invocation,
+                invocation=correct_inv,
                 ground_truth="correct",
-                source=entry.get("id", f"exec_multiple_{i}"),
+                source=eid,
+                schema_complexity=complexity,
             )
         )
 
-        # INCORRECT example — cycle through perturbation types
+        # INCORRECT example
         ptype = perturbation_types[i % len(perturbation_types)]
-        incorrect_invocation = generate_incorrect_invocation(
-            correct_invocation,
+        incorrect_inv = generate_incorrect_invocation(
+            correct_inv,
             tools,
             ptype,
         )
-
         examples.append(
             BenchmarkExample(
-                id=f"bfcl_{i}_incorrect",
+                id=f"{eid}_incorrect",
                 query=query,
                 tools=tools,
-                invocation=incorrect_invocation,
+                invocation=incorrect_inv,
                 ground_truth="incorrect",
                 error_type=ptype,
-                source=entry.get("id", f"exec_multiple_{i}"),
+                source=eid,
+                schema_complexity=complexity,
             )
         )
 
+    n_correct = sum(1 for e in examples if e.ground_truth == "correct")
+    n_incorrect = sum(1 for e in examples if e.ground_truth == "incorrect")
+    complexities = [e.schema_complexity for e in examples[::2]]
+    print(f"  Built {len(examples)} examples ({n_correct} correct, {n_incorrect} incorrect)")
     print(
-        f"Built {len(examples)} examples "
-        f"({sum(1 for e in examples if e.ground_truth == 'correct')} correct, "
-        f"{sum(1 for e in examples if e.ground_truth == 'incorrect')} incorrect)"
+        f"  Schema complexity: min={min(complexities)}, "
+        f"max={max(complexities)}, "
+        f"avg={sum(complexities) / len(complexities):.1f}"
     )
     return examples
 
@@ -302,7 +311,9 @@ def format_tools_raw_json(tools: list[dict[str, Any]]) -> str:
     return json.dumps(tools)
 
 
-def format_invocation_raw_json(invocation: dict[str, Any]) -> str:
+def format_invocation_raw_json(
+    invocation: dict[str, Any],
+) -> str:
     """Condition A: Raw JSON dump."""
     return json.dumps(invocation)
 
@@ -316,6 +327,9 @@ def format_tools_human_readable(
         lines = [f"{tool['name']}:"]
         desc = tool.get("description", "")
         if desc:
+            # Truncate very long descriptions
+            if len(desc) > 200:
+                desc = desc[:197] + "..."
             lines.append(f"  Description: {desc}")
         params = tool.get("parameters", {}).get("properties", {})
         required = set(tool.get("parameters", {}).get("required", []))
@@ -325,10 +339,14 @@ def format_tools_human_readable(
                 req = "required" if pname in required else "optional"
                 ptype = pdef.get("type", "any")
                 pdesc = pdef.get("description", "")
+                if len(pdesc) > 120:
+                    pdesc = pdesc[:117] + "..."
                 line = f"    - {pname} ({req}, {ptype}): {pdesc}"
                 if enum := pdef.get("enum"):
-                    allowed = ", ".join(str(e) for e in enum)
-                    line += f" [allowed: {allowed}]"
+                    enum_str = ", ".join(str(e) for e in enum)
+                    if len(enum_str) > 80:
+                        enum_str = enum_str[:77] + "..."
+                    line += f" [allowed: {enum_str}]"
                 lines.append(line)
         parts.append("\n".join(lines))
     return "\n\n".join(parts)
@@ -347,13 +365,15 @@ def format_invocation_human_readable(
         elif isinstance(v, list):
             items = ", ".join(f'"{i}"' if isinstance(i, str) else str(i) for i in v)
             arg_parts.append(f"{k}=[{items}]")
+        elif isinstance(v, dict):
+            arg_parts.append(f"{k}={json.dumps(v)}")
         else:
             arg_parts.append(f"{k}={v}")
     return f"{name}({', '.join(arg_parts)})"
 
 
 # ---------------------------------------------------------------------------
-# 5. JUDGE PROMPT — identical across conditions
+# 5. JUDGE PROMPT
 # ---------------------------------------------------------------------------
 
 JUDGE_SYSTEM_PROMPT = (
@@ -411,6 +431,7 @@ class JudgeResult:
     latency_ms: float
     raw_response: str
     error_type: str | None = None
+    schema_complexity: int = 0
 
 
 async def judge_example_openai(
@@ -420,18 +441,18 @@ async def judge_example_openai(
     condition: str,
     semaphore: asyncio.Semaphore,
 ) -> JudgeResult:
-    """Run judge on a single example using OpenAI API."""
+    """Run judge using OpenAI API."""
     if condition == "raw_json":
         tools_str = format_tools_raw_json(example.tools)
-        invocation_str = format_invocation_raw_json(example.invocation)
+        inv_str = format_invocation_raw_json(example.invocation)
     else:
         tools_str = format_tools_human_readable(example.tools)
-        invocation_str = format_invocation_human_readable(example.invocation)
+        inv_str = format_invocation_human_readable(example.invocation)
 
     user_msg = JUDGE_USER_TEMPLATE.format(
         query=example.query,
         tools=tools_str,
-        invocation=invocation_str,
+        invocation=inv_str,
     )
 
     async with semaphore:
@@ -440,7 +461,10 @@ async def judge_example_openai(
             resp = await client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                    {
+                        "role": "system",
+                        "content": JUDGE_SYSTEM_PROMPT,
+                    },
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.0,
@@ -467,6 +491,7 @@ async def judge_example_openai(
         latency_ms=latency,
         raw_response=raw,
         error_type=example.error_type,
+        schema_complexity=example.schema_complexity,
     )
 
 
@@ -477,18 +502,18 @@ async def judge_example_anthropic(
     condition: str,
     semaphore: asyncio.Semaphore,
 ) -> JudgeResult:
-    """Run judge on a single example using Anthropic API."""
+    """Run judge using Anthropic API."""
     if condition == "raw_json":
         tools_str = format_tools_raw_json(example.tools)
-        invocation_str = format_invocation_raw_json(example.invocation)
+        inv_str = format_invocation_raw_json(example.invocation)
     else:
         tools_str = format_tools_human_readable(example.tools)
-        invocation_str = format_invocation_human_readable(example.invocation)
+        inv_str = format_invocation_human_readable(example.invocation)
 
     user_msg = JUDGE_USER_TEMPLATE.format(
         query=example.query,
         tools=tools_str,
-        invocation=invocation_str,
+        invocation=inv_str,
     )
 
     async with semaphore:
@@ -522,31 +547,31 @@ async def judge_example_anthropic(
         latency_ms=latency,
         raw_response=raw,
         error_type=example.error_type,
+        schema_complexity=example.schema_complexity,
     )
 
 
 # ---------------------------------------------------------------------------
-# 7. METRICS COMPUTATION
+# 7. METRICS
 # ---------------------------------------------------------------------------
 
 
 def compute_metrics(
     results: list[JudgeResult],
 ) -> dict[str, Any]:
-    """Compute precision, recall, F1, accuracy, and Cohen's kappa."""
+    """Compute classification metrics."""
     valid = [r for r in results if r.prediction != "unknown"]
     if not valid:
         return {"error": "No valid predictions"}
 
     y_true = [1 if r.ground_truth == "correct" else 0 for r in valid]
     y_pred = [1 if r.prediction == "correct" else 0 for r in valid]
-
-    n_correct = sum(1 for a, b in zip(y_true, y_pred) if a == b)
+    n_right = sum(1 for a, b in zip(y_true, y_pred) if a == b)
 
     return {
         "n": len(valid),
         "n_unknown": len(results) - len(valid),
-        "accuracy": n_correct / len(valid),
+        "accuracy": n_right / len(valid),
         "precision_correct": precision_score(y_true, y_pred, zero_division=0),
         "recall_correct": recall_score(y_true, y_pred, zero_division=0),
         "f1_correct": f1_score(y_true, y_pred, zero_division=0),
@@ -562,7 +587,7 @@ def compute_metrics(
 def compute_metrics_by_error_type(
     results: list[JudgeResult],
 ) -> dict[str, dict[str, Any]]:
-    """Compute accuracy broken down by error type."""
+    """Accuracy broken down by error type."""
     by_type: dict[str, list[JudgeResult]] = {}
     for r in results:
         key = r.error_type or "correct_invocation"
@@ -581,6 +606,33 @@ def compute_metrics_by_error_type(
     return out
 
 
+def compute_metrics_by_complexity(
+    results: list[JudgeResult],
+) -> dict[str, dict[str, Any]]:
+    """Accuracy by schema complexity bucket."""
+    buckets: dict[str, list[JudgeResult]] = {}
+    for r in results:
+        if r.schema_complexity <= 6:
+            bucket = "simple (1-6 params)"
+        elif r.schema_complexity <= 15:
+            bucket = "medium (7-15 params)"
+        else:
+            bucket = "complex (16+ params)"
+        buckets.setdefault(bucket, []).append(r)
+
+    out = {}
+    for bucket, bucket_results in sorted(buckets.items()):
+        valid = [r for r in bucket_results if r.prediction != "unknown"]
+        if not valid:
+            continue
+        n_right = sum(1 for r in valid if r.prediction == r.ground_truth)
+        out[bucket] = {
+            "n": len(valid),
+            "accuracy": n_right / len(valid),
+        }
+    return out
+
+
 # ---------------------------------------------------------------------------
 # 8. EXPERIMENT RUNNER
 # ---------------------------------------------------------------------------
@@ -591,7 +643,7 @@ async def run_experiment_for_model(
     examples: list[BenchmarkExample],
     provider: str = "openai",
 ) -> dict[str, Any]:
-    """Run both formatting conditions for a single judge model."""
+    """Run both formatting conditions for a single model."""
     concurrency = 10
     semaphore = asyncio.Semaphore(concurrency)
 
@@ -641,11 +693,11 @@ async def run_experiment_for_model(
 
     metrics: dict[str, Any] = {}
     error_breakdown: dict[str, Any] = {}
+    complexity_breakdown: dict[str, Any] = {}
     for condition, results in all_results.items():
         metrics[condition] = compute_metrics(results)
-        error_breakdown[condition] = compute_metrics_by_error_type(
-            results,
-        )
+        error_breakdown[condition] = compute_metrics_by_error_type(results)
+        complexity_breakdown[condition] = compute_metrics_by_complexity(results)
 
     return {
         "model": model_name,
@@ -653,6 +705,7 @@ async def run_experiment_for_model(
         "results": {k: [vars(r) for r in v] for k, v in all_results.items()},
         "metrics": metrics,
         "error_breakdown": error_breakdown,
+        "complexity_breakdown": complexity_breakdown,
     }
 
 
@@ -662,7 +715,7 @@ def print_comparison_table(
     """Print formatted comparison table."""
     print("\n" + "=" * 80)
     print("  INPUT FORMAT SENSITIVITY BENCHMARK — RESULTS")
-    print("  Dataset: BFCL v3 exec_multiple (Berkeley Function-Calling Leaderboard)")
+    print("  Dataset: BFCL v3 live_multiple (Berkeley Function-Calling Leaderboard)")
     print("=" * 80)
 
     rows = []
@@ -676,31 +729,29 @@ def print_comparison_table(
                     "Format": condition,
                     "Accuracy": f"{m['accuracy']:.1%}",
                     "Macro F1": f"{m['macro_f1']:.3f}",
-                    "P(correct)": f"{m['precision_correct']:.3f}",
-                    "R(correct)": f"{m['recall_correct']:.3f}",
-                    "P(incorrect)": (f"{m['precision_incorrect']:.3f}"),
-                    "R(incorrect)": (f"{m['recall_incorrect']:.3f}"),
+                    "P(corr)": (f"{m['precision_correct']:.3f}"),
+                    "R(corr)": f"{m['recall_correct']:.3f}",
+                    "P(incorr)": (f"{m['precision_incorrect']:.3f}"),
+                    "R(incorr)": (f"{m['recall_incorrect']:.3f}"),
                     "kappa": f"{m['cohens_kappa']:.3f}",
-                    "Latency(ms)": (f"{m['mean_latency_ms']:.0f}"),
+                    "Lat(ms)": (f"{m['mean_latency_ms']:.0f}"),
                 }
             )
 
     df = pd.DataFrame(rows)
     print(df.to_string(index=False))
 
+    # Deltas
     print("\n" + "-" * 80)
     print("  FORMAT EFFECT (Human-Readable minus Raw JSON)")
     print("-" * 80)
     for exp in experiment_results:
         raw = exp["metrics"]["raw_json"]
         hr = exp["metrics"]["human_readable"]
-        delta_acc = hr["accuracy"] - raw["accuracy"]
-        delta_f1 = hr["macro_f1"] - raw["macro_f1"]
-        delta_kappa = hr["cohens_kappa"] - raw["cohens_kappa"]
         print(f"  {exp['model']}:")
-        print(f"    Accuracy:      {delta_acc:+.1%}")
-        print(f"    Macro F1:      {delta_f1:+.3f}")
-        print(f"    Cohen's kappa: {delta_kappa:+.3f}")
+        print(f"    Accuracy:      {hr['accuracy'] - raw['accuracy']:+.1%}")
+        print(f"    Macro F1:      {hr['macro_f1'] - raw['macro_f1']:+.3f}")
+        print(f"    Cohen's kappa: {hr['cohens_kappa'] - raw['cohens_kappa']:+.3f}")
 
     # Error type breakdown
     print("\n" + "-" * 80)
@@ -719,7 +770,29 @@ def print_comparison_table(
             n = raw_info.get("n", hr_info.get("n", 0))
             delta = hr_acc - raw_acc
             print(
-                f"    {etype:25s} (n={n:2d}): "
+                f"    {etype:25s} (n={n:3d}): "
+                f"raw={raw_acc:.0%}  hr={hr_acc:.0%}  "
+                f"delta={delta:+.0%}"
+            )
+
+    # Complexity breakdown
+    print("\n" + "-" * 80)
+    print("  ACCURACY BY SCHEMA COMPLEXITY")
+    print("-" * 80)
+    for exp in experiment_results:
+        print(f"\n  {exp['model']}:")
+        all_buckets = set()
+        for cond in ["raw_json", "human_readable"]:
+            all_buckets.update(exp["complexity_breakdown"][cond].keys())
+        for bucket in sorted(all_buckets):
+            raw_info = exp["complexity_breakdown"]["raw_json"].get(bucket, {})
+            hr_info = exp["complexity_breakdown"]["human_readable"].get(bucket, {})
+            raw_acc = raw_info.get("accuracy", 0)
+            hr_acc = hr_info.get("accuracy", 0)
+            n = raw_info.get("n", hr_info.get("n", 0))
+            delta = hr_acc - raw_acc
+            print(
+                f"    {bucket:25s} (n={n:3d}): "
                 f"raw={raw_acc:.0%}  hr={hr_acc:.0%}  "
                 f"delta={delta:+.0%}"
             )
@@ -748,6 +821,7 @@ def save_results(
                         "ground_truth": r["ground_truth"],
                         "aligned": (r["prediction"] == r["ground_truth"]),
                         "error_type": r.get("error_type", ""),
+                        "schema_complexity": r.get("schema_complexity", 0),
                         "latency_ms": r["latency_ms"],
                     }
                 )
@@ -782,9 +856,14 @@ def save_results(
 
 
 async def main() -> None:
-    """Run the full input format sensitivity experiment."""
-    bfcl_data = download_bfcl()
-    examples = build_dataset_from_bfcl(bfcl_data)
+    """Run the full experiment."""
+    bfcl_data, gt_by_id = download_bfcl_live_multiple()
+    examples = build_dataset(
+        bfcl_data,
+        gt_by_id,
+        n_examples=200,
+        min_params=3,
+    )
 
     models = [
         ("gpt-4o", "openai"),
@@ -815,23 +894,6 @@ async def main() -> None:
             "input_format_sensitivity_results",
         )
         save_results(experiment_results, output_dir)
-
-    # Print format examples for documentation
-    if examples:
-        print("\n" + "=" * 80)
-        print("  FORMAT EXAMPLES (for documentation)")
-        print("=" * 80)
-        ex = examples[0]
-        print("\n--- RAW JSON ---")
-        raw_tools = format_tools_raw_json(ex.tools)
-        print(f"Tools: {raw_tools[:400]}...")
-        raw_inv = format_invocation_raw_json(ex.invocation)
-        print(f"Invocation: {raw_inv}")
-        print("\n--- HUMAN READABLE ---")
-        hr_tools = format_tools_human_readable(ex.tools)
-        print(f"Tools:\n{hr_tools}")
-        hr_inv = format_invocation_human_readable(ex.invocation)
-        print(f"Invocation: {hr_inv}")
 
 
 if __name__ == "__main__":
