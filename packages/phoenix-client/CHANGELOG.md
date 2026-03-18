@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.0.1...arize-phoenix-client-v2.1.0) (2026-03-18)
+
+
+### Features
+
+* **client:** add span filter params to getSpans ([#12203](https://github.com/Arize-ai/phoenix/issues/12203)) ([91949d7](https://github.com/Arize-ai/phoenix/commit/91949d7aa63acff7110ec79518d9ad9ce711e277))
+
 ## [2.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.0.0...arize-phoenix-client-v2.0.1) (2026-03-14)
 
 
