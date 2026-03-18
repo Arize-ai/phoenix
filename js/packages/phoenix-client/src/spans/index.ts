@@ -4,5 +4,6 @@ export * from "./logSpanAnnotations";
 export * from "./addDocumentAnnotation";
 export * from "./logDocumentAnnotations";
 export * from "./getSpans";
+export type { SpanKindFilter, SpanStatusCode } from "../types/spans";
 export * from "./getSpanAnnotations";
 export * from "./deleteSpan";
