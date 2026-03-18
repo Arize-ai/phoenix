@@ -3,14 +3,14 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex, View } from "@phoenix/components";
-import type { promptConfigLoader } from "@phoenix/pages/prompt/promptConfigLoader";
+import type { PromptConfigLoaderData } from "@phoenix/pages/prompt/promptConfigLoader";
 import { promptConfigLoaderQuery } from "@phoenix/pages/prompt/promptConfigLoader";
 
 import type { promptConfigLoaderQuery as PromptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
 import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
 
 export function PromptConfigPage() {
-  const loaderData = useLoaderData<typeof promptConfigLoader>();
+  const loaderData = useLoaderData<PromptConfigLoaderData>();
   invariant(loaderData, "loaderData is required");
   const data = usePreloadedQuery<PromptConfigLoaderQuery>(
     promptConfigLoaderQuery,

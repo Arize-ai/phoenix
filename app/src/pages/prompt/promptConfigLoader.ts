@@ -29,3 +29,5 @@ export const promptConfigLoader = ({ params }: LoaderFunctionArgs) => {
 
   return { queryRef };
 };
+
+export type PromptConfigLoaderData = ReturnType<typeof promptConfigLoader>;
