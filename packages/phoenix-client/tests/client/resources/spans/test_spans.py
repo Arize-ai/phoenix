@@ -29,10 +29,12 @@ def _make_handler(
     def handler(request: httpx.Request) -> httpx.Response:
         assert "/v1/projects/my-project/spans" in str(request.url)
         if expected_params:
-            qs = parse_qs(urlparse(str(request.url)).query)
+            query_string = parse_qs(urlparse(str(request.url)).query)
             for key, values in expected_params.items():
-                assert key in qs, f"Expected query param '{key}' not found in {qs}"
-                assert sorted(qs[key]) == sorted(values)
+                assert key in query_string, (
+                    f"Expected query param '{key}' not found in {query_string}"
+                )
+                assert sorted(query_string[key]) == sorted(values)
         return httpx.Response(
             200,
             json={"data": [_make_span()], "next_cursor": None},
@@ -98,10 +100,10 @@ class TestGetSpansFilters:
 
     def test_no_filters_omits_params(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            qs = parse_qs(urlparse(str(request.url)).query)
-            assert "name" not in qs
-            assert "span_kind" not in qs
-            assert "status_code" not in qs
+            query_string = parse_qs(urlparse(str(request.url)).query)
+            assert "name" not in query_string
+            assert "span_kind" not in query_string
+            assert "status_code" not in query_string
             return httpx.Response(
                 200,
                 json={"data": [_make_span()], "next_cursor": None},
