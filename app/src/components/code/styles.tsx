@@ -12,7 +12,7 @@ export const codeBlockWithCopyCSS = css`
     width: 100%;
     min-height: var(--code-block-min-height);
   }
-  .cm-editor {
+  .cm-scroller {
     padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-100);
   }
