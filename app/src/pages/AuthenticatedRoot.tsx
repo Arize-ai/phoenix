@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -6,16 +7,25 @@ import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
 import { AgentChatWidget } from "@phoenix/components/agent";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
-import type { authenticatedRootLoader } from "@phoenix/pages/authenticatedRootLoader";
+import type { AuthenticatedRootLoaderDataResolved } from "@phoenix/pages/authenticatedRootLoader";
+import { authenticatedRootLoaderQuery } from "@phoenix/pages/authenticatedRootLoader";
 
+import type { authenticatedRootLoaderQuery as AuthenticatedRootLoaderQueryType } from "./__generated__/authenticatedRootLoaderQuery.graphql";
 import { AppAlerts } from "./AppAlerts";
 
 /**
  * The root of the authenticated application. Note that authentication might be entirely disabled
  */
 export function AuthenticatedRoot() {
-  const loaderData = useLoaderData<typeof authenticatedRootLoader>();
+  // Redirects are handled by React Router before the component mounts, so the
+  // loader data here is always the non-redirect branch.
+  const loaderData = useLoaderData() as AuthenticatedRootLoaderDataResolved;
   invariant(loaderData, "loaderData is required");
+
+  const queryData = usePreloadedQuery<AuthenticatedRootLoaderQueryType>(
+    authenticatedRootLoaderQuery,
+    loaderData.queryRef
+  );
 
   // Set analytics if enabled
   useEffect(() => {
@@ -30,7 +40,7 @@ export function AuthenticatedRoot() {
   }, [loaderData]);
 
   return (
-    <ViewerProvider query={loaderData}>
+    <ViewerProvider query={queryData}>
       <AgentProvider>
         <AgentChatWidget />
         <AppAlerts />
