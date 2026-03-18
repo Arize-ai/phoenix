@@ -33,7 +33,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.config import get_base_url, get_env_client_headers
 from phoenix.evals.executors import get_executor_on_sync_context
-from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.experiments.evaluators import create_evaluator
 from phoenix.experiments.evaluators.base import (

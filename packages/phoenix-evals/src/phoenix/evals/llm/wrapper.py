@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.trace import Tracer
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
+from phoenix.evals.llm.types import MultimodalPrompt
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 

@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Any, Dict, List, Type, Union, cast
 
-from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.llm.types import MultimodalPrompt, PromptPartContentType
 
 from ...prompts import Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider

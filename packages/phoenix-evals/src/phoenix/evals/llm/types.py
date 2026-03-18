@@ -3,16 +3,51 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
-
 from .prompts import PromptLike
 
 __all__ = [
+    "PromptPartContentType",
+    "PromptPart",
+    "MultimodalPrompt",
     "ObjectGenerationMethod",
     "BaseLLMAdapter",
     "AdapterRegistration",
     "ProviderRegistration",
 ]
+
+
+class PromptPartContentType(str, Enum):
+    TEXT = "text"
+    AUDIO = "audio"
+    IMAGE = "image"
+
+
+@dataclass
+class PromptPart:
+    content_type: PromptPartContentType
+    content: str
+
+
+@dataclass
+class MultimodalPrompt:
+    parts: List[PromptPart]
+
+    @staticmethod
+    def from_string(string_prompt: str) -> "MultimodalPrompt":
+        return MultimodalPrompt(
+            parts=[PromptPart(content_type=PromptPartContentType.TEXT, content=string_prompt)]
+        )
+
+    def to_text_only_prompt(self) -> str:
+        if any(part.content_type != PromptPartContentType.TEXT for part in self.parts):
+            raise ValueError("This model does not support multimodal prompts")
+
+        return "\n\n".join(
+            [part.content for part in self.parts if part.content_type == PromptPartContentType.TEXT]
+        )
+
+    def __str__(self) -> str:
+        return "\n\n".join([part.content for part in self.parts])
 
 
 class ObjectGenerationMethod(str, Enum):

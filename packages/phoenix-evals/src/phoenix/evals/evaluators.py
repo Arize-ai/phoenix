@@ -28,14 +28,6 @@ from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
-from .legacy.evaluators import (
-    HallucinationEvaluator,
-    QAEvaluator,
-    RelevanceEvaluator,
-    SQLEvaluator,
-    SummarizationEvaluator,
-    ToxicityEvaluator,
-)
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
@@ -1742,15 +1734,6 @@ async def async_evaluate_dataframe(
 
 
 __all__ = [
-    # evals 1.0
-    "LLMEvaluator",
-    "HallucinationEvaluator",
-    "QAEvaluator",
-    "RelevanceEvaluator",
-    "ToxicityEvaluator",
-    "SummarizationEvaluator",
-    "SQLEvaluator",
-    # evals 2.0
     "EnforcedString",
     "SmartString",
     "Score",
