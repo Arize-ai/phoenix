@@ -5,6 +5,7 @@ import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AgentChatPanel } from "@phoenix/components/agent";
+import { TimeRangeProvider } from "@phoenix/components/datetime";
 import {
   Brand,
   DocsLink,
@@ -71,26 +72,28 @@ const sideLinksCSS = css`
 
 export function Layout() {
   return (
-    <div css={layoutCSS} data-testid="layout">
-      <NavTitle />
-      <SideNav />
-      <div css={mainViewCSS}>
-        <TopNavbar>
-          <SideNavToggleButton />
-          <NavBreadcrumb />
-        </TopNavbar>
-        <Group orientation="horizontal">
-          <Panel>
-            <div data-testid="content" css={contentCSS}>
-              <Suspense fallback={<Loading />}>
-                <Outlet />
-              </Suspense>
-            </div>
-          </Panel>
-          <AgentChatPanel />
-        </Group>
+    <TimeRangeProvider>
+      <div css={layoutCSS} data-testid="layout">
+        <NavTitle />
+        <SideNav />
+        <div css={mainViewCSS}>
+          <TopNavbar>
+            <SideNavToggleButton />
+            <NavBreadcrumb />
+          </TopNavbar>
+          <Group orientation="horizontal">
+            <Panel>
+              <div data-testid="content" css={contentCSS}>
+                <Suspense fallback={<Loading />}>
+                  <Outlet />
+                </Suspense>
+              </div>
+            </Panel>
+            <AgentChatPanel />
+          </Group>
+        </div>
       </div>
-    </div>
+    </TimeRangeProvider>
   );
 }
 
