@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e205f04b17dbd975eaaa1e05f0d1454e>>
+ * @generated SignedSource<<ec24055e22a557cb0a210c8439b9caa5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -88,13 +88,6 @@ return {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "passwordNeedsReset",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
             "name": "profilePictureUrl",
             "storageKey": null
           },
@@ -165,12 +158,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "20a9a73f1dda02b2370852c2a1eb6800",
+    "cacheID": "5f615eddff65447b320df9f629f4273e",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...AuthenticatedRoot_viewer\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment AuthenticatedRoot_viewer on Query {\n  viewer {\n    id\n    username\n    email\n  }\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...AuthenticatedRoot_viewer\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment AuthenticatedRoot_viewer on Query {\n  viewer {\n    id\n    username\n    email\n  }\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();

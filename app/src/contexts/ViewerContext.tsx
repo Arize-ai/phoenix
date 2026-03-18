@@ -61,7 +61,6 @@ export function ViewerProvider({
           id
           username
           email
-          passwordNeedsReset
           profilePictureUrl
           isManagementUser
           role {
