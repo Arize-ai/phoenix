@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -18,18 +19,24 @@ import {
 import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import type { promptVersionLoader } from "@phoenix/pages/prompt/promptVersionLoader";
+import { promptVersionLoaderQueryNode } from "@phoenix/pages/prompt/promptVersionLoader";
 
 import { TagPromptVersionButton } from "../../components/prompt/TagPromptVersionButton";
-import type { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
+import type {
+  promptVersionLoaderQuery,
+  promptVersionLoaderQuery$data,
+} from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export function PromptVersionDetailsPage() {
   const loaderData = useLoaderData<typeof promptVersionLoader>();
   invariant(loaderData, "loaderData is required");
-  return (
-    <PromptVersionDetailsPageContent promptVersion={loaderData.promptVersion} />
+  const data = usePreloadedQuery<promptVersionLoaderQuery>(
+    promptVersionLoaderQueryNode,
+    loaderData.queryRef
   );
+  return <PromptVersionDetailsPageContent promptVersion={data.promptVersion} />;
 }
 
 function PromptVersionDetailsPageContent({
