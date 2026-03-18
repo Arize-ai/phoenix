@@ -60,7 +60,13 @@ If you want to track multiple annotations of the same name on the same span, mak
 
 ## Send Annotations to Phoenix
 
-Once you construct the annotation, you can send this to Phoenix via it's REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
+Once you construct the annotation, you can send this to Phoenix via its REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
+
+<Warning>
+These examples use the **REST API** (`/v1/span_annotations`), where `span_id` is an OpenTelemetry hex ID (for example, `"67f6740bbe1ddc3f"`).
+
+If you use the **GraphQL** `createSpanAnnotations` mutation directly, pass the span's GraphQL `id` (Global ID), not the OpenTelemetry hex `span_id`.
+</Warning>
 
 <Check>
 If you're self-hosting Phoenix, be sure to change the endpoint in the code below to `<your phoenix endpoint>/v1/span_annotations?sync=false`
