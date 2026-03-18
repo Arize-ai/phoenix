@@ -7,7 +7,6 @@ import {
 import { RouterProvider } from "react-router/dom";
 
 import { AgentsPage } from "@phoenix/pages/agents/AgentsPage";
-import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
 import { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
@@ -29,12 +28,7 @@ import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
 
-import type {
-  DatasetLoaderData,
-  ProjectLoaderData,
-  PromptLoaderData,
-  SpanPlaygroundPageLoaderData,
-} from "./pages";
+import type { ProjectLoaderData, SpanPlaygroundPageLoaderData } from "./pages";
 import {
   AuthenticatedRoot,
   authenticatedRootLoader,
@@ -177,11 +171,7 @@ const router = createBrowserRouter(
               path=":datasetId"
               loader={datasetLoader}
               handle={{
-                crumb: (data: DatasetLoaderData) => data?.dataset?.name,
-                copy: (data: DatasetLoaderData) => [
-                  { name: "Dataset Name", value: data?.dataset?.name },
-                  { name: "Dataset ID", value: data?.dataset?.id },
-                ],
+                crumb: () => "Dataset",
               }}
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
@@ -214,8 +204,7 @@ const router = createBrowserRouter(
                 element={<DatasetEvaluatorDetailsPage />}
                 loader={datasetEvaluatorDetailsLoader}
                 handle={{
-                  crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
-                    data?.evaluatorDisplayName || "evaluator",
+                  crumb: () => "evaluator",
                 }}
               >
                 <Route path=":traceId" element={<EvaluatorTracePage />} />
@@ -273,21 +262,7 @@ const router = createBrowserRouter(
               // displayed when navigating back to the prompt page after gql mutation
               shouldRevalidate={() => true}
               handle={{
-                crumb: (data: PromptLoaderData) => {
-                  if (data?.prompt?.__typename === "Prompt") {
-                    return data?.prompt?.name;
-                  }
-                  return "prompt unknown";
-                },
-                copy: (data: PromptLoaderData) => {
-                  if (data?.prompt?.__typename === "Prompt") {
-                    return [
-                      { name: "Prompt Name", value: data.prompt.name },
-                      { name: "Prompt ID", value: data.prompt.id },
-                    ];
-                  }
-                  return [];
-                },
+                crumb: () => "Prompt",
               }}
             >
               <Route element={<PromptLayout />}>

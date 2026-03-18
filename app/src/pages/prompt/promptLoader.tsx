@@ -1,4 +1,4 @@
-import { fetchQuery, graphql, loadQuery } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -13,7 +13,7 @@ import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__
  * via usePromptIdLoader. They can add fragments to this loader's query to
  * load additional data.
  */
-export async function promptLoader(args: LoaderFunctionArgs) {
+export function promptLoader(args: LoaderFunctionArgs) {
   const { promptId } = args.params;
   invariant(promptId, "promptId is required");
 
@@ -27,27 +27,9 @@ export async function promptLoader(args: LoaderFunctionArgs) {
       fetchPolicy: "store-and-network",
     }
   );
-  const data = await fetchQuery<promptLoaderQueryType>(
-    RelayEnvironment,
-    graphql`
-      query promptLoader_PromptQuery($id: ID!) {
-        prompt: node(id: $id) {
-          __typename
-          id
-          ... on Prompt {
-            name
-          }
-        }
-      }
-    `,
-    {
-      id: promptId as string,
-    }
-  ).toPromise();
 
   return {
     queryRef,
-    prompt: data?.prompt,
   };
 }
 
@@ -69,4 +51,4 @@ export const promptLoaderQuery = graphql`
   }
 `;
 
-export type PromptLoaderData = Awaited<ReturnType<typeof promptLoader>>;
+export type PromptLoaderData = ReturnType<typeof promptLoader>;

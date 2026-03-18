@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { usePreloadedQuery } from "react-relay";
 import { useNavigate, useParams, useRouteLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -19,7 +20,9 @@ import {
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
 
+import type { datasetEvaluatorDetailsLoaderQuery as datasetEvaluatorDetailsLoaderQueryType } from "./__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import type { datasetEvaluatorDetailsLoader } from "./datasetEvaluatorDetailsLoader";
+import { datasetEvaluatorDetailsLoaderGQL } from "./datasetEvaluatorDetailsLoader";
 
 export const EVALUATOR_DETAILS_ROUTE_ID = "evaluatorDetails";
 
@@ -32,7 +35,12 @@ export function EvaluatorTracePage() {
   const loaderData = useRouteLoaderData<typeof datasetEvaluatorDetailsLoader>(
     EVALUATOR_DETAILS_ROUTE_ID
   );
-  const projectId = loaderData?.projectId;
+  invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery<datasetEvaluatorDetailsLoaderQueryType>(
+    datasetEvaluatorDetailsLoaderGQL,
+    loaderData.queryRef
+  );
+  const projectId = data.dataset?.datasetEvaluator?.project?.id ?? null;
 
   invariant(traceId, "traceId is required");
   invariant(projectId, "projectId is required");
