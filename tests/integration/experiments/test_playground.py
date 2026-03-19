@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any, cast
 
 import httpx
@@ -49,18 +50,14 @@ subscription ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) 
         ... on EvaluationChunk {
             datasetExampleId
             repetitionNumber
+            evaluatorName
+            error
             experimentRunEvaluation {
                 id
                 name
                 label
                 score
             }
-        }
-        ... on EvaluationErrorChunk {
-            datasetExampleId
-            repetitionNumber
-            evaluatorName
-            message
         }
     }
 }
@@ -246,6 +243,7 @@ async def _run_subscription_with_evaluators(
         """Execute the subscription and return the experiment ID and results."""
         experiment_id: str | None = None
         errors_seen: list[dict[str, Any]] = []
+        completion_errors_seen: list[dict[str, Any]] = []
         eval_errors_seen: list[dict[str, Any]] = []
         results_seen: list[dict[str, Any]] = []
 
@@ -276,9 +274,16 @@ async def _run_subscription_with_evaluators(
                             experiment_id = str(subscription_data["experiment"]["id"])
                         elif typename == "ChatCompletionSubscriptionResult":
                             results_seen.append(subscription_data)
-                        elif typename == "EvaluationErrorChunk":
-                            eval_errors_seen.append(subscription_data)
+                        elif typename == "ChatCompletionSubscriptionError":
+                            completion_errors_seen.append(subscription_data)
+                        elif typename == "EvaluationChunk":
+                            if subscription_data.get("error"):
+                                eval_errors_seen.append(subscription_data)
 
+            assert not errors_seen, f"GraphQL errors during subscription: {errors_seen}"
+            assert not completion_errors_seen, (
+                f"Chat completion / playground errors during subscription: {completion_errors_seen}"
+            )
             assert not eval_errors_seen, (
                 f"Evaluation errors received during subscription: {eval_errors_seen}"
             )
@@ -324,11 +329,13 @@ async def _run_subscription_without_evaluators(
     model_provider: str,
     dataset_id: str,
     invocation_parameters: list[dict[str, Any]] | None = None,
-) -> str:
+) -> tuple[str, list[dict[str, Any]]]:
     """Run chatCompletionOverDataset subscription without evaluators.
 
     Tests the primary prompt with a specific custom provider.
-    Returns the experiment ID.
+
+    Returns ``(experiment_id, subscription_results)`` where ``subscription_results``
+    lists ``ChatCompletionSubscriptionResult`` payloads from the stream.
     """
     invocation_params_dict = _invocation_params_list_to_dict(invocation_parameters)
     variables = {
@@ -358,11 +365,12 @@ async def _run_subscription_without_evaluators(
         }
     }
 
-    async def _execute_subscription() -> str:
-        """Execute the subscription and return the experiment ID."""
+    async def _execute_subscription() -> tuple[str, list[dict[str, Any]]]:
+        """Execute the subscription and return the experiment ID and results."""
         experiment_id: str | None = None
         errors_seen: list[dict[str, Any]] = []
         completion_errors_seen: list[dict[str, Any]] = []
+        results_seen: list[dict[str, Any]] = []
 
         # Apollo multipart subscription protocol
         async with client.stream(
@@ -389,12 +397,15 @@ async def _run_subscription_without_evaluators(
                         typename = subscription_data.get("__typename")
                         if typename == "ChatCompletionSubscriptionExperiment":
                             experiment_id = str(subscription_data["experiment"]["id"])
+                        elif typename == "ChatCompletionSubscriptionResult":
+                            results_seen.append(subscription_data)
                         elif typename == "ChatCompletionSubscriptionError":
                             completion_errors_seen.append(subscription_data)
 
-            # Log any completion errors for debugging
-            if completion_errors_seen:
-                print(f"Completion errors received: {completion_errors_seen}")
+            assert not errors_seen, f"GraphQL errors during subscription: {errors_seen}"
+            assert not completion_errors_seen, (
+                f"Chat completion errors during subscription: {completion_errors_seen}"
+            )
 
         if experiment_id is None:
             error_msg = "Did not receive experiment ID from subscription"
@@ -402,7 +413,7 @@ async def _run_subscription_without_evaluators(
                 error_msg += f"\nGraphQL errors: {errors_seen}"
             raise AssertionError(error_msg)
 
-        return experiment_id
+        return experiment_id, results_seen
 
     # Run subscription with a 60 second timeout (no evaluators = faster)
     try:
@@ -459,7 +470,8 @@ class TestChatCompletionOverDataset:
             # Verify we have 4 runs (2 examples × 2 repetitions)
             runs = experiment["runs"]["edges"]
             assert len(runs) == 4, (
-                f"Expected 4 runs, got {len(runs)}. Subscription results: {subscription_results}"
+                f"Expected 4 runs, got {len(runs)}. "
+                f"Subscription results: {json.dumps(subscription_results)}"
             )
 
             # Verify each run has spans and evaluations
@@ -583,7 +595,7 @@ class TestChatCompletionOverDataset:
         # Long timeout so stream() read doesn't hit default 5s during slow CI
         async with httpx.AsyncClient(base_url=_app.base_url, timeout=60.0) as client:
             # Run subscription without evaluators
-            experiment_id = await _run_subscription_without_evaluators(
+            experiment_id, subscription_results = await _run_subscription_without_evaluators(
                 client,
                 custom_provider_id=provider_id,
                 model_name=model_name,
@@ -598,7 +610,10 @@ class TestChatCompletionOverDataset:
 
             # Verify we have 2 runs (2 examples × 1 repetition)
             runs = experiment["runs"]["edges"]
-            assert len(runs) == 2, f"Expected 2 runs, got {len(runs)}"
+            assert len(runs) == 2, (
+                f"Expected 2 runs, got {len(runs)}. "
+                f"Subscription results: {json.dumps(subscription_results)}"
+            )
 
             # Verify each run completed successfully
             for run in runs:
