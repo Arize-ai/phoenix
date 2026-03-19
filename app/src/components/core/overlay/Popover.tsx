@@ -27,7 +27,7 @@ const popoverCSS = css`
     transform 200ms,
     opacity 200ms;
   border: 1px solid var(--global-popover-border-color);
-  box-shadow: var(--overlay-box-shadow);
+  box-shadow: 0px 8px 16px var(--global-overlay-shadow-color);
   border-radius: var(--global-rounding-small);
   background: var(--background-color);
   color: var(--global-text-color-900);

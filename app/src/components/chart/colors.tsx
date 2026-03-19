@@ -40,9 +40,6 @@ export type SequentialChartColors = {
   readonly gray600: string;
   readonly gray700: string;
   readonly default: string;
-  // Colors specific to the inferences role
-  readonly primary: string;
-  readonly reference: string;
 };
 
 // Unified color palette using global CSS variables defined in `GlobalStyles.tsx`.
@@ -51,7 +48,7 @@ export type SequentialChartColors = {
 
 const cssVar = (name: string) => `var(${name})`;
 
-const darkSequentialChartColors: SequentialChartColors = Object.freeze({
+const sequentialChartColors: SequentialChartColors = Object.freeze({
   // Blues
   blue100: cssVar("--global-color-blue-200"),
   blue200: cssVar("--global-color-blue-300"),
@@ -102,87 +99,22 @@ const darkSequentialChartColors: SequentialChartColors = Object.freeze({
 
   // Fallback / default
   default: cssVar("--global-text-color-900"),
-
-  // Semantic colors for inferences
-  primary: cssVar("--primary-color"),
-  reference: cssVar("--reference-color"),
-});
-
-const lightSequentialChartColors: SequentialChartColors = Object.freeze({
-  // Blues
-  blue100: cssVar("--global-color-blue-200"),
-  blue200: cssVar("--global-color-blue-300"),
-  blue300: cssVar("--global-color-blue-400"),
-  blue400: cssVar("--global-color-blue-500"),
-  blue500: cssVar("--global-color-blue-600"),
-  blue600: cssVar("--global-color-blue-700"),
-  blue700: cssVar("--global-color-blue-800"),
-  blue800: cssVar("--global-color-blue-900"),
-  blue900: cssVar("--global-color-blue-1000"),
-
-  // Oranges
-  orange100: cssVar("--global-color-orange-500"),
-  orange200: cssVar("--global-color-orange-600"),
-  orange300: cssVar("--global-color-orange-700"),
-  orange400: cssVar("--global-color-orange-800"),
-  orange500: cssVar("--global-color-orange-900"),
-
-  // Purples
-  purple100: cssVar("--global-color-purple-100"),
-  purple200: cssVar("--global-color-purple-200"),
-  purple300: cssVar("--global-color-purple-300"),
-  purple400: cssVar("--global-color-purple-400"),
-  purple500: cssVar("--global-color-purple-500"),
-
-  // Pinks / Magentas
-  magenta100: cssVar("--global-color-magenta-200"),
-  magenta200: cssVar("--global-color-magenta-300"),
-  magenta300: cssVar("--global-color-magenta-400"),
-  magenta400: cssVar("--global-color-magenta-500"),
-  magenta500: cssVar("--global-color-magenta-600"),
-
-  // Reds
-  red100: cssVar("--global-color-red-200"),
-  red200: cssVar("--global-color-red-300"),
-  red300: cssVar("--global-color-red-400"),
-  red400: cssVar("--global-color-red-500"),
-  red500: cssVar("--global-color-red-600"),
-
-  // Grays (note: CSS variable names use "gray")
-  gray100: cssVar("--global-color-gray-100"),
-  gray200: cssVar("--global-color-gray-200"),
-  gray300: cssVar("--global-color-gray-300"),
-  gray400: cssVar("--global-color-gray-400"),
-  gray500: cssVar("--global-color-gray-500"),
-  gray600: cssVar("--global-color-gray-600"),
-  gray700: cssVar("--global-color-gray-700"),
-
-  // Fallback / default
-  default: cssVar("--global-text-color-900"),
-
-  // Semantic colors for inferences
-  primary: cssVar("--primary-color"),
-  reference: cssVar("--reference-color"),
 });
 
 /**
  * The list of sequential colors that are available for use in the charting components.
- * This is a list of the keys of the darkSequentialChartColors object.
+ * This is a list of the keys of the sequentialChartColors object.
  */
 export const SEQUENTIAL_CHART_COLORS = Object.keys(
-  darkSequentialChartColors
+  sequentialChartColors
 ) as (keyof SequentialChartColors)[];
 
 export const useSequentialChartColors = (): SequentialChartColors => {
   // We call useTheme() to subscribe to theme changes so that React components
   // using these colors will re-render when the theme toggles, even though the
   // color map itself is constant (CSS variables swap automatically).
-  const { theme } = useTheme();
-  return useMemo(
-    () =>
-      theme === "dark" ? darkSequentialChartColors : lightSequentialChartColors,
-    [theme]
-  );
+  useTheme();
+  return sequentialChartColors;
 };
 
 /**
@@ -224,14 +156,7 @@ export const getChartColor = (index: number, colors: SequentialChartColors) => {
 
 export type SemanticChartColor = "danger" | "success" | "warning" | "info";
 
-const SemanticChartLightColors: Record<SemanticChartColor, string> = {
-  danger: "var(--global-color-red-700)",
-  success: "var(--global-color-celery-700)",
-  warning: "var(--global-color-orange-700)",
-  info: "var(--global-color-blue-700)",
-};
-
-const SemanticChartDarkColors: Record<SemanticChartColor, string> = {
+const semanticChartColors: Record<SemanticChartColor, string> = {
   danger: "var(--global-color-red-700)",
   success: "var(--global-color-celery-700)",
   warning: "var(--global-color-orange-700)",
@@ -239,19 +164,15 @@ const SemanticChartDarkColors: Record<SemanticChartColor, string> = {
 };
 
 export const SEMANTIC_CHART_COLORS = Object.keys(
-  SemanticChartLightColors
+  semanticChartColors
 ) as SemanticChartColor[];
 
 export const useSemanticChartColors = (): Record<
   SemanticChartColor,
   string
 > => {
-  const { theme } = useTheme();
-  return useMemo(
-    () =>
-      theme === "dark" ? SemanticChartDarkColors : SemanticChartLightColors,
-    [theme]
-  );
+  useTheme();
+  return semanticChartColors;
 };
 
 type CategoricalChartColor =

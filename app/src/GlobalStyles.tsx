@@ -920,6 +920,8 @@ const baseTokensCSS = (theme: Theme) => css`
     --focus-ring-color: var(--global-color-primary-500);
 
     --text-color-placeholder: var(--global-color-gray-400);
+
+    --global-overlay-shadow-color: ${theme === "dark" ? "rgba(0, 0, 0, 0.6)" : "rgba(0, 0, 0, 0.1)"};
   }
 `;
 
@@ -1171,10 +1173,6 @@ const appGlobalStylesCSS = css`
   .theme {
     --section-background-color: #2f353d;
 
-    /** The color of shadows on menus etc. */
-    --overlay-shadow-color: rgba(0, 0, 0, 0.1);
-    --overlay-box-shadow: 0px 8px 16px var(--overlay-shadow-color);
-
     /* An item is a typically something in a list */
     --item-background-color: #1d2126;
     --item-border-color: #282e35;
@@ -1216,25 +1214,6 @@ const appGlobalStylesCSS = css`
     --global-modal-width-FULLSCREEN: calc(
       100vw - var(--global-dimension-static-size-1700)
     );
-  }
-
-  .theme--dark {
-    --primary-color: #9efcfd;
-    --primary-color--transparent: rgb(158, 252, 253, 0.2);
-    --reference-color: #baa1f9;
-    --reference-color--transparent: #baa1f982;
-    --corpus-color: #92969c;
-    --corpus-color--transparent: #92969c63;
-    --overlay-shadow-color: rgba(0, 0, 0, 0.6);
-  }
-  .theme--light {
-    --primary-color: #00add0;
-    --primary-color--transparent: rgba(0, 173, 208, 0.2);
-    --reference-color: #4500d9;
-    --reference-color--transparent: rgba(69, 0, 217, 0.2);
-    --corpus-color: #92969c;
-    --corpus-color--transparent: #92969c63;
-    --overlay-shadow-color: rgba(0, 0, 0, 0.1);
   }
 `;
 

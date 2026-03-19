@@ -78,7 +78,7 @@ export const fieldPopoverCSS = css`
   background-color: var(--global-menu-background-color);
   border-radius: var(--global-rounding-small);
   color: var(--global-text-color-900);
-  box-shadow: 0px 4px 10px var(--overlay-shadow-color);
+  box-shadow: 0px 4px 10px var(--global-overlay-shadow-color);
   border: 1px solid var(--global-menu-border-color);
   max-height: inherit;
 `;
