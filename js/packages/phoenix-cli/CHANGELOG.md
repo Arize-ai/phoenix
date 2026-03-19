@@ -1,5 +1,13 @@
 # @arizeai/phoenix-cli
 
+## 0.10.1
+
+### Patch Changes
+
+- d204898: docs: document recently added commands and methods in package READMEs
+- Updated dependencies [d204898]
+  - @arizeai/phoenix-client@6.5.2
+
 ## 0.10.0
 
 ### Minor Changes
