@@ -10,10 +10,7 @@ import {
   Tabs,
   Text,
 } from "@phoenix/components";
-import {
-  PythonSVG,
-  TypeScriptSVG,
-} from "@phoenix/components/project/LanguageIcons";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";

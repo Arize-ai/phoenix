@@ -2,14 +2,14 @@ import type { ReactNode } from "react";
 
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
-type BaseLanguageConfig = {
+type BaseIntegrationConfig = {
   githubHref?: string;
 };
 
 /**
  * Language config with install packages and implementation code snippets.
  */
-type SnippetLanguageConfig = BaseLanguageConfig & {
+type SnippetLanguageConfig = BaseIntegrationConfig & {
   packages: readonly string[];
   getImplementationCode: (params: { projectName: string }) => string;
   docsHref?: string;
@@ -18,7 +18,7 @@ type SnippetLanguageConfig = BaseLanguageConfig & {
 /**
  * Language config that links to external documentation only (no code snippets).
  */
-type DocsOnlyLanguageConfig = BaseLanguageConfig & {
+type DocsOnlyIntegrationConfig = BaseIntegrationConfig & {
   docsHref: string;
 };
 
@@ -28,7 +28,7 @@ type DocsOnlyLanguageConfig = BaseLanguageConfig & {
  */
 export type IntegrationLanguageConfig =
   | SnippetLanguageConfig
-  | DocsOnlyLanguageConfig;
+  | DocsOnlyIntegrationConfig;
 
 /**
  * Type guard to check if a language config has code snippets.
