@@ -47,6 +47,10 @@
       "import": "./dist/esm/sessions/index.js",
       "require": "./dist/src/sessions/index.js"
     },
+    "./traces": {
+      "import": "./dist/esm/traces/index.js",
+      "require": "./dist/src/traces/index.js"
+    },
     "./experiments": {
       "import": "./dist/esm/experiments/index.js",
       "require": "./dist/src/experiments/index.js"

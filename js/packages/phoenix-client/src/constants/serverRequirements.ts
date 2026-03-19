@@ -69,6 +69,13 @@ export const GET_SPANS_FILTERS: ParameterRequirement = {
   minServerVersion: [13, 15, 0],
 };
 
+export const LIST_PROJECT_TRACES: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/projects/{project_identifier}/traces",
+  minServerVersion: [13, 15, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -83,4 +90,5 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ANNOTATE_SESSIONS,
   GET_SPANS_TRACE_IDS,
   GET_SPANS_FILTERS,
+  LIST_PROJECT_TRACES,
 ] as const;
