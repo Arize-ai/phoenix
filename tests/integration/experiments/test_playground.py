@@ -145,11 +145,14 @@ async def _run_subscription_with_evaluators(
     custom_provider_id: str,
     dataset_id: str,
     evaluators: DatasetEvaluators,
-) -> str:
+) -> tuple[str, list[dict[str, Any]]]:
     """Run chatCompletionOverDataset subscription with evaluators.
 
     Uses the custom OpenAI provider pointing to mock server.
     Includes all 4 evaluators (one per provider type).
+
+    Returns a tuple of (experiment_id, subscription_results) where
+    subscription_results is a list of ChatCompletionSubscriptionResult payloads.
     """
     variables = {
         "input": {
@@ -239,11 +242,12 @@ async def _run_subscription_with_evaluators(
         }
     }
 
-    async def _execute_subscription() -> str:
-        """Execute the subscription and return the experiment ID."""
+    async def _execute_subscription() -> tuple[str, list[dict[str, Any]]]:
+        """Execute the subscription and return the experiment ID and results."""
         experiment_id: str | None = None
         errors_seen: list[dict[str, Any]] = []
         eval_errors_seen: list[dict[str, Any]] = []
+        results_seen: list[dict[str, Any]] = []
 
         # Apollo multipart subscription protocol
         async with client.stream(
@@ -270,6 +274,8 @@ async def _run_subscription_with_evaluators(
                         typename = subscription_data.get("__typename")
                         if typename == "ChatCompletionSubscriptionExperiment":
                             experiment_id = str(subscription_data["experiment"]["id"])
+                        elif typename == "ChatCompletionSubscriptionResult":
+                            results_seen.append(subscription_data)
                         elif typename == "EvaluationErrorChunk":
                             eval_errors_seen.append(subscription_data)
 
@@ -283,7 +289,7 @@ async def _run_subscription_with_evaluators(
                 error_msg += f"\nGraphQL errors: {errors_seen}"
             raise AssertionError(error_msg)
 
-        return experiment_id
+        return experiment_id, results_seen
 
     # Run subscription with a 120 second timeout
     try:
@@ -439,7 +445,7 @@ class TestChatCompletionOverDataset:
         # Long timeout so stream() read doesn't hit default 5s during slow CI
         async with httpx.AsyncClient(base_url=_app.base_url, timeout=120.0) as client:
             # Run subscription with all evaluators
-            experiment_id = await _run_subscription_with_evaluators(
+            experiment_id, subscription_results = await _run_subscription_with_evaluators(
                 client,
                 custom_provider_id=_custom_providers.openai,
                 dataset_id=_dataset_id,
@@ -452,7 +458,9 @@ class TestChatCompletionOverDataset:
 
             # Verify we have 4 runs (2 examples × 2 repetitions)
             runs = experiment["runs"]["edges"]
-            assert len(runs) == 4
+            assert len(runs) == 4, (
+                f"Expected 4 runs, got {len(runs)}. Subscription results: {subscription_results}"
+            )
 
             # Verify each run has spans and evaluations
             for run in runs:
