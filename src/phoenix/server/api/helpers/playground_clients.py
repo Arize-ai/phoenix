@@ -858,6 +858,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                         pass
                     elif item.type == "mcp_approval_request":
                         pass
+                    elif item.type == "tool_search_call":
+                        pass
+                    elif item.type == "tool_search_output":
+                        pass
                     elif TYPE_CHECKING:
                         assert_never(item.type)
                 elif event.type == "response.completed":

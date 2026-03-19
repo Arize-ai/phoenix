@@ -245,6 +245,18 @@ def _semconv_provider_to_gql_generative_provider_key(
         return None  # TODO
     if semconv_provider == OpenInferenceLLMProviderValues.MISTRALAI:
         return None  # TODO
+    if semconv_provider == OpenInferenceLLMProviderValues.GROQ:
+        return GenerativeProviderKey.GROQ
+    if semconv_provider == OpenInferenceLLMProviderValues.FIREWORKS:
+        return GenerativeProviderKey.FIREWORKS
+    if semconv_provider == OpenInferenceLLMProviderValues.MOONSHOT:
+        return GenerativeProviderKey.MOONSHOT
+    if semconv_provider == OpenInferenceLLMProviderValues.CEREBRAS:
+        return GenerativeProviderKey.CEREBRAS
+    if semconv_provider == OpenInferenceLLMProviderValues.PERPLEXITY:
+        return GenerativeProviderKey.PERPLEXITY
+    if semconv_provider == OpenInferenceLLMProviderValues.TOGETHER:
+        return GenerativeProviderKey.TOGETHER
     if TYPE_CHECKING:
         assert_never(semconv_provider)
     else:
