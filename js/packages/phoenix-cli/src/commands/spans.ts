@@ -294,10 +294,7 @@ export function createSpansCommand(): Command {
       "--parent-id <id>",
       'Filter by parent span ID (use "null" for root spans only)'
     )
-    .option(
-      "--include-annotations",
-      "Include span annotations in the output"
-    )
+    .option("--include-annotations", "Include span annotations in the output")
     .action(spansHandler);
 
   return command;

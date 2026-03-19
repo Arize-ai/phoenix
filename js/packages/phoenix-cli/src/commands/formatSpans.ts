@@ -67,12 +67,13 @@ function formatDurationMs(startTime: string, endTime: string): string {
 function formatTimestamp(isoString: string): string {
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return isoString;
-  return d.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+  return d
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\.\d{3}Z$/, " UTC");
 }
 
-function formatAnnotations(
-  annotations: SpanAnnotation[] | undefined
-): string {
+function formatAnnotations(annotations: SpanAnnotation[] | undefined): string {
   if (!annotations || annotations.length === 0) return "";
   return annotations
     .map((a) => {
