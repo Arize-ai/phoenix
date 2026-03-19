@@ -17,7 +17,7 @@ Read the relevant file(s) based on the task:
 | `rules/typescript.md` | Writing or reviewing any TypeScript code |
 | `rules/components.md` | Creating, composing, or refactoring components |
 | `rules/design.md` | Layout, visual polish, error handling, loading states |
-| `rules/data-fetching.md` | Data fetching, Relay queries, or use of `fetchQuery` |
+| `rules/relay.md` | Using Relay |
 | `rules/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
 
 ## Verification
