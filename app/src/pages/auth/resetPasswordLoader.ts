@@ -1,9 +1,7 @@
-import { fetchQuery, graphql, loadQuery } from "react-relay";
-import { redirect } from "react-router";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { resetPasswordLoaderCheckQuery as ResetPasswordLoaderCheckQuery } from "./__generated__/resetPasswordLoaderCheckQuery.graphql";
 import type { resetPasswordLoaderQuery as ResetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQuery.graphql";
 
 /**
@@ -24,23 +22,6 @@ export async function resetPasswordLoader() {
     resetPasswordLoaderQuery,
     {}
   );
-
-  const data = await fetchQuery<ResetPasswordLoaderCheckQuery>(
-    RelayEnvironment,
-    graphql`
-      query resetPasswordLoaderCheckQuery {
-        viewer {
-          id
-        }
-      }
-    `,
-    {}
-  ).toPromise();
-
-  if (!data?.viewer) {
-    // Should never happen but just in case
-    return redirect("/login");
-  }
 
   return { queryRef };
 }
