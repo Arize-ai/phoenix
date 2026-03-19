@@ -20,11 +20,24 @@ Self-documenting names eliminate mental parsing for the next reader.
 - Function names must start with an action verb that describes what the function does: `getUser`, `normalizeTimestamp`, `logEvent`, `parseResponse`, `buildQuery` — not `user()`, `timestamp()`, `event()`.
 
 ```ts
-// Good — self-documenting
-const isDisabled = !hasPermission || isSubmitting;
+// Bad — single letters and ambiguous names
+for (let i = 0; i < s.length; i++) {
+  const d = s[i].ts - s[i - 1]?.ts;
+  const r = fn(s[i].v);
+}
 
-// Bad — reader must parse inline
-<Button isDisabled={!hasPermission || isSubmitting}>
+// Good — self-documenting
+for (let index = 0; index < spans.length; index++) {
+  const elapsed = spans[index].timestamp - spans[index - 1]?.timestamp;
+  const result = normalizeValue(spans[index].value);
+}
+
+// Bad — boolean without verb prefix, condition inline
+<Button isDisabled={!permission || submitting}>
+
+// Good — named boolean with verb prefix
+const isDisabled = !hasPermission || isSubmitting;
+<Button isDisabled={isDisabled}>
 ```
 
 ## Functions
