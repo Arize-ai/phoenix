@@ -3,6 +3,7 @@ from collections.abc import Callable
 from types import MappingProxyType
 from typing import Any, Optional
 
+from phoenix.evals import LLM
 from phoenix.evals.utils import snap_to_rail
 from phoenix.experiments.evaluators.base import (
     ExperimentEvaluator,
@@ -62,7 +63,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
 
     def __init__(
         self,
-        model: Any,
+        model: LLM,
         criteria: str,
         description: str,
         name: str,
@@ -122,7 +123,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
 def criteria_evaluator_factory(
     class_name: str, criteria: str, description: str, default_name: str
 ) -> type[ExperimentEvaluator]:
-    def _init(self, model: Any, name: str = default_name) -> None:  # type: ignore
+    def _init(self, model: LLM, name: str = default_name) -> None:  # type: ignore
         LLMCriteriaEvaluator.__init__(self, model, criteria, description, name=name)
 
     return type(
@@ -247,7 +248,7 @@ class RelevanceEvaluator(LLMEvaluator):
 
     def __init__(
         self,
-        model: Any,
+        model: LLM,
         get_query: Optional[Callable[[ExampleInput, ExampleMetadata], str]] = None,
         get_response: Optional[Callable[[Optional[TaskOutput], ExampleMetadata], str]] = None,
         name: str = "Relevance",
@@ -383,7 +384,7 @@ class LLMRelationalEvaluator(LLMEvaluator):
 
     def __init__(
         self,
-        model: Any,
+        model: LLM,
         relation: str,
         description: str,
         name: str,
