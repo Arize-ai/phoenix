@@ -3,12 +3,25 @@ import {
   AgnoSVG,
   AnthropicSVG,
   BedrockSVG,
+  BeeAISVG,
+  CrewAISVG,
+  DSPYSVG,
+  GeminiSVG,
+  GoogleADKSVG,
+  GroqSVG,
+  HaystackSVG,
+  HuggingFaceSVG,
   LangChainSVG,
   LangGraphSVG,
+  LiteLLMSVG,
   LlamaIndexSVG,
   MastraSVG,
+  MistralAISVG,
   OpenAISVG,
+  PortkeySVG,
+  PydanticAISVG,
   VercelSVG,
+  VertexAISVG,
 } from "@phoenix/components/project/IntegrationIcons";
 import {
   getAgnoCodePython,
@@ -297,6 +310,191 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-bedrock",
+      },
+    },
+  },
+  {
+    id: "gemini",
+    name: "Gemini",
+    icon: <GeminiSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-genai",
+      },
+    },
+  },
+  {
+    id: "google-adk",
+    name: "Google ADK",
+    icon: <GoogleADKSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk",
+      },
+    },
+  },
+  {
+    id: "vertex-ai",
+    name: "VertexAI",
+    icon: <VertexAISVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/vertexai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai",
+      },
+    },
+  },
+  {
+    id: "mistral-ai",
+    name: "MistralAI",
+    icon: <MistralAISVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/mistralai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai",
+      },
+    },
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    icon: <GroqSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/groq",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
+      },
+    },
+  },
+  {
+    id: "dspy",
+    name: "DSPy",
+    icon: <DSPYSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-dspy",
+      },
+    },
+  },
+  {
+    id: "haystack",
+    name: "Haystack",
+    icon: <HaystackSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/haystack",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack",
+      },
+    },
+  },
+  {
+    id: "crewai",
+    name: "CrewAI",
+    icon: <CrewAISVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-crewai",
+      },
+    },
+  },
+  {
+    id: "pydantic-ai",
+    name: "PydanticAI",
+    icon: <PydanticAISVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref: "https://arize.com/docs/phoenix/integrations/python/pydantic",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pydantic-ai",
+      },
+    },
+  },
+  {
+    id: "litellm",
+    name: "LiteLLM",
+    icon: <LiteLLMSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
+      },
+    },
+  },
+  {
+    id: "portkey",
+    name: "Portkey",
+    icon: <PortkeySVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref: "https://arize.com/docs/phoenix/integrations/python/portkey",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-portkey",
+      },
+    },
+  },
+  {
+    id: "smolagents",
+    name: "Smolagents",
+    icon: <HuggingFaceSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/hfsmolagents",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents",
+      },
+    },
+  },
+  {
+    id: "beeai",
+    name: "BeeAI",
+    icon: <BeeAISVG />,
+    supportedLanguages: ["Python", "TypeScript"],
+    languages: {
+      Python: {
+        docsHref: "https://arize.com/docs/phoenix/integrations/python/beeai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-beeai",
+      },
+      TypeScript: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/beeai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
       },
     },
   },
