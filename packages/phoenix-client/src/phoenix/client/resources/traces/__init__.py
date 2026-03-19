@@ -360,7 +360,9 @@ class Traces:
             order (Optional[Literal["asc", "desc"]]): Sort direction.
                 Defaults to "desc" on the server.
             include_spans (bool): If True, include full span details for each trace.
-                Defaults to False.
+                Defaults to False. Caution: including spans can significantly increase
+                response payload size and degrade performance for traces with many spans.
+                If you experience performance issues, consider fetching spans separately.
             session_ids (Optional[Sequence[str]]): Filter by session IDs or GlobalIDs.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
@@ -386,25 +388,23 @@ class Traces:
         cursor: Optional[str] = None
         page_size = min(100, limit)
 
+        base_params: dict[str, Union[int, str, bool, Sequence[str]]] = {}
+        if start_time:
+            base_params["start_time"] = start_time.isoformat()
+        if end_time:
+            base_params["end_time"] = end_time.isoformat()
+        if sort:
+            base_params["sort"] = sort
+        if order:
+            base_params["order"] = order
+        if include_spans:
+            base_params["include_spans"] = True
+        if session_ids:
+            base_params["session_identifier"] = list(session_ids)
+
         while len(all_traces) < limit:
             remaining = limit - len(all_traces)
-            current_page_size = min(page_size, remaining)
-
-            params: dict[str, Union[int, str, bool, Sequence[str]]] = {
-                "limit": current_page_size,
-            }
-            if start_time:
-                params["start_time"] = start_time.isoformat()
-            if end_time:
-                params["end_time"] = end_time.isoformat()
-            if sort:
-                params["sort"] = sort
-            if order:
-                params["order"] = order
-            if include_spans:
-                params["include_spans"] = True
-            if session_ids:
-                params["session_identifier"] = list(session_ids)
+            params = {**base_params, "limit": min(page_size, remaining)}
             if cursor:
                 params["cursor"] = cursor
 
@@ -753,7 +753,9 @@ class AsyncTraces:
             order (Optional[Literal["asc", "desc"]]): Sort direction.
                 Defaults to "desc" on the server.
             include_spans (bool): If True, include full span details for each trace.
-                Defaults to False.
+                Defaults to False. Caution: including spans can significantly increase
+                response payload size and degrade performance for traces with many spans.
+                If you experience performance issues, consider fetching spans separately.
             session_ids (Optional[Sequence[str]]): Filter by session IDs or GlobalIDs.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
@@ -779,25 +781,23 @@ class AsyncTraces:
         cursor: Optional[str] = None
         page_size = min(100, limit)
 
+        base_params: dict[str, Union[int, str, bool, Sequence[str]]] = {}
+        if start_time:
+            base_params["start_time"] = start_time.isoformat()
+        if end_time:
+            base_params["end_time"] = end_time.isoformat()
+        if sort:
+            base_params["sort"] = sort
+        if order:
+            base_params["order"] = order
+        if include_spans:
+            base_params["include_spans"] = True
+        if session_ids:
+            base_params["session_identifier"] = list(session_ids)
+
         while len(all_traces) < limit:
             remaining = limit - len(all_traces)
-            current_page_size = min(page_size, remaining)
-
-            params: dict[str, Union[int, str, bool, Sequence[str]]] = {
-                "limit": current_page_size,
-            }
-            if start_time:
-                params["start_time"] = start_time.isoformat()
-            if end_time:
-                params["end_time"] = end_time.isoformat()
-            if sort:
-                params["sort"] = sort
-            if order:
-                params["order"] = order
-            if include_spans:
-                params["include_spans"] = True
-            if session_ids:
-                params["session_identifier"] = list(session_ids)
+            params = {**base_params, "limit": min(page_size, remaining)}
             if cursor:
                 params["cursor"] = cursor
 
