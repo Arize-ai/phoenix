@@ -79,15 +79,12 @@ describe("Dataset Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("name");
-      expect(output).toContain("examples");
+      expect(output).toContain("NAME");
+      expect(output).toContain("EXAMPLES");
       expect(output).toContain("test-dataset");
       expect(output).toContain("abc123def456");
       expect(output).toContain("100");
       expect(output).toContain("A test dataset for unit tests");
-      // table borders
-      expect(output).toContain("┌");
-      expect(output).toContain("┘");
     });
 
     it("should handle datasets without description", () => {

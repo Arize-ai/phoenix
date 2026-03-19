@@ -92,14 +92,11 @@ describe("Annotation Config Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("name");
+      expect(output).toContain("NAME");
       expect(output).toContain("quality");
       expect(output).toContain("cat-id-001");
       expect(output).toContain("CATEGORICAL");
       expect(output).toContain("Quality rating");
-      // table borders
-      expect(output).toContain("┌");
-      expect(output).toContain("┘");
     });
 
     it("should handle null description as empty string", () => {
@@ -149,7 +146,7 @@ describe("Annotation Config Formatting", () => {
         configs: [mockCategorical],
       });
 
-      expect(output).toContain("name");
+      expect(output).toContain("NAME");
       expect(output).toContain("quality");
     });
   });

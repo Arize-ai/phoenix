@@ -21,9 +21,52 @@ describe("formatTable", () => {
     );
     expect(result).toContain("alice");
     expect(result).toContain("bob");
-    // Headers present
-    expect(result).toContain("name");
-    expect(result).toContain("age");
+  });
+
+  it("uppercases headers", () => {
+    const result = formatTable(
+      [{ name: "alice", age: 30 }],
+      { maxWidth: 120 }
+    );
+    expect(result).toContain("NAME");
+    expect(result).toContain("AGE");
+    // Original casing should not appear as a header
+    const lines = result.split("\n");
+    expect(lines[0]).toBe("NAME   AGE");
+    // Second line should be the separator
+    expect(lines[1]).toBe("─────  ───");
+  });
+
+  it("does not contain box-drawing border characters (except ─ in separator)", () => {
+    const result = formatTable(
+      [{ name: "alice", age: 30 }],
+      { maxWidth: 120 }
+    );
+    for (const ch of ["┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼", "│"]) {
+      expect(result).not.toContain(ch);
+    }
+  });
+
+  it("renders a separator line matching column widths", () => {
+    const result = formatTable(
+      [
+        { name: "default", description: "Default project", id: "UHJvamVjdDox" },
+        { name: "SESSIONS-DEMO", description: "", id: "UHJvamVjdDo1" },
+      ],
+      { maxWidth: 200 }
+    );
+    const lines = result.split("\n");
+    const separator = lines[1]!;
+    // Separator should only contain ─ and spaces
+    expect(separator).toMatch(/^[─ ]+$/);
+    // Each column segment should match the header column width
+    const headerParts = lines[0]!.match(/\S+(\s+|$)/g)!;
+    const sepParts = separator.split("  ");
+    expect(sepParts.length).toBe(headerParts.length);
+    for (const part of sepParts) {
+      // Each segment is all ─
+      expect(part).toMatch(/^─+$/);
+    }
   });
 
   it("truncates wide columns to fit within maxWidth", () => {
@@ -65,29 +108,26 @@ describe("fitColumnsToWidth", () => {
     const result = fitColumnsToWidth({
       naturalWidths: [5, 3],
       terminalWidth: 200,
-      columnCount: 2,
     });
     expect(result).toEqual([5, 3]);
   });
 
   it("shrinks the widest column first", () => {
-    // 2 columns: overhead = 3*2 + 1 = 7
-    // natural widths [20, 5] → total = 20 + 5 + 7 = 32
-    // target = 25 → need to shrink by 7, all from the wide column
+    // 2 columns: overhead = 2 * (2 - 1) = 2
+    // natural widths [20, 5] → total = 20 + 5 + 2 = 27
+    // target = 20 → need to shrink by 7, all from the wide column
     const result = fitColumnsToWidth({
       naturalWidths: [20, 5],
-      terminalWidth: 25,
-      columnCount: 2,
+      terminalWidth: 20,
     });
     expect(result).toEqual([13, 5]);
-    // Verify: 13 + 5 + 7 = 25
+    // Verify: 13 + 5 + 2 = 20
   });
 
   it("stops shrinking at MIN_COL_WIDTH", () => {
     const result = fitColumnsToWidth({
       naturalWidths: [10, 10],
       terminalWidth: 5, // impossibly small
-      columnCount: 2,
     });
     // Both should be at minimum (4)
     expect(result).toEqual([4, 4]);

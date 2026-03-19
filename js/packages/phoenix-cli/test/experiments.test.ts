@@ -118,16 +118,13 @@ describe("Experiments Formatting", () => {
         format: "pretty",
       });
 
-      expect(output).toContain("id");
+      expect(output).toContain("ID");
       expect(output).toContain("exp-abc123");
       expect(output).toContain("my-project");
       expect(output).toContain("ds-123");
       expect(output).toContain("10"); // examples
       expect(output).toContain("8"); // successful
       expect(output).toContain("2"); // failed
-      // table borders
-      expect(output).toContain("┌");
-      expect(output).toContain("┘");
     });
 
     it("should handle experiments without project name", () => {

@@ -102,9 +102,9 @@ describe("Dataset Examples Formatting", () => {
       expect(output).toContain("Version: RGF0YXNldFZlcnNpb246MQ==");
       expect(output).toContain("Examples: 2");
       expect(output).toContain("RGF0YXNldEV4YW1wbGU6MQ==");
-      expect(output).toContain("│ id");
-      expect(output).toContain("│ input");
-      expect(output).toContain("│ output");
+      expect(output).toContain("ID");
+      expect(output).toContain("INPUT");
+      expect(output).toContain("OUTPUT");
     });
 
     it("should show dataset ID if no name provided", () => {
@@ -170,7 +170,7 @@ describe("Dataset Examples Formatting", () => {
 
       // Should contain the example data in a table
       expect(output).toContain("example-1");
-      expect(output).toContain("│ id");
+      expect(output).toContain("ID");
     });
   });
 
@@ -181,7 +181,7 @@ describe("Dataset Examples Formatting", () => {
       });
 
       expect(output).toContain("Dataset:");
-      expect(output).toContain("│ id");
+      expect(output).toContain("ID");
     });
   });
 });

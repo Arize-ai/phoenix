@@ -3,6 +3,9 @@ export interface FormatTableOptions {
   maxWidth?: number;
 }
 
+/** Whitespace inserted between adjacent columns. */
+const COLUMN_GAP = "  ";
+
 /**
  * Formats an array of flat objects as an ASCII table suitable for terminal output.
  *
@@ -20,12 +23,10 @@ export interface FormatTableOptions {
  *   { name: "my-dataset", examples: 3, created: "1/1/2026" },
  *   { name: "other",      examples: 10, created: "2/1/2026" },
  * ]);
- * // ┌────────────┬──────────┬──────────┐
- * // │ name       │ examples │ created  │
- * // ├────────────┼──────────┼──────────┤
- * // │ my-dataset │ 3        │ 1/1/2026 │
- * // │ other      │ 10       │ 2/1/2026 │
- * // └────────────┴──────────┴──────────┘
+ * // NAME        EXAMPLES  CREATED
+ * // ──────────  ────────  ────────
+ * // my-dataset  3         1/1/2026
+ * // other       10        2/1/2026
  */
 export function formatTable(
   rows: Record<string, unknown>[],
@@ -53,40 +54,18 @@ export function formatTable(
     )
   );
 
-  const colWidths = fitColumnsToWidth({
-    naturalWidths,
-    terminalWidth,
-    columnCount: headers.length,
-  });
+  const colWidths = fitColumnsToWidth({ naturalWidths, terminalWidth });
 
-  const top =
-    "┌" + colWidths.map((width) => "─".repeat(width + 2)).join("┬") + "┐";
-  const mid =
-    "├" + colWidths.map((width) => "─".repeat(width + 2)).join("┼") + "┤";
-  const bot =
-    "└" + colWidths.map((width) => "─".repeat(width + 2)).join("┴") + "┘";
+  const formatRow = (cells: string[]) =>
+    cells
+      .map((cell, i) => truncateCell(cell, colWidths[i]!))
+      .join(COLUMN_GAP);
 
-  const headerRow =
-    "│" +
-    headers
-      .map(
-        (header, colIndex) => ` ${truncateCell(header, colWidths[colIndex]!)} `
-      )
-      .join("│") +
-    "│";
+  const headerRow = formatRow(headers.map((h) => h.toUpperCase()));
+  const separator = colWidths.map((w) => "─".repeat(w)).join(COLUMN_GAP);
+  const dataRows = stringRows.map(formatRow);
 
-  const dataRows = stringRows.map(
-    (row) =>
-      "│" +
-      row
-        .map(
-          (cell, colIndex) => ` ${truncateCell(cell, colWidths[colIndex]!)} `
-        )
-        .join("│") +
-      "│"
-  );
-
-  return [top, headerRow, mid, ...dataRows, bot].join("\n");
+  return headerRow + "\n" + separator + "\n" + dataRows.join("\n");
 }
 
 /** Minimum characters a column can be shrunk to (not counting padding/borders). */
@@ -101,23 +80,14 @@ const MIN_COL_WIDTH = 4;
 export function fitColumnsToWidth({
   naturalWidths,
   terminalWidth,
-  columnCount,
 }: {
   naturalWidths: number[];
   terminalWidth: number;
-  columnCount: number;
 }): number[] {
   const widths = [...naturalWidths];
 
-  // Fixed overhead: outer borders (2 chars) + inner separators + padding (3 per col: space-content-space│)
-  // Each column uses: 1 (border) + 1 (pad) + width + 1 (pad) = width + 3
-  // Total: 1 (left border) + sum(width + 3) + ... but last col ends with │ already counted
-  // Actual: "│" + columns joined by "│" + "│"
-  //   = 1 + columnCount * (1 + width + 1) + (columnCount - 1) * 1 + ... hmm let me think.
-  // "│ cell │ cell │" -> 1 + (w+2) + 1 + (w+2) + 1 = 2*w + 4 + 3 = nope, let me just count:
-  // For N columns: "│" + N * " {cell} " joined by "│" + "│"
-  //   = 1 + N*(w+2) + (N-1)*1 + 1 = N*w + 2*N + N - 1 + 2 = N*w + 3*N + 1
-  const fixedOverhead = 3 * columnCount + 1;
+  // Fixed overhead: gaps between columns, no borders or padding.
+  const fixedOverhead = COLUMN_GAP.length * (widths.length - 1);
 
   const tableWidth = () =>
     widths.reduce((sum, width) => sum + width, 0) + fixedOverhead;

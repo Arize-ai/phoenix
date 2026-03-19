@@ -195,7 +195,7 @@ describe("Output Formatting", () => {
 
       const output = formatProjectsOutput({ projects, format: "pretty" });
 
-      expect(output).toContain("name");
+      expect(output).toContain("NAME");
       expect(output).toContain("default");
       expect(output).toContain("UHJvamVjdDox");
       expect(output).toContain("Default project");
