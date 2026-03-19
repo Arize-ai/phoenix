@@ -90,7 +90,7 @@ dev = [
   "beautifulsoup4",
   "boto3",
   "debugpy",
-  "deepdiff==8.6.1",
+  "deepdiff==8.6.2",
   "diskcache",
   "Faker>=30.1.0",
   "freezegun",
